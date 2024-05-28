@@ -8,6 +8,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -40,6 +41,8 @@ type CustomAgentDeployer struct {
 
 	runTearDown  bool
 	runTestsOnly bool
+
+	logger *slog.Logger
 }
 
 type CustomAgentDeployerOptions struct {
@@ -50,12 +53,19 @@ type CustomAgentDeployerOptions struct {
 
 	RunTearDown  bool
 	RunTestsOnly bool
+
+	Logger *slog.Logger
 }
 
 var _ ServiceDeployer = new(CustomAgentDeployer)
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
+	logger := logger.Logger
+	if logger != nil {
+		logger = options.Logger
+	}
+	logger = logger.With(slog.String("service.deployer", "custom agent"))
 	return &CustomAgentDeployer{
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
@@ -63,6 +73,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		policyName:        options.PolicyName,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
+		logger:            logger,
 	}, nil
 }
 
@@ -111,11 +122,13 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
+		logger: d.logger,
 	}
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  service.project,
-		Paths: service.ymlPaths,
+		Name:   service.project,
+		Paths:  service.ymlPaths,
+		Logger: d.logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -132,7 +145,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debugf("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
+		d.logger.Debug("Skipping removing service logs folder folder", slog.String("path", svcInfo.Logs.Folder.Local))
 	} else {
 		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {
@@ -149,7 +162,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	}
 
 	if d.runTestsOnly || d.runTearDown {
-		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
+		d.logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
 		err = p.Up(ctx, opts)
 		if err != nil {
@@ -158,9 +171,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 		// TODO: if this agent is moved to "agentdeployer", this container should be connected
 		// to the network of the agent as done in servicedeployer/compose.go
+		dk := docker.NewDocker(docker.WithLogger(d.logger))
 
 		// Connect service network with stack network (for the purpose of metrics collection)
-		err = docker.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
+		err = dk.ConnectToNetwork(p.ContainerName(serviceName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 		}
@@ -171,11 +185,11 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	if err != nil {
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, svcInfo.Name, d.logger)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
-	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
+	d.logger.Debug("adding service container internal ports to context", slog.String("service", p.ContainerName(serviceName)))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)

@@ -201,8 +201,9 @@ func withIsReadyServices(services []string) []string {
 
 func dockerComposeStatus(_ context.Context, options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
+	d := docker.NewDocker(docker.WithLogger(options.Logger))
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
+	containerIDs, err := d.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +212,7 @@ func dockerComposeStatus(_ context.Context, options Options) ([]ServiceStatus, e
 		return services, nil
 	}
 
-	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	containerDescriptions, err := d.InspectContainers(containerIDs...)
 	if err != nil {
 		return nil, err
 	}

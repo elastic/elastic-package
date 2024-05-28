@@ -44,7 +44,8 @@ func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 	stackNetwork := stack.Network(profile)
 	logger.Debugf("check network connectivity between service container %s (ID: %s) and the stack network %s", ControlPlaneContainerName, containerID, stackNetwork)
 
-	networkDescriptions, err := docker.InspectNetwork(stackNetwork)
+	d := docker.NewDocker()
+	networkDescriptions, err := d.InspectNetwork(stackNetwork)
 	if err != nil {
 		return fmt.Errorf("can't inspect network: %w", err)
 	}
@@ -60,7 +61,7 @@ func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 	}
 
 	logger.Debugf("attach %s container (ID: %s) to stack network %s", ControlPlaneContainerName, containerID, stackNetwork)
-	err = docker.ConnectToNetwork(containerID, stackNetwork)
+	err = d.ConnectToNetwork(containerID, stackNetwork)
 	if err != nil {
 		return fmt.Errorf("can't connect to the Elastic stack network: %w", err)
 	}
@@ -70,7 +71,8 @@ func ConnectToElasticStackNetwork(profile *profile.Profile) error {
 func controlPlaneContainerID() (string, error) {
 	logger.Debugf("find \"%s\" container", ControlPlaneContainerName)
 
-	containerID, err := docker.ContainerID(ControlPlaneContainerName)
+	d := docker.NewDocker()
+	containerID, err := d.ContainerID(ControlPlaneContainerName)
 	if err != nil {
 		return "", fmt.Errorf("can't find container ID, make sure you have run \"kind create cluster\": %w", err)
 	}

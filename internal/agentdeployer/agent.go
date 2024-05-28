@@ -10,6 +10,7 @@ import (
 	"embed"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -55,6 +56,8 @@ type DockerComposeAgentDeployer struct {
 
 	runTearDown  bool
 	runTestsOnly bool
+
+	logger *slog.Logger
 }
 
 type DockerComposeAgentDeployerOptions struct {
@@ -67,6 +70,8 @@ type DockerComposeAgentDeployerOptions struct {
 
 	RunTearDown  bool
 	RunTestsOnly bool
+
+	Logger *slog.Logger
 }
 
 var _ AgentDeployer = new(DockerComposeAgentDeployer)
@@ -77,12 +82,19 @@ type dockerComposeDeployedAgent struct {
 	ymlPaths []string
 	project  string
 	env      []string
+
+	logger *slog.Logger
 }
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
 
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
+	logger := logger.Logger
+	if logger != nil {
+		logger = options.Logger
+	}
+	logger = logger.With(slog.String("agent.deployer", "docker"))
 	return &DockerComposeAgentDeployer{
 		profile:      options.Profile,
 		stackVersion: options.StackVersion,
@@ -91,12 +103,13 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 		policyName:   options.PolicyName,
 		runTearDown:  options.RunTearDown,
 		runTestsOnly: options.RunTestsOnly,
+		logger:       logger,
 	}, nil
 }
 
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
-	logger.Debug("setting up agent using Docker Compose agent deployer")
+	d.logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
 	appConfig, err := install.Configuration()
@@ -128,14 +141,16 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		ymlPaths: []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
 		project:  composeProjectName,
 		env:      env,
+		logger:   d.logger,
 	}
 
 	agentInfo.ConfigDir = configDir
 	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  agent.project,
-		Paths: agent.ymlPaths,
+		Name:   agent.project,
+		Paths:  agent.ymlPaths,
+		Logger: d.logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
@@ -152,7 +167,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debugf("Skipping removing service logs folder %s", agentInfo.Logs.Folder.Local)
+		d.logger.Debug("Skipping removing service logs folder", slog.String("path", agentInfo.Logs.Folder.Local))
 	} else {
 		err = files.RemoveContent(agentInfo.Logs.Folder.Local)
 		if err != nil {
@@ -170,14 +185,15 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	}
 
 	if d.runTestsOnly || d.runTearDown {
-		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
+		d.logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
 		err = p.Up(ctx, opts)
 		if err != nil {
 			return nil, fmt.Errorf("could not boot up agent using Docker Compose: %w", err)
 		}
+		dk := docker.NewDocker(docker.WithLogger(d.logger))
 		// Connect service network with stack network (for the purpose of metrics collection)
-		err = docker.ConnectToNetwork(p.ContainerName(agentName), stack.Network(d.profile))
+		err = dk.ConnectToNetwork(p.ContainerName(agentName), stack.Network(d.profile))
 		if err != nil {
 			return nil, fmt.Errorf("can't attach agent container to the stack network: %w", err)
 		}
@@ -198,7 +214,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// probably because it is in another compose project in case of ti_anomali?.
 	agentInfo.Hostname = d.agentHostname()
 
-	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(agentName))
+	d.logger.Debug("adding agent container internal ports to context", slog.String("agent", p.ContainerName(agentName)))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{Env: env})
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
@@ -367,8 +383,9 @@ func processApplyErrors(results resource.ApplyResults) string {
 // ExitCode returns true if the agent is exited and its exit code.
 func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, error) {
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
@@ -382,8 +399,9 @@ func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, e
 // Logs returns the logs from the agent starting at the given time
 func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
@@ -396,22 +414,23 @@ func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]b
 
 // TearDown tears down the agent.
 func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
-	logger.Debugf("tearing down agent using Docker Compose runner")
+	s.logger.Debug("tearing down agent using Docker Compose runner")
 	defer func() {
 		// Remove the service logs dir for this agent
 		if err := os.RemoveAll(s.agentInfo.Logs.Folder.Local); err != nil {
-			logger.Errorf("could not remove the agent logs (path: %s): %s", s.agentInfo.Logs.Folder.Local, err)
+			s.logger.Error("could not remove the agent logs", slog.String("path.logs", s.agentInfo.Logs.Folder.Local), slog.Any("error", err))
 		}
 
 		// Remove the configuration dir for this agent (e.g. compose scenario files)
 		if err := os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
-			logger.Errorf("could not remove the agent configuration directory (path: %s) %s", s.agentInfo.ConfigDir, err)
+			s.logger.Error("could not remove the agent configuration directory", slog.String("path.config", s.agentInfo.ConfigDir), slog.Any("error", err))
 		}
 	}()
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)

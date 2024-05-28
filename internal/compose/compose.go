@@ -391,13 +391,14 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 	ctx, stop := context.WithTimeout(ctx, waitForHealthyTimeout)
 	defer stop()
 
+	d := docker.NewDocker(docker.WithLogger(p.logger))
 	containerIDs := strings.Fields(b.String())
 	for {
 		// NOTE: healthy must be reinitialized at each iteration
 		healthy := true
 
 		log.Debug("Wait for healthy containers", slog.String("containers", strings.Join(containerIDs, ",")))
-		descriptions, err := docker.InspectContainers(containerIDs...)
+		descriptions, err := d.InspectContainers(containerIDs...)
 		if err != nil {
 			return err
 		}
@@ -459,13 +460,15 @@ func (p *Project) ServiceExitCode(ctx context.Context, service string, opts Comm
 		return false, -1, err
 	}
 
+	d := docker.NewDocker(docker.WithLogger(p.logger))
+
 	containerIDs := strings.Fields(b.String())
 	if len(containerIDs) != 1 {
 		return false, -1, fmt.Errorf("expected to find one service container named: %s, found: %d", service, len(containerIDs))
 	}
 	containerID := containerIDs[0]
 
-	containerDescriptions, err := docker.InspectContainers(containerID)
+	containerDescriptions, err := d.InspectContainers(containerID)
 	if err != nil {
 		return false, -1, err
 	}

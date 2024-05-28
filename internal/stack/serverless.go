@@ -497,7 +497,7 @@ func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 		return nil
 	}
 
-	err := runOnLocalServices(sp.composeProjectName(), serviceStatusFunc)
+	err := runOnLocalServices(sp.composeProjectName(), sp.logger, serviceStatusFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -505,14 +505,14 @@ func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	return services, nil
 }
 
-func localServiceNames(project string) ([]string, error) {
+func localServiceNames(project string, log *slog.Logger) ([]string, error) {
 	services := []string{}
 	serviceFunc := func(description docker.ContainerDescription) error {
 		services = append(services, description.Config.Labels[serviceLabelDockerCompose])
 		return nil
 	}
 
-	err := runOnLocalServices(project, serviceFunc)
+	err := runOnLocalServices(project, log, serviceFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -520,9 +520,10 @@ func localServiceNames(project string) ([]string, error) {
 	return services, nil
 }
 
-func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescription) error) error {
+func runOnLocalServices(project string, log *slog.Logger, serviceFunc func(docker.ContainerDescription) error) error {
+	d := docker.NewDocker(docker.WithLogger(log))
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, project)
+	containerIDs, err := d.ContainerIDsWithLabel(projectLabelDockerCompose, project)
 	if err != nil {
 		return err
 	}
@@ -531,7 +532,7 @@ func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescrip
 		return nil
 	}
 
-	containerDescriptions, err := docker.InspectContainers(containerIDs...)
+	containerDescriptions, err := d.InspectContainers(containerIDs...)
 	if err != nil {
 		return err
 	}

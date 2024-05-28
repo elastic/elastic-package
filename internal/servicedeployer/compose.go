@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -32,6 +33,8 @@ type DockerComposeServiceDeployer struct {
 
 	runTearDown  bool
 	runTestsOnly bool
+
+	logger *slog.Logger
 }
 
 type DockerComposeServiceDeployerOptions struct {
@@ -43,6 +46,8 @@ type DockerComposeServiceDeployerOptions struct {
 
 	RunTearDown  bool
 	RunTestsOnly bool
+
+	Logger *slog.Logger
 }
 
 type dockerComposeDeployedService struct {
@@ -54,12 +59,19 @@ type dockerComposeDeployedService struct {
 	project  string
 	variant  ServiceVariant
 	env      []string
+
+	logger *slog.Logger
 }
 
 var _ ServiceDeployer = new(DockerComposeServiceDeployer)
 
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
+	logger := logger.Logger
+	if logger != nil {
+		logger = options.Logger
+	}
+	logger = logger.With(slog.String("service.deployer", "compose"))
 	return &DockerComposeServiceDeployer{
 		profile:                options.Profile,
 		ymlPaths:               options.YmlPaths,
@@ -67,12 +79,13 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 		runTearDown:            options.RunTearDown,
 		runTestsOnly:           options.RunTestsOnly,
 		deployIndependentAgent: options.DeployIndependentAgent,
+		logger:                 logger,
 	}, nil
 }
 
 // SetUp sets up the service and returns any relevant information.
 func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
-	logger.Debug("setting up service using Docker Compose service deployer")
+	d.logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
 		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
@@ -80,11 +93,13 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
 		},
+		logger: d.logger,
 	}
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  service.project,
-		Paths: service.ymlPaths,
+		Name:   service.project,
+		Paths:  service.ymlPaths,
+		Logger: d.logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -101,7 +116,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debugf("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
+		d.logger.Debug("Skipping removing service logs folder folder", slog.String("folder", svcInfo.Logs.Folder.Local))
 	} else {
 		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {
@@ -135,7 +150,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	if err != nil {
 		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, svcInfo.Name, d.logger)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
@@ -146,6 +161,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	//   This is mainly applicable when the Elastic Agent of the stack is used for testing.
 	// - Keep the same alias for both implementations for consistency
 	aliasContainer := fmt.Sprintf("svc-%s", serviceName)
+	dk := docker.NewDocker(docker.WithLogger(d.logger))
 	if d.runTearDown || d.runTestsOnly {
 		logger.Debug("Skipping connect container to network (non setup steps)")
 	} else {
@@ -154,14 +170,14 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		}
 		if d.deployIndependentAgent {
 			// Connect service network with agent network
-			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, aliases)
+			err = dk.ConnectToNetworkWithAlias(p.ContainerName(serviceName), svcInfo.AgentNetworkName, aliases)
 
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the agent network: %w", err)
 			}
 		} else {
 			// Connect service network with stack network (for the purpose of metrics collection)
-			err = docker.ConnectToNetworkWithAlias(p.ContainerName(serviceName), stack.Network(d.profile), aliases)
+			err = dk.ConnectToNetworkWithAlias(p.ContainerName(serviceName), stack.Network(d.profile), aliases)
 			if err != nil {
 				return nil, fmt.Errorf("can't attach service container to the stack network: %w", err)
 			}
@@ -171,7 +187,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	// Build service container name
 	svcInfo.Hostname = aliasContainer
 
-	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))
+	d.logger.Debug("adding service container internal ports to context", slog.String("service", p.ContainerName(serviceName)))
 	serviceComposeConfig, err := p.Config(ctx, compose.CommandOptions{
 		Env: service.env,
 	})
@@ -198,8 +214,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 // Signal sends a signal to the service.
 func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string) error {
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -225,8 +242,9 @@ func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string
 // ExitCode returns true if the service is exited and its exit code.
 func (s *dockerComposeDeployedService) ExitCode(ctx context.Context, service string) (bool, int, error) {
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -243,21 +261,22 @@ func (s *dockerComposeDeployedService) ExitCode(ctx context.Context, service str
 
 // TearDown tears down the service.
 func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
-	logger.Debugf("tearing down service using Docker Compose runner")
+	s.logger.Debug("tearing down service using Docker Compose runner")
 	defer func() {
 		err := files.RemoveContent(s.svcInfo.Logs.Folder.Local)
 		if err != nil {
-			logger.Errorf("could not remove the service logs (path: %s)", s.svcInfo.Logs.Folder.Local)
+			s.logger.Error("could not remove the service logs", slog.String("path", s.svcInfo.Logs.Folder.Local))
 		}
 		// Remove the outputs generated by the service container
 		if err = os.RemoveAll(s.svcInfo.OutputDir); err != nil {
-			logger.Errorf("could not remove the temporary output files %s", err)
+			s.logger.Error("could not remove the temporary output files", slog.Any("error", err))
 		}
 	}()
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  s.project,
-		Paths: s.ymlPaths,
+		Name:   s.project,
+		Paths:  s.ymlPaths,
+		Logger: s.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -282,7 +301,7 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
 	}
 
-	processServiceContainerLogs(ctx, p, opts, s.svcInfo.Name)
+	processServiceContainerLogs(ctx, p, opts, s.svcInfo.Name, s.logger)
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
@@ -304,25 +323,25 @@ func (s *dockerComposeDeployedService) SetInfo(ctxt ServiceInfo) error {
 	return nil
 }
 
-func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, serviceName string) {
+func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, serviceName string, l *slog.Logger) {
 	content, err := p.Logs(ctx, opts)
 	if err != nil {
-		logger.Errorf("can't export service logs: %v", err)
+		l.Error("can't export service logs", slog.Any("error", err))
 		return
 	}
 
 	if len(content) == 0 {
-		logger.Info("service container hasn't written anything logs.")
+		l.Info("service container hasn't written anything logs.")
 		return
 	}
 
-	err = writeServiceContainerLogs(serviceName, content)
+	err = writeServiceContainerLogs(serviceName, content, l)
 	if err != nil {
-		logger.Errorf("can't write service container logs: %v", err)
+		l.Error("can't write service container logs", slog.Any("error", err))
 	}
 }
 
-func writeServiceContainerLogs(serviceName string, content []byte) error {
+func writeServiceContainerLogs(serviceName string, content []byte, l *slog.Logger) error {
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return fmt.Errorf("locating build directory failed: %w", err)
@@ -335,7 +354,7 @@ func writeServiceContainerLogs(serviceName string, content []byte) error {
 	}
 
 	containerLogsFilepath := filepath.Join(containerLogsDir, fmt.Sprintf("%s-%d.log", serviceName, time.Now().UnixNano()))
-	logger.Infof("Write container logs to file: %s", containerLogsFilepath)
+	l.Info("Write container logs to file", slog.String("path", containerLogsFilepath))
 	err = os.WriteFile(containerLogsFilepath, content, 0644)
 	if err != nil {
 		return fmt.Errorf("can't write container logs to file (path: %s): %w", containerLogsFilepath, err)

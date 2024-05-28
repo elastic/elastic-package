@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"strings"
@@ -53,8 +54,31 @@ func (c *ContainerDescription) String() string {
 	return string(b)
 }
 
+type Docker struct {
+	logger *slog.Logger
+}
+
+type DockerOption func(d *Docker)
+
+func NewDocker(options ...DockerOption) *Docker {
+	d := &Docker{
+		logger: logger.Logger,
+	}
+
+	for _, option := range options {
+		option(d)
+	}
+	return d
+}
+
+func WithLogger(l *slog.Logger) DockerOption {
+	return func(d *Docker) {
+		d.logger = l
+	}
+}
+
 // Pull downloads the latest available revision of the image.
-func Pull(image string) error {
+func (d *Docker) Pull(image string) error {
 	cmd := exec.Command("docker", "pull", image)
 
 	if logger.IsDebugMode() {
@@ -71,12 +95,12 @@ func Pull(image string) error {
 }
 
 // ContainerID function returns the container ID for a given container name.
-func ContainerID(containerName string) (string, error) {
+func (d *Docker) ContainerID(containerName string) (string, error) {
 	cmd := exec.Command("docker", "ps", "--filter", "name="+containerName, "--format", "{{.ID}}")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	d.logger.Debug("output command", slog.String("cmd", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("could not find \"%s\" container (stderr=%q): %w", containerName, errOutput.String(), err)
@@ -89,13 +113,13 @@ func ContainerID(containerName string) (string, error) {
 }
 
 // ContainerIDsWithLabel function returns all the container IDs filtering per label.
-func ContainerIDsWithLabel(key, value string) ([]string, error) {
+func (d *Docker) ContainerIDsWithLabel(key, value string) ([]string, error) {
 	label := fmt.Sprintf("%s=%s", key, value)
 	cmd := exec.Command("docker", "ps", "-a", "--filter", "label="+label, "--format", "{{.ID}}")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	d.logger.Debug("output command", slog.String("cmd", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return []string{}, fmt.Errorf("error getting containers with label \"%s\" (stderr=%q): %w", label, errOutput.String(), err)
@@ -105,12 +129,12 @@ func ContainerIDsWithLabel(key, value string) ([]string, error) {
 }
 
 // InspectNetwork function returns the network description for the selected network.
-func InspectNetwork(network string) ([]NetworkDescription, error) {
+func (d *Docker) InspectNetwork(network string) ([]NetworkDescription, error) {
 	cmd := exec.Command("docker", "network", "inspect", network)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	d.logger.Debug("output command", slog.String("cmd", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("could not inspect the network (stderr=%q): %w", errOutput.String(), err)
@@ -125,12 +149,12 @@ func InspectNetwork(network string) ([]NetworkDescription, error) {
 }
 
 // ConnectToNetwork function connects the container to the selected Docker network.
-func ConnectToNetwork(containerID, network string) error {
-	return ConnectToNetworkWithAlias(containerID, network, []string{})
+func (d *Docker) ConnectToNetwork(containerID, network string) error {
+	return d.ConnectToNetworkWithAlias(containerID, network, []string{})
 }
 
 // ConnectToNetworkWithAlias function connects the container to the selected Docker network.
-func ConnectToNetworkWithAlias(containerID, network string, aliases []string) error {
+func (d *Docker) ConnectToNetworkWithAlias(containerID, network string, aliases []string) error {
 	args := []string{"network", "connect", network, containerID}
 	if len(aliases) > 0 {
 		for _, alias := range aliases {
@@ -141,7 +165,7 @@ func ConnectToNetworkWithAlias(containerID, network string, aliases []string) er
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", cmd)
+	d.logger.Debug("output command", slog.String("cmd", cmd.String()))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("could not attach container to the stack network (stderr=%q): %w", errOutput.String(), err)
 	}
@@ -149,7 +173,7 @@ func ConnectToNetworkWithAlias(containerID, network string, aliases []string) er
 }
 
 // InspectContainers function inspects selected Docker containers.
-func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
+func (d *Docker) InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	args := []string{"inspect"}
 	args = append(args, containerIDs...)
 	cmd := exec.Command("docker", args...)
@@ -157,7 +181,7 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	d.logger.Debug("output command", slog.String("cmd", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("could not inspect containers (stderr=%q): %w", errOutput.String(), err)
@@ -172,12 +196,12 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 }
 
 // Copy function copies resources from the container to the local destination.
-func Copy(containerName, containerPath, localPath string) error {
+func (d *Docker) Copy(containerName, containerPath, localPath string) error {
 	cmd := exec.Command("docker", "cp", containerName+":"+containerPath, localPath)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", cmd)
+	d.logger.Debug("run command", slog.String("cmd", cmd.String()))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("could not copy files from the container (stderr=%q): %w", errOutput.String(), err)
 	}

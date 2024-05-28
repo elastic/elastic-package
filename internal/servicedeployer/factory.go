@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -39,6 +40,8 @@ type FactoryOptions struct {
 	RunTearDown  bool
 	RunTestsOnly bool
 	RunSetup     bool
+
+	Logger *slog.Logger
 }
 
 // Factory chooses the appropriate service runner for the given data stream, depending
@@ -68,6 +71,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
 				DeployIndependentAgent: options.DeployIndependentAgent,
+				Logger:                 options.Logger,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -85,6 +89,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				RunTearDown:            options.RunTearDown,
 				RunTestsOnly:           options.RunTestsOnly,
 				DeployIndependentAgent: options.DeployIndependentAgent,
+				Logger:                 options.Logger,
 			}
 			return NewDockerComposeServiceDeployer(opts)
 		}
@@ -107,6 +112,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,
+			Logger:       options.Logger,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "tf":
@@ -116,6 +122,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := TerraformServiceDeployerOptions{
 				DefinitionsDir: serviceDeployerPath,
+				Logger:         options.Logger,
 			}
 			return NewTerraformServiceDeployer(opts)
 		}

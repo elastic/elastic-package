@@ -10,6 +10,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,8 @@ type KubernetesServiceDeployer struct {
 	runSetup     bool
 	runTestsOnly bool
 	runTearDown  bool
+
+	logger *slog.Logger
 }
 
 type KubernetesServiceDeployerOptions struct {
@@ -48,6 +51,8 @@ type KubernetesServiceDeployerOptions struct {
 	RunSetup     bool
 	RunTestsOnly bool
 	RunTearDown  bool
+
+	Logger *slog.Logger
 }
 
 type kubernetesDeployedService struct {
@@ -59,12 +64,14 @@ type kubernetesDeployedService struct {
 	deployIndependentAgent bool
 
 	definitionsDir string
+
+	logger *slog.Logger
 }
 
 func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 	if !s.deployIndependentAgent {
-		logger.Debug("Uninstall Elastic Agent Kubernetes")
-		elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.policyName)
+		s.logger.Debug("Uninstall Elastic Agent Kubernetes")
+		elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.policyName, s.logger)
 		if err != nil {
 			return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 		}
@@ -74,14 +81,14 @@ func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 		}
 	}
 
-	logger.Debugf("Uninstall custom Kubernetes definitions (directory: %s)", s.definitionsDir)
+	s.logger.Debug("Uninstall custom Kubernetes definitions", slog.String("directory", s.definitionsDir))
 	definitionPaths, err := findKubernetesDefinitions(s.definitionsDir)
 	if err != nil {
 		return fmt.Errorf("can't find Kubernetes definitions in given directory (path: %s): %w", s.definitionsDir, err)
 	}
 
 	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (directory: %s). Nothing will be uninstalled.", s.definitionsDir)
+		s.logger.Debug("no custom definitions found. Nothing will be uninstalled.", slog.String("directory", s.definitionsDir))
 		return nil
 	}
 
@@ -114,6 +121,11 @@ var _ DeployedService = new(kubernetesDeployedService)
 
 // NewKubernetesServiceDeployer function creates a new instance of KubernetesServiceDeployer.
 func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*KubernetesServiceDeployer, error) {
+	logger := logger.Logger
+	if logger != nil {
+		logger = opts.Logger
+	}
+	logger = logger.With(slog.String("service.deployer", "kubernetes"))
 	return &KubernetesServiceDeployer{
 		profile:                opts.Profile,
 		definitionsDir:         opts.DefinitionsDir,
@@ -123,6 +135,7 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 		runTestsOnly:           opts.RunTestsOnly,
 		runTearDown:            opts.RunTearDown,
 		deployIndependentAgent: opts.DeployIndependentAgent,
+		logger:                 logger,
 	}, nil
 }
 
@@ -144,9 +157,9 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 	}
 
 	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
-		logger.Debug("Skip install Elastic Agent in cluster")
+		ksd.logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, ksd.policyName)
+		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, ksd.policyName, ksd.logger)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -172,11 +185,12 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 		profile:                ksd.profile,
 		deployIndependentAgent: ksd.deployIndependentAgent,
 		policyName:             ksd.policyName,
+		logger:                 ksd.logger,
 	}, nil
 }
 
 func (ksd KubernetesServiceDeployer) installCustomDefinitions(ctx context.Context) error {
-	logger.Debugf("install custom Kubernetes definitions (directory: %s)", ksd.definitionsDir)
+	ksd.logger.Debug("install custom Kubernetes definitions", slog.String("directory", ksd.definitionsDir))
 
 	definitionPaths, err := findKubernetesDefinitions(ksd.definitionsDir)
 	if err != nil {
@@ -184,7 +198,7 @@ func (ksd KubernetesServiceDeployer) installCustomDefinitions(ctx context.Contex
 	}
 
 	if len(definitionPaths) == 0 {
-		logger.Debugf("no custom definitions found (path: %s). Nothing else will be installed.", ksd.definitionsDir)
+		ksd.logger.Debug("no custom definitions found. Nothing else will be installed.", slog.String("directory", ksd.definitionsDir))
 		return nil
 	}
 
@@ -208,10 +222,10 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string, l *slog.Logger) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, l)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -226,8 +240,8 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string) ([]byte, error) {
-	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string, l *slog.Logger) ([]byte, error) {
+	l.Debug("Prepare YAML definition for Elastic Agent running in stack", slog.String("stack.version", stackVersion))
 
 	appConfig, err := install.Configuration()
 	if err != nil {

@@ -18,7 +18,8 @@ func Update(ctx context.Context, options Options) error {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}
 
-	err = docker.Pull(PackageRegistryBaseImage)
+	d := docker.NewDocker(docker.WithLogger(options.Logger))
+	err = d.Pull(PackageRegistryBaseImage)
 	if err != nil {
 		return fmt.Errorf("pulling package-registry docker image failed: %w", err)
 	}

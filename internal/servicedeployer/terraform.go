@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,16 +44,18 @@ var terraformDeployerDockerfileContent string
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
 	definitionsDir string
+	logger         *slog.Logger
 }
 
 type TerraformServiceDeployerOptions struct {
 	DefinitionsDir string
+	Logger         *slog.Logger
 }
 
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
 // adds them to the custom properties of ServiceInfo and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
-func addTerraformOutputs(svcInfo *ServiceInfo) error {
+func addTerraformOutputs(svcInfo *ServiceInfo, l *slog.Logger) error {
 	// Read the `output.json` file where terraform outputs are generated
 	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJSONFile)
 	content, err := os.ReadFile(outputFile)
@@ -66,7 +69,7 @@ func addTerraformOutputs(svcInfo *ServiceInfo) error {
 	}
 
 	// Unmarshall the data into `terraformOutputs`
-	logger.Debug("Unmarshalling terraform output JSON")
+	l.Debug("Unmarshalling terraform output JSON")
 	var terraformOutputs map[string]OutputMeta
 	if err = json.Unmarshal(content, &terraformOutputs); err != nil {
 		return fmt.Errorf("error during JSON Unmarshal: %w", err)
@@ -88,14 +91,20 @@ func addTerraformOutputs(svcInfo *ServiceInfo) error {
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
+	logger := logger.Logger
+	if logger != nil {
+		logger = opts.Logger
+	}
+	logger = logger.With(slog.String("service.deployer", "kind"))
 	return &TerraformServiceDeployer{
 		definitionsDir: opts.DefinitionsDir,
+		logger:         logger,
 	}, nil
 }
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
 func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
-	logger.Debug("setting up service using Terraform deployer")
+	tsd.logger.Debug("setting up service using Terraform deployer")
 
 	configDir, err := tsd.installDockerfile()
 	if err != nil {
@@ -116,11 +125,13 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		project:         fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
+		logger:          tsd.logger,
 	}
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  service.project,
-		Paths: service.ymlPaths,
+		Name:   service.project,
+		Paths:  service.ymlPaths,
+		Logger: tsd.logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
@@ -159,14 +170,14 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, svcInfo.Name, tsd.logger)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
 
 	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
 
-	err = addTerraformOutputs(&svcInfo)
+	err = addTerraformOutputs(&svcInfo, tsd.logger)
 	if err != nil {
 		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}

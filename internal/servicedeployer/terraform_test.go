@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func TestAddTerraformOutputs(t *testing.T) {
@@ -168,7 +170,7 @@ func TestAddTerraformOutputs(t *testing.T) {
 			}
 
 			// Test that the terraform output values are generated correctly
-			err := addTerraformOutputs(&tc.svcInfo)
+			err := addTerraformOutputs(&tc.svcInfo, logger.DefaultLogger)
 			if tc.expectedError {
 				require.Error(t, err)
 				return
