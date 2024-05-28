@@ -238,6 +238,10 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 	return &serverlessProvider{profile, client, nil, nil}, nil
 }
 
+func (*serverlessProvider) Name() string {
+	return ProviderServerless
+}
+
 func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
 	logger.Warn("Elastic Serverless provider is in technical preview")
 
@@ -318,7 +322,10 @@ func (sp *serverlessProvider) composeProjectName() string {
 
 func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, error) {
 	composeFile := sp.profile.Path(ProfileStackPath, ComposeFile)
-	return compose.NewProject(sp.composeProjectName(), composeFile)
+	return compose.NewProject(compose.ProjectOptions{
+		Name:  sp.composeProjectName(),
+		Paths: []string{composeFile},
+	})
 }
 
 func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {

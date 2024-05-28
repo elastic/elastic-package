@@ -82,7 +82,10 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		},
 	}
 
-	p, err := compose.NewProject(service.project, service.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  service.project,
+		Paths: service.ymlPaths,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
@@ -194,7 +197,10 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 
 // Signal sends a signal to the service.
 func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string) error {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
@@ -218,7 +224,10 @@ func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string
 
 // ExitCode returns true if the service is exited and its exit code.
 func (s *dockerComposeDeployedService) ExitCode(ctx context.Context, service string) (bool, int, error) {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
@@ -246,7 +255,10 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		}
 	}()
 
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}

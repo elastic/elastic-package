@@ -10,6 +10,8 @@ import (
 	"os"
 )
 
+const defaultTimeFormat = "2006/01/02 15:04:05"
+
 var (
 	Logger   *slog.Logger
 	logLevel *slog.LevelVar
@@ -24,14 +26,34 @@ func SetupLogger(debugMode bool) {
 	logLevel = new(slog.LevelVar)
 	options := slog.HandlerOptions{
 		Level:     logLevel,
-		AddSource: debugMode,
+		AddSource: false,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key == slog.MessageKey {
+				a.Key = "message"
+			}
+			if a.Key == slog.TimeKey {
+				t := a.Value.Time()
+				a.Value = slog.StringValue(t.Format(defaultTimeFormat))
+			}
+			return a
+		},
 	}
-	Logger = slog.New(slog.NewJSONHandler(os.Stdout, &options))
+	Logger = slog.New(newHandler(os.Stdout, &options))
 
 	// Update default logger to start using everywhere slog
 	defaultLogLevel = new(slog.LevelVar)
-	DefaultLogger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: defaultLogLevel,
+	DefaultLogger = slog.New(newHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     defaultLogLevel,
+		AddSource: false,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			if a.Key != slog.TimeKey {
+				return a
+			}
+
+			t := a.Value.Time()
+			a.Value = slog.StringValue(t.Format(defaultTimeFormat))
+			return a
+		},
 	}))
 
 	slog.SetDefault(DefaultLogger)

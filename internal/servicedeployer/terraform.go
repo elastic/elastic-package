@@ -118,7 +118,10 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		shutdownTimeout: 300 * time.Second,
 	}
 
-	p, err := compose.NewProject(service.project, service.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  service.project,
+		Paths: service.ymlPaths,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}

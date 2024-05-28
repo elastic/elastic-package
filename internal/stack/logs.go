@@ -24,7 +24,10 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 
 	composeFile := profile.Path(ProfileStackPath, ComposeFile)
 
-	p, err := compose.NewProject(DockerComposeProjectName(profile), composeFile)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  DockerComposeProjectName(profile),
+		Paths: []string{composeFile},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -50,7 +53,9 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 }
 
 func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) (string, error) {
-	p, err := compose.NewProject(DockerComposeProjectName(profile))
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name: DockerComposeProjectName(profile),
+	})
 	if err != nil {
 		return "", fmt.Errorf("could not create docker compose project: %w", err)
 	}

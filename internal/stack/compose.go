@@ -53,7 +53,11 @@ func (eb *envBuilder) build() []string {
 }
 
 func dockerComposeBuild(ctx context.Context, options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
+	c, err := compose.NewProject(compose.ProjectOptions{
+		Name:   DockerComposeProjectName(options.Profile),
+		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: options.Logger,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -79,7 +83,11 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 }
 
 func dockerComposePull(ctx context.Context, options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
+	c, err := compose.NewProject(compose.ProjectOptions{
+		Name:   DockerComposeProjectName(options.Profile),
+		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: options.Logger,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -105,7 +113,11 @@ func dockerComposePull(ctx context.Context, options Options) error {
 }
 
 func dockerComposeUp(ctx context.Context, options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
+	c, err := compose.NewProject(compose.ProjectOptions{
+		Name:   DockerComposeProjectName(options.Profile),
+		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: options.Logger,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -137,7 +149,11 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 }
 
 func dockerComposeDown(ctx context.Context, options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
+	c, err := compose.NewProject(compose.ProjectOptions{
+		Name:   DockerComposeProjectName(options.Profile),
+		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: options.Logger,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -183,7 +199,7 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus, error) {
+func dockerComposeStatus(_ context.Context, options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))

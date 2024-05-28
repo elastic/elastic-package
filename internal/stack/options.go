@@ -5,6 +5,8 @@
 package stack
 
 import (
+	"log/slog"
+
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -17,4 +19,6 @@ type Options struct {
 
 	Profile *profile.Profile
 	Printer Printer
+
+	Logger *slog.Logger
 }

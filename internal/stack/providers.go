@@ -34,6 +34,9 @@ type Printer interface {
 
 // Provider is the implementation of a stack provider.
 type Provider interface {
+	// Name returns provider name
+	Name() string
+
 	// BootUp starts a stack.
 	BootUp(context.Context, Options) error
 
@@ -62,6 +65,10 @@ func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 }
 
 type composeProvider struct{}
+
+func (*composeProvider) Name() string {
+	return ProviderCompose
+}
 
 func (*composeProvider) BootUp(ctx context.Context, options Options) error {
 	return BootUp(ctx, options)

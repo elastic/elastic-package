@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"regexp"
@@ -28,6 +29,7 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
+	logging "github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -56,6 +58,8 @@ type Project struct {
 	disablePullProgressInformation bool
 	progressOutput                 string
 	composeVersion                 *semver.Version
+
+	logger *slog.Logger
 }
 
 // Config represents a Docker Compose configuration file.
@@ -174,10 +178,16 @@ type CommandOptions struct {
 	Services  []string
 }
 
+type ProjectOptions struct {
+	Name   string
+	Paths  []string
+	Logger *slog.Logger
+}
+
 // NewProject creates a new Docker Compose project given a sequence of Docker Compose configuration files.
-func NewProject(name string, paths ...string) (*Project, error) {
+func NewProject(opts ProjectOptions) (*Project, error) {
 	// TODO: a lot of the checks in NewProject don't need to happen any more, we might want to rethink how we do this.
-	for _, path := range paths {
+	for _, path := range opts.Paths {
 		info, err := os.Stat(path)
 		if err != nil {
 			return nil, fmt.Errorf("could not find Docker Compose configuration file: %s: %w", path, err)
@@ -189,8 +199,12 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	}
 
 	var c Project
-	c.name = name
-	c.composeFilePaths = paths
+	c.name = opts.Name
+	c.composeFilePaths = opts.Paths
+	c.logger = logger.Logger
+	if opts.Logger != nil {
+		c.logger = opts.Logger
+	}
 
 	v, ok := os.LookupEnv(EnableComposeStandaloneEnv)
 	if ok && strings.ToLower(v) != "false" {
@@ -207,7 +221,8 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	if ver.Major() < 2 {
 		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
-	logger.Debugf("Determined Docker Compose version: %v", ver)
+	c.logger = c.logger.With(slog.String("docker.version", ver.String()))
+	c.logger.Debug("Determined Docker Compose version")
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if ok && strings.ToLower(v) != "false" {
@@ -235,7 +250,9 @@ func (p *Project) Up(ctx context.Context, opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	log := p.logger.With(slog.String("docker.command", "up"))
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose up command failed: %w", err)
 	}
 
@@ -248,7 +265,9 @@ func (p *Project) Stop(ctx context.Context, opts CommandOptions) error {
 	args = append(args, "stop")
 	args = append(args, opts.ExtraArgs...)
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	log := p.logger.With(slog.String("docker.command", "stop"))
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose stop command failed: %w", err)
 	}
 
@@ -261,7 +280,8 @@ func (p *Project) Down(ctx context.Context, opts CommandOptions) error {
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	log := p.logger.With(slog.String("docker.command", "down"))
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose down command failed: %w", err)
 	}
 
@@ -275,7 +295,9 @@ func (p *Project) Build(ctx context.Context, opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	log := p.logger.With(slog.String("docker.command", "build"))
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose build command failed: %w", err)
 	}
 
@@ -288,8 +310,9 @@ func (p *Project) Kill(ctx context.Context, opts CommandOptions) error {
 	args = append(args, "kill")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
+	log := p.logger.With("docker.command", "kill")
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose kill command failed: %w", err)
 	}
 
@@ -303,8 +326,10 @@ func (p *Project) Config(ctx context.Context, opts CommandOptions) (*Config, err
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
+	log := p.logger.With("docker.command", "config")
+
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b, logger: log}); err != nil {
 		return nil, err
 	}
 
@@ -326,7 +351,9 @@ func (p *Project) Pull(ctx context.Context, opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	log := p.logger.With("docker.command", "pull")
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, logger: log}); err != nil {
 		return fmt.Errorf("running Docker Compose pull command failed: %w", err)
 	}
 
@@ -340,8 +367,10 @@ func (p *Project) Logs(ctx context.Context, opts CommandOptions) ([]byte, error)
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
+	log := p.logger.With("docker.command", "logs")
+
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b, logger: log}); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
@@ -353,8 +382,10 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 	args := p.baseArgs()
 	args = append(args, "ps", "-a", "-q")
 
+	log := p.logger.With("docker.command", "waith-for-healthy")
+
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b, logger: log}); err != nil {
 		return err
 	}
 
@@ -366,14 +397,14 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 		// NOTE: healthy must be reinitialized at each iteration
 		healthy := true
 
-		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
+		log.Debug("Wait for healthy containers", slog.String("containers", strings.Join(containerIDs, ",")))
 		descriptions, err := docker.InspectContainers(containerIDs...)
 		if err != nil {
 			return err
 		}
 
 		for _, containerDescription := range descriptions {
-			logger.Debugf("Container status: %s", containerDescription.String())
+			log.Debug("Container status", slog.String("status", containerDescription.String()))
 
 			// No healthcheck defined for service
 			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
@@ -474,9 +505,14 @@ type dockerComposeOptions struct {
 	args   []string
 	env    []string
 	stdout io.Writer
+	logger *slog.Logger
 }
 
 func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOptions) error {
+	logger := p.logger
+	if opts.logger != nil {
+		logger = opts.logger
+	}
 	name, args := p.dockerComposeBaseCommand()
 	args = append(args, opts.args...)
 
@@ -498,7 +534,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	var errBuffer bytes.Buffer
 	cmd.Stderr = tty
 	var stderr io.Writer = &errBuffer
-	if logger.IsDebugMode() {
+	if logging.IsDebugMode() {
 		cmd.Stdout = os.Stdout
 		stderr = io.MultiWriter(&errBuffer, os.Stderr)
 	}
@@ -513,7 +549,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		io.Copy(stderr, ptty)
 	}()
 
-	logger.Debugf("running command: %s", cmd)
+	logger.Debug("running command", slog.String("cmd", cmd.String()))
 	err = cmd.Run()
 	ptty.Close()
 	tty.Close()
@@ -564,7 +600,7 @@ func (p *Project) dockerComposeStandaloneRequired() bool {
 	if err == nil {
 		return false
 	} else {
-		logger.Debugf("docker compose subcommand failed: %w: %s", err, output)
+		p.logger.Debug("docker compose subcommand failed", slog.Any("error", err), slog.String("output", string(output)))
 	}
 
 	return true
@@ -577,7 +613,9 @@ func (p *Project) dockerComposeVersion(ctx context.Context) (*semver.Version, er
 		"version",
 		"--short",
 	}
-	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, stdout: &b}); err != nil {
+	log := p.logger.With("docker.command", "version")
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, stdout: &b, logger: log}); err != nil {
 		return nil, fmt.Errorf("running Docker Compose version command failed: %w", err)
 	}
 	dcVersion := b.String()

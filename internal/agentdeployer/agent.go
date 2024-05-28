@@ -133,7 +133,10 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	agentInfo.ConfigDir = configDir
 	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
 
-	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  agent.project,
+		Paths: agent.ymlPaths,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
@@ -363,7 +366,10 @@ func processApplyErrors(results resource.ApplyResults) string {
 
 // ExitCode returns true if the agent is exited and its exit code.
 func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, error) {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
@@ -375,7 +381,10 @@ func (s *dockerComposeDeployedAgent) ExitCode(ctx context.Context) (bool, int, e
 
 // Logs returns the logs from the agent starting at the given time
 func (s *dockerComposeDeployedAgent) Logs(ctx context.Context, t time.Time) ([]byte, error) {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for agent: %w", err)
 	}
@@ -400,7 +409,10 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 		}
 	}()
 
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := compose.NewProject(compose.ProjectOptions{
+		Name:  s.project,
+		Paths: s.ymlPaths,
+	})
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}

@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/jedib0t/go-pretty/table"
@@ -15,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -104,6 +106,7 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return err
 			}
+			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
 
 			// Parameters provided through the CLI are not persisted.
 			// Stack providers can get them with `profile.Config`, and they
@@ -121,6 +124,7 @@ func setupStackCommand() *cobraext.Command {
 				Services:     services,
 				Profile:      profile,
 				Printer:      cmd,
+				Logger:       customLogger,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
@@ -153,10 +157,12 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return err
 			}
+			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
 
 			err = provider.TearDown(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
+				Logger:  customLogger,
 			})
 			if err != nil {
 				return fmt.Errorf("tearing down the stack failed: %w", err)
@@ -188,11 +194,13 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
+			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
 
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
 				Profile:      profile,
 				Printer:      cmd,
+				Logger:       customLogger,
 			})
 			if err != nil {
 				return fmt.Errorf("failed updating the stack images: %w", err)
@@ -286,9 +294,12 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
+
 			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
+				Logger:  customLogger,
 			})
 			if err != nil {
 				return fmt.Errorf("failed getting stack status: %w", err)
