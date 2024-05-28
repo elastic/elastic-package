@@ -7,12 +7,12 @@ package stack
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -33,6 +33,8 @@ type DumpOptions struct {
 
 	// Since is the time to dump logs from.
 	Since time.Time
+
+	Logger *slog.Logger
 }
 
 // DumpResult contains the result of a dump operation.
@@ -45,7 +47,7 @@ type DumpResult struct {
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
 func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump Elastic stack data")
+	options.Logger.Debug("Dump Elastic stack data")
 
 	results, err := dumpStackLogs(ctx, options)
 	if err != nil {
@@ -55,7 +57,7 @@ func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
 }
 
 func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump stack logs (location: %s)", options.Output)
+	options.Logger.Debug("Dump stack logs", slog.String("location", options.Output))
 	err := os.RemoveAll(options.Output)
 	if err != nil {
 		return nil, fmt.Errorf("can't remove output location: %w", err)
@@ -78,7 +80,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 			continue
 		}
 
-		logger.Debugf("Dump stack logs for %s", serviceName)
+		options.Logger.Debug("Dump stack logs", slog.String("service", serviceName))
 
 		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)
 		if err != nil {

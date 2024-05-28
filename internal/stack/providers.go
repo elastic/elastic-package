@@ -7,8 +7,10 @@ package stack
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -57,35 +59,48 @@ type Provider interface {
 func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 	switch name {
 	case ProviderCompose:
-		return &composeProvider{}, nil
+		return newComposeProvider(), nil
 	case ProviderServerless:
 		return newServerlessProvider(profile)
 	}
 	return nil, fmt.Errorf("unknown provider %q, supported providers: %s", name, strings.Join(SupportedProviders, ", "))
 }
 
-type composeProvider struct{}
+type composeProvider struct {
+	logger *slog.Logger
+}
+
+func newComposeProvider() *composeProvider {
+	return &composeProvider{
+		logger: logger.Logger.With(slog.String("provider", ProviderCompose)),
+	}
+}
 
 func (*composeProvider) Name() string {
 	return ProviderCompose
 }
 
-func (*composeProvider) BootUp(ctx context.Context, options Options) error {
+func (c *composeProvider) BootUp(ctx context.Context, options Options) error {
+	options.Logger = c.logger
 	return BootUp(ctx, options)
 }
 
-func (*composeProvider) TearDown(ctx context.Context, options Options) error {
+func (c *composeProvider) TearDown(ctx context.Context, options Options) error {
+	options.Logger = c.logger
 	return TearDown(ctx, options)
 }
 
-func (*composeProvider) Update(ctx context.Context, options Options) error {
+func (c *composeProvider) Update(ctx context.Context, options Options) error {
+	options.Logger = c.logger
 	return Update(ctx, options)
 }
 
-func (*composeProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
+func (c *composeProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
+	options.Logger = c.logger
 	return Dump(ctx, options)
 }
 
-func (*composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
+func (c *composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
+	options.Logger = c.logger
 	return Status(ctx, options)
 }
