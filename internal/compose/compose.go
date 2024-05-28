@@ -28,7 +28,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
-	"github.com/elastic/elastic-package/internal/logger"
 	logging "github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -201,7 +200,7 @@ func NewProject(opts ProjectOptions) (*Project, error) {
 	var c Project
 	c.name = opts.Name
 	c.composeFilePaths = opts.Paths
-	c.logger = logger.Logger
+	c.logger = logging.Logger
 	if opts.Logger != nil {
 		c.logger = opts.Logger
 	}

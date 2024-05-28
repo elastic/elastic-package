@@ -44,11 +44,6 @@ func (h *Handler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	strs := []string{}
-	for _, attr := range attrs {
-		strs = append(strs, attr.Key)
-	}
-
 	return &Handler{handler: h.handler.WithAttrs(attrs), out: h.out, mutex: h.mutex, bytes: h.bytes, replaceAttr: h.replaceAttr}
 }
 
