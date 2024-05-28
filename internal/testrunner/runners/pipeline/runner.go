@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,6 +41,8 @@ const (
 var serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 
 type runner struct {
+	logger *slog.Logger
+
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
@@ -52,6 +55,18 @@ type IngestPipelineReroute struct {
 	Description      string                               `yaml:"description"`
 	Processors       []map[string]ingest.RerouteProcessor `yaml:"processors"`
 	AdditionalFields map[string]interface{}               `yaml:",inline"`
+}
+
+func init() {
+	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
+		log := logger.Logger
+		if l != nil {
+			log = l
+		}
+		log = log.With(slog.String("testrunner", "pipeline"))
+		return &runner{logger: log}
+	})
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -563,8 +578,4 @@ func checkErrorMessage(event json.RawMessage) error {
 	default:
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
-}
-
-func init() {
-	testrunner.RegisterRunner(&runner{})
 }

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -19,6 +20,14 @@ import (
 
 func init() {
 	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
+		log := logger.Logger
+		if l != nil {
+			log = l
+		}
+		log = log.With(slog.String("testrunner", "asset"))
+		return &runner{logger: log}
+	})
 }
 
 const (
@@ -27,6 +36,7 @@ const (
 )
 
 type runner struct {
+	logger           *slog.Logger
 	testFolder       testrunner.TestFolder
 	packageRootPath  string
 	kibanaClient     *kibana.Client
@@ -97,13 +107,16 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.testFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link.String())
+		r.logger.Warn("skipping test",
+			slog.String("type", string(TestType)),
+			slog.String("package", r.testFolder.Package),
+			slog.String("reason", testConfig.Skip.Reason),
+			slog.String("details", testConfig.Skip.Link.String()),
+		)
 		return result.WithSkip(testConfig.Skip)
 	}
 
-	logger.Debug("installing package...")
+	r.logger.Debug("installing package...")
 	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
 	if err != nil {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
@@ -160,7 +173,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
-	logger.Debug("removing package...")
+	r.logger.Debug("removing package...")
 	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(false))
 	if err != nil {
 		return err

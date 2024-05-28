@@ -337,9 +337,10 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
+		launcher := testrunner.NewRunnerLauncher(testrunner.WithLogger(logger.Logger))
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
+			r, err := launcher.Run(ctx, testType, testrunner.TestOptions{
 				Profile:                    profile,
 				TestFolder:                 folder,
 				PackageRootPath:            packageRootPath,

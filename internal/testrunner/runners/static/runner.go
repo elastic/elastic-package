@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -22,6 +23,7 @@ import (
 const sampleEventJSON = "sample_event.json"
 
 type runner struct {
+	logger  *slog.Logger
 	options testrunner.TestOptions
 }
 
@@ -30,6 +32,14 @@ var _ testrunner.TestRunner = new(runner)
 
 func init() {
 	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
+		log := logger.Logger
+		if l != nil {
+			log = l
+		}
+		log = log.With(slog.String("testrunner", "static"))
+		return &runner{logger: log}
+	})
 }
 
 const (

@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -82,6 +83,14 @@ const (
 
 func init() {
 	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
+		log := logger.Logger
+		if l != nil {
+			log = l
+		}
+		log = log.With(slog.String("testrunner", "system"))
+		return &runner{logger: log}
+	})
 }
 
 const (
@@ -135,6 +144,8 @@ var (
 )
 
 type runner struct {
+	logger *slog.Logger
+
 	options   testrunner.TestOptions
 	pipelines []ingest.Pipeline
 
