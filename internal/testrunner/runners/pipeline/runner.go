@@ -90,8 +90,8 @@ func (r *runner) String() string {
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
 	r.logger = r.logger.With(
-		slog.String("package", options.TestFolder.Package),
-		slog.String("data_stream", options.TestFolder.DataStream),
+		slog.String("package.name", options.TestFolder.Package),
+		slog.String("package.data_stream", options.TestFolder.DataStream),
 	)
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)

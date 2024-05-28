@@ -524,7 +524,6 @@ func (r *runner) initRun() error {
 	}
 	if found {
 		r.logger.Debug("Running system tests for data stream", slog.String("data_stream", r.options.TestFolder.DataStream))
-		r.logger = r.logger.With(slog.String("package.data_stream", r.options.TestFolder.DataStream))
 	} else {
 		r.logger.Debug("Running system tests for package")
 	}
@@ -867,6 +866,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
+	r.logger = r.logger.With(
+		slog.String("package.name", r.options.TestFolder.Package),
+		slog.String("package.type", scenario.pkgManifest.Type),
+		slog.String("package.data_stream", r.options.TestFolder.DataStream),
+		slog.String("variant", config.ServiceVariantName),
+		slog.String("config", config.Name()),
+		slog.String("stack.version", r.stackVersion.Number),
+	)
+
 	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
@@ -1203,7 +1211,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
 	}
-	r.logger.Debug("data stream has synthetics enabled: %t", slog.String("data.stream", scenario.dataStream), slog.Bool("enabled", scenario.syntheticEnabled))
+	r.logger.Debug("data stream has synthetics enabled", slog.String("data.stream", scenario.dataStream), slog.Bool("synthetic.enabled", scenario.syntheticEnabled))
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
@@ -1265,7 +1273,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	r.shutdownServiceHandler = func(ctx context.Context) error {
-		r.logger.Debug("tearing down service...")
+		r.logger.Debug("tearing down service...", slog.String("service.name", svcInfo.Name))
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
