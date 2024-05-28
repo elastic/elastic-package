@@ -100,7 +100,7 @@ func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 		stream.WithPackageRootPath(packageRootPath),
 	}
 
-	ctx, stop := signal.Enable(ctx, logger.Info)
+	ctx, stop := signal.Enable(ctx, r.logger)
 	defer stop()
 
 	hasBenchmark, err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...), r.options.TestFolder.DataStream)

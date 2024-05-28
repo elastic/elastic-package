@@ -155,7 +155,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
 	defer stop()
 
 	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
@@ -305,7 +305,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
@@ -476,7 +476,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
@@ -583,7 +583,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)

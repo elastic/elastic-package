@@ -296,7 +296,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+		ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
 		defer stop()
 
 		var esAPI *elasticsearch.API

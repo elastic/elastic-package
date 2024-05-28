@@ -6,6 +6,7 @@ package signal
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 )
@@ -13,10 +14,10 @@ import (
 // Enable returns a context configured to be cancelled if an interruption signal
 // is received.
 // Returned context can be cancelled explicitly with the returned function.
-func Enable(ctx context.Context, infoLogger func(a ...any)) (notifyCtx context.Context, stop func()) {
+func Enable(ctx context.Context, logger *slog.Logger) (notifyCtx context.Context, stop func()) {
 	notifyCtx, stopNotify := signal.NotifyContext(ctx, os.Interrupt)
 	stopLogger := context.AfterFunc(notifyCtx, func() {
-		infoLogger("Signal caught!")
+		logger.Info("Signal caught!")
 	})
 
 	return notifyCtx, func() {
