@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -33,7 +34,8 @@ func setupCleanCommand() *cobraext.Command {
 func cleanCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Clean used resources")
 
-	log := logger.Logger.With("cleanup.action", "build")
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "clean"))
+	log := actionLogger.With(slog.String("cleanup.action", "build"))
 	target, err := cleanup.Build(log)
 	if err != nil {
 		return fmt.Errorf("can't clean build resources: %w", err)
@@ -43,7 +45,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Build resources removed: %s\n", target)
 	}
 
-	log = logger.Logger.With("cleanup.action", "stack")
+	log = actionLogger.With("cleanup.action", "stack")
 	target, err = cleanup.Stack(log)
 	if err != nil {
 		return fmt.Errorf("can't clean the development stack: %w", err)
@@ -52,7 +54,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Package removed from the development stack: %s\n", target)
 	}
 
-	log = logger.Logger.With("cleanup.action", "service logs")
+	log = actionLogger.With("cleanup.action", "service logs")
 	target, err = cleanup.ServiceLogs(log)
 	if err != nil {
 		return fmt.Errorf("can't clean temporary service logs: %w", err)
