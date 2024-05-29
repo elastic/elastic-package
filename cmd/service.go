@@ -13,6 +13,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/service"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -68,7 +70,10 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	actionLogger := logger.Logger
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile,
+		kibana.Logger(actionLogger),
+	)
 	if err != nil {
 		return fmt.Errorf("cannot create Kibana client: %w", err)
 	}

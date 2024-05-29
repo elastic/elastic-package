@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,11 +32,18 @@ type Options struct {
 	StackVersion       string
 
 	Variant string
+
+	Logger *slog.Logger
 }
 
 // BootUp function boots up the service stack.
 func BootUp(ctx context.Context, options Options) error {
-	logger.Debugf("Create new instance of the service deployer")
+	log := logger.Logger
+	if options.Logger != nil {
+		log = options.Logger
+	}
+
+	log.Debug("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		Profile:                options.Profile,
 		PackageRootPath:        options.DataStreamRootPath,
@@ -44,6 +52,7 @@ func BootUp(ctx context.Context, options Options) error {
 		Variant:                options.Variant,
 		StackVersion:           options.StackVersion,
 		DeployIndependentAgent: false,
+		Logger:                 log,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("No service defined.")
@@ -54,7 +63,7 @@ func BootUp(ctx context.Context, options Options) error {
 	}
 
 	// Boot up the service
-	logger.Debugf("Boot up the service instance")
+	log.Debug("Boot up the service instance")
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
