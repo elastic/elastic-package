@@ -19,7 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/github"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -57,10 +56,10 @@ func CheckUpdate(ctx context.Context, logger *slog.Logger) {
 	}
 
 	expired := true
-	latestVersion, err := loadCacheLatestVersion()
+	latestVersion, err := loadCacheLatestVersion(logger)
 	switch {
 	case err != nil:
-		logger.Debug("failed to load latest version from cache", "error", err.Error())
+		logger.Debug("failed to load latest version from cache", slog.Any("error", err))
 	default:
 		expired = checkCachedLatestVersion(latestVersion, defaultCacheDuration)
 	}
@@ -68,14 +67,14 @@ func CheckUpdate(ctx context.Context, logger *slog.Logger) {
 	var release *versionLatest
 	switch {
 	case !expired:
-		logger.Debug("latest version (cached)", "version", latestVersion.String())
+		logger.Debug("latest version (cached)", slog.String("version", latestVersion.String()))
 		release = latestVersion
 	default:
 		logger.Debug("checking latest release in Github")
 		githubClient := github.UnauthorizedClient()
 		githubRelease, err := githubClient.LatestRelease(ctx, repositoryOwner, repositoryName)
 		if err != nil {
-			logger.Debug("failed to get latest release", "error", err)
+			logger.Debug("failed to get latest release", slog.Any("error", err))
 			return
 		}
 		release = &versionLatest{
@@ -87,18 +86,18 @@ func CheckUpdate(ctx context.Context, logger *slog.Logger) {
 
 	currentVersion, err := semver.NewVersion(Tag[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debug("Error: can't parse current version tag", "tag", Tag, "error", err)
+		logger.Debug("Error: can't parse current version tag", slog.String("tag", Tag), slog.Any("error", err))
 		return
 	}
 
 	releaseVersion, err := semver.NewVersion(release.TagName[1:]) // strip "v" prefix
 	if err != nil {
-		logger.Debug("Error: can't parse current version tag", "tag", release.TagName, "error", err)
+		logger.Debug("Error: can't parse current version tag", slog.String("tag", release.TagName), slog.Any("error", err))
 		return
 	}
 
 	if currentVersion.LessThan(releaseVersion) {
-		logger.Info("New version is available", "current", Tag, "version", release.TagName, "download_url", release.HtmlURL)
+		logger.Info("New version is available", slog.String("current", Tag), slog.String("version", release.TagName), slog.String("download_url", release.HtmlURL))
 	}
 
 	// if version cached is not expired, do not write contents into file
@@ -107,7 +106,7 @@ func CheckUpdate(ctx context.Context, logger *slog.Logger) {
 	}
 
 	if err := writeLatestReleaseToCache(release); err != nil {
-		logger.Debug("failed to write latest versoin to cache file", "error", err)
+		logger.Debug("failed to write latest versoin to cache file", slog.Any("error", err))
 	}
 }
 
@@ -131,7 +130,7 @@ func writeLatestReleaseToCache(release *versionLatest) error {
 	return nil
 }
 
-func loadCacheLatestVersion() (*versionLatest, error) {
+func loadCacheLatestVersion(logger *slog.Logger) (*versionLatest, error) {
 	elasticPackagePath, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, fmt.Errorf("failed locating the configuration directory: %w", err)
@@ -140,7 +139,7 @@ func loadCacheLatestVersion() (*versionLatest, error) {
 	latestVersionPath := filepath.Join(elasticPackagePath.RootDir(), latestVersionFile)
 	contents, err := os.ReadFile(latestVersionPath)
 	if err != nil {
-		logger.Logger.Warn("reading version file failed", "error", err.Error())
+		logger.Warn("reading version file failed", slog.Any("error", err))
 		return nil, fmt.Errorf("reading version file failed: %w", err)
 	}
 
