@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -56,12 +55,12 @@ type Provider interface {
 }
 
 // BuildProvider returns the provider for the given name.
-func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
+func BuildProvider(name string, profile *profile.Profile, logger *slog.Logger) (Provider, error) {
 	switch name {
 	case ProviderCompose:
-		return newComposeProvider(), nil
+		return newComposeProvider(logger), nil
 	case ProviderServerless:
-		return newServerlessProvider(profile)
+		return newServerlessProvider(profile, logger)
 	}
 	return nil, fmt.Errorf("unknown provider %q, supported providers: %s", name, strings.Join(SupportedProviders, ", "))
 }
@@ -70,9 +69,9 @@ type composeProvider struct {
 	logger *slog.Logger
 }
 
-func newComposeProvider() *composeProvider {
+func newComposeProvider(logger *slog.Logger) *composeProvider {
 	return &composeProvider{
-		logger: logger.Logger.With(slog.String("provider", ProviderCompose)),
+		logger: logger.With(slog.String("provider", ProviderCompose)),
 	}
 }
 

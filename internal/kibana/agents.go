@@ -128,11 +128,11 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 		)
 
 		if agent.PolicyID == p.ID && agent.PolicyRevision >= p.Revision {
-			c.logger.Debug("Policy revision assigned to the agent (ID: %s)...", slog.String("agent", a.ID))
+			c.logger.Debug("Policy revision assigned to the agent...", slog.String("agent", a.ID))
 			break
 		}
 
-		c.logger.Debug("Wait until the policy is assigned to the agent (ID: %s)...",
+		c.logger.Debug("Wait until the policy is assigned to the agent...",
 			slog.Group("policy", slog.String("ID", p.ID), slog.Int("revision", p.Revision)),
 			slog.String("agent.id", a.ID),
 		)

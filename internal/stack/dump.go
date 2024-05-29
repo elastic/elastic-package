@@ -82,7 +82,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 		options.Logger.Debug("Dump stack logs", slog.String("service", serviceName))
 
-		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)
+		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since, options.Logger)
 		if err != nil {
 			return nil, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
 		}
@@ -112,7 +112,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 		switch serviceName {
 		case elasticAgentService, fleetServerService:
-			logPath, err := copyDockerInternalLogs(serviceName, logsPath, options.Profile)
+			logPath, err := copyDockerInternalLogs(serviceName, logsPath, options.Profile, options.Logger)
 			if err != nil {
 				return nil, fmt.Errorf("can't copy internal logs (service: %s): %w", serviceName, err)
 			}

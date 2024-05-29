@@ -17,7 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
 )
@@ -228,13 +227,15 @@ func createProjectName(options Options) string {
 	return fmt.Sprintf("elastic-package-test-%s", options.Profile.ProfileName)
 }
 
-func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error) {
+func newServerlessProvider(profile *profile.Profile, logger *slog.Logger) (*serverlessProvider, error) {
+	log := logger.With("provider", "serverless")
+
 	host := profile.Config(configElasticCloudURL, "")
 	options := []serverless.ClientOption{}
 	if host != "" {
-		options = append(options, serverless.WithAddress(host))
+		options = append(options, serverless.WithAddress(host), serverless.WithLogger(log))
 	}
-	client, err := serverless.NewClient(options...)
+	client, err := serverless.NewClient(logger, options...)
 	if err != nil {
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
@@ -244,7 +245,7 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		client:              client,
 		elasticsearchClient: nil,
 		kibanaClient:        nil,
-		logger:              logger.Logger.With(slog.String("provider", "serverless")),
+		logger:              log,
 	}, nil
 }
 
@@ -336,8 +337,9 @@ func (sp *serverlessProvider) composeProjectName() string {
 func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, error) {
 	composeFile := sp.profile.Path(ProfileStackPath, ComposeFile)
 	return compose.NewProject(compose.ProjectOptions{
-		Name:  sp.composeProjectName(),
-		Paths: []string{composeFile},
+		Name:   sp.composeProjectName(),
+		Paths:  []string{composeFile},
+		Logger: sp.logger,
 	})
 }
 
@@ -444,6 +446,7 @@ func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) ([]
 			}
 		}
 	}
+	options.Logger = sp.logger
 	return Dump(ctx, options)
 }
 

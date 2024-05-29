@@ -7,6 +7,7 @@ package stack
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"time"
 
@@ -16,7 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
+func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time, logger *slog.Logger) ([]byte, error) {
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
@@ -25,8 +26,9 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 	composeFile := profile.Path(ProfileStackPath, ComposeFile)
 
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name:  DockerComposeProjectName(profile),
-		Paths: []string{composeFile},
+		Name:   DockerComposeProjectName(profile),
+		Paths:  []string{composeFile},
+		Logger: logger,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("could not create docker compose project: %w", err)
@@ -52,9 +54,10 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 	return out, nil
 }
 
-func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) (string, error) {
+func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile, logger *slog.Logger) (string, error) {
 	p, err := compose.NewProject(compose.ProjectOptions{
-		Name: DockerComposeProjectName(profile),
+		Name:   DockerComposeProjectName(profile),
+		Logger: logger,
 	})
 	if err != nil {
 		return "", fmt.Errorf("could not create docker compose project: %w", err)
@@ -63,7 +66,7 @@ func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Pro
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 
-	d := docker.NewDocker()
+	d := docker.NewDocker(docker.WithLogger(logger))
 	err = d.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/", outputPath)
 	if err != nil {
 		return "", fmt.Errorf("docker copy failed: %w", err)

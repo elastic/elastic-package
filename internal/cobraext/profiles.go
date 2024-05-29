@@ -7,6 +7,7 @@ package cobraext
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -68,7 +69,7 @@ func availableProfilesAsAList() ([]string, error) {
 }
 
 // GetStackProviderFromProfile returns the provider related to the given profile
-func GetStackProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool) (stack.Provider, error) {
+func GetStackProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, checkFlag bool, logger *slog.Logger) (stack.Provider, error) {
 	var providerName = stack.DefaultProvider
 	stackConfig, err := stack.LoadConfig(profile)
 	if err != nil {
@@ -88,7 +89,7 @@ func GetStackProviderFromProfile(cmd *cobra.Command, profile *profile.Profile, c
 		}
 	}
 
-	return stack.BuildProvider(providerName, profile)
+	return stack.BuildProvider(providerName, profile, logger)
 }
 
 // GetStackUserParameterFlags returns the parameters defined by the user in the command line

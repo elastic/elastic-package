@@ -613,7 +613,7 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 		return nil, err
 	}
 
-	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile, r.logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build stack provider: %w", err)
 	}

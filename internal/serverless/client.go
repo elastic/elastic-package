@@ -11,12 +11,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"time"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -28,6 +27,8 @@ const (
 type Client struct {
 	host   string
 	apiKey string
+
+	logger *slog.Logger
 }
 
 // ClientOption is functional option modifying Serverless API client.
@@ -40,7 +41,7 @@ var (
 	ErrProjectNotExist = errors.New("project does not exist")
 )
 
-func NewClient(opts ...ClientOption) (*Client, error) {
+func NewClient(logger *slog.Logger, opts ...ClientOption) (*Client, error) {
 	apiKey := os.Getenv(elasticCloudAPIKeyEnv)
 	if apiKey == "" {
 		return nil, fmt.Errorf("unable to obtain value from %s environment variable", elasticCloudAPIKeyEnv)
@@ -57,7 +58,7 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if host != "" {
 		c.host = host
 	}
-	logger.Debugf("Using Elastic Cloud URL: %s", c.host)
+	logger.Debug("Using Elastic Cloud URL", slog.String("url", c.host))
 	return c, nil
 }
 
@@ -65,6 +66,13 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 func WithAddress(address string) ClientOption {
 	return func(c *Client) {
 		c.host = address
+	}
+}
+
+// WithLogger option sets the logger to use in this serverless client.
+func WithLogger(logger *slog.Logger) ClientOption {
+	return func(c *Client) {
+		c.logger = logger
 	}
 }
 
@@ -110,7 +118,7 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
 
-	logger.Debugf("%s %s", method, u)
+	c.logger.Debug("Severless request", slog.String("metod", method), slog.String("url", u.String()))
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
@@ -190,13 +198,13 @@ func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project)
 
 		status, err := c.StatusProject(ctx, project)
 		if err != nil {
-			logger.Debugf("error querying for status: %s", err.Error())
+			c.logger.Debug("error querying for statuss", slog.Any("error", err))
 			timer.Reset(time.Second * 5)
 			continue
 		}
 
 		if status != "initialized" {
-			logger.Debugf("project not initialized, status: %s", status)
+			c.logger.Debug("project not initialized", slog.String("status", status))
 			timer.Reset(time.Second * 5)
 			continue
 		}
@@ -311,12 +319,12 @@ func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
 		newProject, err := c.GetProject(ctx, project.Type, project.ID)
 		switch {
 		case err != nil:
-			logger.Debugf("request error: %s", err.Error())
+			c.logger.Debug("request error", slog.Any("error", err))
 		case newProject.Endpoints.Elasticsearch != "":
 			project.Endpoints = newProject.Endpoints
 			return nil
 		}
-		logger.Debugf("Waiting for Elasticsearch endpoint for %s project %q", project.Type, project.ID)
+		c.logger.Debug("Waiting for Elasticsearch endpoint", slog.String("project.id", project.ID))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
