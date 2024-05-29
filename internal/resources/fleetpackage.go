@@ -58,7 +58,6 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		return nil, err
 	}
 
-	f.Logger.Debug("Test test test")
 	return installer.NewForPackage(installer.Options{
 		Kibana:         provider.Client,
 		RootPath:       f.RootPath,

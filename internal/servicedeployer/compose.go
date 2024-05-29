@@ -127,7 +127,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 
 	// Boot up service
 	if d.variant.active() {
-		logger.Infof("Using service variant: %s", d.variant.String())
+		d.logger.Info("Using service variant", slog.String("variant", d.variant.String()))
 	}
 
 	opts := compose.CommandOptions{
@@ -139,7 +139,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 
 	serviceName := svcInfo.Name
 	if d.runTearDown || d.runTestsOnly {
-		logger.Debug("Skipping bringing up docker-compose custom agent project")
+		d.logger.Debug("Skipping bringing up docker-compose custom agent project")
 	} else {
 		err = p.Up(ctx, opts)
 		if err != nil {

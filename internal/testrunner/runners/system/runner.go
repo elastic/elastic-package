@@ -1064,7 +1064,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
-	agents, err := checkEnrolledAgents(ctx, r.options.KibanaClient, agentInfo, svcInfo, r.options.RunIndependentElasticAgent)
+	agents, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
@@ -1547,7 +1547,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithSkip(config.Skip)
 	}
 
-	logger.Debugf("running test with configuration '%s'", config.Name())
+	r.logger.Debug("running test with configuration", slog.String("config", config.Name()))
 
 	scenario, err := r.prepareScenario(ctx, config, svcInfo)
 	if err != nil {
@@ -1557,21 +1557,22 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
+func (r *runner) checkEnrolledAgents(ctx context.Context, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) ([]kibana.Agent, error) {
 	var agents []kibana.Agent
 
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		allAgents, err := client.ListAgents(ctx)
+		allAgents, err := r.options.KibanaClient.ListAgents(ctx)
+
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		if runIndependentElasticAgent {
+		if r.options.RunIndependentElasticAgent {
 			agents = filterIndependentAgents(allAgents, agentInfo)
 		} else {
-			agents = filterAgents(allAgents, svcInfo)
+			agents = filterAgents(allAgents, svcInfo, r.logger)
 		}
-		logger.Debugf("found %d enrolled agent(s)", len(agents))
+		r.logger.Debug("found enrolled agent(s)", slog.Int("agents", len(agents)))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
@@ -1982,9 +1983,9 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 	return nil
 }
 
-func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
+func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo, logger *slog.Logger) []kibana.Agent {
 	if svcInfo.Agent.Host.NamePrefix != "" {
-		logger.Debugf("filter agents using criteria: NamePrefix=%s", svcInfo.Agent.Host.NamePrefix)
+		logger.Debug("filter agents using criteria", slog.String("name.preffix", svcInfo.Agent.Host.NamePrefix))
 	}
 
 	var filtered []kibana.Agent
