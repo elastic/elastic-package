@@ -17,6 +17,11 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+type Clients struct {
+	Profile *profile.Profile
+	Logger  *slog.Logger
+}
+
 // NewElasticsearchClient creates an Elasticsearch client with the settings provided by the shellinit
 // environment variables.
 func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {

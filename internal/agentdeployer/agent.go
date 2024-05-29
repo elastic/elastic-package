@@ -204,7 +204,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	if err != nil {
 		processAgentContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, agentName)
+		}, agentName, d.logger)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
@@ -437,7 +437,7 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	}
 
 	opts := compose.CommandOptions{Env: s.env}
-	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
+	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name, s.logger)
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
