@@ -6,14 +6,14 @@ package cleanup
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // ServiceLogs function removes service logs from temporary directory in the `~/.elastic-package`.
-func ServiceLogs() (string, error) {
+func ServiceLogs(logger *slog.Logger) (string, error) {
 	logger.Debug("Clean all service logs")
 
 	locationManager, err := locations.NewLocationManager()
@@ -21,7 +21,7 @@ func ServiceLogs() (string, error) {
 		return "", fmt.Errorf("can't find service logs dir: %w", err)
 	}
 
-	logger.Debugf("Remove folder content (path: %s)", locationManager.ServiceLogDir())
+	logger.Debug("Remove folder content (path: %s)", slog.String("path", locationManager.ServiceLogDir()))
 	err = files.RemoveContent(locationManager.ServiceLogDir())
 	if err != nil {
 		return "", fmt.Errorf("can't remove content (path: %s): %w", locationManager.ServiceLogDir(), err)

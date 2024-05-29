@@ -11,6 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cleanup"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const cleanLongDescription = `Use this command to clean resources used for building the package.
@@ -32,7 +33,8 @@ func setupCleanCommand() *cobraext.Command {
 func cleanCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Clean used resources")
 
-	target, err := cleanup.Build()
+	log := logger.Logger.With("cleanup.action", "build")
+	target, err := cleanup.Build(log)
 	if err != nil {
 		return fmt.Errorf("can't clean build resources: %w", err)
 	}
@@ -41,7 +43,8 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Build resources removed: %s\n", target)
 	}
 
-	target, err = cleanup.Stack()
+	log = logger.Logger.With("cleanup.action", "stack")
+	target, err = cleanup.Stack(log)
 	if err != nil {
 		return fmt.Errorf("can't clean the development stack: %w", err)
 	}
@@ -49,7 +52,8 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Package removed from the development stack: %s\n", target)
 	}
 
-	target, err = cleanup.ServiceLogs()
+	log = logger.Logger.With("cleanup.action", "service logs")
+	target, err = cleanup.ServiceLogs(log)
 	if err != nil {
 		return fmt.Errorf("can't clean temporary service logs: %w", err)
 	}

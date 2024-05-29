@@ -7,17 +7,16 @@ package cleanup
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/packages"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // Stack function removes built package used by the Package Registry image.
-func Stack() (string, error) {
+func Stack(logger *slog.Logger) (string, error) {
 	logger.Debug("Clean built packages from the development stack")
 
 	packageRoot, err := packages.MustFindPackageRoot()
@@ -41,11 +40,11 @@ func Stack() (string, error) {
 		return "", fmt.Errorf("stat file failed: %s: %w", destinationDir, err)
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("Stack package is not part of the development stack (missing path: %s)", destinationDir)
+		logger.Debug("Stack package is not part of the development stack (missing path)", slog.String("path", destinationDir))
 		return "", nil
 	}
 
-	logger.Debugf("Remove folder (path: %s)", destinationDir)
+	logger.Debug("Remove folder", slog.String("poath", destinationDir))
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("can't remove directory (path: %s): %w", destinationDir, err)

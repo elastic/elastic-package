@@ -7,16 +7,16 @@ package cleanup
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Build function removes package resources from build/.
-func Build() (string, error) {
+func Build(logger *slog.Logger) (string, error) {
 	logger.Debug("Clean build resources")
 
 	packageRoot, err := packages.MustFindPackageRoot()
@@ -40,25 +40,25 @@ func Build() (string, error) {
 	}
 
 	destinationDir := filepath.Join(buildDir, m.Name)
-	logger.Debugf("Build directory for integration: %s\n", destinationDir)
+	logger.Debug("Build directory for integration", slog.String("path", destinationDir))
 
 	_, err = os.Stat(destinationDir)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stat file failed: %s: %w", destinationDir, err)
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("Package hasn't been built (missing path: %s)", destinationDir)
+		logger.Debug("Package hasn't been built (missing path)", slog.String("path", destinationDir))
 		return "", nil
 	}
 
-	logger.Debugf("Remove directory (path: %s)", destinationDir)
+	logger.Debug("Remove directory", slog.String("path", destinationDir))
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("can't remove directory (path: %s): %w", destinationDir, err)
 	}
 
 	zippedBuildPackagePath := builder.ZippedBuiltPackagePath(buildDir, *m)
-	logger.Debugf("Remove zipped built package (path: %s)", zippedBuildPackagePath)
+	logger.Debug("Remove zipped built package", slog.String("path", zippedBuildPackagePath))
 	err = os.RemoveAll(zippedBuildPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't remove zipped built package (path: %s): %w", zippedBuildPackagePath, err)
