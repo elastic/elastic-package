@@ -47,7 +47,8 @@ Introduction to the package`,
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme(c.filename, c.packageRoot)
+			d := NewDocsRenderer()
+			rendered, isTemplate, err := d.generateReadme(c.filename, c.packageRoot)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -100,7 +101,8 @@ http://www.example.com/bar
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, c.linksMap)
+			d := NewDocsRenderer()
+			rendered, err := d.renderReadme(filename, c.packageRoot, templatePath, c.linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -157,7 +159,8 @@ An example event for ` + "`example`" + ` looks as following:
 			err = createManifestFile(c.packageRoot)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
+			d := NewDocsRenderer()
+			rendered, err := d.renderReadme(filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -254,7 +257,8 @@ Introduction to the package
 			err = createFieldsFile(c.packageRoot, c.dataStreamName, c.fieldsContents)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
+			d := NewDocsRenderer()
+			rendered, err := d.renderReadme(filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)

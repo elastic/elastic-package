@@ -6,6 +6,7 @@ package docs
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -13,7 +14,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const linksMapFileNameDefault = "links_table.yml"
@@ -49,8 +49,19 @@ func (l linkMap) Add(key, value string) error {
 	return nil
 }
 
-func readLinksMap() (linkMap, error) {
-	linksFilePath, err := linksDefinitionsFilePath()
+func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
+	url, err := l.Get(key)
+	if err != nil {
+		return "", err
+	}
+	if options.caption != "" {
+		url = fmt.Sprintf("[%s](%s)", options.caption, url)
+	}
+	return url, nil
+}
+
+func (d *DocsRenderer) readLinksMap() (linkMap, error) {
+	linksFilePath, err := d.linksDefinitionsFilePath()
 	if err != nil {
 		return linkMap{}, fmt.Errorf("locating links file failed: %w", err)
 	}
@@ -60,7 +71,7 @@ func readLinksMap() (linkMap, error) {
 		return links, nil
 	}
 
-	logger.Debugf("Using links definitions file: %s", linksFilePath)
+	d.logger.Debug("Using links definitions file", slog.String("file", linksFilePath))
 	contents, err := os.ReadFile(linksFilePath)
 	if err != nil {
 		return linkMap{}, fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
@@ -74,20 +85,9 @@ func readLinksMap() (linkMap, error) {
 	return links, nil
 }
 
-func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
-	url, err := l.Get(key)
-	if err != nil {
-		return "", err
-	}
-	if options.caption != "" {
-		url = fmt.Sprintf("[%s](%s)", options.caption, url)
-	}
-	return url, nil
-}
-
 // linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
 // If linksMapFilePathEnvVar is defined, it returns the value of that env var.
-func linksDefinitionsFilePath() (string, error) {
+func (d *DocsRenderer) linksDefinitionsFilePath() (string, error) {
 	var err error
 	linksFilePath, ok := os.LookupEnv(linksMapFilePathEnvVar)
 	if ok {
@@ -107,7 +107,7 @@ func linksDefinitionsFilePath() (string, error) {
 	linksFilePath = filepath.Join(dir, linksMapFileNameDefault)
 	_, err = os.Stat(linksFilePath)
 	if err != nil {
-		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
+		d.logger.Debug("links definitions default file doesn't exist", slog.String("file", linksFilePath))
 		return "", nil
 	}
 

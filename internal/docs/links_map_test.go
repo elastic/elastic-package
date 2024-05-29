@@ -159,7 +159,8 @@ func TestLinksDefinitionsFilePath(t *testing.T) {
 				defer removeLinksFile(linksMapFileNameDefault)
 			}
 
-			path, err := linksDefinitionsFilePath()
+			d := NewDocsRenderer()
+			path, err := d.linksDefinitionsFilePath()
 
 			if c.expectedErrors {
 				require.Error(t, err)

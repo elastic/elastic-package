@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"text/template"
@@ -27,8 +28,30 @@ type ReadmeFile struct {
 	Error    error
 }
 
+type DocsRenderer struct {
+	logger *slog.Logger
+}
+
+type DocsRenderedOption func(d *DocsRenderer)
+
+func NewDocsRenderer(opts ...DocsRenderedOption) *DocsRenderer {
+	d := DocsRenderer{
+		logger: logger.Logger,
+	}
+	for _, opt := range opts {
+		opt(&d)
+	}
+	return &d
+}
+
+func WithLogger(logger *slog.Logger) DocsRenderedOption {
+	return func(d *DocsRenderer) {
+		d.logger = logger
+	}
+}
+
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate() ([]ReadmeFile, error) {
+func (d *DocsRenderer) AreReadmesUpToDate() ([]ReadmeFile, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, fmt.Errorf("package root not found: %w", err)
@@ -42,7 +65,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, diff, err := isReadmeUpToDate(fileName, packageRoot)
+		ok, diff, err := d.isReadmeUpToDate(fileName, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
@@ -60,10 +83,10 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	return readmeFiles, nil
 }
 
-func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
-	logger.Debugf("Check if %s is up-to-date", fileName)
+func (d *DocsRenderer) isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
+	d.logger.Debug("Check if file is up-to-date", slog.String("file", fileName))
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := d.generateReadme(fileName, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -71,7 +94,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 		return true, "", nil // README file is static and doesn't use template.
 	}
 
-	existing, found, err := readReadme(fileName, packageRoot)
+	existing, found, err := d.readReadme(fileName, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("reading README file failed: %w", err)
 	}
@@ -94,7 +117,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(packageRoot string) ([]string, error) {
+func (d *DocsRenderer) UpdateReadmes(packageRoot string) ([]string, error) {
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
@@ -103,7 +126,7 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 	var targets []string
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, packageRoot)
+		target, err := d.updateReadme(fileName, packageRoot)
 		if err != nil {
 			return nil, fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
@@ -115,10 +138,10 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 	return targets, nil
 }
 
-func updateReadme(fileName, packageRoot string) (string, error) {
-	logger.Debugf("Update the %s file", fileName)
+func (d *DocsRenderer) updateReadme(fileName, packageRoot string) (string, error) {
+	d.logger.Debug("Update file", slog.String("file", fileName))
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := d.generateReadme(fileName, packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -126,7 +149,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", nil
 	}
 
-	target, err := writeReadme(fileName, packageRoot, rendered)
+	target, err := d.writeReadme(fileName, packageRoot, rendered)
 	if err != nil {
 		return "", fmt.Errorf("writing %s file failed: %w", fileName, err)
 	}
@@ -136,31 +159,32 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", fmt.Errorf("package build root not found: %w", err)
 	}
 
-	_, err = writeReadme(fileName, packageBuildRoot, rendered)
+	_, err = d.writeReadme(fileName, packageBuildRoot, rendered)
 	if err != nil {
 		return "", fmt.Errorf("writing %s file failed: %w", fileName, err)
 	}
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
-	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
+func (d *DocsRenderer) generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+	d.logger.Debug("Generate file", slog.String("file", fileName), slog.String("package", packageRoot))
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
 		return nil, false, fmt.Errorf("can't locate %s template file: %w", fileName, err)
 	}
 	if !found {
-		logger.Debug("README file is static, can't be generated from the template file")
+		d.logger.Debug("README file is static, can't be generated from the template file")
 		return nil, false, nil
 	}
-	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
+	d.logger.Debug("Template file for file found", slog.String("file", fileName), slog.String("template", templatePath))
 
-	linksMap, err := readLinksMap()
+	// TODO
+	linksMap, err := d.readLinksMap()
 	if err != nil {
 		return nil, false, err
 	}
 
-	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
+	rendered, err := d.renderReadme(fileName, packageRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, fmt.Errorf("rendering Readme failed: %w", err)
 	}
@@ -179,8 +203,8 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
-	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
+func (d *DocsRenderer) renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+	d.logger.Debug("Render file", slog.String("file", fileName), slog.String("package", packageRoot), slog.String("template", templatePath))
 
 	t := template.New(fileName)
 	t, err := t.Funcs(template.FuncMap{
@@ -214,8 +238,8 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 	return rendered.Bytes(), nil
 }
 
-func readReadme(fileName, packageRoot string) ([]byte, bool, error) {
-	logger.Debugf("Read existing %s file (package: %s)", fileName, packageRoot)
+func (d *DocsRenderer) readReadme(fileName, packageRoot string) ([]byte, bool, error) {
+	d.logger.Debug("Read existing file", slog.String("file", fileName), slog.String("package", packageRoot))
 
 	readmePath := filepath.Join(packageRoot, "docs", fileName)
 	b, err := os.ReadFile(readmePath)
@@ -228,18 +252,18 @@ func readReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	return b, true, err
 }
 
-func writeReadme(fileName, packageRoot string, content []byte) (string, error) {
-	logger.Debugf("Write %s file (package: %s)", fileName, packageRoot)
+func (d *DocsRenderer) writeReadme(fileName, packageRoot string, content []byte) (string, error) {
+	d.logger.Debug("Write file", slog.String("file", fileName), slog.String("package", packageRoot))
 
 	docsPath := docsPath(packageRoot)
-	logger.Debugf("Create directories: %s", docsPath)
+	d.logger.Debug("Create directories", slog.String("directories", docsPath))
 	err := os.MkdirAll(docsPath, 0o755)
 	if err != nil {
 		return "", fmt.Errorf("mkdir failed (path: %s): %w", docsPath, err)
 	}
 
 	aReadmePath := readmePath(fileName, packageRoot)
-	logger.Debugf("Write %s file to: %s", fileName, aReadmePath)
+	d.logger.Debug("Write file", slog.String("source", fileName), slog.String("target", aReadmePath))
 
 	err = os.WriteFile(aReadmePath, content, 0o644)
 	if err != nil {

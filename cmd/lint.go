@@ -45,8 +45,10 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
+	actionLogger := logger.Logger.With("elastic-package.command", "lint")
 
-	readmeFiles, err := docs.AreReadmesUpToDate()
+	renderer := docs.NewDocsRenderer(docs.WithLogger(actionLogger))
+	readmeFiles, err := renderer.AreReadmesUpToDate()
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {

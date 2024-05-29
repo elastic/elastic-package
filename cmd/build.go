@@ -74,7 +74,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	actionLogger := logger.Logger.With("elastic-package.command", "build")
 	actionLogger.Debug("Use build directory", slog.String("path", buildDir))
 
-	targets, err := docs.UpdateReadmes(packageRoot)
+	renderer := docs.NewDocsRenderer(docs.WithLogger(actionLogger))
+	targets, err := renderer.UpdateReadmes(packageRoot)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}
