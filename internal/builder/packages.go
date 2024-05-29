@@ -25,16 +25,6 @@ const licenseTextFileName = "LICENSE.txt"
 
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
-type BuildOptions struct {
-	PackageRoot string
-
-	CreateZip      bool
-	SignPackage    bool
-	SkipValidation bool
-
-	Logger *slog.Logger
-}
-
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
 func BuildDirectory() (string, error) {
 	buildDir, found, err := findBuildDirectory()
@@ -145,66 +135,61 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 // BuildPackage function builds the package.
-func BuildPackage(options BuildOptions) (string, error) {
-	logger := logger.Logger
-	if options.Logger != nil {
-		logger = options.Logger
-	}
-	logger = logger.With(slog.String("source", options.PackageRoot))
-	destinationDir, err := BuildPackagesDirectory(options.PackageRoot)
+func (b *Builder) BuildPackage() (string, error) {
+	destinationDir, err := BuildPackagesDirectory(b.packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
-	logger.Debug("Build directory", slog.String("path", destinationDir))
+	b.logger.Debug("Build directory", slog.String("path", destinationDir))
 
-	logger.Debug("Clear target directory", slog.String("path", destinationDir))
+	b.logger.Debug("Clear target directory", slog.String("path", destinationDir))
 	err = files.ClearDir(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
-	logger.Debug("Copy package content")
-	err = files.CopyWithoutDev(options.PackageRoot, destinationDir)
+	b.logger.Debug("Copy package content")
+	err = files.CopyWithoutDev(b.packageRoot, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
 
-	logger.Debug("Copy license file if needed")
-	err = copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName), logger)
+	b.logger.Debug("Copy license file if needed")
+	err = b.copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName))
 	if err != nil {
 		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
-	logger.Debug("Encode dashboards")
+	b.logger.Debug("Encode dashboards")
 	err = encodeDashboards(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("encoding dashboards failed: %w", err)
 	}
 
-	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRoot, destinationDir, logger)
+	b.logger.Debug("Resolve external fields")
+	err = b.resolveExternalFields(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
-	err = addDynamicMappings(options.PackageRoot, destinationDir, logger)
+	err = b.addDynamicMappings(b.packageRoot, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
-	if options.CreateZip {
-		return buildZippedPackage(options, destinationDir, logger)
+	if b.createZip {
+		return b.buildZippedPackage(destinationDir)
 	}
 
-	if options.SkipValidation {
-		logger.Debug("Skip validation of the built package")
+	if b.skipValidation {
+		b.logger.Debug("Skip validation of the built package")
 		return destinationDir, nil
 	}
 
-	logger.Debug("Validating built package", slog.String("path", destinationDir))
+	b.logger.Debug("Validating built package", slog.String("path", destinationDir))
 	errs, skipped := validation.ValidateAndFilterFromPath(destinationDir)
 	if skipped != nil {
-		logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
+		b.logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
 	}
 	if errs != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", errs)
@@ -212,22 +197,22 @@ func BuildPackage(options BuildOptions) (string, error) {
 	return destinationDir, nil
 }
 
-func buildZippedPackage(options BuildOptions, destinationDir string, logger *slog.Logger) (string, error) {
-	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
+func (b *Builder) buildZippedPackage(destinationDir string) (string, error) {
+	b.logger.Debug("Build zipped package")
+	zippedPackagePath, err := buildPackagesZipPath(b.packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(destinationDir, zippedPackagePath, logger)
+	err = files.Zip(destinationDir, zippedPackagePath, b.logger)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}
 
-	if options.SkipValidation {
-		logger.Debug("Skip validation of the built .zip package")
+	if b.skipValidation {
+		b.logger.Debug("Skip validation of the built .zip package")
 	} else {
-		logger.Debug("Validating built .zip package)", slog.String("zip.path", zippedPackagePath))
+		b.logger.Debug("Validating built .zip package)", slog.String("zip.path", zippedPackagePath))
 		errs, skipped := validation.ValidateAndFilterFromZip(zippedPackagePath)
 		if skipped != nil {
 			logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
@@ -237,8 +222,8 @@ func buildZippedPackage(options BuildOptions, destinationDir string, logger *slo
 		}
 	}
 
-	if options.SignPackage {
-		err := signZippedPackage(options, zippedPackagePath, logger)
+	if b.signPackage {
+		err := b.signZippedPackage(zippedPackagePath)
 		if err != nil {
 			return "", err
 		}
@@ -247,11 +232,11 @@ func buildZippedPackage(options BuildOptions, destinationDir string, logger *slo
 	return zippedPackagePath, nil
 }
 
-func signZippedPackage(options BuildOptions, zippedPackagePath string, logger *slog.Logger) error {
-	logger.Debug("Sign the package")
-	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+func (b *Builder) signZippedPackage(zippedPackagePath string) error {
+	b.logger.Debug("Sign the package")
+	m, err := packages.ReadPackageManifestFromPackageRoot(b.packageRoot)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", b.packageRoot, err)
 	}
 
 	err = files.Sign(zippedPackagePath, files.SignOptions{
@@ -264,10 +249,10 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string, logger *s
 	return nil
 }
 
-func copyLicenseTextFile(licensePath string, logger *slog.Logger) error {
+func (b *Builder) copyLicenseTextFile(licensePath string) error {
 	_, err := os.Stat(licensePath)
 	if err == nil {
-		logger.Debug("License file in the package will be used")
+		b.logger.Debug("License file in the package will be used")
 		return nil
 	}
 
@@ -278,14 +263,14 @@ func copyLicenseTextFile(licensePath string, logger *slog.Logger) error {
 
 	sourceLicensePath, err := findRepositoryLicense(repositoryLicenseTextFileName)
 	if !userDefined && errors.Is(err, os.ErrNotExist) {
-		logger.Debug("No license text file is included in package")
+		b.logger.Debug("No license text file is included in package")
 		return nil
 	}
 	if err != nil {
 		return fmt.Errorf("failure while looking for license %q in repository: %w", repositoryLicenseTextFileName, err)
 	}
 
-	logger.Info("License text found, it will be included in package", slog.String("license.path", sourceLicensePath))
+	b.logger.Info("License text found, it will be included in package", slog.String("license.path", sourceLicensePath))
 	err = sh.Copy(licensePath, sourceLicensePath)
 	if err != nil {
 		return fmt.Errorf("can't copy license from repository: %w", err)

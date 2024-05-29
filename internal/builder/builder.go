@@ -1,0 +1,41 @@
+package builder
+
+import (
+	"log/slog"
+
+	"github.com/elastic/elastic-package/internal/logger"
+)
+
+type BuildOptions struct {
+	PackageRoot string
+
+	CreateZip      bool
+	SignPackage    bool
+	SkipValidation bool
+
+	Logger *slog.Logger
+}
+
+type Builder struct {
+	packageRoot    string
+	skipValidation bool
+	createZip      bool
+	signPackage    bool
+	logger         *slog.Logger
+}
+
+func NewBuilder(options BuildOptions) *Builder {
+	b := Builder{
+		logger:         logger.Logger,
+		packageRoot:    options.PackageRoot,
+		createZip:      options.CreateZip,
+		skipValidation: options.SkipValidation,
+		signPackage:    options.SignPackage,
+	}
+	if options.Logger != nil {
+		b.logger = options.Logger
+	}
+
+	b.logger = b.logger.With(slog.String("source", options.PackageRoot))
+	return &b
+}

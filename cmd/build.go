@@ -85,13 +85,14 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	builder := builder.NewBuilder(builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		CreateZip:      createZip,
 		SignPackage:    signPackage,
 		SkipValidation: skipValidation,
 		Logger:         actionLogger,
 	})
+	target, err := builder.BuildPackage()
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
 	}

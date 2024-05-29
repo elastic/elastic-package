@@ -22,21 +22,21 @@ import (
 
 var semver3_0_0 = semver.MustParse("3.0.0")
 
-func resolveExternalFields(packageRoot, destinationDir string, logger *slog.Logger) error {
-	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+func (b *Builder) resolveExternalFields(destinationDir string) error {
+	bm, ok, err := buildmanifest.ReadBuildManifest(b.packageRoot)
 	if err != nil {
 		return fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
-		logger.Debug("Build manifest hasn't been defined for the package")
+		b.logger.Debug("Build manifest hasn't been defined for the package")
 		return nil
 	}
 	if !bm.HasDependencies() {
-		logger.Debug("Package doesn't have any external dependencies defined")
+		b.logger.Debug("Package doesn't have any external dependencies defined")
 		return nil
 	}
 
-	logger.Debug("Package has external dependencies defined")
+	b.logger.Debug("Package has external dependencies defined")
 	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
 		return fmt.Errorf("can't create field dependency manager: %w", err)
@@ -47,13 +47,13 @@ func resolveExternalFields(packageRoot, destinationDir string, logger *slog.Logg
 		return fmt.Errorf("failed to list fields files under \"%s\": %w", destinationDir, err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(b.packageRoot)
 	if err != nil {
-		return fmt.Errorf("failed to read package manifest from \"%s\"", packageRoot)
+		return fmt.Errorf("failed to read package manifest from \"%s\"", b.packageRoot)
 	}
 	sv, err := semver.NewVersion(manifest.SpecVersion)
 	if err != nil {
-		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", b.packageRoot)
 	}
 	var options fields.InjectFieldsOptions
 	if !sv.LessThan(semver3_0_0) {
@@ -71,14 +71,14 @@ func resolveExternalFields(packageRoot, destinationDir string, logger *slog.Logg
 		if err != nil {
 			return err
 		} else if injected {
-			logger.Debug("Source file has been changed", slog.String("path", rel))
+			b.logger.Debug("Source file has been changed", slog.String("path", rel))
 
 			err = os.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}
 		} else {
-			logger.Debug("Source file hasn't been changed", slog.String("path", rel))
+			b.logger.Debug("Source file hasn't been changed", slog.String("path", rel))
 		}
 	}
 

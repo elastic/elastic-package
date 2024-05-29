@@ -8,7 +8,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -35,7 +34,7 @@ type ecsTemplates struct {
 	} `yaml:"mappings"`
 }
 
-func addDynamicMappings(packageRoot, destinationDir string, logger *slog.Logger) error {
+func (b *Builder) addDynamicMappings(packageRoot, destinationDir string) error {
 	packageManifest := filepath.Join(destinationDir, packages.PackageManifestFile)
 
 	m, err := packages.ReadPackageManifest(packageManifest)
@@ -43,7 +42,7 @@ func addDynamicMappings(packageRoot, destinationDir string, logger *slog.Logger)
 		return err
 	}
 
-	shouldImport, err := shouldImportEcsMappings(m.SpecVersion, packageRoot, logger)
+	shouldImport, err := b.shouldImportEcsMappings(m.SpecVersion, packageRoot)
 	if err != nil {
 		return err
 	}
@@ -51,7 +50,7 @@ func addDynamicMappings(packageRoot, destinationDir string, logger *slog.Logger)
 		return nil
 	}
 
-	logger.Info("Import ECS mappings into the built package (technical preview)")
+	b.logger.Info("Import ECS mappings into the built package (technical preview)")
 
 	switch m.Type {
 	case "integration":
@@ -84,7 +83,7 @@ func addDynamicMappings(packageRoot, destinationDir string, logger *slog.Logger)
 	return nil
 }
 
-func shouldImportEcsMappings(specVersion, packageRoot string, logger *slog.Logger) (bool, error) {
+func (b *Builder) shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 	v, err := semver.NewVersion(specVersion)
 	if err != nil {
 		return false, fmt.Errorf("invalid spec version: %w", err)
@@ -95,16 +94,16 @@ func shouldImportEcsMappings(specVersion, packageRoot string, logger *slog.Logge
 		return false, fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
-		logger.Debug("Build manifest hasn't been defined for the package")
+		b.logger.Debug("Build manifest hasn't been defined for the package")
 		return false, nil
 	}
 	if !bm.ImportMappings() {
-		logger.Debug("Package doesn't have to import ECS mappings")
+		b.logger.Debug("Package doesn't have to import ECS mappings")
 		return false, nil
 	}
 
 	if v.LessThan(semver2_3_0) {
-		logger.Debug(fmt.Sprintf("Required spec version >= %s to import ECS mappings", semver2_3_0.String()))
+		b.logger.Debug(fmt.Sprintf("Required spec version >= %s to import ECS mappings", semver2_3_0.String()))
 		return false, nil
 	}
 

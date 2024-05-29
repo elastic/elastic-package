@@ -81,13 +81,14 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	builder := builder.NewBuilder(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
 		CreateZip:      supportsZip,
 		SignPackage:    false,
 		SkipValidation: options.SkipValidation,
 		Logger:         logger,
 	})
+	target, err := builder.BuildPackage()
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)
 	}
