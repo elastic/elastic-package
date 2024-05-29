@@ -7,6 +7,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -70,7 +71,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
-	logger.Debugf("Use build directory: %s", buildDir)
+	actionLogger := logger.Logger.With("elastic-package.command", "build")
+	actionLogger.Debug("Use build directory", slog.String("path", buildDir))
 
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
@@ -87,6 +89,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		CreateZip:      createZip,
 		SignPackage:    signPackage,
 		SkipValidation: skipValidation,
+		Logger:         actionLogger,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

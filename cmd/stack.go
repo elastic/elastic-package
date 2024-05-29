@@ -106,7 +106,7 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return err
 			}
-			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
+			customLogger := logger.Logger.With(slog.String("elastic-package.command", "stack up"), slog.String("provider", provider.Name()))
 
 			// Parameters provided through the CLI are not persisted.
 			// Stack providers can get them with `profile.Config`, and they
@@ -157,7 +157,7 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return err
 			}
-			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
+			customLogger := logger.Logger.With(slog.String("elastic-package.command", "stack down"), slog.String("provider", provider.Name()))
 
 			err = provider.TearDown(cmd.Context(), stack.Options{
 				Profile: profile,
@@ -194,7 +194,7 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
-			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
+			customLogger := logger.Logger.With(slog.String("elastic-package.command", "stack update"), slog.String("provider", provider.Name()))
 
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
@@ -262,10 +262,12 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return err
 			}
+			customLogger := logger.Logger.With(slog.String("elastic-package.command", "stack dump"), slog.String("provider", provider.Name()))
 
 			target, err := provider.Dump(cmd.Context(), stack.DumpOptions{
 				Output:  output,
 				Profile: profile,
+				Logger:  customLogger,
 			})
 			if err != nil {
 				return fmt.Errorf("dump failed: %w", err)
@@ -294,7 +296,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			customLogger := logger.Logger.With(slog.String("provider", provider.Name()))
+			customLogger := logger.Logger.With(slog.String("elastic-package.command", "stack status"), slog.String("provider", provider.Name()))
 
 			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
 				Profile: profile,

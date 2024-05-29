@@ -7,11 +7,14 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -48,7 +51,9 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "uninstall"))
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, kibana.Logger(actionLogger))
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}

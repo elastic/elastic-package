@@ -59,7 +59,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	actionLogger := logger.Logger
+	actionLogger := logger.Logger.With("elastic-package.command", "install")
 
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile,
 		kibana.Logger(actionLogger),

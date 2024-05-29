@@ -289,7 +289,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 			}
 		}
-		testrunnerLogger := logger.Logger.With(slog.String("testrunner", string(testType)))
+		testrunnerLogger := logger.Logger.With(slog.String("elastic-package.command", "test"), slog.String("testrunner", string(testType)))
 
 		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
 		if err != nil {

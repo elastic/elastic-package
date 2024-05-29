@@ -80,26 +80,36 @@ func (*composeProvider) Name() string {
 }
 
 func (c *composeProvider) BootUp(ctx context.Context, options Options) error {
-	options.Logger = c.logger
+	if options.Logger == nil {
+		options.Logger = c.logger
+	}
 	return BootUp(ctx, options)
 }
 
 func (c *composeProvider) TearDown(ctx context.Context, options Options) error {
-	options.Logger = c.logger
+	if options.Logger == nil {
+		options.Logger = c.logger
+	}
 	return TearDown(ctx, options)
 }
 
 func (c *composeProvider) Update(ctx context.Context, options Options) error {
-	options.Logger = c.logger
+	if options.Logger == nil {
+		options.Logger = c.logger
+	}
 	return Update(ctx, options)
 }
 
 func (c *composeProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	options.Logger = c.logger
+	if options.Logger == nil {
+		options.Logger = c.logger
+	}
 	return Dump(ctx, options)
 }
 
 func (c *composeProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
-	options.Logger = c.logger
+	if options.Logger == nil {
+		options.Logger = c.logger
+	}
 	return Status(ctx, options)
 }
