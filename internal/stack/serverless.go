@@ -235,7 +235,7 @@ func newServerlessProvider(profile *profile.Profile, logger *slog.Logger) (*serv
 	if host != "" {
 		options = append(options, serverless.WithAddress(host), serverless.WithLogger(log))
 	}
-	client, err := serverless.NewClient(logger, options...)
+	client, err := serverless.NewClient(log, options...)
 	if err != nil {
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}

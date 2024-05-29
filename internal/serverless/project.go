@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,6 +50,8 @@ type Project struct {
 		Fleet         string `json:"fleet,omitempty"`
 		APM           string `json:"apm,omitempty"`
 	} `json:"endpoints"`
+
+	logger *slog.Logger
 }
 
 func (p *Project) EnsureHealthy(ctx context.Context, elasticsearchClient *elasticsearch.Client, kibanaClient *kibana.Client) error {
@@ -88,7 +91,7 @@ func (p *Project) ensureElasticsearchHealthy(ctx context.Context, elasticsearchC
 			return nil
 		}
 
-		logger.Debugf("Elasticsearch service not ready: %s", err.Error())
+		p.logger.Debug("Elasticsearch service not ready", slog.Any("error", err))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -104,7 +107,7 @@ func (p *Project) ensureKibanaHealthy(ctx context.Context, kibanaClient *kibana.
 			return nil
 		}
 
-		logger.Debugf("Kibana service not ready: %s", err.Error())
+		p.logger.Debug("Kibana service not ready", slog.Any("error", err))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -120,7 +123,7 @@ func (p *Project) ensureFleetHealthy(ctx context.Context) error {
 			return nil
 		}
 
-		logger.Debugf("Fleet service not ready: %s", err.Error())
+		p.logger.Debug("Fleet service not ready", slog.Any("error", err))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -199,7 +202,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not build URL: %w", err)
 	}
-	logger.Debugf("GET %s", statusURL)
+	p.logger.Debug("Fleet GET healthcheck", slog.String("url", statusURL))
 	req, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
 	if err != nil {
 		return err

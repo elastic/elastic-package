@@ -173,7 +173,7 @@ func (c *Client) CreateProject(ctx context.Context, name, region, projectType st
 		return nil, fmt.Errorf("unexpected status code %d, body: %s", statusCode, string(respBody))
 	}
 
-	serverlessProject := &Project{url: c.host, apiKey: c.apiKey}
+	serverlessProject := &Project{url: c.host, apiKey: c.apiKey, logger: c.logger}
 	err = json.Unmarshal(respBody, &serverlessProject)
 	if err != nil {
 		return nil, fmt.Errorf("error while decoding create project response: %w", err)
@@ -301,7 +301,7 @@ func (c *Client) GetProject(ctx context.Context, projectType, projectID string) 
 		return nil, fmt.Errorf("unexpected status code %d", statusCode)
 	}
 
-	project := &Project{url: c.host, apiKey: c.apiKey}
+	project := &Project{url: c.host, apiKey: c.apiKey, logger: c.logger}
 	err = json.Unmarshal(respBody, &project)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode project: %w", err)
