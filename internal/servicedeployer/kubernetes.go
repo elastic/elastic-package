@@ -69,13 +69,14 @@ type kubernetesDeployedService struct {
 }
 
 func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
+	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(s.logger))
 	if !s.deployIndependentAgent {
 		s.logger.Debug("Uninstall Elastic Agent Kubernetes")
 		elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.policyName, s.logger)
 		if err != nil {
 			return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 		}
-		err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
+		err = kubectlClient.DeleteStdin(ctx, elasticAgentManagedYaml)
 		if err != nil {
 			return fmt.Errorf("can't uninstall Elastic Agent Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 		}
@@ -92,7 +93,7 @@ func (s kubernetesDeployedService) TearDown(ctx context.Context) error {
 		return nil
 	}
 
-	err = kubectl.Delete(ctx, definitionPaths)
+	err = kubectlClient.Delete(ctx, definitionPaths)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes resources (path: %s): %w", s.definitionsDir, err)
 	}
@@ -143,7 +144,9 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 // custom YAML definitions.
 func (ksd *KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	ksd.logger = ksd.logger.With(slog.String("service.name", svcInfo.Name))
-	err := kind.VerifyContext(ctx)
+
+	kindClient := kind.NewKindClient(ksd.profile, kind.WithLogger(ksd.logger))
+	err := kindClient.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
@@ -151,7 +154,7 @@ func (ksd *KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo Service
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip connect kind to Elastic stack network")
 	} else {
-		err = kind.ConnectToElasticStackNetwork(ksd.profile)
+		err = kindClient.ConnectToElasticStackNetwork()
 		if err != nil {
 			return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 		}
@@ -203,7 +206,8 @@ func (ksd *KubernetesServiceDeployer) installCustomDefinitions(ctx context.Conte
 		return nil
 	}
 
-	err = kubectl.Apply(ctx, definitionPaths)
+	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(ksd.logger))
+	err = kubectlClient.Apply(ctx, definitionPaths)
 	if err != nil {
 		return fmt.Errorf("can't install custom definitions: %w", err)
 	}
@@ -223,15 +227,16 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string, l *slog.Logger) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string, logger *slog.Logger) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, l)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, logger)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
 
-	err = kubectl.ApplyStdin(ctx, elasticAgentManagedYaml)
+	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(logger))
+	err = kubectlClient.ApplyStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}

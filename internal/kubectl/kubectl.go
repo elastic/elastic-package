@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"path/filepath"
 
@@ -16,13 +17,36 @@ import (
 
 const kustomizationFile = "kustomization.yaml"
 
+type Client struct {
+	logger *slog.Logger
+}
+
+type KubectlOption func(k *Client)
+
+func NewKubectlClient(opts ...KubectlOption) *Client {
+	c := Client{
+		logger: logger.Logger,
+	}
+
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return &c
+}
+
+func WithLogger(log *slog.Logger) KubectlOption {
+	return func(k *Client) {
+		k.logger = log
+	}
+}
+
 // CurrentContext function returns the selected Kubernetes context.
-func CurrentContext(ctx context.Context) (string, error) {
+func (k *Client) CurrentContext(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "kubectl", "config", "current-context")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	k.logger.Debug("output command", slog.String("command", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("kubectl command failed (stderr=%q): %w", errOutput.String(), err)
@@ -30,7 +54,7 @@ func CurrentContext(ctx context.Context) (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-func modifyKubernetesResources(ctx context.Context, action string, definitionPaths []string) ([]byte, error) {
+func (k *Client) modifyKubernetesResources(ctx context.Context, action string, definitionPaths []string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		if filepath.Base(definitionPath) == kustomizationFile {
@@ -49,7 +73,7 @@ func modifyKubernetesResources(ctx context.Context, action string, definitionPat
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", cmd)
+	k.logger.Debug("output command", slog.String("command", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("kubectl apply failed (stderr=%q): %w", errOutput.String(), err)
@@ -59,7 +83,7 @@ func modifyKubernetesResources(ctx context.Context, action string, definitionPat
 
 // applyKubernetesResourcesStdin applies a Kubernetes manifest provided as stdin.
 // It returns the resources created as output and an error
-func applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
+func (k *Client) applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-", "-o", "yaml")
 	//Stdin of kubectl command is the manifest provided
@@ -67,7 +91,7 @@ func applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, e
 	errOutput := new(bytes.Buffer)
 	kubectlCmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", kubectlCmd)
+	k.logger.Debug("run command", slog.String("cmd", kubectlCmd.String()))
 	output, err := kubectlCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("kubectl apply failed (stderr=%q): %w", errOutput.String(), err)
@@ -77,7 +101,7 @@ func applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, e
 
 // deleteKubernetesResourcesStdin deletes a Kubernetes manifest provided as stdin.
 // It returns the resources deleted as output and an error
-func deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
+func (k *Client) deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", "-")
 	// Stdin of kubectl command is the manifest provided
@@ -85,7 +109,7 @@ func deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, 
 	errOutput := new(bytes.Buffer)
 	kubectlCmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", kubectlCmd)
+	k.logger.Debug("run command", slog.String("command", kubectlCmd.String()))
 	output, err := kubectlCmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("kubectl delete failed (stderr=%q): %w", errOutput.String(), err)

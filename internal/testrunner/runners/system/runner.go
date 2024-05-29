@@ -1261,6 +1261,8 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.Name = config.Service
 	}
 
+	// Update logger with the latest attributes
+	serviceOptions.Logger = r.logger
 	serviceDeployer, err := servicedeployer.Factory(serviceOptions)
 	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)

@@ -68,7 +68,8 @@ func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
-	err = kubectl.DeleteStdin(ctx, elasticAgentManagedYaml)
+	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(s.logger))
+	err = kubectlClient.DeleteStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't uninstall Kubernetes Elastic Agent resources: %w", err)
 	}
@@ -118,7 +119,9 @@ func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*Kubernete
 func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentInfo) (DeployedAgent, error) {
 	ksd.agentRunID = agentInfo.Test.RunID
 
-	err := kind.VerifyContext(ctx)
+	kindClient := kind.NewKindClient(ksd.profile, kind.WithLogger(ksd.logger))
+
+	err := kindClient.VerifyContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("kind context verification failed: %w", err)
 	}
@@ -126,7 +129,7 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	if ksd.runTearDown || ksd.runTestsOnly {
 		ksd.logger.Debug("Skip connect kind to Elastic stack network")
 	} else {
-		err = kind.ConnectToElasticStackNetwork(ksd.profile)
+		err = kindClient.ConnectToElasticStackNetwork()
 		if err != nil {
 			return nil, fmt.Errorf("can't connect control plane to Elastic stack network: %w", err)
 		}
@@ -177,7 +180,8 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
 
-	err = kubectl.ApplyStdin(ctx, elasticAgentManagedYaml)
+	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(logger))
+	err = kubectlClient.ApplyStdin(ctx, elasticAgentManagedYaml)
 	if err != nil {
 		return fmt.Errorf("can't install Elastic-Agent in Kubernetes cluster: %w", err)
 	}

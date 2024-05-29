@@ -7,6 +7,7 @@ package kubectl
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -17,8 +18,6 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kresource "k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/client-go/rest"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const readinessTimeout = 10 * time.Minute
@@ -70,15 +69,15 @@ func (c condition) String() string {
 }
 
 // Apply function adds resources to the Kubernetes cluster based on provided definitions.
-func Apply(ctx context.Context, definitionsPath []string) error {
-	logger.Debugf("Apply Kubernetes custom definitions")
-	out, err := modifyKubernetesResources(ctx, "apply", definitionsPath)
+func (k *Client) Apply(ctx context.Context, definitionsPath []string) error {
+	k.logger.Debug("Apply Kubernetes custom definitions")
+	out, err := k.modifyKubernetesResources(ctx, "apply", definitionsPath)
 	if err != nil {
 		return fmt.Errorf("can't modify Kubernetes resources (apply): %w", err)
 	}
 
-	logger.Debugf("Handle \"apply\" command output")
-	err = handleApplyCommandOutput(out)
+	k.logger.Debug("Handle \"apply\" command output")
+	err = k.handleApplyCommandOutput(out)
 	if err != nil {
 		return fmt.Errorf("can't handle command output: %w", err)
 	}
@@ -86,40 +85,40 @@ func Apply(ctx context.Context, definitionsPath []string) error {
 }
 
 // ApplyStdin function adds resources to the Kubernetes cluster based on provided stdin.
-func ApplyStdin(ctx context.Context, input []byte) error {
-	logger.Debugf("Apply Kubernetes stdin")
-	out, err := applyKubernetesResourcesStdin(ctx, input)
+func (k *Client) ApplyStdin(ctx context.Context, input []byte) error {
+	k.logger.Debug("Apply Kubernetes stdin")
+	out, err := k.applyKubernetesResourcesStdin(ctx, input)
 	if err != nil {
 		return fmt.Errorf("can't modify Kubernetes resources (apply stdin): %w", err)
 	}
 
-	logger.Debugf("Handle \"apply\" command output")
-	err = handleApplyCommandOutput(out)
+	k.logger.Debug("Handle \"apply\" command output")
+	err = k.handleApplyCommandOutput(out)
 	if err != nil {
 		return fmt.Errorf("can't handle command output: %w", err)
 	}
 	return nil
 }
 
-func handleApplyCommandOutput(out []byte) error {
-	logger.Debugf("Extract resources from command output")
+func (k *Client) handleApplyCommandOutput(out []byte) error {
+	k.logger.Debug("Extract resources from command output")
 	resources, err := extractResources(out)
 	if err != nil {
 		return fmt.Errorf("can't extract resources: %w", err)
 	}
 
-	logger.Debugf("Wait for ready resources")
-	err = waitForReadyResources(resources)
+	k.logger.Debug("Wait for ready resources")
+	err = k.waitForReadyResources(resources)
 	if err != nil {
 		return fmt.Errorf("resources are not ready: %w", err)
 	}
 	return nil
 }
 
-func waitForReadyResources(resources []resource) error {
+func (k *Client) waitForReadyResources(resources []resource) error {
 	var resList kube.ResourceList
 	for _, r := range resources {
-		resInfo, err := createResourceInfo(r)
+		resInfo, err := k.createResourceInfo(r)
 		if err != nil {
 			return fmt.Errorf("can't fetch resource info: %w", err)
 		}
@@ -128,7 +127,7 @@ func waitForReadyResources(resources []resource) error {
 
 	kubeClient := kube.New(nil)
 	kubeClient.Log = func(s string, i ...interface{}) {
-		logger.Debugf(s, i...)
+		k.logger.Debug(fmt.Sprintf(s, i...))
 	}
 	// In case of elastic-agent daemonset Wait will not work as expected
 	// because in single node clusters one pod of the daemonset can always
@@ -163,7 +162,7 @@ func extractResource(output []byte) (*resource, error) {
 	return &r, nil
 }
 
-func createResourceInfo(r resource) (*kresource.Info, error) {
+func (k *Client) createResourceInfo(r resource) (*kresource.Info, error) {
 	scope := meta.RESTScopeNamespace
 	if r.Metadata.Namespace == "" {
 		scope = meta.RESTScopeRoot
@@ -203,7 +202,13 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 		Client: restClient,
 	}
 
-	logger.Debugf("Sync resource info: %s (kind: %s, namespace: %s)", r.Metadata.Name, r.Kind, r.Metadata.Namespace)
+	k.logger.Debug("Sync resource info",
+		slog.Group("kubernetes",
+			slog.String("resource", r.Metadata.Name),
+			slog.String("kind", r.Kind),
+			slog.String("namespace", r.Metadata.Namespace)),
+	)
+
 	err = resInfo.Get()
 	if err != nil {
 		return nil, fmt.Errorf("can't sync resource info: %w", err)
