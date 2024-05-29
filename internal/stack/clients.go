@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -39,6 +40,7 @@ func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elast
 // environment variables. If these environment variables are not set, it uses the information
 // in the provided profile.
 func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
+	logger := logger.Logger
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config from profile: %w", err)
@@ -47,7 +49,7 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 	elasticsearchHost, found := os.LookupEnv(ElasticsearchHostEnv)
 	if !found {
 		// Using backgound context on initial call to avoid context cancellation.
-		status, err := Status(context.Background(), Options{Profile: profile, Logger: logger.Logger})
+		status, err := Status(context.Background(), Options{Profile: profile, Logger: logger})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}
@@ -56,7 +58,9 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 		}
 
 		elasticsearchHost = profileConfig.ElasticsearchHostPort
-		logger.Debugf("Connecting with Elasticsearch host from current profile (profile: %s, host: %q)", profile.ProfileName, elasticsearchHost)
+		logger.Debug("Connecting with Elasticsearch host from current profile",
+			slog.String("profile", profile.ProfileName),
+			slog.String("host", elasticsearchHost))
 	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
@@ -89,6 +93,7 @@ func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, erro
 		kibana.Password(os.Getenv(ElasticsearchPasswordEnv)),
 		kibana.Username(os.Getenv(ElasticsearchUsernameEnv)),
 		kibana.CertificateAuthority(os.Getenv(CACertificateEnv)),
+		kibana.Logger(logger.Logger),
 	}
 	options = append(options, customOptions...)
 	client, err := kibana.NewClient(options...)
@@ -104,6 +109,7 @@ func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, erro
 // environment variables. If these environment variables are not set, it uses the information
 // in the provided profile.
 func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kibana.ClientOption) (*kibana.Client, error) {
+	logger := logger.Logger
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config from profile: %w", err)
@@ -112,7 +118,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 	kibanaHost, found := os.LookupEnv(KibanaHostEnv)
 	if !found {
 		// Using backgound context on initial call to avoid context cancellation.
-		status, err := Status(context.Background(), Options{Profile: profile, Logger: logger.Logger})
+		status, err := Status(context.Background(), Options{Profile: profile, Logger: logger})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
 		}
@@ -121,7 +127,9 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 		}
 
 		kibanaHost = profileConfig.KibanaHostPort
-		logger.Debugf("Connecting with Kibana host from current profile (profile: %s, host: %q)", profile.ProfileName, kibanaHost)
+		logger.Debug("Connecting with Kibana host from current profile",
+			slog.String("profile", profile.ProfileName),
+			slog.String("host", kibanaHost))
 	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
@@ -141,6 +149,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 		kibana.Password(elasticsearchPassword),
 		kibana.Username(elasticsearchUsername),
 		kibana.CertificateAuthority(caCertificate),
+		kibana.Logger(logger),
 	}
 	options = append(options, customOptions...)
 	return kibana.NewClient(options...)

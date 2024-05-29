@@ -289,6 +289,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 			}
 		}
+		testrunnerLogger := logger.Logger.With(slog.String("testrunner", string(testType)))
 
 		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
 		if err != nil {
@@ -297,7 +298,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
 
-		ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
+		ctx, stop := signal.Enable(cmd.Context(), testrunnerLogger)
 		defer stop()
 
 		var esAPI *elasticsearch.API
@@ -313,8 +314,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			}
 			esAPI = esClient.API
 		}
-
-		testrunnerLogger := logger.Logger.With(slog.String("testrunner", string(testType)))
 
 		var kibanaClient *kibana.Client
 		if testType == "system" || testType == "asset" {

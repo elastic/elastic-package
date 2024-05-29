@@ -8,6 +8,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -17,7 +18,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
@@ -35,7 +35,7 @@ type ecsTemplates struct {
 	} `yaml:"mappings"`
 }
 
-func addDynamicMappings(packageRoot, destinationDir string) error {
+func addDynamicMappings(packageRoot, destinationDir string, logger *slog.Logger) error {
 	packageManifest := filepath.Join(destinationDir, packages.PackageManifestFile)
 
 	m, err := packages.ReadPackageManifest(packageManifest)
@@ -43,7 +43,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 		return err
 	}
 
-	shouldImport, err := shouldImportEcsMappings(m.SpecVersion, packageRoot)
+	shouldImport, err := shouldImportEcsMappings(m.SpecVersion, packageRoot, logger)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func addDynamicMappings(packageRoot, destinationDir string) error {
 	return nil
 }
 
-func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
+func shouldImportEcsMappings(specVersion, packageRoot string, logger *slog.Logger) (bool, error) {
 	v, err := semver.NewVersion(specVersion)
 	if err != nil {
 		return false, fmt.Errorf("invalid spec version: %w", err)
@@ -104,7 +104,7 @@ func shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 	}
 
 	if v.LessThan(semver2_3_0) {
-		logger.Debugf("Required spec version >= %s to import ECS mappings", semver2_3_0.String())
+		logger.Debug(fmt.Sprintf("Required spec version >= %s to import ECS mappings", semver2_3_0.String()))
 		return false, nil
 	}
 

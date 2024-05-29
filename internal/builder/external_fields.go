@@ -6,6 +6,7 @@ package builder
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -15,28 +16,27 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
 var semver3_0_0 = semver.MustParse("3.0.0")
 
-func resolveExternalFields(packageRoot, destinationDir string) error {
+func resolveExternalFields(packageRoot, destinationDir string, logger *slog.Logger) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return fmt.Errorf("can't read build manifest: %w", err)
 	}
 	if !ok {
-		logger.Debugf("Build manifest hasn't been defined for the package")
+		logger.Debug("Build manifest hasn't been defined for the package")
 		return nil
 	}
 	if !bm.HasDependencies() {
-		logger.Debugf("Package doesn't have any external dependencies defined")
+		logger.Debug("Package doesn't have any external dependencies defined")
 		return nil
 	}
 
-	logger.Debugf("Package has external dependencies defined")
+	logger.Debug("Package has external dependencies defined")
 	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies)
 	if err != nil {
 		return fmt.Errorf("can't create field dependency manager: %w", err)
@@ -71,14 +71,14 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		if err != nil {
 			return err
 		} else if injected {
-			logger.Debugf("%s: source file has been changed", rel)
+			logger.Debug("Source file has been changed", slog.String("path", rel))
 
 			err = os.WriteFile(file, output, 0644)
 			if err != nil {
 				return err
 			}
 		} else {
-			logger.Debugf("%s: source file hasn't been changed", rel)
+			logger.Debug("Source file hasn't been changed", slog.String("path", rel))
 		}
 	}
 

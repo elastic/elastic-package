@@ -10,7 +10,12 @@ import (
 	"os"
 )
 
-const defaultTimeFormat = "2006/01/02 15:04:05"
+const (
+	defaultTimeFormat = "2006/01/02 15:04:05"
+
+	fixAttributeKey   = "logger"
+	fixAttributeValue = "FIXME"
+)
 
 var (
 	Logger   *slog.Logger
@@ -72,40 +77,40 @@ func IsDebugMode() bool {
 
 // Debug method logs message with "debug" level.
 func Debug(a ...interface{}) {
-	DefaultLogger.Debug(fmt.Sprint(a...))
+	DefaultLogger.Debug(fmt.Sprint(a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Debugf method logs message with "debug" level and formats it.
 func Debugf(format string, a ...interface{}) {
-	DefaultLogger.Debug(fmt.Sprintf(format, a...))
+	DefaultLogger.Debug(fmt.Sprintf(format, a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Info method logs message with "info" level.
 func Info(a ...interface{}) {
-	DefaultLogger.Info(fmt.Sprint(a...))
+	DefaultLogger.Info(fmt.Sprint(a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Infof method logs message with "info" level and formats it.
 func Infof(format string, a ...interface{}) {
-	DefaultLogger.Info(fmt.Sprintf(format, a...))
+	DefaultLogger.Info(fmt.Sprintf(format, a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Warn method logs message with "warn" level.
 func Warn(a ...interface{}) {
-	DefaultLogger.Warn(fmt.Sprint(a...))
+	DefaultLogger.Warn(fmt.Sprint(a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Warnf method logs message with "warn" level and formats it.
 func Warnf(format string, a ...interface{}) {
-	DefaultLogger.Warn(fmt.Sprintf(format, a...))
+	DefaultLogger.Warn(fmt.Sprintf(format, a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Error method logs message with "error" level.
 func Error(a ...interface{}) {
-	DefaultLogger.Error(fmt.Sprint(a...))
+	DefaultLogger.Error(fmt.Sprint(a...), slog.String(fixAttributeKey, fixAttributeValue))
 }
 
 // Errorf method logs message with "error" level and formats it.
 func Errorf(format string, a ...interface{}) {
-	DefaultLogger.Error(fmt.Sprintf(format, a...))
+	DefaultLogger.Error(fmt.Sprintf(format, a...), slog.String(fixAttributeKey, fixAttributeValue))
 }

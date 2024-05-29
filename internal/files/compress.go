@@ -7,18 +7,17 @@ package files
 import (
 	"compress/flate"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/elastic/elastic-package/internal/logger"
 
 	"github.com/mholt/archiver/v3"
 )
 
 // Zip function creates the .zip archive from the source path (built package content).
-func Zip(sourcePath, destinationFile string) error {
-	logger.Debugf("Compress using archiver.Zip (destination: %s)", destinationFile)
+func Zip(sourcePath, destinationFile string, logger *slog.Logger) error {
+	logger.Debug("Compress using archiver.Zip", slog.String("destination", destinationFile))
 
 	z := archiver.Zip{
 		CompressionLevel:       flate.DefaultCompression,
@@ -41,7 +40,7 @@ func Zip(sourcePath, destinationFile string) error {
 		return fmt.Errorf("can't prepare work directory: %s: %w", workDir, err)
 	}
 
-	logger.Debugf("Create work directory for archiving: %s", workDir)
+	logger.Debug("Create work directory for archiving", slog.String("work.dir", workDir))
 	err = CopyAll(sourcePath, workDir)
 	if err != nil {
 		return fmt.Errorf("can't create a work directory (path: %s): %w", workDir, err)

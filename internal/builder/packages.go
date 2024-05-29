@@ -182,12 +182,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRoot, destinationDir)
+	err = resolveExternalFields(options.PackageRoot, destinationDir, logger)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
-	err = addDynamicMappings(options.PackageRoot, destinationDir)
+	err = addDynamicMappings(options.PackageRoot, destinationDir, logger)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
@@ -219,7 +219,7 @@ func buildZippedPackage(options BuildOptions, destinationDir string, logger *slo
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(destinationDir, zippedPackagePath)
+	err = files.Zip(destinationDir, zippedPackagePath, logger)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}

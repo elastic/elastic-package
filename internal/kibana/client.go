@@ -186,7 +186,7 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
 
-	c.logger.Debug("request", slog.String("method", method), slog.String("url", u.String()))
+	c.logger.Debug("Kibana request", slog.String("method", method), slog.String("url", u.String()))
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
