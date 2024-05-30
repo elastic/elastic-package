@@ -64,6 +64,7 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
+	actionLogger := logger.Logger.With("elastic-package.command", "lint")
 	packageRootPath, found, err := packages.FindPackageRoot()
 	if !found {
 		return errors.New("package root not found")
@@ -73,7 +74,7 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	errs, skipped := validation.ValidateAndFilterFromPath(packageRootPath)
 	if skipped != nil {
-		logger.Infof("Skipped errors: %v", skipped)
+		actionLogger.Info("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return fmt.Errorf("linting package failed: %w", errs)

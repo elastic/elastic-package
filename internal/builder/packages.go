@@ -15,7 +15,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
 )
@@ -212,10 +211,10 @@ func (b *packageBuilder) buildZippedPackage(destinationDir string) (string, erro
 	if b.skipValidation {
 		b.logger.Debug("Skip validation of the built .zip package")
 	} else {
-		b.logger.Debug("Validating built .zip package)", slog.String("zip.path", zippedPackagePath))
+		b.logger.Debug("Validating built .zip package", slog.String("zip.path", zippedPackagePath))
 		errs, skipped := validation.ValidateAndFilterFromZip(zippedPackagePath)
 		if skipped != nil {
-			logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
+			b.logger.Info("Skipped errors", slog.Any("skipped.errors", skipped))
 		}
 		if errs != nil {
 			return "", fmt.Errorf("invalid content found in built zip package: %w", errs)
