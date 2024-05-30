@@ -38,7 +38,7 @@ require (
 	golang.org/x/tools v0.21.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/gotestsum v1.11.0
+	gotest.tools/gotestsum v1.12.0
 	helm.sh/helm/v3 v3.15.1
 	honnef.co/go/tools v0.4.7
 	k8s.io/apimachinery v0.30.1
@@ -61,7 +61,7 @@ require (
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
-	github.com/bitfield/gotestdox v0.2.1 // indirect
+	github.com/bitfield/gotestdox v0.2.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/creasty/defaults v1.7.0 // indirect
