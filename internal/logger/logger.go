@@ -19,40 +19,105 @@ const (
 	LevelTrace = slog.Level(-8)
 
 	minimumVerbosityCountAddSource = 3
+
+	JSONFormatLabel    = "json"
+	TextFormatLabel    = "text"
+	DefaultFormatLabel = "default"
+)
+
+type LogFormat int
+
+const (
+	DefaultFormat LogFormat = iota
+	JSONFormat
+	TextFormat
 )
 
 var (
-	Logger   *slog.Logger
-	logLevel *slog.LevelVar
+	Logger *slog.Logger
 
-	DefaultLogger   *slog.Logger
-	defaultLogLevel *slog.LevelVar
+	DefaultLogger *slog.Logger
 
 	isDebugMode bool
 
 	LevelNames = map[slog.Leveler]string{
 		LevelTrace: "TRACE",
 	}
+
+	LogFormats = map[string]LogFormat{
+		JSONFormatLabel:    JSONFormat,
+		TextFormatLabel:    TextFormat,
+		DefaultFormatLabel: DefaultFormat,
+	}
 )
 
-func SetupLogger(debugVerbosity int) {
-	logLevel = new(slog.LevelVar)
+type LoggerOptions struct {
+	Verbosity int
+	LogFormat string
+}
 
+func SetupLogger(opts LoggerOptions) error {
 	addSource := false
-	if debugVerbosity >= minimumVerbosityCountAddSource {
+	if opts.Verbosity >= minimumVerbosityCountAddSource {
 		addSource = true
 	}
+
+	format, ok := LogFormats[opts.LogFormat]
+	if !ok {
+		return fmt.Errorf("unrecognized log format %q", opts.LogFormat)
+	}
+
+	logLevel := new(slog.LevelVar)
+	switch {
+	case opts.Verbosity == 1:
+		logLevel.Set(slog.LevelDebug)
+	case opts.Verbosity > 1:
+		logLevel.Set(LevelTrace)
+	}
+
+	var aLogger *slog.Logger
+	switch format {
+	case JSONFormat:
+		aLogger = slog.New(slog.NewJSONHandler(os.Stdout, createHandlerOptions(logLevel, addSource, JSONFormat)))
+	case TextFormat:
+		aLogger = slog.New(slog.NewTextHandler(os.Stdout, createHandlerOptions(logLevel, addSource, TextFormat)))
+	case DefaultFormat:
+		aLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(logLevel, addSource, DefaultFormat)))
+	default:
+		return fmt.Errorf("invalid log format")
+	}
+	Logger = aLogger
+
+	// Update default logger to start using everywhere slog
+	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(logLevel, addSource, DefaultFormat)))
+	slog.SetDefault(DefaultLogger)
+
+	if opts.Verbosity > 0 {
+		Logger.Debug("Enable verbose logging")
+		// Required to keep it in case it is used previous logger calls
+		isDebugMode = true
+	}
+
+	return nil
+}
+
+func createHandlerOptions(logLevel *slog.LevelVar, addSource bool, logFormat LogFormat) *slog.HandlerOptions {
 	options := slog.HandlerOptions{
 		Level:     logLevel,
 		AddSource: addSource,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			switch a.Key {
-			case slog.MessageKey:
-				a.Key = "message"
-			case slog.TimeKey:
+			if logFormat != JSONFormat && a.Key == slog.TimeKey {
 				t := a.Value.Time()
 				a.Value = slog.StringValue(t.Format(defaultTimeFormat))
-			case slog.LevelKey:
+				return a
+			}
+			if logFormat != JSONFormat && a.Key == slog.TimeKey {
+				t := a.Value.Time()
+				a.Value = slog.StringValue(t.Format(defaultTimeFormat))
+				return a
+			}
+
+			if a.Key == slog.LevelKey {
 				level := a.Value.Any().(slog.Level)
 				levelLabel, exists := LevelNames[level]
 				if !exists {
@@ -60,41 +125,12 @@ func SetupLogger(debugVerbosity int) {
 				}
 
 				a.Value = slog.StringValue(levelLabel)
-			}
-			return a
-		},
-	}
-	Logger = slog.New(newHandler(os.Stdout, &options))
-
-	// Update default logger to start using everywhere slog
-	defaultLogLevel = new(slog.LevelVar)
-	DefaultLogger = slog.New(newHandler(os.Stdout, &slog.HandlerOptions{
-		Level:     defaultLogLevel,
-		AddSource: addSource,
-		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key != slog.TimeKey {
 				return a
 			}
-
-			t := a.Value.Time()
-			a.Value = slog.StringValue(t.Format(defaultTimeFormat))
 			return a
 		},
-	}))
-
-	slog.SetDefault(DefaultLogger)
-	switch {
-	case debugVerbosity == 1:
-		defaultLogLevel.Set(slog.LevelDebug)
-		logLevel.Set(slog.LevelDebug)
-	case debugVerbosity > 1:
-		defaultLogLevel.Set(LevelTrace)
-		logLevel.Set(LevelTrace)
 	}
-	if debugVerbosity > 0 {
-		Logger.Debug("Enable verbose logging")
-		isDebugMode = true
-	}
+	return &options
 }
 
 // IsDebugMode method checks if the debug mode is enabled.

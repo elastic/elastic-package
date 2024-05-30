@@ -8,6 +8,9 @@ package cobraext
 const (
 	VerboseFlagName        = "verbose"
 	VerboseFlagDescription = "verbose mode"
+
+	LogFormatFlagName        = "log-format"
+	LogFormatFlagDescription = "Logging format (JSON, Text, default)"
 )
 
 // Primary flags reused by multiple commands

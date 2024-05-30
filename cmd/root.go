@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -53,6 +54,7 @@ func RootCmd() *cobra.Command {
 		},
 	}
 	rootCmd.PersistentFlags().CountP(cobraext.VerboseFlagName, "v", cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().String(cobraext.LogFormatFlagName, logger.DefaultFormatLabel, cobraext.LogFormatFlagDescription)
 
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
@@ -75,7 +77,20 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
 
-	logger.SetupLogger(verbosity)
+	LogFormat, err := cmd.Flags().GetString(cobraext.LogFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.LogFormatFlagName)
+	}
+
+	opts := logger.LoggerOptions{
+		Verbosity: verbosity,
+		LogFormat: LogFormat,
+	}
+
+	err = logger.SetupLogger(opts)
+	if err != nil {
+		return fmt.Errorf("failed to setup logger: %w", err)
+	}
 	return nil
 }
 
