@@ -17,14 +17,14 @@ import (
 
 const kustomizationFile = "kustomization.yaml"
 
-type Client struct {
+type client struct {
 	logger *slog.Logger
 }
 
-type KubectlOption func(k *Client)
+type KubectlOption func(k *client)
 
-func NewKubectlClient(opts ...KubectlOption) *Client {
-	c := Client{
+func NewKubectlClient(opts ...KubectlOption) *client {
+	c := client{
 		logger: logger.Logger,
 	}
 
@@ -35,13 +35,13 @@ func NewKubectlClient(opts ...KubectlOption) *Client {
 }
 
 func WithLogger(log *slog.Logger) KubectlOption {
-	return func(k *Client) {
+	return func(k *client) {
 		k.logger = log
 	}
 }
 
 // CurrentContext function returns the selected Kubernetes context.
-func (k *Client) CurrentContext(ctx context.Context) (string, error) {
+func (k *client) CurrentContext(ctx context.Context) (string, error) {
 	cmd := exec.CommandContext(ctx, "kubectl", "config", "current-context")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
@@ -54,7 +54,7 @@ func (k *Client) CurrentContext(ctx context.Context) (string, error) {
 	return string(bytes.TrimSpace(output)), nil
 }
 
-func (k *Client) modifyKubernetesResources(ctx context.Context, action string, definitionPaths []string) ([]byte, error) {
+func (k *client) modifyKubernetesResources(ctx context.Context, action string, definitionPaths []string) ([]byte, error) {
 	args := []string{action}
 	for _, definitionPath := range definitionPaths {
 		if filepath.Base(definitionPath) == kustomizationFile {
@@ -83,7 +83,7 @@ func (k *Client) modifyKubernetesResources(ctx context.Context, action string, d
 
 // applyKubernetesResourcesStdin applies a Kubernetes manifest provided as stdin.
 // It returns the resources created as output and an error
-func (k *Client) applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
+func (k *client) applyKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.CommandContext(ctx, "kubectl", "apply", "-f", "-", "-o", "yaml")
 	//Stdin of kubectl command is the manifest provided
@@ -101,7 +101,7 @@ func (k *Client) applyKubernetesResourcesStdin(ctx context.Context, input []byte
 
 // deleteKubernetesResourcesStdin deletes a Kubernetes manifest provided as stdin.
 // It returns the resources deleted as output and an error
-func (k *Client) deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
+func (k *client) deleteKubernetesResourcesStdin(ctx context.Context, input []byte) ([]byte, error) {
 	// create kubectl apply command
 	kubectlCmd := exec.CommandContext(ctx, "kubectl", "delete", "-f", "-")
 	// Stdin of kubectl command is the manifest provided

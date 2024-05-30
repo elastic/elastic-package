@@ -69,7 +69,7 @@ func (c condition) String() string {
 }
 
 // Apply function adds resources to the Kubernetes cluster based on provided definitions.
-func (k *Client) Apply(ctx context.Context, definitionsPath []string) error {
+func (k *client) Apply(ctx context.Context, definitionsPath []string) error {
 	k.logger.Debug("Apply Kubernetes custom definitions")
 	out, err := k.modifyKubernetesResources(ctx, "apply", definitionsPath)
 	if err != nil {
@@ -85,7 +85,7 @@ func (k *Client) Apply(ctx context.Context, definitionsPath []string) error {
 }
 
 // ApplyStdin function adds resources to the Kubernetes cluster based on provided stdin.
-func (k *Client) ApplyStdin(ctx context.Context, input []byte) error {
+func (k *client) ApplyStdin(ctx context.Context, input []byte) error {
 	k.logger.Debug("Apply Kubernetes stdin")
 	out, err := k.applyKubernetesResourcesStdin(ctx, input)
 	if err != nil {
@@ -100,7 +100,7 @@ func (k *Client) ApplyStdin(ctx context.Context, input []byte) error {
 	return nil
 }
 
-func (k *Client) handleApplyCommandOutput(out []byte) error {
+func (k *client) handleApplyCommandOutput(out []byte) error {
 	k.logger.Debug("Extract resources from command output")
 	resources, err := extractResources(out)
 	if err != nil {
@@ -115,7 +115,7 @@ func (k *Client) handleApplyCommandOutput(out []byte) error {
 	return nil
 }
 
-func (k *Client) waitForReadyResources(resources []resource) error {
+func (k *client) waitForReadyResources(resources []resource) error {
 	var resList kube.ResourceList
 	for _, r := range resources {
 		resInfo, err := k.createResourceInfo(r)
@@ -162,7 +162,7 @@ func extractResource(output []byte) (*resource, error) {
 	return &r, nil
 }
 
-func (k *Client) createResourceInfo(r resource) (*kresource.Info, error) {
+func (k *client) createResourceInfo(r resource) (*kresource.Info, error) {
 	scope := meta.RESTScopeNamespace
 	if r.Metadata.Namespace == "" {
 		scope = meta.RESTScopeRoot
