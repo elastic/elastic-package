@@ -522,7 +522,7 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("locating data stream root failed: %w", err)
 	}
 	if found {
-		r.logger.Debug("Running system tests for data stream", slog.String("data_stream", r.options.TestFolder.DataStream))
+		r.logger.Debug("Running system tests for data stream", slog.String("datastream", r.options.TestFolder.DataStream))
 	} else {
 		r.logger.Debug("Running system tests for package")
 	}
@@ -679,7 +679,7 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 	if resp.StatusCode == http.StatusNotFound {
 		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
 		// in any case, so just return false.
-		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("data.stream", dataStream))
+		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("datastream", dataStream))
 		return false, nil
 	}
 	if resp.IsError() {
@@ -706,7 +706,7 @@ func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentT
 	}
 
 	if len(results.ComponentTemplates) == 0 {
-		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("data.stream", dataStream))
+		r.logger.Debug("no component template found for data stream", slog.String("component.template", componentTemplatePackage), slog.String("datastream", dataStream))
 		return false, nil
 	}
 	if len(results.ComponentTemplates) != 1 {
@@ -804,13 +804,13 @@ func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	if results.Error != nil {
 		r.logger.Debug("found hits in data stream:",
 			slog.Int("hits", numHits),
-			slog.String("data.stream", dataStream),
+			slog.String("datastream", dataStream),
 			slog.String("type", results.Error.Type),
 			slog.String("reason", results.Error.Reason),
 			slog.Int("status", results.Status),
 		)
 	} else {
-		r.logger.Debug("found hits in data stream", slog.Int("hits", numHits), slog.String("data.stream", dataStream))
+		r.logger.Debug("found hits in data stream", slog.Int("hits", numHits), slog.String("datastream", dataStream))
 	}
 
 	var hits hits
@@ -1047,7 +1047,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	switch {
 	case r.options.RunTearDown:
-		r.logger.Debug("Skipped deleting old data in data stream", slog.String("data.stream", scenario.dataStream))
+		r.logger.Debug("Skipped deleting old data in data stream", slog.String("datastream", scenario.dataStream))
 	case r.options.RunTestsOnly:
 		// In this mode, service is still running and the agent is sending documents, so sometimes
 		// cannot be guaranteed to be zero documents
@@ -1210,7 +1210,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if err != nil {
 		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
 	}
-	r.logger.Debug("data stream has synthetics enabled", slog.String("data.stream", scenario.dataStream), slog.Bool("synthetic.enabled", scenario.syntheticEnabled))
+	r.logger.Debug("data stream has synthetics enabled", slog.String("datastream", scenario.dataStream), slog.Bool("synthetic.enabled", scenario.syntheticEnabled))
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
@@ -1404,7 +1404,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 }
 
 func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
-	r.logger.Debug("Delete previous documents in data stream", slog.String("data.stream", dataStream))
+	r.logger.Debug("Delete previous documents in data stream", slog.String("datastream", dataStream))
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
 	}
