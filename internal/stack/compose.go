@@ -7,11 +7,14 @@ package stack
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 )
 
 type ServiceStatus struct {
@@ -52,11 +55,42 @@ func (eb *envBuilder) build() []string {
 	return eb.vars
 }
 
-func dockerComposeBuild(ctx context.Context, options Options) error {
+type dockerCompose struct {
+	profile      *profile.Profile
+	logger       *slog.Logger
+	stackVersion string
+	services     []string
+	daemonMode   bool
+}
+
+type dockerComposeOptions struct {
+	Profile      *profile.Profile
+	Logger       *slog.Logger
+	StackVersion string
+	DaemonMode   bool
+	Services     []string
+}
+
+func newDockerCompose(opts dockerComposeOptions) *dockerCompose {
+	d := dockerCompose{
+		profile:      opts.Profile,
+		logger:       logger.Logger,
+		services:     opts.Services,
+		stackVersion: opts.StackVersion,
+		daemonMode:   opts.DaemonMode,
+	}
+	if opts.Logger != nil {
+		d.logger = opts.Logger
+	}
+
+	return &d
+}
+
+func (d *dockerCompose) Build(ctx context.Context) error {
 	c, err := compose.NewProject(compose.ProjectOptions{
-		Name:   DockerComposeProjectName(options.Profile),
-		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
-		Logger: options.Logger,
+		Name:   DockerComposeProjectName(d.profile),
+		Paths:  []string{d.profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: d.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -69,11 +103,11 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
+			withEnvs(appConfig.StackImageRefs(d.stackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(d.stackVersion)).
+			withEnvs(d.profile.ComposeEnvVars()).
 			build(),
-		Services: withIsReadyServices(withDependentServices(options.Services)),
+		Services: withIsReadyServices(withDependentServices(d.services)),
 	}
 
 	if err := c.Build(ctx, opts); err != nil {
@@ -82,11 +116,11 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 	return nil
 }
 
-func dockerComposePull(ctx context.Context, options Options) error {
+func (d *dockerCompose) Pull(ctx context.Context) error {
 	c, err := compose.NewProject(compose.ProjectOptions{
-		Name:   DockerComposeProjectName(options.Profile),
-		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
-		Logger: options.Logger,
+		Name:   DockerComposeProjectName(d.profile),
+		Paths:  []string{d.profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: d.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -99,11 +133,11 @@ func dockerComposePull(ctx context.Context, options Options) error {
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
+			withEnvs(appConfig.StackImageRefs(d.stackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(d.stackVersion)).
+			withEnvs(d.profile.ComposeEnvVars()).
 			build(),
-		Services: withIsReadyServices(withDependentServices(options.Services)),
+		Services: withIsReadyServices(withDependentServices(d.services)),
 	}
 
 	if err := c.Pull(ctx, opts); err != nil {
@@ -112,18 +146,18 @@ func dockerComposePull(ctx context.Context, options Options) error {
 	return nil
 }
 
-func dockerComposeUp(ctx context.Context, options Options) error {
+func (d *dockerCompose) Up(ctx context.Context) error {
 	c, err := compose.NewProject(compose.ProjectOptions{
-		Name:   DockerComposeProjectName(options.Profile),
-		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
-		Logger: options.Logger,
+		Name:   DockerComposeProjectName(d.profile),
+		Paths:  []string{d.profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: d.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	var args []string
-	if options.DaemonMode {
+	if d.daemonMode {
 		args = append(args, "-d")
 	}
 
@@ -134,12 +168,12 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
+			withEnvs(appConfig.StackImageRefs(d.stackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(d.stackVersion)).
+			withEnvs(d.profile.ComposeEnvVars()).
 			build(),
 		ExtraArgs: args,
-		Services:  withIsReadyServices(withDependentServices(options.Services)),
+		Services:  withIsReadyServices(withDependentServices(d.services)),
 	}
 
 	if err := c.Up(ctx, opts); err != nil {
@@ -148,11 +182,11 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 	return nil
 }
 
-func dockerComposeDown(ctx context.Context, options Options) error {
+func (d *dockerCompose) Down(ctx context.Context) error {
 	c, err := compose.NewProject(compose.ProjectOptions{
-		Name:   DockerComposeProjectName(options.Profile),
-		Paths:  []string{options.Profile.Path(ProfileStackPath, ComposeFile)},
-		Logger: options.Logger,
+		Name:   DockerComposeProjectName(d.profile),
+		Paths:  []string{d.profile.Path(ProfileStackPath, ComposeFile)},
+		Logger: d.logger,
 	})
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -165,9 +199,9 @@ func dockerComposeDown(ctx context.Context, options Options) error {
 
 	downOptions := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
-			withEnv(stackVariantAsEnv(options.StackVersion)).
-			withEnvs(options.Profile.ComposeEnvVars()).
+			withEnvs(appConfig.StackImageRefs(d.stackVersion).AsEnv()).
+			withEnv(stackVariantAsEnv(d.stackVersion)).
+			withEnvs(d.profile.ComposeEnvVars()).
 			build(),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
@@ -199,11 +233,11 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus(_ context.Context, options Options) ([]ServiceStatus, error) {
+func (d *dockerCompose) Status(_ context.Context) ([]ServiceStatus, error) {
 	var services []ServiceStatus
-	d := docker.NewDocker(docker.WithLogger(options.Logger))
+	dockerClient := docker.NewDocker(docker.WithLogger(d.logger))
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
-	containerIDs, err := d.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
+	containerIDs, err := dockerClient.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(d.profile))
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +246,7 @@ func dockerComposeStatus(_ context.Context, options Options) ([]ServiceStatus, e
 		return services, nil
 	}
 
-	containerDescriptions, err := d.InspectContainers(containerIDs...)
+	containerDescriptions, err := dockerClient.InspectContainers(containerIDs...)
 	if err != nil {
 		return nil, err
 	}

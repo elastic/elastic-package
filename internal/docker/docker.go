@@ -86,7 +86,7 @@ func (d *DockerClient) Pull(image string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Debugf("run command: %s", cmd)
+	d.logger.Debug("run command", slog.String("command", cmd.String()))
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("running docker command failed: %w", err)

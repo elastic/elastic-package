@@ -23,8 +23,14 @@ func Update(ctx context.Context, options Options) error {
 	if err != nil {
 		return fmt.Errorf("pulling package-registry docker image failed: %w", err)
 	}
+	dockerCompose := newDockerCompose(dockerComposeOptions{
+		Logger:       options.Logger,
+		StackVersion: options.StackVersion,
+		Profile:      options.Profile,
+		Services:     options.Services,
+	})
 
-	err = dockerComposePull(ctx, options)
+	err = dockerCompose.Pull(ctx)
 	if err != nil {
 		return fmt.Errorf("pulling docker images failed: %w", err)
 	}

@@ -12,7 +12,12 @@ import (
 
 // Status shows the status for each service
 func Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
-	servicesStatus, err := dockerComposeStatus(ctx, options)
+	dockerCompose := newDockerCompose(dockerComposeOptions{
+		Logger:  options.Logger,
+		Profile: options.Profile,
+	})
+
+	servicesStatus, err := dockerCompose.Status(ctx)
 	if err != nil {
 		return nil, err
 	}

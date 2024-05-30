@@ -80,12 +80,20 @@ func BootUp(ctx context.Context, options Options) error {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}
 
-	err = dockerComposeBuild(ctx, options)
+	dockerCompose := newDockerCompose(dockerComposeOptions{
+		Logger:       options.Logger,
+		StackVersion: options.StackVersion,
+		Profile:      options.Profile,
+		DaemonMode:   options.DaemonMode,
+		Services:     options.Services,
+	})
+
+	err = dockerCompose.Build(ctx)
 	if err != nil {
 		return fmt.Errorf("building docker images failed: %w", err)
 	}
 
-	err = dockerComposeUp(ctx, options)
+	err = dockerCompose.Up(ctx)
 	if err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
@@ -98,7 +106,7 @@ func BootUp(ctx context.Context, options Options) error {
 			fmt.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
 			select {
 			case <-time.After(sleepTime):
-				err = dockerComposeUp(ctx, options)
+				err = dockerCompose.Up(ctx)
 			case <-ctx.Done():
 				err = ctx.Err()
 			}
@@ -137,7 +145,13 @@ func onlyElasticAgentFailed(ctx context.Context, options Options) bool {
 
 // TearDown function takes down the testing stack.
 func TearDown(ctx context.Context, options Options) error {
-	err := dockerComposeDown(ctx, options)
+	dockerCompose := newDockerCompose(dockerComposeOptions{
+		Logger:       options.Logger,
+		StackVersion: options.StackVersion,
+		Profile:      options.Profile,
+	})
+
+	err := dockerCompose.Down(ctx)
 	if err != nil {
 		return fmt.Errorf("stopping docker containers failed: %w", err)
 	}
