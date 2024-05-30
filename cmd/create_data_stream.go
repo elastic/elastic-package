@@ -7,11 +7,13 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
@@ -116,8 +118,9 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "create data-stream"))
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
-	err = archetype.CreateDataStream(descriptor)
+	err = archetype.CreateDataStream(descriptor, actionLogger)
 	if err != nil {
 		return fmt.Errorf("can't create new data stream: %w", err)
 	}

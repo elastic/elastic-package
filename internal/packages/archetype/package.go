@@ -6,12 +6,12 @@ package archetype
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/licenses"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -23,50 +23,50 @@ type PackageDescriptor struct {
 }
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
-func CreatePackage(packageDescriptor PackageDescriptor) error {
-	return createPackageInDir(packageDescriptor, ".")
+func CreatePackage(packageDescriptor PackageDescriptor, logger *slog.Logger) error {
+	return createPackageInDir(packageDescriptor, ".", logger)
 }
 
-func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
+func createPackageInDir(packageDescriptor PackageDescriptor, cwd string, logger *slog.Logger) error {
 	baseDir := filepath.Join(cwd, packageDescriptor.Manifest.Name)
 	_, err := os.Stat(baseDir)
 	if err == nil {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
 	}
 
-	logger.Debugf("Write package manifest")
+	logger.Debug("Write package manifest")
 	err = renderResourceFile(packageManifestTemplate, packageDescriptor, filepath.Join(baseDir, "manifest.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render package manifest: %w", err)
 	}
 
-	logger.Debugf("Write package changelog")
+	logger.Debug("Write package changelog")
 	err = renderResourceFile(packageChangelogTemplate, &packageDescriptor, filepath.Join(baseDir, "changelog.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render package changelog: %w", err)
 	}
 
-	logger.Debugf("Write docs readme")
+	logger.Debug("Write docs readme")
 	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "docs", "README.md"))
 	if err != nil {
 		return fmt.Errorf("can't render package README: %w", err)
 	}
 
 	if license := packageDescriptor.Manifest.Source.License; license != "" {
-		logger.Debugf("Write license file")
+		logger.Debug("Write license file")
 		err = licenses.WriteTextToFile(license, filepath.Join(baseDir, "LICENSE.txt"))
 		if err != nil {
 			return fmt.Errorf("can't write license file: %w", err)
 		}
 	}
 
-	logger.Debugf("Write sample icon")
+	logger.Debug("Write sample icon")
 	err = writeRawResourceFile(packageImgSampleIcon, filepath.Join(baseDir, "img", "sample-logo.svg"))
 	if err != nil {
 		return fmt.Errorf("can't render sample icon: %w", err)
 	}
 
-	logger.Debugf("Write sample screenshot")
+	logger.Debug("Write sample screenshot")
 	decodedSampleScreenshot, err := decodeBase64Resource(packageImgSampleScreenshot)
 	if err != nil {
 		return fmt.Errorf("can't decode sample screenshot: %w", err)
@@ -77,22 +77,21 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 	}
 
 	if packageDescriptor.Manifest.Type == "input" {
-		logger.Debugf("Write base fields")
+		logger.Debug("Write base fields")
 		err = renderResourceFile(fieldsBaseTemplate, &packageDescriptor, filepath.Join(baseDir, "fields", "base-fields.yml"))
 		if err != nil {
 			return fmt.Errorf("can't render base fields: %w", err)
 		}
 
 		// agent input configuration
-		logger.Debugf("Write agent input configuration")
+		logger.Debug("Write agent input configuration")
 		err = renderResourceFile(inputAgentConfigTemplate, &packageDescriptor, filepath.Join(baseDir, "agent", "input", "input.yml.hbs"))
 		if err != nil {
 			return fmt.Errorf("can't render agent stream: %w", err)
 		}
-
 	}
 
-	logger.Debugf("Format the entire package")
+	logger.Debug("Format the entire package")
 	err = formatter.Format(baseDir, false)
 	if err != nil {
 		return fmt.Errorf("can't format the new package: %w", err)

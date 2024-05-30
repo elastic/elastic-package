@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -64,13 +65,13 @@ func createAndCheckDataStream(t require.TestingT, pd PackageDescriptor, dd DataS
 		os.RemoveAll(tempDir)
 	}()
 
-	err = CreatePackage(pd)
+	err = CreatePackage(pd, logger.DefaultLogger)
 	require.NoError(t, err)
 
 	packageRoot := filepath.Join(tempDir, pd.Manifest.Name)
 	dd.PackageRoot = packageRoot
 
-	err = CreateDataStream(dd)
+	err = CreateDataStream(dd, logger.DefaultLogger)
 	require.NoError(t, err)
 
 	err = checkPackage(pd.Manifest.Name)

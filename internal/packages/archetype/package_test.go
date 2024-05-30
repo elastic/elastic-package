@@ -11,6 +11,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
 )
@@ -39,7 +40,7 @@ func TestPackage(t *testing.T) {
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor) error {
 	tempDir := t.TempDir()
-	err := createPackageInDir(pd, tempDir)
+	err := createPackageInDir(pd, tempDir, logger.DefaultLogger)
 	require.NoError(t, err)
 
 	err = checkPackage(filepath.Join(tempDir, pd.Manifest.Name))

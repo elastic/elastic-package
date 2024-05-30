@@ -6,11 +6,11 @@ package archetype
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/formatter"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -21,40 +21,40 @@ type DataStreamDescriptor struct {
 }
 
 // CreateDataStream function bootstraps the new data stream based on the provided descriptor.
-func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
+func CreateDataStream(dataStreamDescriptor DataStreamDescriptor, logger *slog.Logger) error {
 	dataStreamDir := filepath.Join(dataStreamDescriptor.PackageRoot, "data_stream", dataStreamDescriptor.Manifest.Name)
 	_, err := os.Stat(dataStreamDir)
 	if err == nil {
 		return fmt.Errorf(`data stream "%s" already exists`, dataStreamDescriptor.Manifest.Name)
 	}
 
-	logger.Debugf("Write data stream manifest")
+	logger.Debug("Write data stream manifest")
 	err = renderResourceFile(dataStreamManifestTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "manifest.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render data stream manifest: %w", err)
 	}
 
-	logger.Debugf("Write base fields")
+	logger.Debug("Write base fields")
 	err = renderResourceFile(fieldsBaseTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "fields", "base-fields.yml"))
 	if err != nil {
 		return fmt.Errorf("can't render base fields: %w", err)
 	}
 
-	logger.Debugf("Write agent stream")
+	logger.Debug("Write agent stream")
 	err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
 	if err != nil {
 		return fmt.Errorf("can't render agent stream: %w", err)
 	}
 
 	if dataStreamDescriptor.Manifest.Type == "logs" {
-		logger.Debugf("Write ingest pipeline")
+		logger.Debug("Write ingest pipeline")
 		err = renderResourceFile(dataStreamElasticsearchIngestPipelineTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "elasticsearch", "ingest_pipeline", "default.yml"))
 		if err != nil {
 			return fmt.Errorf("can't render ingest pipeline: %w", err)
 		}
 	}
 
-	logger.Debugf("Format the entire package")
+	logger.Debug("Format the entire package")
 	err = formatter.Format(dataStreamDescriptor.PackageRoot, false)
 	if err != nil {
 		return fmt.Errorf("can't format the new data stream: %w", err)

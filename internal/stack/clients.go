@@ -45,6 +45,7 @@ func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elast
 // environment variables. If these environment variables are not set, it uses the information
 // in the provided profile.
 func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
+	// TODO: receive logger from caller
 	logger := logger.Logger
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {
@@ -114,6 +115,7 @@ func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, erro
 // environment variables. If these environment variables are not set, it uses the information
 // in the provided profile.
 func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kibana.ClientOption) (*kibana.Client, error) {
+	// TODO: receive logger from caller
 	logger := logger.Logger
 	profileConfig, err := StackInitConfig(profile)
 	if err != nil {

@@ -6,11 +6,13 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
@@ -193,6 +195,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "create package"))
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
 	specVersion, err := archetype.GetLatestStableSpecVersion()
@@ -201,7 +204,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	descriptor.Manifest.SpecVersion = specVersion.String()
 
-	err = archetype.CreatePackage(descriptor)
+	err = archetype.CreatePackage(descriptor, actionLogger)
 	if err != nil {
 		return fmt.Errorf("can't create new package: %w", err)
 	}
