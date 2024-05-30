@@ -21,18 +21,18 @@ import (
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
-func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs []string, logger *slog.Logger) error {
+func (e *exporter) Dashboards(ctx context.Context, dashboardsIDs []string) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	logger.Debug("Package root found", slog.String("path", packageRoot))
+	e.logger.Debug("Package root found", slog.String("path", packageRoot))
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 
-	versionInfo, err := kibanaClient.Version()
+	versionInfo, err := e.kibana.Version()
 	if err != nil {
 		return fmt.Errorf("getting Kibana version information: %w", err)
 	}
@@ -40,7 +40,7 @@ func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs 
 		return fmt.Errorf("cannot import from this Kibana version: %w", err)
 	}
 
-	objects, err := kibanaClient.Export(ctx, dashboardsIDs)
+	objects, err := e.kibana.Export(ctx, dashboardsIDs)
 	if err != nil {
 		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
 	}
@@ -54,7 +54,7 @@ func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs 
 		return fmt.Errorf("can't transform Kibana objects: %w", err)
 	}
 
-	err = saveObjectsToFiles(packageRoot, objects, logger)
+	err = e.saveObjectsToFiles(packageRoot, objects)
 	if err != nil {
 		return fmt.Errorf("can't save Kibana objects: %w", err)
 	}
@@ -90,8 +90,8 @@ func applyTransformations(ctx *transformationContext, objects []common.MapStr) (
 		transform(objects)
 }
 
-func saveObjectsToFiles(packageRoot string, objects []common.MapStr, logger *slog.Logger) error {
-	logger.Debug("Save Kibana objects to files")
+func (e *exporter) saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
+	e.logger.Debug("Save Kibana objects to files")
 
 	for _, object := range objects {
 		id, _ := object.GetValue("id")

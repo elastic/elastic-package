@@ -108,7 +108,11 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs, actionLogger)
+	exporter := export.NewExporter(
+		export.WithLogger(actionLogger),
+		export.WithKibana(kibanaClient),
+	)
+	err = exporter.Dashboards(cmd.Context(), dashboardIDs)
 	if err != nil {
 		return fmt.Errorf("dashboards export failed: %w", err)
 	}
