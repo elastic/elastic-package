@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -88,7 +90,8 @@ func dumpInstalledObjectsCmdAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var kibanaOptions []kibana.ClientOption
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "dump"))
+	kibanaOptions := []kibana.ClientOption{kibana.Logger(actionLogger)}
 	if tlsSkipVerify {
 		kibanaOptions = append(kibanaOptions, kibana.TLSSkipVerify())
 	}
