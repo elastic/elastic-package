@@ -7,6 +7,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -50,6 +52,7 @@ func setupEditCommand() *cobraext.Command {
 
 func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Make Kibana dashboards editable")
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "edit dashboards"))
 
 	dashboardIDs, err := cmd.Flags().GetStringSlice(cobraext.DashboardIDsFlagName)
 	if err != nil {
@@ -58,7 +61,7 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	common.TrimStringSlice(dashboardIDs)
 
-	var opts []kibana.ClientOption
+	opts := []kibana.ClientOption{kibana.Logger(actionLogger)}
 	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
 	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
