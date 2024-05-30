@@ -61,7 +61,7 @@ type projectSettings struct {
 	SelfMonitor     bool
 }
 
-func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options, conf Config) (Config, error) {
+func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options) (Config, error) {
 	project, err := sp.client.CreateProject(ctx, settings.Name, settings.Region, settings.Type)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
@@ -134,7 +134,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	return config, nil
 }
 
-func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project, options Options) error {
+func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project) error {
 	return sp.client.DeleteProject(ctx, project)
 }
 
@@ -281,7 +281,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		sp.logger = sp.logger.With(slog.String("project.type", settings.Type), slog.String("project.name", settings.Name))
 
 		sp.logger.Info("Creating project")
-		config, err = sp.createProject(ctx, settings, options, config)
+		config, err = sp.createProject(ctx, settings, options)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
@@ -404,7 +404,7 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 
 	sp.logger.Debug("Deleting project", slog.String("project.id", project.ID))
 
-	err = sp.deleteProject(ctx, project, options)
+	err = sp.deleteProject(ctx, project)
 	if err != nil {
 		sp.logger.Error("failed to delete project", slog.Any("error", err))
 		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
