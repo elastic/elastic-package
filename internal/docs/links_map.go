@@ -60,7 +60,7 @@ func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
 	return url, nil
 }
 
-func (d *DocsRenderer) readLinksMap() (linkMap, error) {
+func (d *docsRenderer) readLinksMap() (linkMap, error) {
 	linksFilePath, err := d.linksDefinitionsFilePath()
 	if err != nil {
 		return linkMap{}, fmt.Errorf("locating links file failed: %w", err)
@@ -87,7 +87,7 @@ func (d *DocsRenderer) readLinksMap() (linkMap, error) {
 
 // linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
 // If linksMapFilePathEnvVar is defined, it returns the value of that env var.
-func (d *DocsRenderer) linksDefinitionsFilePath() (string, error) {
+func (d *docsRenderer) linksDefinitionsFilePath() (string, error) {
 	var err error
 	linksFilePath, ok := os.LookupEnv(linksMapFilePathEnvVar)
 	if ok {

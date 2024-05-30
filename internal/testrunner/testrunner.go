@@ -287,12 +287,12 @@ func RegisterRunner(runner TestRunner) {
 	runners[runner.Type()] = runner
 }
 
-type RunnerLauncher struct {
+type runnerLauncher struct {
 	logger *slog.Logger
 }
 
-func NewRunnerLauncher(options ...RunnerLauncherOption) *RunnerLauncher {
-	r := RunnerLauncher{logger: logger.Logger}
+func NewRunnerLauncher(options ...RunnerLauncherOption) *runnerLauncher {
+	r := runnerLauncher{logger: logger.Logger}
 	for _, opt := range options {
 		opt(&r)
 	}
@@ -300,10 +300,10 @@ func NewRunnerLauncher(options ...RunnerLauncherOption) *RunnerLauncher {
 	return &r
 }
 
-type RunnerLauncherOption func(r *RunnerLauncher)
+type RunnerLauncherOption func(r *runnerLauncher)
 
 func WithLogger(logger *slog.Logger) RunnerLauncherOption {
-	return func(r *RunnerLauncher) {
+	return func(r *runnerLauncher) {
 		r.logger = logger
 	}
 }
@@ -324,7 +324,7 @@ func NewRunner(testType TestType, log *slog.Logger) (TestRunner, error) {
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
-func (r *RunnerLauncher) Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
+func (r *runnerLauncher) Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
 	runner, err := NewRunner(testType, r.logger)
 	if err != nil {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)

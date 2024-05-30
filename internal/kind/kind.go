@@ -21,15 +21,15 @@ const ControlPlaneContainerName = "kind-control-plane"
 
 const kindContext = "kind-kind"
 
-type Client struct {
+type client struct {
 	profile *profile.Profile
 	logger  *slog.Logger
 }
 
-type KindOption func(k *Client)
+type KindOption func(k *client)
 
-func NewKindClient(profile *profile.Profile, opts ...KindOption) *Client {
-	c := Client{
+func NewKindClient(profile *profile.Profile, opts ...KindOption) *client {
+	c := client{
 		profile: profile,
 		logger:  logger.Logger,
 	}
@@ -41,13 +41,13 @@ func NewKindClient(profile *profile.Profile, opts ...KindOption) *Client {
 }
 
 func WithLogger(log *slog.Logger) KindOption {
-	return func(k *Client) {
+	return func(k *client) {
 		k.logger = log
 	}
 }
 
 // VerifyContext function ensures that the kind context is selected.
-func (k *Client) VerifyContext(ctx context.Context) error {
+func (k *client) VerifyContext(ctx context.Context) error {
 	k.logger.Debug("ensure that kind context is selected")
 
 	kubectlClient := kubectl.NewKubectlClient(kubectl.WithLogger(k.logger))
@@ -63,7 +63,7 @@ func (k *Client) VerifyContext(ctx context.Context) error {
 }
 
 // ConnectToElasticStackNetwork function ensures that the control plane node is connected to the Elastic stack network.
-func (k *Client) ConnectToElasticStackNetwork() error {
+func (k *client) ConnectToElasticStackNetwork() error {
 	containerID, err := k.controlPlaneContainerID()
 	if err != nil {
 		return fmt.Errorf("can't find kind-control plane node: %w", err)
@@ -105,7 +105,7 @@ func (k *Client) ConnectToElasticStackNetwork() error {
 	return nil
 }
 
-func (k *Client) controlPlaneContainerID() (string, error) {
+func (k *client) controlPlaneContainerID() (string, error) {
 	k.logger.Debug("find container", slog.String("container", ControlPlaneContainerName))
 
 	d := docker.NewDocker(docker.WithLogger(k.logger))

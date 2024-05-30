@@ -54,14 +54,14 @@ func (c *ContainerDescription) String() string {
 	return string(b)
 }
 
-type DockerClient struct {
+type dockerClient struct {
 	logger *slog.Logger
 }
 
-type DockerOption func(d *DockerClient)
+type DockerOption func(d *dockerClient)
 
-func NewDocker(options ...DockerOption) *DockerClient {
-	d := &DockerClient{
+func NewDocker(options ...DockerOption) *dockerClient {
+	d := &dockerClient{
 		logger: logger.Logger,
 	}
 
@@ -72,13 +72,13 @@ func NewDocker(options ...DockerOption) *DockerClient {
 }
 
 func WithLogger(l *slog.Logger) DockerOption {
-	return func(d *DockerClient) {
+	return func(d *dockerClient) {
 		d.logger = l
 	}
 }
 
 // Pull downloads the latest available revision of the image.
-func (d *DockerClient) Pull(image string) error {
+func (d *dockerClient) Pull(image string) error {
 	cmd := exec.Command("docker", "pull", image)
 
 	if logger.IsDebugMode() {
@@ -95,7 +95,7 @@ func (d *DockerClient) Pull(image string) error {
 }
 
 // ContainerID function returns the container ID for a given container name.
-func (d *DockerClient) ContainerID(containerName string) (string, error) {
+func (d *dockerClient) ContainerID(containerName string) (string, error) {
 	cmd := exec.Command("docker", "ps", "--filter", "name="+containerName, "--format", "{{.ID}}")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
@@ -113,7 +113,7 @@ func (d *DockerClient) ContainerID(containerName string) (string, error) {
 }
 
 // ContainerIDsWithLabel function returns all the container IDs filtering per label.
-func (d *DockerClient) ContainerIDsWithLabel(key, value string) ([]string, error) {
+func (d *dockerClient) ContainerIDsWithLabel(key, value string) ([]string, error) {
 	label := fmt.Sprintf("%s=%s", key, value)
 	cmd := exec.Command("docker", "ps", "-a", "--filter", "label="+label, "--format", "{{.ID}}")
 	errOutput := new(bytes.Buffer)
@@ -129,7 +129,7 @@ func (d *DockerClient) ContainerIDsWithLabel(key, value string) ([]string, error
 }
 
 // InspectNetwork function returns the network description for the selected network.
-func (d *DockerClient) InspectNetwork(network string) ([]NetworkDescription, error) {
+func (d *dockerClient) InspectNetwork(network string) ([]NetworkDescription, error) {
 	cmd := exec.Command("docker", "network", "inspect", network)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
@@ -149,12 +149,12 @@ func (d *DockerClient) InspectNetwork(network string) ([]NetworkDescription, err
 }
 
 // ConnectToNetwork function connects the container to the selected Docker network.
-func (d *DockerClient) ConnectToNetwork(containerID, network string) error {
+func (d *dockerClient) ConnectToNetwork(containerID, network string) error {
 	return d.ConnectToNetworkWithAlias(containerID, network, []string{})
 }
 
 // ConnectToNetworkWithAlias function connects the container to the selected Docker network.
-func (d *DockerClient) ConnectToNetworkWithAlias(containerID, network string, aliases []string) error {
+func (d *dockerClient) ConnectToNetworkWithAlias(containerID, network string, aliases []string) error {
 	args := []string{"network", "connect", network, containerID}
 	if len(aliases) > 0 {
 		for _, alias := range aliases {
@@ -173,7 +173,7 @@ func (d *DockerClient) ConnectToNetworkWithAlias(containerID, network string, al
 }
 
 // InspectContainers function inspects selected Docker containers.
-func (d *DockerClient) InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
+func (d *dockerClient) InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	args := []string{"inspect"}
 	args = append(args, containerIDs...)
 	cmd := exec.Command("docker", args...)
@@ -196,7 +196,7 @@ func (d *DockerClient) InspectContainers(containerIDs ...string) ([]ContainerDes
 }
 
 // Copy function copies resources from the container to the local destination.
-func (d *DockerClient) Copy(containerName, containerPath, localPath string) error {
+func (d *dockerClient) Copy(containerName, containerPath, localPath string) error {
 	cmd := exec.Command("docker", "cp", containerName+":"+containerPath, localPath)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput

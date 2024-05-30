@@ -28,14 +28,14 @@ type ReadmeFile struct {
 	Error    error
 }
 
-type DocsRenderer struct {
+type docsRenderer struct {
 	logger *slog.Logger
 }
 
-type DocsRenderedOption func(d *DocsRenderer)
+type DocsRenderedOption func(d *docsRenderer)
 
-func NewDocsRenderer(opts ...DocsRenderedOption) *DocsRenderer {
-	d := DocsRenderer{
+func NewDocsRenderer(opts ...DocsRenderedOption) *docsRenderer {
+	d := docsRenderer{
 		logger: logger.Logger,
 	}
 	for _, opt := range opts {
@@ -45,13 +45,13 @@ func NewDocsRenderer(opts ...DocsRenderedOption) *DocsRenderer {
 }
 
 func WithLogger(logger *slog.Logger) DocsRenderedOption {
-	return func(d *DocsRenderer) {
+	return func(d *docsRenderer) {
 		d.logger = logger
 	}
 }
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func (d *DocsRenderer) AreReadmesUpToDate() ([]ReadmeFile, error) {
+func (d *docsRenderer) AreReadmesUpToDate() ([]ReadmeFile, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, fmt.Errorf("package root not found: %w", err)
@@ -83,7 +83,7 @@ func (d *DocsRenderer) AreReadmesUpToDate() ([]ReadmeFile, error) {
 	return readmeFiles, nil
 }
 
-func (d *DocsRenderer) isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
+func (d *docsRenderer) isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 	d.logger.Debug("Check if file is up-to-date", slog.String("file", fileName))
 
 	rendered, shouldBeRendered, err := d.generateReadme(fileName, packageRoot)
@@ -117,7 +117,7 @@ func (d *DocsRenderer) isReadmeUpToDate(fileName, packageRoot string) (bool, str
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func (d *DocsRenderer) UpdateReadmes(packageRoot string) ([]string, error) {
+func (d *docsRenderer) UpdateReadmes(packageRoot string) ([]string, error) {
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
@@ -138,7 +138,7 @@ func (d *DocsRenderer) UpdateReadmes(packageRoot string) ([]string, error) {
 	return targets, nil
 }
 
-func (d *DocsRenderer) updateReadme(fileName, packageRoot string) (string, error) {
+func (d *docsRenderer) updateReadme(fileName, packageRoot string) (string, error) {
 	d.logger.Debug("Update file", slog.String("file", fileName))
 
 	rendered, shouldBeRendered, err := d.generateReadme(fileName, packageRoot)
@@ -166,7 +166,7 @@ func (d *DocsRenderer) updateReadme(fileName, packageRoot string) (string, error
 	return target, nil
 }
 
-func (d *DocsRenderer) generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+func (d *docsRenderer) generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	d.logger.Debug("Generate file", slog.String("file", fileName), slog.String("package", packageRoot))
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -203,7 +203,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func (d *DocsRenderer) renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+func (d *docsRenderer) renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	d.logger.Debug("Render file", slog.String("file", fileName), slog.String("package", packageRoot), slog.String("template", templatePath))
 
 	t := template.New(fileName)
@@ -238,7 +238,7 @@ func (d *DocsRenderer) renderReadme(fileName, packageRoot, templatePath string, 
 	return rendered.Bytes(), nil
 }
 
-func (d *DocsRenderer) readReadme(fileName, packageRoot string) ([]byte, bool, error) {
+func (d *docsRenderer) readReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	d.logger.Debug("Read existing file", slog.String("file", fileName), slog.String("package", packageRoot))
 
 	readmePath := filepath.Join(packageRoot, "docs", fileName)
@@ -252,7 +252,7 @@ func (d *DocsRenderer) readReadme(fileName, packageRoot string) ([]byte, bool, e
 	return b, true, err
 }
 
-func (d *DocsRenderer) writeReadme(fileName, packageRoot string, content []byte) (string, error) {
+func (d *docsRenderer) writeReadme(fileName, packageRoot string, content []byte) (string, error) {
 	d.logger.Debug("Write file", slog.String("file", fileName), slog.String("package", packageRoot))
 
 	docsPath := docsPath(packageRoot)
