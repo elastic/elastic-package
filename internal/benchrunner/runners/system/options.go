@@ -5,6 +5,7 @@
 package system
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -25,6 +26,7 @@ type Options struct {
 	PackageRootPath string
 	Variant         string
 	Profile         *profile.Profile
+	Logger          *slog.Logger
 }
 
 type OptionFunc func(*Options)
@@ -100,5 +102,11 @@ func WithVariant(name string) OptionFunc {
 func WithProfile(p *profile.Profile) OptionFunc {
 	return func(opts *Options) {
 		opts.Profile = p
+	}
+}
+
+func WithLogger(logger *slog.Logger) OptionFunc {
+	return func(opts *Options) {
+		opts.Logger = logger
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -28,7 +29,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
@@ -62,6 +62,8 @@ type runner struct {
 	shutdownServiceHandler  func(context.Context) error
 	wipeDataStreamHandler   func(context.Context) error
 	clearCorporaHandler     func(context.Context) error
+
+	logger *slog.Logger
 }
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
@@ -79,7 +81,7 @@ func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
 
 func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
-		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		r.logger.Debug("waiting before tearing down...", slog.Duration("duration", r.options.DeferCleanup))
 		select {
 		case <-time.After(r.options.DeferCleanup):
 		case <-ctx.Done():
@@ -176,7 +178,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	r.benchPolicy = policy
 
 	// Delete old data
-	logger.Debug("deleting old data in data stream...")
+	r.logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
 			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
@@ -203,7 +205,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
-		logger.Debugf("deleting data in data stream...")
+		r.logger.Debug("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
@@ -233,7 +235,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	if r.scenario.Corpora.InputService != nil {
 		s, err := r.setupService(ctx)
 		if errors.Is(err, os.ErrNotExist) {
-			logger.Debugf("No service deployer defined for this benchmark")
+			r.logger.Debug("No service deployer defined for this benchmark")
 		} else if err != nil {
 			return nil, err
 		}
@@ -245,7 +247,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 
 	// if there is a generator config, generate the data
 	if r.generator != nil {
-		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		r.logger.Debug("generating corpus data...", slog.String("target", r.svcInfo.Logs.Folder.Local))
 		if err := r.runGenerator(r.svcInfo.Logs.Folder.Local); err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
 		}
@@ -290,7 +292,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 	}
 
 	// Setup service.
-	logger.Debug("Setting up service...")
+	r.logger.Debug("Setting up service...")
 	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
 		PackageRootPath:        r.options.PackageRootPath,
@@ -300,6 +302,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 		Type:                   servicedeployer.TypeBench,
 		StackVersion:           stackVersion.Version(),
 		DeployIndependentAgent: false,
+		Logger:                 r.logger,
 	}
 	serviceDeployer, err := servicedeployer.Factory(opts)
 	if err != nil {
@@ -314,7 +317,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 
 	r.svcInfo = service.Info()
 	r.shutdownServiceHandler = func(ctx context.Context) error {
-		logger.Debug("tearing down service...")
+		r.logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
@@ -336,6 +339,7 @@ func (r *runner) startMetricsColletion(ctx context.Context) {
 		r.options.MetricsInterval,
 		r.runtimeDataStream,
 		r.pipelinePrefix,
+		r.logger,
 	)
 	r.mcollector.start(ctx)
 }
@@ -369,7 +373,7 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 
 func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("creating benchmark policy...")
+	r.logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
 		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
@@ -396,12 +400,12 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 	r.deletePolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
 
-		logger.Debug("deleting benchmark package policy...")
+		r.logger.Debug("deleting benchmark package policy...")
 		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
 		}
 
-		logger.Debug("deleting benchmark policy...")
+		r.logger.Debug("deleting benchmark policy...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
 			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
 		}
@@ -417,7 +421,7 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 }
 
 func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
-	logger.Debug("creating package policy...")
+	r.logger.Debug("creating package policy...")
 
 	if r.scenario.Version == "" {
 		r.scenario.Version = pkgManifest.Version
@@ -483,7 +487,7 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
-		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
+		r.logger.Debug("unknown generator template type, defaulting to \"placeholder\"", slog.String("template.type", r.scenario.Corpora.Generator.Template.Type))
 		fallthrough
 	case "", "placeholder":
 		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
@@ -656,7 +660,7 @@ func (r *runner) checkEnrolledAgents(ctx context.Context) ([]kibana.Agent, error
 }
 
 func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
-	logger.Debug("checking for all data in data stream...")
+	r.logger.Debug("checking for all data in data stream...")
 	var benchTime *time.Timer
 	if r.scenario.BenchmarkTimePeriod > 0 {
 		benchTime = time.NewTimer(r.scenario.BenchmarkTimePeriod)
@@ -703,7 +707,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 
 		// Assign policy to agent
 		handlers[i] = func(ctx context.Context) error {
-			logger.Debug("reassigning original policy back to agent...")
+			r.logger.Debug("reassigning original policy back to agent...")
 			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 				return fmt.Errorf("error reassigning original policy to agent %s: %w", agent.ID, err)
 			}
@@ -715,7 +719,7 @@ func (r *runner) enrollAgents(ctx context.Context) error {
 			return fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
 
-		logger.Debug("assigning package data stream to agent...")
+		r.logger.Debug("assigning package data stream to agent...")
 		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
 			return fmt.Errorf("could not assign policy to agent: %w", err)
 		}
@@ -746,9 +750,9 @@ func (r *runner) reindexData(ctx context.Context) error {
 		return errors.New("the option to reindex data is set, but the metricstore was not initialized")
 	}
 
-	logger.Debug("starting reindexing of data...")
+	r.logger.Debug("starting reindexing of data...")
 
-	logger.Debug("getting orignal mappings...")
+	r.logger.Debug("getting orignal mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
 		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
@@ -793,7 +797,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
-	logger.Debugf("creating %s index in metricstore...", indexName)
+	r.logger.Debug("creating index in metricstore...", slog.String("index", indexName))
 
 	createRes, err := r.options.ESMetricsAPI.Indices.Create(
 		indexName,
@@ -811,7 +815,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	bodyReader := strings.NewReader(`{"query":{"match_all":{}}}`)
 
-	logger.Debug("starting scrolling of events...")
+	r.logger.Debug("starting scrolling of events...")
 	resp, err := r.options.ESAPI.Search(
 		r.options.ESAPI.Search.WithContext(ctx),
 		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
@@ -849,7 +853,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 		}
 	}
 
-	logger.Debug("reindexing operation finished")
+	r.logger.Debug("reindexing operation finished")
 	return nil
 }
 
@@ -876,7 +880,7 @@ func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchRes
 		bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
 	}
 
-	logger.Debugf("bulk request of %d events...", len(sr.Hits))
+	r.logger.Debug("bulk request of events...", slog.Int("events", len(sr.Hits)))
 
 	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()),
 		r.options.ESMetricsAPI.Bulk.WithContext(ctx),

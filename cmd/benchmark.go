@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
@@ -26,6 +27,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
@@ -583,7 +585,9 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "benchmark system"))
+
+	ctx, stop := signal.Enable(cmd.Context(), actionLogger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
@@ -595,7 +599,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := stack.NewKibanaClientFromProfile(profile)
+	kc, err := stack.NewKibanaClientFromProfile(profile, kibana.Logger(actionLogger))
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
@@ -611,6 +615,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
 		system.WithProfile(profile),
+		system.WithLogger(actionLogger),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)

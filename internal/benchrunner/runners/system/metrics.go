@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
@@ -45,6 +45,8 @@ type collector struct {
 	diskUsage          map[string]ingest.DiskUsage
 	startTotalHits     int
 	endTotalHits       int
+
+	logger *slog.Logger
 }
 
 type metrics struct {
@@ -73,6 +75,7 @@ func newCollector(
 	esAPI, metricsAPI *elasticsearch.API,
 	interval time.Duration,
 	datastream, pipelinePrefix string,
+	logger *slog.Logger,
 ) *collector {
 	meta := benchMeta{Parameters: scenario}
 	meta.Info.Benchmark = benchName
@@ -87,6 +90,7 @@ func newCollector(
 		datastream:     datastream,
 		pipelinePrefix: pipelinePrefix,
 		stopC:          make(chan struct{}),
+		logger:         logger,
 	}
 }
 
@@ -136,14 +140,14 @@ func (c *collector) collect() metrics {
 
 	nstats, err := ingest.GetNodesStats(c.esAPI)
 	if err != nil {
-		logger.Debug(err)
+		c.logger.Debug(err.Error())
 	} else {
 		m.nMetrics = nstats
 	}
 
 	dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debug(err)
+		c.logger.Debug(err.Error())
 	} else {
 		m.dsMetrics = dsstats
 	}
@@ -159,18 +163,22 @@ func (c *collector) publish(events [][]byte) {
 		reqBody := bytes.NewReader(e)
 		resp, err := c.metricsAPI.Index(c.indexName(), reqBody)
 		if err != nil {
-			logger.Debugf("error indexing event: %v", err)
+			c.logger.Debug("error indexing event", slog.Any("error", err))
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			logger.Errorf("failed to read index response body: %v", err)
+			c.logger.Error("failed to read index response body", slog.Any("error", err))
 		}
 		resp.Body.Close()
 
 		if resp.StatusCode != 201 {
-			logger.Errorf("error indexing event (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
+			c.logger.Error("error indexing event",
+				slog.Int("status.code", resp.StatusCode),
+				slog.String("status", resp.Status()),
+				slog.Any("error", elasticsearch.NewError(body)),
+			)
 		}
 	}
 }
@@ -185,20 +193,20 @@ func (c *collector) createMetricsIndex() {
 
 	reader := bytes.NewReader(metricsIndexBytes)
 
-	logger.Debugf("creating %s index in metricstore...", c.indexName())
+	c.logger.Debug("creating %s index in metricstore...", slog.String("index", c.indexName()))
 
 	createRes, err := c.metricsAPI.Indices.Create(
 		c.indexName(),
 		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
-		logger.Debugf("could not create index: %v", err)
+		c.logger.Debug("could not create index", slog.Any("error", err))
 		return
 	}
 	createRes.Body.Close()
 
 	if createRes.IsError() {
-		logger.Debug("got a response error while creating index: %s", createRes)
+		c.logger.Debug("got a response error while creating index", slog.Any("response", createRes))
 	}
 }
 
@@ -224,14 +232,14 @@ func (c *collector) summarize() (*metricsSummary, error) {
 	for node, endPStats := range c.endIngestMetrics {
 		startPStats, found := c.startIngestMetrics[node]
 		if !found {
-			logger.Debugf("node %s not found in initial metrics", node)
+			c.logger.Debug("node not found in initial metrics", slog.String("node", node))
 			continue
 		}
 		sumStats := make(ingest.PipelineStatsMap)
 		for pname, endStats := range endPStats {
 			startStats, found := startPStats[pname]
 			if !found {
-				logger.Debugf("pipeline %s not found in node %s initial metrics", pname, node)
+				c.logger.Debug("pipeline not found in node initial metrics", slog.String("pipeline", pname), slog.String("node", node))
 				continue
 			}
 			sumStats[pname] = ingest.PipelineStats{
@@ -263,7 +271,7 @@ func (c *collector) summarize() (*metricsSummary, error) {
 }
 
 func (c *collector) waitUntilReady() {
-	logger.Debug("waiting for datastream to be created...")
+	c.logger.Debug("waiting for datastream to be created...")
 
 	waitTick := time.NewTicker(time.Second)
 	defer waitTick.Stop()
@@ -277,7 +285,7 @@ readyLoop:
 		}
 		dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 		if err != nil {
-			logger.Debug(err)
+			c.logger.Debug(err.Error())
 		}
 		if dsstats != nil {
 			break readyLoop
@@ -285,20 +293,20 @@ readyLoop:
 	}
 
 	if c.scenario.WarmupTimePeriod > 0 {
-		logger.Debugf("waiting %s for warmup period", c.scenario.WarmupTimePeriod)
+		c.logger.Debug("waiting for warmup period", slog.Duration("warmup.period", c.scenario.WarmupTimePeriod))
 		select {
 		case <-c.stopC:
 			return
 		case <-time.After(c.scenario.WarmupTimePeriod):
 		}
 	}
-	logger.Debug("metric collection starting...")
+	c.logger.Debug("metric collection starting...")
 }
 
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
 	ipMetrics, err := ingest.GetPipelineStatsByPrefix(c.esAPI, c.pipelinePrefix)
 	if err != nil {
-		logger.Debugf("could not get ingest pipeline metrics: %v", err)
+		c.logger.Debug("could not get ingest pipeline metrics", slog.Any("error", err))
 		return nil
 	}
 	return ipMetrics
@@ -307,7 +315,7 @@ func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
 func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	du, err := ingest.GetDiskUsage(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get disk usage metrics: %v", err)
+		c.logger.Debug("could not get disk usage metrics", slog.Any("error", err))
 		return nil
 	}
 	return du
@@ -323,7 +331,7 @@ func (c *collector) collectMetricsPreviousToStop(ctx context.Context) {
 func (c *collector) collectTotalHits(ctx context.Context) int {
 	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not total hits: %w", err)
+		c.logger.Debug("could not total hits", slog.Any("error", err))
 	}
 	return totalHits
 }
@@ -363,7 +371,7 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	for _, e := range append(nEvents, dsEvent) {
 		b, err := json.Marshal(e)
 		if err != nil {
-			logger.Debugf("error marhsaling metrics event: %w", err)
+			c.logger.Debug("error marhsaling metrics event", slog.Any("error", err))
 			continue
 		}
 		events = append(events, b)
