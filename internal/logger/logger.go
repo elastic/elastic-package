@@ -15,6 +15,10 @@ const (
 
 	fixAttributeKey   = "logger"
 	fixAttributeValue = "FIXME"
+
+	LevelTrace = slog.Level(-8)
+
+	minimumVerbosityCountAddSource = 3
 )
 
 var (
@@ -25,20 +29,37 @@ var (
 	defaultLogLevel *slog.LevelVar
 
 	isDebugMode bool
+
+	LevelNames = map[slog.Leveler]string{
+		LevelTrace: "TRACE",
+	}
 )
 
-func SetupLogger(debugMode bool) {
+func SetupLogger(debugVerbosity int) {
 	logLevel = new(slog.LevelVar)
+
+	addSource := false
+	if debugVerbosity >= minimumVerbosityCountAddSource {
+		addSource = true
+	}
 	options := slog.HandlerOptions{
 		Level:     logLevel,
-		AddSource: false,
+		AddSource: addSource,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.MessageKey {
+			switch a.Key {
+			case slog.MessageKey:
 				a.Key = "message"
-			}
-			if a.Key == slog.TimeKey {
+			case slog.TimeKey:
 				t := a.Value.Time()
 				a.Value = slog.StringValue(t.Format(defaultTimeFormat))
+			case slog.LevelKey:
+				level := a.Value.Any().(slog.Level)
+				levelLabel, exists := LevelNames[level]
+				if !exists {
+					levelLabel = level.String()
+				}
+
+				a.Value = slog.StringValue(levelLabel)
 			}
 			return a
 		},
@@ -49,7 +70,7 @@ func SetupLogger(debugMode bool) {
 	defaultLogLevel = new(slog.LevelVar)
 	DefaultLogger = slog.New(newHandler(os.Stdout, &slog.HandlerOptions{
 		Level:     defaultLogLevel,
-		AddSource: false,
+		AddSource: addSource,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key != slog.TimeKey {
 				return a
@@ -62,9 +83,15 @@ func SetupLogger(debugMode bool) {
 	}))
 
 	slog.SetDefault(DefaultLogger)
-	if debugMode {
+	switch debugVerbosity {
+	case 1:
 		defaultLogLevel.Set(slog.LevelDebug)
 		logLevel.Set(slog.LevelDebug)
+	default:
+		defaultLogLevel.Set(LevelTrace)
+		logLevel.Set(LevelTrace)
+	}
+	if debugVerbosity > 0 {
 		Logger.Debug("Enable verbose logging")
 		isDebugMode = true
 	}

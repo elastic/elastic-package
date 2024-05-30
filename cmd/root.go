@@ -52,7 +52,7 @@ func RootCmd() *cobra.Command {
 			)
 		},
 	}
-	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().CountP(cobraext.VerboseFlagName, "v", cobraext.VerboseFlagDescription)
 
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
@@ -70,11 +70,12 @@ func Commands() []*cobraext.Command {
 }
 
 func processPersistentFlags(cmd *cobra.Command, args []string) error {
-	verbose, err := cmd.Flags().GetBool(cobraext.VerboseFlagName)
+	verbosity, err := cmd.Flags().GetCount(cobraext.VerboseFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
-	logger.SetupLogger(verbose)
+
+	logger.SetupLogger(verbosity)
 	return nil
 }
 
