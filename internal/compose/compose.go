@@ -28,7 +28,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
-	"github.com/elastic/elastic-package/internal/logger"
 	logging "github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -414,7 +413,7 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 				slog.String("container.status", containerDescription.State.Status),
 				slog.String("container.health.status", healthStatus),
 			)
-			log.Log(ctx, logger.LevelTrace, "Container status",
+			log.Log(ctx, logging.LevelTrace, "Container status",
 				// slog.String("status", containerDescription.String()),
 				slog.String("container.id", containerDescription.ID),
 				slog.String("container.image", containerDescription.Config.Image),
