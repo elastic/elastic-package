@@ -157,7 +157,9 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "benchmark pipeline"))
+
+	ctx, stop := signal.Enable(cmd.Context(), actionLogger)
 	defer stop()
 
 	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
@@ -203,6 +205,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 			pipeline.WithESAPI(esClient.API),
 			pipeline.WithNumTopProcs(numTopProcs),
 			pipeline.WithFormat(reportFormat),
+			pipeline.WithLogger(actionLogger),
 		)
 		runner := pipeline.NewPipelineBenchmark(opts)
 

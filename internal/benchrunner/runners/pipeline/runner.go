@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,10 +34,11 @@ type runner struct {
 	options       Options
 	entryPipeline string
 	pipelines     []ingest.Pipeline
+	logger        *slog.Logger
 }
 
 func NewPipelineBenchmark(opts Options) benchrunner.Runner {
-	return &runner{options: opts}
+	return &runner{options: opts, logger: opts.Logger}
 }
 
 func (r *runner) SetUp(ctx context.Context) error {

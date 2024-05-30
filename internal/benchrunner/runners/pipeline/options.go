@@ -5,6 +5,8 @@
 package pipeline
 
 import (
+	"log/slog"
+
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -17,6 +19,7 @@ type Options struct {
 	API             *elasticsearch.API
 	NumTopProcs     int
 	Format          Format
+	Logger          *slog.Logger
 }
 
 type OptionFunc func(*Options)
@@ -62,5 +65,11 @@ func WithFormat(format string) OptionFunc {
 func WithBenchmarkName(name string) OptionFunc {
 	return func(opts *Options) {
 		opts.BenchName = name
+	}
+}
+
+func WithLogger(logger *slog.Logger) OptionFunc {
+	return func(opts *Options) {
+		opts.Logger = logger
 	}
 }
