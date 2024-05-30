@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -27,7 +28,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -49,10 +49,12 @@ type runner struct {
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removePackageHandler  func(context.Context) error
 	wipeDataStreamHandler func(context.Context) error
+
+	logger *slog.Logger
 }
 
 func NewStreamBenchmark(opts Options) benchrunner.Runner {
-	return &runner{options: opts}
+	return &runner{options: opts, logger: opts.Logger}
 }
 
 func (r *runner) SetUp(ctx context.Context) error {
@@ -60,7 +62,7 @@ func (r *runner) SetUp(ctx context.Context) error {
 }
 
 func StaticValidation(ctx context.Context, opts Options, dataStreamName string) (bool, error) {
-	runner := runner{options: opts}
+	runner := runner{options: opts, logger: opts.Logger}
 	err := runner.initialize()
 	if err != nil {
 		return false, err
@@ -226,9 +228,9 @@ func (r *runner) setUp(ctx context.Context) error {
 
 func (r *runner) wipeDataStreamsOnSetup(ctx context.Context) error {
 	// Delete old data
-	logger.Debug("deleting old data in data stream...")
+	r.logger.Debug("deleting old data in data stream...")
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
-		logger.Debugf("deleting data in data stream...")
+		r.logger.Debug("deleting data in data stream...")
 		for _, runtimeDataStream := range r.runtimeDataStreams {
 			if err := r.deleteDataStreamDocs(ctx, runtimeDataStream); err != nil {
 				return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -251,11 +253,12 @@ func (r *runner) installPackage(ctx context.Context) error {
 }
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
-	logger.Debug("Installing package...")
+	r.logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
+		Logger:         r.logger,
 	})
 
 	if err != nil {
@@ -309,7 +312,7 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 
 	switch scenario.Corpora.Generator.Template.Type {
 	default:
-		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", scenario.Corpora.Generator.Template.Type)
+		r.logger.Debug("unknown generator template type, defaulting to \"placeholder\"", slog.String("template.type", scenario.Corpora.Generator.Template.Type))
 		fallthrough
 	case "", "placeholder":
 		return genlib.NewGeneratorWithCustomTemplate(tpl, config, fields, totEvents)
@@ -469,7 +472,7 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 	var event map[string]any
 	err = json.Unmarshal(buf.Bytes(), &event)
 	if err != nil {
-		logger.Debugf("Problem found when unmarshalling document: %s", buf.String())
+		r.logger.Debug("Problem found when unmarshalling document", slog.String("error", buf.String()))
 		return bulkBodyBuilder, fmt.Errorf("failed to unmarshal json event, check your benchmark template for scenario %s: %w", scenarioName, err)
 	}
 	enriched := r.enrichEventWithBenchmarkMetadata(event)
@@ -512,7 +515,7 @@ func (r *runner) performBulkRequest(ctx context.Context, bulkRequest string) err
 	}
 
 	if errors.Errors {
-		logger.Debug("Error in Elasticsearch bulk request: %s", string(body))
+		r.logger.Debug("Error in Elasticsearch bulk request", slog.String("error", string(body)))
 		return fmt.Errorf("%d failed", len(errors.Items))
 	}
 
@@ -525,7 +528,7 @@ func (r *runner) performBulkRequest(ctx context.Context, bulkRequest string) err
 }
 
 func (r *runner) run(ctx context.Context) error {
-	logger.Debug("streaming data...")
+	r.logger.Debug("streaming data...")
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -585,7 +588,7 @@ func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) er
 		case <-ticker.C:
 		}
 
-		logger.Debugf("bulk request of %d events on %s...", r.options.EventsPerPeriod, indexName)
+		r.logger.Debug("bulk request events...", slog.Uint64("requests", r.options.EventsPerPeriod), slog.String("index", indexName))
 		var bulkBodyBuilder strings.Builder
 		buf := bytes.NewBufferString("")
 		for i := uint64(0); i < r.options.EventsPerPeriod; i++ {
@@ -613,7 +616,7 @@ func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) 
 	var bulkBodyBuilder strings.Builder
 	generator := r.backFillGenerators[scenarioName]
 	indexName := r.runtimeDataStreams[scenarioName]
-	logger.Debugf("bulk request of %s backfill events on %s...", r.options.BackFill.String(), indexName)
+	r.logger.Debug("bulk request of backfill events...", slog.String("backfill", r.options.BackFill.String()), slog.String("index", indexName))
 	buf := bytes.NewBufferString("")
 	for {
 		select {

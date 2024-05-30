@@ -478,7 +478,8 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "benchmark stream"))
+	ctx, stop := signal.Enable(cmd.Context(), actionLogger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
@@ -490,7 +491,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := stack.NewKibanaClientFromProfile(profile)
+	kc, err := stack.NewKibanaClientFromProfile(profile, kibana.Logger(actionLogger))
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
@@ -507,6 +508,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithESAPI(esClient.API),
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
+		stream.WithLogger(actionLogger),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))

@@ -100,6 +100,7 @@ func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 
 	withOpts := []stream.OptionFunc{
 		stream.WithPackageRootPath(packageRootPath),
+		stream.WithLogger(r.logger),
 	}
 
 	ctx, stop := signal.Enable(ctx, r.logger)

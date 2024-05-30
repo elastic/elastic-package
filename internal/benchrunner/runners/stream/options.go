@@ -5,6 +5,7 @@
 package stream
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -25,6 +26,7 @@ type Options struct {
 	PackageRootPath string
 	Variant         string
 	Profile         *profile.Profile
+	Logger          *slog.Logger
 }
 
 type ClientOptions struct {
@@ -105,5 +107,11 @@ func WithPerformCleanup(p bool) OptionFunc {
 func WithTimestampField(t string) OptionFunc {
 	return func(opts *Options) {
 		opts.TimestampField = t
+	}
+}
+
+func WithLogger(logger *slog.Logger) OptionFunc {
+	return func(opts *Options) {
+		opts.Logger = logger
 	}
 }
