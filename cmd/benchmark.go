@@ -344,7 +344,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithLogger(actionLogger),
 	}
 
-	esMetricsClient, err := initializeESMetricsClient(ctx)
+	esMetricsClient, err := initializeESMetricsClient(ctx, actionLogger)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
 	}
@@ -626,7 +626,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		system.WithLogger(actionLogger),
 	}
 
-	esMetricsClient, err := initializeESMetricsClient(ctx)
+	esMetricsClient, err := initializeESMetricsClient(ctx, actionLogger)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch metrics client: %w", err)
 	}
@@ -666,13 +666,13 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
+func initializeESMetricsClient(ctx context.Context, logger *slog.Logger) (*elasticsearch.Client, error) {
 	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
 	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
 	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
 	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
 	if address == "" || user == "" || pass == "" {
-		logger.Debugf("can't initialize metricstore, missing environment configuration")
+		logger.Debug("can't initialize metricstore, missing environment configuration")
 		return nil, nil
 	}
 

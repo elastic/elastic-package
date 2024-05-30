@@ -67,7 +67,7 @@ type runner struct {
 }
 
 func NewSystemBenchmark(opts Options) benchrunner.Runner {
-	return &runner{options: opts}
+	return &runner{options: opts, logger: opts.Logger}
 }
 
 func (r *runner) SetUp(ctx context.Context) error {
