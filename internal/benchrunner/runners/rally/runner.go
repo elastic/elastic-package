@@ -410,7 +410,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	var corpusDocCount uint64
 	// if there is a generator config, generate the data, unless a corpus path is set
 	if r.generator != nil && len(r.options.CorpusAtPath) == 0 {
-		r.logger.Debug("generating corpus data...", slog.String("target", r.svcInfo.Logs.Folder.Local))
+		r.logger.Debug("generating corpus data...", slog.String("to", r.svcInfo.Logs.Folder.Local))
 		corpusDocCount, err = r.runGenerator(r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
@@ -418,7 +418,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	if len(r.options.CorpusAtPath) > 0 {
-		r.logger.Debug("reading corpus...", slog.String("source", r.options.CorpusAtPath))
+		r.logger.Debug("reading corpus data...", slog.String("from", r.options.CorpusAtPath))
 		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't read benchmarks data corpus for data stream: %w", err)

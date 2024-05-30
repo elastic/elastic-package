@@ -868,7 +868,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	r.logger = r.logger.With(
 		slog.String("package.name", r.options.TestFolder.Package),
 		slog.String("package.type", scenario.pkgManifest.Type),
-		slog.String("package.data_stream", r.options.TestFolder.DataStream),
+		slog.String("package.datastream", r.options.TestFolder.DataStream),
 		slog.String("variant", config.ServiceVariantName),
 		slog.String("config", config.Name()),
 		slog.String("stack.version", r.stackVersion.Number),
@@ -1542,7 +1542,7 @@ func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servic
 	if config.Skip != nil {
 		r.logger.Warn("skipping test",
 			slog.String("testType", string(TestType)),
-			slog.String("data-stream", r.options.TestFolder.DataStream),
+			slog.String("datastream", r.options.TestFolder.DataStream),
 			slog.String("reason", config.Skip.Reason),
 			slog.String("details", config.Skip.Link.String()),
 		)

@@ -40,6 +40,6 @@ func NewPackageBuilder(options BuildOptions) *packageBuilder {
 		b.logger = options.Logger
 	}
 
-	b.logger = b.logger.With(slog.String("source", options.PackageRoot))
+	b.logger = b.logger.With(slog.String("package.path", options.PackageRoot))
 	return &b
 }

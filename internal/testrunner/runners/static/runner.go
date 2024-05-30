@@ -56,6 +56,10 @@ func (r runner) String() string {
 
 func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
+	r.logger = r.logger.With(
+		slog.String("package.name", options.TestFolder.Package),
+		slog.String("package.datastream", options.TestFolder.DataStream),
+	)
 	return r.run(ctx)
 }
 

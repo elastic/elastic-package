@@ -73,7 +73,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.packageRootPath = options.PackageRootPath
 	r.kibanaClient = options.KibanaClient
 
-	r.logger = r.logger.With(slog.String("package", options.TestFolder.Package))
+	r.logger = r.logger.With(slog.String("package.name", options.TestFolder.Package))
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
 	r.resourcesManager = manager

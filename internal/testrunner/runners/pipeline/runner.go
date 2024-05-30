@@ -90,7 +90,7 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	r.options = options
 	r.logger = r.logger.With(
 		slog.String("package.name", options.TestFolder.Package),
-		slog.String("package.data_stream", options.TestFolder.DataStream),
+		slog.String("package.datastream", options.TestFolder.DataStream),
 	)
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
@@ -317,7 +317,8 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	if tc.config.Skip != nil {
 		r.logger.Warn("skipping test",
 			slog.String("testType", string(TestType)),
-			slog.String("data-stream", r.options.TestFolder.DataStream),
+			slog.String("test.config", tc.name),
+			slog.String("datastream", r.options.TestFolder.DataStream),
 			slog.String("reason", tc.config.Skip.Reason),
 			slog.String("details", tc.config.Skip.Link.String()),
 		)

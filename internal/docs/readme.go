@@ -263,7 +263,7 @@ func (d *docsRenderer) writeReadme(fileName, packageRoot string, content []byte)
 	}
 
 	aReadmePath := readmePath(fileName, packageRoot)
-	d.logger.Debug("Write file", slog.String("source", fileName), slog.String("target", aReadmePath))
+	d.logger.Debug("Write file", slog.String("from", fileName), slog.String("to", aReadmePath))
 
 	err = os.WriteFile(aReadmePath, content, 0o644)
 	if err != nil {
