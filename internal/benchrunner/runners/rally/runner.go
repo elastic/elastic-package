@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/exec"
@@ -32,7 +33,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -166,10 +166,12 @@ type runner struct {
 	wipeDataStreamHandler    func(context.Context) error
 	clearCorporaHandler      func(context.Context) error
 	clearTrackHandler        func(context.Context) error
+
+	logger *slog.Logger
 }
 
 func NewRallyBenchmark(opts Options) benchrunner.Runner {
-	return &runner{options: opts}
+	return &runner{options: opts, logger: opts.Logger}
 }
 
 func (r *runner) SetUp(ctx context.Context) error {
@@ -183,7 +185,7 @@ func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
 
 func (r *runner) TearDown(ctx context.Context) error {
 	if r.options.DeferCleanup > 0 {
-		logger.Debugf("waiting for %s before tearing down...", r.options.DeferCleanup)
+		r.logger.Debug("waiting before tearing down...", slog.Duration("duration", r.options.DeferCleanup))
 		select {
 		case <-time.After(r.options.DeferCleanup):
 		case <-ctx.Done():
@@ -389,9 +391,9 @@ func (r *runner) extractSimulatedTemplate(ctx context.Context, indexTemplate str
 
 func (r *runner) wipeDataStreamOnSetup(ctx context.Context) error {
 	// Delete old data
-	logger.Debug("deleting old data in data stream...")
+	r.logger.Debug("deleting old data in data stream...")
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
-		logger.Debugf("deleting data in data stream...")
+		r.logger.Debug("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
@@ -408,7 +410,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	var corpusDocCount uint64
 	// if there is a generator config, generate the data, unless a corpus path is set
 	if r.generator != nil && len(r.options.CorpusAtPath) == 0 {
-		logger.Debugf("generating corpus data to %s...", r.svcInfo.Logs.Folder.Local)
+		r.logger.Debug("generating corpus data...", slog.String("target", r.svcInfo.Logs.Folder.Local))
 		corpusDocCount, err = r.runGenerator(r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't generate benchmarks data corpus for data stream: %w", err)
@@ -416,7 +418,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	if len(r.options.CorpusAtPath) > 0 {
-		logger.Debugf("reading corpus data from %s...", r.options.CorpusAtPath)
+		r.logger.Debug("reading corpus...", slog.String("source", r.options.CorpusAtPath))
 		corpusDocCount, err = r.copyCorpusFile(r.options.CorpusAtPath, r.svcInfo.Logs.Folder.Local)
 		if err != nil {
 			return nil, fmt.Errorf("can't read benchmarks data corpus for data stream: %w", err)
@@ -466,14 +468,14 @@ func (r *runner) installPackage(ctx context.Context) error {
 func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, packageVersion string) error {
 	// POST /epm/packages/{pkgName}/{pkgVersion}
 	// Configure package (single data stream) via Ingest Manager APIs.
-	logger.Debug("installing package...")
+	r.logger.Debug("installing package...")
 	_, err := r.options.KibanaClient.InstallPackage(ctx, packageName, packageVersion)
 	if err != nil {
 		return fmt.Errorf("cannot install package %s@%s: %w", packageName, packageVersion, err)
 	}
 
 	r.removePackageHandler = func(ctx context.Context) error {
-		logger.Debug("removing benchmark package...")
+		r.logger.Debug("removing benchmark package...")
 		if _, err := r.options.KibanaClient.RemovePackage(ctx, packageName, packageVersion); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
@@ -484,11 +486,12 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 }
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
-	logger.Debug("Installing package...")
+	r.logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
+		Logger:         r.logger,
 	})
 
 	if err != nil {
@@ -522,6 +525,7 @@ func (r *runner) startMetricsColletion(ctx context.Context) {
 		r.options.MetricsInterval,
 		r.runtimeDataStream,
 		r.pipelinePrefix,
+		r.logger,
 	)
 	r.mcollector.start(ctx)
 }
@@ -577,7 +581,7 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
-		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
+		r.logger.Debug("unknown generator template type, defaulting to \"placeholder\"", slog.String("template.type", r.scenario.Corpora.Generator.Template.Type))
 		fallthrough
 	case "", "placeholder":
 		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
@@ -804,7 +808,7 @@ func (r *runner) createRallyTrack(corpusDocsCount uint64, destDir string) error 
 				return errors.Join(os.Remove(persistedRallyTrack), err)
 			}
 
-			logger.Infof("rally track and corpus saved at: %s", r.options.RallyTrackOutputDir)
+			r.logger.Info("rally track and corpus saveds", slog.String("output", r.options.RallyTrackOutputDir))
 			return nil
 		}
 	}
@@ -867,7 +871,7 @@ func (r *runner) copyCorpusFile(corpusPath, destDir string) (uint64, error) {
 }
 
 func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
-	logger.Debug("running rally...")
+	r.logger.Debug("running rally...")
 	profileConfig, err := stack.StackInitConfig(r.options.Profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config from profile: %w", err)
@@ -884,7 +888,10 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 		}
 
 		elasticsearchHost = profileConfig.ElasticsearchHostPort
-		logger.Debugf("Configuring rally with Elasticsearch host from current profile (profile: %s, host: %q)", r.options.Profile.ProfileName, elasticsearchHost)
+		r.logger.Debug("Configuring rally with Elasticsearch host from current profile",
+			slog.String("profile", r.options.Profile.ProfileName),
+			slog.String("elasticsearch.host", elasticsearchHost),
+		)
 	}
 
 	elasticsearchPassword, found := os.LookupEnv(stack.ElasticsearchPasswordEnv)
@@ -916,7 +923,7 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	r.logger.Debug("output command", slog.String("command", cmd.String()))
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("could not run esrally track in path: %s (stdout=%q, stderr=%q): %w", r.svcInfo.Logs.Folder.Local, output, errOutput.String(), err)
@@ -954,9 +961,9 @@ func (r *runner) reindexData(ctx context.Context) error {
 		return errors.New("the option to reindex data is set, but the metricstore was not initialized")
 	}
 
-	logger.Debug("starting reindexing of data...")
+	r.logger.Debug("starting reindexing of data...")
 
-	logger.Debug("getting orignal mappings...")
+	r.logger.Debug("getting orignal mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
 		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
@@ -1001,7 +1008,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	indexName := fmt.Sprintf("bench-reindex-%s-%s", r.runtimeDataStream, r.svcInfo.Test.RunID)
 
-	logger.Debugf("creating %s index in metricstore...", indexName)
+	r.logger.Debug("creating index in metricstore...", slog.String("index", indexName))
 
 	createRes, err := r.options.ESMetricsAPI.Indices.Create(
 		indexName,
@@ -1019,7 +1026,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	bodyReader := strings.NewReader(`{"query":{"match_all":{}}}`)
 
-	logger.Debug("starting scrolling of events...")
+	r.logger.Debug("starting scrolling of events...")
 	res, err := r.options.ESAPI.Search(
 		r.options.ESAPI.Search.WithContext(ctx),
 		r.options.ESAPI.Search.WithIndex(r.runtimeDataStream),
@@ -1056,7 +1063,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 		}
 	}
 
-	logger.Debug("reindexing operation finished")
+	r.logger.Debug("reindexing operation finished")
 	return nil
 }
 
@@ -1083,7 +1090,7 @@ func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchRes
 		bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
 	}
 
-	logger.Debugf("bulk request of %d events...", len(sr.Hits))
+	r.logger.Debug("bulk request events...", slog.Int("events", len(sr.Hits)))
 
 	resp, err := r.options.ESMetricsAPI.Bulk(strings.NewReader(bulkBodyBuilder.String()),
 		r.options.ESMetricsAPI.Bulk.WithContext(ctx),

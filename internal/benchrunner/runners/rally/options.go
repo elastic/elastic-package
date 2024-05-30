@@ -5,6 +5,7 @@
 package rally
 
 import (
+	"log/slog"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -29,6 +30,7 @@ type Options struct {
 	PackageName         string
 	PackageVersion      string
 	CorpusAtPath        string
+	Logger              *slog.Logger
 }
 
 type ClientOptions struct {
@@ -116,5 +118,11 @@ func WithRallyPackageFromRegistry(n, v string) OptionFunc {
 func WithRallyCorpusAtPath(c string) OptionFunc {
 	return func(opts *Options) {
 		opts.CorpusAtPath = c
+	}
+}
+
+func WithLogger(logger *slog.Logger) OptionFunc {
+	return func(opts *Options) {
+		opts.Logger = logger
 	}
 }

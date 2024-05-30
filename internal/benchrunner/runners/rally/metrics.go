@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
@@ -44,6 +44,8 @@ type collector struct {
 	diskUsage          map[string]ingest.DiskUsage
 	startTotalHits     int
 	endTotalHits       int
+
+	logger *slog.Logger
 }
 
 type metrics struct {
@@ -72,6 +74,7 @@ func newCollector(
 	esAPI, metricsAPI *elasticsearch.API,
 	interval time.Duration,
 	datastream, pipelinePrefix string,
+	logger *slog.Logger,
 ) *collector {
 	meta := benchMeta{Parameters: scenario}
 	meta.Info.Benchmark = benchName
@@ -86,6 +89,7 @@ func newCollector(
 		datastream:     datastream,
 		pipelinePrefix: pipelinePrefix,
 		stopC:          make(chan struct{}),
+		logger:         logger,
 	}
 }
 
@@ -116,12 +120,12 @@ func (c *collector) stop() {
 func (c *collector) collectMetricsBeforeRallyRun(ctx context.Context) {
 	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
-		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", err)
+		c.logger.Error("unable to refresh data stream at the beginning of rally run", slog.Any("error", err))
 		return
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		logger.Errorf("unable to refresh data stream at the beginning of rally run: %s", resp.String())
+		c.logger.Error("unable to refresh data stream at the beginning of rally run", slog.String("error", resp.String()))
 		return
 	}
 
@@ -138,14 +142,14 @@ func (c *collector) collect() metrics {
 
 	nstats, err := ingest.GetNodesStats(c.esAPI)
 	if err != nil {
-		logger.Debug(err)
+		c.logger.Debug(err.Error())
 	} else {
 		m.nMetrics = nstats
 	}
 
 	dsstats, err := ingest.GetDataStreamStats(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debug(err)
+		c.logger.Debug(err.Error())
 	} else {
 		m.dsMetrics = dsstats
 	}
@@ -161,18 +165,23 @@ func (c *collector) publish(events [][]byte) {
 	reqBody := bytes.NewReader(eventsForBulk)
 	resp, err := c.metricsAPI.Bulk(reqBody, c.metricsAPI.Bulk.WithIndex(c.indexName()))
 	if err != nil {
-		logger.Errorf("error indexing event in metricstore: %w", err)
+		c.logger.Error("error indexing event in metricstore", slog.Any("error", err), slog.String("index", c.indexName()))
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		logger.Errorf("failed to read index response body from metricstore: %w", err)
+		c.logger.Error("failed to read index response body from metricstore", slog.Any("error", err), slog.String("index", c.indexName()))
 	}
 
 	if resp.StatusCode != 201 {
-		logger.Errorf("error indexing event in metricstore (%d): %s: %v", resp.StatusCode, resp.Status(), elasticsearch.NewError(body))
+		c.logger.Error("error indexing event in metricstore",
+			slog.String("index", c.indexName()),
+			slog.Int("status.code", resp.StatusCode),
+			slog.String("status", resp.Status()),
+			slog.Any("error", elasticsearch.NewError(body)),
+		)
 	}
 }
 
@@ -186,20 +195,20 @@ func (c *collector) createMetricsIndex() {
 
 	reader := bytes.NewReader(metricsIndexBytes)
 
-	logger.Debugf("creating %s index in metricstore...", c.indexName())
+	c.logger.Debug("creating index in metricstore...", slog.String("index", c.indexName()))
 
 	resp, err := c.metricsAPI.Indices.Create(
 		c.indexName(),
 		c.metricsAPI.Indices.Create.WithBody(reader),
 	)
 	if err != nil {
-		logger.Errorf("could not create index: %w", err)
+		c.logger.Error("could not create index", slog.Any("error", err))
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		logger.Errorf("got a response error while creating index: %s", resp.String())
+		c.logger.Error("got a response error while creating index", slog.String("error", resp.String()))
 	}
 }
 
@@ -231,14 +240,14 @@ func (c *collector) summarize() (*metricsSummary, error) {
 	for node, endPStats := range c.endIngestMetrics {
 		startPStats, found := c.startIngestMetrics[node]
 		if !found {
-			logger.Debugf("node %s not found in initial metrics", node)
+			c.logger.Debug("node not found in initial metrics", slog.String("node", node))
 			continue
 		}
 		sumStats := make(ingest.PipelineStatsMap)
 		for pname, endStats := range endPStats {
 			startStats, found := startPStats[pname]
 			if !found {
-				logger.Debugf("pipeline %s not found in node %s initial metrics", pname, node)
+				c.logger.Debug("pipeline not found in node initial metrics", slog.String("pipeline", pname), slog.String("node", node))
 				continue
 			}
 			sumStats[pname] = ingest.PipelineStats{
@@ -272,7 +281,7 @@ func (c *collector) summarize() (*metricsSummary, error) {
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
 	ipMetrics, err := ingest.GetPipelineStatsByPrefix(c.esAPI, c.pipelinePrefix)
 	if err != nil {
-		logger.Debugf("could not get ingest pipeline metrics: %v", err)
+		c.logger.Debug("could not get ingest pipeline metricsv", slog.Any("error", err))
 		return nil
 	}
 	return ipMetrics
@@ -281,7 +290,7 @@ func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {
 func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	du, err := ingest.GetDiskUsage(c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get disk usage metrics: %v", err)
+		c.logger.Debug("could not get disk usage metrics", slog.Any("error", err))
 		return nil
 	}
 	return du
@@ -290,12 +299,12 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 func (c *collector) collectMetricsAfterRallyRun(ctx context.Context) {
 	resp, err := c.esAPI.Indices.Refresh(c.esAPI.Indices.Refresh.WithIndex(c.datastream))
 	if err != nil {
-		logger.Errorf("unable to refresh data stream at the end of rally run: %s", err)
+		c.logger.Error("unable to refresh data stream at the end of rally run", slog.Any("error", err))
 		return
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		logger.Errorf("unable to refresh data stream at the end of rally run: %s", resp.String())
+		c.logger.Error("unable to refresh data stream at the end of rally runs", slog.String("error", resp.String()))
 		return
 	}
 
@@ -310,7 +319,7 @@ func (c *collector) collectMetricsAfterRallyRun(ctx context.Context) {
 func (c *collector) collectTotalHits(ctx context.Context) int {
 	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get total hits: %v", err)
+		c.logger.Debug("could not get total hits", slog.Any("error", err))
 	}
 	return totalHits
 }
@@ -352,7 +361,7 @@ func (c *collector) createEventsFromMetrics(m metrics) [][]byte {
 	for _, e := range append(nEvents, dsEvent) {
 		b, err := json.Marshal(e)
 		if err != nil {
-			logger.Debugf("error marshalling metrics event: %v", err)
+			c.logger.Debug("error marshalling metrics event", slog.Any("error", err))
 			continue
 		}
 		events = append(events, b)

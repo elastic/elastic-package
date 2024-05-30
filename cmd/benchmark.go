@@ -307,7 +307,9 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Logger)
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "benchmark rally"))
+
+	ctx, stop := signal.Enable(cmd.Context(), actionLogger)
 	defer stop()
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
@@ -319,7 +321,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	kc, err := stack.NewKibanaClientFromProfile(profile)
+	kc, err := stack.NewKibanaClientFromProfile(profile, kibana.Logger(actionLogger))
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
@@ -336,6 +338,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyDryRun(rallyDryRun),
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
+		rally.WithLogger(actionLogger),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)

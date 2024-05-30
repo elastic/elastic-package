@@ -163,18 +163,19 @@ func (c *collector) publish(events [][]byte) {
 		reqBody := bytes.NewReader(e)
 		resp, err := c.metricsAPI.Index(c.indexName(), reqBody)
 		if err != nil {
-			c.logger.Debug("error indexing event", slog.Any("error", err))
+			c.logger.Debug("error indexing event", slog.Any("error", err), slog.String("index", c.indexName()))
 			continue
 		}
 
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			c.logger.Error("failed to read index response body", slog.Any("error", err))
+			c.logger.Error("failed to read index response body", slog.Any("error", err), slog.String("index", c.indexName()))
 		}
 		resp.Body.Close()
 
 		if resp.StatusCode != 201 {
 			c.logger.Error("error indexing event",
+				slog.String("index", c.indexName()),
 				slog.Int("status.code", resp.StatusCode),
 				slog.String("status", resp.Status()),
 				slog.Any("error", elasticsearch.NewError(body)),
