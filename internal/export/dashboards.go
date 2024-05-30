@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -15,19 +16,17 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
-func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs []string) error {
+func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs []string, logger *slog.Logger) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	logger.Debugf("Package root found: %s", packageRoot)
-
+	logger.Debug("Package root found", slog.String("path", packageRoot))
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
@@ -55,7 +54,7 @@ func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs 
 		return fmt.Errorf("can't transform Kibana objects: %w", err)
 	}
 
-	err = saveObjectsToFiles(packageRoot, objects)
+	err = saveObjectsToFiles(packageRoot, objects, logger)
 	if err != nil {
 		return fmt.Errorf("can't save Kibana objects: %w", err)
 	}
@@ -91,7 +90,7 @@ func applyTransformations(ctx *transformationContext, objects []common.MapStr) (
 		transform(objects)
 }
 
-func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
+func saveObjectsToFiles(packageRoot string, objects []common.MapStr, logger *slog.Logger) error {
 	logger.Debug("Save Kibana objects to files")
 
 	for _, object := range objects {

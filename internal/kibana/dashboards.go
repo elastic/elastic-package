@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
@@ -23,7 +22,7 @@ type exportedType struct {
 
 // Export method exports selected dashboards using the Kibana Export API.
 func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
-	logger.Debug("Export dashboards using the Kibana Export API")
+	c.logger.Debug("Export dashboards using the Kibana Export API")
 
 	var query strings.Builder
 	query.WriteByte('?')

@@ -7,6 +7,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/AlecAivazis/survey/v2"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -51,6 +53,7 @@ func setupExportCommand() *cobraext.Command {
 
 func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Kibana dashboards")
+	actionLogger := logger.Logger.With(slog.String("elastic-package.command", "export dashboards"))
 
 	dashboardIDs, err := cmd.Flags().GetStringSlice(cobraext.DashboardIDsFlagName)
 	if err != nil {
@@ -59,7 +62,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	common.TrimStringSlice(dashboardIDs)
 
-	var opts []kibana.ClientOption
+	opts := []kibana.ClientOption{kibana.Logger(actionLogger)}
 	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
 	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
@@ -105,7 +108,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs)
+	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs, actionLogger)
 	if err != nil {
 		return fmt.Errorf("dashboards export failed: %w", err)
 	}
