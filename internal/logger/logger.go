@@ -83,11 +83,11 @@ func SetupLogger(debugVerbosity int) {
 	}))
 
 	slog.SetDefault(DefaultLogger)
-	switch debugVerbosity {
-	case 1:
+	switch {
+	case debugVerbosity == 1:
 		defaultLogLevel.Set(slog.LevelDebug)
 		logLevel.Set(slog.LevelDebug)
-	default:
+	case debugVerbosity > 1:
 		defaultLogLevel.Set(LevelTrace)
 		logLevel.Set(LevelTrace)
 	}
