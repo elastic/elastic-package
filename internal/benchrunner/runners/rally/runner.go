@@ -332,7 +332,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream, r.logger)
 		return hits == 0, err
 	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {

@@ -208,7 +208,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		totalHits := 0
 		for _, runtimeDataStream := range r.runtimeDataStreams {
-			hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, runtimeDataStream)
+			hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, runtimeDataStream, r.logger)
 			if err != nil {
 				return false, err
 			}

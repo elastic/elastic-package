@@ -8,12 +8,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
-func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataStream string) (int, error) {
+func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataStream string, logger *slog.Logger) (int, error) {
 	resp, err := esapi.Count(
 		esapi.Count.WithContext(ctx),
 		esapi.Count.WithIndex(dataStream),
@@ -43,10 +43,15 @@ func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataSt
 
 	numHits := results.Count
 	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
-			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
+		logger.Debug("found hits in data stream:",
+			slog.Int("hits", numHits),
+			slog.String("datastream", dataStream),
+			slog.String("type", results.Error.Type),
+			slog.String("reason", results.Error.Reason),
+			slog.Int("status", results.Status),
+		)
 	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+		logger.Debug("found hits in data stream", slog.Int("hits", numHits), slog.String("datastream", dataStream))
 	}
 
 	return numHits, nil

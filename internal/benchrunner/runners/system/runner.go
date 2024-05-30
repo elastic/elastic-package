@@ -217,7 +217,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream, r.logger)
 		return hits == 0, err
 	}, 5*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
@@ -669,7 +669,7 @@ func (r *runner) waitUntilBenchmarkFinishes(ctx context.Context) (bool, error) {
 	oldHits := 0
 	return wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
-		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream)
+		hits, err := common.CountDocsInDataStream(ctx, r.options.ESAPI, r.runtimeDataStream, r.logger)
 		if hits == 0 {
 			return false, err
 		}

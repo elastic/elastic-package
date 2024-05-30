@@ -317,7 +317,7 @@ func (c *collector) collectMetricsAfterRallyRun(ctx context.Context) {
 }
 
 func (c *collector) collectTotalHits(ctx context.Context) int {
-	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
+	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream, c.logger)
 	if err != nil {
 		c.logger.Debug("could not get total hits", slog.Any("error", err))
 	}
