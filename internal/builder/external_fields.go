@@ -22,7 +22,7 @@ import (
 
 var semver3_0_0 = semver.MustParse("3.0.0")
 
-func (b *Builder) resolveExternalFields(destinationDir string) error {
+func (b *packageBuilder) resolveExternalFields(destinationDir string) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(b.packageRoot)
 	if err != nil {
 		return fmt.Errorf("can't read build manifest: %w", err)

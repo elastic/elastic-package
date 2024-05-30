@@ -81,7 +81,7 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	builder := builder.NewBuilder(builder.BuildOptions{
+	builder := builder.NewPackageBuilder(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
 		CreateZip:      supportsZip,
 		SignPackage:    false,

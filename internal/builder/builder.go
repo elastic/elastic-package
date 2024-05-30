@@ -20,7 +20,7 @@ type BuildOptions struct {
 	Logger *slog.Logger
 }
 
-type Builder struct {
+type packageBuilder struct {
 	packageRoot    string
 	skipValidation bool
 	createZip      bool
@@ -28,8 +28,8 @@ type Builder struct {
 	logger         *slog.Logger
 }
 
-func NewBuilder(options BuildOptions) *Builder {
-	b := Builder{
+func NewPackageBuilder(options BuildOptions) *packageBuilder {
+	b := packageBuilder{
 		logger:         logger.Logger,
 		packageRoot:    options.PackageRoot,
 		createZip:      options.CreateZip,

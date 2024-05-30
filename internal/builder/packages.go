@@ -135,7 +135,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 // BuildPackage function builds the package.
-func (b *Builder) BuildPackage() (string, error) {
+func (b *packageBuilder) BuildPackage() (string, error) {
 	destinationDir, err := BuildPackagesDirectory(b.packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
@@ -197,7 +197,7 @@ func (b *Builder) BuildPackage() (string, error) {
 	return destinationDir, nil
 }
 
-func (b *Builder) buildZippedPackage(destinationDir string) (string, error) {
+func (b *packageBuilder) buildZippedPackage(destinationDir string) (string, error) {
 	b.logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(b.packageRoot)
 	if err != nil {
@@ -232,7 +232,7 @@ func (b *Builder) buildZippedPackage(destinationDir string) (string, error) {
 	return zippedPackagePath, nil
 }
 
-func (b *Builder) signZippedPackage(zippedPackagePath string) error {
+func (b *packageBuilder) signZippedPackage(zippedPackagePath string) error {
 	b.logger.Debug("Sign the package")
 	m, err := packages.ReadPackageManifestFromPackageRoot(b.packageRoot)
 	if err != nil {
@@ -249,7 +249,7 @@ func (b *Builder) signZippedPackage(zippedPackagePath string) error {
 	return nil
 }
 
-func (b *Builder) copyLicenseTextFile(licensePath string) error {
+func (b *packageBuilder) copyLicenseTextFile(licensePath string) error {
 	_, err := os.Stat(licensePath)
 	if err == nil {
 		b.logger.Debug("License file in the package will be used")

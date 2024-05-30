@@ -34,7 +34,7 @@ type ecsTemplates struct {
 	} `yaml:"mappings"`
 }
 
-func (b *Builder) addDynamicMappings(packageRoot, destinationDir string) error {
+func (b *packageBuilder) addDynamicMappings(packageRoot, destinationDir string) error {
 	packageManifest := filepath.Join(destinationDir, packages.PackageManifestFile)
 
 	m, err := packages.ReadPackageManifest(packageManifest)
@@ -83,7 +83,7 @@ func (b *Builder) addDynamicMappings(packageRoot, destinationDir string) error {
 	return nil
 }
 
-func (b *Builder) shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
+func (b *packageBuilder) shouldImportEcsMappings(specVersion, packageRoot string) (bool, error) {
 	v, err := semver.NewVersion(specVersion)
 	if err != nil {
 		return false, fmt.Errorf("invalid spec version: %w", err)
