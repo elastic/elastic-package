@@ -96,7 +96,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         label_suffix=" (independent agent)"
     fi
     package_name=$(basename "${package}")
-
     if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
         echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
         continue
