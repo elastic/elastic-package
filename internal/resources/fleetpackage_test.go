@@ -21,9 +21,9 @@ import (
 func TestRequiredProvider(t *testing.T) {
 	manager := resource.NewManager()
 	_, err := manager.Apply(resource.Resources{
-		&FleetPackage{
+		NewFleetPackage(FleetPackageOptions{
 			RootPath: "../../test/packages/parallel/nginx",
-		},
+		}),
 	})
 	if assert.Error(t, err) {
 		assert.Contains(t, err.Error(), fmt.Sprintf("provider %q must be explicitly defined", DefaultKibanaProviderName))
@@ -47,17 +47,17 @@ func TestPackageLifecycle(t *testing.T) {
 				t.FailNow()
 			}
 
-			fleetPackage := FleetPackage{
+			fleetPackage := NewFleetPackage(FleetPackageOptions{
 				RootPath: filepath.Join("..", "..", "test", "packages", "parallel", c.name),
-			}
+			})
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
-			_, err := manager.Apply(resource.Resources{&fleetPackage})
+			_, err := manager.Apply(resource.Resources{fleetPackage})
 			assert.NoError(t, err)
 			assertPackageInstalled(t, kibanaClient, "installed", c.name)
 
 			fleetPackage.Absent = true
-			_, err = manager.Apply(resource.Resources{&fleetPackage})
+			_, err = manager.Apply(resource.Resources{fleetPackage})
 			assert.NoError(t, err)
 			assertPackageInstalled(t, kibanaClient, "not_installed", c.name)
 		})
@@ -70,21 +70,21 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 		t.FailNow()
 	}
 
-	fleetPackage := FleetPackage{
+	fleetPackage := NewFleetPackage(FleetPackageOptions{
 		RootPath: "../../test/packages/parallel/system",
 		Absent:   true,
-	}
+	})
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
 
 	// Try to uninstall the package, it should not be installed.
-	_, err := manager.Apply(resource.Resources{&fleetPackage})
+	_, err := manager.Apply(resource.Resources{fleetPackage})
 	assert.NoError(t, err)
 	assertPackageInstalled(t, kibanaClient, "installed", "system")
 
 	// Try to force-uninstall the package, it should neither be uninstalled.
 	fleetPackage.Force = true
-	_, err = manager.Apply(resource.Resources{&fleetPackage})
+	_, err = manager.Apply(resource.Resources{fleetPackage})
 	assert.NoError(t, err)
 	assertPackageInstalled(t, kibanaClient, "installed", "system")
 }

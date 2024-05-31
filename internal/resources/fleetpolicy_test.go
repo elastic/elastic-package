@@ -109,10 +109,10 @@ func TestPolicyLifecycle(t *testing.T) {
 func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
-		resources = append(resources, &FleetPackage{
+		resources = append(resources, NewFleetPackage(FleetPackageOptions{
 			RootPath: policy.RootPath,
 			Absent:   agentPolicy.Absent,
-		})
+		}))
 	}
 	return append(resources, agentPolicy)
 }

@@ -315,12 +315,12 @@ type resourcesOptions struct {
 
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
-		&resources.FleetPackage{
+		resources.NewFleetPackage(resources.FleetPackageOptions{
 			RootPath: r.options.PackageRootPath,
 			Absent:   !opts.installedPackage,
 			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			Logger:   r.logger,
-		},
+		}),
 	}
 }
 

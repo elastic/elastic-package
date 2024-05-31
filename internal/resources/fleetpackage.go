@@ -14,11 +14,12 @@ import (
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
 
-type FleetPackage struct {
+type fleetPackage struct {
 	// Provider is the name of the provider to use, defaults to "kibana".
 	Provider string
 
@@ -35,11 +36,34 @@ type FleetPackage struct {
 	Logger *slog.Logger
 }
 
-func (f *FleetPackage) String() string {
+type FleetPackageOptions struct {
+	Logger   *slog.Logger
+	Force    bool
+	Absent   bool
+	RootPath string
+	Provider string
+}
+
+func NewFleetPackage(opts FleetPackageOptions) *fleetPackage {
+	f := fleetPackage{
+		Logger:   logger.Logger,
+		Force:    opts.Force,
+		Absent:   opts.Absent,
+		RootPath: opts.RootPath,
+		Provider: opts.Provider,
+	}
+	if opts.Logger != nil {
+		f.Logger = opts.Logger
+	}
+
+	return &f
+}
+
+func (f *fleetPackage) String() string {
 	return fmt.Sprintf("[FleetPackage:%s:%s]", f.Provider, f.RootPath)
 }
 
-func (f *FleetPackage) provider(ctx resource.Context) (*KibanaProvider, error) {
+func (f *fleetPackage) provider(ctx resource.Context) (*KibanaProvider, error) {
 	name := f.Provider
 	if name == "" {
 		name = DefaultKibanaProviderName
@@ -52,7 +76,7 @@ func (f *FleetPackage) provider(ctx resource.Context) (*KibanaProvider, error) {
 	return provider, nil
 }
 
-func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, error) {
+func (f *fleetPackage) installer(ctx resource.Context) (installer.Installer, error) {
 	provider, err := f.provider(ctx)
 	if err != nil {
 		return nil, err
@@ -66,7 +90,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 	})
 }
 
-func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState, err error) {
+func (f *fleetPackage) Get(ctx resource.Context) (current resource.ResourceState, err error) {
 	provider, err := f.provider(ctx)
 	if err != nil {
 		return nil, err
@@ -101,7 +125,7 @@ func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState
 	}, nil
 }
 
-func (f *FleetPackage) Create(ctx resource.Context) error {
+func (f *fleetPackage) Create(ctx resource.Context) error {
 	installer, err := f.installer(ctx)
 	if err != nil {
 		return err
@@ -127,7 +151,7 @@ func (f *FleetPackage) Create(ctx resource.Context) error {
 	return nil
 }
 
-func (f *FleetPackage) uninstall(ctx resource.Context) error {
+func (f *fleetPackage) uninstall(ctx resource.Context) error {
 	provider, err := f.provider(ctx)
 	if err != nil {
 		return err
@@ -149,7 +173,7 @@ func uninstallPackage(ctx context.Context, client *kibana.Client, rootPath strin
 	return nil
 }
 
-func (f *FleetPackage) Update(ctx resource.Context) error {
+func (f *fleetPackage) Update(ctx resource.Context) error {
 	if f.Absent {
 		return f.uninstall(ctx)
 	}
@@ -169,7 +193,7 @@ func (s *FleetPackageState) Found() bool {
 }
 
 func (s *FleetPackageState) NeedsUpdate(resource resource.Resource) (bool, error) {
-	fleetPackage := resource.(*FleetPackage)
+	fleetPackage := resource.(*fleetPackage)
 	if fleetPackage.Absent {
 		if s.current.Status == "not_installed" {
 			return fleetPackage.Force, nil

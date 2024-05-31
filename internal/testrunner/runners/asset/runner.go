@@ -83,12 +83,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 
 func (r *runner) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
-		&resources.FleetPackage{
+		resources.NewFleetPackage(resources.FleetPackageOptions{
 			RootPath: r.packageRootPath,
 			Absent:   !installedPackage,
 			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			Logger:   r.logger,
-		},
+		}),
 	}
 }
 
