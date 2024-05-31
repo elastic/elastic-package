@@ -562,6 +562,11 @@ func (r *runner) initRun() error {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
+	// required to duplicated for now the creation of the manager here and in SetupRunner,
+	// since the testrunner creates a new instance in each routine just for tests
+	r.resourcesManager = resources.NewManager()
+	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
+
 	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
 	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.options.TestFolder.Path)

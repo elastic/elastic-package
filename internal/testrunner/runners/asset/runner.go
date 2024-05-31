@@ -85,6 +85,13 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 // Run runs the asset loading tests
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
+
+	// required to duplicated for now the creation of the manager here and in SetupRunner,
+	// since the testrunner creates a new instance in each routine just for tests
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
+
+	r.resourcesManager = manager
 	return r.run(ctx)
 }
 
