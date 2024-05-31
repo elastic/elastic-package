@@ -528,16 +528,6 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 		r.deleteTestPolicyHandler = nil
 	}
 
-	resourcesOptions := resourcesOptions{
-		// Keep it installed only if we were running setup, or tests only.
-		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
-	}
-	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(resourcesOptions))
-	if err != nil {
-		logger.Errorf("Failed to uninstall package is there any other execution in parallel?: %s", err)
-		// return err
-	}
-
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
 			return err
