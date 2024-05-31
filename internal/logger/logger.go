@@ -56,10 +56,20 @@ type LoggerOptions struct {
 	LogFormat string
 }
 
+func init() {
+	// Avoid being nil points these instances, so they can be used in testing
+	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat)))
+	Logger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat)))
+}
+
 func SetupLogger(opts LoggerOptions) error {
 	addSource := false
 	if opts.Verbosity >= minimumVerbosityCountAddSource {
 		addSource = true
+	}
+
+	if opts.LogFormat == "" {
+		opts.LogFormat = DefaultFormatLabel
 	}
 
 	format, ok := LogFormats[opts.LogFormat]

@@ -13,6 +13,7 @@ import (
 	"gopkg.in/dnaeon/go-vcr.v3/recorder"
 
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -48,6 +49,7 @@ func NewClient(t *testing.T, recordFileName string) *kibana.Client {
 
 		kibana.HTTPClientSetup(setupHTTPClient),
 		kibana.RetryMax(0),
+		kibana.Logger(logger.DefaultLogger),
 	)
 	require.NoError(t, err)
 
