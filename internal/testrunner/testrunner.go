@@ -17,7 +17,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -67,6 +66,8 @@ type TestRunner interface {
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
 
+	SetLogger(logger *slog.Logger)
+
 	CanRunPerDataStream() bool
 
 	TestFolderRequired() bool
@@ -75,7 +76,6 @@ type TestRunner interface {
 }
 
 var runners = map[TestType]TestRunner{}
-var runnerFactories = map[TestType]func(l *slog.Logger) TestRunner{}
 
 // TestResult contains a single test's results
 type TestResult struct {
@@ -287,46 +287,10 @@ func RegisterRunner(runner TestRunner) {
 	runners[runner.Type()] = runner
 }
 
-type runnerLauncher struct {
-	logger *slog.Logger
-}
-
-func NewRunnerLauncher(options ...RunnerLauncherOption) *runnerLauncher {
-	r := runnerLauncher{logger: logger.Logger}
-	for _, opt := range options {
-		opt(&r)
-	}
-
-	return &r
-}
-
-type RunnerLauncherOption func(r *runnerLauncher)
-
-func WithLogger(logger *slog.Logger) RunnerLauncherOption {
-	return func(r *runnerLauncher) {
-		r.logger = logger
-	}
-}
-
-// RegisterRunnerFactory method registers the test runner.
-func RegisterRunnerFactory(testType TestType, factoryRunner func(l *slog.Logger) TestRunner) {
-	runnerFactories[testType] = factoryRunner
-}
-
-func NewRunner(testType TestType, log *slog.Logger) (TestRunner, error) {
-	factory, defined := runnerFactories[testType]
-	if !defined {
-		return nil, fmt.Errorf("unregistered runner test: %s", testType)
-	}
-
-	runner := factory(log)
-	return runner, nil
-}
-
 // Run method delegates execution to the registered test runner, based on the test type.
-func (r *runnerLauncher) Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, err := NewRunner(testType, r.logger)
-	if err != nil {
+func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
+	runner, defined := runners[testType]
+	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 

@@ -82,14 +82,7 @@ const (
 )
 
 func init() {
-	testrunner.RegisterRunner(&runner{})
-	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
-		log := logger.Logger
-		if l != nil {
-			log = l
-		}
-		return &runner{logger: log}
-	})
+	testrunner.RegisterRunner(&runner{logger: logger.Logger})
 }
 
 const (
@@ -178,6 +171,11 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "system"
+}
+
+// Logger updates the logger instance used by the runner
+func (r *runner) SetLogger(logger *slog.Logger) {
+	r.logger = logger
 }
 
 // CanRunPerDataStream returns whether this test runner can run on individual

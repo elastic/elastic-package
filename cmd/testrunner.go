@@ -129,6 +129,8 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 	testType := runner.Type()
 	return func(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Run %s tests for the package\n", testType)
+		testrunnerLogger := logger.Logger.With(slog.String("elastic-package.command", "test"), slog.String("testrunner", string(testType)))
+		runner.SetLogger(testrunnerLogger)
 
 		profile, err := cobraext.GetProfileFlag(cmd)
 		if err != nil {
@@ -289,7 +291,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				}
 			}
 		}
-		testrunnerLogger := logger.Logger.With(slog.String("elastic-package.command", "test"), slog.String("testrunner", string(testType)))
 
 		deferCleanup, err := cmd.Flags().GetDuration(cobraext.DeferCleanupFlagName)
 		if err != nil {
@@ -341,10 +342,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
-		launcher := testrunner.NewRunnerLauncher(testrunner.WithLogger(testrunnerLogger))
 		var results []testrunner.TestResult
 		for _, folder := range testFolders {
-			r, err := launcher.Run(ctx, testType, testrunner.TestOptions{
+			r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
 				Profile:                    profile,
 				TestFolder:                 folder,
 				PackageRootPath:            packageRootPath,

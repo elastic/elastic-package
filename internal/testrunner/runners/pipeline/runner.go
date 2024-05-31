@@ -58,14 +58,7 @@ type IngestPipelineReroute struct {
 }
 
 func init() {
-	testrunner.RegisterRunner(&runner{})
-	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
-		log := logger.Logger
-		if l != nil {
-			log = l
-		}
-		return &runner{logger: log}
-	})
+	testrunner.RegisterRunner(&runner{logger: logger.Logger})
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -83,6 +76,11 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "pipeline"
+}
+
+// Logger updates the logger instance used by the runner
+func (r *runner) SetLogger(logger *slog.Logger) {
+	r.logger = logger
 }
 
 // Run runs the pipeline tests defined under the given folder

@@ -31,14 +31,7 @@ type runner struct {
 var _ testrunner.TestRunner = new(runner)
 
 func init() {
-	testrunner.RegisterRunner(&runner{})
-	testrunner.RegisterRunnerFactory(TestType, func(l *slog.Logger) testrunner.TestRunner {
-		log := logger.Logger
-		if l != nil {
-			log = l
-		}
-		return &runner{logger: log}
-	})
+	testrunner.RegisterRunner(&runner{logger: logger.Logger})
 }
 
 const (
@@ -52,6 +45,11 @@ func (r runner) Type() testrunner.TestType {
 
 func (r runner) String() string {
 	return "static files"
+}
+
+// Logger updates the logger instance used by the runner
+func (r *runner) SetLogger(logger *slog.Logger) {
+	r.logger = logger
 }
 
 func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
