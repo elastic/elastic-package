@@ -7,7 +7,8 @@ GO_VERSION=$(cat .go-version)
 export GO_VERSION
 
 export SERVERLESS=${SERVERLESS:-"false"}
-export WORKSPACE=$(pwd)
+WORKSPACE=$(pwd)
+export WORKSPACE
 
 
 GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account

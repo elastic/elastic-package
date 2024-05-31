@@ -52,6 +52,24 @@ func (r runner) String() string {
 	return "asset loading"
 }
 
+// SetupRunner prepares global resources required by the test runner.
+func (r *runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.packageRootPath = options.PackageRootPath
+	r.kibanaClient = options.KibanaClient
+
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
+
+	r.resourcesManager = manager
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r runner) TearDownRunner(ctx context.Context) error {
+	return nil
+}
+
 // CanRunPerDataStream returns whether this test runner can run on individual
 // data streams within the package.
 func (r runner) CanRunPerDataStream() bool {
@@ -67,13 +85,6 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 // Run runs the asset loading tests
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
-	r.packageRootPath = options.PackageRootPath
-	r.kibanaClient = options.KibanaClient
-
-	manager := resources.NewManager()
-	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
-	r.resourcesManager = manager
-
 	return r.run(ctx)
 }
 

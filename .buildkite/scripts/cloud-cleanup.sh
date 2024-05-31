@@ -2,23 +2,40 @@
 
 source .buildkite/scripts/install_deps.sh
 
+cleanup_cloud_stale() {
+    local exit_code=$?
+
+    cd "$WORKSPACE"
+    rm -f "${AWS_RESOURCES_FILE}"
+    rm -f "${GCP_RESOURCES_FILE}"
+    rm -f "${AWS_REDSHIFT_RESOURCES_FILE}"
+
+    exit "$exit_code"
+}
+
+trap cleanup_cloud_stale EXIT
+
 set -euo pipefail
 
 AWS_RESOURCES_FILE="aws.resources.txt"
 GCP_RESOURCES_FILE="gcp.resources.txt"
+AWS_REDSHIFT_RESOURCES_FILE="redshift_clusters.json"
 
 RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
-export DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
+DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
+export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default ${DRY_RUN:-"true"})"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
-    COMMAND="plan" # TODO: to be changed to "destroy --confirm"
+    # TODO: to be changed to "destroy --confirm" once it can be tested
+    # that filters work as expected
+    COMMAND="plan"
 else
     COMMAND="plan"
 fi
@@ -39,7 +56,7 @@ any_resources_to_delete() {
 
 cloud_reaper_aws() {
     echo "Validating configuration"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.aws.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
@@ -50,7 +67,7 @@ cloud_reaper_aws() {
           validate
 
     echo "Scanning resources"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.aws.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
@@ -63,7 +80,7 @@ cloud_reaper_aws() {
 
 cloud_reaper_gcp() {
     echo "Validating configuration"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.gcp.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
@@ -74,7 +91,7 @@ cloud_reaper_gcp() {
           validate
 
     echo "Scanning resources"
-    docker run --rm -v $(pwd)/.buildkite/configs/cleanup.gcp.yml:/etc/cloud-reaper/config.yml \
+    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
       -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
       -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
       -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
@@ -119,17 +136,20 @@ with_aws_cli
 export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
 export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
+# Avoid to send the output of the CLI to a pager
+export AWS_PAGER=""
 
 echo "--- Checking if any Redshift cluster still created"
 aws redshift describe-clusters \
     --tag-keys "environment" \
-    --tag-values "ci" > redshift_clusters.json
+    --tag-values "ci" > "${AWS_REDSHIFT_RESOURCES_FILE}"
 
-clusters_num=$(jq -rc '.Clusters | length' redshift_clusters.json)
+clusters_num=$(jq -rc '.Clusters | length' "${AWS_REDSHIFT_RESOURCES_FILE}")
 
 echo "Number of clusters found: ${clusters_num}"
 
-jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
+redshift_clusters_to_delete=0
+while read -r i ; do
     identifier=$(echo "$i" | jq -rc ".ClusterIdentifier")
     # tags
     repo=$(echo "$i" | jq -rc '.Tags[] | select(.Key == "repo").Value')
@@ -160,17 +180,37 @@ jq -c '.Clusters[]' redshift_clusters.json | while read i ; do
     fi
 
     echo "To be deleted cluster: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
-    resources_to_delete=1
-    if [ "${DRY_RUN}" == "false" ]; then
-        echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
-        # aws redshift delete-cluster \
-        #   --cluster-identifier "${identifier}" \
-        #   --skip-final-cluster-snapshot
-        echo "Done."
+    if [ "${DRY_RUN}" != "false" ]; then
+        redshift_clusters_to_delete=1
+        continue
     fi
-done
 
-if [ "${resources_to_delete}" -eq 1 ]; then
+    echo "Deleting: $identifier. It was created > ${RESOURCE_RETENTION_PERIOD} ago"
+    if ! aws redshift delete-cluster \
+      --cluster-identifier "${identifier}" \
+      --skip-final-cluster-snapshot \
+      --output json \
+      --query "Cluster.{ClusterStatus:ClusterStatus,ClusterIdentifier:ClusterIdentifier}" ; then
+
+        echo "Failed delete-cluster"
+        buildkite-agent annotate \
+            "Deleted redshift cluster: ${identifier}" \
+            --context "ctx-aws-readshift-deleted-error-${identifier}" \
+            --style "error"
+
+        redshift_clusters_to_delete=1
+    else
+        echo "Done."
+        # if deletion works, no need to mark this one as to be deleted
+        buildkite-agent annotate \
+            "Deleted redshift cluster: ${identifier}" \
+            --context "ctx-aws-readshift-deleted-${identifier}" \
+            --style "success"
+    fi
+done <<< "$(jq -c '.Clusters[]' "${AWS_REDSHIFT_RESOURCES_FILE}")"
+
+if [ "${redshift_clusters_to_delete}" -eq 1 ]; then
+    resources_to_delete=1
     message="There are redshift resources to be deleted"
     echo "${message}"
     if running_on_buildkite ; then

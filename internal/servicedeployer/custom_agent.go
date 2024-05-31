@@ -106,7 +106,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
+		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		variant: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,
@@ -130,7 +130,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
+		logger.Debugf("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {

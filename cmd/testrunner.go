@@ -346,6 +346,27 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
+		runnerOptions := testrunner.TestOptions{
+			Profile:                    profile,
+			PackageRootPath:            packageRootPath,
+			GenerateTestResult:         generateTestResult,
+			API:                        esAPI,
+			KibanaClient:               kibanaClient,
+			DeferCleanup:               deferCleanup,
+			ServiceVariant:             variantFlag,
+			WithCoverage:               testCoverage,
+			CoverageType:               testCoverageFormat,
+			ConfigFilePath:             configFileFlag,
+			RunSetup:                   runSetup,
+			RunTearDown:                runTearDown,
+			RunTestsOnly:               runTestsOnly,
+			RunIndependentElasticAgent: false,
+		}
+		err = runner.SetupRunner(ctx, runnerOptions)
+		if err != nil {
+			return fmt.Errorf("failed to run setup runner process: %w", err)
+		}
+
 		var wg sync.WaitGroup
 		type routineResult struct {
 			results []testrunner.TestResult
@@ -373,25 +394,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			testFolder := folder
 			sem <- 1
 			go func() {
+				options := runnerOptions
+				options.TestFolder = testFolder
 				logger.Infof("Testfolder in loop: %s", testFolder.Path)
 				defer wg.Done()
-				r, err := launcher.Run(ctx, testType, testrunner.TestOptions{
-					Profile:                    profile,
-					TestFolder:                 testFolder,
-					PackageRootPath:            packageRootPath,
-					GenerateTestResult:         generateTestResult,
-					API:                        esAPI,
-					KibanaClient:               kibanaClient,
-					DeferCleanup:               deferCleanup,
-					ServiceVariant:             variantFlag,
-					WithCoverage:               testCoverage,
-					CoverageType:               testCoverageFormat,
-					ConfigFilePath:             configFileFlag,
-					RunSetup:                   runSetup,
-					RunTearDown:                runTearDown,
-					RunTestsOnly:               runTestsOnly,
-					RunIndependentElasticAgent: false,
-				})
+				r, err := launcher.Run(ctx, testType, options)
 
 				chResults <- routineResult{r, err}
 				<-sem
@@ -412,6 +419,11 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
+		}
+
+		err = runner.TearDownRunner(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to run tear down runner process: %w", err)
 		}
 
 		format := testrunner.TestReportFormat(reportFormat)
@@ -437,6 +449,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 				return errors.New("one or more test cases failed")
 			}
 		}
+
 		return nil
 	}
 }

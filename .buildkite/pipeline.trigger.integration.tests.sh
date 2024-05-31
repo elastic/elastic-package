@@ -29,6 +29,7 @@ for test in "${STACK_COMMAND_TESTS[@]}"; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        artifact_paths:"
     echo "          - build/elastic-stack-dump/stack/*/logs/*.log"
     echo "          - build/elastic-stack-dump/stack/*/logs/fleet-server-internal/**/*"
@@ -53,6 +54,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/elastic-stack-dump/check-*/logs/*.log"
@@ -78,6 +80,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          UPLOAD_SAFE_LOGS: 1"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
@@ -93,7 +96,6 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
         label_suffix=" (independent agent)"
     fi
     package_name=$(basename "${package}")
-
     if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
         echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
         continue
@@ -114,6 +116,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     fi
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
@@ -126,6 +129,7 @@ echo "      - label: \":go: Integration test: build-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
+echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
@@ -134,6 +138,7 @@ echo "      - label: \":go: Integration test: install-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip"
 echo "        agents:"
 echo "          provider: \"gcp\""
+echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip/logs/*.log"
 
@@ -141,6 +146,7 @@ echo "      - label: \":go: Integration test: install-zip-shellinit\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-install-zip-shellinit"
 echo "        agents:"
 echo "          provider: \"gcp\""
+echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
@@ -153,6 +159,7 @@ for independent_agent in false true; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
     echo "        agents:"
     echo "          provider: \"gcp\""
+    echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        env:"
     echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
 done

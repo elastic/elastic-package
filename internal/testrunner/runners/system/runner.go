@@ -154,6 +154,7 @@ type runner struct {
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
+	cleanTestScenarioHandler  func(context.Context) error
 	resetAgentPolicyHandler   func(context.Context) error
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
@@ -180,6 +181,47 @@ func (r *runner) SetMutex(m *sync.Mutex) {
 	r.mutexInstallPackage = m
 }
 
+// SetupRunner prepares global resources required by the test runner.
+func (r *runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.options = options
+
+	r.resourcesManager = resources.NewManager()
+	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
+
+	if r.options.RunTearDown {
+		logger.Debug("Skip installing package")
+	} else {
+		// Install the package before creating the policy, so we control exactly what is being
+		// installed.
+		logger.Debug("Installing package...")
+		resourcesOptions := resourcesOptions{
+			// Install it unless we are running the tear down only.
+			installedPackage: !r.options.RunTearDown,
+		}
+		_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+		if err != nil {
+			return fmt.Errorf("can't install the package: %w", err)
+		}
+	}
+
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	logger.Debugf("Uninstalling package...")
+	resourcesOptions := resourcesOptions{
+		// Keep it installed only if we were running setup, or tests only.
+		installedPackage: r.options.RunSetup || r.options.RunTestsOnly,
+	}
+	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // CanRunPerDataStream returns whether this test runner can run on individual
 // data streams within the package.
 func (r *runner) CanRunPerDataStream() bool {
@@ -198,6 +240,7 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+	// r.options.TestFolder = options.TestFolder
 	r.options = options
 	if !r.options.RunSetup && !r.options.RunTearDown && !r.options.RunTestsOnly {
 		return r.run(ctx)
@@ -288,7 +331,13 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 		if err != nil {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
-		return r.validateTestScenario(ctx, result, scenario, testConfig)
+		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
+		tdErr := r.tearDownTest(ctx)
+		if tdErr != nil {
+			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
+		}
+		return results, err
+
 	}
 
 	if r.options.RunTearDown {
@@ -431,11 +480,31 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	// This handler should be run before shutting down Elastic Agents (agent deployer)
+	// or services that could run agents like Custom Agents (service deployer)
+	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
+	}
+
+	// Shutting down the service should be run one of the first actions
+	// to ensure that resources created by terraform are deleted even if other
+	// errors fail.
+	if r.shutdownServiceHandler != nil {
+		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.shutdownServiceHandler = nil
+	}
+
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.cleanTestScenarioHandler = nil
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
@@ -467,13 +536,6 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	if err != nil {
 		logger.Errorf("Failed to uninstall package is there any other execution in parallel?: %s", err)
 		// return err
-	}
-
-	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.shutdownServiceHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
@@ -509,9 +571,6 @@ func (r *runner) initRun() error {
 	if err != nil {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
-
-	r.resourcesManager = resources.NewManager()
-	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.options.KibanaClient})
 
 	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.options.Profile.ProfilePath), testrunner.ServiceStateFileName)
 
@@ -832,6 +891,36 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
+func (r *runner) shouldCreateNewAgentPolicyForTest() bool {
+	if r.options.RunTestsOnly {
+		// always that --no-provision is set, it should create new Agent Policies.
+		return true
+	}
+	if !r.options.RunIndependentElasticAgent {
+		// keep same behaviour as previously when Elastic Agent of the stack is used.
+		return false
+	}
+	// No need to create new Agent Policies for these stages
+	if r.options.RunSetup || r.options.RunTearDown {
+		return false
+	}
+	return true
+}
+
+func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
+	resp, err := r.options.API.Indices.DeleteDataStream([]string{dataStream},
+		r.options.API.Indices.DeleteDataStream.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to delete data stream %s: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return fmt.Errorf("could not get delete data stream %s: %s", dataStream, resp.String())
+	}
+	return nil
+}
+
 func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
@@ -928,6 +1017,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debug("deleting test policies...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
@@ -966,32 +1058,27 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
 	}
 
-	if r.options.RunTearDown {
-		logger.Debug("Skip installing package")
-	} else {
-		// Install the package before creating the policy, so we control exactly what is being
-		// installed.
-		logger.Debug("Installing package...")
-		resourcesOptions := resourcesOptions{
-			// Install it unless we are running the tear down only.
-			installedPackage: !r.options.RunTearDown,
-		}
-		r.mutexInstallPackage.Lock()
-		_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-		if err != nil {
-			r.mutexInstallPackage.Unlock()
-			return nil, fmt.Errorf("can't install the package: %w", err)
-		}
-		r.mutexInstallPackage.Unlock()
-	}
-
 	// store the time just before adding the Test Policy, this time will be used to check
 	// the agent logs from that time onwards to avoid possible previous errors present in logs
 	scenario.startTestTime = time.Now()
+	suffixDatastream := svcInfo.Test.RunID
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config)
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	policyTesting := kibana.Policy{
+		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, scenario.startTestTime.Format("20060102T15:04:05Z")),
+		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
+		Namespace:   createTestRunID(),
+	}
+	policyToAssignDatastreamTests := policyToTest
+	if r.shouldCreateNewAgentPolicyForTest() {
+		policyToAssignDatastreamTests, err = r.options.KibanaClient.CreatePolicy(ctx, policyTesting)
+		if err != nil {
+			return nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+		suffixDatastream = policyTesting.Namespace
+	}
+	ds := createPackageDatastream(*policyToAssignDatastreamTests, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, suffixDatastream)
+	if r.options.RunTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
 		if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
@@ -1002,20 +1089,31 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
+
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
 	scenario.dataStream = fmt.Sprintf(
 		"%s-%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 		ds.Namespace,
 	)
-
 	componentTemplatePackage := fmt.Sprintf(
 		"%s-%s@package",
 		ds.Inputs[0].Streams[0].DataStream.Type,
-		ds.Inputs[0].Streams[0].DataStream.Dataset,
+		dataStreamDataset,
 	)
 
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debugf("deleting data in data stream...")
 		if err := deleteDataStreamDocs(ctx, r.options.API, scenario.dataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
@@ -1023,18 +1121,28 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	switch {
-	case r.options.RunTearDown:
-		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
-	case r.options.RunTestsOnly:
-		// In this mode, service is still running and the agent is sending documents, so sometimes
-		// cannot be guaranteed to be zero documents
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, false)
-		if err != nil {
-			return nil, err
+	r.cleanTestScenarioHandler = func(ctx context.Context) error {
+		if !r.shouldCreateNewAgentPolicyForTest() {
+			return nil
 		}
-	default:
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream, true)
+
+		logger.Debug("Deleting test policy...")
+		err = r.options.KibanaClient.DeletePolicy(ctx, policyToAssignDatastreamTests.ID)
+		if err != nil {
+			return fmt.Errorf("failed to delete policy %s: %w", policyToAssignDatastreamTests.Name, err)
+		}
+		logger.Debug("Deleting data stream for testing")
+		r.deleteDataStream(ctx, scenario.dataStream)
+		if err != nil {
+			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
+		}
+		return nil
+	}
+
+	if r.options.RunTearDown {
+		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
+	} else {
+		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream)
 		if err != nil {
 			return nil, err
 		}
@@ -1050,6 +1158,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
 	r.removeAgentHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
 		if !r.options.RunIndependentElasticAgent && !svcInfo.Agent.Independent {
 			return nil
@@ -1062,7 +1173,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	if r.options.RunTearDown {
 		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
 	} else {
@@ -1072,14 +1183,15 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			Revision: agent.PolicyRevision,
 		}
 	}
-	// Assign policy to agent
+
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
-		if r.options.RunIndependentElasticAgent {
-			return nil
-		}
-		logger.Debug("reassigning original policy back to agent...")
-		if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
-			return fmt.Errorf("error reassigning original policy to agent: %w", err)
+		if !r.options.RunSetup {
+			// it should be kept the same policy just when system tests are
+			// triggered with the flags for running setup stage (--setup)
+			logger.Debug("reassigning original policy back to agent...")
+			if err := r.options.KibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
+				return fmt.Errorf("error reassigning original policy to agent: %w", err)
+			}
 		}
 		return nil
 	}
@@ -1098,6 +1210,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.options.KibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
@@ -1106,10 +1221,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	if r.options.RunTearDown || r.options.RunTestsOnly {
+	if r.options.RunTearDown {
 		logger.Debug("Skip assiging package data stream to agent")
 	} else {
-		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToTest.ID)
+		policyWithDataStream, err := r.options.KibanaClient.GetPolicy(ctx, policyToAssignDatastreamTests.ID)
 		if err != nil {
 			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
@@ -1250,6 +1365,9 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	r.shutdownServiceHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
@@ -1289,6 +1407,9 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 		return nil, agentInfo, fmt.Errorf("could not setup agent: %w", err)
 	}
 	r.shutdownAgentHandler = func(ctx context.Context) error {
+		if r.options.RunTestsOnly {
+			return nil
+		}
 		if agentDeployer == nil {
 			return nil
 		}
@@ -1379,29 +1500,17 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	return nil
 }
 
-func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string, mustBeZero bool) error {
+func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string) error {
 	logger.Debugf("Delete previous documents in data stream %q", dataStream)
 	if err := deleteDataStreamDocs(ctx, r.options.API, dataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
-	}
-	startHits, err := r.getDocs(ctx, dataStream)
-	if err != nil {
-		return err
-	}
-	// First call already reports zero documents
-	if startHits.size() == 0 {
-		return nil
 	}
 	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		hits, err := r.getDocs(ctx, dataStream)
 		if err != nil {
 			return false, err
 		}
-
-		if mustBeZero {
-			return hits.size() == 0, nil
-		}
-		return startHits.size() > hits.size(), nil
+		return hits.size() == 0, nil
 	}, 1*time.Second, 2*time.Minute)
 	if err != nil || !cleared {
 		if err == nil {
@@ -1444,6 +1553,12 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 			expectedDataset = scenario.pkgManifest.Name + "." + scenario.policyTemplateName
 		}
 		expectedDatasets = []string{expectedDataset}
+	}
+	if scenario.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			expectedDatasets = append(expectedDatasets, dataset)
+		}
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
@@ -1561,8 +1676,8 @@ func createPackageDatastream(
 	policyTemplate packages.PolicyTemplate,
 	ds packages.DataStreamManifest,
 	config testConfig,
+	suffix string,
 ) kibana.PackageDataStream {
-	suffix := createTestRunID()
 	if pkg.Type == "input" {
 		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
 	}
@@ -1579,7 +1694,7 @@ func createIntegrationPackageDatastream(
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
-		Namespace: "ep",
+		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
 		Inputs: []kibana.Input{
@@ -1633,7 +1748,7 @@ func createInputPackageDatastream(
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
 		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
-		Namespace: "ep",
+		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
 	}
@@ -1666,8 +1781,14 @@ func createInputPackageDatastream(
 	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
 	if _, found := vars["data_stream.dataset"]; !found {
+		dataStreamDataset := dataset
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+
 		var value packages.VarValue
-		value.Unpack(dataset)
+		value.Unpack(dataStreamDataset)
 		vars["data_stream.dataset"] = kibana.Var{
 			Value: value,
 			Type:  "text",
@@ -1936,6 +2057,7 @@ func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStrea
 
 	if resp.StatusCode == http.StatusNotFound {
 		// Unavailable index is ok, this means that data is already not there.
+		logger.Debugf("Failed but ignored with status not found %s: %s", dataStream, resp.String())
 		return nil
 	}
 	if resp.IsError() {
@@ -1956,8 +2078,7 @@ func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo)
 			continue // For some reason Kibana doesn't always return a valid policy revision (eventually it will be present and valid)
 		}
 
-		hasServicePrefix := strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix)
-		if svcInfo.Agent.Host.NamePrefix != "" && !hasServicePrefix {
+		if svcInfo.Agent.Host.NamePrefix != "" && !strings.HasPrefix(agent.LocalMetadata.Host.Name, svcInfo.Agent.Host.NamePrefix) {
 			continue
 		}
 		filtered = append(filtered, agent)

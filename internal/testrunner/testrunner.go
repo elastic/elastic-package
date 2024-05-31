@@ -73,6 +73,13 @@ type TestRunner interface {
 	CanRunSetupTeardownIndependent() bool
 
 	SetMutex(*sync.Mutex)
+
+	// SetupRunner prepares global resources required by the test runner.
+	SetupRunner(context.Context, TestOptions) error
+
+	// TearDownRunner cleans up any global test runner resources. It must be called
+	// after the test runner has finished executing all its tests.
+	TearDownRunner(context.Context) error
 }
 
 var runners = map[TestType]TestRunner{}
