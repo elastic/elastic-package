@@ -73,6 +73,7 @@ func (r *runner) String() string {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.options = options
 	return nil
 }
 
@@ -84,7 +85,7 @@ func (r runner) TearDownRunner(ctx context.Context) error {
 
 // Run runs the pipeline tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
+	r.options.TestFolder = options.TestFolder
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
 	if err != nil {

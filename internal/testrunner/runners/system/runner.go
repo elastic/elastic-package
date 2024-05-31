@@ -230,7 +230,7 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
+	r.options.TestFolder = options.TestFolder
 	if !r.options.RunSetup && !r.options.RunTearDown && !r.options.RunTestsOnly {
 		return r.run(ctx)
 	}

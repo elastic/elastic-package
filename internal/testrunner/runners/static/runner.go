@@ -47,6 +47,7 @@ func (r runner) String() string {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.options = options
 	return nil
 }
 
@@ -57,7 +58,7 @@ func (r runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
+	r.options.TestFolder = options.TestFolder
 	return r.run(ctx)
 }
 

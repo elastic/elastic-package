@@ -337,11 +337,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			fmt.Printf("Running tests per stages (technical preview)\n")
 		}
 
-		runner, err := testrunner.NewRunner(testType)
-		if err != nil {
-			return fmt.Errorf("failed to get runner %s: %w", testType, err)
-		}
-
 		runnerOptions := testrunner.TestOptions{
 			Profile:                    profile,
 			PackageRootPath:            packageRootPath,
@@ -358,7 +353,6 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 			RunTestsOnly:               runTestsOnly,
 			RunIndependentElasticAgent: false,
 		}
-
 		err = runner.SetupRunner(ctx, runnerOptions)
 		if err != nil {
 			return fmt.Errorf("failed to run setup runner process: %w", err)

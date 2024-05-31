@@ -47,7 +47,14 @@ func (r runner) String() string {
 }
 
 // SetupRunner prepares global resources required by the test runner.
-func (r runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+func (r *runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
+	r.packageRootPath = options.PackageRootPath
+	r.kibanaClient = options.KibanaClient
+
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
+
+	r.resourcesManager = manager
 	return nil
 }
 
@@ -72,13 +79,6 @@ func (r *runner) CanRunSetupTeardownIndependent() bool {
 // Run runs the asset loading tests
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.testFolder = options.TestFolder
-	r.packageRootPath = options.PackageRootPath
-	r.kibanaClient = options.KibanaClient
-
-	manager := resources.NewManager()
-	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
-	r.resourcesManager = manager
-
 	return r.run(ctx)
 }
 
