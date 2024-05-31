@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 const (
@@ -57,12 +59,25 @@ type LoggerOptions struct {
 }
 
 func init() {
+	commandVersion := version.Tag
+	if version.Tag == "" {
+		commandVersion = version.CommitHash
+	}
 	// Avoid being nil points these instances, so they can be used in testing
-	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat)))
-	Logger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat)))
+	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat))).With(
+		slog.String("elastic-package.version", commandVersion),
+	)
+	Logger = slog.New(newHandler(os.Stdout, createHandlerOptions(new(slog.LevelVar), false, DefaultFormat))).With(
+		slog.String("elastic-package.version", commandVersion),
+	)
 }
 
 func SetupLogger(opts LoggerOptions) error {
+	commandVersion := version.Tag
+	if version.Tag == "" {
+		commandVersion = version.CommitHash
+	}
+
 	addSource := false
 	if opts.Verbosity >= minimumVerbosityCountAddSource {
 		addSource = true
@@ -96,10 +111,12 @@ func SetupLogger(opts LoggerOptions) error {
 	default:
 		return fmt.Errorf("invalid log format")
 	}
-	Logger = aLogger
+	Logger = aLogger.With(slog.String("elastic-package.version", commandVersion))
 
 	// Update default logger to start using everywhere slog
-	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(logLevel, addSource, DefaultFormat)))
+	DefaultLogger = slog.New(newHandler(os.Stdout, createHandlerOptions(logLevel, addSource, DefaultFormat))).With(
+		slog.String("elastic-package.version", commandVersion),
+	)
 	slog.SetDefault(DefaultLogger)
 
 	if opts.Verbosity > 0 {
