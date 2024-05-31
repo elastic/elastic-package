@@ -95,11 +95,11 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     if [[ "$independent_agent" == "true" ]]; then
         label_suffix=" (independent agent)"
     fi
+    package_name=$(basename "${package}")
     if [[ "${package_name}" == "gcp" ||  "${package_name}" == "aws" || "${package_name}" == "aws_logs" ]] ; then
         echoerr "Skip package temporarily ${package_name}"
         continue
     fi
-    package_name=$(basename "${package}")
     if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
         echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
         continue
