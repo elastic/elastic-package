@@ -8,11 +8,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 
@@ -20,15 +20,6 @@ import (
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
-
-const (
-	testRunMaxID = 99999
-	testRunMinID = 10000
-)
-
-func createTestRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
-}
 
 // Options define the details of the service which should be booted up.
 type Options struct {
@@ -74,7 +65,7 @@ func BootUp(ctx context.Context, options Options) error {
 	svcInfo.Name = options.ServiceName
 	svcInfo.Logs.Folder.Agent = system.ServiceLogsAgentDir
 	svcInfo.Logs.Folder.Local = locationManager.ServiceLogDir()
-	svcInfo.Test.RunID = createTestRunID()
+	svcInfo.Test.RunID = common.CreateTestRunID()
 	deployed, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return fmt.Errorf("can't set up the service deployer: %w", err)
