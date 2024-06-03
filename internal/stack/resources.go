@@ -45,9 +45,6 @@ const (
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
 	PackageRegistryConfigFile = "package-registry.yml"
 
-	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.24.0"
-
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
 

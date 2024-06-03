@@ -38,6 +38,6 @@ targets:
     sourceid: latestRegistryVersion
     scmid: default
     spec:
-      file: internal/stack/resources.go
+      file: internal/stack/versions.go
       matchpattern: '"(docker.elastic.co/package-registry/package-registry):v[0-9\.]+"'
       replacepattern: '"$1:{{ source "latestRegistryVersion" }}"'
