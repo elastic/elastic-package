@@ -90,7 +90,7 @@ func getTestRunnerAssetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "asset",
 		Short: "Run asset tests",
-		Long:  "Run asset tests for the package",
+		Long:  "Run asset loading tests for the package",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerAssetCommandAction,
 	}
@@ -174,7 +174,7 @@ func getTestRunnerStaticCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "static",
 		Short: "Run static tests",
-		Long:  "Run static tests for the package",
+		Long:  "Run static files tests for the package",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerStaticCommandAction,
 	}
