@@ -29,7 +29,7 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 
 	d, err := cleanPolicy(policy, policyEntryFilters)
 	if err != nil {
-		return fmt.Errorf("failed to prepare policy to store")
+		return fmt.Errorf("failed to prepare policy to store: %w", err)
 	}
 
 	err = os.WriteFile(expectedPathFor(testPath), d, 0644)
