@@ -1,10 +1,9 @@
-{{ $version := fact "kibana_version" }}
+{{- $version := fact "kibana_version" }}
 server.name: kibana
 server.host: "0.0.0.0"
-{{ if not (semverLessThan $version "8.15.0") }}
+{{- if not (semverLessThan $version "8.15.0-SNAPSHOT") }}
 server.protocol: http2
-{{ end }}
-
+{{ end -}}
 server.ssl.enabled: true
 server.ssl.certificate: "/usr/share/kibana/config/certs/cert.pem"
 server.ssl.key: "/usr/share/kibana/config/certs/key.pem"
