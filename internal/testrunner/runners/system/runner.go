@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,9 +40,6 @@ import (
 )
 
 const (
-	testRunMaxID = 99999
-	testRunMinID = 10000
-
 	checkFieldsBody = `{
 		"fields": ["*"],
 		"runtime_mappings": {
@@ -391,8 +387,6 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
-		PackageName:            r.options.TestFolder.Package,
-		DataStream:             r.options.TestFolder.DataStream,
 		RunTearDown:            r.options.RunTearDown,
 		RunTestsOnly:           r.options.RunTestsOnly,
 		RunSetup:               r.options.RunSetup,
@@ -439,7 +433,7 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Name = r.options.TestFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	svcInfo.Test.RunID = createTestRunID()
+	svcInfo.Test.RunID = common.CreateTestRunID()
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip creating output directory")
@@ -704,10 +698,6 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 	}
 	return partial, nil
-}
-
-func createTestRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
 func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
@@ -1055,7 +1045,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	policyTesting := kibana.Policy{
 		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, scenario.startTestTime.Format("20060102T15:04:05Z")),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-		Namespace:   createTestRunID(),
+		Namespace:   common.CreateTestRunID(),
 	}
 	policyToAssignDatastreamTests := policyToTest
 	if r.shouldCreateNewAgentPolicyForTest() {
@@ -1370,7 +1360,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
-	agentRunID := createTestRunID()
+	agentRunID := common.CreateTestRunID()
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		agentRunID = state.AgentRunID
 	}
