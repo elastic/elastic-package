@@ -1,0 +1,35 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: sql_input
+      name: test-oracle-sql_input
+      streams:
+        - data_stream:
+            dataset: sql_input.sql_query
+          driver: oracle
+          hosts:
+            - root:test@tcp(localhost)/
+          metricsets:
+            - query
+          period: 10s
+          sql_query: SELECT file_name, file_id, tablespace_name, bytes, status, maxbytes, user_bytes, online_status FROM sys.dba_data_files
+          sql_response_format: variables
+      type: sql/metrics
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - metrics-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

@@ -25,6 +25,9 @@ type Policy struct {
 	DataOutputID       string   `json:"data_output_id,omitempty"`
 }
 
+// DownloadedPolicy represents a policy as returned by the download policy API.
+type DownloadedPolicy json.RawMessage
+
 // CreatePolicy persists the given Policy in Fleet.
 func (c *Client) CreatePolicy(ctx context.Context, p Policy) (*Policy, error) {
 	reqBody, err := json.Marshal(p)
@@ -82,6 +85,22 @@ func (c *Client) GetPolicy(ctx context.Context, policyID string) (*Policy, error
 	}
 
 	return &resp.Item, nil
+}
+
+// DownloadPolicy fetches the agent Policy as would be downloaded by an agent.
+func (c *Client) DownloadPolicy(ctx context.Context, policyID string) (DownloadedPolicy, error) {
+	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agent_policies/%s/download", FleetAPI, policyID))
+	if err != nil {
+		return nil, fmt.Errorf("could not get policy: %w", err)
+	}
+	if statusCode == http.StatusNotFound {
+		return nil, &ErrPolicyNotFound{id: policyID}
+	}
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get policy; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return respBody, nil
 }
 
 // GetRawPolicy fetches the given Policy with all the fields in Fleet.

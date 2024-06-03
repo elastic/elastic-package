@@ -50,7 +50,12 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).`
+For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+#### Policy Tests
+These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
+
+For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).`
 
 func setupTestCommand() *cobraext.Command {
 	var testTypeCmdActions []cobraext.CommandAction
@@ -314,7 +319,7 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		}
 
 		var kibanaClient *kibana.Client
-		if testType == "system" || testType == "asset" {
+		if testType == "system" || testType == "asset" || testType == "policy" {
 			// pipeline and static tests do not require a kibana client to perform their required operations
 			kibanaClient, err = stack.NewKibanaClientFromProfile(profile)
 			if err != nil {

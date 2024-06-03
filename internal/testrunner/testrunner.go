@@ -145,6 +145,11 @@ func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 	return []TestResult{rc.TestResult}, err
 }
 
+// WithErrorf sets an error on the test result wrapped by ResultComposer.
+func (rc *ResultComposer) WithErrorf(format string, a ...any) ([]TestResult, error) {
+	return rc.WithError(fmt.Errorf(format, a...))
+}
+
 // WithSuccess marks the test result wrapped by ResultComposer as successful.
 func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
 	return rc.WithError(nil)
