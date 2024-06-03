@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
@@ -160,8 +159,6 @@ type runner struct {
 	shutdownServiceHandler    func(context.Context) error
 	shutdownAgentHandler      func(context.Context) error
 	wipeDataStreamHandler     func(context.Context) error
-
-	mutexInstallPackage *sync.Mutex
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -175,10 +172,6 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "system"
-}
-
-func (r *runner) SetMutex(m *sync.Mutex) {
-	r.mutexInstallPackage = m
 }
 
 // SetupRunner prepares global resources required by the test runner.

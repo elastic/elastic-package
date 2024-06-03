@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -71,8 +70,6 @@ type TestRunner interface {
 	TestFolderRequired() bool
 
 	CanRunSetupTeardownIndependent() bool
-
-	SetMutex(*sync.Mutex)
 
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context, TestOptions) error
@@ -300,22 +297,15 @@ func RegisterRunnerFunc(testType TestType, factory func() TestRunner) {
 	runnersFuncs[testType] = factory
 }
 
-type RunnerLauncher struct {
-	mutex               sync.Mutex
-	mutexInstallPackage sync.Mutex
-}
+type RunnerLauncher struct{}
 
 func (r *RunnerLauncher) newRunner(testType TestType) (TestRunner, error) {
-	r.mutex.Lock()
-	defer r.mutex.Unlock()
-
 	factory, defined := runnersFuncs[testType]
 	if !defined {
 		return nil, fmt.Errorf("unregistered runner test: %s", testType)
 	}
 
 	runner := factory()
-	runner.SetMutex(&r.mutexInstallPackage)
 	return runner, nil
 }
 

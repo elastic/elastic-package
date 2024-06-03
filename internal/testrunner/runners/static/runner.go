@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -48,8 +47,6 @@ func (r runner) Type() testrunner.TestType {
 func (r runner) String() string {
 	return "static files"
 }
-
-func (r *runner) SetMutex(m *sync.Mutex) {}
 
 // SetupRunner prepares global resources required by the test runner.
 func (r *runner) SetupRunner(ctx context.Context, options testrunner.TestOptions) error {
