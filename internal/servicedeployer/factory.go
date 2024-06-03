@@ -31,9 +31,6 @@ type FactoryOptions struct {
 
 	PolicyName string
 
-	PackageName string
-	DataStream  string
-
 	Variant string
 
 	RunTearDown  bool

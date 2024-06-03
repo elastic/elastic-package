@@ -6,8 +6,14 @@ package common
 
 import (
 	"fmt"
+	"math/rand"
 	"slices"
 	"strings"
+)
+
+const (
+	testRunMaxID = 99999
+	testRunMinID = 10000
 )
 
 // TrimStringSlice removes whitespace from the beginning and end of the contents of a []string.
@@ -47,4 +53,8 @@ func ToStringSlice(val interface{}) ([]string, error) {
 		s = append(s, str)
 	}
 	return s, nil
+}
+
+func CreateTestRunID() string {
+	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
