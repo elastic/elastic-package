@@ -446,11 +446,6 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
-	if err != nil {
-		return fmt.Errorf("can't create Kibana client: %w", err)
-	}
-
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -468,7 +463,6 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 			PackageRootPath:            packageRootPath,
 			GenerateTestResult:         generateTestResult,
 			API:                        esClient.API,
-			KibanaClient:               kibanaClient,
 			WithCoverage:               testCoverage,
 			CoverageType:               testCoverageFormat,
 			DeferCleanup:               deferCleanup,
