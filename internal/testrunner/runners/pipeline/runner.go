@@ -85,7 +85,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 
 // Run runs the pipeline tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options.TestFolder = options.TestFolder
+	r.options = options
 
 	stackConfig, err := stack.LoadConfig(r.options.Profile)
 	if err != nil {
