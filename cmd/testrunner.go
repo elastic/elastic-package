@@ -79,24 +79,24 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 
 	assetCmd := getTestRunnerAssetCommand()
-	cmd.AddCommand(assetCmd.Command)
+	cmd.AddCommand(assetCmd)
 
 	staticCmd := getTestRunnerStaticCommand()
-	cmd.AddCommand(staticCmd.Command)
+	cmd.AddCommand(staticCmd)
 
 	pipelineCmd := getTestRunnerPipelineCommand()
-	cmd.AddCommand(pipelineCmd.Command)
+	cmd.AddCommand(pipelineCmd)
 
 	systemCmd := getTestRunnerSystemCommand()
-	cmd.AddCommand(systemCmd.Command)
+	cmd.AddCommand(systemCmd)
 
 	policyCmd := getTestRunnerPolicyCommand()
-	cmd.AddCommand(policyCmd.Command)
+	cmd.AddCommand(policyCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func getTestRunnerAssetCommand() *cobraext.Command {
+func getTestRunnerAssetCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "asset",
 		Short: "Run asset tests",
@@ -105,7 +105,7 @@ func getTestRunnerAssetCommand() *cobraext.Command {
 		RunE:  testRunnerAssetCommandAction,
 	}
 
-	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+	return cmd
 }
 
 func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
@@ -181,7 +181,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerStaticCommand() *cobraext.Command {
+func getTestRunnerStaticCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "static",
 		Short: "Run static tests",
@@ -193,7 +193,7 @@ func getTestRunnerStaticCommand() *cobraext.Command {
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
-	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+	return cmd
 }
 
 func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
@@ -322,7 +322,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerPipelineCommand() *cobraext.Command {
+func getTestRunnerPipelineCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pipeline",
 		Short: "Run pipeline tests",
@@ -335,7 +335,7 @@ func getTestRunnerPipelineCommand() *cobraext.Command {
 	cmd.Flags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
-	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+	return cmd
 }
 
 func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
@@ -487,7 +487,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerSystemCommand() *cobraext.Command {
+func getTestRunnerSystemCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "system",
 		Short: "Run system tests",
@@ -520,7 +520,7 @@ func getTestRunnerSystemCommand() *cobraext.Command {
 	cmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.TearDownFlagName)
 	cmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.NoProvisionFlagName)
 
-	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+	return cmd
 }
 
 func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
@@ -735,7 +735,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerPolicyCommand() *cobraext.Command {
+func getTestRunnerPolicyCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "Run policy tests",
@@ -747,7 +747,7 @@ func getTestRunnerPolicyCommand() *cobraext.Command {
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 	cmd.Flags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
+	return cmd
 }
 
 func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
