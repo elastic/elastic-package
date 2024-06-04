@@ -14,14 +14,11 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/creack/pty"
 
 	"gopkg.in/yaml.v3"
 
@@ -474,56 +471,6 @@ type dockerComposeOptions struct {
 	args   []string
 	env    []string
 	stdout io.Writer
-}
-
-func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOptions) error {
-	name, args := p.dockerComposeBaseCommand()
-	args = append(args, opts.args...)
-
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Cancel = func() error {
-		if runtime.GOOS == "windows" {
-			// Interrupt is not implemented in Windows.
-			return cmd.Process.Kill()
-		}
-		return cmd.Process.Signal(os.Interrupt)
-	}
-	cmd.Env = append(os.Environ(), opts.env...)
-
-	ptty, tty, err := pty.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open pseudo-tty to capture stderr: %w", err)
-	}
-
-	var errBuffer bytes.Buffer
-	cmd.Stderr = tty
-	var stderr io.Writer = &errBuffer
-	if logger.IsDebugMode() {
-		cmd.Stdout = os.Stdout
-		stderr = io.MultiWriter(&errBuffer, os.Stderr)
-	}
-	if opts.stdout != nil {
-		cmd.Stdout = opts.stdout
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		io.Copy(stderr, ptty)
-	}()
-
-	logger.Debugf("running command: %s", cmd)
-	err = cmd.Run()
-	ptty.Close()
-	tty.Close()
-	wg.Wait()
-	if err != nil {
-		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
-			return fmt.Errorf("%w: %s", err, msg)
-		}
-	}
-	return err
 }
 
 const daemonResponse = `Error response from daemon:`
