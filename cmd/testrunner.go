@@ -382,11 +382,13 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 
 		maxRoutines := DEFAULT_MAXIMUM_ROUTINES
 
-		v, ok := os.LookupEnv(maximumNumberParallelTest)
-		if ok {
-			maxRoutines, err = strconv.Atoi(v)
-			if err != nil {
-				return fmt.Errorf("failed to read number of maximum routines from environment variable: %w", err)
+		if testType == "system" {
+			v, ok := os.LookupEnv(maximumNumberParallelTest)
+			if ok {
+				maxRoutines, err = strconv.Atoi(v)
+				if err != nil {
+					return fmt.Errorf("failed to read number of maximum routines from environment variable: %w", err)
+				}
 			}
 		}
 		logger.Debugf(">>> Maximum routines: %d", maxRoutines)
