@@ -60,33 +60,46 @@ func setupTestCommand() *cobraext.Command {
 		Use:   "test",
 		Short: "Run test suite for the package",
 		Long:  testLongDescription,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			err := cobraext.ComposeCommands(args,
+				getTestRunnerAssetCommand(),
+				getTestRunnerStaticCommand(),
+				getTestRunnerPipelineCommand(),
+				getTestRunnerSystemCommand(),
+				getTestRunnerPolicyCommand(),
+			)
+			if err != nil {
+				return fmt.Errorf("testing package failed: %w", err)
+			}
+			return nil
+		},
 	}
 
-	cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
-	cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
-	cmd.PersistentFlags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
-	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	// cmd.PersistentFlags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	// cmd.PersistentFlags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	// cmd.PersistentFlags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	// cmd.PersistentFlags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	// cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	assetCmd := getTestRunnerAssetCommand()
-	cmd.AddCommand(assetCmd)
+	cmd.AddCommand(assetCmd.Command)
 
 	staticCmd := getTestRunnerStaticCommand()
-	cmd.AddCommand(staticCmd)
+	cmd.AddCommand(staticCmd.Command)
 
 	pipelineCmd := getTestRunnerPipelineCommand()
-	cmd.AddCommand(pipelineCmd)
+	cmd.AddCommand(pipelineCmd.Command)
 
 	systemCmd := getTestRunnerSystemCommand()
-	cmd.AddCommand(systemCmd)
+	cmd.AddCommand(systemCmd.Command)
 
 	policyCmd := getTestRunnerPolicyCommand()
-	cmd.AddCommand(policyCmd)
+	cmd.AddCommand(policyCmd.Command)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func getTestRunnerAssetCommand() *cobra.Command {
+func getTestRunnerAssetCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "asset",
 		Short: "Run asset tests",
@@ -95,7 +108,14 @@ func getTestRunnerAssetCommand() *cobra.Command {
 		RunE:  testRunnerAssetCommandAction,
 	}
 
-	return cmd
+	// Globals
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.Flags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
@@ -171,7 +191,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerStaticCommand() *cobra.Command {
+func getTestRunnerStaticCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "static",
 		Short: "Run static tests",
@@ -180,10 +200,17 @@ func getTestRunnerStaticCommand() *cobra.Command {
 		RunE:  testRunnerStaticCommandAction,
 	}
 
+	// Globals
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.Flags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
@@ -312,7 +339,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerPipelineCommand() *cobra.Command {
+func getTestRunnerPipelineCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "pipeline",
 		Short: "Run pipeline tests",
@@ -321,12 +348,19 @@ func getTestRunnerPipelineCommand() *cobra.Command {
 		RunE:  testRunnerPipelineCommandAction,
 	}
 
+	// Globals
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.Flags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
@@ -478,7 +512,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerSystemCommand() *cobra.Command {
+func getTestRunnerSystemCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "system",
 		Short: "Run system tests",
@@ -486,6 +520,13 @@ func getTestRunnerSystemCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerSystemCommandAction,
 	}
+
+	// Globals
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.Flags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
@@ -512,7 +553,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.TearDownFlagName)
 	cmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.NoProvisionFlagName)
 
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
@@ -727,7 +768,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func getTestRunnerPolicyCommand() *cobra.Command {
+func getTestRunnerPolicyCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "Run policy tests",
@@ -736,10 +777,17 @@ func getTestRunnerPolicyCommand() *cobra.Command {
 		RunE:  testRunnerPolicyCommandAction,
 	}
 
+	// Globals
+	cmd.Flags().StringP(cobraext.ReportFormatFlagName, "", string(formats.ReportFormatHuman), cobraext.ReportFormatFlagDescription)
+	cmd.Flags().StringP(cobraext.ReportOutputFlagName, "", string(outputs.ReportOutputSTDOUT), cobraext.ReportOutputFlagDescription)
+	cmd.Flags().BoolP(cobraext.TestCoverageFlagName, "", false, cobraext.TestCoverageFlagDescription)
+	cmd.Flags().StringP(cobraext.TestCoverageFormatFlagName, "", "cobertura", fmt.Sprintf(cobraext.TestCoverageFormatFlagDescription, strings.Join(testrunner.CoverageFormatsList(), ",")))
+	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+
 	cmd.Flags().BoolP(cobraext.FailOnMissingFlagName, "m", false, cobraext.FailOnMissingFlagDescription)
 	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
 	cmd.Flags().BoolP(cobraext.GenerateTestResultFlagName, "g", false, cobraext.GenerateTestResultFlagDescription)
-	return cmd
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
