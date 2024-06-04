@@ -873,7 +873,7 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		return fmt.Errorf("error formatting test report: %w", err)
 	}
 
-	if err := testrunner.WriteReport(packageName, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+	if err := testrunner.WriteReport(packageName, testType, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 		return fmt.Errorf("error writing test report: %w", err)
 	}
 
