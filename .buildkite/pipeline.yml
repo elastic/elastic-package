@@ -6,7 +6,7 @@ env:
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.29.0'
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
-  WINDOWS_AGENT_IMAGE: "family/ci-windows-2022"
+  WINDOWS_AGENT_IMAGE: "family/platform-ingest-beats-windows-2022"
   IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
 
 steps:
@@ -38,6 +38,22 @@ steps:
     artifact_paths:
       - "TEST-unit-windows.xml"
 
+  # TODO: Move after the next wait.
+  - label: ":windows: Run stack tests"
+    key: stack-tests-windows
+    command: ".buildkite/scripts/stack_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "${WINDOWS_AGENT_IMAGE}"
+    depends_on:
+      # TODO: Uncomment this.
+      #- step: check-static
+      #  allow_failure: false
+      #- step: unit-tests-windows
+      #  allow_failure: false
+    artifact_paths:
+      - 'C:\ProgramData\chocolatey\logs\chocolatey.log'
+
   - wait: ~
     continue_on_failure: true
 
@@ -47,18 +63,6 @@ steps:
       - step: check-static
         allow_failure: false
       - step: unit-tests-linux
-        allow_failure: false
-
-  - label: ":windows: Run stack tests"
-    key: stack-tests-windows
-    command: ".buildkite/scripts/stack_tests_windows.ps1"
-    agents:
-      provider: "gcp"
-      image: "${WINDOWS_AGENT_IMAGE}"
-    depends_on:
-      - step: check-static
-        allow_failure: false
-      - step: unit-tests-windows
         allow_failure: false
 
   - wait: ~

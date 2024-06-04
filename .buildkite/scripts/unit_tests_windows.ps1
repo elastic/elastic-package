@@ -10,6 +10,9 @@ function fixCRLF {
 }
 
 function withGolang($version) {
+    # Avoid conflicts with previous installations.
+    Remove-Item env:GOROOT
+
     Write-Host "-- Install golang $version --"
     choco install -y golang --version $version
     $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."

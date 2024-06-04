@@ -10,6 +10,9 @@ function fixCRLF {
 }
 
 function withGolang($version) {
+    # Avoid conflicts with previous installations.
+    Remove-Item env:GOROOT
+
     Write-Host "-- Install golang $version --"
     choco install -y golang --version $version
     setupChocolateyPath
@@ -17,11 +20,45 @@ function withGolang($version) {
     go env
 }
 
+function getEngine() {
+    docker info --format '{{.OSType}}'
+}
+
 function withDockerDesktop($version) {
     Write-Host "-- Install docker desktop $version --"
     choco install -y docker-desktop --version $version
     setupChocolateyPath
-    docker version
+
+    # Ensure that docker is running with the linux engine.
+    Write-Host "-- Enable Linux docker engine"
+    Start-Process -FilePath 'C:\Program Files\Docker\Docker\DockerCli.exe' -ArgumentList '-SwitchLinuxEngine'
+    Restart-Service -Name Docker
+
+    $count = 0
+    while ($true) {
+      #Check that the platform engine has started
+      docker info 1>$null 2>$null
+
+      if ($LASTEXITCODE -eq 0) {
+        #Check that the engine has switched
+        $engine = getEngine
+
+        if ($LASTEXITCODE -eq 0 -and $engine -eq "linux") {
+            #Success
+            break
+        }
+      }
+
+      $count += 1
+      if ($count -ge 60) {
+        Write-Error "Timed out waiting for engine to start"
+      }
+
+      Start-Sleep 1
+    }
+
+    Write-Host "--- Docker Info"
+    docker info
 }
 
 function setupChocolateyPath() {
@@ -35,9 +72,6 @@ fixCRLF
 
 withGolang $env:GO_VERSION
 withDockerDesktop "4.30.0"
-
-echo "--- Docker Info"
-docker info
 
 echo "--- Downloading Go modules"
 go version
