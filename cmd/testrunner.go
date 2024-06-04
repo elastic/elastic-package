@@ -155,12 +155,13 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	_, pkg := filepath.Split(packageRootPath)
 
 	results, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-		Profile:         profile,
-		TestFolder:      testrunner.TestFolder{Package: pkg},
-		PackageRootPath: packageRootPath,
-		WithCoverage:    testCoverage,
-		CoverageType:    testCoverageFormat,
-		KibanaClient:    kibanaClient,
+		Profile:                    profile,
+		TestFolder:                 testrunner.TestFolder{Package: pkg},
+		PackageRootPath:            packageRootPath,
+		WithCoverage:               testCoverage,
+		CoverageType:               testCoverageFormat,
+		KibanaClient:               kibanaClient,
+		RunIndependentElasticAgent: false,
 	})
 
 	if err != nil {
@@ -290,12 +291,13 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
 		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-			Profile:         profile,
-			TestFolder:      folder,
-			PackageRootPath: packageRootPath,
-			KibanaClient:    kibanaClient,
-			WithCoverage:    testCoverage,
-			CoverageType:    testCoverageFormat,
+			Profile:                    profile,
+			TestFolder:                 folder,
+			PackageRootPath:            packageRootPath,
+			KibanaClient:               kibanaClient,
+			WithCoverage:               testCoverage,
+			CoverageType:               testCoverageFormat,
+			RunIndependentElasticAgent: false,
 		})
 
 		// Results must be appended even if there is an error, since there could be
@@ -452,15 +454,16 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
 		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-			Profile:            profile,
-			TestFolder:         folder,
-			PackageRootPath:    packageRootPath,
-			GenerateTestResult: generateTestResult,
-			API:                esClient.API,
-			KibanaClient:       kibanaClient,
-			WithCoverage:       testCoverage,
-			CoverageType:       testCoverageFormat,
-			DeferCleanup:       deferCleanup,
+			Profile:                    profile,
+			TestFolder:                 folder,
+			PackageRootPath:            packageRootPath,
+			GenerateTestResult:         generateTestResult,
+			API:                        esClient.API,
+			KibanaClient:               kibanaClient,
+			WithCoverage:               testCoverage,
+			CoverageType:               testCoverageFormat,
+			DeferCleanup:               deferCleanup,
+			RunIndependentElasticAgent: false,
 		})
 
 		// Results must be appended even if there is an error, since there could be
@@ -851,13 +854,14 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
 		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-			Profile:            profile,
-			TestFolder:         folder,
-			PackageRootPath:    packageRootPath,
-			GenerateTestResult: generateTestResult,
-			KibanaClient:       kibanaClient,
-			WithCoverage:       testCoverage,
-			CoverageType:       testCoverageFormat,
+			Profile:                    profile,
+			TestFolder:                 folder,
+			PackageRootPath:            packageRootPath,
+			GenerateTestResult:         generateTestResult,
+			KibanaClient:               kibanaClient,
+			WithCoverage:               testCoverage,
+			CoverageType:               testCoverageFormat,
+			RunIndependentElasticAgent: false,
 		})
 
 		// Results must be appended even if there is an error, since there could be
