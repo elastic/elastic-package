@@ -399,9 +399,9 @@ func testTypeCommandActionFactory(runner testrunner.TestRunner) cobraext.Command
 		for _, folder := range testFolders {
 			wg.Add(1)
 			testFolder := folder
+			options := runnerOptions
 			sem <- 1
 			go func() {
-				options := runnerOptions
 				options.TestFolder = testFolder
 				logger.Infof("Testfolder in loop: %s", testFolder.Path)
 				defer wg.Done()
