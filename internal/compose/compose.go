@@ -564,7 +564,7 @@ func (p *Project) dockerComposeStandaloneRequired() bool {
 	if err == nil {
 		return false
 	} else {
-		logger.Debugf("docker compose subcommand failed: %w: %s", err, output)
+		logger.Debugf("docker compose subcommand failed: %v: %s", err, output)
 	}
 
 	return true

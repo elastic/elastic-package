@@ -48,6 +48,16 @@ steps:
         allow_failure: false
       - step: unit-tests-linux
         allow_failure: false
+
+  - label: ":windows: Run stack tests"
+    key: stack-tests-windows
+    command: ".buildkite/scripts/stack_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "${WINDOWS_AGENT_IMAGE}"
+    depends_on:
+      - step: check-static
+        allow_failure: false
       - step: unit-tests-windows
         allow_failure: false
 
