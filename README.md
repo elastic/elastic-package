@@ -648,6 +648,8 @@ The following settings are available per profile:
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
+* `stack.kibana_http2_enabled` can be used to control if HTTP/2 should be used in versions of
+  kibana that support it. Defaults to true.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.
