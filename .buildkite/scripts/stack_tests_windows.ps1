@@ -17,18 +17,11 @@ function withGolang($version) {
     go env
 }
 
-function withDocker($version) {
-    Write-Host "-- Install docker CLI $version --"
-    choco install -y docker-cli --version $version
+function withDockerDesktop($version) {
+    Write-Host "-- Install docker desktop $version --"
+    choco install -y docker-desktop --version $version
     setupChocolateyPath
     docker version
-}
-
-function withDockerCompose($version) {
-    Write-Host "-- Install docker-compose $version --"
-    choco install -y docker-compose --version $version
-    setupChocolateyPath
-    docker compose version
 }
 
 function setupChocolateyPath() {
@@ -41,8 +34,7 @@ function setupChocolateyPath() {
 fixCRLF
 
 withGolang $env:GO_VERSION
-withDocker $env:DOCKER_VERSION # Dependency of docker-compose in chocolatey.
-withDockerCompose $env:DOCKER_COMPOSE_VERSION.Trim("v")
+withDockerDesktop "4.30.0"
 
 echo "--- Docker Info"
 docker info
