@@ -100,7 +100,7 @@ func getTestRunnerAssetCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "asset",
 		Short: "Run asset tests",
-		Long:  "Run asset loading tests for the package",
+		Long:  "Run asset loading tests for the package.",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerAssetCommandAction,
 	}
@@ -185,7 +185,7 @@ func getTestRunnerStaticCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "static",
 		Short: "Run static tests",
-		Long:  "Run static files tests for the package",
+		Long:  "Run static files tests for the package.",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerStaticCommandAction,
 	}
@@ -326,7 +326,7 @@ func getTestRunnerPipelineCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "pipeline",
 		Short: "Run pipeline tests",
-		Long:  "Run pipeline tests for the package",
+		Long:  "Run pipeline tests for the package.",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerPipelineCommandAction,
 	}
@@ -491,7 +491,7 @@ func getTestRunnerSystemCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "system",
 		Short: "Run system tests",
-		Long:  "Run system tests for the package",
+		Long:  "Run system tests for the package.",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerSystemCommandAction,
 	}
@@ -739,7 +739,7 @@ func getTestRunnerPolicyCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "policy",
 		Short: "Run policy tests",
-		Long:  "Run policy tests for the package",
+		Long:  "Run policy tests for the package.",
 		Args:  cobra.NoArgs,
 		RunE:  testRunnerPolicyCommandAction,
 	}
