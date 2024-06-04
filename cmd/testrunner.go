@@ -293,20 +293,12 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
-	if err != nil {
-		return fmt.Errorf("can't create Kibana client: %w", err)
-	}
-
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
 		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
 			PackageRootPath:            packageRootPath,
-			KibanaClient:               kibanaClient,
-			WithCoverage:               testCoverage,
-			CoverageType:               testCoverageFormat,
 			RunIndependentElasticAgent: false,
 		})
 
@@ -694,7 +686,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
 		}
 
-		fmt.Printf("Running tests per stages (technical preview)\n")
+		cmd.Printf("Running tests per stages (technical preview)\n")
 	}
 
 	var results []testrunner.TestResult
@@ -707,8 +699,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			GenerateTestResult:         generateTestResult,
 			API:                        esClient.API,
 			KibanaClient:               kibanaClient,
-			WithCoverage:               testCoverage,
-			CoverageType:               testCoverageFormat,
 			DeferCleanup:               deferCleanup,
 			ConfigFilePath:             configFileFlag,
 			RunSetup:                   runSetup,
@@ -861,8 +851,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 			PackageRootPath:            packageRootPath,
 			GenerateTestResult:         generateTestResult,
 			KibanaClient:               kibanaClient,
-			WithCoverage:               testCoverage,
-			CoverageType:               testCoverageFormat,
 			RunIndependentElasticAgent: false,
 		})
 
