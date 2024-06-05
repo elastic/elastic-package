@@ -24,39 +24,18 @@ function getEngine() {
     docker info --format '{{.OSType}}'
 }
 
-function withDockerDesktop($version) {
-    Write-Host "-- Install docker desktop $version --"
+function withDocker($version) {
+    Write-Host "-- Install Docker $version --"
     choco install -y Containers Microsoft-Hyper-V --source windowsfeatures
-    choco install -y docker-desktop --version $version
+    choco install -y docker-engine --version $version
+    choco install -y docker-cli --version $version
     setupChocolateyPath
+}
 
-    # Ensure that docker is running with the linux engine.
-    Write-Host "-- Enable Linux docker engine"
-    & 'C:\Program Files\Docker\Docker\DockerCli.exe' -SwitchLinuxEngine -Verbose
-    Restart-Service -Name Docker
-
-    $count = 0
-    while ($true) {
-      #Check that the engine has switched
-      $engine = getEngine
-
-      if ($LASTEXITCODE -eq 0 -and $engine -eq "linux") {
-          #Success
-          break
-      }
-
-      Write-Host "Retry $count, engine $engine"
-
-      $count += 1
-      if ($count -ge 60) {
-        Write-Error "Timed out waiting to restart Docker with Linux engine"
-      }
-
-      Start-Sleep 1
-    }
-
-    Write-Host "--- Docker Info"
-    docker info
+function withDockerCompose($version) {
+    Write-Host "-- Install Docker Compose $version --"
+    choco install -y docker-compose --version $version
+    setupChocolateyPath
 }
 
 function setupChocolateyPath() {
@@ -69,7 +48,11 @@ function setupChocolateyPath() {
 fixCRLF
 
 withGolang $env:GO_VERSION
-withDockerDesktop "4.30.0"
+withDocker $env:DOCKER_VERSION
+withDockerCompose $env:DOCKER_COMPOSE_VERSION
+
+Write-Host "--- Docker Info"
+docker info
 
 echo "--- Downloading Go modules"
 go version
@@ -78,7 +61,11 @@ go mod download -x
 echo "--- Running stack tests"
 go version
 $ErrorActionPreference = "Continue" # set +e
-go run . stack up -v -d
+
+# TODO: stack status checks that we can call docker-compose, but we should try a stack up.
+# stack up doesn't work because we didn't manage to enable the linux engine, and we don't have Windows native images.
+go run . stack status
+
 $EXITCODE=$LASTEXITCODE
 $ErrorActionPreference = "Stop"
 
