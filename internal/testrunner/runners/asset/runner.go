@@ -63,7 +63,7 @@ func (r runner) String() string {
 }
 
 // Run runs the asset loading tests
-func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 

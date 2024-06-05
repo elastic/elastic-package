@@ -53,7 +53,7 @@ func (r *runner) String() string {
 	return string(TestType)
 }
 
-func (r *runner) Run(ctx context.Context, _ testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{
 		Client: r.kibanaClient,

@@ -59,7 +59,7 @@ type TestRunner interface {
 	String() string
 
 	// Run executes the test runner.
-	Run(context.Context, TestOptions) ([]TestResult, error)
+	Run(context.Context) ([]TestResult, error)
 
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
@@ -278,7 +278,7 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
-	results, err := runner.Run(ctx, TestOptions{})
+	results, err := runner.Run(ctx)
 	tdErr := runner.TearDown(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete test run: %w", err)

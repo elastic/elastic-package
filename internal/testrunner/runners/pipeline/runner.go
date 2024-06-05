@@ -124,7 +124,7 @@ func (r *runner) String() string {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
