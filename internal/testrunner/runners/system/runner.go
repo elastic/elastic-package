@@ -1007,7 +1007,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	policyTesting := kibana.Policy{
 		Name:        fmt.Sprintf("ep-one-test-system-%s-%s-%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream, scenario.startTestTime.Format("20060102T15:04:05Z")),
 		Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.options.TestFolder.Package, r.options.TestFolder.DataStream),
-		Namespace:   createTestRunID(),
+		Namespace:   common.CreateTestRunID(),
 	}
 	policyToAssignDatastreamTests := policyToTest
 	if r.shouldCreateNewAgentPolicyForTest() {
