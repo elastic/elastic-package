@@ -64,12 +64,6 @@ type TestRunner interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
-
-	CanRunPerDataStream() bool
-
-	TestFolderRequired() bool
-
-	CanRunSetupTeardownIndependent() bool
 }
 
 var runners = map[TestType]TestRunner{}
@@ -143,6 +137,11 @@ func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 
 	rc.ErrorMsg += err.Error()
 	return []TestResult{rc.TestResult}, err
+}
+
+// WithErrorf sets an error on the test result wrapped by ResultComposer.
+func (rc *ResultComposer) WithErrorf(format string, a ...any) ([]TestResult, error) {
+	return rc.WithError(fmt.Errorf(format, a...))
 }
 
 // WithSuccess marks the test result wrapped by ResultComposer as successful.

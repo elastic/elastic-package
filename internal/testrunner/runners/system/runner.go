@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,9 +40,6 @@ import (
 )
 
 const (
-	testRunMaxID = 99999
-	testRunMinID = 10000
-
 	checkFieldsBody = `{
 		"fields": ["*"],
 		"runtime_mappings": {
@@ -169,22 +165,6 @@ func (r *runner) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *runner) String() string {
 	return "system"
-}
-
-// CanRunPerDataStream returns whether this test runner can run on individual
-// data streams within the package.
-func (r *runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return true
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return true
 }
 
 // Run runs the system tests defined under the given folder
@@ -346,8 +326,6 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
-		PackageName:            r.options.TestFolder.Package,
-		DataStream:             r.options.TestFolder.DataStream,
 		RunTearDown:            r.options.RunTearDown,
 		RunTestsOnly:           r.options.RunTestsOnly,
 		RunSetup:               r.options.RunSetup,
@@ -394,7 +372,7 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Name = r.options.TestFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	svcInfo.Test.RunID = createTestRunID()
+	svcInfo.Test.RunID = common.CreateTestRunID()
 
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		logger.Debug("Skip creating output directory")
@@ -666,10 +644,6 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
 	}
 	return partial, nil
-}
-
-func createTestRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
 func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
@@ -1349,7 +1323,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if !r.options.RunIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
-	agentRunID := createTestRunID()
+	agentRunID := common.CreateTestRunID()
 	if r.options.RunTearDown || r.options.RunTestsOnly {
 		agentRunID = state.AgentRunID
 	}
