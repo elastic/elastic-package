@@ -65,12 +65,6 @@ type TestRunner interface {
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
 
-	CanRunPerDataStream() bool
-
-	TestFolderRequired() bool
-
-	CanRunSetupTeardownIndependent() bool
-
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context, TestOptions) error
 

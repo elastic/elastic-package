@@ -57,10 +57,6 @@ type IngestPipelineReroute struct {
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
-func (r *runner) TestFolderRequired() bool {
-	return true
-}
-
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -125,18 +121,6 @@ func (r *runner) TearDown(ctx context.Context) error {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
-}
-
-// CanRunPerDataStream returns whether this test runner can run on individual
-// data streams within the package.
-func (r *runner) CanRunPerDataStream() bool {
-	return true
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return false
 }
 
 func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {

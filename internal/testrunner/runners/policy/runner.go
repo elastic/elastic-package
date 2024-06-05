@@ -174,15 +174,3 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager, opt
 func (r *runner) TearDown(ctx context.Context) error {
 	return nil
 }
-
-func (r *runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return true
-}
-
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return false
-}

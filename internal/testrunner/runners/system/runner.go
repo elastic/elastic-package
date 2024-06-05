@@ -157,6 +157,13 @@ type runner struct {
 	wipeDataStreamHandler     func(context.Context) error
 }
 
+func NewSystemRunner(options testrunner.TestOptions) *runner {
+	r := runner{
+		options: options,
+	}
+	return &r
+}
+
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
@@ -209,22 +216,6 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 		return err
 	}
 	return nil
-}
-
-// CanRunPerDataStream returns whether this test runner can run on individual
-// data streams within the package.
-func (r *runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return true
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return true
 }
 
 // Run runs the system tests defined under the given folder

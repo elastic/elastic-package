@@ -60,18 +60,6 @@ func (r runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
-// CanRunPerDataStream returns whether this test runner can run on individual
-// data streams within the package.
-func (r runner) CanRunPerDataStream() bool {
-	return false
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return false
-}
-
 // Run runs the asset loading tests
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.packageRootPath = options.PackageRootPath
@@ -181,10 +169,6 @@ func (r *runner) TearDown(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return false
 }
 
 func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
