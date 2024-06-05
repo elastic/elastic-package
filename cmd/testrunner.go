@@ -175,13 +175,9 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		KibanaClient:    kibanaClient,
 	})
 
-	results, err := runner.Run(ctx, testrunner.TestOptions{})
-	tdErr := runner.TearDown(ctx)
+	results, err := testrunner.Run(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
-	}
-	if tdErr != nil {
-		return fmt.Errorf("could not teardown test runner: %w", tdErr)
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -300,18 +296,11 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 			TestFolder:      folder,
 			PackageRootPath: packageRootPath,
 		})
-		r, err := runner.Run(ctx, testrunner.TestOptions{})
-		// Results must be appended even if there is an error, since there could be
-		// tests (e.g. system tests) that return both error and results.
-		results = append(results, r...)
-
-		tdErr := runner.TearDown(ctx)
+		r, err := testrunner.Run(ctx, runner)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
 		}
-		if tdErr != nil {
-			return fmt.Errorf("could not teardown test runner: %w", tdErr)
-		}
+		results = append(results, r...)
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -466,18 +455,11 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to create pipeline runner: %w", err)
 		}
 
-		r, err := runner.Run(ctx, testrunner.TestOptions{})
-		// Results must be appended even if there is an error, since there could be
-		// tests (e.g. system tests) that return both error and results.
-		results = append(results, r...)
-
-		tdErr := runner.TearDown(ctx)
+		r, err := testrunner.Run(ctx, runner)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
 		}
-		if tdErr != nil {
-			return fmt.Errorf("could not teardown test runner: %w", tdErr)
-		}
+		results = append(results, r...)
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -717,18 +699,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			RunIndependentElasticAgent: false,
 		})
 
-		r, err := runner.Run(ctx, testrunner.TestOptions{})
-		// Results must be appended even if there is an error, since there could be
-		// tests (e.g. system tests) that return both error and results.
-		results = append(results, r...)
-
-		tdErr := runner.TearDown(ctx)
+		r, err := testrunner.Run(ctx, runner)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
 		}
-		if tdErr != nil {
-			return fmt.Errorf("could not teardown test runner: %w", tdErr)
-		}
+		results = append(results, r...)
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -866,19 +841,11 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 			GenerateTestResult: generateTestResult,
 			KibanaClient:       kibanaClient,
 		})
-		r, err := runner.Run(ctx, testrunner.TestOptions{})
-
-		// Results must be appended even if there is an error, since there could be
-		// tests (e.g. system tests) that return both error and results.
-		results = append(results, r...)
-
-		tdErr := runner.TearDown(ctx)
+		r, err := testrunner.Run(ctx, runner)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
 		}
-		if tdErr != nil {
-			return fmt.Errorf("could not teardown test runner: %w", tdErr)
-		}
+		results = append(results, r...)
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)

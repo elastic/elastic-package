@@ -284,13 +284,8 @@ func RegisterRunner(runner TestRunner) {
 }
 
 // Run method delegates execution to the registered test runner, based on the test type.
-func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, defined := runners[testType]
-	if !defined {
-		return nil, fmt.Errorf("unregistered runner test: %s", testType)
-	}
-
-	results, err := runner.Run(ctx, options)
+func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
+	results, err := runner.Run(ctx, TestOptions{})
 	tdErr := runner.TearDown(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete test run: %w", err)
