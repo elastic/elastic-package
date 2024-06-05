@@ -23,6 +23,9 @@ const (
 
 func init() {
 	testrunner.RegisterRunner(&runner{})
+	testrunner.RegisterRunnerFunc(TestType, func() testrunner.TestRunner {
+		return &runner{}
+	})
 }
 
 type runner struct{}
