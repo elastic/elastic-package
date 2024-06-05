@@ -20,10 +20,6 @@ function withGolang($version) {
     go env
 }
 
-function getEngine() {
-    docker info --format '{{.OSType}}'
-}
-
 function withDocker($version) {
     Write-Host "-- Install Docker $version --"
     choco install -y Containers Microsoft-Hyper-V --source windowsfeatures
