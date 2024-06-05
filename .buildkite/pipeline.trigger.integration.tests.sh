@@ -52,6 +52,10 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     test_name=${test#"test-check-packages-"}
     echo "      - label: \":go: Integration test: ${test_name}${label_suffix}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    if [[ "$test" == "test-check-packages-with-kind" ]]; then
+        echo "        env:"
+        echo "          ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 1"
+    fi
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
