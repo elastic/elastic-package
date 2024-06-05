@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -25,7 +26,28 @@ func init() {
 	testrunner.RegisterRunner(&runner{})
 }
 
-type runner struct{}
+type runner struct {
+	testFolder         testrunner.TestFolder
+	packageRootPath    string
+	generateTestResult bool
+	kibanaClient       *kibana.Client
+}
+
+type PolicyRunnerOptions struct {
+	TestFolder         testrunner.TestFolder
+	KibanaClient       *kibana.Client
+	PackageRootPath    string
+	GenerateTestResult bool
+}
+
+func NewPolicyRunner(options PolicyRunnerOptions) *runner {
+	return &runner{
+		kibanaClient:       options.KibanaClient,
+		testFolder:         options.TestFolder,
+		packageRootPath:    options.PackageRootPath,
+		generateTestResult: options.GenerateTestResult,
+	}
+}
 
 func (r *runner) Type() testrunner.TestType {
 	return TestType
@@ -35,24 +57,24 @@ func (r *runner) String() string {
 	return string(TestType)
 }
 
-func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
+func (r *runner) Run(ctx context.Context, _ testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{
-		Client: options.KibanaClient,
+		Client: r.kibanaClient,
 	})
 
-	cleanup, err := r.setupSuite(ctx, manager, options)
+	cleanup, err := r.setupSuite(ctx, manager)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup test runner: %w", err)
 	}
 
 	var results []testrunner.TestResult
-	tests, err := filepath.Glob(filepath.Join(options.TestFolder.Path, "test-*.yml"))
+	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
 	if err != nil {
-		return nil, fmt.Errorf("failed to look for test files in %s: %w", options.TestFolder.Path, err)
+		return nil, fmt.Errorf("failed to look for test files in %s: %w", r.testFolder.Path, err)
 	}
 	for _, test := range tests {
-		result, err := r.runTest(ctx, manager, options, test)
+		result, err := r.runTest(ctx, manager, test)
 		if err != nil {
 			logger.Error(err)
 		}
@@ -67,12 +89,12 @@ func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]tes
 	return results, nil
 }
 
-func (r *runner) runTest(ctx context.Context, manager *resources.Manager, options testrunner.TestOptions, testPath string) ([]testrunner.TestResult, error) {
+func (r *runner) runTest(ctx context.Context, manager *resources.Manager, testPath string) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Name:       filepath.Base(testPath),
-		Package:    options.TestFolder.Package,
-		DataStream: options.TestFolder.DataStream,
+		Package:    r.testFolder.Package,
+		DataStream: r.testFolder.DataStream,
 	})
 
 	testConfig, err := readTestConfig(testPath)
@@ -86,9 +108,9 @@ func (r *runner) runTest(ctx context.Context, manager *resources.Manager, option
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:           testName + "-" + options.TestFolder.Package,
-				RootPath:       options.PackageRootPath,
-				DataStreamName: options.TestFolder.DataStream,
+				Name:           testName + "-" + r.testFolder.Package,
+				RootPath:       r.packageRootPath,
+				DataStreamName: r.testFolder.DataStream,
 				InputName:      testConfig.Input,
 				Vars:           testConfig.Vars,
 				DataStreamVars: testConfig.DataStream.Vars,
@@ -102,10 +124,10 @@ func (r *runner) runTest(ctx context.Context, manager *resources.Manager, option
 		// In some cases the revision 2 with the agent policy disappears if there is some
 		// issue with the final policy.
 		expectedRevision := 1 + len(policy.PackagePolicies)
-		if options.GenerateTestResult {
-			testErr = dumpExpectedAgentPolicy(ctx, options, testPath, policy.ID, expectedRevision)
+		if r.generateTestResult {
+			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID, expectedRevision)
 		} else {
-			testErr = assertExpectedAgentPolicy(ctx, options, testPath, policy.ID, expectedRevision)
+			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID, expectedRevision)
 		}
 	}
 
@@ -130,9 +152,9 @@ func testNameFromPath(path string) string {
 	return strings.TrimSuffix(filepath.Base(path), ext)
 }
 
-func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager, options testrunner.TestOptions) (cleanup func(ctx context.Context) error, err error) {
+func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		RootPath: options.PackageRootPath,
+		RootPath: r.packageRootPath,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

@@ -18,11 +18,11 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
-	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/kibana"
 )
 
-func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
-	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
+func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string, expectedRevision int) error {
+	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
@@ -40,8 +40,8 @@ func dumpExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions
 	return nil
 }
 
-func assertExpectedAgentPolicy(ctx context.Context, options testrunner.TestOptions, testPath string, policyID string, expectedRevision int) error {
-	policy, err := options.KibanaClient.DownloadPolicy(ctx, policyID)
+func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string, expectedRevision int) error {
+	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}

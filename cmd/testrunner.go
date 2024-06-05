@@ -28,6 +28,7 @@ import (
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 	"github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/pipeline"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/policy"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/static"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
@@ -859,21 +860,24 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
-		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-			Profile:                    profile,
-			TestFolder:                 folder,
-			PackageRootPath:            packageRootPath,
-			GenerateTestResult:         generateTestResult,
-			KibanaClient:               kibanaClient,
-			RunIndependentElasticAgent: false,
+		runner := policy.NewPolicyRunner(policy.PolicyRunnerOptions{
+			TestFolder:         folder,
+			PackageRootPath:    packageRootPath,
+			GenerateTestResult: generateTestResult,
+			KibanaClient:       kibanaClient,
 		})
+		r, err := runner.Run(ctx, testrunner.TestOptions{})
 
 		// Results must be appended even if there is an error, since there could be
 		// tests (e.g. system tests) that return both error and results.
 		results = append(results, r...)
 
+		tdErr := runner.TearDown(ctx)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
+		}
+		if tdErr != nil {
+			return fmt.Errorf("could not teardown test runner: %w", tdErr)
 		}
 	}
 
