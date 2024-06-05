@@ -22,7 +22,22 @@ import (
 const sampleEventJSON = "sample_event.json"
 
 type runner struct {
-	options testrunner.TestOptions
+	TestFolder      testrunner.TestFolder
+	PackageRootPath string
+}
+
+type StaticRunnerOptions struct {
+	TestFolder      testrunner.TestFolder
+	PackageRootPath string
+}
+
+func NewStaticRunner(options StaticRunnerOptions) *runner {
+	runner := runner{
+		TestFolder:      options.TestFolder,
+		PackageRootPath: options.PackageRootPath,
+	}
+	return &runner
+
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -46,44 +61,43 @@ func (r runner) String() string {
 }
 
 func (r runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
 	return r.run(ctx)
 }
 
 func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
+		Package:    r.TestFolder.Package,
+		DataStream: r.TestFolder.DataStream,
 	})
 
-	testConfig, err := newConfig(r.options.TestFolder.Path)
+	testConfig, err := newConfig(r.TestFolder.Path)
 	if err != nil {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
 	if testConfig != nil && testConfig.Skip != nil {
 		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package,
+			TestType, r.TestFolder.Package,
 			testConfig.Skip.Reason, testConfig.Skip.Link.String())
 		return result.WithSkip(testConfig.Skip)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.PackageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
 	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.options.PackageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+	return append(r.verifyStreamConfig(ctx, r.PackageRootPath), r.verifySampleEvent(pkgManifest)...), nil
 }
 
 func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify benchmark config",
 		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
+		Package:    r.TestFolder.Package,
+		DataStream: r.TestFolder.DataStream,
 	})
 
 	withOpts := []stream.OptionFunc{
@@ -93,7 +107,7 @@ func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	ctx, stop := signal.Enable(ctx, logger.Info)
 	defer stop()
 
-	hasBenchmark, err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...), r.options.TestFolder.DataStream)
+	hasBenchmark, err := stream.StaticValidation(ctx, stream.NewOptions(withOpts...), r.TestFolder.DataStream)
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
@@ -111,8 +125,8 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
+		Package:    r.TestFolder.Package,
+		DataStream: r.TestFolder.DataStream,
 	})
 
 	sampleEventPath, found, err := r.getSampleEventPath()
@@ -162,14 +176,14 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 
 func (r runner) getSampleEventPath() (string, bool, error) {
 	var sampleEventPath string
-	if r.options.TestFolder.DataStream != "" {
+	if r.TestFolder.DataStream != "" {
 		sampleEventPath = filepath.Join(
-			r.options.PackageRootPath,
+			r.PackageRootPath,
 			"data_stream",
-			r.options.TestFolder.DataStream,
+			r.TestFolder.DataStream,
 			sampleEventJSON)
 	} else {
-		sampleEventPath = filepath.Join(r.options.PackageRootPath, sampleEventJSON)
+		sampleEventPath = filepath.Join(r.PackageRootPath, sampleEventJSON)
 	}
 	_, err := os.Stat(sampleEventPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -182,7 +196,7 @@ func (r runner) getSampleEventPath() (string, bool, error) {
 }
 
 func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
-	dsName := r.options.TestFolder.DataStream
+	dsName := r.TestFolder.DataStream
 	if dsName == "" {
 		// TODO: This should return the package name plus the policy name, but we don't know
 		// what policy created this event, so we cannot reliably know it here. Skip the check
@@ -190,7 +204,7 @@ func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 		return nil, nil
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, dsName)
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.PackageRootPath, dsName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
