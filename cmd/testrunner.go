@@ -25,7 +25,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
-	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
 	"github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/pipeline"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/policy"
