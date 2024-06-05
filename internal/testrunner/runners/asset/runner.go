@@ -33,6 +33,26 @@ type runner struct {
 	resourcesManager *resources.Manager
 }
 
+type AssetRunnerOptions struct {
+	TestFolder      testrunner.TestFolder
+	PackageRootPath string
+	KibanaClient    *kibana.Client
+}
+
+func NewAssetRunner(options AssetRunnerOptions) *runner {
+	runner := runner{
+		testFolder:      options.TestFolder,
+		packageRootPath: options.PackageRootPath,
+		kibanaClient:    options.KibanaClient,
+	}
+
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: options.KibanaClient})
+	runner.resourcesManager = manager
+
+	return &runner
+}
+
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
@@ -48,14 +68,6 @@ func (r runner) String() string {
 
 // Run runs the asset loading tests
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.testFolder = options.TestFolder
-	r.packageRootPath = options.PackageRootPath
-	r.kibanaClient = options.KibanaClient
-
-	manager := resources.NewManager()
-	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
-	r.resourcesManager = manager
-
 	return r.run(ctx)
 }
 

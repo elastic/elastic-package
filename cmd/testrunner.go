@@ -26,6 +26,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners" // register all test runners
+	"github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
@@ -164,15 +165,20 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 
 	_, pkg := filepath.Split(packageRootPath)
 
-	results, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
-		Profile:                    profile,
-		TestFolder:                 testrunner.TestFolder{Package: pkg},
-		PackageRootPath:            packageRootPath,
-		WithCoverage:               testCoverage,
-		CoverageType:               testCoverageFormat,
-		KibanaClient:               kibanaClient,
-		RunIndependentElasticAgent: false,
+	runner := asset.NewAssetRunner(asset.AssetRunnerOptions{
+		TestFolder:      testrunner.TestFolder{Package: pkg},
+		PackageRootPath: packageRootPath,
+		KibanaClient:    kibanaClient,
 	})
+
+	results, err := runner.Run(ctx, testrunner.TestOptions{})
+	tdErr := runner.TearDown(ctx)
+	if err != nil {
+		return fmt.Errorf("could not complete test run: %w", err)
+	}
+	if tdErr != nil {
+		return fmt.Errorf("could not teardown test runner: %w", tdErr)
+	}
 
 	if err != nil {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
