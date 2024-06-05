@@ -120,14 +120,10 @@ func (r *runner) runTest(ctx context.Context, manager *resources.Manager, testPa
 	resources := resource.Resources{&policy}
 	_, testErr := manager.ApplyCtx(ctx, resources)
 	if testErr == nil {
-		// Revision 1 on creation, plus one revision for each attached policy.
-		// In some cases the revision 2 with the agent policy disappears if there is some
-		// issue with the final policy.
-		expectedRevision := 1 + len(policy.PackagePolicies)
 		if r.generateTestResult {
-			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID, expectedRevision)
+			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
 		} else {
-			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID, expectedRevision)
+			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
 		}
 	}
 

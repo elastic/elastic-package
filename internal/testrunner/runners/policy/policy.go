@@ -21,7 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 )
 
-func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string, expectedRevision int) error {
+func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
@@ -40,7 +40,7 @@ func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, t
 	return nil
 }
 
-func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string, expectedRevision int) error {
+func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)

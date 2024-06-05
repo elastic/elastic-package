@@ -374,11 +374,9 @@ func TestCheckAgentLogs(t *testing.T) {
 			}
 
 			runner := runner{
-				options: testrunner.TestOptions{
-					TestFolder: testrunner.TestFolder{
-						Package:    "package",
-						DataStream: "datastream",
-					},
+				testFolder: testrunner.TestFolder{
+					Package:    "package",
+					DataStream: "datastream",
 				},
 			}
 			results, err := runner.checkAgentLogs(dump, startTime, tc.errorPatterns)
