@@ -26,32 +26,30 @@ function getEngine() {
 
 function withDockerDesktop($version) {
     Write-Host "-- Install docker desktop $version --"
+    choco install -y Containers Microsoft-Hyper-V --source windowsfeatures
     choco install -y docker-desktop --version $version
     setupChocolateyPath
 
     # Ensure that docker is running with the linux engine.
     Write-Host "-- Enable Linux docker engine"
-    Start-Process -FilePath 'C:\Program Files\Docker\Docker\DockerCli.exe' -ArgumentList '-SwitchLinuxEngine'
+    & 'C:\Program Files\Docker\Docker\DockerCli.exe' -SwitchLinuxEngine -Verbose
     Restart-Service -Name Docker
 
     $count = 0
     while ($true) {
-      #Check that the platform engine has started
-      docker info 1>$null 2>$null
+      #Check that the engine has switched
+      $engine = getEngine
 
-      if ($LASTEXITCODE -eq 0) {
-        #Check that the engine has switched
-        $engine = getEngine
-
-        if ($LASTEXITCODE -eq 0 -and $engine -eq "linux") {
-            #Success
-            break
-        }
+      if ($LASTEXITCODE -eq 0 -and $engine -eq "linux") {
+          #Success
+          break
       }
+
+      Write-Host "Retry $count, engine $engine"
 
       $count += 1
       if ($count -ge 60) {
-        Write-Error "Timed out waiting for engine to start"
+        Write-Error "Timed out waiting to restart Docker with Linux engine"
       }
 
       Start-Sleep 1
