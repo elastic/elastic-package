@@ -46,10 +46,16 @@ CHECK_PACKAGES_TESTS=(
 for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     label_suffix=""
+    number_parallel_tests=${ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS}
     if [[ "$independent_agent" == "true" ]]; then
         label_suffix=" (independent agent)"
+    else
+        number_parallel_tests=1
     fi
     test_name=${test#"test-check-packages-"}
+    if [[ "$test_name" == "with-kind" ]]; then
+        number_parallel_tests=1
+    fi
     echo "      - label: \":go: Integration test: ${test_name}${label_suffix}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
@@ -63,14 +69,10 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
-    if [[ "${independent_agent}" == "true" || "$test_name" == "with-kind" ]]; then
-        echo "        env:"
-        if [[ "${independent_agent}" == "true" ]]; then
-            echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
-        fi
-        if [[ "$test_name" == "with-kind" ]]; then
-                echo "          ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 1"
-        fi
+    echo "        env:"
+    echo "          ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: ${number_parallel_tests}"
+    if [[ "${independent_agent}" == "true" ]]; then
+        echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     fi
 done
 done
@@ -97,8 +99,11 @@ pushd test/packages/parallel > /dev/null
 for independent_agent in false true; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     label_suffix=""
+    number_parallel_tests=${ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS}
     if [[ "$independent_agent" == "true" ]]; then
         label_suffix=" (independent agent)"
+    else
+        number_parallel_tests=1
     fi
     package_name=$(basename "${package}")
     if [[ "${package_name}" == "gcp" ||  "${package_name}" == "aws" || "${package_name}" == "aws_logs" ]] ; then
@@ -123,6 +128,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     if [[ "${independent_agent}" == "true" ]]; then
         echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     fi
+    echo "          ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: ${number_parallel_tests}"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
@@ -161,8 +167,11 @@ echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
 for independent_agent in false true; do
     label_suffix=""
+    number_parallel_tests=${ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS}
     if [[ "$independent_agent" == "true" ]]; then
         label_suffix=" (independent agent)"
+    else
+        number_parallel_tests=1
     fi
     echo "      - label: \":go: Integration test: system-flags${label_suffix}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
@@ -171,6 +180,7 @@ for independent_agent in false true; do
     echo "          image: \"${IMAGE_UBUNTU_X86_64}\""
     echo "        env:"
     echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
+    echo "          ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: ${number_parallel_tests}"
 done
 
 echo "      - label: \":go: Integration test: profiles-command\""
