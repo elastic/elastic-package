@@ -17,10 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 const (
 	// TestType defining asset loading tests
 	TestType testrunner.TestType = "asset"

@@ -22,10 +22,6 @@ const (
 	TestType testrunner.TestType = "policy"
 )
 
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 type runner struct {
 	testFolder         testrunner.TestFolder
 	packageRootPath    string

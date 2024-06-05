@@ -66,8 +66,6 @@ type TestRunner interface {
 	TearDown(context.Context) error
 }
 
-var runners = map[TestType]TestRunner{}
-
 // TestResult contains a single test's results
 type TestResult struct {
 	// Name of test result. Optional.
@@ -278,11 +276,6 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-// RegisterRunner method registers the test runner.
-func RegisterRunner(runner TestRunner) {
-	runners[runner.Type()] = runner
-}
-
 // Run method delegates execution to the registered test runner, based on the test type.
 func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 	results, err := runner.Run(ctx, TestOptions{})
@@ -294,11 +287,6 @@ func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 		return results, fmt.Errorf("could not teardown test runner: %w", tdErr)
 	}
 	return results, nil
-}
-
-// TestRunners returns registered test runners.
-func TestRunners() map[TestType]TestRunner {
-	return runners
 }
 
 // findDataStreamTestFoldersPaths can only be called for test runners that require tests to be defined

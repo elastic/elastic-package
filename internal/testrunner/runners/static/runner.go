@@ -42,10 +42,6 @@ func NewStaticRunner(options StaticRunnerOptions) *runner {
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 const (
 	// TestType defining asset loading tests
 	TestType testrunner.TestType = "static"

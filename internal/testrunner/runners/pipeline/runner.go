@@ -586,7 +586,3 @@ func checkErrorMessage(event json.RawMessage) error {
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
 }
-
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}

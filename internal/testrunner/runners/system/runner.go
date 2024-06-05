@@ -77,10 +77,6 @@ const (
 	DevDeployDir = "_dev/deploy"
 )
 
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 const (
 	// TestType defining system tests
 	TestType testrunner.TestType = "system"
