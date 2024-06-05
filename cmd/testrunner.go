@@ -29,6 +29,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/pipeline"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/static"
+	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
@@ -699,7 +700,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
-		r, err := testrunner.Run(ctx, testType, testrunner.TestOptions{
+		runner := system.NewSystemRunner(system.SystemRunnerOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
 			PackageRootPath:            packageRootPath,
@@ -715,12 +716,17 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			RunIndependentElasticAgent: false,
 		})
 
+		r, err := runner.Run(ctx, testrunner.TestOptions{})
 		// Results must be appended even if there is an error, since there could be
 		// tests (e.g. system tests) that return both error and results.
 		results = append(results, r...)
 
+		tdErr := runner.TearDown(ctx)
 		if err != nil {
 			return fmt.Errorf("error running package %s tests: %w", testType, err)
+		}
+		if tdErr != nil {
+			return fmt.Errorf("could not teardown test runner: %w", tdErr)
 		}
 	}
 
