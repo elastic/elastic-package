@@ -51,11 +51,9 @@ Write-Host "--- Docker Info"
 docker info
 
 echo "--- Downloading Go modules"
-go version
 go mod download -x
 
 echo "--- Running stack tests"
-go version
 $ErrorActionPreference = "Continue" # set +e
 
 # TODO: stack status checks that we can call docker-compose, but we should try a stack up.
