@@ -21,6 +21,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -28,6 +29,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -40,12 +42,66 @@ const (
 var serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 
 type runner struct {
-	options   testrunner.TestOptions
+	profile            *profile.Profile
+	deferCleanup       time.Duration
+	esAPI              *elasticsearch.API
+	packageRootPath    string
+	testFolder         testrunner.TestFolder
+	generateTestResult bool
+	withCoverage       bool
+	coverageType       string
+
 	pipelines []ingest.Pipeline
 
 	runCompareResults bool
 
 	provider stack.Provider
+}
+
+type PipelineRunnerOptions struct {
+	Profile            *profile.Profile
+	DeferCleanup       time.Duration
+	API                *elasticsearch.API
+	PackageRootPath    string
+	TestFolder         testrunner.TestFolder
+	GenerateTestResult bool
+	WithCoverage       bool
+	CoverageType       string
+}
+
+func NewPipelineRunner(options PipelineRunnerOptions) (*runner, error) {
+	r := runner{
+		profile:            options.Profile,
+		deferCleanup:       options.DeferCleanup,
+		esAPI:              options.API,
+		packageRootPath:    options.PackageRootPath,
+		testFolder:         options.TestFolder,
+		generateTestResult: options.GenerateTestResult,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
+	}
+
+	stackConfig, err := stack.LoadConfig(r.profile)
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build stack provider: %w", err)
+	}
+	r.provider = provider
+
+	r.runCompareResults = true
+	if stackConfig.Provider == stack.ProviderServerless {
+		r.runCompareResults = true
+
+		v, ok := os.LookupEnv(serverlessDisableCompareResults)
+		if ok && strings.ToLower(v) == "true" {
+			r.runCompareResults = false
+		}
+	}
+	return &r, nil
 }
 
 type IngestPipelineReroute struct {
@@ -68,44 +124,21 @@ func (r *runner) String() string {
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
-
-	stackConfig, err := stack.LoadConfig(r.options.Profile)
-	if err != nil {
-		return nil, err
-	}
-
-	provider, err := stack.BuildProvider(stackConfig.Provider, r.options.Profile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build stack provider: %w", err)
-	}
-	r.provider = provider
-
-	r.runCompareResults = true
-	if stackConfig.Provider == stack.ProviderServerless {
-		r.runCompareResults = true
-
-		v, ok := os.LookupEnv(serverlessDisableCompareResults)
-		if ok && strings.ToLower(v) == "true" {
-			r.runCompareResults = false
-		}
-	}
-
+func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
 // TearDown shuts down the pipeline test runner.
 func (r *runner) TearDown(ctx context.Context) error {
-	if r.options.DeferCleanup > 0 {
-		logger.Debugf("Waiting for %s before cleanup...", r.options.DeferCleanup)
+	if r.deferCleanup > 0 {
+		logger.Debugf("Waiting for %s before cleanup...", r.deferCleanup)
 		select {
-		case <-time.After(r.options.DeferCleanup):
+		case <-time.After(r.deferCleanup):
 		case <-ctx.Done():
 		}
 	}
 
-	if err := ingest.UninstallPipelines(ctx, r.options.API, r.pipelines); err != nil {
+	if err := ingest.UninstallPipelines(ctx, r.esAPI, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
@@ -117,11 +150,11 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 	}
 
-	if r.options.API == nil {
+	if r.esAPI == nil {
 		return nil, errors.New("missing Elasticsearch client")
 	}
 
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.TestFolder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
@@ -131,17 +164,17 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	startTime := time.Now()
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.esAPI, dataStreamPath)
 	if err != nil {
 		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, r.options.TestFolder.DataStream)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRootPath, r.testFolder.DataStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
@@ -164,7 +197,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if len(expectedDatasets) == 0 {
 		expectedDataset := dsManifest.Dataset
 		if expectedDataset == "" {
-			expectedDataset = pkgManifest.Name + "." + r.options.TestFolder.DataStream
+			expectedDataset = pkgManifest.Name + "." + r.testFolder.DataStream
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
@@ -201,7 +234,7 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	testingTime := startTesting.Truncate(time.Second)
 
 	dumpOptions := stack.DumpOptions{
-		Profile:  r.options.Profile,
+		Profile:  r.profile,
 		Services: []string{"elasticsearch"},
 		Since:    testingTime,
 	}
@@ -251,8 +284,8 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	tr := testrunner.TestResult{
 		TestType:    TestType,
 		Name:        "(ingest pipeline warnings)",
-		Package:     r.options.TestFolder.Package,
-		DataStream:  r.options.TestFolder.DataStream,
+		Package:     r.testFolder.Package,
+		DataStream:  r.testFolder.DataStream,
 		TimeElapsed: time.Since(startTime),
 	}
 
@@ -268,12 +301,12 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
 	tr := testrunner.TestResult{
 		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
+		Package:    r.testFolder.Package,
+		DataStream: r.testFolder.DataStream,
 	}
 	startTime := time.Now()
 
-	tc, err := loadTestCaseFile(r.options.TestFolder.Path, testCaseFile)
+	tc, err := loadTestCaseFile(r.testFolder.Path, testCaseFile)
 	if err != nil {
 		err := fmt.Errorf("loading test case failed: %w", err)
 		tr.ErrorMsg = err.Error()
@@ -283,15 +316,15 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 
 	if tc.config.Skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package, r.options.TestFolder.DataStream,
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
 			tc.config.Skip.Reason, tc.config.Skip.Link.String())
 
 		tr.Skipped = tc.config.Skip
 		return tr, nil
 	}
 
-	simulateDataStream := dsType + "-" + r.options.TestFolder.Package + "." + r.options.TestFolder.DataStream + "-default"
-	processedEvents, err := ingest.SimulatePipeline(ctx, r.options.API, pipeline, tc.events, simulateDataStream)
+	simulateDataStream := dsType + "-" + r.testFolder.Package + "." + r.testFolder.DataStream + "-default"
+	processedEvents, err := ingest.SimulatePipeline(ctx, r.esAPI, pipeline, tc.events, simulateDataStream)
 	if err != nil {
 		err := fmt.Errorf("simulating pipeline processing failed: %w", err)
 		tr.ErrorMsg = err.Error()
@@ -321,8 +354,13 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		return tr, nil
 	}
 
-	if r.options.WithCoverage {
-		tr.Coverage, err = GetPipelineCoverage(r.options, r.pipelines)
+	if r.withCoverage {
+		tr.Coverage, err = getPipelineCoverage(PipelineRunnerOptions{
+			TestFolder:      r.testFolder,
+			API:             r.esAPI,
+			PackageRootPath: r.packageRootPath,
+			CoverageType:    r.coverageType,
+		}, r.pipelines)
 		if err != nil {
 			return tr, fmt.Errorf("error calculating pipeline coverage: %w", err)
 		}
@@ -332,9 +370,9 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 }
 
 func (r *runner) listTestCaseFiles() ([]string, error) {
-	fis, err := os.ReadDir(r.options.TestFolder.Path)
+	fis, err := os.ReadDir(r.testFolder.Path)
 	if err != nil {
-		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", r.options.TestFolder.Path, err)
+		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", r.testFolder.Path, err)
 	}
 
 	var files []string
@@ -393,9 +431,9 @@ func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 }
 
 func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
-	testCasePath := filepath.Join(r.options.TestFolder.Path, testCaseFile)
+	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read package manifest: %w", err)
 	}
@@ -404,7 +442,7 @@ func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *
 		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
 	}
 
-	if r.options.GenerateTestResult {
+	if r.generateTestResult {
 		err := writeTestResult(testCasePath, result, *specVersion)
 		if err != nil {
 			return fmt.Errorf("writing test result failed: %w", err)
@@ -547,8 +585,4 @@ func checkErrorMessage(event json.RawMessage) error {
 	default:
 		return fmt.Errorf("unexpected pipeline error (unexpected error.message type %T): %[1]v", m)
 	}
-}
-
-func init() {
-	testrunner.RegisterRunner(&runner{})
 }

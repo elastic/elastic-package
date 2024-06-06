@@ -59,14 +59,12 @@ type TestRunner interface {
 	String() string
 
 	// Run executes the test runner.
-	Run(context.Context, TestOptions) ([]TestResult, error)
+	Run(context.Context) ([]TestResult, error)
 
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
 }
-
-var runners = map[TestType]TestRunner{}
 
 // TestResult contains a single test's results
 type TestResult struct {
@@ -278,19 +276,9 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-// RegisterRunner method registers the test runner.
-func RegisterRunner(runner TestRunner) {
-	runners[runner.Type()] = runner
-}
-
 // Run method delegates execution to the registered test runner, based on the test type.
-func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestResult, error) {
-	runner, defined := runners[testType]
-	if !defined {
-		return nil, fmt.Errorf("unregistered runner test: %s", testType)
-	}
-
-	results, err := runner.Run(ctx, options)
+func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
+	results, err := runner.Run(ctx)
 	tdErr := runner.TearDown(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete test run: %w", err)
@@ -299,11 +287,6 @@ func Run(ctx context.Context, testType TestType, options TestOptions) ([]TestRes
 		return results, fmt.Errorf("could not teardown test runner: %w", tdErr)
 	}
 	return results, nil
-}
-
-// TestRunners returns registered test runners.
-func TestRunners() map[TestType]TestRunner {
-	return runners
 }
 
 // findDataStreamTestFoldersPaths can only be called for test runners that require tests to be defined
