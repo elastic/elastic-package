@@ -27,9 +27,17 @@ type runner struct {
 	packageRootPath    string
 	generateTestResult bool
 	kibanaClient       *kibana.Client
+
+	resourcesManager *resources.Manager
+	cleanup          func(context.Context) error
 }
 
 type PolicyRunnerOptions struct {
+	KibanaClient    *kibana.Client
+	PackageRootPath string
+}
+
+type PolicyTestRunnerOptions struct {
 	TestFolder         testrunner.TestFolder
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
@@ -37,12 +45,48 @@ type PolicyRunnerOptions struct {
 }
 
 func NewPolicyRunner(options PolicyRunnerOptions) *runner {
-	return &runner{
+	runner := runner{
+		kibanaClient:    options.KibanaClient,
+		packageRootPath: options.PackageRootPath,
+	}
+
+	runner.resourcesManager = resources.NewManager()
+	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
+	return &runner
+}
+
+func NewTestPolicyRunner(options PolicyTestRunnerOptions) *runner {
+	runner := runner{
 		kibanaClient:       options.KibanaClient,
 		testFolder:         options.TestFolder,
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 	}
+	runner.resourcesManager = resources.NewManager()
+	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
+	return &runner
+}
+
+// SetupRunner prepares global resources required by the test runner.
+func (r *runner) SetupRunner(ctx context.Context) error {
+	cleanup, err := r.setupSuite(ctx, r.resourcesManager)
+	if err != nil {
+		return fmt.Errorf("failed to setup test runner: %w", err)
+	}
+	r.cleanup = cleanup
+
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	logger.Debug("Uninstalling package...")
+	err := r.cleanup(context.WithoutCancel(ctx))
+	if err != nil {
+		return fmt.Errorf("failed to clean up test runner: %w", err)
+	}
+	return nil
 }
 
 func (r *runner) Type() testrunner.TestType {
@@ -54,32 +98,17 @@ func (r *runner) String() string {
 }
 
 func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
-	manager := resources.NewManager()
-	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{
-		Client: r.kibanaClient,
-	})
-
-	cleanup, err := r.setupSuite(ctx, manager)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup test runner: %w", err)
-	}
-
 	var results []testrunner.TestResult
 	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to look for test files in %s: %w", r.testFolder.Path, err)
 	}
 	for _, test := range tests {
-		result, err := r.runTest(ctx, manager, test)
+		result, err := r.runTest(ctx, r.resourcesManager, test)
 		if err != nil {
 			logger.Error(err)
 		}
 		results = append(results, result...)
-	}
-
-	err = cleanup(context.WithoutCancel(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("failed to clean up test runner: %w", err)
 	}
 
 	return results, nil

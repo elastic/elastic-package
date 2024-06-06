@@ -844,8 +844,13 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	runner := policy.NewPolicyRunner(policy.PolicyRunnerOptions{
+		PackageRootPath: packageRootPath,
+		KibanaClient:    kibanaClient,
+	})
+
 	factory := func(folder testrunner.TestFolder) (testrunner.TestRunner, error) {
-		runner := policy.NewPolicyRunner(policy.PolicyRunnerOptions{
+		runner := policy.NewTestPolicyRunner(policy.PolicyTestRunnerOptions{
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
 			GenerateTestResult: generateTestResult,
@@ -854,7 +859,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return runner, nil
 	}
 
-	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
 	if err != nil {
 		return err
 	}
