@@ -951,7 +951,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		policyEnroll := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package to enroll agent for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
-			Namespace:   "enrollep",
+			Namespace:   common.CreateTestRunID(),
 		}
 
 		policyToEnroll, err = r.kibanaClient.CreatePolicy(ctx, policyEnroll)
