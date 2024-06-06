@@ -66,6 +66,16 @@ type TestRunner interface {
 	TearDown(context.Context) error
 }
 
+// Runner is the interface test runners that require a global initialization must implement.
+type Runner interface {
+	// SetupRunner prepares global resources required by the test runner.
+	SetupRunner(context.Context) error
+
+	// TearDownRunner cleans up any global test runner resources. It must be called
+	// after the test runner has finished executing all its tests.
+	TearDownRunner(context.Context) error
+}
+
 // TestResult contains a single test's results
 type TestResult struct {
 	// Name of test result. Optional.

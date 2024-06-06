@@ -680,9 +680,22 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Running tests per stages (technical preview)\n")
 	}
 
+	runner := system.NewSystemRunner(system.SystemRunnerOptions{
+		PackageRootPath: packageRootPath,
+		KibanaClient:    kibanaClient,
+		RunSetup:        runSetup,
+		RunTearDown:     runTearDown,
+		RunTestsOnly:    runTestsOnly,
+	})
+
+	err = runner.SetupRunner(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to setup %s runner: %w", testType, err)
+	}
+
 	var results []testrunner.TestResult
 	for _, folder := range testFolders {
-		runner := system.NewSystemRunner(system.SystemRunnerOptions{
+		runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
 			PackageRootPath:            packageRootPath,
@@ -705,7 +718,16 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		results = append(results, r...)
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = runner.TearDownRunner(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to tear down %s runner: %w", testType, err)
+	}
+
+	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	if err != nil {
+		return fmt.Errorf("failed to process results: %w", err)
+	}
+	return nil
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
