@@ -355,7 +355,7 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	}
 
 	if r.withCoverage {
-		tr.Coverage, err = GetPipelineCoverage(PipelineRunnerOptions{
+		tr.Coverage, err = getPipelineCoverage(PipelineRunnerOptions{
 			TestFolder:      r.testFolder,
 			API:             r.esAPI,
 			PackageRootPath: r.packageRootPath,
