@@ -64,12 +64,6 @@ type TestRunner interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
-
-	CanRunPerDataStream() bool
-
-	TestFolderRequired() bool
-
-	CanRunSetupTeardownIndependent() bool
 }
 
 var runners = map[TestType]TestRunner{}

@@ -203,17 +203,3 @@ func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 func (r runner) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
-
-func (r runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return false
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return false
-}

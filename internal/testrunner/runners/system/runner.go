@@ -166,22 +166,6 @@ func (r *runner) String() string {
 	return "system"
 }
 
-// CanRunPerDataStream returns whether this test runner can run on individual
-// data streams within the package.
-func (r *runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return true
-}
-
-// CanRunSetupTeardownIndependent returns whether this test runner can run setup or
-// teardown process independent.
-func (r *runner) CanRunSetupTeardownIndependent() bool {
-	return true
-}
-
 // Run runs the system tests defined under the given folder
 func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
 	r.options = options
