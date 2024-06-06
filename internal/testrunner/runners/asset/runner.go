@@ -17,10 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 const (
 	// TestType defining asset loading tests
 	TestType testrunner.TestType = "asset"
@@ -31,6 +27,26 @@ type runner struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
+}
+
+type AssetRunnerOptions struct {
+	TestFolder      testrunner.TestFolder
+	PackageRootPath string
+	KibanaClient    *kibana.Client
+}
+
+func NewAssetRunner(options AssetRunnerOptions) *runner {
+	runner := runner{
+		testFolder:      options.TestFolder,
+		packageRootPath: options.PackageRootPath,
+		kibanaClient:    options.KibanaClient,
+	}
+
+	manager := resources.NewManager()
+	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: options.KibanaClient})
+	runner.resourcesManager = manager
+
+	return &runner
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -47,15 +63,7 @@ func (r runner) String() string {
 }
 
 // Run runs the asset loading tests
-func (r *runner) Run(ctx context.Context, options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.testFolder = options.TestFolder
-	r.packageRootPath = options.PackageRootPath
-	r.kibanaClient = options.KibanaClient
-
-	manager := resources.NewManager()
-	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
-	r.resourcesManager = manager
-
+func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
