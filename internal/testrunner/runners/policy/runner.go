@@ -187,6 +187,7 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 		return err
 	}
 
+	logger.Debugf("Installing package...")
 	_, err = manager.ApplyCtx(ctx, setupResources)
 	if err != nil {
 		if ctx.Err() == nil {
