@@ -292,6 +292,9 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 }
 
 func RunSuite(ctx context.Context, tests []TestFolder, runner Runner, factory TestRunnerFactory) ([]TestResult, error) {
+	if len(tests) == 0 {
+		return nil, nil
+	}
 	err := runner.SetupRunner(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
