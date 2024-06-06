@@ -39,10 +39,11 @@ func lineNumberPerTestType(testType string) int {
 		"pipeline": 2,
 		"system":   3,
 		"static":   4,
+		"policy":   5,
 	}
 	lineNumber, ok := lineNumberPerTestType[testType]
 	if !ok {
-		lineNumber = 5
+		lineNumber = 6
 	}
 	return lineNumber
 }
