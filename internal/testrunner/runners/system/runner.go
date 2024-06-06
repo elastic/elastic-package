@@ -943,10 +943,12 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		policyCurrent = &serviceStateData.CurrentPolicy
 		policyToEnroll = &serviceStateData.EnrollPolicy
 		logger.Debugf("Got current policy from file: %q - %q", policyCurrent.Name, policyCurrent.ID)
-	} else if r.runIndependentElasticAgent {
+	} else {
 		// Created a specific Agent Policy to enrolling purposes
 		// There are some issues when the stack is running for some time,
 		// agents cannot enroll with the default policy
+		// This enroll policy must be created even if independent Elastic Agents are not used. Agents created
+		// in Kubernetes or Custom Agents require this enroll policy too (service deployer).
 		logger.Debug("creating enroll policy...")
 		policyEnroll := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
