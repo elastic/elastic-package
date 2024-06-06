@@ -166,7 +166,6 @@ type runner struct {
 	resetAgentLogLevelHandler func(context.Context) error
 	shutdownServiceHandler    func(context.Context) error
 	shutdownAgentHandler      func(context.Context) error
-	wipeDataStreamHandler     func(context.Context) error
 }
 
 type SystemRunnerOptions struct {
@@ -525,13 +524,6 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 			return err
 		}
 		r.shutdownAgentHandler = nil
-	}
-
-	if r.wipeDataStreamHandler != nil {
-		if err := r.wipeDataStreamHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.wipeDataStreamHandler = nil
 	}
 
 	return nil
@@ -951,10 +943,10 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		policyCurrent = &serviceStateData.CurrentPolicy
 		policyToEnroll = &serviceStateData.EnrollPolicy
 		logger.Debugf("Got current policy from file: %q - %q", policyCurrent.Name, policyCurrent.ID)
-	} else {
-		// Create two different policies, one for enrolling the agent and the other for testing.
-		// This allows us to ensure that the Agent Policy used for testing is
-		// assigned to the agent with all the required changes (e.g. Package DataStream)
+	} else if r.runIndependentElasticAgent {
+		// Created a specific Agent Policy to enrolling purposes
+		// There are some issues when the stack is running for some time,
+		// agents cannot enroll with the default policy
 		logger.Debug("creating enroll policy...")
 		policyEnroll := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
@@ -974,6 +966,9 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		// in the cleanTestScenarioHandler handler
 		policyToTest = policyCurrent
 	} else {
+		// Create a specific Agent Policy just for testing this test.
+		// This allows us to ensure that the Agent Policy used for testing is
+		// assigned to the agent with all the required changes (e.g. Package DataStream)
 		logger.Debug("creating test policy...")
 		policyToAssignDatastreamTests := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
@@ -998,13 +993,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if r.runTestsOnly {
 			return nil
 		}
-		// if !r.runTearDown {
-		// 	// when RunTearDown is true, this Agent Policy is already removed with the previous
-		// 	// call, removing `policyToTest`
-		// 	if err := r.kibanaClient.DeletePolicy(ctx, policyCurrent.ID); err != nil {
-		// 		return fmt.Errorf("error cleaning up test policy: %w", err)
-		// 	}
-		// }
 		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
 			return fmt.Errorf("error cleaning up test policy: %w", err)
 		}
@@ -1093,17 +1081,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		dataStreamDataset,
 	)
 
-	r.wipeDataStreamHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
-			return nil
-		}
-		logger.Debugf("deleting data in data stream...")
-		if err := deleteDataStreamDocs(ctx, r.esAPI, scenario.dataStream); err != nil {
-			return fmt.Errorf("error deleting data in data stream: %w", err)
-		}
-		return nil
-	}
-
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
 		r.deleteDataStream(ctx, scenario.dataStream)
@@ -1111,15 +1088,6 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
 		return nil
-	}
-
-	if r.runTearDown {
-		logger.Debugf("Skipped deleting old data in data stream %q", scenario.dataStream)
-	} else {
-		err := r.deleteOldDocumentsDataStreamAndWait(ctx, scenario.dataStream)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	// FIXME: running per stages does not work when multiple agents are created
@@ -1471,28 +1439,6 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write service setup JSON: %w", err)
-	}
-	return nil
-}
-
-func (r *runner) deleteOldDocumentsDataStreamAndWait(ctx context.Context, dataStream string) error {
-	logger.Debugf("Delete previous documents in data stream %q", dataStream)
-	if err := deleteDataStreamDocs(ctx, r.esAPI, dataStream); err != nil {
-		return fmt.Errorf("error deleting old data in data stream: %s: %w", dataStream, err)
-	}
-	cleared, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		hits, err := r.getDocs(ctx, dataStream)
-		if err != nil {
-			return false, err
-		}
-
-		return hits.size() == 0, nil
-	}, 1*time.Second, 2*time.Minute)
-	if err != nil || !cleared {
-		if err == nil {
-			err = errors.New("unable to clear previous data")
-		}
-		return err
 	}
 	return nil
 }
@@ -2019,27 +1965,6 @@ func (r *runner) previewTransform(ctx context.Context, transformId string) ([]co
 	}
 
 	return preview.Documents, nil
-}
-
-func deleteDataStreamDocs(ctx context.Context, api *elasticsearch.API, dataStream string) error {
-	body := strings.NewReader(`{ "query": { "match_all": {} } }`)
-	resp, err := api.DeleteByQuery([]string{dataStream}, body,
-		api.DeleteByQuery.WithContext(ctx),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to delete data stream docs: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == http.StatusNotFound {
-		// Unavailable index is ok, this means that data is already not there.
-		return nil
-	}
-	if resp.IsError() {
-		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
-	}
-
-	return nil
 }
 
 func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
