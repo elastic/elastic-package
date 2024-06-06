@@ -688,13 +688,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		RunTestsOnly:    runTestsOnly,
 	})
 
-	err = runner.SetupRunner(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to setup %s runner: %w", testType, err)
-	}
-
-	var results []testrunner.TestResult
-	for _, folder := range testFolders {
+	factory := func(folder testrunner.TestFolder) testrunner.TestRunner {
 		runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
@@ -711,16 +705,12 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			RunIndependentElasticAgent: false,
 		})
 
-		r, err := testrunner.Run(ctx, runner)
-		if err != nil {
-			return fmt.Errorf("error running package %s tests: %w", testType, err)
-		}
-		results = append(results, r...)
+		return runner
 	}
 
-	err = runner.TearDownRunner(ctx)
+	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
 	if err != nil {
-		return fmt.Errorf("failed to tear down %s runner: %w", testType, err)
+		return err
 	}
 
 	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)

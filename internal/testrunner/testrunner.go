@@ -68,6 +68,9 @@ type TestRunner interface {
 
 // Runner is the interface test runners that require a global initialization must implement.
 type Runner interface {
+	// Type returns the test runner's type.
+	Type() TestType
+
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context) error
 
@@ -286,7 +289,39 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-// Run method delegates execution to the registered test runner, based on the test type.
+func RunSuite(ctx context.Context, tests []TestFolder, runner Runner, factory func(folder TestFolder) TestRunner) ([]TestResult, error) {
+	err := runner.SetupRunner(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
+	}
+	results, err := RunWithFactory(ctx, tests, factory)
+	if err != nil {
+		return results, err
+	}
+
+	err = runner.TearDownRunner(ctx)
+	if err != nil {
+		return results, fmt.Errorf("failed to tear down %s runner: %w", runner.Type(), err)
+	}
+
+	return results, nil
+}
+
+// RunWithFactory method delegates execution of tests to the runners generated through the factory function.
+func RunWithFactory(ctx context.Context, folders []TestFolder, factory func(folder TestFolder) TestRunner) ([]TestResult, error) {
+	var results []TestResult
+	for _, folder := range folders {
+		runner := factory(folder)
+		r, err := Run(ctx, runner)
+		if err != nil {
+			return nil, fmt.Errorf("error running package %s tests: %w", runner.Type(), err)
+		}
+		results = append(results, r...)
+	}
+	return results, nil
+}
+
+// Run method delegates execution of tests to the given test runner.
 func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 	results, err := runner.Run(ctx)
 	tdErr := runner.TearDown(ctx)
