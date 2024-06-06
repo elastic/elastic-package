@@ -972,16 +972,16 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		// This allows us to ensure that the Agent Policy used for testing is
 		// assigned to the agent with all the required changes (e.g. Package DataStream)
 		logger.Debug("creating test policy...")
-		policyToAssignDatastreamTests := kibana.Policy{
+		policy := kibana.Policy{
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
 		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
-			policyToAssignDatastreamTests.DataOutputID = "fleet-logstash-output"
+			policy.DataOutputID = "fleet-logstash-output"
 		}
-		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policyToAssignDatastreamTests)
+		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
 		if err != nil {
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
