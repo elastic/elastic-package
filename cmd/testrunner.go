@@ -289,7 +289,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	factory := func(folder testrunner.TestFolder) (testrunner.TestRunner, error) {
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
 		runner := static.NewStaticRunner(static.StaticRunnerOptions{
 			TestFolder:      folder,
 			PackageRootPath: packageRootPath,
@@ -439,7 +439,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	factory := func(folder testrunner.TestFolder) (testrunner.TestRunner, error) {
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
 		runner, err := pipeline.NewPipelineRunner(pipeline.PipelineRunnerOptions{
 			Profile:            profile,
 			TestFolder:         folder,
@@ -688,7 +688,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		RunTestsOnly:    runTestsOnly,
 	})
 
-	factory := func(folder testrunner.TestFolder) (testrunner.TestRunner, error) {
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
 		runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
@@ -849,7 +849,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		KibanaClient:    kibanaClient,
 	})
 
-	factory := func(folder testrunner.TestFolder) (testrunner.TestRunner, error) {
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
 		runner := policy.NewTestPolicyRunner(policy.PolicyTestRunnerOptions{
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,

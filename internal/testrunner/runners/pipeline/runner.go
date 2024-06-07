@@ -110,8 +110,8 @@ type IngestPipelineReroute struct {
 	AdditionalFields map[string]interface{}               `yaml:",inline"`
 }
 
-// Ensures that runner implements testrunner.TestRunner interface
-var _ testrunner.TestRunner = new(runner)
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {

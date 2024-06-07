@@ -32,6 +32,12 @@ type runner struct {
 	cleanup          func(context.Context) error
 }
 
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
+
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
+
 type PolicyRunnerOptions struct {
 	KibanaClient    *kibana.Client
 	PackageRootPath string

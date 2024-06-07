@@ -50,8 +50,8 @@ type TestOptions struct {
 	RunTestsOnly   bool
 }
 
-// TestRunner is the interface all test runners must implement.
-type TestRunner interface {
+// Tester is the interface all test runners must implement.
+type Tester interface {
 	// Type returns the test runner's type.
 	Type() TestType
 
@@ -66,10 +66,10 @@ type TestRunner interface {
 	TearDown(context.Context) error
 }
 
-type TestRunnerFactory func(TestFolder) (TestRunner, error)
+type TesterFactory func(TestFolder) (Tester, error)
 
-// Runner is the interface test runners that require a global initialization must implement.
-type Runner interface {
+// TestRunner is the interface test runners that require a global initialization must implement.
+type TestRunner interface {
 	// Type returns the test runner's type.
 	Type() TestType
 
@@ -291,7 +291,7 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-func RunSuite(ctx context.Context, tests []TestFolder, runner Runner, factory TestRunnerFactory) ([]TestResult, error) {
+func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factory TesterFactory) ([]TestResult, error) {
 	if len(tests) == 0 {
 		return nil, nil
 	}
@@ -313,16 +313,16 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner Runner, factory Te
 }
 
 // RunWithFactory method delegates execution of tests to the runners generated through the factory function.
-func RunWithFactory(ctx context.Context, folders []TestFolder, factory TestRunnerFactory) ([]TestResult, error) {
+func RunWithFactory(ctx context.Context, folders []TestFolder, factory TesterFactory) ([]TestResult, error) {
 	var results []TestResult
 	for _, folder := range folders {
-		runner, err := factory(folder)
+		tester, err := factory(folder)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create runner: %w", err)
 		}
-		r, err := Run(ctx, runner)
+		r, err := Run(ctx, tester)
 		if err != nil {
-			return nil, fmt.Errorf("error running package %s tests: %w", runner.Type(), err)
+			return nil, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
 		}
 		results = append(results, r...)
 	}
@@ -330,9 +330,9 @@ func RunWithFactory(ctx context.Context, folders []TestFolder, factory TestRunne
 }
 
 // Run method delegates execution of tests to the given test runner.
-func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
-	results, err := runner.Run(ctx)
-	tdErr := runner.TearDown(ctx)
+func Run(ctx context.Context, tester Tester) ([]TestResult, error) {
+	results, err := tester.Run(ctx)
+	tdErr := tester.TearDown(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete test run: %w", err)
 	}

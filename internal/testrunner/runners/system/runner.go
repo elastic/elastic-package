@@ -275,11 +275,11 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
+
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
-
-// Ensures that runner implements testrunner.Runner interface
-var _ testrunner.Runner = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {

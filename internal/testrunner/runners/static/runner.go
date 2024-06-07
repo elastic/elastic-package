@@ -39,8 +39,8 @@ func NewStaticRunner(options StaticRunnerOptions) *runner {
 	return &runner
 }
 
-// Ensures that runner implements testrunner.TestRunner interface
-var _ testrunner.TestRunner = new(runner)
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
 
 const (
 	// TestType defining asset loading tests
