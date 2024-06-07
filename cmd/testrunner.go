@@ -680,7 +680,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Running tests per stages (technical preview)\n")
 	}
 
-	runner := system.NewSystemTester(system.SystemTesterOptions{
+	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
 		RunSetup:        runSetup,
@@ -689,7 +689,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	})
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
+		runner := system.NewSystemTester(system.SystemTesterOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
 			PackageRootPath:            packageRootPath,
@@ -844,13 +844,13 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	runner := policy.NewPolicyTester(policy.PolicyTesterOptions{
+	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
 	})
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
+		runner := policy.NewPolicyTester(policy.PolicyTesterOptions{
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
 			GenerateTestResult: generateTestResult,
