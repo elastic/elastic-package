@@ -22,7 +22,7 @@ const (
 	TestType testrunner.TestType = "asset"
 )
 
-type runner struct {
+type tester struct {
 	testFolder       testrunner.TestFolder
 	packageRootPath  string
 	kibanaClient     *kibana.Client
@@ -35,8 +35,8 @@ type AssetTesterOptions struct {
 	KibanaClient    *kibana.Client
 }
 
-func NewAssetTester(options AssetTesterOptions) *runner {
-	runner := runner{
+func NewAssetTester(options AssetTesterOptions) *tester {
+	runner := tester{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
 		kibanaClient:    options.KibanaClient,
@@ -49,25 +49,59 @@ func NewAssetTester(options AssetTesterOptions) *runner {
 	return &runner
 }
 
-// Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
+type runner struct {
+	packageRootPath string
+}
 
-// Type returns the type of test that can be run by this test runner.
+type AssetTestRunnerOptions struct {
+	PackageRootPath string
+}
+
+func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
+	runner := runner{
+		packageRootPath: options.PackageRootPath,
+	}
+	return &runner
+}
+
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(tester)
+
+var _ testrunner.TestRunner = new(runner)
+
+func (r *runner) SetupRunner(ctx context.Context) error {
+	return nil
+}
+
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	return nil
+}
+
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+	tests := []testrunner.TestFolder{{Package: r.packageRootPath}}
+	return tests, nil
+}
+
 func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r *tester) Type() testrunner.TestType {
+	return TestType
+}
+
 // String returns the name of the test runner.
-func (r runner) String() string {
+func (r tester) String() string {
 	return "asset loading"
 }
 
 // Run runs the asset loading tests
-func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
-func (r *runner) resources(installedPackage bool) resources.Resources {
+func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
 			RootPath: r.packageRootPath,
@@ -77,7 +111,7 @@ func (r *runner) resources(installedPackage bool) resources.Resources {
 	}
 }
 
-func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType: TestType,
 		Package:  r.testFolder.Package,
@@ -152,7 +186,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return results, nil
 }
 
-func (r *runner) TearDown(ctx context.Context) error {
+func (r *tester) TearDown(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 

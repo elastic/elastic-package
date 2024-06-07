@@ -165,15 +165,20 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	_, pkg := filepath.Split(packageRootPath)
-
-	runner := asset.NewAssetTester(asset.AssetTesterOptions{
-		TestFolder:      testrunner.TestFolder{Package: pkg},
+	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
 		PackageRootPath: packageRootPath,
-		KibanaClient:    kibanaClient,
 	})
 
-	results, err := testrunner.Run(ctx, runner)
+	factory := func(test testrunner.TestFolder) (testrunner.Tester, error) {
+		tester := asset.NewAssetTester(asset.AssetTesterOptions{
+			TestFolder:      test,
+			PackageRootPath: packageRootPath,
+			KibanaClient:    kibanaClient,
+		})
+		return tester, nil
+	}
+
+	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner, factory)
 	if err != nil {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
 	}
