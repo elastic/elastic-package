@@ -168,7 +168,7 @@ type runner struct {
 	shutdownAgentHandler      func(context.Context) error
 }
 
-type SystemRunnerOptions struct {
+type SystemTesterOptions struct {
 	PackageRootPath string
 	KibanaClient    *kibana.Client
 
@@ -198,7 +198,7 @@ type SystemTestRunnerOptions struct {
 	RunTestsOnly   bool
 }
 
-func NewSystemRunner(options SystemRunnerOptions) *runner {
+func NewSystemTester(options SystemTesterOptions) *runner {
 	r := runner{
 		packageRootPath: options.PackageRootPath,
 		kibanaClient:    options.KibanaClient,

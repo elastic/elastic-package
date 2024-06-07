@@ -38,7 +38,7 @@ var _ testrunner.Tester = new(runner)
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
-type PolicyRunnerOptions struct {
+type PolicyTesterOptions struct {
 	KibanaClient    *kibana.Client
 	PackageRootPath string
 }
@@ -50,7 +50,7 @@ type PolicyTestRunnerOptions struct {
 	GenerateTestResult bool
 }
 
-func NewPolicyRunner(options PolicyRunnerOptions) *runner {
+func NewPolicyTester(options PolicyTesterOptions) *runner {
 	runner := runner{
 		kibanaClient:    options.KibanaClient,
 		packageRootPath: options.PackageRootPath,
@@ -61,7 +61,7 @@ func NewPolicyRunner(options PolicyRunnerOptions) *runner {
 	return &runner
 }
 
-func NewTestPolicyRunner(options PolicyTestRunnerOptions) *runner {
+func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
 		kibanaClient:       options.KibanaClient,
 		testFolder:         options.TestFolder,

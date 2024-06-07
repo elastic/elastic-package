@@ -26,12 +26,12 @@ type runner struct {
 	packageRootPath string
 }
 
-type StaticRunnerOptions struct {
+type StaticTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
 }
 
-func NewStaticRunner(options StaticRunnerOptions) *runner {
+func NewStaticTester(options StaticTesterOptions) *runner {
 	runner := runner{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,

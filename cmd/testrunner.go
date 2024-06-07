@@ -168,7 +168,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 
 	_, pkg := filepath.Split(packageRootPath)
 
-	runner := asset.NewAssetRunner(asset.AssetRunnerOptions{
+	runner := asset.NewAssetTester(asset.AssetTesterOptions{
 		TestFolder:      testrunner.TestFolder{Package: pkg},
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
@@ -290,7 +290,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	defer stop()
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := static.NewStaticRunner(static.StaticRunnerOptions{
+		runner := static.NewStaticTester(static.StaticTesterOptions{
 			TestFolder:      folder,
 			PackageRootPath: packageRootPath,
 		})
@@ -440,7 +440,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner, err := pipeline.NewPipelineRunner(pipeline.PipelineRunnerOptions{
+		runner, err := pipeline.NewPipelineTester(pipeline.PipelineTesterOptions{
 			Profile:            profile,
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
@@ -680,7 +680,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Running tests per stages (technical preview)\n")
 	}
 
-	runner := system.NewSystemRunner(system.SystemRunnerOptions{
+	runner := system.NewSystemTester(system.SystemTesterOptions{
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
 		RunSetup:        runSetup,
@@ -844,13 +844,13 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	runner := policy.NewPolicyRunner(policy.PolicyRunnerOptions{
+	runner := policy.NewPolicyTester(policy.PolicyTesterOptions{
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
 	})
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := policy.NewTestPolicyRunner(policy.PolicyTestRunnerOptions{
+		runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
 			GenerateTestResult: generateTestResult,

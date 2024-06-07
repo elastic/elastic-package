@@ -29,13 +29,13 @@ type runner struct {
 	resourcesManager *resources.Manager
 }
 
-type AssetRunnerOptions struct {
+type AssetTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
 	KibanaClient    *kibana.Client
 }
 
-func NewAssetRunner(options AssetRunnerOptions) *runner {
+func NewAssetTester(options AssetTesterOptions) *runner {
 	runner := runner{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
