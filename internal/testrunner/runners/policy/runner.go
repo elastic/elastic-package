@@ -14,6 +14,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -22,7 +24,7 @@ const (
 	TestType testrunner.TestType = "policy"
 )
 
-type runner struct {
+type tester struct {
 	testFolder         testrunner.TestFolder
 	packageRootPath    string
 	generateTestResult bool
@@ -32,15 +34,30 @@ type runner struct {
 	cleanup          func(context.Context) error
 }
 
+type runner struct {
+	packageRootPath string
+	kibanaClient    *kibana.Client
+	profile         *profile.Profile
+
+	dataStreams        []string
+	failOnMissingTests bool
+
+	resourcesManager *resources.Manager
+	cleanup          func(context.Context) error
+}
+
 // Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
+var _ testrunner.Tester = new(tester)
 
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
-	KibanaClient    *kibana.Client
-	PackageRootPath string
+	KibanaClient       *kibana.Client
+	PackageRootPath    string
+	Profile            *profile.Profile
+	DataStreams        []string
+	FailOnMissingTests bool
 }
 
 type PolicyTesterOptions struct {
@@ -52,8 +69,11 @@ type PolicyTesterOptions struct {
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
-		kibanaClient:    options.KibanaClient,
-		packageRootPath: options.PackageRootPath,
+		kibanaClient:       options.KibanaClient,
+		packageRootPath:    options.PackageRootPath,
+		profile:            options.Profile,
+		dataStreams:        options.DataStreams,
+		failOnMissingTests: options.FailOnMissingTests,
 	}
 
 	runner.resourcesManager = resources.NewManager()
@@ -61,16 +81,16 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	return &runner
 }
 
-func NewPolicyTester(options PolicyTesterOptions) *runner {
-	runner := runner{
+func NewPolicyTester(options PolicyTesterOptions) *tester {
+	tester := tester{
 		kibanaClient:       options.KibanaClient,
 		testFolder:         options.TestFolder,
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 	}
-	runner.resourcesManager = resources.NewManager()
-	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
-	return &runner
+	tester.resourcesManager = resources.NewManager()
+	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
+	return &tester
 }
 
 // SetupRunner prepares global resources required by the test runner.
@@ -96,19 +116,60 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
-	// TODO
-	return nil, nil
+	var folders []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	if hasDataStreams {
+		var dataStreams []string
+		if len(r.dataStreams) > 0 {
+			dataStreams = r.dataStreams
+		}
+
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(folders) == 0 {
+			if len(dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	} else {
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+		if r.failOnMissingTests && len(folders) == 0 {
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	}
+
+	return folders, nil
 }
 
 func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
-func (r *runner) String() string {
+func (r *tester) Type() testrunner.TestType {
+	return TestType
+}
+
+func (r *tester) String() string {
 	return string(TestType)
 }
 
-func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	var results []testrunner.TestResult
 	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
 	if err != nil {
@@ -125,7 +186,7 @@ func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return results, nil
 }
 
-func (r *runner) runTest(ctx context.Context, manager *resources.Manager, testPath string) ([]testrunner.TestResult, error) {
+func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPath string) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Name:       filepath.Base(testPath),
@@ -213,6 +274,6 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 	return cleanup, err
 }
 
-func (r *runner) TearDown(ctx context.Context) error {
+func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
