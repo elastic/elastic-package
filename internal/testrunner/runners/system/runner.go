@@ -127,7 +127,7 @@ var (
 	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 )
 
-type runner struct {
+type tester struct {
 	profile            *profile.Profile
 	testFolder         testrunner.TestFolder
 	packageRootPath    string
@@ -168,13 +168,34 @@ type runner struct {
 	shutdownAgentHandler      func(context.Context) error
 }
 
+type runner struct {
+	profile         *profile.Profile
+	packageRootPath string
+	kibanaClient    *kibana.Client
+
+	dataStreams        []string
+	failOnMissingTests bool
+
+	configFilePath string
+	runSetup       bool
+	runTearDown    bool
+	runTestsOnly   bool
+
+	resourcesManager *resources.Manager
+}
+
 type SystemTestRunnerOptions struct {
+	Profile         *profile.Profile
 	PackageRootPath string
 	KibanaClient    *kibana.Client
 
-	RunSetup     bool
-	RunTearDown  bool
-	RunTestsOnly bool
+	RunSetup       bool
+	RunTearDown    bool
+	RunTestsOnly   bool
+	ConfigFilePath string
+
+	DataStreams        []string
+	FailOnMissingTests bool
 }
 
 type SystemTesterOptions struct {
@@ -200,11 +221,15 @@ type SystemTesterOptions struct {
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRootPath: options.PackageRootPath,
-		kibanaClient:    options.KibanaClient,
-		runSetup:        options.RunSetup,
-		runTestsOnly:    options.RunTestsOnly,
-		runTearDown:     options.RunTearDown,
+		packageRootPath:    options.PackageRootPath,
+		kibanaClient:       options.KibanaClient,
+		runSetup:           options.RunSetup,
+		runTestsOnly:       options.RunTestsOnly,
+		runTearDown:        options.RunTearDown,
+		profile:            options.Profile,
+		dataStreams:        options.DataStreams,
+		failOnMissingTests: options.FailOnMissingTests,
+		configFilePath:     options.ConfigFilePath,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -213,8 +238,8 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	return &r
 }
 
-func NewSystemTester(options SystemTesterOptions) *runner {
-	r := runner{
+func NewSystemTester(options SystemTesterOptions) *tester {
+	r := tester{
 		profile:                    options.Profile,
 		testFolder:                 options.TestFolder,
 		packageRootPath:            options.PackageRootPath,
@@ -275,24 +300,84 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+	var folders []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	configFilePath := r.configFilePath
+
+	if hasDataStreams {
+		var dataStreams []string
+		if r.runSetup || r.runTearDown || r.runTestsOnly {
+			if r.runTearDown || r.runTestsOnly {
+				configFilePath, err = testrunner.ReadConfigFileFromState(r.profile.ProfilePath)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get config file from state: %w", err)
+				}
+			}
+			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRootPath)
+			dataStreams = append(dataStreams, dataStream)
+		} else if len(r.dataStreams) > 0 {
+			dataStreams = r.dataStreams
+		}
+
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(folders) == 0 {
+			if len(dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	} else {
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+		if r.failOnMissingTests && len(folders) == 0 {
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	}
+
+	if r.runSetup || r.runTearDown || r.runTestsOnly {
+		// variant flag is not checked here since there are packages that do not have variants
+		if len(folders) != 1 {
+			return nil, fmt.Errorf("wrong number of test folders (expected 1): %d", len(folders))
+		}
+	}
+
+	return folders, nil
+}
+
 // Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
+var _ testrunner.Tester = new(tester)
 
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
-func (r *runner) Type() testrunner.TestType {
+func (r *tester) Type() testrunner.TestType {
 	return TestType
 }
 
 // String returns the human-friendly name of the test runner.
-func (r *runner) String() string {
+func (r *tester) String() string {
 	return "system"
 }
 
 // Run runs the system tests defined under the given folder
-func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
 		return r.run(ctx)
 	}
@@ -413,6 +498,11 @@ type resourcesOptions struct {
 	installedPackage bool
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r *runner) Type() testrunner.TestType {
+	return TestType
+}
+
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
@@ -423,7 +513,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	}
 }
 
-func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
+func (r *tester) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.profile,
 		PackageRootPath:    r.packageRootPath,
@@ -440,7 +530,7 @@ func (r *runner) createAgentOptions(policyName string) agentdeployer.FactoryOpti
 	}
 }
 
-func (r *runner) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
+func (r *tester) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:                r.profile,
 		PackageRootPath:        r.packageRootPath,
@@ -456,7 +546,7 @@ func (r *runner) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
+func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.testFolder.Package
@@ -490,7 +580,7 @@ func (r *runner) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	return info, nil
 }
 
-func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
+func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	var svcInfo servicedeployer.ServiceInfo
 	svcInfo.Name = r.testFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
@@ -513,11 +603,11 @@ func (r *runner) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 }
 
 // TearDown method doesn't perform any global action as the "tear down" is executed per test case.
-func (r *runner) TearDown(ctx context.Context) error {
+func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) tearDownTest(ctx context.Context) error {
+func (r *tester) tearDownTest(ctx context.Context) error {
 	if r.deferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.deferCleanup)
 		select {
@@ -587,7 +677,7 @@ func (r *runner) tearDownTest(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) newResult(name string) *testrunner.ResultComposer {
+func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	return testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Name:       name,
@@ -596,7 +686,7 @@ func (r *runner) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *runner) initRun() error {
+func (r *tester) initRun() error {
 	var err error
 	var found bool
 	r.locationManager, err = locations.NewLocationManager()
@@ -668,7 +758,7 @@ func (r *runner) initRun() error {
 	return nil
 }
 
-func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err error) {
+func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 	if err = r.initRun(); err != nil {
 		return result.WithError(err)
@@ -723,7 +813,7 @@ func (r *runner) run(ctx context.Context) (results []testrunner.TestResult, err 
 	return results, nil
 }
 
-func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -748,7 +838,7 @@ func (r *runner) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	return partial, nil
 }
 
-func (r *runner) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
+func (r *tester) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
 	resp, err := r.esAPI.Cluster.GetComponentTemplate(
 		r.esAPI.Cluster.GetComponentTemplate.WithContext(ctx),
 		r.esAPI.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
@@ -822,7 +912,7 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
-func (r *runner) getDocs(ctx context.Context, dataStream string) (*hits, error) {
+func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) {
 	resp, err := r.esAPI.Search(
 		r.esAPI.Search.WithContext(ctx),
 		r.esAPI.Search.WithIndex(dataStream),
@@ -917,7 +1007,7 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
-func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
+func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
 	)
@@ -931,7 +1021,7 @@ func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
-func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
 	var err error
@@ -1310,7 +1400,7 @@ func (r *runner) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	return &scenario, nil
 }
 
-func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
+func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
 	logger.Debug("setting up service...")
 	if r.runTearDown || r.runTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
@@ -1360,7 +1450,7 @@ func (r *runner) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *runner) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *tester) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.runIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
@@ -1405,7 +1495,7 @@ func (r *runner) setupAgent(ctx context.Context, config *testConfig, state Servi
 	return agentDeployed, agentDeployed.Info(), nil
 }
 
-func (r *runner) removeServiceStateFile() error {
+func (r *tester) removeServiceStateFile() error {
 	err := os.Remove(r.serviceStateFilePath)
 	if err != nil {
 		return fmt.Errorf("failed to remove file %q: %w", r.serviceStateFilePath, err)
@@ -1413,7 +1503,7 @@ func (r *runner) removeServiceStateFile() error {
 	return nil
 }
 
-func (r *runner) createServiceStateDir() error {
+func (r *tester) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
@@ -1422,7 +1512,7 @@ func (r *runner) createServiceStateDir() error {
 	return nil
 }
 
-func (r *runner) readServiceStateData() (ServiceState, error) {
+func (r *tester) readServiceStateData() (ServiceState, error) {
 	var setupData ServiceState
 	logger.Debugf("Reading test config from file %s", r.serviceStateFilePath)
 	contents, err := os.ReadFile(r.serviceStateFilePath)
@@ -1458,7 +1548,7 @@ type scenarioStateOpts struct {
 	svcInfo       servicedeployer.ServiceInfo
 }
 
-func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
+func (r *tester) writeScenarioState(opts scenarioStateOpts) error {
 	data := ServiceState{
 		OrigPolicy:       *opts.origPolicy,
 		EnrollPolicy:     *opts.enrollPolicy,
@@ -1482,7 +1572,7 @@ func (r *runner) writeScenarioState(opts scenarioStateOpts) error {
 	return nil
 }
 
-func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
+func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
@@ -1582,7 +1672,7 @@ func (r *runner) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *runner) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
+func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if config.Skip != nil {
@@ -1887,7 +1977,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *runner) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
+func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string) error {
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
@@ -1945,7 +2035,7 @@ func (r *runner) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 	return nil
 }
 
-func (r *runner) getTransformId(ctx context.Context, transformPattern string) (string, error) {
+func (r *tester) getTransformId(ctx context.Context, transformPattern string) (string, error) {
 	resp, err := r.esAPI.TransformGetTransform(
 		r.esAPI.TransformGetTransform.WithContext(ctx),
 		r.esAPI.TransformGetTransform.WithTransformID(transformPattern),
@@ -1981,7 +2071,7 @@ func (r *runner) getTransformId(ctx context.Context, transformPattern string) (s
 	return id, nil
 }
 
-func (r *runner) previewTransform(ctx context.Context, transformId string) ([]common.MapStr, error) {
+func (r *tester) previewTransform(ctx context.Context, transformId string) ([]common.MapStr, error) {
 	resp, err := r.esAPI.TransformPreviewTransform(
 		r.esAPI.TransformPreviewTransform.WithContext(ctx),
 		r.esAPI.TransformPreviewTransform.WithTransformID(transformId),
@@ -2144,7 +2234,7 @@ func assertHitCount(expected int, docs []common.MapStr) (pass bool, message stri
 	return true, ""
 }
 
-func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
+func (r *tester) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
 	if variantsFile == nil || variantsFile.Variants == nil {
 		return []string{""} // empty variants file switches to no-variant mode
 	}
@@ -2159,7 +2249,7 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 	return variantNames
 }
 
-func (r *runner) generateTestResultFile(docs []common.MapStr, specVersion semver.Version) error {
+func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version) error {
 	if !r.generateTestResult {
 		return nil
 	}
@@ -2176,7 +2266,7 @@ func (r *runner) generateTestResultFile(docs []common.MapStr, specVersion semver
 	return nil
 }
 
-func (r *runner) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 	if agent == nil {
 		return nil, nil
 	}
@@ -2228,7 +2318,7 @@ func (r *runner) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	return results, nil
 }
 
-func (r *runner) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
@@ -2262,7 +2352,7 @@ func (r *runner) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time,
 	return results, nil
 }
 
-func (r *runner) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
+func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, errorPatterns []logsRegexp) error {
 	var multiErr multierror.Error
 	processLog := func(log stack.LogLine) error {
 		for _, pattern := range errorPatterns {

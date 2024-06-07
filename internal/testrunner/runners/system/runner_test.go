@@ -373,7 +373,7 @@ func TestCheckAgentLogs(t *testing.T) {
 				})
 			}
 
-			runner := runner{
+			runner := tester{
 				testFolder: testrunner.TestFolder{
 					Package:    "package",
 					DataStream: "datastream",

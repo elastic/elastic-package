@@ -95,6 +95,11 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+	// TODO
+	return nil, nil
+}
+
 func (r *runner) Type() testrunner.TestType {
 	return TestType
 }

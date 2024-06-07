@@ -6,6 +6,7 @@ package testrunner
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +17,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -75,6 +78,8 @@ type TestRunner interface {
 
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context) error
+
+	GetTests(context.Context) ([]TestFolder, error)
 
 	// TearDownRunner cleans up any global test runner resources. It must be called
 	// after the test runner has finished executing all its tests.
@@ -292,14 +297,20 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 }
 
 func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factory TesterFactory) ([]TestResult, error) {
-	if len(tests) == 0 {
+	folders, err := runner.GetTests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve tests: %w", err)
+	}
+	logger.Debugf("Found %d folders", len(folders))
+	if len(folders) == 0 {
 		return nil, nil
 	}
-	err := runner.SetupRunner(ctx)
+
+	err = runner.SetupRunner(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
-	results, err := RunWithFactory(ctx, tests, factory)
+	results, err := RunWithFactory(ctx, folders, factory)
 	if err != nil {
 		return results, err
 	}
@@ -366,4 +377,33 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 // StateFolderPath returns the folder where the state data is stored
 func StateFolderPath(profilePath string) string {
 	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
+}
+
+func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
+	switch manifest.Type {
+	case "integration":
+		return true, nil
+	case "input":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
+	}
+}
+
+func ReadConfigFileFromState(profilePath string) (string, error) {
+	type stateData struct {
+		ConfigFilePath string `json:"config_file_path"`
+	}
+	var serviceStateData stateData
+	setupDataPath := filepath.Join(StateFolderPath(profilePath), ServiceStateFileName)
+	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
+	contents, err := os.ReadFile(setupDataPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
+	}
+	err = json.Unmarshal(contents, &serviceStateData)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
+	}
+	return serviceStateData.ConfigFilePath, nil
 }
