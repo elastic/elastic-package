@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -20,7 +19,6 @@ const (
 )
 
 type runner struct {
-	profile         *profile.Profile
 	packageRootPath string
 
 	failOnMissingTests bool
