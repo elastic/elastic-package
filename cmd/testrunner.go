@@ -790,17 +790,6 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 
 }
 
-func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
-	switch manifest.Type {
-	case "integration":
-		return true, nil
-	case "input":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
-	}
-}
-
 func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {
 	for _, dataStream := range dataStreams {
 		path := filepath.Join(packageRootPath, "data_stream", dataStream)
