@@ -362,52 +362,20 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
-	}
-
-	hasDataStreams, err := PackageHasDataStreams(manifest)
-	if err != nil {
-		return fmt.Errorf("cannot determine if package has data streams: %w", err)
-	}
-	var testFolders []testrunner.TestFolder
-	if hasDataStreams {
-		var dataStreams []string
-		if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
+	var dataStreams []string
+	if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
+		// We check for the existence of the data streams flag before trying to
+		// parse it because if the root test command is run instead of one of the
+		// subcommands of test, the data streams flag will not be defined.
+		dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+		common.TrimStringSlice(dataStreams)
 		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
+			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
-		}
-	} else {
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
+		err = validateDataStreamsFlag(packageRootPath, dataStreams)
 		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-		if failOnMissing && len(testFolders) == 0 {
-			return fmt.Errorf("no %s tests found", testType)
+			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 	}
 
@@ -422,6 +390,17 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
+	}
+
+	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
+		PackageRootPath:    packageRootPath,
+		FailOnMissingTests: failOnMissing,
+		DataStreams:        dataStreams,
+	})
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
 		runner, err := pipeline.NewPipelineTester(pipeline.PipelineTesterOptions{
@@ -440,7 +419,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return runner, nil
 	}
 
-	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner, factory)
 	if err != nil {
 		return err
 	}

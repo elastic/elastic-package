@@ -41,7 +41,7 @@ const (
 
 var serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 
-type runner struct {
+type tester struct {
 	profile            *profile.Profile
 	deferCleanup       time.Duration
 	esAPI              *elasticsearch.API
@@ -58,6 +58,14 @@ type runner struct {
 	provider stack.Provider
 }
 
+type runner struct {
+	profile         *profile.Profile
+	packageRootPath string
+
+	failOnMissingTests bool
+	dataStreams        []string
+}
+
 type PipelineTesterOptions struct {
 	Profile            *profile.Profile
 	DeferCleanup       time.Duration
@@ -69,8 +77,14 @@ type PipelineTesterOptions struct {
 	CoverageType       string
 }
 
-func NewPipelineTester(options PipelineTesterOptions) (*runner, error) {
-	r := runner{
+type PipelineTestRunnerOptions struct {
+	PackageRootPath    string
+	FailOnMissingTests bool
+	DataStreams        []string
+}
+
+func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
+	r := tester{
 		profile:            options.Profile,
 		deferCleanup:       options.DeferCleanup,
 		esAPI:              options.API,
@@ -104,6 +118,15 @@ func NewPipelineTester(options PipelineTesterOptions) (*runner, error) {
 	return &r, nil
 }
 
+func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
+	runner := runner{
+		packageRootPath:    options.PackageRootPath,
+		failOnMissingTests: options.FailOnMissingTests,
+		dataStreams:        options.DataStreams,
+	}
+	return &runner
+}
+
 type IngestPipelineReroute struct {
 	Description      string                               `yaml:"description"`
 	Processors       []map[string]ingest.RerouteProcessor `yaml:"processors"`
@@ -111,25 +134,85 @@ type IngestPipelineReroute struct {
 }
 
 // Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
+var _ testrunner.Tester = new(tester)
 
-// Type returns the type of test that can be run by this test runner.
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
+
+// SetupRunner prepares global resources required by the test runner.
+func (r *runner) SetupRunner(ctx context.Context) error {
+	return nil
+}
+
+// TearDownRunner cleans up any global test runner resources. It must be called
+// after the test runner has finished executing all its tests.
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	return nil
+}
+
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+	var folders []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	if hasDataStreams {
+		var dataStreams []string
+		if len(r.dataStreams) > 0 {
+			dataStreams = r.dataStreams
+		}
+
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(folders) == 0 {
+			if len(dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	} else {
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+		if r.failOnMissingTests && len(folders) == 0 {
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	}
+
+	return folders, nil
+}
+
 func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
+// Type returns the type of test that can be run by this test runner.
+func (r *tester) Type() testrunner.TestType {
+	return TestType
+}
+
 // String returns the human-friendly name of the test runner.
-func (r *runner) String() string {
+func (r *tester) String() string {
 	return "pipeline"
 }
 
 // Run runs the pipeline tests defined under the given folder
-func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
 // TearDown shuts down the pipeline test runner.
-func (r *runner) TearDown(ctx context.Context) error {
+func (r *tester) TearDown(ctx context.Context) error {
 	if r.deferCleanup > 0 {
 		logger.Debugf("Waiting for %s before cleanup...", r.deferCleanup)
 		select {
@@ -144,7 +227,7 @@ func (r *runner) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	testCaseFiles, err := r.listTestCaseFiles()
 	if err != nil {
 		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
@@ -228,7 +311,7 @@ func (r *runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return results, nil
 }
 
-func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
+func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.Time) ([]testrunner.TestResult, error) {
 	startTime := time.Now()
 
 	testingTime := startTesting.Truncate(time.Second)
@@ -298,7 +381,7 @@ func (r *runner) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 }
 
-func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
+func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
 	tr := testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
@@ -369,7 +452,7 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	return tr, nil
 }
 
-func (r *runner) listTestCaseFiles() ([]string, error) {
+func (r *tester) listTestCaseFiles() ([]string, error) {
 	fis, err := os.ReadDir(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", r.testFolder.Path, err)
@@ -430,7 +513,7 @@ func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *runner) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
+func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
