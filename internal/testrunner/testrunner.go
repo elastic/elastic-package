@@ -17,7 +17,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -301,7 +300,6 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve tests: %w", err)
 	}
-	logger.Debugf("Found %d folders", len(folders))
 	if len(folders) == 0 {
 		return nil, nil
 	}
@@ -310,7 +308,7 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
-	results, err := RunWithFactory(ctx, folders, factory)
+	results, err := runWithFactory(ctx, folders, factory)
 	if err != nil {
 		return results, err
 	}
@@ -323,15 +321,15 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 	return results, nil
 }
 
-// RunWithFactory method delegates execution of tests to the runners generated through the factory function.
-func RunWithFactory(ctx context.Context, folders []TestFolder, factory TesterFactory) ([]TestResult, error) {
+// runWithFactory method delegates execution of tests to the runners generated through the factory function.
+func runWithFactory(ctx context.Context, folders []TestFolder, factory TesterFactory) ([]TestResult, error) {
 	var results []TestResult
 	for _, folder := range folders {
 		tester, err := factory(folder)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create runner: %w", err)
 		}
-		r, err := Run(ctx, tester)
+		r, err := run(ctx, tester)
 		if err != nil {
 			return nil, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
 		}
@@ -340,8 +338,8 @@ func RunWithFactory(ctx context.Context, folders []TestFolder, factory TesterFac
 	return results, nil
 }
 
-// Run method delegates execution of tests to the given test runner.
-func Run(ctx context.Context, tester Tester) ([]TestResult, error) {
+// run method delegates execution of tests to the given test runner.
+func run(ctx context.Context, tester Tester) ([]TestResult, error) {
 	results, err := tester.Run(ctx)
 	tdErr := tester.TearDown(ctx)
 	if err != nil {
