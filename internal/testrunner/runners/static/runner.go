@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -19,11 +20,22 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const sampleEventJSON = "sample_event.json"
+const (
+	// TestType defining asset loading tests
+	TestType testrunner.TestType = "static"
 
-type runner struct {
+	sampleEventJSON = "sample_event.json"
+)
+
+type tester struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
+}
+
+type runner struct {
+	packageRootPath    string
+	failOnMissingTests bool
+	dataStreams        []string
 }
 
 type StaticTesterOptions struct {
@@ -31,35 +43,94 @@ type StaticTesterOptions struct {
 	PackageRootPath string
 }
 
-func NewStaticTester(options StaticTesterOptions) *runner {
-	runner := runner{
+type StaticTestRunnerOptions struct {
+	TestFolder         testrunner.TestFolder
+	PackageRootPath    string
+	FailOnMissingTests bool
+	DataStreams        []string
+}
+
+func NewStaticTester(options StaticTesterOptions) *tester {
+	runner := tester{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
 	}
 	return &runner
 }
 
+func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
+	runner := runner{
+		packageRootPath: options.PackageRootPath,
+	}
+	return &runner
+}
+
 // Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
+var _ testrunner.Tester = new(tester)
 
-const (
-	// TestType defining asset loading tests
-	TestType testrunner.TestType = "static"
-)
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
 
-func (r runner) Type() testrunner.TestType {
+func (r *runner) SetupRunner(ctx context.Context) error {
+	return nil
+}
+
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	return nil
+}
+
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+	var tests []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	if hasDataStreams {
+		tests, err = testrunner.AssumeTestFolders(r.packageRootPath, r.dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to assume test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(tests) == 0 {
+			if len(r.dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(r.dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	} else {
+		_, pkg := filepath.Split(r.packageRootPath)
+		tests = []testrunner.TestFolder{
+			{
+				Package: pkg,
+			},
+		}
+	}
+	return tests, nil
+}
+
+func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
-func (r runner) String() string {
+func (r tester) Type() testrunner.TestType {
+	return TestType
+}
+
+func (r tester) String() string {
 	return "static files"
 }
 
-func (r runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }
 
-func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
+func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
@@ -87,7 +158,7 @@ func (r runner) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(pkgManifest)...), nil
 }
 
-func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
+func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify benchmark config",
 		TestType:   TestType,
@@ -116,7 +187,7 @@ func (r runner) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	return results
 }
 
-func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
@@ -169,7 +240,7 @@ func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	return results
 }
 
-func (r runner) getSampleEventPath() (string, bool, error) {
+func (r tester) getSampleEventPath() (string, bool, error) {
 	var sampleEventPath string
 	if r.testFolder.DataStream != "" {
 		sampleEventPath = filepath.Join(
@@ -190,7 +261,7 @@ func (r runner) getSampleEventPath() (string, bool, error) {
 	return sampleEventPath, true, nil
 }
 
-func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
+func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
 	dsName := r.testFolder.DataStream
 	if dsName == "" {
 		// TODO: This should return the package name plus the policy name, but we don't know
@@ -209,6 +280,6 @@ func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 	return []string{pkgManifest.Name + "." + dsName}, nil
 }
 
-func (r runner) TearDown(ctx context.Context) error {
+func (r tester) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
