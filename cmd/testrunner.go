@@ -742,7 +742,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		KibanaClient:       kibanaClient,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
-		Profile:            profile,
 	})
 
 	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {

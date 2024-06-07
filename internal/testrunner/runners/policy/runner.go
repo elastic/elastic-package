@@ -15,7 +15,6 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -31,13 +30,11 @@ type tester struct {
 	kibanaClient       *kibana.Client
 
 	resourcesManager *resources.Manager
-	cleanup          func(context.Context) error
 }
 
 type runner struct {
 	packageRootPath string
 	kibanaClient    *kibana.Client
-	profile         *profile.Profile
 
 	dataStreams        []string
 	failOnMissingTests bool
@@ -55,7 +52,6 @@ var _ testrunner.TestRunner = new(runner)
 type PolicyTestRunnerOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
-	Profile            *profile.Profile
 	DataStreams        []string
 	FailOnMissingTests bool
 }
@@ -71,7 +67,6 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
 		kibanaClient:       options.KibanaClient,
 		packageRootPath:    options.PackageRootPath,
-		profile:            options.Profile,
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
 	}
