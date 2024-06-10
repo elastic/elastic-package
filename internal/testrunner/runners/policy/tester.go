@@ -23,6 +23,7 @@ type tester struct {
 	packageRootPath    string
 	generateTestResult bool
 	kibanaClient       *kibana.Client
+	testPath           string
 
 	resourcesManager *resources.Manager
 }
@@ -32,6 +33,7 @@ var _ testrunner.Tester = new(tester)
 
 type PolicyTesterOptions struct {
 	TestFolder         testrunner.TestFolder
+	TestPath           string
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	GenerateTestResult bool
@@ -43,6 +45,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		testFolder:         options.TestFolder,
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
+		testPath:           options.TestPath,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -59,18 +62,13 @@ func (r *tester) String() string {
 
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	var results []testrunner.TestResult
-	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
+
+	result, err := r.runTest(ctx, r.resourcesManager, r.testPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to look for test files in %s: %w", r.testFolder.Path, err)
-	}
-	for _, test := range tests {
-		result, err := r.runTest(ctx, r.resourcesManager, test)
-		if err != nil {
-			logger.Error(err)
-		}
-		results = append(results, result...)
+		logger.Error(err)
 	}
 
+	results = append(results, result...)
 	return results, nil
 }
 

@@ -7,6 +7,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -119,13 +120,21 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 
 	// TODO: Return a tester per each configuration file defined in the data stream folder
 	var testers []testrunner.Tester
-	for _, t := range folders {
-		testers = append(testers, NewPolicyTester(PolicyTesterOptions{
-			PackageRootPath:    r.packageRootPath,
-			TestFolder:         t,
-			KibanaClient:       r.kibanaClient,
-			GenerateTestResult: r.generateTestResult,
-		}))
+	for _, folder := range folders {
+		tests, err := filepath.Glob(filepath.Join(folder.Path, "test-*.yml"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to look for test files in %s: %w", folder.Path, err)
+		}
+		for _, test := range tests {
+			testers = append(testers, NewPolicyTester(PolicyTesterOptions{
+				PackageRootPath:    r.packageRootPath,
+				TestFolder:         folder,
+				KibanaClient:       r.kibanaClient,
+				GenerateTestResult: r.generateTestResult,
+				TestPath:           test,
+			}))
+
+		}
 	}
 	return testers, nil
 }
