@@ -118,15 +118,15 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 
 	// TODO: Return a tester per each configuration file defined in the data stream.
 	var testers []testrunner.Tester
-	for _, t := range folders {
-		testCaseFiles, err := r.listTestCaseFiles(t)
+	for _, folder := range folders {
+		testCaseFiles, err := r.listTestCaseFiles(folder)
 		if err != nil {
 			return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 		}
 
 		for _, caseFile := range testCaseFiles {
 			t, err := NewPipelineTester(PipelineTesterOptions{
-				TestFolder:         t,
+				TestFolder:         folder,
 				PackageRootPath:    r.packageRootPath,
 				GenerateTestResult: r.generateTestResult,
 				WithCoverage:       r.withCoverage,
@@ -141,7 +141,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			}
 			testers = append(testers, t)
 		}
-
 	}
 	return testers, nil
 }

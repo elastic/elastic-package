@@ -157,7 +157,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, errors.New("data stream root not found")
 	}
 
-	startTime := time.Now()
+	startTesting := time.Now()
 	var entryPipeline string
 	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.esAPI, dataStreamPath)
 	if err != nil {
@@ -212,7 +212,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	results = append(results, result)
 
-	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
+	esLogs, err := r.checkElasticsearchLogs(ctx, startTesting)
 	if err != nil {
 		return nil, err
 	}
