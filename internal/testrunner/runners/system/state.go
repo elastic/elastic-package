@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -37,7 +38,7 @@ func readConfigFileFromState(profilePath string) (string, error) {
 	}
 	var serviceStateData stateData
 	setupDataPath := filepath.Join(stateFolderPath(profilePath), serviceStateFileName)
-	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
+	logger.Infof("Reading service state data from file: %s", setupDataPath)
 	contents, err := os.ReadFile(setupDataPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
@@ -52,4 +53,18 @@ func readConfigFileFromState(profilePath string) (string, error) {
 // stateFolderPath returns the folder where the state data is stored
 func stateFolderPath(profilePath string) string {
 	return filepath.Join(profilePath, stack.ProfileStackPath, stateFolderName)
+}
+
+func readServiceStateData(path string) (ServiceState, error) {
+	var setupData ServiceState
+	logger.Debugf("Reading test config from file %s", path)
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return setupData, fmt.Errorf("failed to read test config %q: %w", path, err)
+	}
+	err = json.Unmarshal(contents, &setupData)
+	if err != nil {
+		return setupData, fmt.Errorf("failed to decode service options %q: %w", path, err)
+	}
+	return setupData, nil
 }

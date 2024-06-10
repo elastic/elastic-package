@@ -135,19 +135,17 @@ type tester struct {
 
 	runIndependentElasticAgent bool
 
-	deferCleanup       time.Duration
-	serviceVariant     string
-	configFilePathName string
+	deferCleanup   time.Duration
+	serviceVariant string
+	configFileName string
 
-	configFilePath string
-	runSetup       bool
-	runTearDown    bool
-	runTestsOnly   bool
+	runSetup     bool
+	runTearDown  bool
+	runTestsOnly bool
 
 	pipelines []ingest.Pipeline
 
 	dataStreamPath   string
-	variants         []string
 	stackVersion     kibana.VersionInfo
 	locationManager  *locations.LocationManager
 	resourcesManager *resources.Manager
@@ -174,14 +172,13 @@ type SystemTesterOptions struct {
 
 	RunIndependentElasticAgent bool
 
-	DeferCleanup       time.Duration
-	ServiceVariant     string
-	ConfigFilePathName string
+	DeferCleanup   time.Duration
+	ServiceVariant string
+	ConfigFileName string
 
-	ConfigFilePath string
-	RunSetup       bool
-	RunTearDown    bool
-	RunTestsOnly   bool
+	RunSetup     bool
+	RunTearDown  bool
+	RunTestsOnly bool
 }
 
 func NewSystemTester(options SystemTesterOptions) (*tester, error) {
@@ -195,8 +192,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
-		configFilePathName:         options.ConfigFilePathName,
-		configFilePath:             options.ConfigFilePath,
+		configFileName:             options.ConfigFileName,
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
@@ -258,52 +254,14 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	result := r.newResult("(init)")
-	if r.runSetup {
-		// variant information in runTestOnly or runTearDown modes is retrieved from serviceOptions (file in setup dir)
-		if len(r.variants) > 1 {
-			return result.WithError(fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(r.variants, ", ")))
-		}
-		if len(r.variants) == 0 {
-			logger.Debug("No variant mode")
-		}
-	}
-
-	_, err := os.Stat(r.serviceStateFilePath)
-	logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
-	if r.runSetup && !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --setup, required to tear down previous setup"))
-	}
-	if r.runTestsOnly && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run tests with --no-provision, setup first with --setup"))
-	}
-	if r.runTearDown && os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run --tear-down, setup not found"))
-	}
-
-	var serviceStateData ServiceState
-	if !r.runSetup {
-		serviceStateData, err = r.readServiceStateData()
-		if err != nil {
-			return result.WithError(fmt.Errorf("failed to read service state: %w", err))
-		}
-	}
-
-	configFile := r.configFilePath
-	variant := r.variants[0]
-	if r.runTestsOnly || r.runTearDown {
-		configFile = serviceStateData.ConfigFilePath
-		variant = serviceStateData.VariantName
-
-		logger.Infof("Using test config file from setup dir: %q", configFile)
-		logger.Infof("Using variant from service setup dir: %q", variant)
-	}
 
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	testConfig, err := newConfig(configFile, svcInfo, variant)
+	configFile := filepath.Join(r.testFolder.Path, r.configFileName)
+	testConfig, err := newConfig(configFile, svcInfo, r.serviceVariant)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
@@ -544,13 +502,10 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 
 func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
-		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous state run: %s exists", r.serviceStateFilePath))
-	}
 
 	startTesting := time.Now()
 
-	partial, err := r.runTestPerVariant(ctx, result, r.configFilePathName, r.serviceVariant)
+	partial, err := r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
 	results = append(results, partial...)
 	if err != nil {
 		return results, err
@@ -812,7 +767,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario := scenarioTest{}
 
 	if r.runTearDown || r.runTestsOnly {
-		serviceStateData, err = r.readServiceStateData()
+		serviceStateData, err = readServiceStateData(r.serviceStateFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read service setup data: %w", err)
 		}
@@ -1287,20 +1242,6 @@ func (r *tester) createServiceStateDir() error {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
 	return nil
-}
-
-func (r *tester) readServiceStateData() (ServiceState, error) {
-	var setupData ServiceState
-	logger.Debugf("Reading test config from file %s", r.serviceStateFilePath)
-	contents, err := os.ReadFile(r.serviceStateFilePath)
-	if err != nil {
-		return setupData, fmt.Errorf("failed to read test config %q: %w", r.serviceStateFilePath, err)
-	}
-	err = json.Unmarshal(contents, &setupData)
-	if err != nil {
-		return setupData, fmt.Errorf("failed to decode service options %q: %w", r.serviceStateFilePath, err)
-	}
-	return setupData, nil
 }
 
 type scenarioStateOpts struct {
