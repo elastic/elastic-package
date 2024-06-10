@@ -1426,7 +1426,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if scenario.agent != nil {
-		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.startTestTime, errorPatterns)
+		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.startTestTime, errorPatterns, config.Name())
 		if err != nil {
 			return result.WithError(err)
 		}
@@ -2017,7 +2017,7 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 	return nil
 }
 
-func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.DeployedAgent, startTesting time.Time, errorPatterns []logsByContainer, configName string) (results []testrunner.TestResult, err error) {
 	if agent == nil {
 		return nil, nil
 	}
@@ -2048,7 +2048,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr := testrunner.TestResult{
 				TestType:   TestType,
-				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Name:       fmt.Sprintf("(%s logs - %s)", patternsContainer.containerName, configName),
 				Package:    r.testFolder.Package,
 				DataStream: r.testFolder.DataStream,
 			}
