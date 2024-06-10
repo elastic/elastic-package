@@ -115,6 +115,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
+	// TODO: Return a tester per each configuration file defined in the data stream.
 	var testers []testrunner.Tester
 	for _, t := range folders {
 		t, err := NewPipelineTester(PipelineTesterOptions{

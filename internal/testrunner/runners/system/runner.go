@@ -181,6 +181,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
+	// TODO: Return a Tester per each combination of variant plus configuration file in each data stream / folder
 	var testers []testrunner.Tester
 	for _, t := range folders {
 		testers = append(testers, NewSystemTester(SystemTesterOptions{
