@@ -243,18 +243,19 @@ func NewSystemTester(options SystemTesterOptions) *runner {
 func (r *runner) SetupRunner(ctx context.Context) error {
 	if r.runTearDown {
 		logger.Debug("Skip installing package")
-	} else {
-		// Install the package before creating the policy, so we control exactly what is being
-		// installed.
-		logger.Debug("Installing package...")
-		resourcesOptions := resourcesOptions{
-			// Install it unless we are running the tear down only.
-			installedPackage: !r.runTearDown,
-		}
-		_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
-		if err != nil {
-			return fmt.Errorf("can't install the package: %w", err)
-		}
+		return nil
+	}
+
+	// Install the package before creating the policy, so we control exactly what is being
+	// installed.
+	logger.Debug("Installing package...")
+	resourcesOptions := resourcesOptions{
+		// Install it unless we are running the tear down only.
+		installedPackage: !r.runTearDown,
+	}
+	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	if err != nil {
+		return fmt.Errorf("can't install the package: %w", err)
 	}
 
 	return nil
