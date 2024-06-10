@@ -29,13 +29,13 @@ type runner struct {
 	resourcesManager *resources.Manager
 }
 
-type AssetRunnerOptions struct {
+type AssetTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
 	KibanaClient    *kibana.Client
 }
 
-func NewAssetRunner(options AssetRunnerOptions) *runner {
+func NewAssetTester(options AssetTesterOptions) *runner {
 	runner := runner{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
@@ -49,8 +49,8 @@ func NewAssetRunner(options AssetRunnerOptions) *runner {
 	return &runner
 }
 
-// Ensures that runner implements testrunner.TestRunner interface
-var _ testrunner.TestRunner = new(runner)
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {

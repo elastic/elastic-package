@@ -58,7 +58,7 @@ type runner struct {
 	provider stack.Provider
 }
 
-type PipelineRunnerOptions struct {
+type PipelineTesterOptions struct {
 	Profile            *profile.Profile
 	DeferCleanup       time.Duration
 	API                *elasticsearch.API
@@ -69,7 +69,7 @@ type PipelineRunnerOptions struct {
 	CoverageType       string
 }
 
-func NewPipelineRunner(options PipelineRunnerOptions) (*runner, error) {
+func NewPipelineTester(options PipelineTesterOptions) (*runner, error) {
 	r := runner{
 		profile:            options.Profile,
 		deferCleanup:       options.DeferCleanup,
@@ -110,8 +110,8 @@ type IngestPipelineReroute struct {
 	AdditionalFields map[string]interface{}               `yaml:",inline"`
 }
 
-// Ensures that runner implements testrunner.TestRunner interface
-var _ testrunner.TestRunner = new(runner)
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
 
 // Type returns the type of test that can be run by this test runner.
 func (r *runner) Type() testrunner.TestType {
@@ -355,7 +355,7 @@ func (r *runner) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	}
 
 	if r.withCoverage {
-		tr.Coverage, err = getPipelineCoverage(PipelineRunnerOptions{
+		tr.Coverage, err = getPipelineCoverage(PipelineTesterOptions{
 			TestFolder:      r.testFolder,
 			API:             r.esAPI,
 			PackageRootPath: r.packageRootPath,

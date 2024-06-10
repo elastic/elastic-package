@@ -168,7 +168,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 
 	_, pkg := filepath.Split(packageRootPath)
 
-	runner := asset.NewAssetRunner(asset.AssetRunnerOptions{
+	runner := asset.NewAssetTester(asset.AssetTesterOptions{
 		TestFolder:      testrunner.TestFolder{Package: pkg},
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
@@ -289,17 +289,18 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	var results []testrunner.TestResult
-	for _, folder := range testFolders {
-		runner := static.NewStaticRunner(static.StaticRunnerOptions{
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
+		runner := static.NewStaticTester(static.StaticTesterOptions{
 			TestFolder:      folder,
 			PackageRootPath: packageRootPath,
 		})
-		r, err := testrunner.Run(ctx, runner)
-		if err != nil {
-			return fmt.Errorf("error running package %s tests: %w", testType, err)
-		}
-		results = append(results, r...)
+
+		return runner, nil
+	}
+
+	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	if err != nil {
+		return err
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -438,9 +439,8 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	var results []testrunner.TestResult
-	for _, folder := range testFolders {
-		runner, err := pipeline.NewPipelineRunner(pipeline.PipelineRunnerOptions{
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
+		runner, err := pipeline.NewPipelineTester(pipeline.PipelineTesterOptions{
 			Profile:            profile,
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
@@ -451,14 +451,14 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 			DeferCleanup:       deferCleanup,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to create pipeline runner: %w", err)
+			return nil, fmt.Errorf("failed to create pipeline runner: %w", err)
 		}
+		return runner, nil
+	}
 
-		r, err := testrunner.Run(ctx, runner)
-		if err != nil {
-			return fmt.Errorf("error running package %s tests: %w", testType, err)
-		}
-		results = append(results, r...)
+	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	if err != nil {
+		return err
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
@@ -680,9 +680,16 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Running tests per stages (technical preview)\n")
 	}
 
-	var results []testrunner.TestResult
-	for _, folder := range testFolders {
-		runner := system.NewSystemRunner(system.SystemRunnerOptions{
+	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
+		PackageRootPath: packageRootPath,
+		KibanaClient:    kibanaClient,
+		RunSetup:        runSetup,
+		RunTearDown:     runTearDown,
+		RunTestsOnly:    runTestsOnly,
+	})
+
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
+		runner := system.NewSystemTester(system.SystemTesterOptions{
 			Profile:                    profile,
 			TestFolder:                 folder,
 			PackageRootPath:            packageRootPath,
@@ -698,14 +705,19 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 			RunIndependentElasticAgent: false,
 		})
 
-		r, err := testrunner.Run(ctx, runner)
-		if err != nil {
-			return fmt.Errorf("error running package %s tests: %w", testType, err)
-		}
-		results = append(results, r...)
+		return runner, nil
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
+	if err != nil {
+		return err
+	}
+
+	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	if err != nil {
+		return fmt.Errorf("failed to process results: %w", err)
+	}
+	return nil
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
@@ -832,19 +844,24 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	var results []testrunner.TestResult
-	for _, folder := range testFolders {
-		runner := policy.NewPolicyRunner(policy.PolicyRunnerOptions{
+	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
+		PackageRootPath: packageRootPath,
+		KibanaClient:    kibanaClient,
+	})
+
+	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
+		runner := policy.NewPolicyTester(policy.PolicyTesterOptions{
 			TestFolder:         folder,
 			PackageRootPath:    packageRootPath,
 			GenerateTestResult: generateTestResult,
 			KibanaClient:       kibanaClient,
 		})
-		r, err := testrunner.Run(ctx, runner)
-		if err != nil {
-			return fmt.Errorf("error running package %s tests: %w", testType, err)
-		}
-		results = append(results, r...)
+		return runner, nil
+	}
+
+	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
+	if err != nil {
+		return err
 	}
 
 	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)

@@ -26,12 +26,12 @@ type runner struct {
 	packageRootPath string
 }
 
-type StaticRunnerOptions struct {
+type StaticTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
 }
 
-func NewStaticRunner(options StaticRunnerOptions) *runner {
+func NewStaticTester(options StaticTesterOptions) *runner {
 	runner := runner{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
@@ -39,8 +39,8 @@ func NewStaticRunner(options StaticRunnerOptions) *runner {
 	return &runner
 }
 
-// Ensures that runner implements testrunner.TestRunner interface
-var _ testrunner.TestRunner = new(runner)
+// Ensures that runner implements testrunner.Tester interface
+var _ testrunner.Tester = new(runner)
 
 const (
 	// TestType defining asset loading tests
