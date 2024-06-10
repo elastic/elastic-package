@@ -32,24 +32,6 @@ type ServiceState struct {
 	ServiceOutputDir string        `json:"service_output_dir"`
 }
 
-func readConfigFileFromState(profilePath string) (string, error) {
-	type stateData struct {
-		ConfigFilePath string `json:"config_file_path"`
-	}
-	var serviceStateData stateData
-	setupDataPath := filepath.Join(stateFolderPath(profilePath), serviceStateFileName)
-	logger.Infof("Reading service state data from file: %s", setupDataPath)
-	contents, err := os.ReadFile(setupDataPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
-	}
-	err = json.Unmarshal(contents, &serviceStateData)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
-	}
-	return serviceStateData.ConfigFilePath, nil
-}
-
 // stateFolderPath returns the folder where the state data is stored
 func stateFolderPath(profilePath string) string {
 	return filepath.Join(profilePath, stack.ProfileStackPath, stateFolderName)

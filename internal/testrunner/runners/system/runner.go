@@ -143,16 +143,38 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
 	}
 
-	configFilePath := r.configFilePath
+	if r.runSetup || r.runTearDown || r.runTestsOnly {
+		_, err := os.Stat(r.serviceStateFilePath)
+		logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
+		if r.runSetup && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run --setup, required to tear down previous setup")
+		}
+		if r.runTestsOnly && os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run tests with --no-provision, setup first with --setup")
+		}
+		if r.runTearDown && os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run --tear-down, setup not found")
+		}
+	} else {
+		if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run tests, required to tear down previous state run (path: %s)", r.serviceStateFilePath)
+		}
+	}
+
+	var serviceState ServiceState
+	if r.runTearDown || r.runTestsOnly {
+		serviceState, err = readServiceStateData(r.serviceStateFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read service state: %w", err)
+		}
+	}
 
 	if hasDataStreams {
 		var dataStreams []string
 		if r.runSetup || r.runTearDown || r.runTestsOnly {
+			configFilePath := r.configFilePath
 			if r.runTearDown || r.runTestsOnly {
-				configFilePath, err = readConfigFileFromState(r.profile.ProfilePath)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get config file from state: %w", err)
-				}
+				configFilePath = serviceState.ConfigFilePath
 			}
 			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRootPath)
 			dataStreams = append(dataStreams, dataStream)
@@ -186,22 +208,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		if len(folders) != 1 {
 			return nil, fmt.Errorf("wrong number of test folders (expected 1): %d", len(folders))
 		}
-
-		_, err := os.Stat(r.serviceStateFilePath)
-		logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
-		if r.runSetup && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run --setup, required to tear down previous setup")
-		}
-		if r.runTestsOnly && os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run tests with --no-provision, setup first with --setup")
-		}
-		if r.runTearDown && os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run --tear-down, setup not found")
-		}
-	} else {
-		if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
-			return nil, fmt.Errorf("failed to run tests, required to tear down previous state run: %s nil, exists", r.serviceStateFilePath)
-		}
 	}
 
 	var testers []testrunner.Tester
@@ -209,14 +215,19 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		var variants []string
 		var cfgFiles []string
 
-		variants, err = r.getAllVariants(t)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve variants from %s: %w", t.Path, err)
-		}
+		if r.runTestsOnly || r.runTearDown {
+			variants = []string{serviceState.VariantName}
+			cfgFiles = []string{filepath.Base(serviceState.ConfigFilePath)}
+		} else {
+			variants, err = r.getAllVariants(t)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve variants from %s: %w", t.Path, err)
+			}
 
-		cfgFiles, err = r.getAllConfigFiles(t)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve config files from %s: %w", t.Path, err)
+			cfgFiles, err = r.getAllConfigFiles(t)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve config files from %s: %w", t.Path, err)
+			}
 		}
 
 		for _, variant := range variants {
@@ -281,17 +292,6 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 
 func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) {
 	var variants []string
-
-	if r.runTestsOnly || r.runTearDown {
-		serviceStateData, err := readServiceStateData(r.serviceStateFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read service state: %w", err)
-		}
-
-		variants = []string{serviceStateData.VariantName}
-		return variants, nil
-	}
-
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(folder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
@@ -350,15 +350,6 @@ func (r *runner) getAllConfigFiles(folder testrunner.TestFolder) ([]string, erro
 				cfgFiles = append(cfgFiles, baseFile)
 			}
 		}
-	} else if r.runTestsOnly || r.runTearDown {
-		serviceStateData, err := readServiceStateData(r.serviceStateFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read service state: %w", err)
-		}
-
-		baseFile := filepath.Base(serviceStateData.ConfigFilePath)
-		cfgFiles = append(cfgFiles, baseFile)
-		return cfgFiles, nil
 	} else {
 		cfgFiles, err = listConfigFiles(folder.Path)
 		if err != nil {
