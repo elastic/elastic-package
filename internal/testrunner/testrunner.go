@@ -295,7 +295,7 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner) ([]TestResult, error) {
+func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 	testers, err := runner.GetTests(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve tests: %w", err)

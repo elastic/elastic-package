@@ -170,7 +170,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		KibanaClient:    kibanaClient,
 	})
 
-	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
 	}
@@ -253,7 +253,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		FailOnMissingTests: failOnMissing,
 	})
 
-	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -367,7 +367,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		DeferCleanup:       deferCleanup,
 	})
 
-	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -550,7 +550,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	})
 
 	logger.Debugf("Running suite...")
-	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -654,7 +654,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		GenerateTestResult: generateTestResult,
 	})
 
-	results, err := testrunner.RunSuite(ctx, []testrunner.TestFolder{}, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
