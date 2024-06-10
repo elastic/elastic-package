@@ -185,7 +185,7 @@ type SystemTesterOptions struct {
 	RunTestsOnly   bool
 }
 
-func NewSystemTester(options SystemTesterOptions) *tester {
+func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r := tester{
 		profile:                    options.Profile,
 		testFolder:                 options.TestFolder,
@@ -206,8 +206,37 @@ func NewSystemTester(options SystemTesterOptions) *tester {
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
 
 	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
-	// TODO: check if logic in initRun could be moved to this constructor
-	return &r
+
+	var err error
+	var found bool
+
+	r.locationManager, err = locations.NewLocationManager()
+	if err != nil {
+		return nil, fmt.Errorf("reading service logs directory failed: %w", err)
+	}
+
+	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("locating data stream root failed: %w", err)
+	}
+	if found {
+		logger.Debugf("Running system tests for data stream %q", r.testFolder.DataStream)
+	} else {
+		logger.Debug("Running system tests for package")
+	}
+
+	if r.esAPI == nil {
+		return nil, errors.New("missing Elasticsearch client")
+	}
+	if r.kibanaClient == nil {
+		return nil, errors.New("missing Kibana client")
+	}
+
+	r.stackVersion, err = r.kibanaClient.Version()
+	if err != nil {
+		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+	return &r, nil
 }
 
 // Ensures that runner implements testrunner.Tester interface
@@ -230,10 +259,6 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	result := r.newResult("(init)")
-	if err := r.initRun(); err != nil {
-		return result.WithError(err)
-	}
-
 	if r.runSetup {
 		// variant information in runTestOnly or runTearDown modes is retrieved from serviceOptions (file in setup dir)
 		if len(r.variants) > 1 {
@@ -518,45 +543,8 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *tester) initRun() error {
-	var err error
-	var found bool
-	r.locationManager, err = locations.NewLocationManager()
-	if err != nil {
-		return fmt.Errorf("reading service logs directory failed: %w", err)
-	}
-
-	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
-	if err != nil {
-		return fmt.Errorf("locating data stream root failed: %w", err)
-	}
-	if found {
-		logger.Debugf("Running system tests for data stream %q", r.testFolder.DataStream)
-	} else {
-		logger.Debug("Running system tests for package")
-	}
-
-	if r.esAPI == nil {
-		return errors.New("missing Elasticsearch client")
-	}
-	if r.kibanaClient == nil {
-		return errors.New("missing Kibana client")
-	}
-
-	r.stackVersion, err = r.kibanaClient.Version()
-	if err != nil {
-		return fmt.Errorf("cannot request Kibana version: %w", err)
-	}
-
-	return nil
-}
-
 func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
-	if err = r.initRun(); err != nil {
-		return result.WithError(err)
-	}
-
 	if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
 		return result.WithError(fmt.Errorf("failed to run tests, required to tear down previous state run: %s exists", r.serviceStateFilePath))
 	}

@@ -203,7 +203,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		for _, variant := range variants {
 			for _, config := range cfgFiles {
 				logger.Debugf("Creating system test runner for data stream %q variant %q config file %q", t.DataStream, variant, config)
-				testers = append(testers, NewSystemTester(SystemTesterOptions{
+				tester, err := NewSystemTester(SystemTesterOptions{
 					Profile:                    r.profile,
 					PackageRootPath:            r.packageRootPath,
 					KibanaClient:               r.kibanaClient,
@@ -218,7 +218,13 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					ConfigFilePathName:         config,
 					ConfigFilePath:             r.configFilePath,
 					RunIndependentElasticAgent: r.runIndependentElasticAgent,
-				}))
+				})
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to create system runner for sdata stream %q variant %q config file %q: %w",
+						t.DataStream, variant, config, err)
+				}
+				testers = append(testers, tester)
 			}
 		}
 	}
