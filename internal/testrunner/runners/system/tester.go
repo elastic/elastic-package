@@ -135,8 +135,9 @@ type tester struct {
 
 	runIndependentElasticAgent bool
 
-	deferCleanup   time.Duration
-	serviceVariant string
+	deferCleanup       time.Duration
+	serviceVariant     string
+	configFilePathName string
 
 	configFilePath string
 	runSetup       bool
@@ -174,8 +175,9 @@ type SystemTesterOptions struct {
 
 	RunIndependentElasticAgent bool
 
-	DeferCleanup   time.Duration
-	ServiceVariant string
+	DeferCleanup       time.Duration
+	ServiceVariant     string
+	ConfigFilePathName string
 
 	ConfigFilePath string
 	RunSetup       bool
@@ -194,6 +196,7 @@ func NewSystemTester(options SystemTesterOptions) *tester {
 		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
+		configFilePathName:         options.ConfigFilePathName,
 		configFilePath:             options.ConfigFilePath,
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
@@ -545,45 +548,6 @@ func (r *tester) initRun() error {
 		return fmt.Errorf("cannot request Kibana version: %w", err)
 	}
 
-	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		PackageRootPath:    r.packageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-	})
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		r.variants = r.selectVariants(nil)
-	case err != nil:
-		return fmt.Errorf("failed fo find service deploy path: %w", err)
-	default:
-		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("can't read service variant: %w", err)
-		}
-		r.variants = r.selectVariants(variantsFile)
-	}
-	if r.serviceVariant != "" && len(r.variants) == 0 {
-		return fmt.Errorf("not found variant definition %q", r.serviceVariant)
-	}
-
-	if r.configFilePath != "" {
-		allCfgFiles, err := listConfigFiles(filepath.Dir(r.configFilePath))
-		if err != nil {
-			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
-		}
-		baseFile := filepath.Base(r.configFilePath)
-		for _, cfg := range allCfgFiles {
-			if cfg == baseFile {
-				r.cfgFiles = append(r.cfgFiles, baseFile)
-			}
-		}
-	} else {
-		r.cfgFiles, err = listConfigFiles(r.testFolder.Path)
-		if err != nil {
-			return fmt.Errorf("failed listing test case config cfgFiles: %w", err)
-		}
-	}
-
 	return nil
 }
 
@@ -598,14 +562,11 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	}
 
 	startTesting := time.Now()
-	for _, cfgFile := range r.cfgFiles {
-		for _, variantName := range r.variants {
-			partial, err := r.runTestPerVariant(ctx, result, cfgFile, variantName)
-			results = append(results, partial...)
-			if err != nil {
-				return results, err
-			}
-		}
+
+	partial, err := r.runTestPerVariant(ctx, result, r.configFilePathName, r.serviceVariant)
+	results = append(results, partial...)
+	if err != nil {
+		return results, err
 	}
 
 	tempDir, err := os.MkdirTemp("", "test-system-")
@@ -2049,21 +2010,6 @@ func assertHitCount(expected int, docs []common.MapStr) (pass bool, message stri
 		}
 	}
 	return true, ""
-}
-
-func (r *tester) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
-	if variantsFile == nil || variantsFile.Variants == nil {
-		return []string{""} // empty variants file switches to no-variant mode
-	}
-
-	var variantNames []string
-	for k := range variantsFile.Variants {
-		if r.serviceVariant != "" && r.serviceVariant != k {
-			continue
-		}
-		variantNames = append(variantNames, k)
-	}
-	return variantNames
 }
 
 func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version) error {

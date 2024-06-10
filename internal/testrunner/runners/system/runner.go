@@ -6,7 +6,10 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -181,24 +185,42 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	// TODO: Return a Tester per each combination of variant plus configuration file in each data stream / folder
 	var testers []testrunner.Tester
 	for _, t := range folders {
-		testers = append(testers, NewSystemTester(SystemTesterOptions{
-			Profile:                    r.profile,
-			PackageRootPath:            r.packageRootPath,
-			KibanaClient:               r.kibanaClient,
-			API:                        r.esAPI,
-			TestFolder:                 t,
-			ServiceVariant:             r.serviceVariant,
-			GenerateTestResult:         r.generateTestResult,
-			DeferCleanup:               r.deferCleanup,
-			RunSetup:                   r.runSetup,
-			RunTestsOnly:               r.runTestsOnly,
-			RunTearDown:                r.runTearDown,
-			ConfigFilePath:             r.configFilePath,
-			RunIndependentElasticAgent: r.runIndependentElasticAgent,
-		}))
+		var variants []string
+		var cfgFiles []string
+
+		variants, err = r.getAllVariants(t)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve variants from %s: %w", t.Path, err)
+		}
+
+		cfgFiles, err = r.getAllConfigFiles(t)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve config files from %s: %w", t.Path, err)
+		}
+
+		for _, variant := range variants {
+			for _, config := range cfgFiles {
+				logger.Debugf("Creating system test runner for data stream %q variant %q config file %q", t.DataStream, variant, config)
+				testers = append(testers, NewSystemTester(SystemTesterOptions{
+					Profile:                    r.profile,
+					PackageRootPath:            r.packageRootPath,
+					KibanaClient:               r.kibanaClient,
+					API:                        r.esAPI,
+					TestFolder:                 t,
+					ServiceVariant:             variant,
+					GenerateTestResult:         r.generateTestResult,
+					DeferCleanup:               r.deferCleanup,
+					RunSetup:                   r.runSetup,
+					RunTestsOnly:               r.runTestsOnly,
+					RunTearDown:                r.runTearDown,
+					ConfigFilePathName:         config,
+					ConfigFilePath:             r.configFilePath,
+					RunIndependentElasticAgent: r.runIndependentElasticAgent,
+				}))
+			}
+		}
 	}
 	return testers, nil
 }
@@ -216,4 +238,77 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 		},
 	}
+}
+
+func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
+	if variantsFile == nil || variantsFile.Variants == nil {
+		return []string{""} // empty variants file switches to no-variant mode
+	}
+
+	var variantNames []string
+	for k := range variantsFile.Variants {
+		if r.serviceVariant != "" && r.serviceVariant != k {
+			continue
+		}
+		variantNames = append(variantNames, k)
+	}
+	return variantNames
+}
+
+func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) {
+	var variants []string
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(folder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("locating data stream root failed: %w", err)
+	}
+	if found {
+		logger.Debugf("Running system tests for data stream %q", folder.DataStream)
+	} else {
+		logger.Debug("Running system tests for package")
+	}
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		PackageRootPath:    r.packageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+	})
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		variants = r.selectVariants(nil)
+	case err != nil:
+		return nil, fmt.Errorf("failed fo find service deploy path: %w", err)
+	default:
+		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("can't read service variant: %w", err)
+		}
+		variants = r.selectVariants(variantsFile)
+	}
+	if r.serviceVariant != "" && len(variants) == 0 {
+		return nil, fmt.Errorf("not found variant definition %q", r.serviceVariant)
+	}
+
+	return variants, nil
+}
+
+func (r *runner) getAllConfigFiles(folder testrunner.TestFolder) ([]string, error) {
+	var cfgFiles []string
+	var err error
+	if r.configFilePath != "" {
+		allCfgFiles, err := listConfigFiles(filepath.Dir(r.configFilePath))
+		if err != nil {
+			return nil, fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
+		baseFile := filepath.Base(r.configFilePath)
+		for _, cfg := range allCfgFiles {
+			if cfg == baseFile {
+				cfgFiles = append(cfgFiles, baseFile)
+			}
+		}
+	} else {
+		cfgFiles, err = listConfigFiles(folder.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
+	}
+	return cfgFiles, nil
 }
