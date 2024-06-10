@@ -362,23 +362,6 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	return tr, nil
 }
 
-func (r *tester) listTestCaseFiles() ([]string, error) {
-	fis, err := os.ReadDir(r.testFolder.Path)
-	if err != nil {
-		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", r.testFolder.Path, err)
-	}
-
-	var files []string
-	for _, fi := range fis {
-		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
-			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
-			continue
-		}
-		files = append(files, fi.Name())
-	}
-	return files, nil
-}
-
 func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 	testCasePath := filepath.Join(testFolderPath, testCaseFile)
 	testCaseData, err := os.ReadFile(testCasePath)
