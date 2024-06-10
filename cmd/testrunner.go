@@ -758,13 +758,6 @@ func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error
 }
 
 func getDataStreamsFlag(cmd *cobra.Command, packageRootPath string) ([]string, error) {
-	var dataStreams []string
-	if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) == nil {
-		// We check for the existence of the data streams flag before trying to
-		// parse it because if the root test command is run instead of one of the
-		// subcommands of test, the data streams flag will not be defined.
-		return []string{}, nil
-	}
 	dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 	common.TrimStringSlice(dataStreams)
 	if err != nil {
