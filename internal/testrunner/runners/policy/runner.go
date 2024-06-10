@@ -48,7 +48,6 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
 	}
-
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
 	return &runner
