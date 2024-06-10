@@ -78,7 +78,7 @@ type TestRunner interface {
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context) error
 
-	GetTests(context.Context) ([]TestFolder, error)
+	GetTests(context.Context) ([]Tester, error)
 
 	// TearDownRunner cleans up any global test runner resources. It must be called
 	// after the test runner has finished executing all its tests.
@@ -295,12 +295,12 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factory TesterFactory) ([]TestResult, error) {
-	folders, err := runner.GetTests(ctx)
+func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner) ([]TestResult, error) {
+	testers, err := runner.GetTests(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve tests: %w", err)
 	}
-	if len(folders) == 0 {
+	if len(testers) == 0 {
 		return nil, nil
 	}
 
@@ -308,7 +308,7 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
-	results, err := runWithFactory(ctx, folders, factory)
+	results, err := runWithFactory(ctx, testers)
 	if err != nil {
 		return results, err
 	}
@@ -322,13 +322,9 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 }
 
 // runWithFactory method delegates execution of tests to the runners generated through the factory function.
-func runWithFactory(ctx context.Context, folders []TestFolder, factory TesterFactory) ([]TestResult, error) {
+func runWithFactory(ctx context.Context, testers []Tester) ([]TestResult, error) {
 	var results []TestResult
-	for _, folder := range folders {
-		tester, err := factory(folder)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create runner: %w", err)
-		}
+	for _, tester := range testers {
 		r, err := run(ctx, tester)
 		if err != nil {
 			return nil, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)

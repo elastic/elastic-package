@@ -28,7 +28,6 @@ type runner struct {
 }
 
 type StaticTestRunnerOptions struct {
-	TestFolder         testrunner.TestFolder
 	PackageRootPath    string
 	FailOnMissingTests bool
 	DataStreams        []string
@@ -36,7 +35,9 @@ type StaticTestRunnerOptions struct {
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 	runner := runner{
-		packageRootPath: options.PackageRootPath,
+		packageRootPath:    options.PackageRootPath,
+		failOnMissingTests: options.FailOnMissingTests,
+		dataStreams:        options.DataStreams,
 	}
 	return &runner
 }
@@ -52,7 +53,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var tests []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -84,7 +85,15 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) 
 			},
 		}
 	}
-	return tests, nil
+
+	var testers []testrunner.Tester
+	for _, t := range tests {
+		testers = append(testers, NewStaticTester(StaticTesterOptions{
+			PackageRootPath: r.packageRootPath,
+			TestFolder:      t,
+		}))
+	}
+	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {

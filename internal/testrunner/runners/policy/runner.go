@@ -26,6 +26,7 @@ type runner struct {
 
 	dataStreams        []string
 	failOnMissingTests bool
+	generateTestResult bool
 
 	resourcesManager *resources.Manager
 	cleanup          func(context.Context) error
@@ -39,14 +40,16 @@ type PolicyTestRunnerOptions struct {
 	PackageRootPath    string
 	DataStreams        []string
 	FailOnMissingTests bool
+	GenerateTestResult bool
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
-		kibanaClient:       options.KibanaClient,
 		packageRootPath:    options.PackageRootPath,
+		kibanaClient:       options.KibanaClient,
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
+		generateTestResult: options.GenerateTestResult,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -75,7 +78,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -114,7 +117,16 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) 
 		}
 	}
 
-	return folders, nil
+	var testers []testrunner.Tester
+	for _, t := range folders {
+		testers = append(testers, NewPolicyTester(PolicyTesterOptions{
+			PackageRootPath:    r.packageRootPath,
+			TestFolder:         t,
+			KibanaClient:       r.kibanaClient,
+			GenerateTestResult: r.generateTestResult,
+		}))
+	}
+	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {

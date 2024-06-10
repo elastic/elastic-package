@@ -67,9 +67,9 @@ type PipelineTesterOptions struct {
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 	r := tester{
 		profile:            options.Profile,
-		deferCleanup:       options.DeferCleanup,
-		esAPI:              options.API,
 		packageRootPath:    options.PackageRootPath,
+		esAPI:              options.API,
+		deferCleanup:       options.DeferCleanup,
 		testFolder:         options.TestFolder,
 		generateTestResult: options.GenerateTestResult,
 		withCoverage:       options.WithCoverage,

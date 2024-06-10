@@ -31,7 +31,7 @@ type AssetTesterOptions struct {
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
-	runner := tester{
+	tester := tester{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
 		kibanaClient:    options.KibanaClient,
@@ -39,9 +39,9 @@ func NewAssetTester(options AssetTesterOptions) *tester {
 
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: options.KibanaClient})
-	runner.resourcesManager = manager
+	tester.resourcesManager = manager
 
-	return &runner
+	return &tester
 }
 
 // Ensures that runner implements testrunner.Tester interface

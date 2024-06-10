@@ -137,8 +137,6 @@ type tester struct {
 
 	deferCleanup   time.Duration
 	serviceVariant string
-	withCoverage   bool
-	coverageType   string
 
 	configFilePath string
 	runSetup       bool
@@ -178,8 +176,6 @@ type SystemTesterOptions struct {
 
 	DeferCleanup   time.Duration
 	ServiceVariant string
-	WithCoverage   bool
-	CoverageType   string
 
 	ConfigFilePath string
 	RunSetup       bool
@@ -198,8 +194,6 @@ func NewSystemTester(options SystemTesterOptions) *tester {
 		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
-		withCoverage:               options.WithCoverage,
-		coverageType:               options.CoverageType,
 		configFilePath:             options.ConfigFilePath,
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,

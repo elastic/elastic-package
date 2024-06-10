@@ -8,8 +8,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -20,22 +23,41 @@ const (
 
 type runner struct {
 	packageRootPath string
+	profile         *profile.Profile
+	esAPI           *elasticsearch.API
+	dataStreams     []string
 
 	failOnMissingTests bool
-	dataStreams        []string
+	generateTestResult bool
+
+	withCoverage bool
+	coverageType string
+	deferCleanup time.Duration
 }
 
 type PipelineTestRunnerOptions struct {
+	Profile            *profile.Profile
 	PackageRootPath    string
-	FailOnMissingTests bool
+	API                *elasticsearch.API
 	DataStreams        []string
+	FailOnMissingTests bool
+	GenerateTestResult bool
+	WithCoverage       bool
+	CoverageType       string
+	DeferCleanup       time.Duration
 }
 
 func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 	runner := runner{
+		profile:            options.Profile,
 		packageRootPath:    options.PackageRootPath,
-		failOnMissingTests: options.FailOnMissingTests,
+		esAPI:              options.API,
 		dataStreams:        options.DataStreams,
+		failOnMissingTests: options.FailOnMissingTests,
+		generateTestResult: options.GenerateTestResult,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
+		deferCleanup:       options.DeferCleanup,
 	}
 	return &runner
 }
@@ -54,7 +76,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -93,7 +115,24 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) 
 		}
 	}
 
-	return folders, nil
+	var testers []testrunner.Tester
+	for _, t := range folders {
+		t, err := NewPipelineTester(PipelineTesterOptions{
+			TestFolder:         t,
+			PackageRootPath:    r.packageRootPath,
+			GenerateTestResult: r.generateTestResult,
+			WithCoverage:       r.withCoverage,
+			CoverageType:       r.coverageType,
+			DeferCleanup:       r.deferCleanup,
+			Profile:            r.profile,
+			API:                r.esAPI,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
+		}
+		testers = append(testers, t)
+	}
+	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {

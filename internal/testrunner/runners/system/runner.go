@@ -8,7 +8,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -21,9 +23,15 @@ type runner struct {
 	profile         *profile.Profile
 	packageRootPath string
 	kibanaClient    *kibana.Client
+	esAPI           *elasticsearch.API
 
-	dataStreams        []string
-	failOnMissingTests bool
+	dataStreams    []string
+	serviceVariant string
+
+	failOnMissingTests         bool
+	generateTestResult         bool
+	runIndependentElasticAgent bool
+	deferCleanup               time.Duration
 
 	configFilePath string
 	runSetup       bool
@@ -40,27 +48,38 @@ type SystemTestRunnerOptions struct {
 	Profile         *profile.Profile
 	PackageRootPath string
 	KibanaClient    *kibana.Client
+	API             *elasticsearch.API
+
+	DataStreams    []string
+	ServiceVariant string
 
 	RunSetup       bool
 	RunTearDown    bool
 	RunTestsOnly   bool
 	ConfigFilePath string
 
-	DataStreams        []string
-	FailOnMissingTests bool
+	FailOnMissingTests         bool
+	GenerateTestResult         bool
+	RunIndependentElasticAgent bool
+	DeferCleanup               time.Duration
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRootPath:    options.PackageRootPath,
-		kibanaClient:       options.KibanaClient,
-		runSetup:           options.RunSetup,
-		runTestsOnly:       options.RunTestsOnly,
-		runTearDown:        options.RunTearDown,
-		profile:            options.Profile,
-		dataStreams:        options.DataStreams,
-		failOnMissingTests: options.FailOnMissingTests,
-		configFilePath:     options.ConfigFilePath,
+		packageRootPath:            options.PackageRootPath,
+		kibanaClient:               options.KibanaClient,
+		esAPI:                      options.API,
+		profile:                    options.Profile,
+		dataStreams:                options.DataStreams,
+		serviceVariant:             options.ServiceVariant,
+		configFilePath:             options.ConfigFilePath,
+		runSetup:                   options.RunSetup,
+		runTestsOnly:               options.RunTestsOnly,
+		runTearDown:                options.RunTearDown,
+		failOnMissingTests:         options.FailOnMissingTests,
+		generateTestResult:         options.GenerateTestResult,
+		runIndependentElasticAgent: options.RunIndependentElasticAgent,
+		deferCleanup:               options.DeferCleanup,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -105,7 +124,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) {
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -162,7 +181,25 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.TestFolder, error) 
 		}
 	}
 
-	return folders, nil
+	var testers []testrunner.Tester
+	for _, t := range folders {
+		testers = append(testers, NewSystemTester(SystemTesterOptions{
+			Profile:                    r.profile,
+			PackageRootPath:            r.packageRootPath,
+			KibanaClient:               r.kibanaClient,
+			API:                        r.esAPI,
+			TestFolder:                 t,
+			ServiceVariant:             r.serviceVariant,
+			GenerateTestResult:         r.generateTestResult,
+			DeferCleanup:               r.deferCleanup,
+			RunSetup:                   r.runSetup,
+			RunTestsOnly:               r.runTestsOnly,
+			RunTearDown:                r.runTearDown,
+			ConfigFilePath:             r.configFilePath,
+			RunIndependentElasticAgent: r.runIndependentElasticAgent,
+		}))
+	}
+	return testers, nil
 }
 
 // Type returns the type of test that can be run by this test runner.
