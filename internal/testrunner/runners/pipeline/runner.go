@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -126,7 +125,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 
 		for _, caseFile := range testCaseFiles {
-			logger.Debugf("Creating pipeline tester for data stream %q and config file %q", t.DataStream, caseFile)
 			t, err := NewPipelineTester(PipelineTesterOptions{
 				TestFolder:         t,
 				PackageRootPath:    r.packageRootPath,

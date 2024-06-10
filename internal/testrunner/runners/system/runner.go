@@ -202,7 +202,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 
 		for _, variant := range variants {
 			for _, config := range cfgFiles {
-				logger.Debugf("Creating system test runner for data stream %q variant %q config file %q", t.DataStream, variant, config)
 				tester, err := NewSystemTester(SystemTesterOptions{
 					Profile:                    r.profile,
 					PackageRootPath:            r.packageRootPath,
