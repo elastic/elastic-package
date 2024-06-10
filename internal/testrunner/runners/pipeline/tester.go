@@ -276,7 +276,7 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	tr := testrunner.TestResult{
 		TestType:    TestType,
-		Name:        "(ingest pipeline warnings)",
+		Name:        fmt.Sprintf("(ingest pipeline warnings %s)", r.testCaseFile),
 		Package:     r.testFolder.Package,
 		DataStream:  r.testFolder.DataStream,
 		TimeElapsed: time.Since(startTime),
