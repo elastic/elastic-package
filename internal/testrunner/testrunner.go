@@ -6,7 +6,6 @@ package testrunner
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -19,12 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/stack"
-)
-
-const (
-	ServiceStateFileName = "service.json"
-	StateFolderName      = "state"
 )
 
 // TestType represents the various supported test types
@@ -368,11 +361,6 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 	return paths, err
 }
 
-// StateFolderPath returns the folder where the state data is stored
-func StateFolderPath(profilePath string) string {
-	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
-}
-
 func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 	switch manifest.Type {
 	case "integration":
@@ -382,22 +370,4 @@ func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 	default:
 		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
 	}
-}
-
-func ReadConfigFileFromState(profilePath string) (string, error) {
-	type stateData struct {
-		ConfigFilePath string `json:"config_file_path"`
-	}
-	var serviceStateData stateData
-	setupDataPath := filepath.Join(StateFolderPath(profilePath), ServiceStateFileName)
-	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
-	contents, err := os.ReadFile(setupDataPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
-	}
-	err = json.Unmarshal(contents, &serviceStateData)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
-	}
-	return serviceStateData.ConfigFilePath, nil
 }

@@ -202,7 +202,7 @@ func NewSystemTester(options SystemTesterOptions) *tester {
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
 
-	r.serviceStateFilePath = filepath.Join(testrunner.StateFolderPath(r.profile.ProfilePath), testrunner.ServiceStateFileName)
+	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
 	// TODO: check if logic in initRun could be moved to this constructor
 	return &r
 }
@@ -1353,18 +1353,6 @@ func (r *tester) readServiceStateData() (ServiceState, error) {
 		return setupData, fmt.Errorf("failed to decode service options %q: %w", r.serviceStateFilePath, err)
 	}
 	return setupData, nil
-}
-
-type ServiceState struct {
-	OrigPolicy       kibana.Policy `json:"orig_policy"`
-	EnrollPolicy     kibana.Policy `json:"enroll_policy"`
-	CurrentPolicy    kibana.Policy `json:"current_policy"`
-	Agent            kibana.Agent  `json:"agent"`
-	ConfigFilePath   string        `json:"config_file_path"`
-	VariantName      string        `json:"variant_name"`
-	ServiceRunID     string        `json:"service_info_run_id"`
-	AgentRunID       string        `json:"agent_info_run_id"`
-	ServiceOutputDir string        `json:"service_output_dir"`
 }
 
 type scenarioStateOpts struct {

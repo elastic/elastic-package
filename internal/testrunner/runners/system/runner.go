@@ -142,7 +142,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		var dataStreams []string
 		if r.runSetup || r.runTearDown || r.runTestsOnly {
 			if r.runTearDown || r.runTestsOnly {
-				configFilePath, err = testrunner.ReadConfigFileFromState(r.profile.ProfilePath)
+				configFilePath, err = readConfigFileFromState(r.profile.ProfilePath)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get config file from state: %w", err)
 				}
