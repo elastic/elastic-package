@@ -147,7 +147,6 @@ type tester struct {
 	pipelines []ingest.Pipeline
 
 	dataStreamPath   string
-	cfgFiles         []string
 	variants         []string
 	stackVersion     kibana.VersionInfo
 	locationManager  *locations.LocationManager
