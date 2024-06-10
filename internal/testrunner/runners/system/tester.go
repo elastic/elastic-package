@@ -1123,7 +1123,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			agentInfo:     agentInfo,
 			svcInfo:       svcInfo,
 		}
-		err = r.writeScenarioState(opts)
+		err = writeScenarioState(opts, r.serviceStateFilePath)
 		if err != nil {
 			return nil, err
 		}
@@ -1240,40 +1240,6 @@ func (r *tester) createServiceStateDir() error {
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
-	}
-	return nil
-}
-
-type scenarioStateOpts struct {
-	currentPolicy *kibana.Policy
-	enrollPolicy  *kibana.Policy
-	origPolicy    *kibana.Policy
-	config        *testConfig
-	agent         kibana.Agent
-	agentInfo     agentdeployer.AgentInfo
-	svcInfo       servicedeployer.ServiceInfo
-}
-
-func (r *tester) writeScenarioState(opts scenarioStateOpts) error {
-	data := ServiceState{
-		OrigPolicy:       *opts.origPolicy,
-		EnrollPolicy:     *opts.enrollPolicy,
-		CurrentPolicy:    *opts.currentPolicy,
-		Agent:            opts.agent,
-		ConfigFilePath:   opts.config.Path,
-		VariantName:      opts.config.ServiceVariantName,
-		ServiceRunID:     opts.svcInfo.Test.RunID,
-		AgentRunID:       opts.agentInfo.Test.RunID,
-		ServiceOutputDir: opts.svcInfo.OutputDir,
-	}
-	dataBytes, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshall service setup data: %w", err)
-	}
-
-	err = os.WriteFile(r.serviceStateFilePath, dataBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("failed to write service setup JSON: %w", err)
 	}
 	return nil
 }
