@@ -46,6 +46,8 @@ type tester struct {
 	withCoverage       bool
 	coverageType       string
 
+	testCaseFile string
+
 	pipelines []ingest.Pipeline
 
 	runCompareResults bool
@@ -62,6 +64,7 @@ type PipelineTesterOptions struct {
 	GenerateTestResult bool
 	WithCoverage       bool
 	CoverageType       string
+	TestCaseFile       string
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -71,6 +74,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		esAPI:              options.API,
 		deferCleanup:       options.DeferCleanup,
 		testFolder:         options.TestFolder,
+		testCaseFile:       options.TestCaseFile,
 		generateTestResult: options.GenerateTestResult,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
@@ -96,6 +100,11 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 			r.runCompareResults = false
 		}
 	}
+
+	if r.esAPI == nil {
+		return nil, errors.New("missing Elasticsearch client")
+	}
+
 	return &r, nil
 }
 
@@ -140,15 +149,6 @@ func (r *tester) TearDown(ctx context.Context) error {
 }
 
 func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
-	testCaseFiles, err := r.listTestCaseFiles()
-	if err != nil {
-		return nil, fmt.Errorf("listing test case definitions failed: %w", err)
-	}
-
-	if r.esAPI == nil {
-		return nil, errors.New("missing Elasticsearch client")
-	}
-
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
@@ -198,21 +198,19 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	results := make([]testrunner.TestResult, 0)
-	for _, testCaseFile := range testCaseFiles {
-		validatorOptions := []fields.ValidatorOption{
-			fields.WithSpecVersion(pkgManifest.SpecVersion),
-			// explicitly enabled for pipeline tests only
-			// since system tests can have dynamic public IPs
-			fields.WithEnabledAllowedIPCheck(),
-			fields.WithExpectedDatasets(expectedDatasets),
-			fields.WithEnabledImportAllECSSChema(true),
-		}
-		result, err := r.runTestCase(ctx, testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, result)
+	validatorOptions := []fields.ValidatorOption{
+		fields.WithSpecVersion(pkgManifest.SpecVersion),
+		// explicitly enabled for pipeline tests only
+		// since system tests can have dynamic public IPs
+		fields.WithEnabledAllowedIPCheck(),
+		fields.WithExpectedDatasets(expectedDatasets),
+		fields.WithEnabledImportAllECSSChema(true),
 	}
+	result, err := r.runTestCase(ctx, r.testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
+	if err != nil {
+		return nil, err
+	}
+	results = append(results, result)
 
 	esLogs, err := r.checkElasticsearchLogs(ctx, startTime)
 	if err != nil {

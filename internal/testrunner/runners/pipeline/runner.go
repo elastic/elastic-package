@@ -7,10 +7,12 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -118,24 +120,51 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	// TODO: Return a tester per each configuration file defined in the data stream.
 	var testers []testrunner.Tester
 	for _, t := range folders {
-		t, err := NewPipelineTester(PipelineTesterOptions{
-			TestFolder:         t,
-			PackageRootPath:    r.packageRootPath,
-			GenerateTestResult: r.generateTestResult,
-			WithCoverage:       r.withCoverage,
-			CoverageType:       r.coverageType,
-			DeferCleanup:       r.deferCleanup,
-			Profile:            r.profile,
-			API:                r.esAPI,
-		})
+		testCaseFiles, err := r.listTestCaseFiles(t)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
+			return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 		}
-		testers = append(testers, t)
+
+		for _, caseFile := range testCaseFiles {
+			logger.Debugf("Creating pipeline tester for data stream %q and config file %q", t.DataStream, caseFile)
+			t, err := NewPipelineTester(PipelineTesterOptions{
+				TestFolder:         t,
+				PackageRootPath:    r.packageRootPath,
+				GenerateTestResult: r.generateTestResult,
+				WithCoverage:       r.withCoverage,
+				CoverageType:       r.coverageType,
+				DeferCleanup:       r.deferCleanup,
+				Profile:            r.profile,
+				API:                r.esAPI,
+				TestCaseFile:       caseFile,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
+			}
+			testers = append(testers, t)
+		}
+
 	}
 	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {
 	return TestType
+}
+
+func (r *runner) listTestCaseFiles(folder testrunner.TestFolder) ([]string, error) {
+	fis, err := os.ReadDir(folder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", folder.Path, err)
+	}
+
+	var files []string
+	for _, fi := range fis {
+		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
+			continue
+		}
+		files = append(files, fi.Name())
+	}
+	return files, nil
 }
