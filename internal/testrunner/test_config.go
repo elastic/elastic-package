@@ -6,7 +6,6 @@ package testrunner
 
 import (
 	"fmt"
-	"net/url"
 )
 
 // SkipConfig allows a test to be marked as skipped
@@ -15,11 +14,11 @@ type SkipConfig struct {
 	Reason string `config:"reason"`
 
 	// Link is a URL where more details about the skipped test can be found.
-	Link url.URL `config:"url"`
+	Link string `config:"link"`
 }
 
 func (s SkipConfig) String() string {
-	return fmt.Sprintf("%s [%s]", s.Reason, s.Link.String())
+	return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
 }
 
 // SkippableConfig is a test configuration that allows skipping. This
