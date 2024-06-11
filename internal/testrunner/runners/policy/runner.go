@@ -118,7 +118,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	// TODO: Return a tester per each configuration file defined in the data stream folder
 	var testers []testrunner.Tester
 	for _, folder := range folders {
 		tests, err := filepath.Glob(filepath.Join(folder.Path, "test-*.yml"))
