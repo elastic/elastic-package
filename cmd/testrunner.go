@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -166,15 +165,12 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	_, pkg := filepath.Split(packageRootPath)
-
-	runner := asset.NewAssetTester(asset.AssetTesterOptions{
-		TestFolder:      testrunner.TestFolder{Package: pkg},
+	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
 		PackageRootPath: packageRootPath,
 		KibanaClient:    kibanaClient,
 	})
 
-	results, err := testrunner.Run(ctx, runner)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
 	}
@@ -243,62 +239,21 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	hasDataStreams, err := packageHasDataStreams(manifest)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
-		return fmt.Errorf("cannot determine if package has data streams: %w", err)
-	}
-	var testFolders []testrunner.TestFolder
-	if hasDataStreams {
-		var dataStreams []string
-		if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		testFolders, err = testrunner.AssumeTestFolders(packageRootPath, dataStreams, testType)
-		if err != nil {
-			return fmt.Errorf("unable to assume test folder paths: %w", err)
-		}
-
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
-		}
-	} else {
-		_, pkg := filepath.Split(packageRootPath)
-		testFolders = []testrunner.TestFolder{
-			{
-				Package: pkg,
-			},
-		}
+		return err
 	}
 
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := static.NewStaticTester(static.StaticTesterOptions{
-			TestFolder:      folder,
-			PackageRootPath: packageRootPath,
-		})
+	runner := static.NewStaticTestRunner(static.StaticTestRunnerOptions{
+		PackageRootPath:    packageRootPath,
+		DataStreams:        dataStreams,
+		FailOnMissingTests: failOnMissing,
+	})
 
-		return runner, nil
-	}
-
-	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -378,53 +333,9 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
-	}
-
-	hasDataStreams, err := packageHasDataStreams(manifest)
-	if err != nil {
-		return fmt.Errorf("cannot determine if package has data streams: %w", err)
-	}
-	var testFolders []testrunner.TestFolder
-	if hasDataStreams {
-		var dataStreams []string
-		if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
-		}
-	} else {
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-		if failOnMissing && len(testFolders) == 0 {
-			return fmt.Errorf("no %s tests found", testType)
-		}
+		return err
 	}
 
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
@@ -439,24 +350,24 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner, err := pipeline.NewPipelineTester(pipeline.PipelineTesterOptions{
-			Profile:            profile,
-			TestFolder:         folder,
-			PackageRootPath:    packageRootPath,
-			GenerateTestResult: generateTestResult,
-			API:                esClient.API,
-			WithCoverage:       testCoverage,
-			CoverageType:       testCoverageFormat,
-			DeferCleanup:       deferCleanup,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create pipeline runner: %w", err)
-		}
-		return runner, nil
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	results, err := testrunner.RunWithFactory(ctx, testFolders, factory)
+	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
+		Profile:            profile,
+		PackageRootPath:    packageRootPath,
+		API:                esClient.API,
+		DataStreams:        dataStreams,
+		FailOnMissingTests: failOnMissing,
+		GenerateTestResult: generateTestResult,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
+		DeferCleanup:       deferCleanup,
+	})
+
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -502,7 +413,6 @@ func getTestRunnerSystemCommand() *cobra.Command {
 
 func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Run system tests for the package\n")
-	testType := testrunner.TestType("system")
 
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
@@ -561,16 +471,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
-	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
-	}
-
-	hasDataStreams, err := packageHasDataStreams(manifest)
-	if err != nil {
-		return fmt.Errorf("cannot determine if package has data streams: %w", err)
-	}
-
 	runSetup, err := cmd.Flags().GetBool(cobraext.SetupFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.SetupFlagName)
@@ -599,53 +499,9 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		configFileFlag = absPath
 	}
 
-	var testFolders []testrunner.TestFolder
-	if hasDataStreams {
-		var dataStreams []string
-		if runSetup || runTearDown || runTestsOnly {
-			if runTearDown || runTestsOnly {
-				configFileFlag, err = readConfigFileFromState(profile.ProfilePath)
-				if err != nil {
-					return fmt.Errorf("failed to get config file from state: %w", err)
-				}
-			}
-			dataStream := testrunner.ExtractDataStreamFromPath(configFileFlag, packageRootPath)
-			dataStreams = append(dataStreams, dataStream)
-		} else if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
-		}
-	} else {
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-		if failOnMissing && len(testFolders) == 0 {
-			return fmt.Errorf("no %s tests found", testType)
-		}
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
+	if err != nil {
+		return err
 	}
 
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
@@ -671,49 +527,35 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if runSetup || runTearDown || runTestsOnly {
-		// variant flag is not checked here since there are packages that do not have variants
-		if len(testFolders) != 1 {
-			return fmt.Errorf("wrong number of test folders (expected 1): %d", len(testFolders))
-		}
-
-		cmd.Printf("Running tests per stages (technical preview)\n")
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		PackageRootPath: packageRootPath,
-		KibanaClient:    kibanaClient,
-		RunSetup:        runSetup,
-		RunTearDown:     runTearDown,
-		RunTestsOnly:    runTestsOnly,
+		Profile:                    profile,
+		PackageRootPath:            packageRootPath,
+		KibanaClient:               kibanaClient,
+		API:                        esClient.API,
+		ConfigFilePath:             configFileFlag,
+		RunSetup:                   runSetup,
+		RunTearDown:                runTearDown,
+		RunTestsOnly:               runTestsOnly,
+		DataStreams:                dataStreams,
+		ServiceVariant:             variantFlag,
+		FailOnMissingTests:         failOnMissing,
+		GenerateTestResult:         generateTestResult,
+		DeferCleanup:               deferCleanup,
+		RunIndependentElasticAgent: false,
 	})
 
-	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := system.NewSystemTester(system.SystemTesterOptions{
-			Profile:                    profile,
-			TestFolder:                 folder,
-			PackageRootPath:            packageRootPath,
-			ServiceVariant:             variantFlag,
-			GenerateTestResult:         generateTestResult,
-			API:                        esClient.API,
-			KibanaClient:               kibanaClient,
-			DeferCleanup:               deferCleanup,
-			ConfigFilePath:             configFileFlag,
-			RunSetup:                   runSetup,
-			RunTearDown:                runTearDown,
-			RunTestsOnly:               runTestsOnly,
-			RunIndependentElasticAgent: false,
-		})
-
-		return runner, nil
-	}
-
-	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
+	logger.Debugf("Running suite...")
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
 
-	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(results, runner.Type(), reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		return fmt.Errorf("failed to process results: %w", err)
 	}
@@ -786,54 +628,9 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
-	}
-
-	hasDataStreams, err := packageHasDataStreams(manifest)
-	if err != nil {
-		return fmt.Errorf("cannot determine if package has data streams: %w", err)
-	}
-
-	var testFolders []testrunner.TestFolder
-	if hasDataStreams {
-		var dataStreams []string
-		if cmd.Flags().Lookup(cobraext.DataStreamsFlagName) != nil {
-			// We check for the existence of the data streams flag before trying to
-			// parse it because if the root test command is run instead of one of the
-			// subcommands of test, the data streams flag will not be defined.
-			dataStreams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-			common.TrimStringSlice(dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-
-			err = validateDataStreamsFlag(packageRootPath, dataStreams)
-			if err != nil {
-				return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-			}
-		}
-
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, dataStreams, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-
-		if failOnMissing && len(testFolders) == 0 {
-			if len(dataStreams) > 0 {
-				return fmt.Errorf("no %s tests found for %s data stream(s)", testType, strings.Join(dataStreams, ","))
-			}
-			return fmt.Errorf("no %s tests found", testType)
-		}
-	} else {
-		testFolders, err = testrunner.FindTestFolders(packageRootPath, nil, testType)
-		if err != nil {
-			return fmt.Errorf("unable to determine test folder paths: %w", err)
-		}
-		if failOnMissing && len(testFolders) == 0 {
-			return fmt.Errorf("no %s tests found", testType)
-		}
+		return err
 	}
 
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
@@ -844,22 +641,20 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
-		PackageRootPath: packageRootPath,
-		KibanaClient:    kibanaClient,
-	})
-
-	factory := func(folder testrunner.TestFolder) (testrunner.Tester, error) {
-		runner := policy.NewPolicyTester(policy.PolicyTesterOptions{
-			TestFolder:         folder,
-			PackageRootPath:    packageRootPath,
-			GenerateTestResult: generateTestResult,
-			KibanaClient:       kibanaClient,
-		})
-		return runner, nil
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	results, err := testrunner.RunSuite(ctx, testFolders, runner, factory)
+	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
+		PackageRootPath:    packageRootPath,
+		KibanaClient:       kibanaClient,
+		DataStreams:        dataStreams,
+		FailOnMissingTests: failOnMissing,
+		GenerateTestResult: generateTestResult,
+	})
+
+	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
@@ -895,35 +690,6 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 
 }
 
-func readConfigFileFromState(profilePath string) (string, error) {
-	type stateData struct {
-		ConfigFilePath string `json:"config_file_path"`
-	}
-	var serviceStateData stateData
-	setupDataPath := filepath.Join(testrunner.StateFolderPath(profilePath), testrunner.ServiceStateFileName)
-	fmt.Printf("Reading service state data from file: %s\n", setupDataPath)
-	contents, err := os.ReadFile(setupDataPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read service state data %q: %w", setupDataPath, err)
-	}
-	err = json.Unmarshal(contents, &serviceStateData)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode service state data %q: %w", setupDataPath, err)
-	}
-	return serviceStateData.ConfigFilePath, nil
-}
-
-func packageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
-	switch manifest.Type {
-	case "integration":
-		return true, nil
-	case "input":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
-	}
-}
-
 func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {
 	for _, dataStream := range dataStreams {
 		path := filepath.Join(packageRootPath, "data_stream", dataStream)
@@ -937,4 +703,18 @@ func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error
 		}
 	}
 	return nil
+}
+
+func getDataStreamsFlag(cmd *cobra.Command, packageRootPath string) ([]string, error) {
+	dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+	common.TrimStringSlice(dataStreams)
+	if err != nil {
+		return []string{}, cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+	}
+
+	err = validateDataStreamsFlag(packageRootPath, dataStreams)
+	if err != nil {
+		return []string{}, cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+	}
+	return dataStreams, nil
 }

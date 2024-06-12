@@ -16,13 +16,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/stack"
-)
-
-const (
-	ServiceStateFileName = "service.json"
-	StateFolderName      = "state"
 )
 
 // TestType represents the various supported test types
@@ -75,6 +70,8 @@ type TestRunner interface {
 
 	// SetupRunner prepares global resources required by the test runner.
 	SetupRunner(context.Context) error
+
+	GetTests(context.Context) ([]Tester, error)
 
 	// TearDownRunner cleans up any global test runner resources. It must be called
 	// after the test runner has finished executing all its tests.
@@ -291,15 +288,20 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factory TesterFactory) ([]TestResult, error) {
-	if len(tests) == 0 {
+func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
+	testers, err := runner.GetTests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve tests: %w", err)
+	}
+	if len(testers) == 0 {
 		return nil, nil
 	}
-	err := runner.SetupRunner(ctx)
+
+	err = runner.SetupRunner(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
-	results, err := RunWithFactory(ctx, tests, factory)
+	results, err := runWithFactory(ctx, testers)
 	if err != nil {
 		return results, err
 	}
@@ -312,15 +314,11 @@ func RunSuite(ctx context.Context, tests []TestFolder, runner TestRunner, factor
 	return results, nil
 }
 
-// RunWithFactory method delegates execution of tests to the runners generated through the factory function.
-func RunWithFactory(ctx context.Context, folders []TestFolder, factory TesterFactory) ([]TestResult, error) {
+// runWithFactory method delegates execution of tests to the runners generated through the factory function.
+func runWithFactory(ctx context.Context, testers []Tester) ([]TestResult, error) {
 	var results []TestResult
-	for _, folder := range folders {
-		tester, err := factory(folder)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create runner: %w", err)
-		}
-		r, err := Run(ctx, tester)
+	for _, tester := range testers {
+		r, err := run(ctx, tester)
 		if err != nil {
 			return nil, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
 		}
@@ -329,8 +327,8 @@ func RunWithFactory(ctx context.Context, folders []TestFolder, factory TesterFac
 	return results, nil
 }
 
-// Run method delegates execution of tests to the given test runner.
-func Run(ctx context.Context, tester Tester) ([]TestResult, error) {
+// run method delegates execution of tests to the given test runner.
+func run(ctx context.Context, tester Tester) ([]TestResult, error) {
 	results, err := tester.Run(ctx)
 	tdErr := tester.TearDown(ctx)
 	if err != nil {
@@ -363,7 +361,13 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 	return paths, err
 }
 
-// StateFolderPath returns the folder where the state data is stored
-func StateFolderPath(profilePath string) string {
-	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
+func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
+	switch manifest.Type {
+	case "integration":
+		return true, nil
+	case "input":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
+	}
 }
