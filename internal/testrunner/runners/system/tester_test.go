@@ -373,13 +373,13 @@ func TestCheckAgentLogs(t *testing.T) {
 				})
 			}
 
-			runner := runner{
+			tester := tester{
 				testFolder: testrunner.TestFolder{
 					Package:    "package",
 					DataStream: "datastream",
 				},
 			}
-			results, err := runner.checkAgentLogs(dump, startTime, tc.errorPatterns)
+			results, err := tester.checkAgentLogs(dump, startTime, tc.errorPatterns)
 			require.NoError(t, err)
 			require.Len(t, results, tc.expectedErrors)
 

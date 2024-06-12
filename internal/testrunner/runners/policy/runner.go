@@ -7,13 +7,11 @@ package policy
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
-
-	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -23,49 +21,34 @@ const (
 )
 
 type runner struct {
-	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	packageRootPath string
+	kibanaClient    *kibana.Client
+
+	dataStreams        []string
+	failOnMissingTests bool
 	generateTestResult bool
-	kibanaClient       *kibana.Client
 
 	resourcesManager *resources.Manager
 	cleanup          func(context.Context) error
 }
 
-// Ensures that runner implements testrunner.Tester interface
-var _ testrunner.Tester = new(runner)
-
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
-	KibanaClient    *kibana.Client
-	PackageRootPath string
-}
-
-type PolicyTesterOptions struct {
-	TestFolder         testrunner.TestFolder
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
+	DataStreams        []string
+	FailOnMissingTests bool
 	GenerateTestResult bool
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
-		kibanaClient:    options.KibanaClient,
-		packageRootPath: options.PackageRootPath,
-	}
-
-	runner.resourcesManager = resources.NewManager()
-	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
-	return &runner
-}
-
-func NewPolicyTester(options PolicyTesterOptions) *runner {
-	runner := runner{
-		kibanaClient:       options.KibanaClient,
-		testFolder:         options.TestFolder,
 		packageRootPath:    options.PackageRootPath,
+		kibanaClient:       options.KibanaClient,
+		dataStreams:        options.DataStreams,
+		failOnMissingTests: options.FailOnMissingTests,
 		generateTestResult: options.GenerateTestResult,
 	}
 	runner.resourcesManager = resources.NewManager()
@@ -95,119 +78,58 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 	return nil
 }
 
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	var folders []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	if hasDataStreams {
+		var dataStreams []string
+		if len(r.dataStreams) > 0 {
+			dataStreams = r.dataStreams
+		}
+
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(folders) == 0 {
+			if len(dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	} else {
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
+		}
+		if r.failOnMissingTests && len(folders) == 0 {
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
+	}
+
+	// TODO: Return a tester per each configuration file defined in the data stream folder
+	var testers []testrunner.Tester
+	for _, t := range folders {
+		testers = append(testers, NewPolicyTester(PolicyTesterOptions{
+			PackageRootPath:    r.packageRootPath,
+			TestFolder:         t,
+			KibanaClient:       r.kibanaClient,
+			GenerateTestResult: r.generateTestResult,
+		}))
+	}
+	return testers, nil
+}
+
 func (r *runner) Type() testrunner.TestType {
 	return TestType
-}
-
-func (r *runner) String() string {
-	return string(TestType)
-}
-
-func (r *runner) Run(ctx context.Context) ([]testrunner.TestResult, error) {
-	var results []testrunner.TestResult
-	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
-	if err != nil {
-		return nil, fmt.Errorf("failed to look for test files in %s: %w", r.testFolder.Path, err)
-	}
-	for _, test := range tests {
-		result, err := r.runTest(ctx, r.resourcesManager, test)
-		if err != nil {
-			logger.Error(err)
-		}
-		results = append(results, result...)
-	}
-
-	return results, nil
-}
-
-func (r *runner) runTest(ctx context.Context, manager *resources.Manager, testPath string) ([]testrunner.TestResult, error) {
-	result := testrunner.NewResultComposer(testrunner.TestResult{
-		TestType:   TestType,
-		Name:       filepath.Base(testPath),
-		Package:    r.testFolder.Package,
-		DataStream: r.testFolder.DataStream,
-	})
-
-	testConfig, err := readTestConfig(testPath)
-	if err != nil {
-		return result.WithErrorf("failed to read test config from %s: %w", testPath, err)
-	}
-
-	testName := testNameFromPath(testPath)
-	policy := resources.FleetAgentPolicy{
-		Name:      testName,
-		Namespace: "ep",
-		PackagePolicies: []resources.FleetPackagePolicy{
-			{
-				Name:           testName + "-" + r.testFolder.Package,
-				RootPath:       r.packageRootPath,
-				DataStreamName: r.testFolder.DataStream,
-				InputName:      testConfig.Input,
-				Vars:           testConfig.Vars,
-				DataStreamVars: testConfig.DataStream.Vars,
-			},
-		},
-	}
-	resources := resource.Resources{&policy}
-	_, testErr := manager.ApplyCtx(ctx, resources)
-	if testErr == nil {
-		if r.generateTestResult {
-			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
-		} else {
-			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
-		}
-	}
-
-	// Cleanup
-	policy.Absent = true
-	_, err = manager.ApplyCtx(ctx, resources)
-	if err != nil {
-		if testErr != nil {
-			return result.WithErrorf("cleanup failed with %w after test failed: %w", err, testErr)
-		}
-		return result.WithErrorf("cleanup failed: %w", err)
-	}
-
-	if testErr != nil {
-		return result.WithError(testErr)
-	}
-	return result.WithSuccess()
-}
-
-func testNameFromPath(path string) string {
-	ext := filepath.Ext(path)
-	return strings.TrimSuffix(filepath.Base(path), ext)
-}
-
-func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
-	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
-	}
-	setupResources := resources.Resources{
-		&packageResource,
-	}
-
-	cleanup = func(ctx context.Context) error {
-		packageResource.Absent = true
-		_, err := manager.ApplyCtx(ctx, setupResources)
-		return err
-	}
-
-	logger.Debugf("Installing package...")
-	_, err = manager.ApplyCtx(ctx, setupResources)
-	if err != nil {
-		if ctx.Err() == nil {
-			cleanupErr := cleanup(ctx)
-			if cleanupErr != nil {
-				return nil, fmt.Errorf("setup failed: %w (with cleanup error: %w)", err, cleanupErr)
-			}
-		}
-		return nil, fmt.Errorf("setup failed: %w", err)
-	}
-
-	return cleanup, err
-}
-
-func (r *runner) TearDown(ctx context.Context) error {
-	return nil
 }
