@@ -59,6 +59,11 @@ func (r *tester) String() string {
 	return string(TestType)
 }
 
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	return false
+}
+
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	var results []testrunner.TestResult
 

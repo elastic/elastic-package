@@ -127,6 +127,11 @@ func (r *tester) String() string {
 	return "pipeline"
 }
 
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	return false
+}
+
 // Run runs the pipeline tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)

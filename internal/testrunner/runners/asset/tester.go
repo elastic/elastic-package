@@ -57,6 +57,11 @@ func (r tester) String() string {
 	return "asset loading"
 }
 
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	return false
+}
+
 // Run runs the asset loading tests
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)

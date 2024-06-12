@@ -47,6 +47,11 @@ func (r tester) String() string {
 	return "static files"
 }
 
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	return false
+}
+
 func (r tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	return r.run(ctx)
 }

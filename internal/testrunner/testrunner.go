@@ -11,15 +11,22 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 )
+
+const DEFAULT_MAXIMUM_ROUTINES = 1
+
+var maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
 
 // TestType represents the various supported test types
 type TestType string
@@ -60,6 +67,9 @@ type Tester interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
+
+	// Parallel indicates if this test can be run in parallel or not
+	Parallel() bool
 }
 
 type TesterFactory func(TestFolder) (Tester, error)
@@ -307,28 +317,126 @@ func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 		}
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
-	results, err := runWithFactory(ctx, testers)
+
+	var parallelTesters, sequentialTesters []Tester
+	for _, tester := range testers {
+		if tester.Parallel() {
+			logger.Debugf("Found tester parallel")
+			parallelTesters = append(parallelTesters, tester)
+		} else {
+			logger.Debugf("Found tester sequential")
+			sequentialTesters = append(sequentialTesters, tester)
+		}
+	}
+
+	var allResults, results []TestResult
+	var parallelErr, sequentialErr error
+
+	results, parallelErr = runSuiteParallel(ctx, parallelTesters)
+	allResults = append(allResults, results...)
+
+	results, sequentialErr = runSuite(ctx, sequentialTesters)
+	allResults = append(allResults, results...)
 
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 	tdErr := runner.TearDownRunner(cleanupCtx)
 	if tdErr != nil {
-		return results, fmt.Errorf("failed to tear down %s runner: %w", runner.Type(), err)
+		return allResults, fmt.Errorf("failed to tear down %s runner: %w", runner.Type(), tdErr)
 	}
 
-	return results, err
+	if parallelErr != nil {
+		return allResults, parallelErr
+	}
+	if sequentialErr != nil {
+		return allResults, sequentialErr
+	}
+
+	return allResults, nil
 }
 
-// runWithFactory method delegates execution of tests to the runners generated through the factory function.
-func runWithFactory(ctx context.Context, testers []Tester) ([]TestResult, error) {
+func maxNumberRoutines() (int, error) {
+	var err error
+	maxRoutines := DEFAULT_MAXIMUM_ROUTINES
+	v, ok := os.LookupEnv(maximumNumberParallelTest)
+	if ok {
+		maxRoutines, err = strconv.Atoi(v)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read number of maximum routines from environment variable: %w", err)
+		}
+	}
+	return maxRoutines, nil
+}
+
+func runSuite(ctx context.Context, testers []Tester) ([]TestResult, error) {
+	if len(testers) == 0 {
+		return nil, nil
+	}
 	var results []TestResult
 	for _, tester := range testers {
 		r, err := run(ctx, tester)
 		if err != nil {
-			return nil, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
+			return results, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
 		}
 		results = append(results, r...)
 	}
+
+	return results, nil
+}
+
+// runSuiteParallel method delegates execution of tests to the runners generated through the factory function.
+func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, error) {
+	if len(testers) == 0 {
+		return nil, nil
+	}
+	maxRoutines, err := maxNumberRoutines()
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	type routineResult struct {
+		results []TestResult
+		err     error
+	}
+	chResults := make(chan routineResult, len(testers))
+
+	logger.Debugf(">>> Maximum routines: %d", maxRoutines)
+	// Use channel as a semaphore to limit the number of test executions in parallel
+	sem := make(chan int, maxRoutines)
+
+	for _, tester := range testers {
+		wg.Add(1)
+		aTester := tester
+		sem <- 1
+		go func() {
+			defer wg.Done()
+			r, err := run(ctx, aTester)
+			chResults <- routineResult{r, err}
+			<-sem
+		}()
+	}
+
+	wg.Wait()
+	var results []TestResult
+	var multiErr error
+	testType := testers[0].Type()
+	for range testers {
+		testResults := <-chResults
+
+		if testResults.err != nil {
+			multiErr = errors.Join(multiErr, testResults.err)
+		}
+
+		results = append(results, testResults.results...)
+	}
+	close(chResults)
+	close(sem)
+
+	if multiErr != nil {
+		return results, fmt.Errorf("error running package %s tests: %w", testType, multiErr)
+	}
+
 	return results, nil
 }
 

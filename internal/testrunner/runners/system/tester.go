@@ -152,6 +152,8 @@ type tester struct {
 
 	serviceStateFilePath string
 
+	globalConfig testrunner.GlobalRunnerTestConfig
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
@@ -231,6 +233,13 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
+
+	globalTestConfig, err := testrunner.AGlobalTestConfig(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read global config: %w", err)
+	}
+	r.globalConfig = globalTestConfig.System
+	logger.Debugf("Read config file for system tests:\n%v+", r.globalConfig)
 	return &r, nil
 }
 
@@ -245,6 +254,11 @@ func (r *tester) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *tester) String() string {
 	return "system"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	return !r.globalConfig.Sequential
 }
 
 // Run runs the system tests defined under the given folder
@@ -1367,6 +1381,13 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithSkip(config.Skip)
 	}
 
+	if r.globalConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			r.globalConfig.Skip.Reason, r.globalConfig.Skip.Link.String())
+		return result.WithSkip(config.Skip)
+	}
+
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
 	scenario, err := r.prepareScenario(ctx, config, svcInfo)
@@ -1391,7 +1412,7 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
 		}
-		logger.Debugf("found %d enrolled agent(s)", len(agents))
+		logger.Debugf("found %d enrolled agent(s) - policyID %s (%s) - expected agent %s", len(agents), agentInfo.Policy.ID, agentInfo.Policy.Name, agentInfo.Hostname)
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
