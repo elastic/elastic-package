@@ -28,11 +28,10 @@ func (u *packedURL) Unpack(s string) error {
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-func (u *packedURL) String() string {
+func (u packedURL) String() string {
 	return u.URL.String()
 }
 
