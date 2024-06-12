@@ -826,7 +826,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		// in Kubernetes or Custom Agents require this enroll policy too (service deployer).
 		logger.Debug("creating enroll policy...")
 		policyEnroll := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
+			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package to enroll agent for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
 		}
@@ -848,7 +848,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		// assigned to the agent with all the required changes (e.g. Package DataStream)
 		logger.Debug("creating test policy...")
 		policy := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, testTime),
+			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
 		}
