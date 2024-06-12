@@ -6,7 +6,6 @@ package policy
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -129,35 +128,6 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 func testNameFromPath(path string) string {
 	ext := filepath.Ext(path)
 	return strings.TrimSuffix(filepath.Base(path), ext)
-}
-
-func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
-	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
-	}
-	setupResources := resources.Resources{
-		&packageResource,
-	}
-
-	cleanup = func(ctx context.Context) error {
-		packageResource.Absent = true
-		_, err := manager.ApplyCtx(ctx, setupResources)
-		return err
-	}
-
-	logger.Debugf("Installing package...")
-	_, err = manager.ApplyCtx(ctx, setupResources)
-	if err != nil {
-		if ctx.Err() == nil {
-			cleanupErr := cleanup(ctx)
-			if cleanupErr != nil {
-				return nil, fmt.Errorf("setup failed: %w (with cleanup error: %w)", err, cleanupErr)
-			}
-		}
-		return nil, fmt.Errorf("setup failed: %w", err)
-	}
-
-	return cleanup, err
 }
 
 func (r *tester) TearDown(ctx context.Context) error {
