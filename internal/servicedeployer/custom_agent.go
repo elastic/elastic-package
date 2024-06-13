@@ -169,7 +169,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, svcInfo.Name)
-		return nil, fmt.Errorf("service is unhealthy: %w", err)
+		return &service, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	logger.Debugf("adding service container %s internal ports to context", p.ContainerName(serviceName))

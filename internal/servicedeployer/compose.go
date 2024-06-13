@@ -124,7 +124,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	} else {
 		err = p.Up(ctx, opts)
 		if err != nil {
-			return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
+			return &service, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 		}
 	}
 
@@ -133,7 +133,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 			Env: opts.Env,
 		}, svcInfo.Name)
-		return nil, fmt.Errorf("service is unhealthy: %w", err)
+		return &service, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
 	// Added a specific alias when connecting the service to the network.
