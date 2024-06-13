@@ -1427,7 +1427,7 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
 		}
-		logger.Debugf("found %d enrolled agent(s) - policyID %s (%s) - expected agent %s", len(agents), agentInfo.Policy.ID, agentInfo.Policy.Name, agentInfo.Hostname)
+		logger.Debugf("found %d enrolled agent(s)", len(agents))
 		if len(agents) == 0 {
 			return false, nil // selected agents are unavailable yet
 		}
