@@ -424,6 +424,7 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 	for range testers {
 		testResults := <-chResults
 
+		logger.Debugf("Processing test result %s", testResults.results[0].Name)
 		if testResults.err != nil {
 			multiErr = errors.Join(multiErr, testResults.err)
 		}
