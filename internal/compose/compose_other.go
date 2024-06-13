@@ -55,9 +55,12 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 
 	logger.Debugf("running command: %s", cmd)
 	err = cmd.Run()
-	ptty.Close()
 	tty.Close()
 	wg.Wait()
+
+	// Don't close the PTTY before the goroutine with the Copy has finished.
+	ptty.Close()
+
 	if err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
 			return fmt.Errorf("%w: %s", err, msg)
