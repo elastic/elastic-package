@@ -837,6 +837,19 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 
+	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		// ensure that policyToEnroll policy gets deleted if the execution receives a signal
+		// before creating the test policy
+		// This handler is going to be redefined after creating the test policy
+		if r.runTestsOnly {
+			return nil
+		}
+		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		return nil
+	}
+
 	if r.runTearDown {
 		// required to assign the policy stored in the service state file
 		// so data stream related to this Agent Policy can be obtained (and deleted)

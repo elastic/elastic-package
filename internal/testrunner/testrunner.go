@@ -16,6 +16,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -299,19 +300,23 @@ func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 
 	err = runner.SetupRunner(ctx)
 	if err != nil {
+		cleanupCtx := context.WithoutCancel(ctx)
+		tdErr := runner.TearDownRunner(cleanupCtx)
+		if tdErr != nil {
+			logger.Debugf("failed to tear down %s runner: %w", runner.Type(), tdErr)
+		}
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
 	results, err := runWithFactory(ctx, testers)
-	if err != nil {
-		return results, err
-	}
 
-	err = runner.TearDownRunner(ctx)
-	if err != nil {
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
+	tdErr := runner.TearDownRunner(cleanupCtx)
+	if tdErr != nil {
 		return results, fmt.Errorf("failed to tear down %s runner: %w", runner.Type(), err)
 	}
 
-	return results, nil
+	return results, err
 }
 
 // runWithFactory method delegates execution of tests to the runners generated through the factory function.
