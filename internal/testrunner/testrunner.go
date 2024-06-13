@@ -411,9 +411,17 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 		sem <- 1
 		go func() {
 			defer wg.Done()
+			defer func() {
+				<-sem
+			}()
+			if err := ctx.Err(); err != nil {
+				logger.Errorf("context error: %s", context.Cause(ctx))
+				chResults <- routineResult{nil, err}
+				return
+			}
+			// TODO: How to check if ctx is Done or Cancelled, to not call to "run" method
 			r, err := run(ctx, aTester)
 			chResults <- routineResult{r, err}
-			<-sem
 		}()
 	}
 
@@ -424,7 +432,9 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 	for range testers {
 		testResults := <-chResults
 
-		logger.Debugf("Processing test result %s", testResults.results[0].Name)
+		if len(testResults.results) > 0 {
+			logger.Debugf("Processing test result %s", testResults.results[0].Name)
+		}
 		if testResults.err != nil {
 			multiErr = errors.Join(multiErr, testResults.err)
 		}
