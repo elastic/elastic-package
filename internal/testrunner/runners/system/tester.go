@@ -516,6 +516,7 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+			logger.Debugf("Failed deleting test policy handler...: %v", err)
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
@@ -606,7 +607,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
-		return partial, err
+		return partial, errors.Join(err, fmt.Errorf("failed to tear down runner: %w", tdErr))
 	}
 	if tdErr != nil {
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
@@ -924,66 +925,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	scenario.agent = agentDeployed
 
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
-	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("No service deployer defined for this test")
-	} else if err != nil {
-		return nil, err
-	}
-
-	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
-	if err != nil {
-		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
-	}
-
-	// store the time just before adding the Test Policy, this time will be used to check
-	// the agent logs from that time onwards to avoid possible previous errors present in logs
-	scenario.startTestTime = time.Now()
-
-	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, *r.dataStreamManifest, *config, policyToTest.Namespace)
-	if r.runTearDown {
-		logger.Debug("Skip adding data stream config to policy")
-	} else {
-		if err := r.kibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
-			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
-		}
-	}
-	scenario.kibanaDataStream = ds
-
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
-
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-		ds.Namespace,
-	)
-	componentTemplatePackage := fmt.Sprintf(
-		"%s-%s@package",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-	)
-
-	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		r.deleteDataStream(ctx, scenario.dataStream)
-		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
-		}
-		return nil
-	}
-
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
 	agents, err := checkEnrolledAgents(ctx, r.kibanaClient, agentInfo, svcInfo, r.runIndependentElasticAgent)
@@ -1054,6 +995,66 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
 			return fmt.Errorf("error reassigning original log level to agent: %w", err)
+		}
+		return nil
+	}
+
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Debugf("No service deployer defined for this test")
+	} else if err != nil {
+		return nil, err
+	}
+
+	// Reload test config with ctx variable substitution.
+	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
+	if err != nil {
+		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
+	}
+
+	// store the time just before adding the Test Policy, this time will be used to check
+	// the agent logs from that time onwards to avoid possible previous errors present in logs
+	scenario.startTestTime = time.Now()
+
+	logger.Debug("adding package data stream to test policy...")
+	ds := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, *r.dataStreamManifest, *config, policyToTest.Namespace)
+	if r.runTearDown {
+		logger.Debug("Skip adding data stream config to policy")
+	} else {
+		if err := r.kibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
+			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+		}
+	}
+	scenario.kibanaDataStream = ds
+
+	// Delete old data
+	logger.Debug("deleting old data in data stream...")
+
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
+	scenario.dataStream = fmt.Sprintf(
+		"%s-%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+		ds.Namespace,
+	)
+	componentTemplatePackage := fmt.Sprintf(
+		"%s-%s@package",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+	)
+
+	r.cleanTestScenarioHandler = func(ctx context.Context) error {
+		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
+		r.deleteDataStream(ctx, scenario.dataStream)
+		if err != nil {
+			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
 		return nil
 	}
@@ -1197,12 +1198,14 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
-	if err != nil {
-		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
-	}
 
+	// Set shutdownServiceHandler even if there is any error, to remove service
+	// this is important mainly for terraform
 	r.shutdownServiceHandler = func(ctx context.Context) error {
 		if r.runTestsOnly {
+			return nil
+		}
+		if service == nil {
 			return nil
 		}
 		logger.Debug("tearing down service...")
@@ -1211,6 +1214,10 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		}
 
 		return nil
+	}
+
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
 	}
 	return service, service.Info(), nil
 }
