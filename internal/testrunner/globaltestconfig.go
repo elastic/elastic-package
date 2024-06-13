@@ -19,7 +19,7 @@ type GlobalTestConfig struct {
 }
 
 type GlobalRunnerTestConfig struct {
-	Sequential      bool `config:"sequential"`
+	Parallel        bool `config:"parallel"`
 	SkippableConfig `config:",inline"`
 }
 

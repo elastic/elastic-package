@@ -258,7 +258,7 @@ func (r *tester) String() string {
 
 // Parallel indicates if this tester can run in parallel or not.
 func (r tester) Parallel() bool {
-	return !r.globalConfig.Sequential
+	return r.globalConfig.Parallel
 }
 
 // Run runs the system tests defined under the given folder
