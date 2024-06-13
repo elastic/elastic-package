@@ -239,7 +239,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("failed to read global config: %w", err)
 	}
 	r.globalConfig = globalTestConfig.System
-	logger.Debugf("Read config file for system tests:\n%v+", r.globalConfig)
 	return &r, nil
 }
 
@@ -519,10 +518,15 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 	startTesting := time.Now()
 
-	partial, err := r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
-	results = append(results, partial...)
+	results, err = r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
+	}
+
+	// Now there is just one test executed
+	if len(results) > 0 && results[0].Skipped != nil {
+		logger.Debugf("Test skipped, avoid checking agent logs")
+		return results, nil
 	}
 
 	tempDir, err := os.MkdirTemp("", "test-system-")
@@ -570,7 +574,6 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
-	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(ctx, testConfig, svcInfo)
 
@@ -1385,7 +1388,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
 			r.globalConfig.Skip.Reason, r.globalConfig.Skip.Link.String())
-		return result.WithSkip(config.Skip)
+		return result.WithSkip(r.globalConfig.Skip)
 	}
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
