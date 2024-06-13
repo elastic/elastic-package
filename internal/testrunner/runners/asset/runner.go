@@ -37,6 +37,11 @@ func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
+// Type returns the type of test that can be run by this test runner.
+func (r *runner) Type() testrunner.TestType {
+	return TestType
+}
+
 func (r *runner) SetupRunner(ctx context.Context) error {
 	return nil
 }
@@ -54,8 +59,4 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}),
 	}
 	return testers, nil
-}
-
-func (r *runner) Type() testrunner.TestType {
-	return TestType
 }
