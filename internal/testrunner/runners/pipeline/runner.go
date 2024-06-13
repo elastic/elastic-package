@@ -7,6 +7,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -115,27 +116,51 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	// TODO: Return a tester per each configuration file defined in the data stream.
 	var testers []testrunner.Tester
-	for _, t := range folders {
-		t, err := NewPipelineTester(PipelineTesterOptions{
-			TestFolder:         t,
-			PackageRootPath:    r.packageRootPath,
-			GenerateTestResult: r.generateTestResult,
-			WithCoverage:       r.withCoverage,
-			CoverageType:       r.coverageType,
-			DeferCleanup:       r.deferCleanup,
-			Profile:            r.profile,
-			API:                r.esAPI,
-		})
+	for _, folder := range folders {
+		testCaseFiles, err := r.listTestCaseFiles(folder)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
+			return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 		}
-		testers = append(testers, t)
+
+		for _, caseFile := range testCaseFiles {
+			t, err := NewPipelineTester(PipelineTesterOptions{
+				TestFolder:         folder,
+				PackageRootPath:    r.packageRootPath,
+				GenerateTestResult: r.generateTestResult,
+				WithCoverage:       r.withCoverage,
+				CoverageType:       r.coverageType,
+				DeferCleanup:       r.deferCleanup,
+				Profile:            r.profile,
+				API:                r.esAPI,
+				TestCaseFile:       caseFile,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
+			}
+			testers = append(testers, t)
+		}
 	}
 	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {
 	return TestType
+}
+
+func (r *runner) listTestCaseFiles(folder testrunner.TestFolder) ([]string, error) {
+	fis, err := os.ReadDir(folder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", folder.Path, err)
+	}
+
+	var files []string
+	for _, fi := range fis {
+		if strings.HasSuffix(fi.Name(), expectedTestResultSuffix) ||
+			strings.HasSuffix(fi.Name(), configTestSuffixYAML) {
+			continue
+		}
+		files = append(files, fi.Name())
+	}
+	return files, nil
 }

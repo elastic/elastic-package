@@ -7,6 +7,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -117,19 +118,55 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	// TODO: Return a tester per each configuration file defined in the data stream folder
 	var testers []testrunner.Tester
-	for _, t := range folders {
-		testers = append(testers, NewPolicyTester(PolicyTesterOptions{
-			PackageRootPath:    r.packageRootPath,
-			TestFolder:         t,
-			KibanaClient:       r.kibanaClient,
-			GenerateTestResult: r.generateTestResult,
-		}))
+	for _, folder := range folders {
+		tests, err := filepath.Glob(filepath.Join(folder.Path, "test-*.yml"))
+		if err != nil {
+			return nil, fmt.Errorf("failed to look for test files in %s: %w", folder.Path, err)
+		}
+		for _, test := range tests {
+			testers = append(testers, NewPolicyTester(PolicyTesterOptions{
+				PackageRootPath:    r.packageRootPath,
+				TestFolder:         folder,
+				KibanaClient:       r.kibanaClient,
+				GenerateTestResult: r.generateTestResult,
+				TestPath:           test,
+			}))
+
+		}
 	}
 	return testers, nil
 }
 
 func (r *runner) Type() testrunner.TestType {
 	return TestType
+}
+
+func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
+	packageResource := resources.FleetPackage{
+		RootPath: r.packageRootPath,
+	}
+	setupResources := resources.Resources{
+		&packageResource,
+	}
+
+	cleanup = func(ctx context.Context) error {
+		packageResource.Absent = true
+		_, err := manager.ApplyCtx(ctx, setupResources)
+		return err
+	}
+
+	logger.Debugf("Installing package...")
+	_, err = manager.ApplyCtx(ctx, setupResources)
+	if err != nil {
+		if ctx.Err() == nil {
+			cleanupErr := cleanup(ctx)
+			if cleanupErr != nil {
+				return nil, fmt.Errorf("setup failed: %w (with cleanup error: %w)", err, cleanupErr)
+			}
+		}
+		return nil, fmt.Errorf("setup failed: %w", err)
+	}
+
+	return cleanup, err
 }

@@ -6,7 +6,6 @@ package policy
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -23,6 +22,7 @@ type tester struct {
 	packageRootPath    string
 	generateTestResult bool
 	kibanaClient       *kibana.Client
+	testPath           string
 
 	resourcesManager *resources.Manager
 }
@@ -32,6 +32,7 @@ var _ testrunner.Tester = new(tester)
 
 type PolicyTesterOptions struct {
 	TestFolder         testrunner.TestFolder
+	TestPath           string
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	GenerateTestResult bool
@@ -43,6 +44,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		testFolder:         options.TestFolder,
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
+		testPath:           options.TestPath,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -59,18 +61,13 @@ func (r *tester) String() string {
 
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	var results []testrunner.TestResult
-	tests, err := filepath.Glob(filepath.Join(r.testFolder.Path, "test-*.yml"))
+
+	result, err := r.runTest(ctx, r.resourcesManager, r.testPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to look for test files in %s: %w", r.testFolder.Path, err)
-	}
-	for _, test := range tests {
-		result, err := r.runTest(ctx, r.resourcesManager, test)
-		if err != nil {
-			logger.Error(err)
-		}
-		results = append(results, result...)
+		logger.Error(err)
 	}
 
+	results = append(results, result...)
 	return results, nil
 }
 
@@ -131,35 +128,6 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 func testNameFromPath(path string) string {
 	ext := filepath.Ext(path)
 	return strings.TrimSuffix(filepath.Base(path), ext)
-}
-
-func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
-	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
-	}
-	setupResources := resources.Resources{
-		&packageResource,
-	}
-
-	cleanup = func(ctx context.Context) error {
-		packageResource.Absent = true
-		_, err := manager.ApplyCtx(ctx, setupResources)
-		return err
-	}
-
-	logger.Debugf("Installing package...")
-	_, err = manager.ApplyCtx(ctx, setupResources)
-	if err != nil {
-		if ctx.Err() == nil {
-			cleanupErr := cleanup(ctx)
-			if cleanupErr != nil {
-				return nil, fmt.Errorf("setup failed: %w (with cleanup error: %w)", err, cleanupErr)
-			}
-		}
-		return nil, fmt.Errorf("setup failed: %w", err)
-	}
-
-	return cleanup, err
 }
 
 func (r *tester) TearDown(ctx context.Context) error {

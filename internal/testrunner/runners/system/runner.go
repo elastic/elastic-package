@@ -6,7 +6,10 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -16,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -38,7 +42,8 @@ type runner struct {
 	runTearDown    bool
 	runTestsOnly   bool
 
-	resourcesManager *resources.Manager
+	resourcesManager     *resources.Manager
+	serviceStateFilePath string
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -84,6 +89,8 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
+
+	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
 	return &r
 }
 
@@ -136,16 +143,38 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
 	}
 
-	configFilePath := r.configFilePath
+	if r.runSetup || r.runTearDown || r.runTestsOnly {
+		_, err := os.Stat(r.serviceStateFilePath)
+		logger.Debugf("Service state data exists in %s: %v", r.serviceStateFilePath, !os.IsNotExist(err))
+		if r.runSetup && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run --setup, required to tear down previous setup")
+		}
+		if r.runTestsOnly && os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run tests with --no-provision, setup first with --setup")
+		}
+		if r.runTearDown && os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run --tear-down, setup not found")
+		}
+	} else {
+		if _, err = os.Stat(r.serviceStateFilePath); !os.IsNotExist(err) {
+			return nil, fmt.Errorf("failed to run tests, required to tear down previous state run (path: %s)", r.serviceStateFilePath)
+		}
+	}
+
+	var serviceState ServiceState
+	if r.runTearDown || r.runTestsOnly {
+		serviceState, err = readServiceStateData(r.serviceStateFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read service state: %w", err)
+		}
+	}
 
 	if hasDataStreams {
 		var dataStreams []string
 		if r.runSetup || r.runTearDown || r.runTestsOnly {
+			configFilePath := r.configFilePath
 			if r.runTearDown || r.runTestsOnly {
-				configFilePath, err = readConfigFileFromState(r.profile.ProfilePath)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get config file from state: %w", err)
-				}
+				configFilePath = serviceState.ConfigFilePath
 			}
 			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRootPath)
 			dataStreams = append(dataStreams, dataStream)
@@ -181,24 +210,52 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
-	// TODO: Return a Tester per each combination of variant plus configuration file in each data stream / folder
 	var testers []testrunner.Tester
 	for _, t := range folders {
-		testers = append(testers, NewSystemTester(SystemTesterOptions{
-			Profile:                    r.profile,
-			PackageRootPath:            r.packageRootPath,
-			KibanaClient:               r.kibanaClient,
-			API:                        r.esAPI,
-			TestFolder:                 t,
-			ServiceVariant:             r.serviceVariant,
-			GenerateTestResult:         r.generateTestResult,
-			DeferCleanup:               r.deferCleanup,
-			RunSetup:                   r.runSetup,
-			RunTestsOnly:               r.runTestsOnly,
-			RunTearDown:                r.runTearDown,
-			ConfigFilePath:             r.configFilePath,
-			RunIndependentElasticAgent: r.runIndependentElasticAgent,
-		}))
+		var variants []string
+		var cfgFiles []string
+
+		if r.runTestsOnly || r.runTearDown {
+			variants = []string{serviceState.VariantName}
+			cfgFiles = []string{filepath.Base(serviceState.ConfigFilePath)}
+		} else {
+			variants, err = r.getAllVariants(t)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve variants from %s: %w", t.Path, err)
+			}
+
+			cfgFiles, err = r.getAllConfigFiles(t)
+			if err != nil {
+				return nil, fmt.Errorf("failed to retrieve config files from %s: %w", t.Path, err)
+			}
+		}
+
+		for _, variant := range variants {
+			for _, config := range cfgFiles {
+				logger.Debugf("System runner: data stream %q config file %q variant %q", t.DataStream, config, variant)
+				tester, err := NewSystemTester(SystemTesterOptions{
+					Profile:                    r.profile,
+					PackageRootPath:            r.packageRootPath,
+					KibanaClient:               r.kibanaClient,
+					API:                        r.esAPI,
+					TestFolder:                 t,
+					ServiceVariant:             variant,
+					GenerateTestResult:         r.generateTestResult,
+					DeferCleanup:               r.deferCleanup,
+					RunSetup:                   r.runSetup,
+					RunTestsOnly:               r.runTestsOnly,
+					RunTearDown:                r.runTearDown,
+					ConfigFileName:             config,
+					RunIndependentElasticAgent: r.runIndependentElasticAgent,
+				})
+				if err != nil {
+					return nil, fmt.Errorf(
+						"failed to create system runner for sdata stream %q variant %q config file %q: %w",
+						t.DataStream, variant, config, err)
+				}
+				testers = append(testers, tester)
+			}
+		}
 	}
 	return testers, nil
 }
@@ -216,4 +273,88 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 		},
 	}
+}
+
+func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []string {
+	if variantsFile == nil || variantsFile.Variants == nil {
+		return []string{""} // empty variants file switches to no-variant mode
+	}
+
+	var variantNames []string
+	for k := range variantsFile.Variants {
+		if r.serviceVariant != "" && r.serviceVariant != k {
+			continue
+		}
+		variantNames = append(variantNames, k)
+	}
+	return variantNames
+}
+
+func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) {
+	var variants []string
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(folder.Path)
+	if err != nil {
+		return nil, fmt.Errorf("locating data stream root failed: %w", err)
+	}
+	if found {
+		logger.Debugf("Running system tests for data stream %q", folder.DataStream)
+	} else {
+		logger.Debug("Running system tests for package")
+	}
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		PackageRootPath:    r.packageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
+	})
+	switch {
+	case errors.Is(err, os.ErrNotExist):
+		variants = r.selectVariants(nil)
+	case err != nil:
+		return nil, fmt.Errorf("failed fo find service deploy path: %w", err)
+	default:
+		variantsFile, err := servicedeployer.ReadVariantsFile(devDeployPath)
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("can't read service variant: %w", err)
+		}
+		variants = r.selectVariants(variantsFile)
+	}
+	if r.serviceVariant != "" && len(variants) == 0 {
+		return nil, fmt.Errorf("not found variant definition %q", r.serviceVariant)
+	}
+
+	if r.runSetup {
+		// variant information in runTestOnly or runTearDown modes is retrieved from serviceOptions (file in setup dir)
+		if len(variants) > 1 {
+			return nil, fmt.Errorf("a variant must be selected or trigger the test in no-variant mode (available variants: %s)", strings.Join(variants, ", "))
+		}
+		if len(variants) == 1 && variants[0] == "" {
+			logger.Debug("No variant mode")
+		}
+		logger.Debugf(">>>>>> number of variants loaded: %d - %q", len(variants), strings.Join(variants, ","))
+	}
+
+	return variants, nil
+}
+
+func (r *runner) getAllConfigFiles(folder testrunner.TestFolder) ([]string, error) {
+	var cfgFiles []string
+	var err error
+	if r.configFilePath != "" {
+		allCfgFiles, err := listConfigFiles(filepath.Dir(r.configFilePath))
+		if err != nil {
+			return nil, fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
+		baseFile := filepath.Base(r.configFilePath)
+		for _, cfg := range allCfgFiles {
+			if cfg == baseFile {
+				cfgFiles = append(cfgFiles, baseFile)
+			}
+		}
+	} else {
+		cfgFiles, err = listConfigFiles(folder.Path)
+		if err != nil {
+			return nil, fmt.Errorf("failed listing test case config cfgFiles: %w", err)
+		}
+	}
+	return cfgFiles, nil
 }
