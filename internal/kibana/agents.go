@@ -119,7 +119,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 			return fmt.Errorf("can't get the agent: %w", err)
 		}
 		logger.Debugf("Agent %s (Host: %s): Policy ID %s LogLevel: %s Status: %s",
-			agent.ID, agent.LocalMetadata.Host.Name, agent.PolicyID, agent.LocalMetadata.Host.Name, agent.LocalMetadata.Elastic.Agent.LogLevel, agent.Status)
+			agent.ID, agent.LocalMetadata.Host.Name, agent.PolicyID, agent.LocalMetadata.Elastic.Agent.LogLevel, agent.Status)
 
 		if agent.PolicyID == p.ID && agent.PolicyRevision >= p.Revision {
 			logger.Debugf("Policy revision assigned to the agent (ID: %s)...", a.ID)
