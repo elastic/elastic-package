@@ -33,20 +33,6 @@ func CoverageFormatsList() []string {
 	return coverageReportFormatters
 }
 
-func lineNumberPerTestType(testType string) int {
-	var lineNumberPerTestType map[string]int = map[string]int{
-		"asset":    1,
-		"pipeline": 2,
-		"system":   3,
-		"static":   4,
-	}
-	lineNumber, ok := lineNumberPerTestType[testType]
-	if !ok {
-		lineNumber = 5
-	}
-	return lineNumber
-}
-
 type testCoverageDetails struct {
 	packageName string
 	packageType string
@@ -105,21 +91,12 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
-
-	if details.coverage != nil {
-		// Use provided coverage report
-		return details.coverage, nil
+	if details.coverage == nil {
+		return nil, fmt.Errorf("coverage not found for test type %s", testType)
 	}
 
-	// generate a custom report if not available
-	baseFolder, err := GetBaseFolderPackageForCoverage(packageRootPath)
-	if err != nil {
-		return nil, err
-	}
-
-	report := transformToCoverageReport(details, baseFolder, coverageFormat, timestamp)
-
-	return report, nil
+	// Use provided coverage report
+	return details.coverage, nil
 }
 
 func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
@@ -206,18 +183,6 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 		return false, fmt.Errorf("can't stat path: %s: %w", ingestPipelinePath, err)
 	}
 	return true, nil
-}
-
-func transformToCoverageReport(details *testCoverageDetails, baseFolder, coverageFormat string, timestamp int64) CoverageReport {
-	if coverageFormat == "cobertura" {
-		return transformToCoberturaReport(details, baseFolder, timestamp)
-	}
-
-	if coverageFormat == "generic" {
-		return transformToGenericCoverageReport(details, baseFolder, timestamp)
-	}
-
-	return nil
 }
 
 func writeCoverageReportFile(report CoverageReport, packageName, testType string) error {
