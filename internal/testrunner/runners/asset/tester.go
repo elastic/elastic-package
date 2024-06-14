@@ -22,12 +22,16 @@ type tester struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
+	withCoverage     bool
+	coverageType     string
 }
 
 type AssetTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
 	KibanaClient    *kibana.Client
+	WithCoverage    bool
+	CoverageType    string
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
@@ -35,6 +39,8 @@ func NewAssetTester(options AssetTesterOptions) *tester {
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
 		kibanaClient:    options.KibanaClient,
+		withCoverage:    options.WithCoverage,
+		coverageType:    options.CoverageType,
 	}
 
 	manager := resources.NewManager()
@@ -131,20 +137,39 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			TestType:   TestType,
 		})
 
-		var r []testrunner.TestResult
+		var tr []testrunner.TestResult
 		if !findActualAsset(installedAssets, e) {
-			r, _ = rc.WithError(testrunner.ErrTestCaseFailed{
+			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
 				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
 			})
 		} else {
-			r, _ = rc.WithSuccess()
+			tr, _ = rc.WithSuccess()
+		}
+		result := tr[0]
+		if r.withCoverage && e.SourcePath != "" {
+			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(pkgName(rc), e.SourcePath, r.coverageType, true)
+			if err != nil {
+				tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
+					Reason:  "could not generate test coverage",
+					Details: fmt.Sprintf("could not generate test coverage for asset in %s: %v", e.SourcePath, err),
+				})
+				result = tr[0]
+			}
 		}
 
-		results = append(results, r[0])
+		results = append(results, result)
 	}
 
 	return results, nil
+}
+
+func pkgName(rc *testrunner.ResultComposer) string {
+	if rc.DataStream != "" {
+		return rc.Package + "." + rc.DataStream
+	}
+
+	return rc.Package
 }
 
 func (r *tester) TearDown(ctx context.Context) error {

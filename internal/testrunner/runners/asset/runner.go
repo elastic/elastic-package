@@ -19,17 +19,23 @@ const (
 type runner struct {
 	packageRootPath string
 	kibanaClient    *kibana.Client
+	withCoverage    bool
+	coverageType    string
 }
 
 type AssetTestRunnerOptions struct {
 	PackageRootPath string
 	KibanaClient    *kibana.Client
+	WithCoverage    bool
+	CoverageType    string
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
 		packageRootPath: options.PackageRootPath,
 		kibanaClient:    options.KibanaClient,
+		withCoverage:    options.WithCoverage,
+		coverageType:    options.CoverageType,
 	}
 	return &runner
 }
@@ -56,6 +62,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			PackageRootPath: r.packageRootPath,
 			KibanaClient:    r.kibanaClient,
 			TestFolder:      testrunner.TestFolder{Package: r.packageRootPath},
+			WithCoverage:    r.withCoverage,
+			CoverageType:    r.coverageType,
 		}),
 	}
 	return testers, nil
