@@ -20,18 +20,21 @@ import (
 )
 
 type tester struct {
-	testFolder      testrunner.TestFolder
-	packageRootPath string
+	testFolder       testrunner.TestFolder
+	packageRootPath  string
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 type StaticTesterOptions struct {
-	TestFolder      testrunner.TestFolder
-	PackageRootPath string
+	TestFolder       testrunner.TestFolder
+	PackageRootPath  string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
+		testFolder:       options.TestFolder,
+		packageRootPath:  options.PackageRootPath,
+		globalTestConfig: options.GlobalTestConfig,
 	}
 	return &runner
 }

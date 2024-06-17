@@ -22,19 +22,22 @@ type tester struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 type AssetTesterOptions struct {
-	TestFolder      testrunner.TestFolder
-	PackageRootPath string
-	KibanaClient    *kibana.Client
+	TestFolder       testrunner.TestFolder
+	PackageRootPath  string
+	KibanaClient     *kibana.Client
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		kibanaClient:    options.KibanaClient,
+		testFolder:       options.TestFolder,
+		packageRootPath:  options.PackageRootPath,
+		kibanaClient:     options.KibanaClient,
+		globalTestConfig: options.GlobalTestConfig,
 	}
 
 	manager := resources.NewManager()

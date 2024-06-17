@@ -18,11 +18,13 @@ import (
 )
 
 type tester struct {
-	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	testFolder      testrunner.TestFolder
+	packageRootPath string
+	kibanaClient    *kibana.Client
+	testPath        string
+
 	generateTestResult bool
-	kibanaClient       *kibana.Client
-	testPath           string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 
 	resourcesManager *resources.Manager
 }
@@ -36,6 +38,7 @@ type PolicyTesterOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	GenerateTestResult bool
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
@@ -45,6 +48,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 		testPath:           options.TestPath,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})

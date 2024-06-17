@@ -45,6 +45,7 @@ type tester struct {
 	generateTestResult bool
 	withCoverage       bool
 	coverageType       string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 
 	testCaseFile string
 
@@ -65,6 +66,7 @@ type PipelineTesterOptions struct {
 	WithCoverage       bool
 	CoverageType       string
 	TestCaseFile       string
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -78,6 +80,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		generateTestResult: options.GenerateTestResult,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)

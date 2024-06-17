@@ -17,19 +17,22 @@ const (
 )
 
 type runner struct {
-	packageRootPath string
-	kibanaClient    *kibana.Client
+	packageRootPath  string
+	kibanaClient     *kibana.Client
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 type AssetTestRunnerOptions struct {
-	PackageRootPath string
-	KibanaClient    *kibana.Client
+	PackageRootPath  string
+	KibanaClient     *kibana.Client
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
-		packageRootPath: options.PackageRootPath,
-		kibanaClient:    options.KibanaClient,
+		packageRootPath:  options.PackageRootPath,
+		kibanaClient:     options.KibanaClient,
+		globalTestConfig: options.GlobalTestConfig,
 	}
 	return &runner
 }
@@ -48,9 +51,10 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
-			PackageRootPath: r.packageRootPath,
-			KibanaClient:    r.kibanaClient,
-			TestFolder:      testrunner.TestFolder{Package: r.packageRootPath},
+			PackageRootPath:  r.packageRootPath,
+			KibanaClient:     r.kibanaClient,
+			TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
+			GlobalTestConfig: r.globalTestConfig,
 		}),
 	}
 	return testers, nil
