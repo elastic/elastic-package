@@ -207,21 +207,15 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
 
 	var err error
-	var found bool
 
 	r.locationManager, err = locations.NewLocationManager()
 	if err != nil {
 		return nil, fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
+	r.dataStreamPath, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
-	}
-	if found {
-		logger.Debugf("Running system tests for data stream %q", r.testFolder.DataStream)
-	} else {
-		logger.Debug("Running system tests for package")
 	}
 
 	if r.esAPI == nil {
