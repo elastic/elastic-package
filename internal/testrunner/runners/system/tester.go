@@ -1384,7 +1384,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 	if config.Skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			config.Skip.Reason, config.Skip.Link.String())
+			config.Skip.Reason, config.Skip.Link)
 		return result.WithSkip(config.Skip)
 	}
 
