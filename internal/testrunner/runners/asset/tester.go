@@ -62,6 +62,7 @@ func (r tester) String() string {
 
 // Parallel indicates if this tester can run in parallel or not.
 func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
 	return false
 }
 
