@@ -321,10 +321,8 @@ func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 	var parallelTesters, sequentialTesters []Tester
 	for _, tester := range testers {
 		if tester.Parallel() {
-			logger.Debugf("Found tester parallel")
 			parallelTesters = append(parallelTesters, tester)
 		} else {
-			logger.Debugf("Found tester sequential")
 			sequentialTesters = append(sequentialTesters, tester)
 		}
 	}
@@ -372,6 +370,7 @@ func runSuite(ctx context.Context, testers []Tester) ([]TestResult, error) {
 	if len(testers) == 0 {
 		return nil, nil
 	}
+	logger.Debugf("Running tests sequentially")
 	var results []TestResult
 	for _, tester := range testers {
 		r, err := run(ctx, tester)
@@ -401,7 +400,7 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 	}
 	chResults := make(chan routineResult, len(testers))
 
-	logger.Debugf(">>> Maximum routines: %d", maxRoutines)
+	logger.Debugf("Running tests in parallel. Maximum routines to run in parallel: %d", maxRoutines)
 	// Use channel as a semaphore to limit the number of test executions in parallel
 	sem := make(chan int, maxRoutines)
 
@@ -433,10 +432,6 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 	var multiErr error
 	testType := testers[0].Type()
 	for testResults := range chResults {
-
-		if len(testResults.results) > 0 {
-			logger.Debugf("Processing test result %s", testResults.results[0].Name)
-		}
 		if testResults.err != nil {
 			multiErr = errors.Join(multiErr, testResults.err)
 		}
