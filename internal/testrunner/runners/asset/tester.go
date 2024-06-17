@@ -102,6 +102,13 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithSkip(testConfig.Skip)
 	}
 
+	if r.globalTestConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			r.globalTestConfig.Skip.Reason, r.globalTestConfig.Skip.Link.String())
+		return result.WithSkip(r.globalTestConfig.Skip)
+	}
+
 	logger.Debug("installing package...")
 	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
 	if err != nil {

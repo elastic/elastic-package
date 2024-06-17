@@ -9,9 +9,13 @@ import (
 	"os"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 type testConfig struct {
+	testrunner.SkippableConfig `config:",inline"`
+
 	Input      string         `yaml:"input,omitempty"`
 	Vars       map[string]any `yaml:"vars,omitempty"`
 	DataStream struct {

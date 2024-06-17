@@ -94,6 +94,21 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	testName := testNameFromPath(testPath)
+
+	if testConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			testConfig.Skip.Reason, testConfig.Skip.Link.String())
+		return result.WithSkip(testConfig.Skip)
+	}
+
+	if r.globalTestConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			r.globalTestConfig.Skip.Reason, r.globalTestConfig.Skip.Link.String())
+		return result.WithSkip(r.globalTestConfig.Skip)
+	}
+
 	policy := resources.FleetAgentPolicy{
 		Name:      testName,
 		Namespace: "ep",

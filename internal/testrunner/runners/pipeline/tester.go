@@ -324,6 +324,15 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		return tr, nil
 	}
 
+	if r.globalTestConfig.Skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			r.globalTestConfig.Skip.Reason, r.globalTestConfig.Skip.Link.String())
+
+		tr.Skipped = r.globalTestConfig.Skip
+		return tr, nil
+	}
+
 	simulateDataStream := dsType + "-" + r.testFolder.Package + "." + r.testFolder.DataStream + "-default"
 	processedEvents, err := ingest.SimulatePipeline(ctx, r.esAPI, pipeline, tc.events, simulateDataStream)
 	if err != nil {
