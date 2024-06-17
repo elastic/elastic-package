@@ -176,9 +176,10 @@ type SystemTesterOptions struct {
 
 	RunIndependentElasticAgent bool
 
-	DeferCleanup   time.Duration
-	ServiceVariant string
-	ConfigFileName string
+	DeferCleanup     time.Duration
+	ServiceVariant   string
+	ConfigFileName   string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -200,6 +201,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
+		globalConfig:               options.GlobalTestConfig,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -229,12 +231,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
-
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(r.packageRootPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read global config: %w", err)
-	}
-	r.globalConfig = globalTestConfig.System
 
 	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {

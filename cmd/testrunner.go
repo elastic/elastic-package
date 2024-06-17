@@ -532,6 +532,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:                    profile,
 		PackageRootPath:            packageRootPath,
@@ -547,6 +552,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GenerateTestResult:         generateTestResult,
 		DeferCleanup:               deferCleanup,
 		RunIndependentElasticAgent: false,
+		GlobalTestConfig:           globalTestConfig.System,
 	})
 
 	logger.Debugf("Running suite...")
