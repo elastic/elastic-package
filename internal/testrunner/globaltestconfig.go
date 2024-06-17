@@ -14,7 +14,7 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 )
 
-type GlobalTestConfig struct {
+type globalTestConfig struct {
 	Asset    GlobalRunnerTestConfig `config:"asset"`
 	Pipeline GlobalRunnerTestConfig `config:"pipeline"`
 	Policy   GlobalRunnerTestConfig `config:"policy"`
@@ -27,18 +27,18 @@ type GlobalRunnerTestConfig struct {
 	SkippableConfig `config:",inline"`
 }
 
-func AGlobalTestConfig(packageRootPath string) (*GlobalTestConfig, error) {
+func ReadGlobalTestConfig(packageRootPath string) (*globalTestConfig, error) {
 	configFilePath := filepath.Join(packageRootPath, "_dev", "test", "config.yml")
 
 	data, err := os.ReadFile(configFilePath)
 	if errors.Is(err, os.ErrNotExist) {
-		return &GlobalTestConfig{}, nil
+		return &globalTestConfig{}, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to read %s: %w", configFilePath, err)
 	}
 
-	var c GlobalTestConfig
+	var c globalTestConfig
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
 	if err != nil {
 		return nil, fmt.Errorf("unable to load global test configuration file: %s: %w", configFilePath, err)

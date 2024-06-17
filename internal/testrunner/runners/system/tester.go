@@ -236,7 +236,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
 
-	globalTestConfig, err := testrunner.AGlobalTestConfig(r.packageRootPath)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(r.packageRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read global config: %w", err)
 	}
