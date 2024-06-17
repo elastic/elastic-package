@@ -1198,9 +1198,10 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	}
 
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
+	if err != nil {
+		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
+	}
 
-	// Set shutdownServiceHandler even if there is any error, to remove service
-	// this is important mainly for terraform
 	r.shutdownServiceHandler = func(ctx context.Context) error {
 		if r.runTestsOnly {
 			return nil
@@ -1216,9 +1217,6 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		return nil
 	}
 
-	if err != nil {
-		return nil, svcInfo, fmt.Errorf("could not setup service: %w", err)
-	}
 	return service, service.Info(), nil
 }
 

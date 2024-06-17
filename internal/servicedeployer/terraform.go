@@ -149,7 +149,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	}
 	err = p.Up(ctx, opts)
 	if err != nil {
-		return &service, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
+		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
 	err = p.WaitForHealthy(ctx, opts)
@@ -158,7 +158,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 			Env: opts.Env,
 		}, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
-		return &service, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
+		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
 
 	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
