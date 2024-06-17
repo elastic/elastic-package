@@ -516,6 +516,7 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+			// TODO: to be removed
 			logger.Debugf("Failed deleting test policy handler...: %v", err)
 			return err
 		}
@@ -551,7 +552,9 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 		return results, err
 	}
 
-	// Now there is just one test executed
+	// Every tester is in charge of just one test, so if there is no error,
+	// then there should be just one result for tests. As an exception, there could
+	// be two results if there is any issue checking Elastic Agent logs.
 	if len(results) > 0 && results[0].Skipped != nil {
 		logger.Debugf("Test skipped, avoid checking agent logs")
 		return results, nil
@@ -602,6 +605,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	if err != nil {
 		return nil, fmt.Errorf("unable to load system test case file '%s': %w", configFile, err)
 	}
+	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(ctx, testConfig, svcInfo)
 
