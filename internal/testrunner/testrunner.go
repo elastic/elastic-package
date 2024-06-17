@@ -426,11 +426,13 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 	}
 
 	wg.Wait()
+	close(chResults)
+	close(sem)
+
 	var results []TestResult
 	var multiErr error
 	testType := testers[0].Type()
-	for range testers {
-		testResults := <-chResults
+	for testResults := range chResults {
 
 		if len(testResults.results) > 0 {
 			logger.Debugf("Processing test result %s", testResults.results[0].Name)
@@ -441,8 +443,6 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 
 		results = append(results, testResults.results...)
 	}
-	close(chResults)
-	close(sem)
 
 	if multiErr != nil {
 		return results, fmt.Errorf("error running package %s tests: %w", testType, multiErr)
