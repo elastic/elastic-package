@@ -313,7 +313,7 @@ func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 		cleanupCtx := context.WithoutCancel(ctx)
 		tdErr := runner.TearDownRunner(cleanupCtx)
 		if tdErr != nil {
-			logger.Debugf("failed to tear down %s runner: %w", runner.Type(), tdErr)
+			logger.Debugf("failed to tear down %s runner: %s", runner.Type(), tdErr)
 		}
 		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
 	}
