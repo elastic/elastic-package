@@ -26,3 +26,14 @@ If you want to run pipeline tests for **specific data streams** in a package, na
 ```
 elastic-package test static --data-streams <data stream 1>[,<data stream 2>,...]
 ```
+
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` to skip all the static tests.
+
+```yaml
+static:
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```

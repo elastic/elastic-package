@@ -553,6 +553,20 @@ Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{{`
 
 **NOTE**: Terraform variables in the form of environment variables (prefixed with `TF_VAR_`) are not injected and cannot be used as placeholder (their value will always be empty).
 
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` that allows to:
+- skip all the system tests defined.
+- set if these system tests should be running in parallel or not.
+
+```yaml
+system:
+  parallel: true
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```
+
 ## Running a system test
 
 Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
@@ -760,6 +774,27 @@ Considerations for this mode of running Elastic Agents:
 - If a package that defines the agent service deployer (`agent` folder) wants to migrate to this mode of running Elastic Agents, these would be the steps:
     - Create a new `_dev/deploy/docker` adding the service container if needed.
     - Define the settings required for your Elastic Agents in all the test configuration files.
+
+#### Running system tests in parallel (technical preview)
+
+By default, `elatic-package` runs every system test sequentially. This could be changed to allow running in parallel `N` tests.
+
+In order to do so, it is required that the tests are run using independent Elasic Agents.
+
+To enable this feature, package must define the global test configuration file with these contents:
+```yaml
+system:
+  parallel: true
+```
+
+And run `elastic-package test` with the following environment variables:
+```shell
+ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS=5 \
+  ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true \
+  elastic-package test system -v
+```
+
+Currently, just system tests support to run the tests in parallel.
 
 ### Detecting ignored fields
 

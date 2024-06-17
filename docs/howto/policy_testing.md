@@ -41,6 +41,17 @@ It is possible, and encouraged, to define multiple policy tests for each package
 or data stream.
 
 
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` to skip all the policy tests.
+
+```yaml
+policy:
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```
+
 ### Defining the configuration of the policy
 
 Test configuration for the policy is defined in a YAML file prefixed with
