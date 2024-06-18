@@ -148,7 +148,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		}
 		result := tr[0]
 		if r.withCoverage && e.SourcePath != "" {
-			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(pkgName(rc), e.SourcePath, r.coverageType, true)
+			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
 			if err != nil {
 				tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 					Reason:  "could not generate test coverage",
@@ -162,14 +162,6 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	return results, nil
-}
-
-func pkgName(rc *testrunner.ResultComposer) string {
-	if rc.DataStream != "" {
-		return rc.Package + "." + rc.DataStream
-	}
-
-	return rc.Package
 }
 
 func (r *tester) TearDown(ctx context.Context) error {

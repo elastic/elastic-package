@@ -654,6 +654,8 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GenerateTestResult: generateTestResult,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

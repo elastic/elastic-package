@@ -23,6 +23,8 @@ type tester struct {
 	generateTestResult bool
 	kibanaClient       *kibana.Client
 	testPath           string
+	withCoverage       bool
+	coverageType       string
 
 	resourcesManager *resources.Manager
 }
@@ -36,6 +38,8 @@ type PolicyTesterOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	GenerateTestResult bool
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
@@ -45,6 +49,8 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 		testPath:           options.TestPath,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -119,10 +125,38 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		return result.WithErrorf("cleanup failed: %w", err)
 	}
 
+	if r.withCoverage {
+		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRootPath, r.testFolder.DataStream, r.coverageType)
+		if err != nil {
+			return result.WithErrorf("coverage report generation failed: %w", err)
+		}
+		result = result.WithCoverage(coverage)
+	}
+
 	if testErr != nil {
 		return result.WithError(testErr)
 	}
 	return result.WithSuccess()
+}
+
+// generateCoverageReport generates a coverage report that includes the manifests and template files in the package or data stream.
+// TODO: For manifests, mark as covered only the variables used.
+// TODO: For templates, mark as covered only the parts used, but this requires introspection in handlebars.
+func generateCoverageReport(pkgName, rootPath, dataStream, coverageType string) (testrunner.CoverageReport, error) {
+	dsPattern := "*"
+	if dataStream != "" {
+		dsPattern = dataStream
+	}
+
+	// This list of patterns includes patterns for all types of packages. It should not be a problem if some path doesn't exist.
+	patterns := []string{
+		filepath.Join(rootPath, "manifest.yml"),
+		filepath.Join(rootPath, "agent", "input", "*.yml.hbs"),
+		filepath.Join(rootPath, "data_stream", dsPattern, "manifest.yml"),
+		filepath.Join(rootPath, "data_stream", dsPattern, "agent", "stream", "*.yml.hbs"),
+	}
+
+	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, coverageType, true)
 }
 
 func testNameFromPath(path string) string {

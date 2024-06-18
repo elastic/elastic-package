@@ -24,6 +24,30 @@ func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) 
 	}
 }
 
+func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, format string, covered bool) (CoverageReport, error) {
+	var coverage CoverageReport
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, match := range matches {
+			fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, true)
+			if coverage == nil {
+				coverage = fileCoverage
+				continue
+			}
+
+			err = coverage.Merge(fileCoverage)
+			if err != nil {
+				return nil, fmt.Errorf("cannot merge coverages: %w", err)
+			}
+		}
+	}
+	return coverage, nil
+}
+
 func generateBaseCoberturaFileCoverageReport(pkgName, path string, covered bool) (*CoberturaCoverage, error) {
 	ext := filepath.Ext(path)
 	class := CoberturaClass{
