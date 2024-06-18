@@ -72,7 +72,12 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
-	if skip := testrunner.AnySkipConfig(testConfig.Skip, r.globalTestConfig.Skip); skip != nil {
+	skipConfigs := []*testrunner.SkipConfig{r.globalTestConfig.Skip}
+	if testConfig != nil {
+		skipConfigs = append(skipConfigs, testConfig.Skip)
+	}
+
+	if skip := testrunner.AnySkipConfig(skipConfigs...); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
 			skip.Reason, skip.Link)
