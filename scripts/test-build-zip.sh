@@ -13,10 +13,7 @@ cleanup() {
 
   # Clean used resources
   for d in test/packages/*/*/; do
-    (
-      cd "$d"
-      elastic-package clean -v
-    )
+    elastic-package clean -C "$d" -v
   done
 
   exit $r
@@ -43,12 +40,8 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  (
-    cd $d
-    elastic-package build --zip --sign -v
-  )
+  elastic-package build -C "$d" --zip --sign -v
 done
-cd -
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
@@ -62,9 +55,5 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  (
-    cd $d
-    elastic-package install -v
-  )
-cd -
+  elastic-package install -C "$d" -v
 done

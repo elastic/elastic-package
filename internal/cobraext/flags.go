@@ -7,7 +7,12 @@ package cobraext
 // Global flags
 const (
 	VerboseFlagName        = "verbose"
+	VerboseFlagShorthand   = "v"
 	VerboseFlagDescription = "verbose mode"
+
+	ChangeDirectoryFlagName        = "change-directory"
+	ChangeDirectoryFlagShorthand   = "C"
+	ChangeDirectoryFlagDescription = "change to the specified directory before running the command"
 )
 
 // Primary flags reused by multiple commands
