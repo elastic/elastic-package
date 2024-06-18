@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -52,7 +54,8 @@ func RootCmd() *cobra.Command {
 			)
 		},
 	}
-	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, cobraext.VerboseFlagShorthand, false, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().StringP(cobraext.ChangeDirectoryFlagName, cobraext.ChangeDirectoryFlagShorthand, "", cobraext.ChangeDirectoryFlagDescription)
 
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
@@ -74,10 +77,21 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
-
 	if verbose {
 		logger.EnableDebugMode()
 	}
+
+	changeDirectory, err := cmd.Flags().GetString(cobraext.ChangeDirectoryFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ChangeDirectoryFlagName)
+	}
+	if changeDirectory != "" {
+		err := os.Chdir(changeDirectory)
+		if err != nil {
+			return fmt.Errorf("failed to change directory: %w", err)
+		}
+	}
+
 	return nil
 }
 
