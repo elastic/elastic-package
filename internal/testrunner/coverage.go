@@ -34,6 +34,9 @@ func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, forma
 
 		for _, match := range matches {
 			fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, true)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
+			}
 			if coverage == nil {
 				coverage = fileCoverage
 				continue
