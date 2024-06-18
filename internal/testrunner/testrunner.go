@@ -406,7 +406,7 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 
 	for _, tester := range testers {
 		wg.Add(1)
-		aTester := tester
+		tester := tester
 		sem <- 1
 		go func() {
 			defer wg.Done()
@@ -419,7 +419,7 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 				return
 			}
 			// TODO: How to check if ctx is Done or Cancelled, to not call to "run" method
-			r, err := run(ctx, aTester)
+			r, err := run(ctx, tester)
 			chResults <- routineResult{r, err}
 		}()
 	}
