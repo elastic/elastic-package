@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -24,9 +25,10 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-const DEFAULT_MAXIMUM_ROUTINES = 1
-
-var maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
+var (
+	DEFAULT_MAXIMUM_ROUTINES  = runtime.GOMAXPROCS(0) / 2
+	maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
+)
 
 // TestType represents the various supported test types
 type TestType string
