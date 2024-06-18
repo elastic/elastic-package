@@ -90,6 +90,7 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to change directory: %w", err)
 		}
+		logger.Debugf("Running command in directory \"%s\"", changeDirectory)
 	}
 
 	return nil
