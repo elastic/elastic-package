@@ -777,30 +777,32 @@ Considerations for this mode of running Elastic Agents:
 
 #### Running system tests in parallel (technical preview)
 
-By default, `elatic-package` runs every system test sequentially. This could be changed to allow running in parallel `N` tests.
+By default, `elatic-package` runs every system test defined in the package sequentially.
+This could be changed to allow running in parallel tests. For that it is needed:
+- running tests using independent Elastic Agents (see [section](#running-system-tests-with-independent-elastic-agents-in-each-test-technical-preview)).
+- package must define the global test configuration file with these contents to enable system test parallelization:
+  ```yaml
+  system:
+    parallel: true
+  ```
+- define how many tests in parallel should be running
+    - This is done defining the environment variable `ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS`
 
-In order to do so, it is required that the tests are run using independent Elasic Agents.
 
-To enable this feature, package must define the global test configuration file with these contents:
-```yaml
-system:
-  parallel: true
-```
-
-And run `elastic-package test` with the following environment variables:
+Given those requirements, this is an example to run system tests in parallel:
 ```shell
 ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS=5 \
   ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true \
   elastic-package test system -v
 ```
 
-Currently, just system tests support to run the tests in parallel.
+**NOTE**: Currently, just system tests support to run the tests in parallel.
 
 ### Detecting ignored fields
 
 As part of the system test, `elastic-package` checks whether any documents couldn't successfully map any fields. Common issues are the configured field limit being exceeded or keyword fields receiving values longer than `ignore_above`. You can learn more in the [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-ignored-field.html).
 
-In this case, `elastic-package test system` will fail with an error and print a sample of affected documents. To fix the issue, check which fields got ignored and the `ignored_field_values` and either adapt the mapping or the ingest pipeline to accomodate for the problematic values. In case an ignored field can't be meaningfully mitigated, it's possible to skip the check by listing the field under the `skip_ignored_fields` property in the system test config of the data stream:
+In this case, `elastic-package test system` will fail with an error and print a sample of affected documents. To fix the issue, check which fields got ignored and the `ignored_field_values` and either adapt the mapping or the ingest pipeline to accommodate for the problematic values. In case an ignored field can't be meaningfully mitigated, it's possible to skip the check by listing the field under the `skip_ignored_fields` property in the system test config of the data stream:
 ```
 # data_stream/<data stream name>/_dev/test/system/test-default-config.yml
 skip_ignored_fields:
