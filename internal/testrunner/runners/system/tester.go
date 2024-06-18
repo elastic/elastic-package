@@ -154,7 +154,7 @@ type tester struct {
 
 	serviceStateFilePath string
 
-	globalConfig testrunner.GlobalRunnerTestConfig
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
@@ -201,7 +201,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
-		globalConfig:               options.GlobalTestConfig,
+		globalTestConfig:           options.GlobalTestConfig,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -274,7 +274,7 @@ func (r *tester) String() string {
 // Parallel indicates if this tester can run in parallel or not.
 func (r tester) Parallel() bool {
 	// it is required independent Elastic Agents to run in parallel system tests
-	return r.runIndependentElasticAgent && r.globalConfig.Parallel
+	return r.runIndependentElasticAgent && r.globalTestConfig.Parallel
 }
 
 // Run runs the system tests defined under the given folder
@@ -1381,18 +1381,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
-	if config.Skip != nil {
+	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			config.Skip.Reason, config.Skip.Link)
-		return result.WithSkip(config.Skip)
-	}
-
-	if r.globalConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			r.globalConfig.Skip.Reason, r.globalConfig.Skip.Link.String())
-		return result.WithSkip(r.globalConfig.Skip)
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
 	}
 
 	logger.Debugf("running test with configuration '%s'", config.Name())

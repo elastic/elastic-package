@@ -316,21 +316,11 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	}
 	tr.Name = tc.name
 
-	if tc.config.Skip != nil {
+	if skip := testrunner.AnySkipConfig(tc.config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			tc.config.Skip.Reason, tc.config.Skip.Link)
-
-		tr.Skipped = tc.config.Skip
-		return tr, nil
-	}
-
-	if r.globalTestConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			r.globalTestConfig.Skip.Reason, r.globalTestConfig.Skip.Link.String())
-
-		tr.Skipped = r.globalTestConfig.Skip
+			skip.Reason, skip.Link)
+		tr.Skipped = skip
 		return tr, nil
 	}
 

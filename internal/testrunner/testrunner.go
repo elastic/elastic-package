@@ -492,3 +492,12 @@ func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
 	}
 }
+
+func AnySkipConfig(configs ...*SkipConfig) *SkipConfig {
+	for _, config := range configs {
+		if config != nil {
+			return config
+		}
+	}
+	return nil
+}
