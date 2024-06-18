@@ -601,7 +601,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
-		return partial, errors.Join(err, fmt.Errorf("failed to tear down runner: %w", tdErr))
+		return partial, err
 	}
 	if tdErr != nil {
 		return partial, fmt.Errorf("failed to tear down runner: %w", tdErr)
