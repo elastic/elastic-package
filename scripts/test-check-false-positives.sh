@@ -13,10 +13,7 @@ function cleanup() {
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
-    (
-      cd "$d"
-      elastic-package clean -v
-    )
+    elastic-package clean -C "$d" -v
   done
 
   exit $r
@@ -36,10 +33,7 @@ function check_expected_errors() {
   fi
 
   rm -f ${result_tests}
-  (
-    cd "$package_root"
-    elastic-package test -v --report-format xUnit --report-output file --test-coverage --coverage-format=generic --defer-cleanup 1s || true
-  )
+  elastic-package test -C "$package_root" -v --report-format xUnit --report-output file --test-coverage --coverage-format=generic --defer-cleanup 1s || true
 
   cat ${result_tests} | tr -d '\n' > ${results_no_spaces}
 
@@ -69,18 +63,12 @@ function check_build_output() {
   local output_file="$PWD/build/elastic-package-output"
 
   if [ ! -f "${expected_build_output}" ]; then
-    (
-      cd "$package_root"
-      elastic-package build -v
-    )
+    elastic-package build -C "$package_root" -v
     return
   fi
 
-  (
-    cd "$package_root"
-    mkdir -p "$(dirname "$output_file")"
-    elastic-package build 2>&1 | tee "$output_file" || true # Ignore errors here
-  )
+  mkdir -p "$(dirname "$output_file")"
+  elastic-package build -C "$package_root" 2>&1 | tee "$output_file" || true # Ignore errors here
 
   diff -w -u "$expected_build_output" "$output_file" || (
     echo "Error: Build output has differences with expected output"

@@ -37,10 +37,7 @@ cleanup() {
 
     # Clean used resources
     for d in test/packages/*/*/; do
-        (
-        cd "$d"
-        elastic-package clean -v
-        )
+        elastic-package clean -C "$d" -v
     done
 
     exit $r
