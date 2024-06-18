@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -693,6 +694,18 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Package != results[j].Package {
+			return results[i].Package < results[j].Package
+		}
+		if results[i].TestType != results[j].TestType {
+			return results[i].TestType < results[j].TestType
+		}
+		if results[i].DataStream != results[j].DataStream {
+			return results[i].DataStream < results[j].DataStream
+		}
+		return results[i].Name < results[j].Name
+	})
 	format := testrunner.TestReportFormat(reportFormat)
 	report, err := testrunner.FormatReport(format, results)
 	if err != nil {
