@@ -20,18 +20,21 @@ import (
 )
 
 type tester struct {
-	testFolder      testrunner.TestFolder
-	packageRootPath string
+	testFolder       testrunner.TestFolder
+	packageRootPath  string
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 type StaticTesterOptions struct {
-	TestFolder      testrunner.TestFolder
-	PackageRootPath string
+	TestFolder       testrunner.TestFolder
+	PackageRootPath  string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
+		testFolder:       options.TestFolder,
+		packageRootPath:  options.PackageRootPath,
+		globalTestConfig: options.GlobalTestConfig,
 	}
 	return &runner
 }
@@ -45,6 +48,12 @@ func (r tester) Type() testrunner.TestType {
 
 func (r tester) String() string {
 	return "static files"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
+	return false
 }
 
 func (r tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
@@ -63,11 +72,16 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
-	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.testFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link)
-		return result.WithSkip(testConfig.Skip)
+	skipConfigs := []*testrunner.SkipConfig{r.globalTestConfig.Skip}
+	if testConfig != nil {
+		skipConfigs = append(skipConfigs, testConfig.Skip)
+	}
+
+	if skip := testrunner.AnySkipConfig(skipConfigs...); skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
 	}
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)

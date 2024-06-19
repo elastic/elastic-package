@@ -32,6 +32,7 @@ type runner struct {
 	dataStreams    []string
 	serviceVariant string
 
+	globalTestConfig           testrunner.GlobalRunnerTestConfig
 	failOnMissingTests         bool
 	generateTestResult         bool
 	runIndependentElasticAgent bool
@@ -63,6 +64,8 @@ type SystemTestRunnerOptions struct {
 	RunTestsOnly   bool
 	ConfigFilePath string
 
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+
 	FailOnMissingTests         bool
 	GenerateTestResult         bool
 	RunIndependentElasticAgent bool
@@ -85,6 +88,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		generateTestResult:         options.GenerateTestResult,
 		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
+		globalTestConfig:           options.GlobalTestConfig,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -247,6 +251,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					RunTearDown:                r.runTearDown,
 					ConfigFileName:             config,
 					RunIndependentElasticAgent: r.runIndependentElasticAgent,
+					GlobalTestConfig:           r.globalTestConfig,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(

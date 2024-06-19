@@ -370,29 +370,33 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 		}
 
 		for _, containerDescription := range descriptions {
-			logger.Debugf("Container status: %s", containerDescription.String())
 
 			// No healthcheck defined for service
 			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
+				logger.Debugf("Container %s status: %s (no health status)", containerDescription.ID, containerDescription.State.Status)
 				continue
 			}
 
 			// Service is up and running and it's healthy
 			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
+				logger.Debugf("Container %s status: %s (health: %s)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.Health.Status)
 				continue
 			}
 
 			// Container started and finished with exit code 0
 			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
+				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
 				continue
 			}
 
 			// Container exited with code > 0
 			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
+				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
 				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
 			}
 
 			// Any different status is considered unhealthy
+			logger.Debugf("Container %s status: unhealthy", containerDescription.ID)
 			healthy = false
 		}
 

@@ -25,12 +25,14 @@ type runner struct {
 	packageRootPath    string
 	failOnMissingTests bool
 	dataStreams        []string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 type StaticTestRunnerOptions struct {
 	PackageRootPath    string
 	FailOnMissingTests bool
 	DataStreams        []string
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
@@ -38,6 +40,7 @@ func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 		packageRootPath:    options.PackageRootPath,
 		failOnMissingTests: options.FailOnMissingTests,
 		dataStreams:        options.DataStreams,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 	return &runner
 }
@@ -89,8 +92,9 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var testers []testrunner.Tester
 	for _, t := range tests {
 		testers = append(testers, NewStaticTester(StaticTesterOptions{
-			PackageRootPath: r.packageRootPath,
-			TestFolder:      t,
+			PackageRootPath:  r.packageRootPath,
+			TestFolder:       t,
+			GlobalTestConfig: r.globalTestConfig,
 		}))
 	}
 	return testers, nil

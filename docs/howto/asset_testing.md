@@ -49,3 +49,14 @@ Finally, when you are done running all asset loading tests, bring down the Elast
 ```
 elastic-package stack down
 ```
+
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` to skip all the asset tests.
+
+```yaml
+asset:
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```

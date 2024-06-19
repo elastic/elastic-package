@@ -28,6 +28,7 @@ type runner struct {
 	dataStreams        []string
 	failOnMissingTests bool
 	generateTestResult bool
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 
 	resourcesManager *resources.Manager
 	cleanup          func(context.Context) error
@@ -42,6 +43,7 @@ type PolicyTestRunnerOptions struct {
 	DataStreams        []string
 	FailOnMissingTests bool
 	GenerateTestResult bool
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
@@ -51,6 +53,7 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
 		generateTestResult: options.GenerateTestResult,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -131,6 +134,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				KibanaClient:       r.kibanaClient,
 				GenerateTestResult: r.generateTestResult,
 				TestPath:           test,
+				GlobalTestConfig:   r.globalTestConfig,
 			}))
 
 		}

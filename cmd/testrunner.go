@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -165,9 +166,15 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
-		PackageRootPath: packageRootPath,
-		KibanaClient:    kibanaClient,
+		PackageRootPath:  packageRootPath,
+		KibanaClient:     kibanaClient,
+		GlobalTestConfig: globalTestConfig.Asset,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -247,10 +254,16 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := static.NewStaticTestRunner(static.StaticTestRunnerOptions{
 		PackageRootPath:    packageRootPath,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
+		GlobalTestConfig:   globalTestConfig.Static,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -355,6 +368,11 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
 		Profile:            profile,
 		PackageRootPath:    packageRootPath,
@@ -365,6 +383,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
 		DeferCleanup:       deferCleanup,
+		GlobalTestConfig:   globalTestConfig.Pipeline,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -532,6 +551,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:                    profile,
 		PackageRootPath:            packageRootPath,
@@ -547,6 +571,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GenerateTestResult:         generateTestResult,
 		DeferCleanup:               deferCleanup,
 		RunIndependentElasticAgent: false,
+		GlobalTestConfig:           globalTestConfig.System,
 	})
 
 	logger.Debugf("Running suite...")
@@ -646,12 +671,18 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+
 	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GenerateTestResult: generateTestResult,
+		GlobalTestConfig:   globalTestConfig.Policy,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -663,6 +694,18 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Package != results[j].Package {
+			return results[i].Package < results[j].Package
+		}
+		if results[i].TestType != results[j].TestType {
+			return results[i].TestType < results[j].TestType
+		}
+		if results[i].DataStream != results[j].DataStream {
+			return results[i].DataStream < results[j].DataStream
+		}
+		return results[i].Name < results[j].Name
+	})
 	format := testrunner.TestReportFormat(reportFormat)
 	report, err := testrunner.FormatReport(format, results)
 	if err != nil {
