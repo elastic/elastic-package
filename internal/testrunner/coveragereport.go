@@ -77,6 +77,9 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 	if err != nil {
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
+	if report == nil {
+		return fmt.Errorf("coverage not found for test type %s", testType)
+	}
 
 	err = writeCoverageReportFile(report, packageName, string(testType))
 	if err != nil {
