@@ -22,19 +22,22 @@ type tester struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 type AssetTesterOptions struct {
-	TestFolder      testrunner.TestFolder
-	PackageRootPath string
-	KibanaClient    *kibana.Client
+	TestFolder       testrunner.TestFolder
+	PackageRootPath  string
+	KibanaClient     *kibana.Client
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		kibanaClient:    options.KibanaClient,
+		testFolder:       options.TestFolder,
+		packageRootPath:  options.PackageRootPath,
+		kibanaClient:     options.KibanaClient,
+		globalTestConfig: options.GlobalTestConfig,
 	}
 
 	manager := resources.NewManager()
@@ -55,6 +58,12 @@ func (r *tester) Type() testrunner.TestType {
 // String returns the name of the test runner.
 func (r tester) String() string {
 	return "asset loading"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
+	return false
 }
 
 // Run runs the asset loading tests
@@ -87,11 +96,16 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
-	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.testFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link)
-		return result.WithSkip(testConfig.Skip)
+	skipConfigs := []*testrunner.SkipConfig{r.globalTestConfig.Skip}
+	if testConfig != nil {
+		skipConfigs = append(skipConfigs, testConfig.Skip)
+	}
+
+	if skip := testrunner.AnySkipConfig(skipConfigs...); skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
 	}
 
 	logger.Debug("installing package...")

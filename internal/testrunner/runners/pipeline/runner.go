@@ -31,9 +31,10 @@ type runner struct {
 	failOnMissingTests bool
 	generateTestResult bool
 
-	withCoverage bool
-	coverageType string
-	deferCleanup time.Duration
+	withCoverage     bool
+	coverageType     string
+	deferCleanup     time.Duration
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 }
 
 type PipelineTestRunnerOptions struct {
@@ -46,6 +47,7 @@ type PipelineTestRunnerOptions struct {
 	WithCoverage       bool
 	CoverageType       string
 	DeferCleanup       time.Duration
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
@@ -59,6 +61,7 @@ func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		deferCleanup:       options.DeferCleanup,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 	return &runner
 }
@@ -134,6 +137,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				Profile:            r.profile,
 				API:                r.esAPI,
 				TestCaseFile:       caseFile,
+				GlobalTestConfig:   r.globalTestConfig,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)

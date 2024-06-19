@@ -18,11 +18,13 @@ import (
 )
 
 type tester struct {
-	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	testFolder      testrunner.TestFolder
+	packageRootPath string
+	kibanaClient    *kibana.Client
+	testPath        string
+
 	generateTestResult bool
-	kibanaClient       *kibana.Client
-	testPath           string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 
 	resourcesManager *resources.Manager
 }
@@ -36,6 +38,7 @@ type PolicyTesterOptions struct {
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	GenerateTestResult bool
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
@@ -45,6 +48,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 		testPath:           options.TestPath,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -57,6 +61,12 @@ func (r *tester) Type() testrunner.TestType {
 
 func (r *tester) String() string {
 	return string(TestType)
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
+	return false
 }
 
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
@@ -85,6 +95,14 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	testName := testNameFromPath(testPath)
+
+	if skip := testrunner.AnySkipConfig(testConfig.Skip, r.globalTestConfig.Skip); skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
+	}
+
 	policy := resources.FleetAgentPolicy{
 		Name:      testName,
 		Namespace: "ep",

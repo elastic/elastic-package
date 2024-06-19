@@ -553,6 +553,20 @@ Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{{`
 
 **NOTE**: Terraform variables in the form of environment variables (prefixed with `TF_VAR_`) are not injected and cannot be used as placeholder (their value will always be empty).
 
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` that allows to:
+- skip all the system tests defined.
+- set if these system tests should be running in parallel or not.
+
+```yaml
+system:
+  parallel: true
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```
+
 ## Running a system test
 
 Once the two levels of configurations are defined as described in the previous section, you are ready to run system tests for a package's data streams.
@@ -761,11 +775,36 @@ Considerations for this mode of running Elastic Agents:
     - Create a new `_dev/deploy/docker` adding the service container if needed.
     - Define the settings required for your Elastic Agents in all the test configuration files.
 
+#### Running system tests in parallel (technical preview)
+
+By default, `elatic-package` runs every system test defined in the package sequentially.
+This could be changed to allow running in parallel tests. For that it is needed:
+- running tests using independent Elastic Agents (see [section](#running-system-tests-with-independent-elastic-agents-in-each-test-technical-preview)).
+- package must define the global test configuration file with these contents to enable system test parallelization:
+  ```yaml
+  system:
+    parallel: true
+  ```
+- define how many tests in parallel should be running
+    - This is done defining the environment variable `ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS`
+
+
+Given those requirements, this is an example to run system tests in parallel:
+```shell
+ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS=5 \
+  ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true \
+  elastic-package test system -v
+```
+
+**NOTE**:
+- Currently, just system tests support to run tests in parallel.
+- **Not recommended** to enable system tests in parallel for packages that make use of the Terraform or Kubernetes service deployers.
+
 ### Detecting ignored fields
 
 As part of the system test, `elastic-package` checks whether any documents couldn't successfully map any fields. Common issues are the configured field limit being exceeded or keyword fields receiving values longer than `ignore_above`. You can learn more in the [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-ignored-field.html).
 
-In this case, `elastic-package test system` will fail with an error and print a sample of affected documents. To fix the issue, check which fields got ignored and the `ignored_field_values` and either adapt the mapping or the ingest pipeline to accomodate for the problematic values. In case an ignored field can't be meaningfully mitigated, it's possible to skip the check by listing the field under the `skip_ignored_fields` property in the system test config of the data stream:
+In this case, `elastic-package test system` will fail with an error and print a sample of affected documents. To fix the issue, check which fields got ignored and the `ignored_field_values` and either adapt the mapping or the ingest pipeline to accommodate for the problematic values. In case an ignored field can't be meaningfully mitigated, it's possible to skip the check by listing the field under the `skip_ignored_fields` property in the system test config of the data stream:
 ```
 # data_stream/<data stream name>/_dev/test/system/test-default-config.yml
 skip_ignored_fields:

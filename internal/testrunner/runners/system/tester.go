@@ -145,12 +145,16 @@ type tester struct {
 
 	pipelines []ingest.Pipeline
 
-	dataStreamPath   string
-	stackVersion     kibana.VersionInfo
-	locationManager  *locations.LocationManager
-	resourcesManager *resources.Manager
+	dataStreamPath     string
+	stackVersion       kibana.VersionInfo
+	locationManager    *locations.LocationManager
+	resourcesManager   *resources.Manager
+	pkgManifest        *packages.PackageManifest
+	dataStreamManifest *packages.DataStreamManifest
 
 	serviceStateFilePath string
+
+	globalTestConfig testrunner.GlobalRunnerTestConfig
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
@@ -172,9 +176,10 @@ type SystemTesterOptions struct {
 
 	RunIndependentElasticAgent bool
 
-	DeferCleanup   time.Duration
-	ServiceVariant string
-	ConfigFileName string
+	DeferCleanup     time.Duration
+	ServiceVariant   string
+	ConfigFileName   string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -196,6 +201,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runSetup:                   options.RunSetup,
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
+		globalTestConfig:           options.GlobalTestConfig,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -203,21 +209,15 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
 
 	var err error
-	var found bool
 
 	r.locationManager, err = locations.NewLocationManager()
 	if err != nil {
 		return nil, fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	r.dataStreamPath, found, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
+	r.dataStreamPath, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
-	}
-	if found {
-		logger.Debugf("Running system tests for data stream %q", r.testFolder.DataStream)
-	} else {
-		logger.Debug("Running system tests for package")
 	}
 
 	if r.esAPI == nil {
@@ -231,6 +231,30 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
+
+	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
+	if err != nil {
+		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+	}
+
+	// Temporarily until independent Elastic Agents are enabled by default,
+	// enable independent Elastic Agents if package defines that requires root privileges
+	if pkg, ds := r.pkgManifest, r.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
+		r.runIndependentElasticAgent = true
+	}
+
+	// If the environment variable is present, it always has preference over the root
+	// privileges value (if any) defined in the manifest file
+	v, ok := os.LookupEnv(enableIndependentAgents)
+	if ok {
+		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
+	}
+
 	return &r, nil
 }
 
@@ -245,6 +269,12 @@ func (r *tester) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *tester) String() string {
 	return "system"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// it is required independent Elastic Agents to run in parallel system tests
+	return r.runIndependentElasticAgent && r.globalTestConfig.Parallel
 }
 
 // Run runs the system tests defined under the given folder
@@ -505,10 +535,17 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 	startTesting := time.Now()
 
-	partial, err := r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
-	results = append(results, partial...)
+	results, err = r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
+	}
+
+	// Every tester is in charge of just one test, so if there is no error,
+	// then there should be just one result for tests. As an exception, there could
+	// be two results if there is any issue checking Elastic Agent logs.
+	if len(results) > 0 && results[0].Skipped != nil {
+		logger.Debugf("Test skipped, avoid checking agent logs")
+		return results, nil
 	}
 
 	tempDir, err := os.MkdirTemp("", "test-system-")
@@ -728,8 +765,6 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 type scenarioTest struct {
 	dataStream         string
 	policyTemplateName string
-	pkgManifest        *packages.PackageManifest
-	dataStreamManifest *packages.DataStreamManifest
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
@@ -773,40 +808,18 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 
-	scenario.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
-	if err != nil {
-		return nil, fmt.Errorf("reading package manifest failed: %w", err)
-	}
-
-	scenario.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
-	}
-
-	// Temporarily until independent Elastic Agents are enabled by default,
-	// enable independent Elastic Agents if package defines that requires root privileges
-	if pkg, ds := scenario.pkgManifest, scenario.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
-		r.runIndependentElasticAgent = true
-	}
-
-	// If the environment variable is present, it always has preference over the root
-	// privileges value (if any) defined in the manifest file
-	v, ok := os.LookupEnv(enableIndependentAgents)
-	if ok {
-		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
-	}
 	serviceOptions.DeployIndependentAgent = r.runIndependentElasticAgent
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
-		policyTemplateName, err = findPolicyTemplateForInput(*scenario.pkgManifest, *scenario.dataStreamManifest, config.Input)
+		policyTemplateName, err = findPolicyTemplateForInput(*r.pkgManifest, *r.dataStreamManifest, config.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
 	scenario.policyTemplateName = policyTemplateName
 
-	policyTemplate, err := selectPolicyTemplateByName(scenario.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
+	policyTemplate, err := selectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
@@ -897,7 +910,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		policy = policyCurrent
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, scenario.pkgManifest.Agent)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, r.pkgManifest.Agent)
 	if err != nil {
 		return nil, err
 	}
@@ -922,7 +935,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *scenario.pkgManifest, policyTemplate, *scenario.dataStreamManifest, *config, policyToTest.Namespace)
+	ds := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, *r.dataStreamManifest, *config, policyToTest.Namespace)
 	if r.runTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -937,7 +950,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if scenario.pkgManifest.Type == "input" {
+	if r.pkgManifest.Type == "input" {
 		v, _ := config.Vars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			dataStreamDataset = dataset
@@ -966,6 +979,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
+	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
+	// this "checkEnrolledAgents" call to must be located after creating the service.
 	agents, err := checkEnrolledAgents(ctx, r.kibanaClient, agentInfo, svcInfo, r.runIndependentElasticAgent)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
@@ -1185,6 +1200,9 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		if r.runTestsOnly {
 			return nil
 		}
+		if service == nil {
+			return nil
+		}
 		logger.Debug("tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
@@ -1192,6 +1210,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 
 		return nil
 	}
+
 	return service, service.Info(), nil
 }
 
@@ -1284,13 +1303,13 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if expectedDatasets == nil {
 		var expectedDataset string
 		if ds := r.testFolder.DataStream; ds != "" {
-			expectedDataset = getDataStreamDataset(*scenario.pkgManifest, *scenario.dataStreamManifest)
+			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
 		} else {
-			expectedDataset = scenario.pkgManifest.Name + "." + scenario.policyTemplateName
+			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
-	if scenario.pkgManifest.Type == "input" {
+	if r.pkgManifest.Type == "input" {
 		v, _ := config.Vars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			expectedDatasets = append(expectedDatasets, dataset)
@@ -1298,7 +1317,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
-		fields.WithSpecVersion(scenario.pkgManifest.SpecVersion),
+		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
@@ -1324,9 +1343,9 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	specVersion, err := semver.NewVersion(scenario.pkgManifest.SpecVersion)
+	specVersion, err := semver.NewVersion(r.pkgManifest.SpecVersion)
 	if err != nil {
-		return result.WithError(fmt.Errorf("failed to parse format version %q: %w", scenario.pkgManifest.SpecVersion, err))
+		return result.WithError(fmt.Errorf("failed to parse format version %q: %w", r.pkgManifest.SpecVersion, err))
 	}
 
 	// Write sample events file from first doc, if requested
@@ -1340,7 +1359,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, scenario.pkgManifest, scenario.kibanaDataStream, scenario.dataStream); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.kibanaDataStream, scenario.dataStream); err != nil {
 		return result.WithError(err)
 	}
 
@@ -1360,11 +1379,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
-	if config.Skip != nil {
+	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			config.Skip.Reason, config.Skip.Link)
-		return result.WithSkip(config.Skip)
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
 	}
 
 	logger.Debugf("running test with configuration '%s'", config.Name())

@@ -45,6 +45,7 @@ type tester struct {
 	generateTestResult bool
 	withCoverage       bool
 	coverageType       string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
 
 	testCaseFile string
 
@@ -65,6 +66,7 @@ type PipelineTesterOptions struct {
 	WithCoverage       bool
 	CoverageType       string
 	TestCaseFile       string
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -78,6 +80,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		generateTestResult: options.GenerateTestResult,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		globalTestConfig:   options.GlobalTestConfig,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)
@@ -125,6 +128,12 @@ func (r *tester) Type() testrunner.TestType {
 // String returns the human-friendly name of the test runner.
 func (r *tester) String() string {
 	return "pipeline"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
+	return false
 }
 
 // Run runs the pipeline tests defined under the given folder
@@ -307,12 +316,11 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	}
 	tr.Name = tc.name
 
-	if tc.config.Skip != nil {
+	if skip := testrunner.AnySkipConfig(tc.config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
-			tc.config.Skip.Reason, tc.config.Skip.Link)
-
-		tr.Skipped = tc.config.Skip
+			skip.Reason, skip.Link)
+		tr.Skipped = skip
 		return tr, nil
 	}
 
