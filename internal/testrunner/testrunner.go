@@ -420,7 +420,6 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 				chResults <- routineResult{nil, err}
 				return
 			}
-			// TODO: How to check if ctx is Done or Cancelled, to not call to "run" method
 			r, err := run(ctx, tester)
 			chResults <- routineResult{r, err}
 		}()

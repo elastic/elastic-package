@@ -506,8 +506,6 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			// TODO: to be removed
-			logger.Debugf("Failed deleting test policy handler...: %v", err)
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
