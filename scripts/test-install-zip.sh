@@ -17,10 +17,7 @@ cleanup() {
   elastic-package stack down -v
 
   for d in test/packages/*/*/; do
-    (
-      cd "$d"
-      elastic-package clean -v
-    )
+    elastic-package clean -C "$d" -v
   done
 
   exit $r
@@ -98,7 +95,6 @@ elastic-package stack up -d -v ${ARG_VERSION}
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
-OLDPWD=$PWD
 
 # Build packages
 for d in test/packages/*/*/; do
@@ -106,12 +102,8 @@ for d in test/packages/*/*/; do
   if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
-  (
-    cd "$d"
-    elastic-package build
-  )
+  elastic-package build -C "$d"
 done
-cd "$OLDPWD"
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
