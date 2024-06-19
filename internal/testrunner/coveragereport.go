@@ -91,9 +91,6 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
-	if details.coverage == nil {
-		return nil, fmt.Errorf("coverage not found for test type %s", testType)
-	}
 
 	// Use provided coverage report
 	return details.coverage, nil
