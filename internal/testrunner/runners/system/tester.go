@@ -122,6 +122,9 @@ var (
 			},
 		},
 	}
+	dataStreamOverrides = map[string]bool{
+		"amazon_security_lake": true,
+	}
 	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 )
 
@@ -937,7 +940,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if scenario.pkgManifest.Type == "input" {
+	if scenario.pkgManifest.Type == "input" || dataStreamOverrides[scenario.pkgManifest.Name] {
 		v, _ := config.Vars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			dataStreamDataset = dataset
@@ -1290,7 +1293,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
-	if scenario.pkgManifest.Type == "input" {
+	if scenario.pkgManifest.Type == "input" || dataStreamOverrides[scenario.pkgManifest.Name] {
 		v, _ := config.Vars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			expectedDatasets = append(expectedDatasets, dataset)
