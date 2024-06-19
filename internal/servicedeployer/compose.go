@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -54,6 +55,8 @@ type dockerComposeDeployedService struct {
 	project  string
 	variant  ServiceVariant
 	env      []string
+
+	resourcePaths []string
 }
 
 var _ ServiceDeployer = new(DockerComposeServiceDeployer)
@@ -277,6 +280,17 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
 		return fmt.Errorf("could not shut down service using Docker Compose: %w", err)
+	}
+
+	var multiErr multierror.Error
+	for _, path := range s.resourcePaths {
+		err := os.RemoveAll(path)
+		if err != nil {
+			multiErr = append(multiErr, err)
+		}
+	}
+	if multiErr != nil {
+		return fmt.Errorf("failed to delete resource paths: %w", multiErr)
 	}
 	return nil
 }

@@ -94,7 +94,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 	)
 
-	configDir, err := d.installDockerfile()
+	configDir, err := d.installDockerfile(deployerFolderName(svcInfo))
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -111,6 +111,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
+		resourcePaths: []string{configDir},
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -197,13 +198,13 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *CustomAgentDeployer) installDockerfile() (string, error) {
+func (d *CustomAgentDeployer) installDockerfile(folder string) (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir)
+	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir, folder)
 	err = os.MkdirAll(customAgentDir, 0755)
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
