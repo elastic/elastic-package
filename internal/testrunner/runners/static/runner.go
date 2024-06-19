@@ -25,12 +25,16 @@ type runner struct {
 	packageRootPath    string
 	failOnMissingTests bool
 	dataStreams        []string
+	withCoverage       bool
+	coverageType       string
 }
 
 type StaticTestRunnerOptions struct {
 	PackageRootPath    string
 	FailOnMissingTests bool
 	DataStreams        []string
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
@@ -38,6 +42,8 @@ func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 		packageRootPath:    options.PackageRootPath,
 		failOnMissingTests: options.FailOnMissingTests,
 		dataStreams:        options.DataStreams,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 	return &runner
 }
@@ -91,6 +97,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		testers = append(testers, NewStaticTester(StaticTesterOptions{
 			PackageRootPath: r.packageRootPath,
 			TestFolder:      t,
+			WithCoverage:    r.withCoverage,
+			CoverageType:    r.coverageType,
 		}))
 	}
 	return testers, nil

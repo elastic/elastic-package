@@ -22,16 +22,23 @@ import (
 type tester struct {
 	testFolder      testrunner.TestFolder
 	packageRootPath string
+	withCoverage    bool
+	coverageType    string
 }
+
 type StaticTesterOptions struct {
 	TestFolder      testrunner.TestFolder
 	PackageRootPath string
+	WithCoverage    bool
+	CoverageType    string
 }
 
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
 		testFolder:      options.TestFolder,
 		packageRootPath: options.PackageRootPath,
+		withCoverage:    options.WithCoverage,
+		coverageType:    options.CoverageType,
 	}
 	return &runner
 }
@@ -124,6 +131,15 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	if !found {
 		// Nothing to do.
 		return []testrunner.TestResult{}
+	}
+
+	if r.withCoverage {
+		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
+		if err != nil {
+			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
+			return results
+		}
+		resultComposer = resultComposer.WithCoverage(coverage)
 	}
 
 	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)

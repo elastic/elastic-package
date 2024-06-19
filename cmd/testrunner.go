@@ -253,6 +253,8 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		PackageRootPath:    packageRootPath,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
