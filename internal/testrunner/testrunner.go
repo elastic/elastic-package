@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	DEFAULT_MAXIMUM_ROUTINES  = runtime.GOMAXPROCS(0) / 2
+	defaultMaximumRoutines    = runtime.GOMAXPROCS(0) / 2
 	maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
 )
 
@@ -357,7 +357,7 @@ func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
 
 func maxNumberRoutines() (int, error) {
 	var err error
-	maxRoutines := DEFAULT_MAXIMUM_ROUTINES
+	maxRoutines := defaultMaximumRoutines
 	v, ok := os.LookupEnv(maximumNumberParallelTest)
 	if ok {
 		maxRoutines, err = strconv.Atoi(v)
