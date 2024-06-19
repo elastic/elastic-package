@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
@@ -94,22 +93,6 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 
 	// Use provided coverage report
 	return details.coverage, nil
-}
-
-func GetBaseFolderPackageForCoverage(packageRootPath string) (string, error) {
-	dir, err := files.FindRepositoryRootDirectory()
-	if err != nil {
-		return "", err
-	}
-
-	relativePath, err := filepath.Rel(dir, packageRootPath)
-	if err != nil {
-		return "", fmt.Errorf("cannot create relative path to package root path. Root directory: '%s', Package root path: '%s': %w", dir, packageRootPath, err)
-	}
-	// Remove latest folder (package) since coverage methods already add the package name in the paths
-	baseFolder := filepath.Dir(relativePath)
-
-	return baseFolder, nil
 }
 
 func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
