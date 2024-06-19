@@ -20,25 +20,28 @@ import (
 )
 
 type tester struct {
-	testFolder      testrunner.TestFolder
-	packageRootPath string
-	withCoverage    bool
-	coverageType    string
+	testFolder       testrunner.TestFolder
+	packageRootPath  string
+	globalTestConfig testrunner.GlobalRunnerTestConfig
+	withCoverage     bool
+	coverageType     string
 }
 
 type StaticTesterOptions struct {
-	TestFolder      testrunner.TestFolder
-	PackageRootPath string
-	WithCoverage    bool
-	CoverageType    string
+	TestFolder       testrunner.TestFolder
+	PackageRootPath  string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 }
 
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
-		testFolder:      options.TestFolder,
-		packageRootPath: options.PackageRootPath,
-		withCoverage:    options.WithCoverage,
-		coverageType:    options.CoverageType,
+		testFolder:       options.TestFolder,
+		packageRootPath:  options.PackageRootPath,
+		globalTestConfig: options.GlobalTestConfig,
+		withCoverage:     options.WithCoverage,
+		coverageType:     options.CoverageType,
 	}
 	return &runner
 }
@@ -52,6 +55,12 @@ func (r tester) Type() testrunner.TestType {
 
 func (r tester) String() string {
 	return "static files"
+}
+
+// Parallel indicates if this tester can run in parallel or not.
+func (r tester) Parallel() bool {
+	// Not supported yet parallel tests even if it is indicated in the global config r.globalTestConfig
+	return false
 }
 
 func (r tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
@@ -70,11 +79,16 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
 	}
 
-	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.testFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link)
-		return result.WithSkip(testConfig.Skip)
+	skipConfigs := []*testrunner.SkipConfig{r.globalTestConfig.Skip}
+	if testConfig != nil {
+		skipConfigs = append(skipConfigs, testConfig.Skip)
+	}
+
+	if skip := testrunner.AnySkipConfig(skipConfigs...); skip != nil {
+		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
+			TestType, r.testFolder.Package, r.testFolder.DataStream,
+			skip.Reason, skip.Link)
+		return result.WithSkip(skip)
 	}
 
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)

@@ -17,25 +17,28 @@ const (
 )
 
 type runner struct {
-	packageRootPath string
-	kibanaClient    *kibana.Client
-	withCoverage    bool
-	coverageType    string
+	packageRootPath  string
+	kibanaClient     *kibana.Client
+	globalTestConfig testrunner.GlobalRunnerTestConfig
+	withCoverage     bool
+	coverageType     string
 }
 
 type AssetTestRunnerOptions struct {
-	PackageRootPath string
-	KibanaClient    *kibana.Client
-	WithCoverage    bool
-	CoverageType    string
+	PackageRootPath  string
+	KibanaClient     *kibana.Client
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
-		packageRootPath: options.PackageRootPath,
-		kibanaClient:    options.KibanaClient,
-		withCoverage:    options.WithCoverage,
-		coverageType:    options.CoverageType,
+		packageRootPath:  options.PackageRootPath,
+		kibanaClient:     options.KibanaClient,
+		globalTestConfig: options.GlobalTestConfig,
+		withCoverage:     options.WithCoverage,
+		coverageType:     options.CoverageType,
 	}
 	return &runner
 }
@@ -59,11 +62,12 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
-			PackageRootPath: r.packageRootPath,
-			KibanaClient:    r.kibanaClient,
-			TestFolder:      testrunner.TestFolder{Package: r.packageRootPath},
-			WithCoverage:    r.withCoverage,
-			CoverageType:    r.coverageType,
+			PackageRootPath:  r.packageRootPath,
+			KibanaClient:     r.kibanaClient,
+			TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
+			GlobalTestConfig: r.globalTestConfig,
+			WithCoverage:     r.withCoverage,
+			CoverageType:     r.coverageType,
 		}),
 	}
 	return testers, nil

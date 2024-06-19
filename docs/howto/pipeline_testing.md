@@ -175,3 +175,14 @@ Finally, when you are done running all pipeline tests, bring down the Elastic St
 ```
 elastic-package stack down
 ```
+
+## Global test configuration
+
+Each package could define a configuration file in `_dev/test/config.yml` to skip all the pipeline tests.
+
+```yaml
+pipeline:
+  skip:
+    reason: <reason>
+    link: <link_to_issue>
+```
