@@ -796,7 +796,9 @@ ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS=5 \
   elastic-package test system -v
 ```
 
-**NOTE**: Currently, just system tests support to run the tests in parallel.
+**NOTE**:
+- Currently, just system tests support to run tests in parallel.
+- **Not recommended** to enable system tests in parallel for packages that make use of the Terraform or Kubernetes service deployers.
 
 ### Detecting ignored fields
 
