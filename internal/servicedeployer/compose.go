@@ -247,7 +247,6 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		}
 
 		if s.configDir != "" {
-			logger.Debugf(">>> deleting config dir: %q", s.configDir)
 			// Remove the configuration dir for this service (e.g. terraform or compose scenario files)
 			if err := os.RemoveAll(s.configDir); err != nil {
 				logger.Errorf("could not remove the service configuration directory (path: %s) %v", s.configDir, err)
