@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/elastic/go-resource"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -19,7 +21,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
-	"github.com/elastic/go-resource"
 )
 
 const (
