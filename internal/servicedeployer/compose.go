@@ -17,7 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -51,12 +50,11 @@ type dockerComposeDeployedService struct {
 
 	shutdownTimeout time.Duration
 
-	ymlPaths []string
-	project  string
-	variant  ServiceVariant
-	env      []string
-
-	resourcePaths []string
+	ymlPaths  []string
+	project   string
+	variant   ServiceVariant
+	env       []string
+	configDir string
 }
 
 var _ ServiceDeployer = new(DockerComposeServiceDeployer)
@@ -247,6 +245,14 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		if err = os.RemoveAll(s.svcInfo.OutputDir); err != nil {
 			logger.Errorf("could not remove the temporary output files %s", err)
 		}
+
+		if s.configDir != "" {
+			logger.Debugf(">>> deleting config dir: %q", s.configDir)
+			// Remove the configuration dir for this service (e.g. terraform or compose scenario files)
+			if err := os.RemoveAll(s.configDir); err != nil {
+				logger.Errorf("could not remove the service configuration directory (path: %s) %v", s.configDir, err)
+			}
+		}
 	}()
 
 	p, err := compose.NewProject(s.project, s.ymlPaths...)
@@ -280,17 +286,6 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		ExtraArgs: []string{"--volumes"}, // Remove associated volumes.
 	}); err != nil {
 		return fmt.Errorf("could not shut down service using Docker Compose: %w", err)
-	}
-
-	var multiErr multierror.Error
-	for _, path := range s.resourcePaths {
-		err := os.RemoveAll(path)
-		if err != nil {
-			multiErr = append(multiErr, err)
-		}
-	}
-	if multiErr != nil {
-		return fmt.Errorf("failed to delete resource paths: %w", multiErr)
 	}
 	return nil
 }

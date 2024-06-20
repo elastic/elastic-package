@@ -8,9 +8,9 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/go-resource"
 )
 
 const (
@@ -111,7 +112,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
-		resourcePaths: []string{configDir},
+		configDir: configDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -205,16 +206,23 @@ func (d *CustomAgentDeployer) installDockerfile(folder string) (string, error) {
 	}
 
 	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir, folder)
-	err = os.MkdirAll(customAgentDir, 0755)
-	if err != nil {
-		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
+
+	resources := []resource.Resource{
+		&resource.File{
+			Provider:     "file",
+			Path:         dockerCustomAgentDockerfile,
+			Content:      resource.FileContentLiteral(string(dockerCustomAgentDockerfileContent)),
+			CreateParent: true,
+		},
 	}
 
-	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerfile)
-	err = os.WriteFile(customAgentDockerfile, dockerCustomAgentDockerfileContent, 0644)
+	resourceManager := resource.NewManager()
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
+		Prefix: customAgentDir,
+	})
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
-
 	return customAgentDir, nil
 }

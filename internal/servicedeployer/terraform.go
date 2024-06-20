@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -116,7 +116,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		project:         fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
-		resourcePaths:   []string{configDir},
+		configDir:       configDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -205,13 +205,7 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		var errors []string
-		for _, result := range results {
-			if err := result.Err(); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
 
 	return tfDir, nil
