@@ -9,6 +9,8 @@ import (
 	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/elastic/go-resource"
 )
 
 const (
@@ -57,4 +59,14 @@ func ToStringSlice(val interface{}) ([]string, error) {
 
 func CreateTestRunID() string {
 	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
+}
+
+func ProcessResourceApplyResults(results resource.ApplyResults) string {
+	var errors []string
+	for _, result := range results {
+		if err := result.Err(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	return strings.Join(errors, ", ")
 }
