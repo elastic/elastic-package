@@ -43,7 +43,7 @@ func reportToFile(pkg, report string, testType testrunner.TestType, format testr
 		ext = "xml"
 	}
 
-	fileName := fmt.Sprintf("%s_%s_%d.%s", pkg, testType, time.Now().UnixNano(), ext)
+	fileName := fmt.Sprintf("%s-%s-%d.%s", pkg, testType, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
 	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {
