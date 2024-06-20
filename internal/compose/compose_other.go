@@ -13,7 +13,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"sync"
 
 	"github.com/creack/pty"
 
@@ -30,38 +29,28 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
-	ptty, tty, err := pty.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open pseudo-tty to capture stderr: %w", err)
+	cmd.Stdout = os.Stdout
+	if opts.stdout != nil {
+		cmd.Stdout = opts.stdout
 	}
 
+	ptty, err := pty.Start(cmd)
+	if err != nil {
+		return fmt.Errorf("failed to start command with pseudo-tty: %w", err)
+	}
+	defer ptty.Close()
+	logger.Debugf("running command: %s", cmd)
+
 	var errBuffer bytes.Buffer
-	cmd.Stderr = tty
 	var stderr io.Writer = &errBuffer
 	if logger.IsDebugMode() {
 		cmd.Stdout = os.Stdout
 		stderr = io.MultiWriter(&errBuffer, os.Stderr)
 	}
-	if opts.stdout != nil {
-		cmd.Stdout = opts.stdout
-	}
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		io.Copy(stderr, ptty)
-	}()
+	io.Copy(stderr, ptty)
 
-	logger.Debugf("running command: %s", cmd)
-	err = cmd.Run()
-	tty.Close()
-	wg.Wait()
-
-	// Don't close the PTTY before the goroutine with the Copy has finished.
-	ptty.Close()
-
-	if err != nil {
+	if err := cmd.Wait(); err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
 			return fmt.Errorf("%w: %s", err, msg)
 		}
