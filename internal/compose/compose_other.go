@@ -29,7 +29,13 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	cmd.Env = append(os.Environ(), opts.env...)
 
-	cmd.Stdout = os.Stdout
+	var errBuffer bytes.Buffer
+	var stderr io.Writer = &errBuffer
+	cmd.Stdout = io.Discard
+	if logger.IsDebugMode() {
+		cmd.Stdout = os.Stdout
+		stderr = io.MultiWriter(&errBuffer, os.Stderr)
+	}
 	if opts.stdout != nil {
 		cmd.Stdout = opts.stdout
 	}
@@ -40,13 +46,6 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	defer ptty.Close()
 	logger.Debugf("running command: %s", cmd)
-
-	var errBuffer bytes.Buffer
-	var stderr io.Writer = &errBuffer
-	if logger.IsDebugMode() {
-		cmd.Stdout = os.Stdout
-		stderr = io.MultiWriter(&errBuffer, os.Stderr)
-	}
 
 	io.Copy(stderr, ptty)
 
