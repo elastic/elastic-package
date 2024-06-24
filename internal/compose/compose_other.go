@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/creack/pty"
 
@@ -40,6 +41,11 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		cmd.Stdout = opts.stdout
 	}
 
+	err := debugPtyStats()
+	if err != nil {
+		logger.Debugf("failed to get pty stats: %s", err)
+	}
+
 	ptty, err := pty.Start(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to start command with pseudo-tty: %w", err)
@@ -55,4 +61,26 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		}
 	}
 	return err
+}
+
+func debugPtyStats() error {
+	nr, err := os.ReadFile("/proc/sys/kernel/pty/nr")
+	if err != nil {
+		return fmt.Errorf("failed to read number of ptys: %w", err)
+
+	}
+	maxPtys, err := os.ReadFile("/proc/sys/kernel/pty/max")
+	if err != nil {
+		return fmt.Errorf("failed to read max, number of ptys: %w", err)
+	}
+	reservedPtys, err := os.ReadFile("/proc/sys/kernel/pty/reserve")
+	if err != nil {
+		return fmt.Errorf("failed to read reserved number of ptys: %w", err)
+	}
+	logger.Debugf("pty stats, used=%s max=%s reserved=%s",
+		strings.TrimSpace(string(nr)),
+		strings.TrimSpace(string(maxPtys)),
+		strings.TrimSpace(string(reservedPtys)),
+	)
+	return nil
 }
