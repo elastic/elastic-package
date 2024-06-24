@@ -18,7 +18,7 @@ import (
 )
 
 // getPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
-func getPipelineCoverage(options PipelineRunnerOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
+func getPipelineCoverage(options PipelineTesterOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)

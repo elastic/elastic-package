@@ -15,11 +15,24 @@ type SkipConfig struct {
 	Reason string `config:"reason"`
 
 	// Link is a URL where more details about the skipped test can be found.
-	Link url.URL `config:"url"`
+	Link packedURL `config:"link"`
+}
+
+type packedURL struct {
+	*url.URL
+}
+
+func (u *packedURL) Unpack(s string) error {
+	var err error
+	u.URL, err = url.Parse(s)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s SkipConfig) String() string {
-	return fmt.Sprintf("%s [%s]", s.Reason, s.Link.String())
+	return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
 }
 
 // SkippableConfig is a test configuration that allows skipping. This

@@ -10,19 +10,24 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const (
-	ServiceStateFileName = "service.json"
-	StateFolderName      = "state"
+var (
+	defaultMaximumRoutines    = runtime.GOMAXPROCS(0) / 2
+	maximumNumberParallelTest = environment.WithElasticPackagePrefix("MAXIMUM_NUMBER_PARALLEL_TESTS")
 )
 
 // TestType represents the various supported test types
@@ -50,8 +55,8 @@ type TestOptions struct {
 	RunTestsOnly   bool
 }
 
-// TestRunner is the interface all test runners must implement.
-type TestRunner interface {
+// Tester is the interface all test runners must implement.
+type Tester interface {
 	// Type returns the test runner's type.
 	Type() TestType
 
@@ -64,6 +69,26 @@ type TestRunner interface {
 	// TearDown cleans up any test runner resources. It must be called
 	// after the test runner has finished executing.
 	TearDown(context.Context) error
+
+	// Parallel indicates if this test can be run in parallel or not
+	Parallel() bool
+}
+
+type TesterFactory func(TestFolder) (Tester, error)
+
+// TestRunner is the interface test runners that require a global initialization must implement.
+type TestRunner interface {
+	// Type returns the test runner's type.
+	Type() TestType
+
+	// SetupRunner prepares global resources required by the test runner.
+	SetupRunner(context.Context) error
+
+	GetTests(context.Context) ([]Tester, error)
+
+	// TearDownRunner cleans up any global test runner resources. It must be called
+	// after the test runner has finished executing all its tests.
+	TearDownRunner(context.Context) error
 }
 
 // TestResult contains a single test's results
@@ -276,10 +301,156 @@ func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
 	return dataStream
 }
 
-// Run method delegates execution to the registered test runner, based on the test type.
-func Run(ctx context.Context, runner TestRunner) ([]TestResult, error) {
-	results, err := runner.Run(ctx)
-	tdErr := runner.TearDown(ctx)
+func RunSuite(ctx context.Context, runner TestRunner) ([]TestResult, error) {
+	testers, err := runner.GetTests(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve tests: %w", err)
+	}
+	if len(testers) == 0 {
+		return nil, nil
+	}
+
+	err = runner.SetupRunner(ctx)
+	if err != nil {
+		cleanupCtx := context.WithoutCancel(ctx)
+		tdErr := runner.TearDownRunner(cleanupCtx)
+		if tdErr != nil {
+			logger.Debugf("failed to tear down %s runner: %s", runner.Type(), tdErr)
+		}
+		return nil, fmt.Errorf("failed to setup %s runner: %w", runner.Type(), err)
+	}
+
+	var parallelTesters, sequentialTesters []Tester
+	for _, tester := range testers {
+		if tester.Parallel() {
+			parallelTesters = append(parallelTesters, tester)
+		} else {
+			sequentialTesters = append(sequentialTesters, tester)
+		}
+	}
+
+	var allResults, results []TestResult
+	var parallelErr, sequentialErr error
+
+	results, parallelErr = runSuiteParallel(ctx, parallelTesters)
+	allResults = append(allResults, results...)
+
+	results, sequentialErr = runSuite(ctx, sequentialTesters)
+	allResults = append(allResults, results...)
+
+	// Avoid cancellations during cleanup.
+	cleanupCtx := context.WithoutCancel(ctx)
+	tdErr := runner.TearDownRunner(cleanupCtx)
+	if tdErr != nil {
+		return allResults, fmt.Errorf("failed to tear down %s runner: %w", runner.Type(), tdErr)
+	}
+
+	if parallelErr != nil {
+		return allResults, parallelErr
+	}
+	if sequentialErr != nil {
+		return allResults, sequentialErr
+	}
+
+	return allResults, nil
+}
+
+func maxNumberRoutines() (int, error) {
+	var err error
+	maxRoutines := defaultMaximumRoutines
+	v, ok := os.LookupEnv(maximumNumberParallelTest)
+	if ok {
+		maxRoutines, err = strconv.Atoi(v)
+		if err != nil {
+			return 0, fmt.Errorf("failed to read number of maximum routines from environment variable: %w", err)
+		}
+	}
+	return maxRoutines, nil
+}
+
+func runSuite(ctx context.Context, testers []Tester) ([]TestResult, error) {
+	if len(testers) == 0 {
+		return nil, nil
+	}
+	logger.Debugf("Running tests sequentially")
+	var results []TestResult
+	for _, tester := range testers {
+		r, err := run(ctx, tester)
+		if err != nil {
+			return results, fmt.Errorf("error running package %s tests: %w", tester.Type(), err)
+		}
+		results = append(results, r...)
+	}
+
+	return results, nil
+}
+
+// runSuiteParallel method delegates execution of tests to the runners generated through the factory function.
+func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, error) {
+	if len(testers) == 0 {
+		return nil, nil
+	}
+	maxRoutines, err := maxNumberRoutines()
+	if err != nil {
+		return nil, err
+	}
+
+	var wg sync.WaitGroup
+	type routineResult struct {
+		results []TestResult
+		err     error
+	}
+	chResults := make(chan routineResult, len(testers))
+
+	logger.Debugf("Running tests in parallel. Maximum routines to run in parallel: %d", maxRoutines)
+	// Use channel as a semaphore to limit the number of test executions in parallel
+	sem := make(chan int, maxRoutines)
+
+	for _, tester := range testers {
+		wg.Add(1)
+		tester := tester
+		sem <- 1
+		go func() {
+			defer wg.Done()
+			defer func() {
+				<-sem
+			}()
+			if err := ctx.Err(); err != nil {
+				logger.Errorf("context error: %s", context.Cause(ctx))
+				chResults <- routineResult{nil, err}
+				return
+			}
+			r, err := run(ctx, tester)
+			chResults <- routineResult{r, err}
+		}()
+	}
+
+	wg.Wait()
+	close(chResults)
+	close(sem)
+
+	var results []TestResult
+	var multiErr error
+	testType := testers[0].Type()
+	for testResults := range chResults {
+		if testResults.err != nil {
+			multiErr = errors.Join(multiErr, testResults.err)
+		}
+
+		results = append(results, testResults.results...)
+	}
+
+	if multiErr != nil {
+		return results, fmt.Errorf("error running package %s tests: %w", testType, multiErr)
+	}
+
+	return results, nil
+}
+
+// run method delegates execution of tests to the given test runner.
+func run(ctx context.Context, tester Tester) ([]TestResult, error) {
+	results, err := tester.Run(ctx)
+	tdErr := tester.TearDown(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not complete test run: %w", err)
 	}
@@ -310,7 +481,22 @@ func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string,
 	return paths, err
 }
 
-// StateFolderPath returns the folder where the state data is stored
-func StateFolderPath(profilePath string) string {
-	return filepath.Join(profilePath, stack.ProfileStackPath, StateFolderName)
+func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
+	switch manifest.Type {
+	case "integration":
+		return true, nil
+	case "input":
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected package type %q", manifest.Type)
+	}
+}
+
+func AnySkipConfig(configs ...*SkipConfig) *SkipConfig {
+	for _, config := range configs {
+		if config != nil {
+			return config
+		}
+	}
+	return nil
 }
