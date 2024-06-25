@@ -576,6 +576,8 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		DeferCleanup:               deferCleanup,
 		RunIndependentElasticAgent: false,
 		GlobalTestConfig:           globalTestConfig.System,
+		WithCoverage:               testCoverage,
+		CoverageType:               testCoverageFormat,
 	})
 
 	logger.Debugf("Running suite...")
