@@ -24,7 +24,7 @@ function check_expected_errors() {
   local package_name=""
   package_name=$(basename "$1")
   local expected_errors_file="${package_root%/}.expected_errors"
-  local result_tests="build/test-results/${package_name}_*.xml"
+  local result_tests="build/test-results/${package_name}-*.xml"
   local results_no_spaces="build/test-results-no-spaces.xml"
 
   if [ ! -f "${expected_errors_file}" ]; then
