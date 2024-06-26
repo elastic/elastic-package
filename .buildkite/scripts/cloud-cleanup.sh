@@ -7,7 +7,6 @@ cleanup_cloud_stale() {
 
     cd "$WORKSPACE"
     rm -f "${AWS_RESOURCES_FILE}"
-    rm -f "${GCP_RESOURCES_FILE}"
     rm -f "${AWS_REDSHIFT_RESOURCES_FILE}"
 
     exit "$exit_code"
