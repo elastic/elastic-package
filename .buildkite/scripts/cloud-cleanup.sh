@@ -18,7 +18,6 @@ trap cleanup_cloud_stale EXIT
 set -euo pipefail
 
 AWS_RESOURCES_FILE="aws.resources.txt"
-GCP_RESOURCES_FILE="gcp.resources.txt"
 AWS_REDSHIFT_RESOURCES_FILE="redshift_clusters.json"
 
 RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
@@ -77,38 +76,6 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           ${COMMAND} | tee "${AWS_RESOURCES_FILE}"
 }
-
-cloud_reaper_gcp() {
-    echo "Validating configuration"
-    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
-      -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
-      -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
-      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
-      -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
-      "${CLOUD_REAPER_IMAGE}" \
-        cloud-reaper \
-          --config /etc/cloud-reaper/config.yml \
-          validate
-
-    echo "Scanning resources"
-    docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.gcp.yml":/etc/cloud-reaper/config.yml \
-      -e ACCOUNT_SECRET="${ELASTIC_PACKAGE_GCP_KEY_SECRET}" \
-      -e ACCOUNT_KEY="${ELASTIC_PACKAGE_GCP_EMAIL_SECRET}" \
-      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}" \
-      -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
-      "${CLOUD_REAPER_IMAGE}" \
-        cloud-reaper \
-          --config /etc/cloud-reaper/config.yml \
-          ${COMMAND} | tee "${GCP_RESOURCES_FILE}"
-}
-
-echo "--- Cleaning up GCP resources older than ${DELETE_RESOURCES_BEFORE_DATE}..."
-cloud_reaper_gcp
-
-if any_resources_to_delete "${GCP_RESOURCES_FILE}"; then
-    echo "Pending GCP resources"
-    resources_to_delete=1
-fi
 
 echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..."
 cloud_reaper_aws
