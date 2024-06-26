@@ -7,12 +7,51 @@ package testrunner
 import (
 	"bufio"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
+// GenerateBasePackageCoverageReport generates a coverage report where all files under the root path are
+// marked as not covered. It ignores files under _dev directories.
+func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (CoverageReport, error) {
+	var coverage CoverageReport
+	err := filepath.WalkDir(rootPath, func(match string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			if d.Name() == "_dev" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+
+		fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, false)
+		if err != nil {
+			return fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
+		}
+		if coverage == nil {
+			coverage = fileCoverage
+			return nil
+		}
+
+		err = coverage.Merge(fileCoverage)
+		if err != nil {
+			return fmt.Errorf("cannot merge coverages: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to walk package directory %s: %w", rootPath, err)
+	}
+	return coverage, nil
+}
+
+// GenerateBaseFileCoverageReport generates a coverage report for a given file, where all the file is marked as covered or uncovered.
 func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) (CoverageReport, error) {
 	switch format {
 	case "cobertura":
@@ -24,6 +63,8 @@ func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) 
 	}
 }
 
+// GenerateBaseFileCoverageReport generates a coverage report for all the files matching any of the given patterns. The complete
+// files are marked as fully covered or uncovered depending on the given value.
 func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, format string, covered bool) (CoverageReport, error) {
 	var coverage CoverageReport
 	for _, pattern := range patterns {
@@ -33,7 +74,7 @@ func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, forma
 		}
 
 		for _, match := range matches {
-			fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, true)
+			fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, covered)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
 			}

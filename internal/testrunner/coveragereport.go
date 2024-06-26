@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -52,6 +51,11 @@ func (tcd *testCoverageDetails) withUncoveredDataStreams(dataStreams []string) *
 	return tcd
 }
 
+func (tcd *testCoverageDetails) withCoverage(coverage CoverageReport) *testCoverageDetails {
+	tcd.coverage = coverage
+	return tcd
+}
+
 func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCoverageDetails {
 	for _, result := range results {
 		if _, ok := tcd.dataStreams[result.DataStream]; !ok {
@@ -71,9 +75,8 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-func WriteCoverage(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, testCoverageType string) error {
-	timestamp := time.Now().UnixNano()
-	report, err := createCoverageReport(packageRootPath, packageName, packageType, testType, results, testCoverageType, timestamp)
+func WriteCoverage(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) error {
+	report, err := createCoverageReport(packageRootPath, packageName, packageType, testType, results, format)
 	if err != nil {
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
@@ -88,8 +91,8 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 	return nil
 }
 
-func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, coverageFormat string, timestamp int64) (CoverageReport, error) {
-	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results)
+func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (CoverageReport, error) {
+	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results, format)
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
@@ -98,14 +101,20 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	return details.coverage, nil
 }
 
-func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult) (*testCoverageDetails, error) {
+func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (*testCoverageDetails, error) {
 	withoutTests, err := findDataStreamsWithoutTests(packageRootPath, testType)
 	if err != nil {
 		return nil, fmt.Errorf("can't find data streams without tests: %w", err)
 	}
 
+	emptyCoverage, err := GenerateBasePackageCoverageReport(packageName, packageRootPath, format)
+	if err != nil {
+		return nil, fmt.Errorf("can't generate initial base coverage report: %w", err)
+	}
+
 	details := newTestCoverageDetails(packageName, packageType, testType).
 		withUncoveredDataStreams(withoutTests).
+		withCoverage(emptyCoverage).
 		withTestResults(results)
 	if len(details.errors) > 0 {
 		return nil, details.errors
