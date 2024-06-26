@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/files"
@@ -74,9 +75,10 @@ var _ AgentDeployer = new(DockerComposeAgentDeployer)
 type dockerComposeDeployedAgent struct {
 	agentInfo AgentInfo
 
-	ymlPaths []string
-	project  string
-	env      []string
+	ymlPaths  []string
+	project   string
+	env       []string
+	configDir string
 }
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
@@ -125,12 +127,12 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	composeProjectName := fmt.Sprintf("elastic-package-agent-%s-%s", d.agentName(), agentInfo.Test.RunID)
 
 	agent := dockerComposeDeployedAgent{
-		ymlPaths: []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
-		project:  composeProjectName,
-		env:      env,
+		ymlPaths:  []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
+		project:   composeProjectName,
+		env:       env,
+		configDir: configDir,
 	}
 
-	agentInfo.ConfigDir = configDir
 	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
 
 	p, err := compose.NewProject(agent.project, agent.ymlPaths...)
@@ -295,7 +297,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	}
 	results, err := resourceManager.Apply(agentResources)
 	if err != nil {
-		return "", fmt.Errorf("%w: %s", err, processApplyErrors(results))
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
 
 	return customAgentDir, nil
@@ -337,7 +339,7 @@ func (d *DockerComposeAgentDeployer) installDockerfileResources(agentSettings Ag
 	})
 	results, err := resourceManager.Apply(agentResources)
 	if err != nil {
-		return fmt.Errorf("%w: %s", err, processApplyErrors(results))
+		return fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
 	return nil
 }
@@ -349,16 +351,6 @@ func hashFile(path string) ([]byte, error) {
 	}
 	dockerfileMD5 := md5.Sum(data)
 	return dockerfileMD5[:], nil
-}
-
-func processApplyErrors(results resource.ApplyResults) string {
-	var errors []string
-	for _, result := range results {
-		if err := result.Err(); err != nil {
-			errors = append(errors, err.Error())
-		}
-	}
-	return strings.Join(errors, ", ")
 }
 
 // ExitCode returns true if the agent is exited and its exit code.
@@ -395,8 +387,8 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 		}
 
 		// Remove the configuration dir for this agent (e.g. compose scenario files)
-		if err := os.RemoveAll(s.agentInfo.ConfigDir); err != nil {
-			logger.Errorf("could not remove the agent configuration directory (path: %s) %v", s.agentInfo.ConfigDir, err)
+		if err := os.RemoveAll(s.configDir); err != nil {
+			logger.Errorf("could not remove the agent configuration directory (path: %s) %v", s.configDir, err)
 		}
 	}()
 

@@ -11,11 +11,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -97,7 +97,7 @@ func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*Terrafo
 func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
-	configDir, err := tsd.installDockerfile()
+	configDir, err := tsd.installDockerfile(deployerFolderName(svcInfo))
 	if err != nil {
 		return nil, fmt.Errorf("can't install Docker Compose definitions: %w", err)
 	}
@@ -116,6 +116,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		project:         fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
+		configDir:       configDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -171,13 +172,13 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	return &service, nil
 }
 
-func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
+func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)
+	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir, folder)
 
 	resources := []resource.Resource{
 		&resource.File{
@@ -204,13 +205,7 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		var errors []string
-		for _, result := range results {
-			if err := result.Err(); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
 
 	return tfDir, nil
@@ -225,3 +220,7 @@ func CreateOutputDir(locationManager *locations.LocationManager, runID string) (
 }
 
 var _ ServiceDeployer = new(TerraformServiceDeployer)
+
+func deployerFolderName(svcInfo ServiceInfo) string {
+	return fmt.Sprintf("%s-%s", svcInfo.Name, svcInfo.Test.RunID)
+}
