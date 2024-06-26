@@ -148,6 +148,17 @@ func TestValidate_ipAddress(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_undefinedArrayOfObjects(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/undefined-array-of-objects.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Len(t, errs, 1)
+	require.Contains(t, errs[0].Error(), `field "user.group" is used as array of objects, expected explicit definition with type group or nested`)
+}
+
 func TestValidate_WithSpecVersion(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)

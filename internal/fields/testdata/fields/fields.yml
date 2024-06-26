@@ -86,3 +86,5 @@
   type: keyword
   normalize:
     - array
+- name: user.group.id
+  type: keyword
