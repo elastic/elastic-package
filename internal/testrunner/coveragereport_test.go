@@ -24,7 +24,6 @@ func TestCreateCoverageReport(t *testing.T) {
 		packageName    string
 		packageType    string
 		coverageFormat string
-		timestamp      int64
 		testType       TestType
 		results        []TestResult
 		expected       CoverageReport
@@ -36,7 +35,6 @@ func TestCreateCoverageReport(t *testing.T) {
 			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "generic",
-			timestamp:      10,
 			results: []TestResult{
 				{
 					Name:        "test1",
@@ -60,8 +58,7 @@ func TestCreateCoverageReport(t *testing.T) {
 								},
 							},
 						},
-						TestType:  "Coverage for system test",
-						Timestamp: 20,
+						TestType: "Coverage for system test",
 					},
 				},
 			},
@@ -82,15 +79,14 @@ func TestCreateCoverageReport(t *testing.T) {
 						},
 					},
 				},
-				TestType:  "Coverage for system test",
-				Timestamp: 20,
+				TestType: "Coverage for system test",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			report, err := createCoverageReport(tt.rootPath, tt.packageName, tt.packageType, tt.testType, tt.results, tt.coverageFormat, tt.timestamp)
+			report, err := createCoverageReport(tt.rootPath, tt.packageName, tt.packageType, tt.testType, tt.results, tt.coverageFormat)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, report)
 		})

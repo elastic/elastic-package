@@ -6,6 +6,7 @@ package testrunner
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -45,7 +46,8 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 
 		return nil
 	})
-	if err != nil {
+	// If the directory is not found, give it as valid, will return an empty coverage. This is also useful for mocked tests.
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("failed to walk package directory %s: %w", rootPath, err)
 	}
 	return coverage, nil
