@@ -174,8 +174,8 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
 		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
-		WithCoverage:     testCoverage,
 		GlobalTestConfig: globalTestConfig.Asset,
+		WithCoverage:     testCoverage,
 		CoverageType:     testCoverageFormat,
 	})
 
