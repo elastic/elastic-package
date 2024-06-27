@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -124,28 +125,44 @@ func generateBaseCoberturaFileCoverageReport(pkgName, path string, covered bool)
 	}
 	defer f.Close()
 
-	lines := int64(0)
 	hits := int64(0)
 	if covered {
 		hits = 1
 	}
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lines += 1
+	lines, err := countReaderLines(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count lines in file: %w", err)
+	}
+	for i := range lines {
 		line := CoberturaLine{
-			Number: int(lines),
+			Number: i + 1,
 			Hits:   hits,
 		}
 		class.Lines = append(class.Lines, &line)
 	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
-	}
-
-	coverage.LinesValid = lines
-	coverage.LinesCovered = lines * hits
+	coverage.LinesValid = int64(lines)
+	coverage.LinesCovered = int64(lines) * hits
 
 	return &coverage, nil
+}
+
+func countReaderLines(r io.Reader) (int, error) {
+	count := 0
+	buffered := bufio.NewReader(r)
+	for {
+		c, _, err := buffered.ReadRune()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("failed to read rune: %w", err)
+		}
+		if c != '\n' {
+			continue
+		}
+		count += 1
+	}
+	return count, nil
 }
 
 func generateBaseGenericFileCoverageReport(_, path string, covered bool) (*GenericCoverage, error) {
@@ -167,18 +184,16 @@ func generateBaseGenericFileCoverageReport(_, path string, covered bool) (*Gener
 	}
 	defer f.Close()
 
-	lineNumber := int64(0)
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lineNumber += 1
+	lines, err := countReaderLines(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count lines in file: %w", err)
+	}
+	for i := range lines {
 		line := GenericLine{
-			LineNumber: lineNumber,
+			LineNumber: int64(i) + 1,
 			Covered:    covered,
 		}
 		file.Lines = append(file.Lines, &line)
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("failed to read file: %v", err)
 	}
 
 	return &coverage, nil
