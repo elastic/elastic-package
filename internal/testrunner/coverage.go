@@ -14,13 +14,20 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/elastic/elastic-package/internal/files"
 )
 
 // GenerateBasePackageCoverageReport generates a coverage report where all files under the root path are
 // marked as not covered. It ignores files under _dev directories.
 func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (CoverageReport, error) {
+	repoPath, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
+	}
+
 	var coverage CoverageReport
-	err := filepath.WalkDir(rootPath, func(match string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(rootPath, func(match string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -31,7 +38,7 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 			return nil
 		}
 
-		fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, false)
+		fileCoverage, err := generateBaseFileCoverageReport(repoPath, pkgName, match, format, false)
 		if err != nil {
 			return fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
 		}
@@ -56,19 +63,22 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 
 // GenerateBaseFileCoverageReport generates a coverage report for a given file, where all the file is marked as covered or uncovered.
 func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) (CoverageReport, error) {
-	switch format {
-	case "cobertura":
-		return generateBaseCoberturaFileCoverageReport(pkgName, path, covered)
-	case "generic":
-		return generateBaseGenericFileCoverageReport(pkgName, path, covered)
-	default:
-		return nil, fmt.Errorf("unknwon coverage format %s", format)
+	repoPath, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
+
+	return generateBaseFileCoverageReport(repoPath, pkgName, path, format, covered)
 }
 
 // GenerateBaseFileCoverageReport generates a coverage report for all the files matching any of the given patterns. The complete
 // files are marked as fully covered or uncovered depending on the given value.
 func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, format string, covered bool) (CoverageReport, error) {
+	repoPath, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
+	}
+
 	var coverage CoverageReport
 	for _, pattern := range patterns {
 		matches, err := filepath.Glob(pattern)
@@ -77,7 +87,7 @@ func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, forma
 		}
 
 		for _, match := range matches {
-			fileCoverage, err := GenerateBaseFileCoverageReport(pkgName, match, format, covered)
+			fileCoverage, err := generateBaseFileCoverageReport(repoPath, pkgName, match, format, covered)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
 			}
@@ -95,11 +105,26 @@ func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, forma
 	return coverage, nil
 }
 
-func generateBaseCoberturaFileCoverageReport(pkgName, path string, covered bool) (*CoberturaCoverage, error) {
+func generateBaseFileCoverageReport(repoPath, pkgName, path, format string, covered bool) (CoverageReport, error) {
+	switch format {
+	case "cobertura":
+		return generateBaseCoberturaFileCoverageReport(repoPath, pkgName, path, covered)
+	case "generic":
+		return generateBaseGenericFileCoverageReport(repoPath, pkgName, path, covered)
+	default:
+		return nil, fmt.Errorf("unknwon coverage format %s", format)
+	}
+}
+
+func generateBaseCoberturaFileCoverageReport(repoPath, pkgName, path string, covered bool) (*CoberturaCoverage, error) {
+	coveragePath, err := filepath.Rel(repoPath, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain path inside repository for %s", path)
+	}
 	ext := filepath.Ext(path)
 	class := CoberturaClass{
 		Name:     pkgName + "." + strings.TrimSuffix(filepath.Base(path), ext),
-		Filename: path,
+		Filename: coveragePath,
 	}
 	pkg := CoberturaPackage{
 		Name: pkgName,
@@ -146,33 +171,18 @@ func generateBaseCoberturaFileCoverageReport(pkgName, path string, covered bool)
 	return &coverage, nil
 }
 
-func countReaderLines(r io.Reader) (int, error) {
-	count := 0
-	buffered := bufio.NewReader(r)
-	for {
-		c, _, err := buffered.ReadRune()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return 0, fmt.Errorf("failed to read rune: %w", err)
-		}
-		if c != '\n' {
-			continue
-		}
-		count += 1
+func generateBaseGenericFileCoverageReport(repoPath, _, path string, covered bool) (*GenericCoverage, error) {
+	coveragePath, err := filepath.Rel(repoPath, path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to obtain path inside repository for %s", path)
 	}
-	return count, nil
-}
-
-func generateBaseGenericFileCoverageReport(_, path string, covered bool) (*GenericCoverage, error) {
 	file := GenericFile{
-		Path: path,
+		Path: coveragePath,
 	}
 	coverage := GenericCoverage{
 		Version:   1,
 		Timestamp: time.Now().UnixNano(),
-		TestType:  fmt.Sprintf("Coverage for %s", path),
+		TestType:  fmt.Sprintf("Coverage for %s", coveragePath),
 		Files: []*GenericFile{
 			&file,
 		},
@@ -197,4 +207,23 @@ func generateBaseGenericFileCoverageReport(_, path string, covered bool) (*Gener
 	}
 
 	return &coverage, nil
+}
+
+func countReaderLines(r io.Reader) (int, error) {
+	count := 0
+	buffered := bufio.NewReader(r)
+	for {
+		c, _, err := buffered.ReadRune()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return 0, fmt.Errorf("failed to read rune: %w", err)
+		}
+		if c != '\n' {
+			continue
+		}
+		count += 1
+	}
+	return count, nil
 }
