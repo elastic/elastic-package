@@ -11,6 +11,10 @@ services:
     env_file: "./elastic-agent.env"
     cap_drop:
     - ALL
+    cap_add:
+    - CHOWN
+    - SETPCAP
+    - SETFCAP
     volumes:
     - type: bind
       source: ../../../tmp/service_logs/
