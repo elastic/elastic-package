@@ -24,7 +24,6 @@ func setupCheckCommand() *cobraext.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cobraext.ComposeCommands(args,
-				setupFormatCommand(),
 				setupLintCommand(),
 				setupBuildCommand(),
 			)
