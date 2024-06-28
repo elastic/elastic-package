@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
+	"github.com/elastic/elastic-package/internal/agentdeployer"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -34,6 +35,7 @@ type testConfig struct {
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	IgnoreServiceError  bool          `config:"ignore_service_error"`
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
+	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
 
 	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
@@ -54,11 +56,7 @@ type testConfig struct {
 
 	// Agent related properties
 	Agent struct {
-		User              string   `config:"user"`
-		PidMode           string   `config:"pid_mode"`
-		LinuxCapabilities []string `config:"linux_capabilities"`
-		Runtime           string   `config:"runtime"`
-		Ports             []string `config:"ports"`
+		agentdeployer.AgentSettings `config:",inline"`
 	} `config:"agent"`
 }
 
@@ -105,6 +103,20 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 	// Save path
 	c.Path = configFilePath
 	c.ServiceVariantName = serviceVariantName
+
+	// Default values for AgentSettings
+	if c.Agent.Runtime == "" {
+		c.Agent.Runtime = agentdeployer.DefaultAgentRuntime
+	}
+
+	if c.Agent.ProvisioningScript.Contents != "" && c.Agent.ProvisioningScript.Language == "" {
+		c.Agent.ProvisioningScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
+		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
 	return &c, nil
 }
 

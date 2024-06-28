@@ -8,9 +8,11 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
-	"os"
 	"path/filepath"
 
+	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -94,7 +96,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
 	)
 
-	configDir, err := d.installDockerfile()
+	configDir, err := d.installDockerfile(deployerFolderName(svcInfo))
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -106,11 +108,12 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
+		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
 		variant: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,
 		},
+		configDir: configDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -129,7 +132,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		// service logs folder must no be deleted to avoid breaking log files written
 		// by the service. If this is required, those files should be rotated or truncated
 		// so the service can still write to them.
-		logger.Debug("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
+		logger.Debugf("Skipping removing service logs folder folder %s", svcInfo.Logs.Folder.Local)
 	} else {
 		err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 		if err != nil {
@@ -197,23 +200,30 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 // installDockerfile creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *CustomAgentDeployer) installDockerfile() (string, error) {
+func (d *CustomAgentDeployer) installDockerfile(folder string) (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir)
-	err = os.MkdirAll(customAgentDir, 0755)
-	if err != nil {
-		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
+	customAgentDir := filepath.Join(locationManager.DeployerDir(), dockerCustomAgentDir, folder)
+
+	resources := []resource.Resource{
+		&resource.File{
+			Provider:     "file",
+			Path:         dockerCustomAgentDockerfile,
+			Content:      resource.FileContentLiteral(string(dockerCustomAgentDockerfileContent)),
+			CreateParent: true,
+		},
 	}
 
-	customAgentDockerfile := filepath.Join(customAgentDir, dockerCustomAgentDockerfile)
-	err = os.WriteFile(customAgentDockerfile, dockerCustomAgentDockerfileContent, 0644)
+	resourceManager := resource.NewManager()
+	resourceManager.RegisterProvider("file", &resource.FileProvider{
+		Prefix: customAgentDir,
+	})
+	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		return "", fmt.Errorf("failed to create docker compose file for custom agent: %w", err)
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
-
 	return customAgentDir, nil
 }

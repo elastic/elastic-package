@@ -31,6 +31,7 @@ tracing.apm.agent.environment: "dev"
 
 {{ $serverless_enabled := fact "serverless_enabled" }}
 {{ if eq $serverless_enabled "true" }}
+discovery.type: "single-node"
 stateless.enabled: true
 stateless.object_store.type: fs
 stateless.object_store.bucket: stack

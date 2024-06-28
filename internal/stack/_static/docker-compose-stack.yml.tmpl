@@ -1,7 +1,15 @@
-{{ $username := fact "username" }}
-{{ $password := fact "password" }}
-{{ $apm_enabled := fact "apm_enabled" }}
-{{ $serverless_enabled := fact "serverless_enabled" }}
+{{- $username := fact "username" -}}
+{{- $password := fact "password" -}}
+{{- $apm_enabled := fact "apm_enabled" -}}
+{{- $serverless_enabled := fact "serverless_enabled" -}}
+{{- $version := fact "kibana_version" -}}
+
+{{- $fleet_healthcheck_success_checks := 3 -}}
+{{- $fleet_healthcheck_waiting_time := 1 -}}
+{{- if semverLessThan $version "8.0.0" -}}
+    {{- $fleet_healthcheck_success_checks = 10 -}}
+    {{- $fleet_healthcheck_waiting_time = 2 -}}
+{{- end -}}
 services:
   elasticsearch:
 {{ if eq $serverless_enabled "true" }}
@@ -21,6 +29,7 @@ services:
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
       - "{{ fact "geoip_dir" }}:/usr/share/elasticsearch/config/ingest-geoip"
       - "./service_tokens:/usr/share/elasticsearch/config/service_tokens"
+      - "/tmp/logs:/usr/share/elasticsearch/logs"
     ports:
       - "127.0.0.1:9200:9200"
 
@@ -53,7 +62,7 @@ services:
     volumes:
       - "./kibana.yml:/usr/share/kibana/config/kibana.yml"
       - "../certs/kibana:/usr/share/kibana/config/certs"
-      - "./kibana_healthcheck.sh:/usr/share/kibana/healthcheck.sh"
+      - "./kibana-healthcheck.sh:/usr/share/kibana/healthcheck.sh"
     ports:
       - "127.0.0.1:5601:5601"
 
@@ -103,7 +112,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "bash /healthcheck.sh"
+      test: "bash /healthcheck.sh {{ $fleet_healthcheck_success_checks }} {{ $fleet_healthcheck_waiting_time }}"
       start_period: 60s
       interval: 5s
     hostname: docker-fleet-server

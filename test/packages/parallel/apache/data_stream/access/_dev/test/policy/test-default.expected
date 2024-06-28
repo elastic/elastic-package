@@ -1,0 +1,34 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: apache
+      name: test-default-apache
+      streams:
+        - data_stream:
+            dataset: apache.access
+            type: logs
+          exclude_files:
+            - .gz$
+          paths:
+            - /var/logs/apache/access.log*
+          tags:
+            - apache-access
+      type: logfile
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-apache.access-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

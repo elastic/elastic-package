@@ -7,10 +7,10 @@ GO_VERSION=$(cat .go-version)
 export GO_VERSION
 
 export SERVERLESS=${SERVERLESS:-"false"}
-export WORKSPACE=$(pwd)
+WORKSPACE=$(pwd)
+export WORKSPACE
 
 
-GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account
 AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
@@ -81,27 +81,6 @@ if is_step_required_to_upload_safe_logs; then
     export JOB_GCS_BUCKET_INTERNAL="ingest-buildkite-ci"
 fi
 
-is_step_testing_gcp () {
-    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
-        return 1
-    fi
-    if [[ "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-false" || "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp-agent-true" ]]; then
-        return 0
-    fi
-    return 1
-}
-
-if is_step_testing_gcp; then
-    ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
-    ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH} | jq -c)
-    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET
-
-    # Environment variables required by the service deployer
-    export GOOGLE_CREDENTIALS=${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}
-    export GCP_PROJECT_ID=${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}
-fi
-
 is_step_testing_aws () {
     if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" ]]; then
         return 1
@@ -147,15 +126,6 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKI
     export ELASTIC_PACKAGE_AWS_ACCESS_KEY
     ELASTIC_PACKAGE_AWS_USER_SECRET=$(retry 5 vault kv get -field user ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_USER_SECRET
-
-    ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH} | jq -c)
-    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET
-    ELASTIC_PACKAGE_GCP_KEY_SECRET=$(echo "${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}" | jq -r '.private_key' | tr -d '\n')
-    export ELASTIC_PACKAGE_GCP_KEY_SECRET
-    ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET
-    ELASTIC_PACKAGE_GCP_EMAIL_SECRET=$(retry 5 vault read -field username ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_GCP_EMAIL_SECRET
 fi
 
 

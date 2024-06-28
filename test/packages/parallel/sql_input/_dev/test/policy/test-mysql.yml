@@ -1,0 +1,4 @@
+vars:
+  hosts:
+    - root:test@tcp(localhost:3306)/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_%';"

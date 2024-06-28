@@ -36,10 +36,7 @@ cleanup() {
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-    (
-      cd "$d"
-      elastic-package clean -v
-    )
+    elastic-package clean -C "$d" -v
   done
 
   exit $r
@@ -51,15 +48,10 @@ ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 export SERVERLESS=${SERVERLESS:-"false"}
 
-OLDPWD=$PWD
 # Build/check packages
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-  (
-    cd "$d"
-    elastic-package check -v
-  )
+  elastic-package check -C "$d" -v
 done
-cd -
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   # Create a logstash profile and use it
@@ -93,45 +85,41 @@ fi
 
 # Run package tests
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-  (
-    cd "$d"
-    package_to_test=$(basename "${d}")
+  package_to_test=$(basename "${d}")
 
-    if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
-      # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-      if [ "${package_to_test}" == "pipeline_benchmark" ]; then
-        rm -rf "${OLDPWD}/build/benchmark-results"
-        elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
+    # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
+    if [ "${package_to_test}" == "pipeline_benchmark" ]; then
+      rm -rf "${PWD}/build/benchmark-results"
+      elastic-package benchmark pipeline -C "$d" -v --report-format xUnit --report-output file --fail-on-missing
 
-        rm -rf "${OLDPWD}/build/benchmark-results-old"
-        mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
+      rm -rf "${PWD}/build/benchmark-results-old"
+      mv "${PWD}/build/benchmark-results" "${PWD}/build/benchmark-results-old"
 
-        elastic-package benchmark pipeline -v --report-format json --report-output file --fail-on-missing
+      elastic-package benchmark pipeline -C "$d" -v --report-format json --report-output file --fail-on-missing
 
-        elastic-package report --fail-on-missing benchmark \
-          --new "${OLDPWD}/build/benchmark-results" \
-          --old "${OLDPWD}/build/benchmark-results-old" \
-          --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
-      fi
-      if [ "${package_to_test}" == "system_benchmark" ]; then
-        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
-      fi
-    elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
-        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
-    else
-      if [[ "${SERVERLESS}" == "true" ]]; then
-          # skip system tests
-          elastic-package test asset -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
-          elastic-package test static -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
-          # FIXME: adding test-coverage for serverless results in errors like this:
-          # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
-          elastic-package test pipeline -v --report-format xUnit --report-output file --defer-cleanup 1s
-          exit # as it is run in a subshell, it cannot be used "continue"
-      fi
-      # Run all tests
-      # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
+      elastic-package report -C "$d" --fail-on-missing benchmark \
+        --new "${PWD}/build/benchmark-results" \
+        --old "${PWD}/build/benchmark-results-old" \
+        --threshold 1 --report-output-path="${PWD}/build/benchreport"
     fi
-  )
-cd -
+    if [ "${package_to_test}" == "system_benchmark" ]; then
+      elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
+    fi
+  elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
+      elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
+  else
+    if [[ "${SERVERLESS}" == "true" ]]; then
+        # skip system tests
+        elastic-package test asset -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+        elastic-package test static -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+        # FIXME: adding test-coverage for serverless results in errors like this:
+        # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
+        elastic-package test pipeline -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s
+        exit # as it is run in a subshell, it cannot be used "continue"
+    fi
+    # Run all tests
+    # defer-cleanup is set to a short period to verify that the option is available
+    elastic-package test -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
+  fi
 done

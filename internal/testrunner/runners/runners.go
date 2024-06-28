@@ -9,6 +9,7 @@ import (
 	// Registered test runners
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners/asset"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners/pipeline"
+	_ "github.com/elastic/elastic-package/internal/testrunner/runners/policy"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners/static"
 	_ "github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )

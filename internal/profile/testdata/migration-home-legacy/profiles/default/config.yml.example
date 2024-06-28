@@ -1,0 +1,25 @@
+# Directory containing GeoIP databases for stacks managed by elastic-agent.
+# stack.geoip_dir: "/path/to/geoip_dir/"
+## Elastic Cloud
+# Host URL
+# stack.elastic_cloud.host: https://cloud.elastic.co
+
+## Serverless stack provider
+# Project type
+# stack.serverless.type: observability
+# Region where the Serverless project is going to be created
+# stack.serverless.region: aws-us-east-1
+
+## Enable apm-server
+# Flag to enable apm-server in elastic-package stack profile config
+# stack.apm_enabled: true
+
+## Enable logstash for testing
+# Flag to enable logstash in elastic-package stack profile config
+# stack.logstash_enabled: true
+
+## Specify agent ports to publish
+## port definition schema https://docs.docker.com/compose/compose-file/compose-file-v2/#ports
+# stack.agent.ports:
+# - 127.0.0.1:1514:1514/udp
+

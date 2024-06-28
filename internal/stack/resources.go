@@ -24,8 +24,8 @@ import (
 var static embed.FS
 
 const (
-	// SnapshotFile is the docker-compose snapshot.yml file name.
-	SnapshotFile = "snapshot.yml"
+	// ComposeFile is the docker compose file.
+	ComposeFile = "docker-compose.yml"
 
 	// ElasticsearchConfigFile is the elasticsearch config file.
 	ElasticsearchConfigFile = "elasticsearch.yml"
@@ -37,16 +37,13 @@ const (
 	LogstashConfigFile = "logstash.conf"
 
 	// KibanaHealthcheckFile is the kibana healthcheck.
-	KibanaHealthcheckFile = "kibana_healthcheck.sh"
+	KibanaHealthcheckFile = "kibana-healthcheck.sh"
 
 	// FleetServerHealthcheckFile is the Fleet Server healthcheck.
 	FleetServerHealthcheckFile = "fleet-server-healthcheck.sh"
 
 	// PackageRegistryConfigFile is the config file for the Elastic Package registry
 	PackageRegistryConfigFile = "package-registry.yml"
-
-	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.24.0"
 
 	// ElasticAgentEnvFile is the elastic agent environment variables file.
 	ElasticAgentEnvFile = "elastic-agent.env"
@@ -62,6 +59,7 @@ const (
 
 	configAPMEnabled            = "stack.apm_enabled"
 	configGeoIPDir              = "stack.geoip_dir"
+	configKibanaHTTP2Enabled    = "stack.kibana_http2_enabled"
 	configLogstashEnabled       = "stack.logstash_enabled"
 	configSelfMonitorEnabled    = "stack.self_monitor_enabled"
 	configServerlessEnabled     = "stack.serverless_enabled"
@@ -80,7 +78,7 @@ var (
 			Content: staticSource.Template("_static/Dockerfile.package-registry.tmpl"),
 		},
 		&resource.File{
-			Path:    SnapshotFile,
+			Path:    ComposeFile,
 			Content: staticSource.Template("_static/docker-compose-stack.yml.tmpl"),
 		},
 		&resource.File{
@@ -168,8 +166,8 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"self_monitor_enabled":    profile.Config(configSelfMonitorEnabled, "false"),
 		"serverless_enabled":      profile.Config(configServerlessEnabled, "false"),
 		"serverless_project_type": profile.Config(configServerlessProjectType, "observability"),
-
-		"agent_publish_ports": strings.Join(agentPorts, ","),
+		"agent_publish_ports":     strings.Join(agentPorts, ","),
+		"kibana_http2_enabled":    profile.Config(configKibanaHTTP2Enabled, "true"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {

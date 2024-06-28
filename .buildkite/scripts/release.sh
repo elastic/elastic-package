@@ -8,7 +8,7 @@ set -euo pipefail
 cleanup_binaries() {
     rm -rf "${WORKSPACE}"
 }
-trap cleanup_binaries exit
+trap cleanup_binaries EXIT
 
 export WORKSPACE="/tmp/bin-buildkite/"
 

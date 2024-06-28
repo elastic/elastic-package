@@ -14,14 +14,11 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/creack/pty"
 
 	"gopkg.in/yaml.v3"
 
@@ -373,29 +370,33 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 		}
 
 		for _, containerDescription := range descriptions {
-			logger.Debugf("Container status: %s", containerDescription.String())
 
 			// No healthcheck defined for service
 			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
+				logger.Debugf("Container %s status: %s (no health status)", containerDescription.ID, containerDescription.State.Status)
 				continue
 			}
 
 			// Service is up and running and it's healthy
 			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
+				logger.Debugf("Container %s status: %s (health: %s)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.Health.Status)
 				continue
 			}
 
 			// Container started and finished with exit code 0
 			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
+				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
 				continue
 			}
 
 			// Container exited with code > 0
 			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
+				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
 				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
 			}
 
 			// Any different status is considered unhealthy
+			logger.Debugf("Container %s status: unhealthy", containerDescription.ID)
 			healthy = false
 		}
 
@@ -476,56 +477,6 @@ type dockerComposeOptions struct {
 	stdout io.Writer
 }
 
-func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOptions) error {
-	name, args := p.dockerComposeBaseCommand()
-	args = append(args, opts.args...)
-
-	cmd := exec.CommandContext(ctx, name, args...)
-	cmd.Cancel = func() error {
-		if runtime.GOOS == "windows" {
-			// Interrupt is not implemented in Windows.
-			return cmd.Process.Kill()
-		}
-		return cmd.Process.Signal(os.Interrupt)
-	}
-	cmd.Env = append(os.Environ(), opts.env...)
-
-	ptty, tty, err := pty.Open()
-	if err != nil {
-		return fmt.Errorf("failed to open pseudo-tty to capture stderr: %w", err)
-	}
-
-	var errBuffer bytes.Buffer
-	cmd.Stderr = tty
-	var stderr io.Writer = &errBuffer
-	if logger.IsDebugMode() {
-		cmd.Stdout = os.Stdout
-		stderr = io.MultiWriter(&errBuffer, os.Stderr)
-	}
-	if opts.stdout != nil {
-		cmd.Stdout = opts.stdout
-	}
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		io.Copy(stderr, ptty)
-	}()
-
-	logger.Debugf("running command: %s", cmd)
-	err = cmd.Run()
-	ptty.Close()
-	tty.Close()
-	wg.Wait()
-	if err != nil {
-		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
-			return fmt.Errorf("%w: %s", err, msg)
-		}
-	}
-	return err
-}
-
 const daemonResponse = `Error response from daemon:`
 
 // This regexp must match prefixes like WARN[0000], which may include escape sequences for colored letters
@@ -564,7 +515,7 @@ func (p *Project) dockerComposeStandaloneRequired() bool {
 	if err == nil {
 		return false
 	} else {
-		logger.Debugf("docker compose subcommand failed: %w: %s", err, output)
+		logger.Debugf("docker compose subcommand failed: %v: %s", err, output)
 	}
 
 	return true

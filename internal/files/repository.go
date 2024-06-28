@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func FindRepositoryRootDirectory() (string, error) {
@@ -35,7 +33,6 @@ func findRepositoryRootDirectory(workDir string) (string, error) {
 			return "", err
 		}
 		if gitRepo {
-			logger.Debugf("Found git repository directory: %q", dir)
 			return dir, nil
 		}
 		if dir == rootDir {

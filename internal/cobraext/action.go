@@ -32,3 +32,15 @@ func ComposeCommands(args []string, composed ...*Command) error {
 	}
 	return nil
 }
+
+func ComposeCommandsParentContext(parent *cobra.Command, args []string, composed ...*cobra.Command) error {
+	for _, cmd := range composed {
+		cmd.ParseFlags(args)
+		cmd.SetContext(parent.Context())
+		err := cmd.RunE(cmd, args)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

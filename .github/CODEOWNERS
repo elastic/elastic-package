@@ -1,0 +1,7 @@
+/.buildkite/ @elastic/ecosystem
+/.github/ @elastic/ecosystem
+
+# Files with versions that are updated by updatecli.
+Makefile @elastic/ecosystem
+internal/install/stack_version.go @elastic/ecosystem
+internal/stack/versions.go @elastic/ecosystem

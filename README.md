@@ -568,7 +568,12 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+#### Policy Tests
+These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
+
+For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).
 
 ### `elastic-package test asset`
 
@@ -581,6 +586,12 @@ Run asset loading tests for the package.
 _Context: package_
 
 Run pipeline tests for the package.
+
+### `elastic-package test policy`
+
+_Context: package_
+
+Run policy tests for the package.
 
 ### `elastic-package test static`
 
@@ -637,6 +648,8 @@ The following settings are available per profile:
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
+* `stack.kibana_http2_enabled` can be used to control if HTTP/2 should be used in versions of
+  kibana that support it. Defaults to true.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.

@@ -1,0 +1,1 @@
+{"provider":"compose","elasticsearch_host":"https://127.0.0.1:9200","elasticsearch_username":"elastic","elasticsearch_password":"changeme","kibana_host":"https://127.0.0.1:5601","ca_cert_file":"/tmp/test-elastic-package/profiles/default/certs/ca-cert.pem"}

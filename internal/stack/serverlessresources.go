@@ -21,7 +21,7 @@ import (
 var (
 	serverlessStackResources = []resource.Resource{
 		&resource.File{
-			Path:    SnapshotFile,
+			Path:    ComposeFile,
 			Content: staticSource.Template("_static/serverless-docker-compose.yml.tmpl"),
 		},
 		&resource.File{
@@ -48,7 +48,7 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,
 		"kibana_host":        config.KibanaHost,
-		"fleet_url":          config.Parameters[paramServerlessFleetURL],
+		"fleet_url":          config.Parameters[ParamServerlessFleetURL],
 		"logstash_enabled":   profile.Config("stack.logstash_enabled", "false"),
 	})
 

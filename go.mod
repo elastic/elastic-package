@@ -10,40 +10,40 @@ require (
 	github.com/boumenot/gocover-cobertura v1.2.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.3.0
-	github.com/creack/pty v1.1.21
+	github.com/creack/pty v1.1.19
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
-	github.com/elastic/go-licenser v0.4.1
+	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
-	github.com/elastic/package-spec/v3 v3.1.4
-	github.com/fatih/color v1.16.0
+	github.com/elastic/package-spec/v3 v3.2.0
+	github.com/fatih/color v1.17.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.1.0
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/go-retryablehttp v0.7.6
+	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.15.0
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
-	github.com/shirou/gopsutil/v3 v3.24.4
-	github.com/spf13/cobra v1.8.0
+	github.com/shirou/gopsutil/v3 v3.24.5
+	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
-	golang.org/x/tools v0.21.0
+	golang.org/x/tools v0.22.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/gotestsum v1.11.0
-	helm.sh/helm/v3 v3.14.4
+	gotest.tools/gotestsum v1.12.0
+	helm.sh/helm/v3 v3.15.2
 	honnef.co/go/tools v0.4.7
-	k8s.io/apimachinery v0.30.0
-	k8s.io/cli-runtime v0.30.0
-	k8s.io/client-go v0.30.0
+	k8s.io/apimachinery v0.30.2
+	k8s.io/cli-runtime v0.30.2
+	k8s.io/client-go v0.30.2
 )
 
 require (
@@ -61,7 +61,7 @@ require (
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d // indirect
-	github.com/bitfield/gotestdox v0.2.1 // indirect
+	github.com/bitfield/gotestdox v0.2.2 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/creasty/defaults v1.7.0 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/dnephin/pflag v1.0.7 // indirect
 	github.com/dsnet/compress v0.0.2-0.20210315054119-f66993602bf5 // indirect
 	github.com/elastic/gojsonschema v1.2.1 // indirect
-	github.com/elastic/kbncontent v0.1.3 // indirect
+	github.com/elastic/kbncontent v0.1.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
@@ -156,31 +156,31 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
-	golang.org/x/crypto v0.23.0 // indirect
+	golang.org/x/crypto v0.24.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
-	golang.org/x/mod v0.17.0 // indirect
-	golang.org/x/net v0.25.0 // indirect
+	golang.org/x/mod v0.18.0 // indirect
+	golang.org/x/net v0.26.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
 	golang.org/x/sync v0.7.0 // indirect
-	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
-	golang.org/x/text v0.15.0 // indirect
+	golang.org/x/sys v0.21.0 // indirect
+	golang.org/x/term v0.21.0 // indirect
+	golang.org/x/text v0.16.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.30.0 // indirect
-	k8s.io/apiextensions-apiserver v0.29.0 // indirect
-	k8s.io/component-base v0.29.0 // indirect
+	k8s.io/api v0.30.2 // indirect
+	k8s.io/apiextensions-apiserver v0.30.0 // indirect
+	k8s.io/component-base v0.30.0 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
-	k8s.io/kubectl v0.29.0 // indirect
+	k8s.io/kubectl v0.30.0 // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.13.5-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.14.3-0.20230601165947-6ce0bf390ce3 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.3.0 // indirect
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
