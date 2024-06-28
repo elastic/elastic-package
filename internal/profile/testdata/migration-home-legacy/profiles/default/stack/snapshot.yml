@@ -136,6 +136,10 @@ services:
     env_file: "./elastic-agent.env"
     cap_drop:
     - ALL
+    cap_add:
+    - CHOWN
+    - SETPCAP
+    - SETFCAP
     ports: []
     volumes:
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"

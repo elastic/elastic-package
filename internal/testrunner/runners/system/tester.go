@@ -421,6 +421,9 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 		info.Agent.User = "root"
 	}
 
+	// Set linux capabilities to the minimum set required by the agent
+	info.Agent.LinuxCapabilities = []string{"CHOWN", "SETFCAP", "SETPCAP"}
+
 	return info, nil
 }
 
