@@ -650,6 +650,8 @@ The following settings are available per profile:
   an absolute path, out of the `.elastic-package` directory.
 * `stack.kibana_http2_enabled` can be used to control if HTTP/2 should be used in versions of
   kibana that support it. Defaults to true.
+* `stack.logsdb_enabled` can be set to true to activate the feature flag in Elasticsearch that
+  enables logs index mode in all data streams that support it. Defaults to false.
 * `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
   default output for tests using elastic-package. Supported only by the compose provider.
   Defaults to false.
