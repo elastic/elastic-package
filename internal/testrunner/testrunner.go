@@ -171,7 +171,7 @@ func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 
 	var tcf ErrTestCaseFailed
 	if errors.As(err, &tcf) {
-		rc.FailureMsg += tcf.Reason
+		rc.FailureMsg += tcf.Error()
 		rc.FailureDetails += tcf.Details
 		return []TestResult{rc.TestResult}, nil
 	}
