@@ -28,3 +28,12 @@ tracing.apm.enabled: true
 tracing.apm.agent.server_url: "http://fleet-server:8200"
 tracing.apm.agent.environment: "dev"
 {{ end }}
+
+{{ $serverless_enabled := fact "serverless_enabled" }}
+{{ if eq $serverless_enabled "true" }}
+discovery.type: "single-node"
+stateless.enabled: true
+stateless.object_store.type: fs
+stateless.object_store.bucket: stack
+path.repo: /usr/share/elasticsearch/objectstore
+{{ end }}

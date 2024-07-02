@@ -57,11 +57,13 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled         = "stack.apm_enabled"
-	configGeoIPDir           = "stack.geoip_dir"
-	configKibanaHTTP2Enabled = "stack.kibana_http2_enabled"
-	configLogstashEnabled    = "stack.logstash_enabled"
-	configSelfMonitorEnabled = "stack.self_monitor_enabled"
+	configAPMEnabled            = "stack.apm_enabled"
+	configGeoIPDir              = "stack.geoip_dir"
+	configKibanaHTTP2Enabled    = "stack.kibana_http2_enabled"
+	configLogstashEnabled       = "stack.logstash_enabled"
+	configSelfMonitorEnabled    = "stack.self_monitor_enabled"
+	configServerlessEnabled     = "stack.serverless_enabled"
+	configServerlessProjectType = "stack.serverless.type"
 )
 
 var (
@@ -158,12 +160,14 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 
-		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
-		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
-		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
-		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"agent_publish_ports":  strings.Join(agentPorts, ","),
-		"kibana_http2_enabled": profile.Config(configKibanaHTTP2Enabled, "true"),
+		"apm_enabled":             profile.Config(configAPMEnabled, "false"),
+		"geoip_dir":               profile.Config(configGeoIPDir, "./ingest-geoip"),
+		"logstash_enabled":        profile.Config(configLogstashEnabled, "false"),
+		"self_monitor_enabled":    profile.Config(configSelfMonitorEnabled, "false"),
+		"serverless_enabled":      profile.Config(configServerlessEnabled, "false"),
+		"serverless_project_type": profile.Config(configServerlessProjectType, "observability"),
+		"agent_publish_ports":     strings.Join(agentPorts, ","),
+		"kibana_http2_enabled":    profile.Config(configKibanaHTTP2Enabled, "true"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {

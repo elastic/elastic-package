@@ -141,3 +141,15 @@ xpack.fleet.outputs:
         {{ indent $agent_key "        " }}
   {{ end }}
 {{ end }}
+
+{{ $serverless_enabled := fact "serverless_enabled" }}
+{{ $serverless_project_type := fact "serverless_project_type" }}
+{{ if eq $serverless_enabled "true" }}
+  {{ if eq $serverless_project_type "observability" }}
+serverless: oblt
+  {{ end }}
+  {{ if eq $serverless_project_type "security" }}
+serverless: security
+  {{ end }}
+{{ end }}
+

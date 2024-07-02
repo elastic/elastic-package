@@ -197,8 +197,10 @@ The following settings are available per profile:
   Defaults to false.
 * `stack.self_monitor_enabled` enables monitoring and the system package for the default
   policy assigned to the managed Elastic Agent. Defaults to false.
+* `stack.serverless_enabled` uses serverless configuration when possible on non serverless
+  stack providers.
 * `stack.serverless.type` selects the type of serverless project to start when using
-  the serverless stack provider.
+  the serverless stack provider or `stack.serverless_enabled`.
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
 
