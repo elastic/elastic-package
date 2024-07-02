@@ -175,6 +175,8 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
 		GlobalTestConfig: globalTestConfig.Asset,
+		WithCoverage:     testCoverage,
+		CoverageType:     testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -264,6 +266,8 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GlobalTestConfig:   globalTestConfig.Static,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -572,6 +576,8 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		DeferCleanup:               deferCleanup,
 		RunIndependentElasticAgent: false,
 		GlobalTestConfig:           globalTestConfig.System,
+		WithCoverage:               testCoverage,
+		CoverageType:               testCoverageFormat,
 	})
 
 	logger.Debugf("Running suite...")
@@ -683,6 +689,8 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		FailOnMissingTests: failOnMissing,
 		GenerateTestResult: generateTestResult,
 		GlobalTestConfig:   globalTestConfig.Policy,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

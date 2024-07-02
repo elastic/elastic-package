@@ -34,6 +34,7 @@ type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
 	DataStream string
+	SourcePath string
 }
 
 // String method returns a string representation of the asset
@@ -181,8 +182,9 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 		}
 
 		asset := Asset{
-			ID:   assetID,
-			Type: assetType,
+			ID:         assetID,
+			Type:       assetType,
+			SourcePath: assetPath,
 		}
 		assets = append(assets, asset)
 	}

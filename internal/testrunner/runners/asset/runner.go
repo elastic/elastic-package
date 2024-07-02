@@ -20,12 +20,16 @@ type runner struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	globalTestConfig testrunner.GlobalRunnerTestConfig
+	withCoverage     bool
+	coverageType     string
 }
 
 type AssetTestRunnerOptions struct {
 	PackageRootPath  string
 	KibanaClient     *kibana.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
@@ -33,6 +37,8 @@ func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 		packageRootPath:  options.PackageRootPath,
 		kibanaClient:     options.KibanaClient,
 		globalTestConfig: options.GlobalTestConfig,
+		withCoverage:     options.WithCoverage,
+		coverageType:     options.CoverageType,
 	}
 	return &runner
 }
@@ -60,6 +66,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			KibanaClient:     r.kibanaClient,
 			TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
 			GlobalTestConfig: r.globalTestConfig,
+			WithCoverage:     r.withCoverage,
+			CoverageType:     r.coverageType,
 		}),
 	}
 	return testers, nil

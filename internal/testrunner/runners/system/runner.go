@@ -37,6 +37,8 @@ type runner struct {
 	generateTestResult         bool
 	runIndependentElasticAgent bool
 	deferCleanup               time.Duration
+	withCoverage               bool
+	coverageType               string
 
 	configFilePath string
 	runSetup       bool
@@ -70,6 +72,8 @@ type SystemTestRunnerOptions struct {
 	GenerateTestResult         bool
 	RunIndependentElasticAgent bool
 	DeferCleanup               time.Duration
+	WithCoverage               bool
+	CoverageType               string
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
@@ -89,6 +93,8 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		globalTestConfig:           options.GlobalTestConfig,
+		withCoverage:               options.WithCoverage,
+		coverageType:               options.CoverageType,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -252,6 +258,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					ConfigFileName:             config,
 					RunIndependentElasticAgent: r.runIndependentElasticAgent,
 					GlobalTestConfig:           r.globalTestConfig,
+					WithCoverage:               r.withCoverage,
+					CoverageType:               r.coverageType,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(
