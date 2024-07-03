@@ -14,6 +14,10 @@
 # Flag to enable apm-server in elastic-package stack profile config
 # stack.apm_enabled: true
 
+## Logs DB
+# Flag to enable the logs index mode in logs data stream.
+# stack.logsdb_enabled: true
+
 ## Enable logstash for testing
 # Flag to enable logstash in elastic-package stack profile config
 # stack.logstash_enabled: true

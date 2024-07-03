@@ -13,7 +13,12 @@ xpack.security.http.ssl.certificate: "certs/cert.pem"
 
 ingest.geoip.downloader.enabled: false
 
-{{ $version := fact "elasticsearch_version" }}
+{{- $version := fact "elasticsearch_version" -}}
+{{- $logsdb_enabled := fact "logsdb_enabled" -}}
+{{ if (and (eq $logsdb_enabled "true") (not (semverLessThan $version "8.15.0-SNAPSHOT"))) }}
+cluster.logsdb.enabled: true
+{{- end -}}
+
 {{ if semverLessThan $version "8.0.0" }}
 script.max_compilations_rate: "use-context"
 script.context.template.max_compilations_rate: "unlimited"

@@ -60,6 +60,7 @@ const (
 	configAPMEnabled         = "stack.apm_enabled"
 	configGeoIPDir           = "stack.geoip_dir"
 	configKibanaHTTP2Enabled = "stack.kibana_http2_enabled"
+	configLogsDBEnabled      = "stack.logsdb_enabled"
 	configLogstashEnabled    = "stack.logstash_enabled"
 	configSelfMonitorEnabled = "stack.self_monitor_enabled"
 )
@@ -158,12 +159,13 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 
+		"agent_publish_ports":  strings.Join(agentPorts, ","),
 		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
 		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
+		"kibana_http2_enabled": profile.Config(configKibanaHTTP2Enabled, "true"),
+		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"agent_publish_ports":  strings.Join(agentPorts, ","),
-		"kibana_http2_enabled": profile.Config(configKibanaHTTP2Enabled, "true"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {

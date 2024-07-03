@@ -607,60 +607,38 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	return partial, nil
 }
 
-func (r *tester) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
-	resp, err := r.esAPI.Cluster.GetComponentTemplate(
-		r.esAPI.Cluster.GetComponentTemplate.WithContext(ctx),
-		r.esAPI.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
+func (r *tester) isSyntheticsEnabled(ctx context.Context, dataStreamName string) (bool, error) {
+	resp, err := r.esAPI.Indices.SimulateIndexTemplate(dataStreamName,
+		r.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
 	)
 	if err != nil {
-		return false, fmt.Errorf("could not get component template %s from data stream %s: %w", componentTemplatePackage, dataStream, err)
+		return false, fmt.Errorf("could not simulate index template for %s: %w", dataStreamName, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
-		// in any case, so just return false.
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
-		return false, nil
-	}
 	if resp.IsError() {
-		return false, fmt.Errorf("could not get component template %s for data stream %s: %s", componentTemplatePackage, dataStream, resp.String())
+		return false, fmt.Errorf("could not simulate index template for %s: %s", dataStreamName, resp.String())
 	}
 
 	var results struct {
-		ComponentTemplates []struct {
-			Name              string `json:"name"`
-			ComponentTemplate struct {
-				Template struct {
-					Mappings struct {
-						Source *struct {
-							Mode string `json:"mode"`
-						} `json:"_source,omitempty"`
-					} `json:"mappings"`
-				} `json:"template"`
-			} `json:"component_template"`
-		} `json:"component_templates"`
+		Template struct {
+			Mappings struct {
+				Source *struct {
+					Mode string `json:"mode"`
+				} `json:"_source,omitempty"`
+			} `json:"mappings"`
+		} `json:"template"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return false, fmt.Errorf("could not decode search results response: %w", err)
+		return false, fmt.Errorf("could not decode index template simulation response: %w", err)
 	}
 
-	if len(results.ComponentTemplates) == 0 {
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
-		return false, nil
-	}
-	if len(results.ComponentTemplates) != 1 {
-		return false, fmt.Errorf("ambiguous response, expected one component template for %s, found %d", componentTemplatePackage, len(results.ComponentTemplates))
-	}
-
-	template := results.ComponentTemplates[0]
-
-	if template.ComponentTemplate.Template.Mappings.Source == nil {
+	if results.Template.Mappings.Source == nil {
 		return false, nil
 	}
 
-	return template.ComponentTemplate.Template.Mappings.Source.Mode == "synthetic", nil
+	return results.Template.Mappings.Source.Mode == "synthetic", nil
 }
 
 type hits struct {
@@ -962,11 +940,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		dataStreamDataset,
 		ds.Namespace,
 	)
-	componentTemplatePackage := fmt.Sprintf(
-		"%s-%s@package",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-	)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1130,10 +1103,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
-	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
-	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream, componentTemplatePackage)
+	logger.Debugf("check whether or not synthetics is enabled (data stream %s)...", scenario.dataStream)
+	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
+		return nil, fmt.Errorf("failed to check if synthetic source is enabled for data stream %s: %w", scenario.dataStream, err)
 	}
 	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
