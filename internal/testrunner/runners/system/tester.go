@@ -649,8 +649,8 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 		return true, nil
 	}
 
-	// It seems that some index modes enable synthetics source mode even when it is not explicitly mentioned
-	// in the mappings. So assume that when these index modes are used, the synthetics mode is also used.
+	// It seems that some index modes enable synthetic source mode even when it is not explicitly mentioned
+	// in the mappings. So assume that when these index modes are used, the synthetic mode is also used.
 	var syntheticsIndexModes = []string{
 		"logs",
 		"time_series",
