@@ -151,6 +151,8 @@ type tester struct {
 	resourcesManager   *resources.Manager
 	pkgManifest        *packages.PackageManifest
 	dataStreamManifest *packages.DataStreamManifest
+	withCoverage       bool
+	coverageType       string
 
 	serviceStateFilePath string
 
@@ -180,6 +182,8 @@ type SystemTesterOptions struct {
 	ServiceVariant   string
 	ConfigFileName   string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -202,6 +206,8 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
 		globalTestConfig:           options.GlobalTestConfig,
+		withCoverage:               options.WithCoverage,
+		coverageType:               options.CoverageType,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -1346,6 +1352,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
+	if r.withCoverage {
+		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
+		if err != nil {
+			return result.WithErrorf("coverage report generation failed: %w", err)
+		}
+		result = result.WithCoverage(coverage)
+	}
+
 	return result.WithSuccess()
 }
 
@@ -2051,4 +2065,21 @@ func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 		}
 	}
 	return nil
+}
+
+func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageReport, error) {
+	dsPattern := "*"
+	if r.dataStreamManifest != nil && r.dataStreamManifest.Name != "" {
+		dsPattern = r.dataStreamManifest.Name
+	}
+
+	// This list of patterns includes patterns for all types of packages. It should not be a problem if some path doesn't exist.
+	patterns := []string{
+		filepath.Join(r.packageRootPath, "manifest.yml"),
+		filepath.Join(r.packageRootPath, "fields", "*.yml"),
+		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "manifest.yml"),
+		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
+	}
+
+	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
 }
