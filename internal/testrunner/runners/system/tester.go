@@ -613,9 +613,9 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	return partial, nil
 }
 
-func (r *tester) isSyntheticsEnabled(ctx context.Context, dataStreamName string) (bool, error) {
-	resp, err := r.esAPI.Indices.SimulateIndexTemplate(dataStreamName,
-		r.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
+func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, dataStreamName string) (bool, error) {
+	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName,
+		api.Indices.SimulateIndexTemplate.WithContext(ctx),
 	)
 	if err != nil {
 		return false, fmt.Errorf("could not simulate index template for %s: %w", dataStreamName, err)
@@ -1124,12 +1124,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
-	logger.Debugf("Check whether or not synthetics is enabled (data stream %s)...", scenario.dataStream)
-	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream)
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
+	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source is enabled for data stream %s: %w", scenario.dataStream, err)
+		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
 	}
-	logger.Debugf("Data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields

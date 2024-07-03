@@ -1,0 +1,102 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 548
+        uncompressed: false
+        body: |
+            {
+              "name" : "0fa243234fa5",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "FNFnRBlwQceEto2U6raO0w",
+              "version" : {
+                "number" : "8.15.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "822b187af48f9a5560ad365743998315038dad85",
+                "build_date" : "2024-07-03T13:25:55.204194663Z",
+                "build_snapshot" : true,
+                "lucene_version" : "9.11.1",
+                "minimum_wire_compatibility_version" : "7.17.0",
+                "minimum_index_compatibility_version" : "7.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "548"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 14.228582ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/_index_template/_simulate_index/logs-logs_synthetic_mode.synthetic-12345
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 3639
+        uncompressed: false
+        body: '{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"mode":"standard","codec":"best_compression","routing":{"allocation":{"include":{"_tier_preference":"data_hot"}}},"mapping":{"total_fields":{"limit":"1000","ignore_dynamic_beyond_limit":"true"},"ignore_malformed":"true"},"final_pipeline":".fleet_final_pipeline-1","default_pipeline":"logs-logs_synthetic_mode.synthetic-1.0.0-beta1"}},"mappings":{"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"logs_synthetic_mode"}},"_source":{"mode":"synthetic"},"dynamic_templates":[{"ecs_timestamp":{"match":"@timestamp","mapping":{"ignore_malformed":false,"type":"date"}}},{"ecs_message_match_only_text":{"path_match":["message","*.message"],"unmatch_mapping_type":"object","mapping":{"type":"match_only_text"}}},{"ecs_non_indexed_keyword":{"path_match":"event.original","mapping":{"doc_values":false,"index":false,"type":"keyword"}}},{"ecs_non_indexed_long":{"path_match":"*.x509.public_key_exponent","mapping":{"doc_values":false,"index":false,"type":"long"}}},{"ecs_ip":{"path_match":["ip","*.ip","*_ip"],"match_mapping_type":"string","mapping":{"type":"ip"}}},{"ecs_wildcard":{"path_match":["*.io.text","*.message_id","*registry.data.strings","*url.path"],"unmatch_mapping_type":"object","mapping":{"type":"wildcard"}}},{"ecs_path_match_wildcard_and_match_only_text":{"path_match":["*.body.content","*url.full","*url.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_match_wildcard_and_match_only_text":{"match":["*command_line","*stack_trace"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_path_match_keyword_and_match_only_text":{"path_match":["*.title","*.executable","*.name","*.working_directory","*.full_name","*file.path","*file.target_path","*os.full","email.subject","vulnerability.description","user_agent.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"keyword"}}},{"ecs_date":{"path_match":["*.timestamp","*_timestamp","*.not_after","*.not_before","*.accessed","created","*.created","*.installed","*.creation_date","*.ctime","*.mtime","ingested","*.ingested","*.start","*.end"],"unmatch_mapping_type":"object","mapping":{"type":"date"}}},{"ecs_path_match_float":{"path_match":["*.score.*","*_score*"],"path_unmatch":"*.version","unmatch_mapping_type":"object","mapping":{"type":"float"}}},{"ecs_usage_double_scaled_float":{"path_match":"*.usage","match_mapping_type":["double","long","string"],"mapping":{"scaling_factor":1000,"type":"scaled_float"}}},{"ecs_geo_point":{"path_match":"*.geo.location","mapping":{"type":"geo_point"}}},{"ecs_flattened":{"path_match":["*structured_data","*exports","*imports"],"match_mapping_type":"object","mapping":{"type":"flattened"}}},{"all_strings_to_keywords":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}},{"strings_as_keyword":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}}],"date_detection":false,"properties":{"@timestamp":{"type":"date","ignore_malformed":false},"data_stream":{"properties":{"dataset":{"type":"constant_keyword"},"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"}}},"decision_id":{"type":"text","store":true},"event":{"properties":{"agent_id_status":{"type":"keyword","ignore_above":1024},"ingested":{"type":"date","format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis","ignore_malformed":false}}}}},"aliases":{}},"overlapping":[{"name":"logs","index_patterns":["logs-*-*"]}]}'
+        headers:
+            Content-Length:
+                - "3639"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 16.724002ms
