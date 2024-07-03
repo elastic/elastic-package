@@ -19,7 +19,6 @@ ingest.geoip.downloader.enabled: false
 cluster.logsdb.enabled: true
 {{- end -}}
 
-{{ $version := fact "elasticsearch_version" }}
 {{ if semverLessThan $version "8.0.0" }}
 script.max_compilations_rate: "use-context"
 script.context.template.max_compilations_rate: "unlimited"
