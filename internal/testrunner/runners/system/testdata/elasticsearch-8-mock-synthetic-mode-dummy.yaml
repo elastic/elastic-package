@@ -79,7 +79,7 @@ interactions:
                 - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
             X-Elastic-Client-Meta:
                 - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
-        url: https://127.0.0.1:9200/_index_template/_simulate_index/logs-logs_synthetic_mode.synthetic-12345
+        url: https://127.0.0.1:9200/_index_template/_simulate_index/logs-logs_synthetic_mode.synthetic-12345simulated
         method: POST
       response:
         proto: HTTP/1.1

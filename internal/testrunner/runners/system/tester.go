@@ -614,7 +614,9 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 }
 
 func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, dataStreamName string) (bool, error) {
-	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName,
+	// We append a suffix so we don't use an existing resource, what may cause conflicts in old versions of
+	// Elasticsearch, such as https://github.com/elastic/elasticsearch/issues/84256.
+	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName+"simulated",
 		api.Indices.SimulateIndexTemplate.WithContext(ctx),
 	)
 	if err != nil {
