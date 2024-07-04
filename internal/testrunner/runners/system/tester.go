@@ -1923,7 +1923,10 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 			return fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
 		}
 
-		return fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON)
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "found ignored fields in data stream",
+			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON),
+		}
 	}
 
 	return nil
