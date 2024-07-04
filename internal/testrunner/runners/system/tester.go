@@ -614,7 +614,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 }
 
 func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, dataStreamName string) (bool, error) {
-	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName,
+	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName+"simulated",
 		api.Indices.SimulateIndexTemplate.WithContext(ctx),
 	)
 	if err != nil {
