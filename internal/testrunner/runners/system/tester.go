@@ -949,7 +949,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		r.deleteDataStream(ctx, scenario.dataStream)
+		err := r.deleteDataStream(ctx, scenario.dataStream)
 		if err != nil {
 			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
