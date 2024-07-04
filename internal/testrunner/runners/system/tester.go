@@ -780,11 +780,15 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete data stream %s: %w", dataStream, err)
+		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		// Data stream doesn't exist, there was nothing to do.
+		return nil
+	}
 	if resp.IsError() {
-		return fmt.Errorf("could not get delete data stream %s: %s", dataStream, resp.String())
+		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
 	}
 	return nil
 }
