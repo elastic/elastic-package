@@ -1909,7 +1909,7 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 		}
 
 		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("found ignored fields in data stream %s", scenario.dataStream),
+			Reason:  "found ignored fields in data stream",
 			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON),
 		}
 	}
