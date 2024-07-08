@@ -116,7 +116,8 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
         # FIXME: adding test-coverage for serverless results in errors like this:
         # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
         elastic-package test pipeline -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s
-        exit # as it is run in a subshell, it cannot be used "continue"
+
+        continue
     fi
     # Run all tests
     # defer-cleanup is set to a short period to verify that the option is available
