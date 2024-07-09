@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/multierror"
 )
@@ -27,6 +28,7 @@ const (
 	AssetTypeKibanaDashboard     AssetType = "dashboard"
 	AssetTypeKibanaMap           AssetType = "map"
 	AssetTypeKibanaLens          AssetType = "lens"
+	AssetTypeSecurityRule        AssetType = "security-rule"
 )
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
@@ -70,6 +72,7 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 			AssetTypeKibanaSavedSearch,
 			AssetTypeKibanaMap,
 			AssetTypeKibanaLens,
+			AssetTypeSecurityRule,
 		}
 
 		assets []Asset
@@ -159,7 +162,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 }
 
 func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]Asset, error) {
-	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, string(assetType))
+	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, strings.ReplaceAll(string(assetType), "-", "_"))
 	_, err := os.Stat(assetsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		// No assets folder defined; nothing to load
