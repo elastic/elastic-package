@@ -46,8 +46,8 @@ CHECK_PACKAGES_TESTS=(
 for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     label_suffix=""
-    if [[ "$independent_agent" == "true" ]]; then
-        label_suffix=" (independent agent)"
+    if [[ "$independent_agent" == "false" ]]; then
+        label_suffix=" (stack agent)"
     fi
     test_name=${test#"test-check-packages-"}
     echo "      - label: \":go: Integration test: ${test_name}${label_suffix}\""
@@ -63,7 +63,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
-    if [[ "${independent_agent}" == "true" ]]; then
+    if [[ "${independent_agent}" == "false" ]]; then
         echo "        env:"
         echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     fi
@@ -92,12 +92,17 @@ pushd test/packages/parallel > /dev/null
 for independent_agent in false true; do
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     label_suffix=""
-    if [[ "$independent_agent" == "true" ]]; then
-        label_suffix=" (independent agent)"
+    if [[ "$independent_agent" == "false" ]]; then
+        label_suffix=" (stack agent)"
     fi
     package_name=$(basename "${package}")
     if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
         echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
+        continue
+    fi
+
+    if [[ "$independent_agent" == "false" && "$package_name" == "auditd_manager" ]]; then
+        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing capabilities)."
         continue
     fi
 
@@ -111,7 +116,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
-    if [[ "${independent_agent}" == "true" ]]; then
+    if [[ "${independent_agent}" == "false" ]]; then
         echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
     fi
     echo "        agents:"
@@ -152,8 +157,8 @@ echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
 for independent_agent in false true; do
     label_suffix=""
-    if [[ "$independent_agent" == "true" ]]; then
-        label_suffix=" (independent agent)"
+    if [[ "$independent_agent" == "false" ]]; then
+        label_suffix=" (stack agent)"
     fi
     echo "      - label: \":go: Integration test: system-flags${label_suffix}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"

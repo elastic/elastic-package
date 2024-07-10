@@ -32,13 +32,12 @@ type runner struct {
 	dataStreams    []string
 	serviceVariant string
 
-	globalTestConfig           testrunner.GlobalRunnerTestConfig
-	failOnMissingTests         bool
-	generateTestResult         bool
-	runIndependentElasticAgent bool
-	deferCleanup               time.Duration
-	withCoverage               bool
-	coverageType               string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	failOnMissingTests bool
+	deferCleanup       time.Duration
+	generateTestResult bool
+	withCoverage       bool
+	coverageType       string
 
 	configFilePath string
 	runSetup       bool
@@ -68,33 +67,31 @@ type SystemTestRunnerOptions struct {
 
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
-	FailOnMissingTests         bool
-	GenerateTestResult         bool
-	RunIndependentElasticAgent bool
-	DeferCleanup               time.Duration
-	WithCoverage               bool
-	CoverageType               string
+	FailOnMissingTests bool
+	GenerateTestResult bool
+	DeferCleanup       time.Duration
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRootPath:            options.PackageRootPath,
-		kibanaClient:               options.KibanaClient,
-		esAPI:                      options.API,
-		profile:                    options.Profile,
-		dataStreams:                options.DataStreams,
-		serviceVariant:             options.ServiceVariant,
-		configFilePath:             options.ConfigFilePath,
-		runSetup:                   options.RunSetup,
-		runTestsOnly:               options.RunTestsOnly,
-		runTearDown:                options.RunTearDown,
-		failOnMissingTests:         options.FailOnMissingTests,
-		generateTestResult:         options.GenerateTestResult,
-		runIndependentElasticAgent: options.RunIndependentElasticAgent,
-		deferCleanup:               options.DeferCleanup,
-		globalTestConfig:           options.GlobalTestConfig,
-		withCoverage:               options.WithCoverage,
-		coverageType:               options.CoverageType,
+		packageRootPath:    options.PackageRootPath,
+		kibanaClient:       options.KibanaClient,
+		esAPI:              options.API,
+		profile:            options.Profile,
+		dataStreams:        options.DataStreams,
+		serviceVariant:     options.ServiceVariant,
+		configFilePath:     options.ConfigFilePath,
+		runSetup:           options.RunSetup,
+		runTestsOnly:       options.RunTestsOnly,
+		runTearDown:        options.RunTearDown,
+		failOnMissingTests: options.FailOnMissingTests,
+		generateTestResult: options.GenerateTestResult,
+		deferCleanup:       options.DeferCleanup,
+		globalTestConfig:   options.GlobalTestConfig,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -244,22 +241,21 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			for _, config := range cfgFiles {
 				logger.Debugf("System runner: data stream %q config file %q variant %q", t.DataStream, config, variant)
 				tester, err := NewSystemTester(SystemTesterOptions{
-					Profile:                    r.profile,
-					PackageRootPath:            r.packageRootPath,
-					KibanaClient:               r.kibanaClient,
-					API:                        r.esAPI,
-					TestFolder:                 t,
-					ServiceVariant:             variant,
-					GenerateTestResult:         r.generateTestResult,
-					DeferCleanup:               r.deferCleanup,
-					RunSetup:                   r.runSetup,
-					RunTestsOnly:               r.runTestsOnly,
-					RunTearDown:                r.runTearDown,
-					ConfigFileName:             config,
-					RunIndependentElasticAgent: r.runIndependentElasticAgent,
-					GlobalTestConfig:           r.globalTestConfig,
-					WithCoverage:               r.withCoverage,
-					CoverageType:               r.coverageType,
+					Profile:            r.profile,
+					PackageRootPath:    r.packageRootPath,
+					KibanaClient:       r.kibanaClient,
+					API:                r.esAPI,
+					TestFolder:         t,
+					ServiceVariant:     variant,
+					GenerateTestResult: r.generateTestResult,
+					DeferCleanup:       r.deferCleanup,
+					RunSetup:           r.runSetup,
+					RunTestsOnly:       r.runTestsOnly,
+					RunTearDown:        r.runTearDown,
+					ConfigFileName:     config,
+					GlobalTestConfig:   r.globalTestConfig,
+					WithCoverage:       r.withCoverage,
+					CoverageType:       r.coverageType,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(

@@ -176,8 +176,6 @@ type SystemTesterOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
-	RunIndependentElasticAgent bool
-
 	DeferCleanup     time.Duration
 	ServiceVariant   string
 	ConfigFileName   string
@@ -198,7 +196,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		generateTestResult:         options.GenerateTestResult,
 		esAPI:                      options.API,
 		kibanaClient:               options.KibanaClient,
-		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
 		configFileName:             options.ConfigFileName,
@@ -208,6 +205,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		globalTestConfig:           options.GlobalTestConfig,
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
+		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -246,12 +244,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
-	}
-
-	// Temporarily until independent Elastic Agents are enabled by default,
-	// enable independent Elastic Agents if package defines that requires root privileges
-	if pkg, ds := r.pkgManifest, r.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
-		r.runIndependentElasticAgent = true
 	}
 
 	// If the environment variable is present, it always has preference over the root
