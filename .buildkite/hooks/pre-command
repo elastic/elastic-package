@@ -11,7 +11,7 @@ WORKSPACE=$(pwd)
 export WORKSPACE
 
 
-AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
+AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
 GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
 
