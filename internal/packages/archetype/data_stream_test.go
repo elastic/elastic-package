@@ -20,24 +20,21 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "logs"
 
-		err := createAndCheckDataStream(t, pd, dd)
-		require.NoError(t, err)
+		createAndCheckDataStream(t, pd, dd, true)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "metrics"
 
-		err := createAndCheckDataStream(t, pd, dd)
-		require.NoError(t, err)
+		createAndCheckDataStream(t, pd, dd, true)
 	})
 	t.Run("missing-type", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = ""
 
-		err := createAndCheckDataStream(t, pd, dd)
-		require.Error(t, err)
+		createAndCheckDataStream(t, pd, dd, false)
 	})
 }
 
@@ -61,7 +58,7 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 	}
 }
 
-func createAndCheckDataStream(t require.TestingT, pd PackageDescriptor, dd DataStreamDescriptor) error {
+func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool) {
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
@@ -83,6 +80,5 @@ func createAndCheckDataStream(t require.TestingT, pd PackageDescriptor, dd DataS
 	err = CreateDataStream(dd)
 	require.NoError(t, err)
 
-	err = checkPackage(pd.Manifest.Name)
-	return err
+	checkPackage(t, pd.Manifest.Name, valid)
 }
