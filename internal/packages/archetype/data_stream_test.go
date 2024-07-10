@@ -42,11 +42,21 @@ func TestDataStream(t *testing.T) {
 }
 
 func createDataStreamDescriptorForTest() DataStreamDescriptor {
+	elasticsearch := &packages.Elasticsearch{
+		IndexTemplate: &packages.ManifestIndexTemplate{
+			Mappings: &packages.ManifestMappings{
+				Subobjects: false,
+			},
+		},
+	}
+
 	return DataStreamDescriptor{
 		Manifest: packages.DataStreamManifest{
 			Name:  "go_unit_test_data_stream",
 			Title: "Go Unit Test Data Stream",
 			Type:  "logs",
+
+			Elasticsearch: elasticsearch,
 		},
 	}
 }
