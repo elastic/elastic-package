@@ -137,16 +137,26 @@ type PackageManifest struct {
 	License         string           `config:"license" json:"license" yaml:"license"`
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
+	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+}
+
+type ManifestIndexTemplate struct {
+	IngestPipeline *ManifestIngestPipeline `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+	Mappings       *ManifestMappings       `config:"mappings" json:"mappings" yaml:"mappings"`
+}
+
+type ManifestIngestPipeline struct {
+	Name string `config:"name" json:"name" yaml:"name"`
+}
+
+type ManifestMappings struct {
+	Subobjects bool `config:"subobjects" json:"subobjects" yaml:"subobjects"`
 }
 
 type Elasticsearch struct {
-	IndexTemplate *struct {
-		IngestPipeline *struct {
-			Name string `config:"name" json:"name" yaml:"name"`
-		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
-	} `config:"index_template" json:"index_template" yaml:"index_template"`
-	SourceMode string `config:"source_mode" json:"source_mode" yaml:"source_mode"`
-	IndexMode  string `config:"index_mode" json:"index_mode" yaml:"index_mode"`
+	IndexTemplate *ManifestIndexTemplate `config:"index_template" json:"index_template" yaml:"index_template"`
+	SourceMode    string                 `config:"source_mode" json:"source_mode" yaml:"source_mode"`
+	IndexMode     string                 `config:"index_mode" json:"index_mode" yaml:"index_mode"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest

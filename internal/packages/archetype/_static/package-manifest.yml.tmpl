@@ -72,6 +72,22 @@ policy_templates:
           - localhost
 {{ end }}
 {{ end -}}
+{{ if .Manifest.Elasticsearch }}
+elasticsearch:
+{{ if .Manifest.Elasticsearch.SourceMode }}
+  source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
+{{- end}}
+{{ if .Manifest.Elasticsearch.IndexMode }}
+  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
+{{- end }}
+{{ if .Manifest.Elasticsearch.IndexTemplate }}
+  index_template:
+{{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
+    mappings:
+      subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
+{{- end }}
+{{- end }}
+{{- end }}
 owner:
   github: {{.Manifest.Owner.Github}}
   type: {{.Manifest.Owner.Type}}
