@@ -18,19 +18,19 @@ import (
 type AssetType string
 
 type assetTypeFolder struct {
-	Type       AssetType
+	typeName   AssetType
 	folderName string
 }
 
 func newAssetType(typeName AssetType) assetTypeFolder {
 	return assetTypeFolder{
-		Type:       typeName,
+		typeName:   typeName,
 		folderName: string(typeName),
 	}
 }
 func newAssetTypeWithFolder(typeName AssetType, folderName string) assetTypeFolder {
 	return assetTypeFolder{
-		Type:       typeName,
+		typeName:   typeName,
 		folderName: folderName,
 	}
 }
@@ -135,7 +135,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 
 		asset := Asset{
 			ID:         indexTemplateName,
-			Type:       AssetTypeElasticsearchIndexTemplate.Type,
+			Type:       AssetTypeElasticsearchIndexTemplate.typeName,
 			DataStream: dsManifest.Name,
 		}
 		assets = append(assets, asset)
@@ -167,7 +167,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 			}
 			asset = Asset{
 				ID:         ingestPipelineName,
-				Type:       AssetTypeElasticsearchIngestPipeline.Type,
+				Type:       AssetTypeElasticsearchIngestPipeline.typeName,
 				DataStream: dsManifest.Name,
 			}
 			assets = append(assets, asset)
@@ -186,12 +186,12 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType assetTypeFolde
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType.Type, err)
+		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType.typeName, err)
 	}
 
 	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s files: %w", assetType.Type, err)
+		return nil, fmt.Errorf("could not read %s files: %w", assetType.typeName, err)
 	}
 
 	var assets []Asset
@@ -203,7 +203,7 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType assetTypeFolde
 
 		asset := Asset{
 			ID:         assetID,
-			Type:       assetType.Type,
+			Type:       assetType.typeName,
 			SourcePath: assetPath,
 		}
 		assets = append(assets, asset)
