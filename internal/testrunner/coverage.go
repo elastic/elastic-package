@@ -38,6 +38,12 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 			return nil
 		}
 
+		// Exclude changelog from coverage reports, as changelogs are frequently modified and not
+		// relevant to tests.
+		if d.Name() == "changelog.yml" && filepath.Dir(match) == filepath.Clean(rootPath) {
+			return nil
+		}
+
 		fileCoverage, err := generateBaseFileCoverageReport(repoPath, pkgName, match, format, false)
 		if err != nil {
 			return fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
