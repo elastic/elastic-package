@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/elastic/elastic-package/internal/multierror"
 )
@@ -18,17 +17,35 @@ import (
 // AssetType represents the type of package asset.
 type AssetType string
 
-// Supported asset types.
-const (
-	AssetTypeElasticsearchIndexTemplate  AssetType = "index_template"
-	AssetTypeElasticsearchIngestPipeline AssetType = "ingest_pipeline"
+type assetTypeFolder struct {
+	Type       AssetType
+	folderName string
+}
 
-	AssetTypeKibanaSavedSearch   AssetType = "search"
-	AssetTypeKibanaVisualization AssetType = "visualization"
-	AssetTypeKibanaDashboard     AssetType = "dashboard"
-	AssetTypeKibanaMap           AssetType = "map"
-	AssetTypeKibanaLens          AssetType = "lens"
-	AssetTypeSecurityRule        AssetType = "security-rule"
+func newAssetType(typeName AssetType) assetTypeFolder {
+	return assetTypeFolder{
+		Type:       typeName,
+		folderName: string(typeName),
+	}
+}
+func newAssetTypeWithFolder(typeName AssetType, folderName string) assetTypeFolder {
+	return assetTypeFolder{
+		Type:       typeName,
+		folderName: folderName,
+	}
+}
+
+// Supported asset types.
+var (
+	AssetTypeElasticsearchIndexTemplate  = newAssetType("index_template")
+	AssetTypeElasticsearchIngestPipeline = newAssetType("ingest_pipeline")
+
+	AssetTypeKibanaSavedSearch   = newAssetType("search")
+	AssetTypeKibanaVisualization = newAssetType("visualization")
+	AssetTypeKibanaDashboard     = newAssetType("dashboard")
+	AssetTypeKibanaMap           = newAssetType("map")
+	AssetTypeKibanaLens          = newAssetType("lens")
+	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
 )
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
@@ -66,7 +83,7 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	var (
 		errs multierror.Error
 
-		assetTypes = []AssetType{
+		assetTypes = []assetTypeFolder{
 			AssetTypeKibanaDashboard,
 			AssetTypeKibanaVisualization,
 			AssetTypeKibanaSavedSearch,
@@ -118,7 +135,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 
 		asset := Asset{
 			ID:         indexTemplateName,
-			Type:       AssetTypeElasticsearchIndexTemplate,
+			Type:       AssetTypeElasticsearchIndexTemplate.Type,
 			DataStream: dsManifest.Name,
 		}
 		assets = append(assets, asset)
@@ -150,7 +167,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 			}
 			asset = Asset{
 				ID:         ingestPipelineName,
-				Type:       AssetTypeElasticsearchIngestPipeline,
+				Type:       AssetTypeElasticsearchIngestPipeline.Type,
 				DataStream: dsManifest.Name,
 			}
 			assets = append(assets, asset)
@@ -161,20 +178,20 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 	return assets, nil
 }
 
-func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]Asset, error) {
-	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, strings.ReplaceAll(string(assetType), "-", "_"))
+func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType assetTypeFolder) ([]Asset, error) {
+	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, assetType.folderName)
 	_, err := os.Stat(assetsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		// No assets folder defined; nothing to load
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType, err)
+		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType.Type, err)
 	}
 
 	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s files: %w", assetType, err)
+		return nil, fmt.Errorf("could not read %s files: %w", assetType.Type, err)
 	}
 
 	var assets []Asset
@@ -186,7 +203,7 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 
 		asset := Asset{
 			ID:         assetID,
-			Type:       assetType,
+			Type:       assetType.Type,
 			SourcePath: assetPath,
 		}
 		assets = append(assets, asset)
