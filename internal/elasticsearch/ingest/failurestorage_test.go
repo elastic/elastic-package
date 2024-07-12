@@ -18,7 +18,7 @@ import (
 )
 
 func TestEnableFailureStore(t *testing.T) {
-	client := estest.NewClient(t, "testdata/elasticsearch-9-enable-failure-store")
+	client := estest.NewClient(t, "testdata/elasticsearch-8-enable-failure-store")
 
 	templateName := "ep-test-index-template"
 	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {}}`)
@@ -35,7 +35,7 @@ func TestEnableFailureStore(t *testing.T) {
 }
 
 func TestEnableFailureStoreNothingToDo(t *testing.T) {
-	client := estest.NewClient(t, "testdata/elasticsearch-9-enable-failure-store-noop")
+	client := estest.NewClient(t, "testdata/elasticsearch-8-enable-failure-store-noop")
 
 	templateName := "ep-test-index-template"
 	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {"failure_store":true}}`)
