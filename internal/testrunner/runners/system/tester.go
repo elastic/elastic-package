@@ -1214,7 +1214,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if r.runTearDown || r.runTestsOnly {
 		agentRunID = state.AgentRunID
 	}
-	logger.Warn("setting up agent (technical preview)...")
+	logger.Debug("setting up independent Elastic Agent...")
 	agentInfo, err := r.createAgentInfo(policy, config, agentRunID, agentManifest)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
