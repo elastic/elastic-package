@@ -8,7 +8,7 @@ Elastic Packages are comprised of data streams. A system test exercises the end-
 Conceptually, running a system test involves the following steps:
 
 1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent. This step takes time so it should typically be done once as a pre-requisite to running system tests on multiple data streams.
-1. Run a new Elastic Agent and enroll this Elastic Agent with Fleet (running in the Kibana instance).
+1. Run a new Elastic Agent and enroll it with Fleet (running in the Kibana instance).
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
@@ -600,7 +600,7 @@ Finally, when you are done running all system tests, bring down the Elastic Stac
 elastic-package stack down
 ```
 
-Starting with [elastic-package version `v0.101.2`](https://github.com/elastic/elastic-package/releases/tag/v0.101.2),
+Starting with [elastic-package version `v0.101.0`](https://github.com/elastic/elastic-package/releases/tag/v0.101.0),
 by default, running `elastic-package test system` command will setup a new Elastic Agent for each test defined in the package.
 
 For each system test configuration file defined in each data stream, a new Elastic Agent is going
@@ -658,7 +658,7 @@ Considerations for packages using the [Agent service deployer](#agent-service-de
 
 ### Running system tests with the Elastic Agents from the stack
 
-Up to with [elastic-package version `v0.101.2`](https://github.com/elastic/elastic-package/releases/tag/v0.101.2),
+Before [elastic-package version `v0.101.0`](https://github.com/elastic/elastic-package/releases/tag/v0.101.0),
 by default, running `elastic-package test system` command will use the Elastic Agent:
 - created and enrolled when the Elastic stack is started (running `elastic-package stack up`), or
 - created with other service deployers (kubernetes or custom agents deployers).
