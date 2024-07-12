@@ -46,6 +46,10 @@ func EnableFailureStore(ctx context.Context, api *elasticsearch.API, indexTempla
 		if !ok {
 			return fmt.Errorf("unexpected type for data stream settings in index template %s, expected map, found %T", indexTemplateName, dsMap)
 		}
+		if current, found := dsMap["failure_store"].(bool); found && current == enabled {
+			// Nothing to do, it already has the expected value.
+			return nil
+		}
 		dsMap["failure_store"] = enabled
 		template["data_stream"] = dsMap
 	} else {
