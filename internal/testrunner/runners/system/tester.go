@@ -763,7 +763,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	return &hits, nil
 }
 
-func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]common.MapStr, error) {
+func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]failureStoreDocument, error) {
 	// FIXME: Using the low-level transport till support the failure store.
 	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), nil)
 	if err != nil {
@@ -790,8 +790,8 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 	var results struct {
 		Hits struct {
 			Hits []struct {
-				Source common.MapStr `json:"_source"`
-				Fields common.MapStr `json:"fields"`
+				Source failureStoreDocument `json:"_source"`
+				Fields common.MapStr        `json:"fields"`
 			} `json:"hits"`
 		} `json:"hits"`
 	}
@@ -800,7 +800,7 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 		return nil, fmt.Errorf("failed to decode search response: %w", err)
 	}
 
-	var docs []common.MapStr
+	var docs []failureStoreDocument
 	for _, hit := range results.Hits.Hits {
 		docs = append(docs, hit.Source)
 	}
@@ -814,11 +814,17 @@ type scenarioTest struct {
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
-	failureStore       []common.MapStr
+	failureStore       []failureStoreDocument
 	ignoredFields      []string
 	degradedDocs       []common.MapStr
 	agent              agentdeployer.DeployedAgent
 	startTestTime      time.Time
+}
+
+type failureStoreDocument struct {
+	Error struct {
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
@@ -1344,15 +1350,11 @@ func (r *tester) createServiceStateDir() error {
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	if r.checkFailureStore && len(scenario.failureStore) > 0 {
-		// TODO: Report failures found.
+		var errorMessages []string
 		for _, doc := range scenario.failureStore {
-			d, err := json.MarshalIndent(doc, "", "  ")
-			if err != nil {
-				return result.WithErrorf("failed to encode document from the failure store: %w", err)
-			}
-			logger.Debugf("Document found in the failure store: %s", string(d))
+			errorMessages = append(errorMessages, doc.Error.Message)
 		}
-		results, _ := result.WithErrorf("there are %d documents in the failure store", len(scenario.failureStore))
+		results, _ := result.WithErrorf("there are %d documents in the failure store with errors: %s", len(scenario.failureStore), strings.Join(errorMessages, ", "))
 		return results, nil
 	}
 
