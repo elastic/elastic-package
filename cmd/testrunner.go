@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -534,6 +535,15 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
+	versionInfo, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("can't get version info from Kibana client: %w", err)
+	}
+	stackVersion, err := semver.NewVersion(versionInfo.Number)
+	if err != nil {
+		return fmt.Errorf("can't parse Kibana version %q: %w", versionInfo.Number, err)
+	}
+	checkFailureStore := !stackVersion.LessThan(semver.MustParse("8.15.0"))
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
@@ -565,6 +575,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
 		API:                esClient.API,
+		ESClient:           esClient,
 		ConfigFilePath:     configFileFlag,
 		RunSetup:           runSetup,
 		RunTearDown:        runTearDown,
@@ -577,6 +588,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.System,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
+		CheckFailureStore:  checkFailureStore,
 	})
 
 	logger.Debugf("Running suite...")

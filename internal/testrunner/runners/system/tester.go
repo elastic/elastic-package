@@ -131,6 +131,7 @@ type tester struct {
 	packageRootPath    string
 	generateTestResult bool
 	esAPI              *elasticsearch.API
+	esClient           *elasticsearch.Client
 	kibanaClient       *kibana.Client
 
 	runIndependentElasticAgent bool
@@ -153,6 +154,7 @@ type tester struct {
 	dataStreamManifest *packages.DataStreamManifest
 	withCoverage       bool
 	coverageType       string
+	checkFailureStore  bool
 
 	serviceStateFilePath string
 
@@ -176,12 +178,16 @@ type SystemTesterOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
-	DeferCleanup     time.Duration
-	ServiceVariant   string
-	ConfigFileName   string
-	GlobalTestConfig testrunner.GlobalRunnerTestConfig
-	WithCoverage     bool
-	CoverageType     string
+	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
+	ESClient *elasticsearch.Client
+
+	DeferCleanup      time.Duration
+	ServiceVariant    string
+	ConfigFileName    string
+	GlobalTestConfig  testrunner.GlobalRunnerTestConfig
+	WithCoverage      bool
+	CoverageType      string
+	CheckFailureStore bool
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -195,6 +201,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		packageRootPath:            options.PackageRootPath,
 		generateTestResult:         options.GenerateTestResult,
 		esAPI:                      options.API,
+		esClient:                   options.ESClient,
 		kibanaClient:               options.KibanaClient,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
@@ -205,6 +212,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		globalTestConfig:           options.GlobalTestConfig,
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
+		checkFailureStore:          options.CheckFailureStore,
 		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
@@ -755,12 +763,50 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	return &hits, nil
 }
 
+func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]common.MapStr, error) {
+	// FIXME: Using the low-level transport till support the failure store.
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create search request: %w", err)
+	}
+	resp, err := r.esClient.Transport.Perform(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform search request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("search request returned status code %d", resp.StatusCode)
+	}
+
+	var results struct {
+		Hits struct {
+			Hits []struct {
+				Source common.MapStr `json:"_source"`
+				Fields common.MapStr `json:"fields"`
+			} `json:"hits"`
+		} `json:"hits"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&results)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode search response: %w", err)
+	}
+
+	var docs []common.MapStr
+	for _, hit := range results.Hits.Hits {
+		docs = append(docs, hit.Source)
+	}
+
+	return docs, nil
+}
+
 type scenarioTest struct {
 	dataStream         string
 	policyTemplateName string
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
 	docs               []common.MapStr
+	failureStore       []common.MapStr
 	ignoredFields      []string
 	degradedDocs       []common.MapStr
 	agent              agentdeployer.DeployedAgent
@@ -1132,6 +1178,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
 	scenario.degradedDocs = hits.DegradedDocs
+	if r.checkFailureStore {
+		logger.Debugf("Checking failure store for data stream %s", scenario.dataStream)
+		scenario.failureStore, err = r.getFailureStoreDocs(ctx, scenario.dataStream)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get documents from the failure store for data stream %s: %w", scenario.dataStream, err)
+		}
+		logger.Debugf("Found %d docs in failure store for data stream %s", len(scenario.failureStore), scenario.dataStream)
+	}
 
 	if r.runSetup {
 		opts := scenarioStateOpts{
@@ -1269,6 +1323,11 @@ func (r *tester) createServiceStateDir() error {
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
+	if r.checkFailureStore && len(scenario.failureStore) > 0 {
+		// TODO: Report failures found.
+		return result.WithErrorf("there are %d documents in the failure store", len(scenario.failureStore))
+	}
+
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
