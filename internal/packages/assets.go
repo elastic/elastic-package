@@ -17,16 +17,35 @@ import (
 // AssetType represents the type of package asset.
 type AssetType string
 
-// Supported asset types.
-const (
-	AssetTypeElasticsearchIndexTemplate  AssetType = "index_template"
-	AssetTypeElasticsearchIngestPipeline AssetType = "ingest_pipeline"
+type assetTypeFolder struct {
+	typeName   AssetType
+	folderName string
+}
 
-	AssetTypeKibanaSavedSearch   AssetType = "search"
-	AssetTypeKibanaVisualization AssetType = "visualization"
-	AssetTypeKibanaDashboard     AssetType = "dashboard"
-	AssetTypeKibanaMap           AssetType = "map"
-	AssetTypeKibanaLens          AssetType = "lens"
+func newAssetType(typeName AssetType) assetTypeFolder {
+	return assetTypeFolder{
+		typeName:   typeName,
+		folderName: string(typeName),
+	}
+}
+func newAssetTypeWithFolder(typeName AssetType, folderName string) assetTypeFolder {
+	return assetTypeFolder{
+		typeName:   typeName,
+		folderName: folderName,
+	}
+}
+
+// Supported asset types.
+var (
+	AssetTypeElasticsearchIndexTemplate  = newAssetType("index_template")
+	AssetTypeElasticsearchIngestPipeline = newAssetType("ingest_pipeline")
+
+	AssetTypeKibanaSavedSearch   = newAssetType("search")
+	AssetTypeKibanaVisualization = newAssetType("visualization")
+	AssetTypeKibanaDashboard     = newAssetType("dashboard")
+	AssetTypeKibanaMap           = newAssetType("map")
+	AssetTypeKibanaLens          = newAssetType("lens")
+	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
 )
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
@@ -34,6 +53,7 @@ type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
 	DataStream string
+	SourcePath string
 }
 
 // String method returns a string representation of the asset
@@ -63,12 +83,13 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	var (
 		errs multierror.Error
 
-		assetTypes = []AssetType{
+		assetTypes = []assetTypeFolder{
 			AssetTypeKibanaDashboard,
 			AssetTypeKibanaVisualization,
 			AssetTypeKibanaSavedSearch,
 			AssetTypeKibanaMap,
 			AssetTypeKibanaLens,
+			AssetTypeSecurityRule,
 		}
 
 		assets []Asset
@@ -114,7 +135,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 
 		asset := Asset{
 			ID:         indexTemplateName,
-			Type:       AssetTypeElasticsearchIndexTemplate,
+			Type:       AssetTypeElasticsearchIndexTemplate.typeName,
 			DataStream: dsManifest.Name,
 		}
 		assets = append(assets, asset)
@@ -146,7 +167,7 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 			}
 			asset = Asset{
 				ID:         ingestPipelineName,
-				Type:       AssetTypeElasticsearchIngestPipeline,
+				Type:       AssetTypeElasticsearchIngestPipeline.typeName,
 				DataStream: dsManifest.Name,
 			}
 			assets = append(assets, asset)
@@ -157,20 +178,20 @@ func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
 	return assets, nil
 }
 
-func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]Asset, error) {
-	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, string(assetType))
+func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType assetTypeFolder) ([]Asset, error) {
+	assetsFolderPath := filepath.Join(kibanaAssetsFolderPath, assetType.folderName)
 	_, err := os.Stat(assetsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		// No assets folder defined; nothing to load
 		return nil, nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType, err)
+		return nil, fmt.Errorf("error finding kibana %s assets folder: %w", assetType.typeName, err)
 	}
 
 	paths, err := filepath.Glob(filepath.Join(assetsFolderPath, "*.json"))
 	if err != nil {
-		return nil, fmt.Errorf("could not read %s files: %w", assetType, err)
+		return nil, fmt.Errorf("could not read %s files: %w", assetType.typeName, err)
 	}
 
 	var assets []Asset
@@ -181,8 +202,9 @@ func loadFileBasedAssets(kibanaAssetsFolderPath string, assetType AssetType) ([]
 		}
 
 		asset := Asset{
-			ID:   assetID,
-			Type: assetType,
+			ID:         assetID,
+			Type:       assetType.typeName,
+			SourcePath: assetPath,
 		}
 		assets = append(assets, asset)
 	}

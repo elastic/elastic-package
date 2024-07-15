@@ -11,7 +11,8 @@ WORKSPACE=$(pwd)
 export WORKSPACE
 
 
-AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
+AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
+GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
 PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
 
 EC_TOKEN_PATH=kv/ci-shared/platform-ingest/platform-ingest-ec-qa
@@ -105,15 +106,17 @@ if is_step_testing_aws; then
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
-    GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+    GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
     export GITHUB_TOKEN
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    GITHUB_USERNAME_SECRET="elasticmachine"
-    export GITHUB_USERNAME_SECRET=$GITHUB_USERNAME_SECRET
-    export GITHUB_EMAIL_SECRET="elasticmachine@elastic.co"
-    export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+    GITHUB_USERNAME_SECRET=$(retry 5 vault kv get -field username ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_USERNAME_SECRET
+    GITHUB_EMAIL_SECRET=$(retry 5 vault kv get -field email ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_EMAIL_SECRET
+    GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    export GITHUB_TOKEN
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
@@ -135,7 +138,7 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
         EC_REGION_SECRET=$(retry 5 vault read -field region_qa "${EC_DATA_PATH}")
         export EC_REGION_SECRET
 
-        GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+        GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
         export GITHUB_TOKEN
     fi
 fi

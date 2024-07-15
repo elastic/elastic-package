@@ -219,7 +219,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
-	results = append(results, result)
+	results = append(results, result...)
 
 	esLogs, err := r.checkElasticsearchLogs(ctx, startTesting)
 	if err != nil {
@@ -300,74 +300,67 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 }
 
-func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) (testrunner.TestResult, error) {
-	tr := testrunner.TestResult{
+func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) ([]testrunner.TestResult, error) {
+	rc := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
 		DataStream: r.testFolder.DataStream,
-	}
+	})
 	startTime := time.Now()
 
 	tc, err := loadTestCaseFile(r.testFolder.Path, testCaseFile)
 	if err != nil {
-		err := fmt.Errorf("loading test case failed: %w", err)
-		tr.ErrorMsg = err.Error()
-		return tr, nil
+		results, _ := rc.WithErrorf("loading test case failed: %w", err)
+		return results, nil
 	}
-	tr.Name = tc.name
+	rc.Name = tc.name
 
 	if skip := testrunner.AnySkipConfig(tc.config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
 			TestType, r.testFolder.Package, r.testFolder.DataStream,
 			skip.Reason, skip.Link)
-		tr.Skipped = skip
-		return tr, nil
+		results, _ := rc.WithSkip(skip)
+		return results, nil
 	}
 
 	simulateDataStream := dsType + "-" + r.testFolder.Package + "." + r.testFolder.DataStream + "-default"
 	processedEvents, err := ingest.SimulatePipeline(ctx, r.esAPI, pipeline, tc.events, simulateDataStream)
 	if err != nil {
-		err := fmt.Errorf("simulating pipeline processing failed: %w", err)
-		tr.ErrorMsg = err.Error()
-		return tr, nil
+		results, _ := rc.WithErrorf("simulating pipeline processing failed: %w", err)
+		return results, nil
 	}
 
 	result := &testResult{events: processedEvents}
 
-	tr.TimeElapsed = time.Since(startTime)
+	rc.TimeElapsed = time.Since(startTime)
 	validatorOptions = append(slices.Clone(validatorOptions),
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 	)
 	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
 	if err != nil {
-		return tr, fmt.Errorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
+		return rc.WithErrorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
 	}
 
 	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
-	if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
-		tr.FailureMsg = e.Error()
-		tr.FailureDetails = e.Details
-		return tr, nil
-	}
 	if err != nil {
-		err := fmt.Errorf("verifying test result failed: %w", err)
-		tr.ErrorMsg = err.Error()
-		return tr, nil
+		results, _ := rc.WithErrorf("verifying test result failed: %w", err)
+		return results, nil
 	}
 
 	if r.withCoverage {
-		tr.Coverage, err = getPipelineCoverage(PipelineTesterOptions{
+		options := PipelineTesterOptions{
 			TestFolder:      r.testFolder,
 			API:             r.esAPI,
 			PackageRootPath: r.packageRootPath,
 			CoverageType:    r.coverageType,
-		}, r.pipelines)
+		}
+		rc.Coverage, err = getPipelineCoverage(rc.CoveragePackageName(), options, r.pipelines)
 		if err != nil {
-			return tr, fmt.Errorf("error calculating pipeline coverage: %w", err)
+			return rc.WithErrorf("error calculating pipeline coverage: %w", err)
 		}
 	}
 
-	return tr, nil
+	return rc.WithSuccess()
 }
 
 func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {

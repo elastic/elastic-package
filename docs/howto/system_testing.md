@@ -8,7 +8,7 @@ Elastic Packages are comprised of data streams. A system test exercises the end-
 Conceptually, running a system test involves the following steps:
 
 1. Deploy the Elastic Stack, including Elasticsearch, Kibana, and the Elastic Agent. This step takes time so it should typically be done once as a pre-requisite to running system tests on multiple data streams.
-1. Enroll the Elastic Agent with Fleet (running in the Kibana instance). This step also can be done once, as a pre-requisite.
+1. Run a new Elastic Agent and enroll it with Fleet (running in the Kibana instance).
 1. Depending on the Elastic Package whose data stream is being tested, deploy an instance of the package's integration service.
 1. Create a test policy that configures a single data stream for a single package.
 1. Assign the test policy to the enrolled Agent.
@@ -20,6 +20,7 @@ Conceptually, running a system test involves the following steps:
    mappings declared for the field.
 1. If the Elastic Agent from the stack is not used, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
+1. Once the data stream have been system tested, unenroll and remove the Elastic Agent
 1. Once all desired data streams have been system tested, tear down the Elastic Stack.
 
 ## Limitations
@@ -599,6 +600,83 @@ Finally, when you are done running all system tests, bring down the Elastic Stac
 elastic-package stack down
 ```
 
+Starting with [elastic-package version `v0.101.0`](https://github.com/elastic/elastic-package/releases/tag/v0.101.0),
+by default, running `elastic-package test system` command will setup a new Elastic Agent for each test defined in the package.
+
+For each system test configuration file defined in each data stream, a new Elastic Agent is going
+to be started and enrolled in a given test Agent Policy in Fleet specifically to run those system tests.
+Once those tests have finished, this Elastic Agent is going to be unenrolled and removed from
+Fleet (along with the Agent Policies) and a new Elastic Agent will be created for the next test configuration
+file.
+
+These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
+For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
+```yaml
+vars:
+  hosts:
+    - "oracle://sys:Oradoc_db1@{{ Hostname }}:{{ Port }}/ORCLCDB.localdomain?sysdba=1"
+agent:
+  runtime: docker
+  provisioning_script:
+    language: "bash"
+    contents: |
+      apt-get update && apt-get -y install libaio1 wget unzip
+      mkdir -p /opt/oracle
+      cd /opt/oracle
+      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
+      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip
+      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+      cp /opt/oracle/instantclient_21_7/glogin.sql /opt/oracle/instantclient_21_7/libsqlplus.so /opt/oracle/instantclient_21_7/libsqlplusic.so /opt/oracle/instantclient_21_7/sqlplus /opt/oracle/instantclient_21_4/
+  pre_start_script:
+    language: "sh"
+    contents: |
+      export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-""}:/opt/oracle/instantclient_21_4"
+      export PATH="${PATH}:/opt/oracle/instantclient_21_7:/opt/oracle/instantclient_21_4"
+      cd /opt/oracle/instantclient_21_4
+```
+
+Another example setting capabilities to the agent ([`auditid_manager` test package](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/auditd_manager/data_stream/auditd/_dev/test/system/test-default-config.yml)):
+```yaml
+data_stream:
+  vars:
+    audit_rules: |-
+      ...
+    preserve_original_event: true
+agent:
+  runtime: docker
+  pid_mode: "host"
+  linux_capabilities:
+    - AUDIT_CONTROL
+    - AUDIT_READ
+```
+
+Considerations for packages using the [Agent service deployer](#agent-service-deployer) (`_dev/deploy/agent` folder):
+- If `_dev/deploy/agent` folder, `elastic-package` will continue using the Elastic Agent as described in [section](#agent-service-deployer).
+- If a package that defines the agent service deployer (`agent` folder) wants to stop using this Agent Service deployer, these would be the steps:
+    - Create a new `_dev/deploy/docker` adding the service container if needed.
+    - Define the settings required for your Elastic Agents in all the test configuration files.
+
+### Running system tests with the Elastic Agents from the stack
+
+Before [elastic-package version `v0.101.0`](https://github.com/elastic/elastic-package/releases/tag/v0.101.0),
+by default, running `elastic-package test system` command will use the Elastic Agent:
+- created and enrolled when the Elastic stack is started (running `elastic-package stack up`), or
+- created with other service deployers (kubernetes or custom agents deployers).
+
+If needed, this can be enabled by setting the environment variable `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=false`, so
+`elastic-package` would use the Elastic Agent spin up along with the Elastic stack. Example:
+
+```
+  elastic-package stack up -v -d
+  cd /path/package
+  ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=false elastic-package test system -v
+  elastic-package stack down -v
+```
+
+When running system tests with the Elastic Agent from the stack, all tests defined in the package are going to be run using
+the same Elastic Agent from the stack. That Elastic Agent is not going to be stopped/unenroll between different execution tests.
+
+
 ### Generating sample events
 
 As the system tests exercise an integration end-to-end from running the integration's service all the way
@@ -720,66 +798,11 @@ elastic-package test system -v --tear-down
 elastic-package stack down -v
 ```
 
-### Running system tests with independent Elastic Agents in each test (technical preview)
-
-By default, running `elastic-package test system` command will use the Elastic Agent:
-- created and enrolled when the Elastic stack is started (running `elastic-package stack up`), or
-- created with other service deployers (kubernetes or custom agents deployers).
-
-Starting with [elastic-package version `v0.100.0`](https://github.com/elastic/elastic-package/releases/tag/v0.100.0),
-there is another mode to run these Elastic Agents for the system tests in Technical Preview.
-
-For each system test configuration file defined in each data stream, a new Elastic Agent is going
-to be started and enrolled in a given test Agent Policy in Fleet specifically to run those system tests.
-Once those tests have finished, this Elastic Agent is going to be unenrolled and removed from
-Fleet (along with the Agent Policies) and a new Elastic Agent will be created for the next test configuration
-file.
-
-These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
-For example, the `oracle/memory` data stream's `test-memory-config.yml` is shown below:
-```yaml
-vars:
-  hosts:
-    - "oracle://sys:Oradoc_db1@elastic-package-service-oracle-1:1521/ORCLCDB.localdomain?sysdba=1"
-agent:
-  runtime: docker
-  provisioning_script:
-    language: "bash"
-    contents: |
-      apt-get update && apt-get -y install libaio1 wget unzip
-      mkdir -p /opt/oracle
-      cd /opt/oracle
-      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
-      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip
-      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
-      cp /opt/oracle/instantclient_21_7/glogin.sql /opt/oracle/instantclient_21_7/libsqlplus.so /opt/oracle/instantclient_21_7/libsqlplusic.so /opt/oracle/instantclient_21_7/sqlplus /opt/oracle/instantclient_21_4/
-  pre_start_script:
-    language: "sh"
-    contents: |
-      export LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-""}:/opt/oracle/instantclient_21_4"
-      export PATH="${PATH}:/opt/oracle/instantclient_21_7:/opt/oracle/instantclient_21_4"
-      cd /opt/oracle/instantclient_21_4
-```
-
-Considerations for this mode of running Elastic Agents:
-- As this is in technical preview, it requires to define `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true` environment variable to enable it.
-  ```shell
-  elastic-package stack up -v -d
-  cd /path/package
-  ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT=true elastic-package test system -v
-  elastic-package stack down -v
-  ```
-- Those packages that define in their manifest that require root privileges (`agent.privileges.root: true`) run these Elastic Agents.
-- If a package defines the `agent` folder of the Agent deployer, it will continue using the Elastic Agent as described in [section](#agent-service-deployer).
-- If a package that defines the agent service deployer (`agent` folder) wants to migrate to this mode of running Elastic Agents, these would be the steps:
-    - Create a new `_dev/deploy/docker` adding the service container if needed.
-    - Define the settings required for your Elastic Agents in all the test configuration files.
-
 #### Running system tests in parallel (technical preview)
 
 By default, `elatic-package` runs every system test defined in the package sequentially.
-This could be changed to allow running in parallel tests. For that it is needed:
-- running tests using independent Elastic Agents (see [section](#running-system-tests-with-independent-elastic-agents-in-each-test-technical-preview)).
+This could be changed to allow running in parallel tests. For that it is needed that:
+- system tests cannot be run using the Elastic Agent from the stack.
 - package must define the global test configuration file with these contents to enable system test parallelization:
   ```yaml
   system:

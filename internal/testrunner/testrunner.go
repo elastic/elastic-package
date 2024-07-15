@@ -145,6 +145,23 @@ func NewResultComposer(tr TestResult) *ResultComposer {
 	}
 }
 
+// WithCoverage appends the coverage report to the result composer. Results built with the composer
+// will include this coverage report.
+func (rc *ResultComposer) WithCoverage(coverage CoverageReport) *ResultComposer {
+	rc.TestResult.Coverage = coverage
+	return rc
+}
+
+// CoveragePackageName returns a package name that can be used in coverage reports, based on information
+// in the composer.
+func (rc *ResultComposer) CoveragePackageName() string {
+	if rc.DataStream != "" {
+		return rc.Package + "." + rc.DataStream
+	}
+
+	return rc.Package
+}
+
 // WithError sets an error on the test result wrapped by ResultComposer.
 func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 	rc.TimeElapsed = time.Since(rc.StartTime)
@@ -152,8 +169,9 @@ func (rc *ResultComposer) WithError(err error) ([]TestResult, error) {
 		return []TestResult{rc.TestResult}, nil
 	}
 
-	if tcf, ok := err.(ErrTestCaseFailed); ok {
-		rc.FailureMsg += tcf.Reason
+	var tcf ErrTestCaseFailed
+	if errors.As(err, &tcf) {
+		rc.FailureMsg += tcf.Error()
 		rc.FailureDetails += tcf.Details
 		return []TestResult{rc.TestResult}, nil
 	}

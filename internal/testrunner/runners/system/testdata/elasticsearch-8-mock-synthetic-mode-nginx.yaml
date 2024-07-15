@@ -1,0 +1,102 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 548
+        uncompressed: false
+        body: |
+            {
+              "name" : "7b2ebb59e3c9",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "w312eKWCTb6Hb01ROdimBw",
+              "version" : {
+                "number" : "8.15.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "822b187af48f9a5560ad365743998315038dad85",
+                "build_date" : "2024-07-03T13:25:55.204194663Z",
+                "build_snapshot" : true,
+                "lucene_version" : "9.11.1",
+                "minimum_wire_compatibility_version" : "7.17.0",
+                "minimum_index_compatibility_version" : "7.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "548"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 12.812117ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/_index_template/_simulate_index/logs-nginx.access-12345simulated
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 7981
+        uncompressed: false
+        body: '{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"mode":"standard","codec":"best_compression","routing":{"allocation":{"include":{"_tier_preference":"data_hot"}}},"mapping":{"total_fields":{"limit":"1000","ignore_dynamic_beyond_limit":"true"},"ignore_malformed":"true"},"final_pipeline":".fleet_final_pipeline-1","default_pipeline":"logs-nginx.access-1.21.0"}},"mappings":{"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"nginx"}},"dynamic_templates":[{"container.labels":{"path_match":"container.labels.*","match_mapping_type":"string","mapping":{"type":"keyword"}}},{"ecs_timestamp":{"match":"@timestamp","mapping":{"ignore_malformed":false,"type":"date"}}},{"ecs_message_match_only_text":{"path_match":["message","*.message"],"unmatch_mapping_type":"object","mapping":{"type":"match_only_text"}}},{"ecs_non_indexed_keyword":{"path_match":"event.original","mapping":{"doc_values":false,"index":false,"type":"keyword"}}},{"ecs_non_indexed_long":{"path_match":"*.x509.public_key_exponent","mapping":{"doc_values":false,"index":false,"type":"long"}}},{"ecs_ip":{"path_match":["ip","*.ip","*_ip"],"match_mapping_type":"string","mapping":{"type":"ip"}}},{"ecs_wildcard":{"path_match":["*.io.text","*.message_id","*registry.data.strings","*url.path"],"unmatch_mapping_type":"object","mapping":{"type":"wildcard"}}},{"ecs_path_match_wildcard_and_match_only_text":{"path_match":["*.body.content","*url.full","*url.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_match_wildcard_and_match_only_text":{"match":["*command_line","*stack_trace"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"wildcard"}}},{"ecs_path_match_keyword_and_match_only_text":{"path_match":["*.title","*.executable","*.name","*.working_directory","*.full_name","*file.path","*file.target_path","*os.full","email.subject","vulnerability.description","user_agent.original"],"unmatch_mapping_type":"object","mapping":{"fields":{"text":{"type":"match_only_text"}},"type":"keyword"}}},{"ecs_date":{"path_match":["*.timestamp","*_timestamp","*.not_after","*.not_before","*.accessed","created","*.created","*.installed","*.creation_date","*.ctime","*.mtime","ingested","*.ingested","*.start","*.end"],"unmatch_mapping_type":"object","mapping":{"type":"date"}}},{"ecs_path_match_float":{"path_match":["*.score.*","*_score*"],"path_unmatch":"*.version","unmatch_mapping_type":"object","mapping":{"type":"float"}}},{"ecs_usage_double_scaled_float":{"path_match":"*.usage","match_mapping_type":["double","long","string"],"mapping":{"scaling_factor":1000,"type":"scaled_float"}}},{"ecs_geo_point":{"path_match":"*.geo.location","mapping":{"type":"geo_point"}}},{"ecs_flattened":{"path_match":["*structured_data","*exports","*imports"],"match_mapping_type":"object","mapping":{"type":"flattened"}}},{"all_strings_to_keywords":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}},{"strings_as_keyword":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}}],"date_detection":false,"properties":{"@timestamp":{"type":"date","ignore_malformed":false},"cloud":{"properties":{"account":{"properties":{"id":{"type":"keyword","ignore_above":1024}}},"availability_zone":{"type":"keyword","ignore_above":1024},"image":{"properties":{"id":{"type":"keyword","ignore_above":1024}}},"instance":{"properties":{"id":{"type":"keyword","ignore_above":1024},"name":{"type":"keyword","ignore_above":1024}}},"machine":{"properties":{"type":{"type":"keyword","ignore_above":1024}}},"project":{"properties":{"id":{"type":"keyword","ignore_above":1024}}},"provider":{"type":"keyword","ignore_above":1024},"region":{"type":"keyword","ignore_above":1024}}},"container":{"dynamic":"true","properties":{"id":{"type":"keyword","ignore_above":1024},"image":{"properties":{"name":{"type":"keyword","ignore_above":1024}}},"labels":{"type":"object","dynamic":"true"},"name":{"type":"keyword","ignore_above":1024}}},"data_stream":{"properties":{"dataset":{"type":"constant_keyword"},"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"}}},"destination":{"properties":{"domain":{"type":"keyword","ignore_above":1024},"ip":{"type":"ip"},"port":{"type":"long"}}},"ecs":{"properties":{"version":{"type":"keyword","ignore_above":1024}}},"event":{"properties":{"agent_id_status":{"type":"keyword","ignore_above":1024},"created":{"type":"date"},"dataset":{"type":"constant_keyword","value":"nginx.access"},"ingested":{"type":"date","format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis","ignore_malformed":false},"module":{"type":"constant_keyword","value":"nginx"}}},"host":{"properties":{"architecture":{"type":"keyword","ignore_above":1024},"containerized":{"type":"boolean"},"domain":{"type":"keyword","ignore_above":1024},"hostname":{"type":"keyword","ignore_above":1024},"id":{"type":"keyword","ignore_above":1024},"ip":{"type":"ip"},"mac":{"type":"keyword","ignore_above":1024},"name":{"type":"keyword","ignore_above":1024},"os":{"properties":{"build":{"type":"keyword","ignore_above":1024},"codename":{"type":"keyword","ignore_above":1024},"family":{"type":"keyword","ignore_above":1024},"kernel":{"type":"keyword","ignore_above":1024},"name":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"text"}}},"platform":{"type":"keyword","ignore_above":1024},"version":{"type":"keyword","ignore_above":1024}}},"type":{"type":"keyword","ignore_above":1024}}},"http":{"properties":{"request":{"properties":{"method":{"type":"keyword","ignore_above":1024},"referrer":{"type":"keyword","ignore_above":1024}}},"response":{"properties":{"body":{"properties":{"bytes":{"type":"long"}}},"status_code":{"type":"long"}}},"version":{"type":"keyword","ignore_above":1024}}},"input":{"properties":{"type":{"type":"keyword","ignore_above":1024}}},"log":{"properties":{"file":{"properties":{"path":{"type":"keyword","ignore_above":1024}}},"offset":{"type":"long"}}},"nginx":{"properties":{"access":{"properties":{"remote_ip_list":{"type":"keyword","ignore_above":1024}}}}},"related":{"properties":{"ip":{"type":"ip"}}},"source":{"properties":{"address":{"type":"keyword","ignore_above":1024},"as":{"properties":{"number":{"type":"long"},"organization":{"properties":{"name":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}}}}}},"geo":{"properties":{"city_name":{"type":"keyword","ignore_above":1024},"continent_name":{"type":"keyword","ignore_above":1024},"country_iso_code":{"type":"keyword","ignore_above":1024},"country_name":{"type":"keyword","ignore_above":1024},"location":{"type":"geo_point"},"region_iso_code":{"type":"keyword","ignore_above":1024},"region_name":{"type":"keyword","ignore_above":1024}}},"ip":{"type":"ip"}}},"tags":{"type":"keyword","ignore_above":1024},"url":{"properties":{"domain":{"type":"keyword","ignore_above":1024},"extension":{"type":"keyword","ignore_above":1024},"fragment":{"type":"keyword","ignore_above":1024},"original":{"type":"wildcard","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}},"path":{"type":"wildcard","ignore_above":1024},"scheme":{"type":"keyword","ignore_above":1024}}},"user":{"properties":{"name":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}}}},"user_agent":{"properties":{"device":{"properties":{"name":{"type":"keyword","ignore_above":1024}}},"name":{"type":"keyword","ignore_above":1024},"original":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}},"os":{"properties":{"full":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}},"name":{"type":"keyword","ignore_above":1024,"fields":{"text":{"type":"match_only_text"}}},"version":{"type":"keyword","ignore_above":1024}}},"version":{"type":"keyword","ignore_above":1024}}}}},"aliases":{}},"overlapping":[{"name":"logs","index_patterns":["logs-*-*"]}]}'
+        headers:
+            Content-Length:
+                - "7981"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 21.536822ms

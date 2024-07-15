@@ -151,6 +151,8 @@ type tester struct {
 	resourcesManager   *resources.Manager
 	pkgManifest        *packages.PackageManifest
 	dataStreamManifest *packages.DataStreamManifest
+	withCoverage       bool
+	coverageType       string
 
 	serviceStateFilePath string
 
@@ -174,12 +176,12 @@ type SystemTesterOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
-	RunIndependentElasticAgent bool
-
 	DeferCleanup     time.Duration
 	ServiceVariant   string
 	ConfigFileName   string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -194,7 +196,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		generateTestResult:         options.GenerateTestResult,
 		esAPI:                      options.API,
 		kibanaClient:               options.KibanaClient,
-		runIndependentElasticAgent: options.RunIndependentElasticAgent,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
 		configFileName:             options.ConfigFileName,
@@ -202,6 +203,9 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		runTestsOnly:               options.RunTestsOnly,
 		runTearDown:                options.RunTearDown,
 		globalTestConfig:           options.GlobalTestConfig,
+		withCoverage:               options.WithCoverage,
+		coverageType:               options.CoverageType,
+		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -240,12 +244,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
-	}
-
-	// Temporarily until independent Elastic Agents are enabled by default,
-	// enable independent Elastic Agents if package defines that requires root privileges
-	if pkg, ds := r.pkgManifest, r.dataStreamManifest; pkg.Agent.Privileges.Root || (ds != nil && ds.Agent.Privileges.Root) {
-		r.runIndependentElasticAgent = true
 	}
 
 	// If the environment variable is present, it always has preference over the root
@@ -607,60 +605,55 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	return partial, nil
 }
 
-func (r *tester) isSyntheticsEnabled(ctx context.Context, dataStream, componentTemplatePackage string) (bool, error) {
-	resp, err := r.esAPI.Cluster.GetComponentTemplate(
-		r.esAPI.Cluster.GetComponentTemplate.WithContext(ctx),
-		r.esAPI.Cluster.GetComponentTemplate.WithName(componentTemplatePackage),
+func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, dataStreamName string) (bool, error) {
+	// We append a suffix so we don't use an existing resource, what may cause conflicts in old versions of
+	// Elasticsearch, such as https://github.com/elastic/elasticsearch/issues/84256.
+	resp, err := api.Indices.SimulateIndexTemplate(dataStreamName+"simulated",
+		api.Indices.SimulateIndexTemplate.WithContext(ctx),
 	)
 	if err != nil {
-		return false, fmt.Errorf("could not get component template %s from data stream %s: %w", componentTemplatePackage, dataStream, err)
+		return false, fmt.Errorf("could not simulate index template for %s: %w", dataStreamName, err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		// @package component template doesn't exist before 8.2. On these versions synthetics was not supported
-		// in any case, so just return false.
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
-		return false, nil
-	}
 	if resp.IsError() {
-		return false, fmt.Errorf("could not get component template %s for data stream %s: %s", componentTemplatePackage, dataStream, resp.String())
+		return false, fmt.Errorf("could not simulate index template for %s: %s", dataStreamName, resp.String())
 	}
 
 	var results struct {
-		ComponentTemplates []struct {
-			Name              string `json:"name"`
-			ComponentTemplate struct {
-				Template struct {
-					Mappings struct {
-						Source *struct {
-							Mode string `json:"mode"`
-						} `json:"_source,omitempty"`
-					} `json:"mappings"`
-				} `json:"template"`
-			} `json:"component_template"`
-		} `json:"component_templates"`
+		Template struct {
+			Mappings struct {
+				Source struct {
+					Mode string `json:"mode"`
+				} `json:"_source"`
+			} `json:"mappings"`
+			Settings struct {
+				Index struct {
+					Mode string `json:"mode"`
+				} `json:"index"`
+			} `json:"settings"`
+		} `json:"template"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return false, fmt.Errorf("could not decode search results response: %w", err)
+		return false, fmt.Errorf("could not decode index template simulation response: %w", err)
 	}
 
-	if len(results.ComponentTemplates) == 0 {
-		logger.Debugf("no component template %s found for data stream %s", componentTemplatePackage, dataStream)
-		return false, nil
-	}
-	if len(results.ComponentTemplates) != 1 {
-		return false, fmt.Errorf("ambiguous response, expected one component template for %s, found %d", componentTemplatePackage, len(results.ComponentTemplates))
+	if results.Template.Mappings.Source.Mode == "synthetic" {
+		return true, nil
 	}
 
-	template := results.ComponentTemplates[0]
-
-	if template.ComponentTemplate.Template.Mappings.Source == nil {
-		return false, nil
+	// It seems that some index modes enable synthetic source mode even when it is not explicitly mentioned
+	// in the mappings. So assume that when these index modes are used, the synthetic mode is also used.
+	var syntheticsIndexModes = []string{
+		"logs",
+		"time_series",
+	}
+	if slices.Contains(syntheticsIndexModes, results.Template.Settings.Index.Mode) {
+		return true, nil
 	}
 
-	return template.ComponentTemplate.Template.Mappings.Source.Mode == "synthetic", nil
+	return false, nil
 }
 
 type hits struct {
@@ -779,11 +772,15 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to delete data stream %s: %w", dataStream, err)
+		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		// Data stream doesn't exist, there was nothing to do.
+		return nil
+	}
 	if resp.IsError() {
-		return fmt.Errorf("could not get delete data stream %s: %s", dataStream, resp.String())
+		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
 	}
 	return nil
 }
@@ -962,15 +959,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		dataStreamDataset,
 		ds.Namespace,
 	)
-	componentTemplatePackage := fmt.Sprintf(
-		"%s-%s@package",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-	)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		r.deleteDataStream(ctx, scenario.dataStream)
+		err := r.deleteDataStream(ctx, scenario.dataStream)
 		if err != nil {
 			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
 		}
@@ -1130,12 +1122,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
-	logger.Debugf("check whether or not synthetics is enabled (component template %s)...", componentTemplatePackage)
-	scenario.syntheticEnabled, err = r.isSyntheticsEnabled(ctx, scenario.dataStream, componentTemplatePackage)
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
+	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source is enabled: %w", err)
+		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
 	}
-	logger.Debugf("data stream %s has synthetics enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
 
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
@@ -1222,7 +1214,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if r.runTearDown || r.runTestsOnly {
 		agentRunID = state.AgentRunID
 	}
-	logger.Warn("setting up agent (technical preview)...")
+	logger.Debug("setting up independent Elastic Agent...")
 	agentInfo, err := r.createAgentInfo(policy, config, agentRunID, agentManifest)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
@@ -1371,6 +1363,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		if len(logResults) > 0 {
 			return logResults, nil
 		}
+	}
+
+	if r.withCoverage {
+		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
+		if err != nil {
+			return result.WithErrorf("coverage report generation failed: %w", err)
+		}
+		result = result.WithCoverage(coverage)
 	}
 
 	return result.WithSuccess()
@@ -1921,7 +1921,10 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 			return fmt.Errorf("failed to marshal degraded docs to JSON: %w", err)
 		}
 
-		return fmt.Errorf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON)
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "found ignored fields in data stream",
+			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON),
+		}
 	}
 
 	return nil
@@ -2078,4 +2081,21 @@ func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 		}
 	}
 	return nil
+}
+
+func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageReport, error) {
+	dsPattern := "*"
+	if r.dataStreamManifest != nil && r.dataStreamManifest.Name != "" {
+		dsPattern = r.dataStreamManifest.Name
+	}
+
+	// This list of patterns includes patterns for all types of packages. It should not be a problem if some path doesn't exist.
+	patterns := []string{
+		filepath.Join(r.packageRootPath, "manifest.yml"),
+		filepath.Join(r.packageRootPath, "fields", "*.yml"),
+		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "manifest.yml"),
+		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
+	}
+
+	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
 }

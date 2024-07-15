@@ -1,1 +1,1 @@
-<testcase name=\"system test: fail\" classname=\"docker_failing_test_service.log\" time=\".*\"> * <failure>the test service failing unexpectedly exited with code 1</failure>
+<testcase name=\"system test: fail\" classname=\"docker_failing_test_service.log\" time=\".*\"> * <failure>test case failed: the test service failing unexpectedly exited with code 1</failure>

@@ -29,6 +29,8 @@ type runner struct {
 	failOnMissingTests bool
 	generateTestResult bool
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	withCoverage       bool
+	coverageType       string
 
 	resourcesManager *resources.Manager
 	cleanup          func(context.Context) error
@@ -44,6 +46,8 @@ type PolicyTestRunnerOptions struct {
 	FailOnMissingTests bool
 	GenerateTestResult bool
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
@@ -54,6 +58,8 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		failOnMissingTests: options.FailOnMissingTests,
 		generateTestResult: options.GenerateTestResult,
 		globalTestConfig:   options.GlobalTestConfig,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -135,6 +141,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				GenerateTestResult: r.generateTestResult,
 				TestPath:           test,
 				GlobalTestConfig:   r.globalTestConfig,
+				WithCoverage:       r.withCoverage,
+				CoverageType:       r.coverageType,
 			}))
 
 		}

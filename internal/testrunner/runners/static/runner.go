@@ -26,6 +26,8 @@ type runner struct {
 	failOnMissingTests bool
 	dataStreams        []string
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	withCoverage       bool
+	coverageType       string
 }
 
 type StaticTestRunnerOptions struct {
@@ -33,6 +35,8 @@ type StaticTestRunnerOptions struct {
 	FailOnMissingTests bool
 	DataStreams        []string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
@@ -41,6 +45,8 @@ func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 		failOnMissingTests: options.FailOnMissingTests,
 		dataStreams:        options.DataStreams,
 		globalTestConfig:   options.GlobalTestConfig,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 	return &runner
 }
@@ -95,6 +101,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			PackageRootPath:  r.packageRootPath,
 			TestFolder:       t,
 			GlobalTestConfig: r.globalTestConfig,
+			WithCoverage:     r.withCoverage,
+			CoverageType:     r.coverageType,
 		}))
 	}
 	return testers, nil

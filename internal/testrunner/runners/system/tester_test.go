@@ -5,6 +5,7 @@
 package system
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -392,6 +394,51 @@ func TestCheckAgentLogs(t *testing.T) {
 				assert.Equal(t, tc.expectedMessage[i], results[i].FailureMsg)
 				assert.Equal(t, tc.expectedDetails[i], results[i].FailureDetails)
 			}
+		})
+	}
+}
+
+func TestIsSyntheticSourceModeEnabled(t *testing.T) {
+	cases := []struct {
+		title          string
+		record         string
+		dataStreamName string
+		expected       bool
+	}{
+		{
+			title:          "no synthetics",
+			record:         "testdata/elasticsearch-8-mock-synthetic-mode-nginx",
+			dataStreamName: "logs-nginx.access-12345",
+			expected:       false,
+		},
+		{
+			// This test case is generated with -U stack.logsdb_enabled=true
+			title:          "logsdb mode but no synthetics otherwise",
+			record:         "testdata/elasticsearch-8-mock-synthetic-mode-nginx-logsdb",
+			dataStreamName: "logs-nginx.access-12345",
+			expected:       true,
+		},
+		{
+			title:          "time_series mode",
+			record:         "testdata/elasticsearch-8-mock-synthetic-mode-couchdb",
+			dataStreamName: "metrics-couchdb.server-12345",
+			expected:       true,
+		},
+		{
+			// This test case is generated with the logs_synthetic_mode test package from the Package Spec.
+			title:          "synthetic mode explicitly enabled in package",
+			record:         "testdata/elasticsearch-8-mock-synthetic-mode-dummy",
+			dataStreamName: "logs-logs_synthetic_mode.synthetic-12345",
+			expected:       true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			client := estest.NewClient(t, c.record)
+			enabled, err := isSyntheticSourceModeEnabled(context.Background(), client.API, c.dataStreamName)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, enabled)
 		})
 	}
 }

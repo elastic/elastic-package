@@ -20,6 +20,7 @@ streams:{{if eq .Manifest.Type "logs" }}
         type: text
         title: Period
         default: 10s
+{{- end }}
 {{ if .Manifest.Elasticsearch }}
 elasticsearch:
 {{ if .Manifest.Elasticsearch.SourceMode }}
@@ -27,6 +28,12 @@ elasticsearch:
 {{- end}}
 {{ if .Manifest.Elasticsearch.IndexMode }}
   index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
-{{- end}}
-{{- end}}
-{{- end}}
+{{- end }}
+{{ if .Manifest.Elasticsearch.IndexTemplate }}
+  index_template:
+{{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
+    mappings:
+      subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
+{{- end }}
+{{- end }}
+{{- end }}

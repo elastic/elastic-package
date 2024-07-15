@@ -1,0 +1,49 @@
+{
+    "attributes": {
+        "author": [
+            "Elastic"
+        ],
+        "description": "Minimal example security rule.",
+        "false_positives": [ ],
+        "index": [
+            "filebeat-*"
+        ],
+        "language": "kuery",
+        "license": "Elastic License v2",
+        "name": "Attempt to Modify an Okta Policy Rule",
+        "note": "Example note",
+        "query": "event.dataset:security_rules and event.action:policy.rule.update\n",
+        "references": [ ],
+        "related_integrations": [
+            {
+                "package": "security_rules",
+                "version": "^0.0.1"
+            }
+        ],
+        "required_fields": [
+            {
+                "ecs": true,
+                "name": "event.action",
+                "type": "keyword"
+            },
+            {
+                "ecs": true,
+                "name": "event.dataset",
+                "type": "keyword"
+            }
+        ],
+        "risk_score": 21,
+        "rule_id": "000047bb-b27a-47ec-8b62-ef1a5d2c9e10",
+        "setup": "Filebeat module, or similarly structured data is required to be compatible with this rule.",
+        "severity": "low",
+        "tags": [
+            "Security"
+        ],
+        "threat": [ ],
+        "timestamp_override": "event.ingested",
+        "type": "query",
+        "version": 100
+    },
+    "id": "000047bb-b27a-47ec-8b62-ef1a5d2c9e10_100",
+    "type": "security-rule"
+}

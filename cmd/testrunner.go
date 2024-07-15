@@ -175,6 +175,8 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
 		GlobalTestConfig: globalTestConfig.Asset,
+		WithCoverage:     testCoverage,
+		CoverageType:     testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -264,6 +266,8 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GlobalTestConfig:   globalTestConfig.Static,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -557,21 +561,22 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:                    profile,
-		PackageRootPath:            packageRootPath,
-		KibanaClient:               kibanaClient,
-		API:                        esClient.API,
-		ConfigFilePath:             configFileFlag,
-		RunSetup:                   runSetup,
-		RunTearDown:                runTearDown,
-		RunTestsOnly:               runTestsOnly,
-		DataStreams:                dataStreams,
-		ServiceVariant:             variantFlag,
-		FailOnMissingTests:         failOnMissing,
-		GenerateTestResult:         generateTestResult,
-		DeferCleanup:               deferCleanup,
-		RunIndependentElasticAgent: false,
-		GlobalTestConfig:           globalTestConfig.System,
+		Profile:            profile,
+		PackageRootPath:    packageRootPath,
+		KibanaClient:       kibanaClient,
+		API:                esClient.API,
+		ConfigFilePath:     configFileFlag,
+		RunSetup:           runSetup,
+		RunTearDown:        runTearDown,
+		RunTestsOnly:       runTestsOnly,
+		DataStreams:        dataStreams,
+		ServiceVariant:     variantFlag,
+		FailOnMissingTests: failOnMissing,
+		GenerateTestResult: generateTestResult,
+		DeferCleanup:       deferCleanup,
+		GlobalTestConfig:   globalTestConfig.System,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	logger.Debugf("Running suite...")
@@ -683,6 +688,8 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		FailOnMissingTests: failOnMissing,
 		GenerateTestResult: generateTestResult,
 		GlobalTestConfig:   globalTestConfig.Policy,
+		WithCoverage:       testCoverage,
+		CoverageType:       testCoverageFormat,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
