@@ -5,6 +5,7 @@
 package system
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -764,13 +765,30 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 }
 
 func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]failureStoreDocument, error) {
+	query := map[string]any{
+		"query": map[string]any{
+			"bool": map[string]any{
+				// Ignoring failures with error.type version_conflict_engine_exception because there are packages which
+				// explicitly set the _id with the fingerprint processor to avoid duplicates.
+				"must_not": map[string]any{
+					"term": map[string]any{
+						"error.type": "version_conflict_engine_exception",
+					},
+				},
+			},
+		},
+	}
+	body, err := json.Marshal(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode search query: %w", err)
+	}
 	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	// Ignoring failures with error.type version_conflict_engine_exception because there are packages which
-	// explicitly set the _id with the fingerprint processor to avoid duplicates.
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only&q=error.type:-version_conflict_engine_exception", dataStream), nil)
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create search request: %w", err)
 	}
+	request.Header.Set("Content-Type", "application/json")
+
 	resp, err := r.esClient.Transport.Perform(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform search request: %w", err)
@@ -1352,13 +1370,8 @@ func (r *tester) createServiceStateDir() error {
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
-	if r.checkFailureStore && len(scenario.failureStore) > 0 {
-		var errorMessages []string
-		for _, doc := range scenario.failureStore {
-			errorMessages = append(errorMessages, doc.Error.Message)
-		}
-		results, _ := result.WithErrorf("there are %d documents in the failure store with errors: %s", len(scenario.failureStore), strings.Join(errorMessages, ", "))
-		return results, nil
+	if err := validateFailureStore(scenario.failureStore); err != nil {
+		return result.WithError(err)
 	}
 
 	// Validate fields in docs
@@ -1945,6 +1958,23 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
+	}
+
+	return nil
+}
+
+func validateFailureStore(failureStore []failureStoreDocument) error {
+	var multiErr multierror.Error
+	for _, doc := range failureStore {
+		multiErr = append(multiErr, errors.New(doc.Error.Message))
+	}
+
+	if len(multiErr) > 0 {
+		multiErr = multiErr.Unique()
+		return testrunner.ErrTestCaseFailed{
+			Reason:  "one or more documents found in the failure store",
+			Details: multiErr.Error(),
+		}
 	}
 
 	return nil
