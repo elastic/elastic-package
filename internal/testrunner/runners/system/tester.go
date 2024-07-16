@@ -764,8 +764,10 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 }
 
 func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]failureStoreDocument, error) {
-	// FIXME: Using the low-level transport till support the failure store.
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), nil)
+	// FIXME: Using the low-level transport till the API SDK supports the failure store.
+	// Ignoring failures with error.type version_conflict_engine_exception because there are packages which
+	// explicitly set the _id with the fingerprint processor to avoid duplicates.
+	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only&q=error.type:-version_conflict_engine_exception", dataStream), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create search request: %w", err)
 	}
@@ -823,6 +825,7 @@ type scenarioTest struct {
 
 type failureStoreDocument struct {
 	Error struct {
+		Type    string `json:"type"`
 		Message string `json:"message"`
 	} `json:"error"`
 }
