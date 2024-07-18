@@ -19,10 +19,6 @@ ingest.geoip.downloader.enabled: false
 cluster.logsdb.enabled: true
 {{- end -}}
 
-{{ if (not (semverLessThan $version "8.15.0-SNAPSHOT")) }}
-es.failure_store_feature_flag_enabled: true
-{{- end -}}
-
 {{ if semverLessThan $version "8.0.0" }}
 script.max_compilations_rate: "use-context"
 script.context.template.max_compilations_rate: "unlimited"
