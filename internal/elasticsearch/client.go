@@ -179,7 +179,7 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 // IsFailureStoreAvailable checks if the failure store is available.
 func (client *Client) IsFailureStoreAvailable(ctx context.Context) (bool, error) {
 	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("/_search?failure_store=only"), nil)
+	request, err := http.NewRequest(http.MethodGet, "/_search?failure_store=only", nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to create search request: %w", err)
 	}
