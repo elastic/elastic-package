@@ -543,7 +543,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	checkFailureStore, err := esClient.CheckFailureStore(ctx)
+	checkFailureStore, err := esClient.IsFailureStoreAvailable(ctx)
 	if err != nil {
 		return fmt.Errorf("can't check if failure store is available: %w", err)
 	}
