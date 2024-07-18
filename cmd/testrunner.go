@@ -543,7 +543,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("can't parse Kibana version %q: %w", versionInfo.Number, err)
 	}
-	checkFailureStore := !stackVersion.LessThan(semver.MustParse("8.15.0"))
+	checkFailureStore := !stackVersion.LessThan(semver.MustParse("8.14.0"))
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
