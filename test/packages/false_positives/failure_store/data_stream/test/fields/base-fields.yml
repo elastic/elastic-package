@@ -10,5 +10,14 @@
 - name: '@timestamp'
   type: date
   description: Event timestamp.
+- name: ecs.version
+  type: keyword
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
+- name: input.type
+  type: keyword
+  description: Input type
 - name: number
   type: long
