@@ -9,6 +9,9 @@ test and build your packages. Learn about each of these and other features in [_
 
 Currently, `elastic-package` only supports packages of type [Elastic Integrations](https://github.com/elastic/integrations).
 
+Please review the [integrations contributing guide](https://github.com/elastic/integrations/blob/main/CONTRIBUTING.md) to learn how to build and develop packages, understand the release procedure and
+explore the builder tools.
+
 ## Getting started
 
 Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
