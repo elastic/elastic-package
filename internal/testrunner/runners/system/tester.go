@@ -843,8 +843,12 @@ type scenarioTest struct {
 
 type failureStoreDocument struct {
 	Error struct {
-		Type    string `json:"type"`
-		Message string `json:"message"`
+		Type          string   `json:"type"`
+		Message       string   `json:"message"`
+		StackTrace    string   `json:"stack_trace"`
+		PipelineTrace []string `json:"pipeline_trace"`
+		Pipeline      string   `json:"pipeline"`
+		ProcessorType string   `json:"processor_type"`
 	} `json:"error"`
 }
 
@@ -1966,7 +1970,14 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 func validateFailureStore(failureStore []failureStoreDocument) error {
 	var multiErr multierror.Error
 	for _, doc := range failureStore {
-		multiErr = append(multiErr, errors.New(doc.Error.Message))
+		// TODO: Move this to the trace log level when available.
+		logger.Debug("Error found in failure store: ", doc.Error.StackTrace)
+		multiErr = append(multiErr,
+			fmt.Errorf("%s: %s (processor: %s, pipelines: %s)",
+				doc.Error.Type,
+				doc.Error.Message,
+				doc.Error.ProcessorType,
+				strings.Join(doc.Error.PipelineTrace, ",")))
 	}
 
 	if len(multiErr) > 0 {
