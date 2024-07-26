@@ -23,8 +23,6 @@ type ServiceStatus struct {
 const readyServicesSuffix = "is_ready"
 
 const (
-	// serviceLabelDockerCompose is the label with the service name created by docker-compose
-	serviceLabelDockerCompose = "com.docker.compose.service"
 	// projectLabelDockerCompose is the label with the project name created by docker-compose
 	projectLabelDockerCompose = "com.docker.compose.project"
 )

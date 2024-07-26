@@ -42,10 +42,10 @@ func TestNewServiceStatus(t *testing.T) {
 			description: docker.ContainerDescription{
 				Config: struct {
 					Image  string
-					Labels map[string]string
+					Labels docker.ConfigLabels
 				}{
 					Image:  "docker.test:1.42.0",
-					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
+					Labels: docker.ConfigLabels{ComposeService: "myservice"},
 				},
 				ID: "123456789ab",
 				State: struct {
@@ -85,10 +85,10 @@ func TestNewServiceStatus(t *testing.T) {
 			description: docker.ContainerDescription{
 				Config: struct {
 					Image  string
-					Labels map[string]string
+					Labels docker.ConfigLabels
 				}{
 					Image:  "docker.test:1.42.0",
-					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
+					Labels: docker.ConfigLabels{ComposeService: "myservice"},
 				},
 				ID: "123456789ab",
 				State: struct {
@@ -119,10 +119,10 @@ func TestNewServiceStatus(t *testing.T) {
 			description: docker.ContainerDescription{
 				Config: struct {
 					Image  string
-					Labels map[string]string
+					Labels docker.ConfigLabels
 				}{
 					Image:  "docker.test:1.42.0",
-					Labels: map[string]string{"com.docker.compose.service": "myservice", "foo": "bar"},
+					Labels: docker.ConfigLabels{ComposeService: "myservice"},
 				},
 				ID: "123456789ab",
 				State: struct {
