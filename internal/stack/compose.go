@@ -213,7 +213,7 @@ func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus,
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	service := ServiceStatus{
-		Name:    description.Config.Labels[serviceLabelDockerCompose],
+		Name:    description.Config.Labels.ComposeService,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}

@@ -369,35 +369,26 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 			return err
 		}
 
-		for _, containerDescription := range descriptions {
-
+		for _, d := range descriptions {
+			switch {
 			// No healthcheck defined for service
-			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
-				logger.Debugf("Container %s status: %s (no health status)", containerDescription.ID, containerDescription.State.Status)
-				continue
-			}
-
-			// Service is up and running and it's healthy
-			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
-				logger.Debugf("Container %s status: %s (health: %s)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.Health.Status)
-				continue
-			}
-
-			// Container started and finished with exit code 0
-			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
-				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
-				continue
-			}
-
-			// Container exited with code > 0
-			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
-				logger.Debugf("Container %s status: %s (exit code: %d)", containerDescription.ID, containerDescription.State.Status, containerDescription.State.ExitCode)
-				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
-			}
-
+			case d.State.Status == "running" && d.State.Health == nil:
+				logger.Debugf("Container %s (%s) status: %s (no health status)", d.Config.Labels.ComposeService, d.ID, d.State.Status)
+				// Service is up and running and it's healthy
+			case d.State.Status == "running" && d.State.Health.Status == "healthy":
+				logger.Debugf("Container %s (%s) status: %s (health: %s)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.Health.Status)
+				// Container started and finished with exit code 0
+			case d.State.Status == "exited" && d.State.ExitCode == 0:
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
+				// Container exited with code > 0
+			case d.State.Status == "exited" && d.State.ExitCode > 0:
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
+				return fmt.Errorf("container (ID: %s) exited with code %d", d.ID, d.State.ExitCode)
 			// Any different status is considered unhealthy
-			logger.Debugf("Container %s status: unhealthy", containerDescription.ID)
-			healthy = false
+			default:
+				logger.Debugf("Container %s (%s) status: unhealthy", d.Config.Labels.ComposeService, d.ID)
+				healthy = false
+			}
 		}
 
 		// end loop before timeout if healthy

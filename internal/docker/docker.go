@@ -27,7 +27,11 @@ type NetworkDescription struct {
 type ContainerDescription struct {
 	Config struct {
 		Image  string
-		Labels map[string]string
+		Labels struct {
+			ComposeProject string `json:"com.docker.compose.project"`
+			ComposeService string `json:"com.docker.compose.service"`
+			ComposeVersion string `json:"com.docker.compose.version"`
+		}
 	}
 	ID    string
 	State struct {

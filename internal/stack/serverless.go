@@ -489,7 +489,7 @@ func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 func localServiceNames(project string) ([]string, error) {
 	services := []string{}
 	serviceFunc := func(description docker.ContainerDescription) error {
-		services = append(services, description.Config.Labels[serviceLabelDockerCompose])
+		services = append(services, description.Config.Labels.ComposeService)
 		return nil
 	}
 
@@ -518,7 +518,7 @@ func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescrip
 	}
 
 	for _, containerDescription := range containerDescriptions {
-		serviceName := containerDescription.Config.Labels[serviceLabelDockerCompose]
+		serviceName := containerDescription.Config.Labels.ComposeService
 		if strings.HasSuffix(serviceName, readyServicesSuffix) {
 			continue
 		}
