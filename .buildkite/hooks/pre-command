@@ -110,9 +110,6 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" =
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    GITHUB_USERNAME_SECRET="elasticmachine"
-    export GITHUB_USERNAME_SECRET=$GITHUB_USERNAME_SECRET
-    export GITHUB_EMAIL_SECRET="elasticmachine@elastic.co"
     export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
 fi
 
