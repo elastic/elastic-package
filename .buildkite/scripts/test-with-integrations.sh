@@ -43,12 +43,10 @@ set_git_config() {
     git config user.email "${GITHUB_EMAIL_SECRET}"
 }
 
-git_push_with_auth() {
-    local owner="$1"
-    local repository="$2"
-    local branch="$3"
+git_push() {
+    local branch="$1"
 
-    retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${owner}/${repository}.git "${branch}"
+    retry 3 git push origin "${branch}"
 }
 
 clone_repository() {
@@ -141,7 +139,7 @@ create_or_update_pull_request() {
     update_dependency
 
     echo "--- Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
-    git_push_with_auth "${INTEGRATIONS_GITHUB_OWNER}" "${INTEGRATIONS_GITHUB_REPO_NAME}" "${INTEGRATIONS_PR_BRANCH}"
+    git_push "${INTEGRATIONS_PR_BRANCH}"
 
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
