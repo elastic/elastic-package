@@ -27,7 +27,7 @@ type NetworkDescription struct {
 type ContainerDescription struct {
 	Config struct {
 		Image  string
-		Labels map[string]string
+		Labels ConfigLabels
 	}
 	ID    string
 	State struct {
@@ -42,6 +42,13 @@ type ContainerDescription struct {
 			}
 		}
 	}
+}
+
+// ConfigLabels are the labels included in the config in container descriptions.
+type ConfigLabels struct {
+	ComposeProject string `json:"com.docker.compose.project"`
+	ComposeService string `json:"com.docker.compose.service"`
+	ComposeVersion string `json:"com.docker.compose.version"`
 }
 
 // String function dumps string representation of the container description.

@@ -23,8 +23,6 @@ type ServiceStatus struct {
 const readyServicesSuffix = "is_ready"
 
 const (
-	// serviceLabelDockerCompose is the label with the service name created by docker-compose
-	serviceLabelDockerCompose = "com.docker.compose.service"
 	// projectLabelDockerCompose is the label with the project name created by docker-compose
 	projectLabelDockerCompose = "com.docker.compose.project"
 )
@@ -213,7 +211,7 @@ func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus,
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	service := ServiceStatus{
-		Name:    description.Config.Labels[serviceLabelDockerCompose],
+		Name:    description.Config.Labels.ComposeService,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}
