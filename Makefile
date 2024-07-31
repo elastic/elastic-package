@@ -66,7 +66,7 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.16.0-fb8c0254-SNAPSHOT
+	./scripts/test-stack-command.sh 8.16.0-87b4ddb2-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
