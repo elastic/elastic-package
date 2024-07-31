@@ -437,3 +437,83 @@ Hello from the SQL input package!
 | user_agent.os.platform | Operating system platform (such centos, ubuntu, windows). | keyword |
 | user_agent.os.version | Operating system version as a raw string. | keyword |
 | user_agent.version | Version of the user agent. | keyword |
+
+
+An example event looks as following:
+
+```json
+{
+    "@timestamp": "2022-11-17T12:14:12.854Z",
+    "agent": {
+        "ephemeral_id": "876869a1-dcb7-4415-b899-9556b3f85917",
+        "id": "445a5230-6f4c-475a-9bd4-74b2a88ff556",
+        "name": "docker-fleet-agent",
+        "type": "metricbeat",
+        "version": "8.5.0"
+    },
+    "data_stream": {
+        "dataset": "sql_input.sql_query",
+        "namespace": "ep",
+        "type": "metrics"
+    },
+    "ecs": {
+        "version": "8.0.0"
+    },
+    "elastic_agent": {
+        "id": "445a5230-6f4c-475a-9bd4-74b2a88ff556",
+        "snapshot": true,
+        "version": "8.5.0"
+    },
+    "event": {
+        "dataset": "sql_input.sql_query",
+        "duration": 1350933,
+        "module": "sql"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "id": "0addaca3101a43f4a52be882837fb33d",
+        "ip": [
+            "192.168.16.7"
+        ],
+        "mac": [
+            "02-42-C0-A8-10-07"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.15.0-50-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.5 LTS (Focal Fossa)"
+        }
+    },
+    "metricset": {
+        "name": "query",
+        "period": 10000
+    },
+    "service": {
+        "address": "elastic-package-service-sql_input-1:3306",
+        "type": "sql"
+    },
+    "sql": {
+        "driver": "mysql",
+        "metrics": {
+            "numeric": {
+                "innodb_data_fsyncs": 7,
+                "innodb_data_pending_fsyncs": 0,
+                "innodb_data_pending_reads": 0,
+                "innodb_data_pending_writes": 0,
+                "innodb_data_read": 6754816,
+                "innodb_data_reads": 432,
+                "innodb_data_writes": 53,
+                "innodb_data_written": 624640
+            }
+        },
+        "query": "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+    }
+}
+```
