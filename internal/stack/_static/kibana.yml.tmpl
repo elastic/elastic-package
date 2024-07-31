@@ -125,7 +125,18 @@ xpack.fleet.outputs:
     ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
     is_default: true
     is_default_monitoring: true
-    {{- if not (semverLessThan $version "8.12.0") }}
+    {{- if semverLessThan $version "8.12.0" }}
+    # performance tuning preset values optimized for latency
+    # values retrieved from https://www.elastic.co/guide/en/fleet/8.14/es-output-settings.html#es-output-settings-performance-tuning-settings
+    config:
+      bulk_max_size: 50
+      worker: 1
+      queue.mem.events: 4100
+      queue.mem.flush.min_events: 2050
+      queue.mem.flush.timeout: 1s
+      compression_level: 1
+      connection_idle_timeout: 60
+    {{ else }}
     preset: latency
     {{ end }}
 
