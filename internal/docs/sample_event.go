@@ -48,7 +48,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 
 	var builder strings.Builder
 	if dataStreamName == "" {
-		builder.WriteString(fmt.Sprintf("An example event looks as following:\n\n"))
+		builder.WriteString("An example event looks as following:\n\n")
 	} else {
 		builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
 			stripDataStreamFolderSuffix(dataStreamName)))
