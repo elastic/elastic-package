@@ -65,7 +65,7 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
 fi
 
-# In case it is tested with Elatic serverless, there should be just one Elastic stack
+# In case it is tested with Elastic serverless, there should be just one Elastic stack
 # started to test all packages. In our CI, this Elastic serverless stack is started 
 # at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
