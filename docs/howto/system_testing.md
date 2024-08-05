@@ -110,7 +110,7 @@ volumes:
 
 ### Agent service deployer
 
-**NOTE**: To be deprecated soon in favor of creating new Elastic Agents in each test. These
+**NOTE**: Deprecated in favor of creating [new Elastic Agents in each test](#running-a-system-test). These
 Elastic Agents can be customized through the test configuration files adding the required settings. The settings
 available are detailed in [this section](#test-case-definition).
 
