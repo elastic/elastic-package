@@ -70,7 +70,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 
 // SetUp sets up the service and returns any relevant information.
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
-	logger.Debug("DEPRECATED - setting up service using Docker Compose service deployer")
+	logger.Warn("DEPRECATED - setting up service using Docker Compose service deployer")
 
 	appConfig, err := install.Configuration()
 	if err != nil {
