@@ -110,7 +110,7 @@ volumes:
 
 ### Agent service deployer
 
-**NOTE**: To be deprecated soon in favor of creating new Elastic Agents in each test (technical preview yet). These
+**NOTE**: To be deprecated soon in favor of creating new Elastic Agents in each test. These
 Elastic Agents can be customized through the test configuration files adding the required settings. The settings
 available are detailed in [this section](#test-case-definition).
 
@@ -516,7 +516,7 @@ inserts the value of `response_split` from the test configuration into the integ
 
 Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
 
-(Technical Preview) As an example to add settings to create a new Elastic Agent in a given test,
+As an example to add settings to create a new Elastic Agent in a given test,
 the`auditd_manager/audtid` data stream's `test-default-config.yml` is shown below:
 
 ```yaml
@@ -534,8 +534,10 @@ agent:
 ```
 
 With this test configuration file, the Elastic Agent is running in a docker environment,
-turned on sharing between container and the host operating system the PID address space and
-those two Linux Capabilities have been enabled for that Elastic Agent.
+turned on sharing between container and the host operating system the PID address space as well as
+the Linux Capabilities `AUDIT_CONTROL` and `AUDIT_READ` have been enabled for that Elastic Agent.
+In [this section](#running-a-system-test), there is also another example to customize the scripts
+to install new software or define new environment variables in the Elastic Agents.
 
 #### Placeholders
 
