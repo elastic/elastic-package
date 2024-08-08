@@ -39,6 +39,6 @@ jobs:
 
       - name: Update default stack version
         # --experimental needed for commitusingapi option.
-        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }}
+        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }} --config .github/workflows/updatecli --values .github/workflows/updatecli/values.d/scm.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
