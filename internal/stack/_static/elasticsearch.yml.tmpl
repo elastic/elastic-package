@@ -15,8 +15,8 @@ ingest.geoip.downloader.enabled: false
 
 {{- $version := fact "elasticsearch_version" -}}
 {{- $logsdb_enabled := fact "logsdb_enabled" -}}
-{{ if (and (eq $logsdb_enabled "true") (not (semverLessThan $version "8.15.0-SNAPSHOT"))) }}
-cluster.logsdb.enabled: true
+{{ if (not (semverLessThan $version "8.15.0-SNAPSHOT")) }}
+cluster.logsdb.enabled: {{ $logsdb_enabled }}
 {{- end -}}
 
 {{ if semverLessThan $version "8.0.0" }}
