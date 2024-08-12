@@ -842,14 +842,35 @@ type scenarioTest struct {
 	startTestTime      time.Time
 }
 
+type pipelineTrace []string
+
+func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
+	var alias interface{}
+	if err := json.Unmarshal(d, &alias); err != nil {
+		return err
+	}
+	switch v := alias.(type) {
+	case string:
+		*p = append(*p, v)
+	case []any:
+		// asume it is going to be an array of strings
+		for _, value := range v {
+			*p = append(*p, fmt.Sprint(value))
+		}
+	default:
+		return fmt.Errorf("unexpected type found for pipeline_trace: %T", v)
+	}
+	return nil
+}
+
 type failureStoreDocument struct {
 	Error struct {
-		Type          string   `json:"type"`
-		Message       string   `json:"message"`
-		StackTrace    string   `json:"stack_trace"`
-		PipelineTrace []string `json:"pipeline_trace"`
-		Pipeline      string   `json:"pipeline"`
-		ProcessorType string   `json:"processor_type"`
+		Type          string        `json:"type"`
+		Message       string        `json:"message"`
+		StackTrace    string        `json:"stack_trace"`
+		PipelineTrace pipelineTrace `json:"pipeline_trace"`
+		Pipeline      string        `json:"pipeline"`
+		ProcessorType string        `json:"processor_type"`
 	} `json:"error"`
 }
 
