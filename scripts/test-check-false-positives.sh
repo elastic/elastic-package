@@ -40,7 +40,7 @@ function check_expected_errors() {
 
   # check number of expected errors
   local number_errors
-  number_errors=$(cat ${result_tests} | grep "<failure>" | wc -l)
+  number_errors=$(cat ${result_tests} | grep -E '<failure>|<error>' | wc -l)
   local expected_errors
   expected_errors=$(cat ${expected_errors_file} | wc -l)
 
