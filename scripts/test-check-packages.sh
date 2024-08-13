@@ -74,11 +74,13 @@ fi
 # at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
   stack_args=$(stack_version_args) # --version <version>
-  stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 
-  echo "Stack Args: ${stack_args}"
   # Update the stack
   elastic-package stack update -v ${stack_args}
+
+  # NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
+  # that all parameters are taken into account by the services
+  stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 
   # Boot up the stack
   elastic-package stack up -d -v ${stack_args}
