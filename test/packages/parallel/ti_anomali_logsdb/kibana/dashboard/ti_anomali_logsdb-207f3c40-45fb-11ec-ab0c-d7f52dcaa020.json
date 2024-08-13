@@ -1,6 +1,6 @@
 {
     "attributes": {
-        "description": "Dashboard providing statistics about other types of indicators from the Anomali integration like email and IP",
+        "description": "Dashboard providing statistics about file type indicators from the Anomali integration",
         "hits": 0,
         "kibanaSavedObjectMeta": {
             "searchSourceJSON": {
@@ -13,29 +13,16 @@
                             "alias": null,
                             "disabled": false,
                             "indexRefName": "kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index",
-                            "key": "data_stream.dataset",
+                            "key": "threat.indicator.type",
                             "negate": false,
-                            "params": [
-                                "ti_anomali.limo",
-                                "ti_anomali.threatstream"
-                            ],
-                            "type": "phrases"
+                            "params": {
+                                "query": "file"
+                            },
+                            "type": "phrase"
                         },
                         "query": {
-                            "bool": {
-                                "minimum_should_match": 1,
-                                "should": [
-                                    {
-                                        "match_phrase": {
-                                            "data_stream.dataset": "ti_anomali.limo"
-                                        }
-                                    },
-                                    {
-                                        "match_phrase": {
-                                            "data_stream.dataset": "ti_anomali.threatstream"
-                                        }
-                                    }
-                                ]
+                            "match_phrase": {
+                                "threat.indicator.type": "file"
                             }
                         }
                     },
@@ -47,11 +34,11 @@
                             "alias": null,
                             "disabled": false,
                             "indexRefName": "kibanaSavedObjectMeta.searchSourceJSON.filter[1].meta.index",
-                            "key": "threat.indicator.type",
-                            "negate": true,
+                            "key": "data_stream.dataset",
+                            "negate": false,
                             "params": [
-                                "url",
-                                "file"
+                                "ti_anomali_logsdb.limo",
+                                "ti_anomali_logsdb.threatstream"
                             ],
                             "type": "phrases"
                         },
@@ -61,12 +48,12 @@
                                 "should": [
                                     {
                                         "match_phrase": {
-                                            "threat.indicator.type": "url"
+                                            "data_stream.dataset": "ti_anomali_logsdb.limo"
                                         }
                                     },
                                     {
                                         "match_phrase": {
-                                            "threat.indicator.type": "file"
+                                            "data_stream.dataset": "ti_anomali_logsdb.threatstream"
                                         }
                                     }
                                 ]
@@ -104,7 +91,7 @@
                         "id": "",
                         "params": {
                             "fontSize": 12,
-                            "markdown": "**Navigation**\n\n[Anomali Overview](/app/dashboards#/view/ti_anomali-96fe1e60-4261-11ec-b7be-d3026acdf1cf)  \n[Anomali Files](/app/dashboards#/view/ti_anomali-207f3c40-45fb-11ec-ab0c-d7f52dcaa020)  \n[Anomali URLs](/app/dashboards#/view/ti_anomali-39699a60-45fc-11ec-ab0c-d7f52dcaa020)  \n**[Anomali Other Indicators (This Page)](/app/dashboards#/view/ti_anomali-78e08d20-45fc-11ec-ab0c-d7f52dcaa020)**\n\n[Integrations Page](/app/integrations/detail/ti_anomali/overview)\n\n\n**Overview**\n\nThis dashboard is a overview about all other indicators except file and URL ingested from the Anomali integration, showing statistics and general information about all relevant indicators. This includes email, IP and domain type indicators.",
+                            "markdown": "**Navigation**\n\n[Anomali Overview](/app/dashboards#/view/ti_anomali_logsdb-96fe1e60-4261-11ec-b7be-d3026acdf1cf)  \n**[Anomali Files (This Page)](/app/dashboards#/view/ti_anomali_logsdb-207f3c40-45fb-11ec-ab0c-d7f52dcaa020)**  \n[Anomali URLs](/app/dashboards#/view/ti_anomali_logsdb-39699a60-45fc-11ec-ab0c-d7f52dcaa020)  \n[Anomali Other Indicators](/app/dashboards#/view/ti_anomali_logsdb-78e08d20-45fc-11ec-ab0c-d7f52dcaa020)\n\n[Integrations Page](/app/integrations/detail/ti_anomali_logsdb/overview)\n\n\n**Overview**\n\nThis dashboard is a overview about indicators of type **file** ingested from the Anomali integration, showing statistics and general information about all relevant indicators.",
                             "openLinksInNewTab": false
                         },
                         "title": "",
@@ -114,13 +101,13 @@
                     "type": "visualization"
                 },
                 "gridData": {
-                    "h": 43,
-                    "i": "7c3b21d7-cfe8-41c2-89c8-bdb5a78fe47a",
+                    "h": 33,
+                    "i": "1bd7687a-adf0-44f3-8901-c6b12861d90d",
                     "w": 7,
                     "x": 0,
                     "y": 0
                 },
-                "panelIndex": "7c3b21d7-cfe8-41c2-89c8-bdb5a78fe47a",
+                "panelIndex": "1bd7687a-adf0-44f3-8901-c6b12861d90d",
                 "type": "visualization",
                 "version": "8.7.0"
             },
@@ -135,7 +122,7 @@
                             },
                             {
                                 "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-dfdae375-629d-49ad-b37a-66d77c3f38b7",
+                                "name": "indexpattern-datasource-layer-87bddc0a-425f-4285-8f79-be027a93a959",
                                 "type": "index-pattern"
                             }
                         ],
@@ -143,19 +130,23 @@
                             "datasourceStates": {
                                 "formBased": {
                                     "layers": {
-                                        "dfdae375-629d-49ad-b37a-66d77c3f38b7": {
+                                        "87bddc0a-425f-4285-8f79-be027a93a959": {
                                             "columnOrder": [
-                                                "a160b4d5-ef36-4886-844b-159030642324"
+                                                "08e77c71-b1f6-4148-bf4a-bdd39f116a3e"
                                             ],
                                             "columns": {
-                                                "a160b4d5-ef36-4886-844b-159030642324": {
+                                                "08e77c71-b1f6-4148-bf4a-bdd39f116a3e": {
                                                     "customLabel": true,
                                                     "dataType": "number",
+                                                    "filter": {
+                                                        "language": "kuery",
+                                                        "query": "anomali.threatstream.state: \"active\" "
+                                                    },
                                                     "isBucketed": false,
-                                                    "label": "Unique IP's",
-                                                    "operationType": "unique_count",
+                                                    "label": "Active",
+                                                    "operationType": "count",
                                                     "scale": "ratio",
-                                                    "sourceField": "threat.indicator.ip"
+                                                    "sourceField": "___records___"
                                                 }
                                             },
                                             "incompleteColumns": {}
@@ -169,8 +160,8 @@
                                 "query": ""
                             },
                             "visualization": {
-                                "accessor": "a160b4d5-ef36-4886-844b-159030642324",
-                                "layerId": "dfdae375-629d-49ad-b37a-66d77c3f38b7",
+                                "accessor": "08e77c71-b1f6-4148-bf4a-bdd39f116a3e",
+                                "layerId": "87bddc0a-425f-4285-8f79-be027a93a959",
                                 "layerType": "data",
                                 "size": "xl",
                                 "textAlign": "center",
@@ -186,14 +177,14 @@
                     "type": "lens"
                 },
                 "gridData": {
-                    "h": 7,
-                    "i": "4cd050c7-caea-4c60-a581-955f0f5f9c49",
+                    "h": 8,
+                    "i": "6d74f2e2-daf7-4179-9f87-0543253de626",
                     "w": 6,
                     "x": 7,
                     "y": 0
                 },
-                "panelIndex": "4cd050c7-caea-4c60-a581-955f0f5f9c49",
-                "title": "Unique IPs [Logs Anomali]",
+                "panelIndex": "6d74f2e2-daf7-4179-9f87-0543253de626",
+                "title": "Active Files [Logs Anomali]",
                 "type": "lens",
                 "version": "8.7.0"
             },
@@ -208,7 +199,7 @@
                             },
                             {
                                 "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-ae2be882-73dd-463a-9a1d-1660c611d292",
+                                "name": "indexpattern-datasource-layer-f5a3f98d-a2a1-4ec9-9c53-b77548cd50ae",
                                 "type": "index-pattern"
                             }
                         ],
@@ -216,19 +207,23 @@
                             "datasourceStates": {
                                 "formBased": {
                                     "layers": {
-                                        "ae2be882-73dd-463a-9a1d-1660c611d292": {
+                                        "f5a3f98d-a2a1-4ec9-9c53-b77548cd50ae": {
                                             "columnOrder": [
-                                                "5773f11c-f2d6-4467-81c2-1be0325c7ace"
+                                                "11748ed5-b26f-46e2-ab60-02d08d54c0eb"
                                             ],
                                             "columns": {
-                                                "5773f11c-f2d6-4467-81c2-1be0325c7ace": {
+                                                "11748ed5-b26f-46e2-ab60-02d08d54c0eb": {
                                                     "customLabel": true,
                                                     "dataType": "number",
+                                                    "filter": {
+                                                        "language": "kuery",
+                                                        "query": "anomali.threatstream.state: * and not anomali.threatstream.state: \"active\""
+                                                    },
                                                     "isBucketed": false,
-                                                    "label": "Unique Emails",
-                                                    "operationType": "unique_count",
+                                                    "label": "Inactive",
+                                                    "operationType": "count",
                                                     "scale": "ratio",
-                                                    "sourceField": "threat.indicator.email.address"
+                                                    "sourceField": "___records___"
                                                 }
                                             },
                                             "incompleteColumns": {}
@@ -242,8 +237,8 @@
                                 "query": ""
                             },
                             "visualization": {
-                                "accessor": "5773f11c-f2d6-4467-81c2-1be0325c7ace",
-                                "layerId": "ae2be882-73dd-463a-9a1d-1660c611d292",
+                                "accessor": "11748ed5-b26f-46e2-ab60-02d08d54c0eb",
+                                "layerId": "f5a3f98d-a2a1-4ec9-9c53-b77548cd50ae",
                                 "layerType": "data",
                                 "size": "xl",
                                 "textAlign": "center",
@@ -259,14 +254,14 @@
                     "type": "lens"
                 },
                 "gridData": {
-                    "h": 7,
-                    "i": "f3d04a3a-0bfa-4460-af54-08fea317756c",
-                    "w": 7,
+                    "h": 8,
+                    "i": "e20ccd15-7449-492d-be61-a474d10cfabb",
+                    "w": 6,
                     "x": 13,
                     "y": 0
                 },
-                "panelIndex": "f3d04a3a-0bfa-4460-af54-08fea317756c",
-                "title": "Unique Emails [Logs Anomali]",
+                "panelIndex": "e20ccd15-7449-492d-be61-a474d10cfabb",
+                "title": "Inactive Files [Logs Anomali]",
                 "type": "lens",
                 "version": "8.7.0"
             },
@@ -281,7 +276,7 @@
                             },
                             {
                                 "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-7e5894b7-2ce6-439b-81b7-18cd6acdc0dd",
+                                "name": "indexpattern-datasource-layer-b287f02e-afeb-44ac-86c3-d1e3146c9f20",
                                 "type": "index-pattern"
                             }
                         ],
@@ -289,19 +284,19 @@
                             "datasourceStates": {
                                 "formBased": {
                                     "layers": {
-                                        "7e5894b7-2ce6-439b-81b7-18cd6acdc0dd": {
+                                        "b287f02e-afeb-44ac-86c3-d1e3146c9f20": {
                                             "columnOrder": [
-                                                "a2682d1f-8a12-4033-8444-185f7bce5d97"
+                                                "35782be6-2bf2-4270-a8d7-4398103dac80"
                                             ],
                                             "columns": {
-                                                "a2682d1f-8a12-4033-8444-185f7bce5d97": {
+                                                "35782be6-2bf2-4270-a8d7-4398103dac80": {
                                                     "customLabel": true,
                                                     "dataType": "number",
                                                     "isBucketed": false,
-                                                    "label": "Unique Domains",
+                                                    "label": "Unique SHA256",
                                                     "operationType": "unique_count",
                                                     "scale": "ratio",
-                                                    "sourceField": "threat.indicator.url.domain"
+                                                    "sourceField": "threat.indicator.file.hash.sha256"
                                                 }
                                             },
                                             "incompleteColumns": {}
@@ -315,8 +310,8 @@
                                 "query": ""
                             },
                             "visualization": {
-                                "accessor": "a2682d1f-8a12-4033-8444-185f7bce5d97",
-                                "layerId": "7e5894b7-2ce6-439b-81b7-18cd6acdc0dd",
+                                "accessor": "35782be6-2bf2-4270-a8d7-4398103dac80",
+                                "layerId": "b287f02e-afeb-44ac-86c3-d1e3146c9f20",
                                 "layerType": "data",
                                 "size": "xl",
                                 "textAlign": "center",
@@ -332,14 +327,14 @@
                     "type": "lens"
                 },
                 "gridData": {
-                    "h": 7,
-                    "i": "054ec96d-8e77-425c-9d79-adbfd3f7e28b",
+                    "h": 8,
+                    "i": "bc2edce5-01f9-4e47-9b52-1a1dad6958c0",
                     "w": 7,
-                    "x": 20,
+                    "x": 19,
                     "y": 0
                 },
-                "panelIndex": "054ec96d-8e77-425c-9d79-adbfd3f7e28b",
-                "title": "Unique Domains [Logs Anomali]",
+                "panelIndex": "bc2edce5-01f9-4e47-9b52-1a1dad6958c0",
+                "title": "Unique SHA256 [Logs Anomali]",
                 "type": "lens",
                 "version": "8.7.0"
             },
@@ -354,7 +349,7 @@
                             },
                             {
                                 "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-f5c8665b-d765-481a-8006-206fa0718a58",
+                                "name": "indexpattern-datasource-layer-fcf982ec-ba1f-473d-b92a-691b1cdadf7b",
                                 "type": "index-pattern"
                             }
                         ],
@@ -362,38 +357,256 @@
                             "datasourceStates": {
                                 "formBased": {
                                     "layers": {
-                                        "f5c8665b-d765-481a-8006-206fa0718a58": {
+                                        "fcf982ec-ba1f-473d-b92a-691b1cdadf7b": {
                                             "columnOrder": [
-                                                "2ef98406-f729-4988-b927-615a2071b945",
-                                                "f3d622d5-c221-49b4-bf80-33543307c23d"
+                                                "eae8b738-1d51-4fb9-b04f-b0cd4e35f47d"
                                             ],
                                             "columns": {
-                                                "2ef98406-f729-4988-b927-615a2071b945": {
+                                                "eae8b738-1d51-4fb9-b04f-b0cd4e35f47d": {
+                                                    "customLabel": true,
+                                                    "dataType": "number",
+                                                    "isBucketed": false,
+                                                    "label": "Unique SHA512",
+                                                    "operationType": "unique_count",
+                                                    "scale": "ratio",
+                                                    "sourceField": "threat.indicator.file.hash.sha512"
+                                                }
+                                            },
+                                            "incompleteColumns": {}
+                                        }
+                                    }
+                                }
+                            },
+                            "filters": [],
+                            "query": {
+                                "language": "kuery",
+                                "query": ""
+                            },
+                            "visualization": {
+                                "accessor": "eae8b738-1d51-4fb9-b04f-b0cd4e35f47d",
+                                "layerId": "fcf982ec-ba1f-473d-b92a-691b1cdadf7b",
+                                "layerType": "data",
+                                "size": "xl",
+                                "textAlign": "center",
+                                "titlePosition": "bottom"
+                            }
+                        },
+                        "title": "",
+                        "type": "lens",
+                        "visualizationType": "lnsLegacyMetric"
+                    },
+                    "enhancements": {},
+                    "hidePanelTitles": false,
+                    "type": "lens"
+                },
+                "gridData": {
+                    "h": 8,
+                    "i": "07ba9d35-2423-4793-9eed-997e86d1d1ac",
+                    "w": 7,
+                    "x": 26,
+                    "y": 0
+                },
+                "panelIndex": "07ba9d35-2423-4793-9eed-997e86d1d1ac",
+                "title": "Unique SHA512 [Logs Anomali]",
+                "type": "lens",
+                "version": "8.7.0"
+            },
+            {
+                "embeddableConfig": {
+                    "attributes": {
+                        "references": [
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-current-indexpattern",
+                                "type": "index-pattern"
+                            },
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-layer-e11a6974-ae88-479e-9fca-8615b7f454da",
+                                "type": "index-pattern"
+                            }
+                        ],
+                        "state": {
+                            "datasourceStates": {
+                                "formBased": {
+                                    "layers": {
+                                        "e11a6974-ae88-479e-9fca-8615b7f454da": {
+                                            "columnOrder": [
+                                                "3475c1c7-964f-44a2-a554-d7ff067446e9"
+                                            ],
+                                            "columns": {
+                                                "3475c1c7-964f-44a2-a554-d7ff067446e9": {
+                                                    "customLabel": true,
+                                                    "dataType": "number",
+                                                    "isBucketed": false,
+                                                    "label": "Unique MD5",
+                                                    "operationType": "unique_count",
+                                                    "scale": "ratio",
+                                                    "sourceField": "threat.indicator.file.hash.md5"
+                                                }
+                                            },
+                                            "incompleteColumns": {}
+                                        }
+                                    }
+                                }
+                            },
+                            "filters": [],
+                            "query": {
+                                "language": "kuery",
+                                "query": ""
+                            },
+                            "visualization": {
+                                "accessor": "3475c1c7-964f-44a2-a554-d7ff067446e9",
+                                "layerId": "e11a6974-ae88-479e-9fca-8615b7f454da",
+                                "layerType": "data",
+                                "size": "xl",
+                                "textAlign": "center",
+                                "titlePosition": "bottom"
+                            }
+                        },
+                        "title": "",
+                        "type": "lens",
+                        "visualizationType": "lnsLegacyMetric"
+                    },
+                    "enhancements": {},
+                    "hidePanelTitles": false,
+                    "type": "lens"
+                },
+                "gridData": {
+                    "h": 8,
+                    "i": "c3e37351-081e-4e18-b134-2e51bae9b53a",
+                    "w": 7,
+                    "x": 33,
+                    "y": 0
+                },
+                "panelIndex": "c3e37351-081e-4e18-b134-2e51bae9b53a",
+                "title": "Unique MD5 [Logs Anomali]",
+                "type": "lens",
+                "version": "8.7.0"
+            },
+            {
+                "embeddableConfig": {
+                    "attributes": {
+                        "references": [
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-current-indexpattern",
+                                "type": "index-pattern"
+                            },
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-layer-be91741d-d94d-404f-9549-a0b96c92d2d0",
+                                "type": "index-pattern"
+                            }
+                        ],
+                        "state": {
+                            "datasourceStates": {
+                                "formBased": {
+                                    "layers": {
+                                        "be91741d-d94d-404f-9549-a0b96c92d2d0": {
+                                            "columnOrder": [
+                                                "074c9303-a56e-4db0-bddb-461819a9504c"
+                                            ],
+                                            "columns": {
+                                                "074c9303-a56e-4db0-bddb-461819a9504c": {
+                                                    "customLabel": true,
+                                                    "dataType": "number",
+                                                    "isBucketed": false,
+                                                    "label": "Unique SHA1",
+                                                    "operationType": "unique_count",
+                                                    "scale": "ratio",
+                                                    "sourceField": "threat.indicator.file.hash.sha1"
+                                                }
+                                            },
+                                            "incompleteColumns": {}
+                                        }
+                                    }
+                                }
+                            },
+                            "filters": [],
+                            "query": {
+                                "language": "kuery",
+                                "query": ""
+                            },
+                            "visualization": {
+                                "accessor": "074c9303-a56e-4db0-bddb-461819a9504c",
+                                "layerId": "be91741d-d94d-404f-9549-a0b96c92d2d0",
+                                "layerType": "data",
+                                "size": "xl",
+                                "textAlign": "center",
+                                "titlePosition": "bottom"
+                            }
+                        },
+                        "title": "",
+                        "type": "lens",
+                        "visualizationType": "lnsLegacyMetric"
+                    },
+                    "enhancements": {},
+                    "hidePanelTitles": false,
+                    "type": "lens"
+                },
+                "gridData": {
+                    "h": 8,
+                    "i": "848432ac-28c9-4b18-b504-ac2cdbaa20c9",
+                    "w": 7,
+                    "x": 40,
+                    "y": 0
+                },
+                "panelIndex": "848432ac-28c9-4b18-b504-ac2cdbaa20c9",
+                "title": "Unique SHA1 [Logs Anomali]",
+                "type": "lens",
+                "version": "8.7.0"
+            },
+            {
+                "embeddableConfig": {
+                    "attributes": {
+                        "references": [
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-current-indexpattern",
+                                "type": "index-pattern"
+                            },
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-layer-08036a92-d500-4966-98ca-feff7f9ecb36",
+                                "type": "index-pattern"
+                            }
+                        ],
+                        "state": {
+                            "datasourceStates": {
+                                "formBased": {
+                                    "layers": {
+                                        "08036a92-d500-4966-98ca-feff7f9ecb36": {
+                                            "columnOrder": [
+                                                "99f24050-c517-46ff-85b1-f3ceea4c9e15",
+                                                "67920793-58db-49b6-aca9-273945fffbce"
+                                            ],
+                                            "columns": {
+                                                "67920793-58db-49b6-aca9-273945fffbce": {
+                                                    "dataType": "number",
+                                                    "isBucketed": false,
+                                                    "label": "Count of records",
+                                                    "operationType": "count",
+                                                    "scale": "ratio",
+                                                    "sourceField": "___records___"
+                                                },
+                                                "99f24050-c517-46ff-85b1-f3ceea4c9e15": {
                                                     "dataType": "string",
                                                     "isBucketed": true,
-                                                    "label": "Top values of threat.indicator.marking.tlp",
+                                                    "label": "Top values of threat.indicator.confidence",
                                                     "operationType": "terms",
                                                     "params": {
                                                         "missingBucket": false,
                                                         "orderBy": {
-                                                            "columnId": "f3d622d5-c221-49b4-bf80-33543307c23d",
+                                                            "columnId": "67920793-58db-49b6-aca9-273945fffbce",
                                                             "type": "column"
                                                         },
                                                         "orderDirection": "desc",
                                                         "otherBucket": false,
-                                                        "size": 10
+                                                        "size": 5
                                                     },
                                                     "scale": "ordinal",
-                                                    "sourceField": "threat.indicator.marking.tlp"
-                                                },
-                                                "f3d622d5-c221-49b4-bf80-33543307c23d": {
-                                                    "customLabel": true,
-                                                    "dataType": "number",
-                                                    "isBucketed": false,
-                                                    "label": "TLP Tags",
-                                                    "operationType": "count",
-                                                    "scale": "ratio",
-                                                    "sourceField": "___records___"
+                                                    "sourceField": "threat.indicator.confidence"
                                                 }
                                             },
                                             "incompleteColumns": {}
@@ -410,17 +623,17 @@
                                 "layers": [
                                     {
                                         "categoryDisplay": "default",
-                                        "layerId": "f5c8665b-d765-481a-8006-206fa0718a58",
+                                        "layerId": "08036a92-d500-4966-98ca-feff7f9ecb36",
                                         "layerType": "data",
                                         "legendDisplay": "show",
                                         "legendSize": "auto",
                                         "metrics": [
-                                            "f3d622d5-c221-49b4-bf80-33543307c23d"
+                                            "67920793-58db-49b6-aca9-273945fffbce"
                                         ],
                                         "nestedLegend": false,
                                         "numberDisplay": "percent",
                                         "primaryGroups": [
-                                            "2ef98406-f729-4988-b927-615a2071b945"
+                                            "99f24050-c517-46ff-85b1-f3ceea4c9e15"
                                         ]
                                     }
                                 ],
@@ -436,115 +649,14 @@
                     "type": "lens"
                 },
                 "gridData": {
-                    "h": 28,
-                    "i": "ef8f1c25-a119-45e8-84d1-0968bb60a9b6",
-                    "w": 21,
-                    "x": 27,
-                    "y": 0
-                },
-                "panelIndex": "ef8f1c25-a119-45e8-84d1-0968bb60a9b6",
-                "title": "TLP Categorization [Logs Anomali]",
-                "type": "lens",
-                "version": "8.7.0"
-            },
-            {
-                "embeddableConfig": {
-                    "attributes": {
-                        "references": [
-                            {
-                                "id": "logs-*",
-                                "name": "indexpattern-datasource-current-indexpattern",
-                                "type": "index-pattern"
-                            },
-                            {
-                                "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-df7a4f5f-e882-4b90-adca-edf9d34f5acb",
-                                "type": "index-pattern"
-                            }
-                        ],
-                        "state": {
-                            "datasourceStates": {
-                                "formBased": {
-                                    "layers": {
-                                        "df7a4f5f-e882-4b90-adca-edf9d34f5acb": {
-                                            "columnOrder": [
-                                                "b69cdc62-7d44-4073-a64b-b09d6da41622",
-                                                "e7cb9c4f-3353-4580-928d-5a4797fd21d6"
-                                            ],
-                                            "columns": {
-                                                "b69cdc62-7d44-4073-a64b-b09d6da41622": {
-                                                    "customLabel": true,
-                                                    "dataType": "string",
-                                                    "isBucketed": true,
-                                                    "label": "Domains",
-                                                    "operationType": "terms",
-                                                    "params": {
-                                                        "missingBucket": false,
-                                                        "orderBy": {
-                                                            "columnId": "e7cb9c4f-3353-4580-928d-5a4797fd21d6",
-                                                            "type": "column"
-                                                        },
-                                                        "orderDirection": "desc",
-                                                        "otherBucket": false,
-                                                        "size": 15
-                                                    },
-                                                    "scale": "ordinal",
-                                                    "sourceField": "threat.indicator.url.domain"
-                                                },
-                                                "e7cb9c4f-3353-4580-928d-5a4797fd21d6": {
-                                                    "customLabel": true,
-                                                    "dataType": "number",
-                                                    "isBucketed": false,
-                                                    "label": "Count",
-                                                    "operationType": "count",
-                                                    "scale": "ratio",
-                                                    "sourceField": "___records___"
-                                                }
-                                            },
-                                            "incompleteColumns": {}
-                                        }
-                                    }
-                                }
-                            },
-                            "filters": [],
-                            "query": {
-                                "language": "kuery",
-                                "query": ""
-                            },
-                            "visualization": {
-                                "columns": [
-                                    {
-                                        "columnId": "b69cdc62-7d44-4073-a64b-b09d6da41622",
-                                        "isTransposed": false
-                                    },
-                                    {
-                                        "columnId": "e7cb9c4f-3353-4580-928d-5a4797fd21d6",
-                                        "isTransposed": false
-                                    }
-                                ],
-                                "layerId": "df7a4f5f-e882-4b90-adca-edf9d34f5acb",
-                                "layerType": "data",
-                                "rowHeight": "single",
-                                "rowHeightLines": 1
-                            }
-                        },
-                        "title": "",
-                        "type": "lens",
-                        "visualizationType": "lnsDatatable"
-                    },
-                    "enhancements": {},
-                    "hidePanelTitles": false,
-                    "type": "lens"
-                },
-                "gridData": {
-                    "h": 21,
-                    "i": "80ea5d9f-04de-4c10-a120-32318c3088c1",
-                    "w": 20,
+                    "h": 25,
+                    "i": "664c2738-9f69-401c-af55-42f50aabb9c5",
+                    "w": 16,
                     "x": 7,
-                    "y": 7
+                    "y": 8
                 },
-                "panelIndex": "80ea5d9f-04de-4c10-a120-32318c3088c1",
-                "title": "Most Popular Domains [Logs Anomali]",
+                "panelIndex": "664c2738-9f69-401c-af55-42f50aabb9c5",
+                "title": "Confidence Levels [Logs Anomali]",
                 "type": "lens",
                 "version": "8.7.0"
             },
@@ -559,7 +671,12 @@
                             },
                             {
                                 "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-3209cf18-1f83-44fd-aff3-336fb07d35b1",
+                                "name": "indexpattern-datasource-layer-0e4aff17-8462-40ed-a84b-8de853628b96",
+                                "type": "index-pattern"
+                            },
+                            {
+                                "id": "logs-*",
+                                "name": "indexpattern-datasource-layer-014a03d0-3a35-4aad-bd2d-d8380365070b",
                                 "type": "index-pattern"
                             }
                         ],
@@ -567,39 +684,62 @@
                             "datasourceStates": {
                                 "formBased": {
                                     "layers": {
-                                        "3209cf18-1f83-44fd-aff3-336fb07d35b1": {
+                                        "014a03d0-3a35-4aad-bd2d-d8380365070b": {
                                             "columnOrder": [
-                                                "a90ded97-4816-4a10-a653-51bad5dee996",
-                                                "26f57b1d-7680-4439-9a32-ee0c5c441c37"
+                                                "5e92fb09-af89-494a-b0a1-736b4cebc269",
+                                                "5731c84c-3f1e-410a-8638-212b04df7d78"
                                             ],
                                             "columns": {
-                                                "26f57b1d-7680-4439-9a32-ee0c5c441c37": {
+                                                "5731c84c-3f1e-410a-8638-212b04df7d78": {
                                                     "customLabel": true,
                                                     "dataType": "number",
                                                     "isBucketed": false,
-                                                    "label": "Count",
-                                                    "operationType": "count",
+                                                    "label": "Last Seen",
+                                                    "operationType": "unique_count",
                                                     "scale": "ratio",
-                                                    "sourceField": "___records___"
+                                                    "sourceField": "threat.indicator.last_seen"
                                                 },
-                                                "a90ded97-4816-4a10-a653-51bad5dee996": {
-                                                    "customLabel": true,
-                                                    "dataType": "ip",
+                                                "5e92fb09-af89-494a-b0a1-736b4cebc269": {
+                                                    "dataType": "date",
                                                     "isBucketed": true,
-                                                    "label": "IP Addresses",
-                                                    "operationType": "terms",
+                                                    "label": "@timestamp",
+                                                    "operationType": "date_histogram",
                                                     "params": {
-                                                        "missingBucket": false,
-                                                        "orderBy": {
-                                                            "columnId": "26f57b1d-7680-4439-9a32-ee0c5c441c37",
-                                                            "type": "column"
-                                                        },
-                                                        "orderDirection": "desc",
-                                                        "otherBucket": false,
-                                                        "size": 10
+                                                        "includeEmptyRows": true,
+                                                        "interval": "auto"
                                                     },
-                                                    "scale": "ordinal",
-                                                    "sourceField": "threat.indicator.ip"
+                                                    "scale": "interval",
+                                                    "sourceField": "@timestamp"
+                                                }
+                                            },
+                                            "incompleteColumns": {}
+                                        },
+                                        "0e4aff17-8462-40ed-a84b-8de853628b96": {
+                                            "columnOrder": [
+                                                "4ff561b6-7ec6-433e-8023-572ef88eab9d",
+                                                "2d0d9d07-5f5d-42a0-97ba-03899f504862"
+                                            ],
+                                            "columns": {
+                                                "2d0d9d07-5f5d-42a0-97ba-03899f504862": {
+                                                    "customLabel": true,
+                                                    "dataType": "number",
+                                                    "isBucketed": false,
+                                                    "label": "First Seen",
+                                                    "operationType": "unique_count",
+                                                    "scale": "ratio",
+                                                    "sourceField": "threat.indicator.first_seen"
+                                                },
+                                                "4ff561b6-7ec6-433e-8023-572ef88eab9d": {
+                                                    "dataType": "date",
+                                                    "isBucketed": true,
+                                                    "label": "@timestamp",
+                                                    "operationType": "date_histogram",
+                                                    "params": {
+                                                        "includeEmptyRows": true,
+                                                        "interval": "auto"
+                                                    },
+                                                    "scale": "interval",
+                                                    "sourceField": "@timestamp"
                                                 }
                                             },
                                             "incompleteColumns": {}
@@ -613,157 +753,78 @@
                                 "query": ""
                             },
                             "visualization": {
-                                "columns": [
+                                "layers": [
                                     {
-                                        "columnId": "a90ded97-4816-4a10-a653-51bad5dee996",
-                                        "isTransposed": false
+                                        "accessors": [
+                                            "2d0d9d07-5f5d-42a0-97ba-03899f504862"
+                                        ],
+                                        "layerId": "0e4aff17-8462-40ed-a84b-8de853628b96",
+                                        "layerType": "data",
+                                        "position": "top",
+                                        "seriesType": "line",
+                                        "showGridlines": false,
+                                        "xAccessor": "4ff561b6-7ec6-433e-8023-572ef88eab9d"
                                     },
                                     {
-                                        "columnId": "26f57b1d-7680-4439-9a32-ee0c5c441c37",
-                                        "isTransposed": false
+                                        "accessors": [
+                                            "5731c84c-3f1e-410a-8638-212b04df7d78"
+                                        ],
+                                        "layerId": "014a03d0-3a35-4aad-bd2d-d8380365070b",
+                                        "layerType": "data",
+                                        "seriesType": "line",
+                                        "xAccessor": "5e92fb09-af89-494a-b0a1-736b4cebc269"
                                     }
                                 ],
-                                "layerId": "3209cf18-1f83-44fd-aff3-336fb07d35b1",
-                                "layerType": "data",
-                                "rowHeight": "single",
-                                "rowHeightLines": 1
-                            }
-                        },
-                        "title": "",
-                        "type": "lens",
-                        "visualizationType": "lnsDatatable"
-                    },
-                    "enhancements": {},
-                    "hidePanelTitles": false,
-                    "type": "lens"
-                },
-                "gridData": {
-                    "h": 15,
-                    "i": "d6840366-ab4f-4029-8e25-c887353b566f",
-                    "w": 20,
-                    "x": 7,
-                    "y": 28
-                },
-                "panelIndex": "d6840366-ab4f-4029-8e25-c887353b566f",
-                "title": "Most Popular IPs [Logs Anomali",
-                "type": "lens",
-                "version": "8.7.0"
-            },
-            {
-                "embeddableConfig": {
-                    "attributes": {
-                        "references": [
-                            {
-                                "id": "logs-*",
-                                "name": "indexpattern-datasource-current-indexpattern",
-                                "type": "index-pattern"
-                            },
-                            {
-                                "id": "logs-*",
-                                "name": "indexpattern-datasource-layer-75accf45-7e81-45d7-b901-f488f7634041",
-                                "type": "index-pattern"
-                            }
-                        ],
-                        "state": {
-                            "datasourceStates": {
-                                "formBased": {
-                                    "layers": {
-                                        "75accf45-7e81-45d7-b901-f488f7634041": {
-                                            "columnOrder": [
-                                                "bfb109eb-e0f5-4fda-b3eb-5cc691ecce18",
-                                                "abff64f2-5712-4582-aaf8-79f1b9d9d421"
-                                            ],
-                                            "columns": {
-                                                "abff64f2-5712-4582-aaf8-79f1b9d9d421": {
-                                                    "customLabel": true,
-                                                    "dataType": "number",
-                                                    "isBucketed": false,
-                                                    "label": "Count",
-                                                    "operationType": "count",
-                                                    "scale": "ratio",
-                                                    "sourceField": "___records___"
-                                                },
-                                                "bfb109eb-e0f5-4fda-b3eb-5cc691ecce18": {
-                                                    "customLabel": true,
-                                                    "dataType": "string",
-                                                    "isBucketed": true,
-                                                    "label": "Email Addresses",
-                                                    "operationType": "terms",
-                                                    "params": {
-                                                        "missingBucket": false,
-                                                        "orderBy": {
-                                                            "columnId": "abff64f2-5712-4582-aaf8-79f1b9d9d421",
-                                                            "type": "column"
-                                                        },
-                                                        "orderDirection": "desc",
-                                                        "otherBucket": false,
-                                                        "size": 10
-                                                    },
-                                                    "scale": "ordinal",
-                                                    "sourceField": "threat.indicator.email.address"
-                                                }
-                                            },
-                                            "incompleteColumns": {}
-                                        }
-                                    }
+                                "legend": {
+                                    "isVisible": true,
+                                    "legendSize": "auto",
+                                    "position": "right"
+                                },
+                                "preferredSeriesType": "line",
+                                "title": "Empty XY chart",
+                                "valueLabels": "hide",
+                                "yLeftExtent": {
+                                    "mode": "full"
+                                },
+                                "yRightExtent": {
+                                    "mode": "full"
                                 }
-                            },
-                            "filters": [],
-                            "query": {
-                                "language": "kuery",
-                                "query": ""
-                            },
-                            "visualization": {
-                                "columns": [
-                                    {
-                                        "columnId": "bfb109eb-e0f5-4fda-b3eb-5cc691ecce18",
-                                        "isTransposed": false
-                                    },
-                                    {
-                                        "columnId": "abff64f2-5712-4582-aaf8-79f1b9d9d421",
-                                        "isTransposed": false
-                                    }
-                                ],
-                                "layerId": "75accf45-7e81-45d7-b901-f488f7634041",
-                                "layerType": "data",
-                                "rowHeight": "single",
-                                "rowHeightLines": 1
                             }
                         },
                         "title": "",
                         "type": "lens",
-                        "visualizationType": "lnsDatatable"
+                        "visualizationType": "lnsXY"
                     },
                     "enhancements": {},
                     "hidePanelTitles": false,
                     "type": "lens"
                 },
                 "gridData": {
-                    "h": 15,
-                    "i": "6811183d-2ca1-4f18-8dc7-225ff757f9bf",
-                    "w": 21,
-                    "x": 27,
-                    "y": 28
+                    "h": 25,
+                    "i": "c9a937ea-517a-40b0-aba5-75d2611ae760",
+                    "w": 24,
+                    "x": 23,
+                    "y": 8
                 },
-                "panelIndex": "6811183d-2ca1-4f18-8dc7-225ff757f9bf",
-                "title": "Unique Email Addresses [Logs Anomali]",
+                "panelIndex": "c9a937ea-517a-40b0-aba5-75d2611ae760",
+                "title": "Indicators First and Last Seen [Logs Anomali]",
                 "type": "lens",
                 "version": "8.7.0"
             }
         ],
         "timeRestore": false,
-        "title": "[Logs Anomali] Other Indicators",
+        "title": "[Logs Anomali] Files",
         "version": 1
     },
     "coreMigrationVersion": "8.7.0",
     "created_at": "2023-04-20T13:27:57.912Z",
-    "id": "ti_anomali-78e08d20-45fc-11ec-ab0c-d7f52dcaa020",
+    "id": "ti_anomali_logsdb-207f3c40-45fb-11ec-ab0c-d7f52dcaa020",
     "migrationVersion": {
         "dashboard": "8.7.0"
     },
     "references": [
         {
-            "id": "metrics-*",
+            "id": "logs-*",
             "name": "kibanaSavedObjectMeta.searchSourceJSON.filter[0].meta.index",
             "type": "index-pattern"
         },
@@ -774,87 +835,102 @@
         },
         {
             "id": "logs-*",
-            "name": "4cd050c7-caea-4c60-a581-955f0f5f9c49:indexpattern-datasource-current-indexpattern",
+            "name": "6d74f2e2-daf7-4179-9f87-0543253de626:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "4cd050c7-caea-4c60-a581-955f0f5f9c49:indexpattern-datasource-layer-dfdae375-629d-49ad-b37a-66d77c3f38b7",
+            "name": "6d74f2e2-daf7-4179-9f87-0543253de626:indexpattern-datasource-layer-87bddc0a-425f-4285-8f79-be027a93a959",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "f3d04a3a-0bfa-4460-af54-08fea317756c:indexpattern-datasource-current-indexpattern",
+            "name": "e20ccd15-7449-492d-be61-a474d10cfabb:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "f3d04a3a-0bfa-4460-af54-08fea317756c:indexpattern-datasource-layer-ae2be882-73dd-463a-9a1d-1660c611d292",
+            "name": "e20ccd15-7449-492d-be61-a474d10cfabb:indexpattern-datasource-layer-f5a3f98d-a2a1-4ec9-9c53-b77548cd50ae",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "054ec96d-8e77-425c-9d79-adbfd3f7e28b:indexpattern-datasource-current-indexpattern",
+            "name": "bc2edce5-01f9-4e47-9b52-1a1dad6958c0:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "054ec96d-8e77-425c-9d79-adbfd3f7e28b:indexpattern-datasource-layer-7e5894b7-2ce6-439b-81b7-18cd6acdc0dd",
+            "name": "bc2edce5-01f9-4e47-9b52-1a1dad6958c0:indexpattern-datasource-layer-b287f02e-afeb-44ac-86c3-d1e3146c9f20",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "ef8f1c25-a119-45e8-84d1-0968bb60a9b6:indexpattern-datasource-current-indexpattern",
+            "name": "07ba9d35-2423-4793-9eed-997e86d1d1ac:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "ef8f1c25-a119-45e8-84d1-0968bb60a9b6:indexpattern-datasource-layer-f5c8665b-d765-481a-8006-206fa0718a58",
+            "name": "07ba9d35-2423-4793-9eed-997e86d1d1ac:indexpattern-datasource-layer-fcf982ec-ba1f-473d-b92a-691b1cdadf7b",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "80ea5d9f-04de-4c10-a120-32318c3088c1:indexpattern-datasource-current-indexpattern",
+            "name": "c3e37351-081e-4e18-b134-2e51bae9b53a:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "80ea5d9f-04de-4c10-a120-32318c3088c1:indexpattern-datasource-layer-df7a4f5f-e882-4b90-adca-edf9d34f5acb",
+            "name": "c3e37351-081e-4e18-b134-2e51bae9b53a:indexpattern-datasource-layer-e11a6974-ae88-479e-9fca-8615b7f454da",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "d6840366-ab4f-4029-8e25-c887353b566f:indexpattern-datasource-current-indexpattern",
+            "name": "848432ac-28c9-4b18-b504-ac2cdbaa20c9:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "d6840366-ab4f-4029-8e25-c887353b566f:indexpattern-datasource-layer-3209cf18-1f83-44fd-aff3-336fb07d35b1",
+            "name": "848432ac-28c9-4b18-b504-ac2cdbaa20c9:indexpattern-datasource-layer-be91741d-d94d-404f-9549-a0b96c92d2d0",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "6811183d-2ca1-4f18-8dc7-225ff757f9bf:indexpattern-datasource-current-indexpattern",
+            "name": "664c2738-9f69-401c-af55-42f50aabb9c5:indexpattern-datasource-current-indexpattern",
             "type": "index-pattern"
         },
         {
             "id": "logs-*",
-            "name": "6811183d-2ca1-4f18-8dc7-225ff757f9bf:indexpattern-datasource-layer-75accf45-7e81-45d7-b901-f488f7634041",
+            "name": "664c2738-9f69-401c-af55-42f50aabb9c5:indexpattern-datasource-layer-08036a92-d500-4966-98ca-feff7f9ecb36",
             "type": "index-pattern"
         },
         {
-            "id": "ti_anomali-94419670-4261-11ec-b7be-d3026acdf1cf",
-            "name": "tag-ref-ti_anomali-94419670-4261-11ec-b7be-d3026acdf1cf",
+            "id": "logs-*",
+            "name": "c9a937ea-517a-40b0-aba5-75d2611ae760:indexpattern-datasource-current-indexpattern",
+            "type": "index-pattern"
+        },
+        {
+            "id": "logs-*",
+            "name": "c9a937ea-517a-40b0-aba5-75d2611ae760:indexpattern-datasource-layer-0e4aff17-8462-40ed-a84b-8de853628b96",
+            "type": "index-pattern"
+        },
+        {
+            "id": "logs-*",
+            "name": "c9a937ea-517a-40b0-aba5-75d2611ae760:indexpattern-datasource-layer-014a03d0-3a35-4aad-bd2d-d8380365070b",
+            "type": "index-pattern"
+        },
+        {
+            "id": "ti_anomali_logsdb-94419670-4261-11ec-b7be-d3026acdf1cf",
+            "name": "tag-ref-ti_anomali_logsdb-94419670-4261-11ec-b7be-d3026acdf1cf",
             "type": "tag"
         },
         {
-            "id": "ti_anomali-fleet-managed-default",
+            "id": "ti_anomali_logsdb-fleet-managed-default",
             "name": "tag-ref-fleet-managed-default",
             "type": "tag"
         },
         {
-            "id": "ti_anomali-fleet-pkg-ti_anomali-default",
-            "name": "tag-ref-fleet-pkg-ti_anomali-default",
+            "id": "ti_anomali_logsdb-fleet-pkg-ti_anomali_logsdb-default",
+            "name": "tag-ref-fleet-pkg-ti_anomali_logsdb-default",
             "type": "tag"
         }
     ],

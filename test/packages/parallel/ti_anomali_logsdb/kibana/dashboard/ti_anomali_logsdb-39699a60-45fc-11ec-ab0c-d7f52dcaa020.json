@@ -16,8 +16,8 @@
                             "key": "data_stream.dataset",
                             "negate": false,
                             "params": [
-                                "ti_anomali.limo",
-                                "ti_anomali.threatstream"
+                                "ti_anomali_logsdb.limo",
+                                "ti_anomali_logsdb.threatstream"
                             ],
                             "type": "phrases"
                         },
@@ -27,12 +27,12 @@
                                 "should": [
                                     {
                                         "match_phrase": {
-                                            "data_stream.dataset": "ti_anomali.limo"
+                                            "data_stream.dataset": "ti_anomali_logsdb.limo"
                                         }
                                     },
                                     {
                                         "match_phrase": {
-                                            "data_stream.dataset": "ti_anomali.threatstream"
+                                            "data_stream.dataset": "ti_anomali_logsdb.threatstream"
                                         }
                                     }
                                 ]
@@ -91,7 +91,7 @@
                         "id": "",
                         "params": {
                             "fontSize": 12,
-                            "markdown": "**Navigation**\n\n[Anomali Overview](/app/dashboards#/view/ti_anomali-96fe1e60-4261-11ec-b7be-d3026acdf1cf)  \n[Anomali Files](/app/dashboards#/view/ti_anomali-207f3c40-45fb-11ec-ab0c-d7f52dcaa020)  \n**[Anomali URLs (This Page)](/app/dashboards#/view/ti_anomali-39699a60-45fc-11ec-ab0c-d7f52dcaa020)**  \n[Anomali Other Indicators](/app/dashboards#/view/ti_anomali-78e08d20-45fc-11ec-ab0c-d7f52dcaa020)\n\n[Integrations Page](/app/integrations/detail/ti_anomali/overview)\n\n\n**Overview**\n\nThis dashboard is a overview about indicators of type **URL** ingested from the Anomali integration, showing statistics and general information about all relevant indicators.",
+                            "markdown": "**Navigation**\n\n[Anomali Overview](/app/dashboards#/view/ti_anomali_logsdb-96fe1e60-4261-11ec-b7be-d3026acdf1cf)  \n[Anomali Files](/app/dashboards#/view/ti_anomali_logsdb-207f3c40-45fb-11ec-ab0c-d7f52dcaa020)  \n**[Anomali URLs (This Page)](/app/dashboards#/view/ti_anomali_logsdb-39699a60-45fc-11ec-ab0c-d7f52dcaa020)**  \n[Anomali Other Indicators](/app/dashboards#/view/ti_anomali_logsdb-78e08d20-45fc-11ec-ab0c-d7f52dcaa020)\n\n[Integrations Page](/app/integrations/detail/ti_anomali_logsdb/overview)\n\n\n**Overview**\n\nThis dashboard is a overview about indicators of type **URL** ingested from the Anomali integration, showing statistics and general information about all relevant indicators.",
                             "openLinksInNewTab": false
                         },
                         "title": "",
@@ -725,7 +725,7 @@
     },
     "coreMigrationVersion": "8.7.0",
     "created_at": "2023-04-20T13:27:57.912Z",
-    "id": "ti_anomali-39699a60-45fc-11ec-ab0c-d7f52dcaa020",
+    "id": "ti_anomali_logsdb-39699a60-45fc-11ec-ab0c-d7f52dcaa020",
     "migrationVersion": {
         "dashboard": "8.7.0"
     },
@@ -811,18 +811,18 @@
             "type": "index-pattern"
         },
         {
-            "id": "ti_anomali-94419670-4261-11ec-b7be-d3026acdf1cf",
-            "name": "tag-ref-ti_anomali-94419670-4261-11ec-b7be-d3026acdf1cf",
+            "id": "ti_anomali_logsdb-94419670-4261-11ec-b7be-d3026acdf1cf",
+            "name": "tag-ref-ti_anomali_logsdb-94419670-4261-11ec-b7be-d3026acdf1cf",
             "type": "tag"
         },
         {
-            "id": "ti_anomali-fleet-managed-default",
+            "id": "ti_anomali_logsdb-fleet-managed-default",
             "name": "tag-ref-fleet-managed-default",
             "type": "tag"
         },
         {
-            "id": "ti_anomali-fleet-pkg-ti_anomali-default",
-            "name": "tag-ref-fleet-pkg-ti_anomali-default",
+            "id": "ti_anomali_logsdb-fleet-pkg-ti_anomali_logsdb-default",
+            "name": "tag-ref-fleet-pkg-ti_anomali_logsdb-default",
             "type": "tag"
         }
     ],
