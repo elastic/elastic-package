@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 stack_version_args() {
-  if [[ -z "$PACKAGE_UNDER_TEST" ]]; then
+  if [[ -z "${PACKAGE_UNDER_TEST:-""}" ]]; then
     # Don't force stack version if we are testing multiple packages.
     return
   fi
@@ -16,7 +16,7 @@ stack_version_args() {
 }
 
 stack_provider_args() {
-  if [[ -z "$PACKAGE_UNDER_TEST" ]]; then
+  if [[ -z "${PACKAGE_UNDER_TEST:-""}" ]]; then
     # Don't force stack version if we are testing multiple packages.
     return
   fi
