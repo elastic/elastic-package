@@ -22,6 +22,7 @@ function cleanup() {
 function check_expected_errors() {
   local package_root=$1
   local package_name=""
+  local package_name_manifest=""
   package_name=$(basename "$1")
   package_name_manifest=$(cat "$package_root/manifest.yml" | yq -r '.name')
   local expected_errors_file="${package_root%/}.expected_errors"
