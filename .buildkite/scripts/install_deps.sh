@@ -153,6 +153,23 @@ with_jq() {
     jq --version
 }
 
+with_yq() {
+    create_bin_folder
+    check_platform_architecture
+    local binary="yq_${platform_type_lowercase}_${arch_type}"
+    local bin_folder="${WORKSPACE}/bin"
+
+    retry 5 curl -sSL -o "${bin_folder}/yq.tar.gz" "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${binary}.tar.gz"
+
+    tar -C "${bin_folder}" -xpf "${bin_folder}/yq.tar.gz" "./${binary}"
+
+    mv "${bin_folder}/${binary}" "${bin_folder}/yq"
+    chmod +x "${bin_folder}/yq"
+    yq --version
+
+    rm -rf "${bin_folder}/yq.tar.gz"
+}
+
 with_aws_cli() {
     check_platform_architecture
 

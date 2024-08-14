@@ -87,6 +87,12 @@ if [[ "$SERVERLESS" == "false" ]]; then
     with_docker_compose_plugin
 fi
 
+if [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
+    # just required for now while testing false positive targets
+    echo "--- install yq"
+    with_yq
+fi
+
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
     echo "--- install kubectl & kind"
     with_kubernetes

@@ -26,9 +26,11 @@ function cleanup() {
 function check_expected_errors() {
   local package_root=$1
   local package_name=""
+  local package_name_manifest=""
   package_name=$(basename "$1")
+  package_name_manifest=$(cat "$package_root/manifest.yml" | yq -r '.name')
   local expected_errors_file="${package_root%/}.expected_errors"
-  local result_tests="build/test-results/${package_name}-*.xml"
+  local result_tests="build/test-results/${package_name_manifest}-*.xml"
   local results_no_spaces="build/test-results-no-spaces.xml"
 
   if [ ! -f "${expected_errors_file}" ]; then
@@ -43,7 +45,7 @@ function check_expected_errors() {
 
   # check number of expected errors
   local number_errors
-  number_errors=$(cat ${result_tests} | grep "<failure>" | wc -l)
+  number_errors=$(cat ${result_tests} | grep -E '<failure>|<error>' | wc -l)
   local expected_errors
   expected_errors=$(cat ${expected_errors_file} | wc -l)
 
