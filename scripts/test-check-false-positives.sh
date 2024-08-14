@@ -1,5 +1,9 @@
 #!/bin/bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 set -euxo pipefail
 
 function cleanup() {
@@ -76,30 +80,19 @@ function check_build_output() {
   )
 }
 
-function stack_version_args() {
-  if [[ -z "$PACKAGE_UNDER_TEST" ]]; then
-    # Don't force stack version if we are testing multiple packages.
-    return
-  fi
-
-  local package_root=test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST}/
-  local stack_version_file="${package_root%/}.stack_version"
-  if [[ ! -f $stack_version_file ]]; then
-    return
-  fi
-
-  echo -n "--version $(cat $stack_version_file)"
-}
-
 trap cleanup EXIT
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
-stack_args=$(stack_version_args)
+stack_args=$(stack_version_args) # --version <version>
 
 # Update the stack
 elastic-package stack update -v ${stack_args}
+
+# NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
+# that all parameters are taken into account by the services
+stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 
 # Boot up the stack
 elastic-package stack up -d -v ${stack_args}

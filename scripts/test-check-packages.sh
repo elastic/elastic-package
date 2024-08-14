@@ -1,5 +1,9 @@
 #!/bin/bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 set -euxo pipefail
 
 cleanup() {
@@ -69,11 +73,17 @@ fi
 # started to test all packages. In our CI, this Elastic serverless stack is started 
 # at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
+  stack_args=$(stack_version_args) # --version <version>
+
   # Update the stack
-  elastic-package stack update -v
+  elastic-package stack update -v ${stack_args}
+
+  # NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
+  # that all parameters are taken into account by the services
+  stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 
   # Boot up the stack
-  elastic-package stack up -d -v
+  elastic-package stack up -d -v ${stack_args}
 
   elastic-package stack status
 fi
