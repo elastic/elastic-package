@@ -1,16 +1,23 @@
 env:
   SETUP_GVM_VERSION: 'v0.5.2' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
-  ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
-  ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 3
   DOCKER_COMPOSE_VERSION: "v2.24.1"
   DOCKER_VERSION: "26.1.2"
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.30.0'
   YQ_VERSION: 'v4.44.3'
+
+  # Agent images used in pipeline steps
   LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
+  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
+  IMAGE_MACOS_ARM: "generic-13-ventura-arm"
   # Using this one instead of family/core-windows-2022 because of conflicts with the pre-installed docker.
   WINDOWS_AGENT_IMAGE: "family/platform-ingest-beats-windows-2022"
-  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
+
+  # Elastic package settings
+  # Manage docker output/logs
+  ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
+  # Set maximum number of parallel tests to run if package allows it
+  ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 3
 
 steps:
   - label: ":go: Run check-static"
@@ -40,6 +47,15 @@ steps:
       image: "${WINDOWS_AGENT_IMAGE}"
     artifact_paths:
       - "TEST-unit-windows.xml"
+
+  - label: ":go: :macos: Run unit tests"
+    key: unit-tests-mac-arm
+    command: "make test-go-ci"
+    agents:
+      provider: "orka"
+      imagePrefix: "${IMAGE_MACOS_ARM}"
+    artifact_paths:
+      - "build/test-results/*.xml"
 
   - wait: ~
     continue_on_failure: true
