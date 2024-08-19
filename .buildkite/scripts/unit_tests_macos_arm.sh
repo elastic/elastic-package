@@ -9,6 +9,9 @@ add_bin_path
 echo "--- install go"
 with_go
 
+echo "--- install jq"
+with_jq
+
 echo "--- install docker"
 with_docker
 

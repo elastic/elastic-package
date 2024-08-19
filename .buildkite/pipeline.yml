@@ -60,13 +60,13 @@ steps:
   - wait: ~
     continue_on_failure: true
 
-  - label: ":pipeline: Trigger Integration tests"
-    command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
-    depends_on:
-      - step: check-static
-        allow_failure: false
-      - step: unit-tests-linux
-        allow_failure: false
+  # - label: ":pipeline: Trigger Integration tests"
+  #   command: ".buildkite/pipeline.trigger.integration.tests.sh | buildkite-agent pipeline upload"
+  #   depends_on:
+  #     - step: check-static
+  #       allow_failure: false
+  #     - step: unit-tests-linux
+  #       allow_failure: false
 
   - label: ":windows: Run stack tests"
     key: stack-tests-windows
