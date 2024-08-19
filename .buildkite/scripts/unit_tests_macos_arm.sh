@@ -9,5 +9,6 @@ add_bin_path
 echo "--- install go"
 with_go
 
+echo "--- Running unit tests"
 make test-go-ci
 
