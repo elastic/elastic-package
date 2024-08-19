@@ -50,7 +50,7 @@ steps:
 
   - label: ":go: :macos: Run unit tests"
     key: unit-tests-mac-arm
-    command: "make test-go-ci"
+    command: ".buildkite/scripts/unit_tests_macos_arm.sh"
     agents:
       provider: "orka"
       imagePrefix: "${IMAGE_MACOS_ARM}"
