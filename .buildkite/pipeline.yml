@@ -105,6 +105,7 @@ steps:
       - junit-annotate#v2.5.0:
           artifacts: "build/test-results/*.xml"
           report-skipped: true
+          always-annotate: true
     agents:
       provider: "gcp"  # junit plugin requires docker
 
