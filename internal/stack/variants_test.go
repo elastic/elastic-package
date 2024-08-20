@@ -44,7 +44,7 @@ var tests = []struct {
 	{"8.7.0", "8x"},
 	{"8.7.0-SNAPSHOT", "8x"},
 	{"8.7.1-SNAPSHOT", "8x"},
-	{"9", "8x"},
+	{"9", "default"},
 }
 
 func TestSelectStackVersion(t *testing.T) {
