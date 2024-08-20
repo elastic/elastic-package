@@ -7,7 +7,7 @@ DEFAULT_VERSION_TAG ?=
 VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '$(DEFAULT_VERSION_TAG)') | tr -d '\n'`
 VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
 JUNIT_TEST_REPORT_FOLDER = $(PWD)/build/test-results
-PLATFORM := $(shell uname -s)
+PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ifeq ($(PLATFORM), Linux)
 JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit.xml
 else
