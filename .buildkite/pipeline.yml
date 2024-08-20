@@ -28,34 +28,37 @@ steps:
       cpu: "8"
       memory: "4G"
 
-  - label: ":go: :linux: Run unit tests"
-    key: unit-tests-linux
-    command: "make test-go-ci"
-    artifact_paths:
-      - "build/test-results/*.xml"
-      - "build/test-coverage/*.xml"
-    agents:
-      image: "${LINUX_AGENT_IMAGE}"
-      cpu: "8"
-      memory: "4G"
+  - group: ":go: Run Unit tests"
+    key: unit-tests
+    steps:
+      - label: ":linux: Run unit tests"
+        key: unit-tests-linux
+        command: "make test-go-ci"
+        artifact_paths:
+          - "build/test-results/*.xml"
+          - "build/test-coverage/*.xml"
+        agents:
+          image: "${LINUX_AGENT_IMAGE}"
+          cpu: "8"
+          memory: "4G"
 
-  - label: ":go: :windows: Run unit tests"
-    key: unit-tests-windows
-    command: ".buildkite/scripts/unit_tests_windows.ps1"
-    agents:
-      provider: "gcp"
-      image: "${WINDOWS_AGENT_IMAGE}"
-    artifact_paths:
-      - "TEST-unit-windows.xml"
+      - label: ":windows: Run unit tests"
+        key: unit-tests-windows
+        command: ".buildkite/scripts/unit_tests_windows.ps1"
+        agents:
+          provider: "gcp"
+          image: "${WINDOWS_AGENT_IMAGE}"
+        artifact_paths:
+          - "TEST-unit-windows.xml"
 
-  - label: ":go: :macos: Run unit tests"
-    key: unit-tests-mac-arm
-    command: ".buildkite/scripts/unit_tests_macos_arm.sh"
-    agents:
-      provider: "orka"
-      imagePrefix: "${IMAGE_MACOS_ARM}"
-    artifact_paths:
-      - "build/test-results/*.xml"
+      - label: ":macos: Run unit tests"
+        key: unit-tests-mac-arm
+        command: ".buildkite/scripts/unit_tests_macos_arm.sh"
+        agents:
+          provider: "orka"
+          imagePrefix: "${IMAGE_MACOS_ARM}"
+        artifact_paths:
+          - "build/test-results/*.xml"
 
   - wait: ~
     continue_on_failure: true
