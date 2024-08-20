@@ -6,6 +6,13 @@ VERSION_BUILD_TIME = `date +%s`
 DEFAULT_VERSION_TAG ?=
 VERSION_TAG = `(git describe --exact-match --tags 2>/dev/null || echo '$(DEFAULT_VERSION_TAG)') | tr -d '\n'`
 VERSION_LDFLAGS = -X $(VERSION_IMPORT_PATH).CommitHash=$(VERSION_COMMIT_HASH) -X $(VERSION_IMPORT_PATH).BuildTime=$(VERSION_BUILD_TIME) -X $(VERSION_IMPORT_PATH).Tag=$(VERSION_TAG)
+JUNIT_TEST_REPORT_FOLDER = $(PWD)/build/test-results
+PLATFORM := $(shell uname -s)
+ifeq ($(PLATFORM), Linux)
+JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit.xml
+else
+JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit-$(PLATFORM).xml
+endif
 
 .PHONY: build
 
@@ -46,9 +53,9 @@ test-go: $(CODE_COVERAGE_REPORT_FOLDER)
 	go run gotest.tools/gotestsum --format standard-verbose -- -count 1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 
 test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
-	mkdir -p $(PWD)/build/test-results
-	mkdir -p $(PWD)/build/test-coverage
-	go run gotest.tools/gotestsum --junitfile "$(PWD)/build/test-results/TEST-unit.xml" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
+	mkdir -p $(JUNIT_TEST_REPORT_FOLDER)
+	mkdir -p $(CODE_COVERAGE_REPORT_FOLDER)
+	go run gotest.tools/gotestsum --junitfile "$(JUNIT_TEST_REPORT_FILE)" -- -count=1 -coverprofile=$(CODE_COVERAGE_REPORT_NAME_UNIT).out ./...
 	go run github.com/boumenot/gocover-cobertura < $(CODE_COVERAGE_REPORT_NAME_UNIT).out > $(CODE_COVERAGE_REPORT_NAME_UNIT).xml
 
 test-stack-command-default:
