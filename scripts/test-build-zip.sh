@@ -25,6 +25,35 @@ testype() {
 
 trap cleanup EXIT
 
+usage() {
+    echo "${0} [-s] [-h]"
+    echo "Run test-build-zip suite"
+    echo -e "\t-s: Skip installation of the package."
+    echo -e "\t-h: Show this message"
+}
+
+SKIP_INSTALL=0
+while getopts ":s:h" o; do
+    case "${o}" in
+        s)
+            SKIP_INSTALL=1
+            ;;
+        h)
+            usage
+            exit 0
+            ;;
+        \?)
+            echo "Invalid option ${OPTARG}"
+            usage
+            exit 1
+            ;;
+        :)
+            echo "Missing argument for -${OPTARG}"
+            usage
+            exit 1
+            ;;
+    esac
+done
 OLDPWD=$PWD
 # Build packages
 export ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE="$OLDPWD/scripts/gpg-private.asc"
@@ -45,6 +74,10 @@ done
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
+
+if [[ "${SKIP_INSTALL}" == 1 ]]; then
+    exit 0
+fi
 
 # Boot up the stack
 elastic-package stack up -d -v
