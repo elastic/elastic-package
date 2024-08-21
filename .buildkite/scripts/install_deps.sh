@@ -35,6 +35,10 @@ add_bin_path(){
 }
 
 with_docker() {
+    if [[ "${platform_type_lowercase}" == "darwin" ]]; then
+        echo "Skip. Not supported in Darwin."
+        return
+    fi
     if ! command -v docker &> /dev/null ; then
         echo "Skip. Docker is not installed by default"
         return
@@ -75,6 +79,15 @@ with_docker() {
 }
 
 with_docker_compose_plugin() {
+    if [[ "${platform_type_lowercase}" == "darwin" ]]; then
+        echo "Skip. Not supported in Darwin."
+        return
+    fi
+    if ! command -v docker &> /dev/null ; then
+        echo "Skip. Docker is not installed by default"
+        return
+    fi
+
     if [[ "${DOCKER_COMPOSE_VERSION:-"false"}" == "false" ]]; then
         echo "Skip docker compose installation (plugin)"
         return
