@@ -7,9 +7,9 @@ env:
   YQ_VERSION: 'v4.44.3'
 
   # Agent images used in pipeline steps
-  LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
-  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
-  IMAGE_MACOS_ARM: "generic-13-ventura-arm"
+  LINUX_GOLANG_AGENT_IMAGE: "golang:${GO_VERSION}"
+  UBUNTU_X86_64_AGENT_IMAGE: "family/core-ubuntu-2204"
+  MACOS_ARM_AGENT_IMAGE: "generic-13-ventura-arm"
   # Using this one instead of family/core-windows-2022 because of conflicts with the pre-installed docker.
   WINDOWS_AGENT_IMAGE: "family/platform-ingest-beats-windows-2022"
 
@@ -24,7 +24,7 @@ steps:
     key: check-static
     command: "make check-static"
     agents:
-      image: "${LINUX_AGENT_IMAGE}"
+      image: "${LINUX_GOLANG_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
 
@@ -38,7 +38,7 @@ steps:
           - "build/test-results/*.xml"
           - "build/test-coverage/*.xml"
         agents:
-          image: "${LINUX_AGENT_IMAGE}"
+          image: "${LINUX_GOLANG_AGENT_IMAGE}"
           cpu: "8"
           memory: "4G"
 
@@ -56,7 +56,7 @@ steps:
         command: ".buildkite/scripts/unit_tests_macos_arm.sh"
         agents:
           provider: "orka"
-          imagePrefix: "${IMAGE_MACOS_ARM}"
+          imagePrefix: "${MACOS_ARM_AGENT_IMAGE}"
         artifact_paths:
           - "build/test-results/*.xml"
 
@@ -94,7 +94,7 @@ steps:
       - mkdir -p build/test-results
       - for file in $(ls *-windows.xml); do mv $$file build/test-results/; done
     agents:
-      image: "${LINUX_AGENT_IMAGE}"
+      image: "${LINUX_GOLANG_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
     artifact_paths:
