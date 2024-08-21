@@ -137,6 +137,8 @@ echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/build-zip/logs/*.log"
 echo "          - build/packages/*.sig"
 
+# TODO: Missing docker & docker-compose in MACOS ARM agent image, skip installation of packages in the meantime.
+# If docker and docker-compose are available for this platform/architecture, it could be added a step to test the stack commands (or even replace this one).
 echo "      - label: \":macos: :go: Integration test: build-zip\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-zip-skip-install"
 echo "        agents:"
