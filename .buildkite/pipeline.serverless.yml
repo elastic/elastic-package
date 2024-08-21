@@ -5,9 +5,9 @@ env:
   DOCKER_VERSION: "26.1.2"
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.29.0'
-  LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
   GH_CLI_VERSION: "2.29.0"
-  IMAGE_UBUNTU_X86_64: "family/core-ubuntu-2204"
+  # Agent images used in pipeline steps
+  UBUNTU_X86_64_AGENT_IMAGE: "family/core-ubuntu-2204"
 
   # Elastic package settings
   # Manage docker output/logs
@@ -38,7 +38,7 @@ steps:
     command: ".buildkite/scripts/test_packages_with_serverless.sh"
     agents:
       provider: "gcp"
-      image: "${IMAGE_UBUNTU_X86_64}"
+      image: "${UBUNTU_X86_64_AGENT_IMAGE}"
     env:
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
       UPLOAD_SAFE_LOGS: 1
@@ -54,6 +54,7 @@ steps:
       - junit-annotate#v2.5.0:
           artifacts: "build/test-results/*.xml"
           report-skipped: true
+          always-annotate: true
     agents:
       provider: "gcp"  # junit plugin requires docker
 
