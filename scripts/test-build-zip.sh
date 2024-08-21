@@ -5,11 +5,13 @@ set -euxo pipefail
 cleanup() {
   r=$?
 
-  # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
+  if [ "${SKIP_INSTALL}" -eq 0 ]; then
+      # Dump stack logs
+      elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
 
-  # Take down the stack
-  elastic-package stack down -v
+      # Take down the stack
+      elastic-package stack down -v
+  fi
 
   # Clean used resources
   for d in test/packages/*/*/; do
@@ -33,7 +35,7 @@ usage() {
 }
 
 SKIP_INSTALL=0
-while getopts ":s:h" o; do
+while getopts ":sh" o; do
     case "${o}" in
         s)
             SKIP_INSTALL=1
