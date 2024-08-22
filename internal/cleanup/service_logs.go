@@ -6,6 +6,7 @@ package cleanup
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
@@ -53,9 +54,9 @@ func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 	}
 	for _, f := range folders {
 		logger.Debugf("Remove folder (path: %s)", f)
-		// if err := os.RemoveAll(f); err != nil {
-		// 	return "", fmt.Errorf("can't remove folder (path: %s): %w", f, err)
-		// }
+		if err := os.RemoveAll(f); err != nil {
+			return "", fmt.Errorf("can't remove folder (path: %s): %w", f, err)
+		}
 	}
 
 	return folderGlob, nil
