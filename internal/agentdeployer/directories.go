@@ -17,8 +17,12 @@ const (
 	deployerDir    = "deployer"
 )
 
+func ServiceLogsDir(profile *profile.Profile) string {
+	return filepath.Join(profile.ProfilePath, serviceLogsDir)
+}
+
 func CreateServiceLogsDir(profile *profile.Profile, name string) (string, error) {
-	dirPath := filepath.Join(profile.ProfilePath, serviceLogsDir, name)
+	dirPath := filepath.Join(ServiceLogsDir(profile), name)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return "", fmt.Errorf("mkdir failed for service logs (path: %s): %w", dirPath, err)

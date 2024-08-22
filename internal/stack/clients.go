@@ -111,7 +111,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	kibanaHost, found := os.LookupEnv(KibanaHostEnv)
 	if !found {
-		// Using backgound context on initial call to avoid context cancellation.
+		// Using background context on initial call to avoid context cancellation.
 		status, err := Status(context.Background(), Options{Profile: profile})
 		if err != nil {
 			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
