@@ -675,7 +675,7 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 
 	if definition == nil {
 		switch val.(type) {
-		case []any, []map[string]interface{}:
+		case []map[string]interface{}:
 			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
 		default:
 			return fmt.Errorf(`field %q is undefined`, key)
