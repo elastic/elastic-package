@@ -632,14 +632,14 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 		key := strings.TrimLeft(root+"."+name, ".")
 
 		switch val := val.(type) {
-		case []map[string]interface{}:
+		case []map[string]any:
 			for _, m := range val {
 				err := v.validateMapElement(key, m, doc)
 				if err != nil {
 					errs = append(errs, err...)
 				}
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			if isFieldTypeFlattened(key, v.Schema) {
 				// Do not traverse into objects with flattened data types
 				// because the entire object is mapped as a single field.
@@ -659,24 +659,20 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 	return errs
 }
 
-func (v *Validator) validateScalarElement(key string, val interface{}, doc common.MapStr) error {
+func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) error {
 	if key == "" {
 		return nil // root key is always valid
 	}
 
 	definition := FindElementDefinition(key, v.Schema)
-	if definition == nil && skipValidationForField(key) {
-		return nil // generic field, let's skip validation for now
-	}
-
-	if definition == nil && couldBeMultifield(key, v.Schema) {
-		return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
-	}
-
 	if definition == nil {
-		switch val.(type) {
-		case []map[string]interface{}:
+		switch {
+		case skipValidationForField(key):
+			return nil // generic field, let's skip validation for now
+		case isArrayOfObjects(val):
 			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
+		case couldBeMultifield(key, v.Schema):
+			return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
 		default:
 			return fmt.Errorf(`field %q is undefined`, key)
 		}
@@ -719,7 +715,7 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 			// in case it is not specified any normalization and that field is an array of
 			// just one element, the field is going to be updated to remove the array and keep
 			// that element as a value.
-			vals, ok := contents.([]interface{})
+			vals, ok := contents.([]any)
 			if !ok {
 				continue
 			}
@@ -775,7 +771,7 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 
 		// Possible errors found but not limited to those
 		// - expected map but type is string
-		// - expected map but type is []interface{}
+		// - expected map but type is []any
 		if strings.HasPrefix(err.Error(), "expected map but type is") {
 			logger.Debugf("not able to add key %s, is this a multifield?: %s", k, err)
 			continue
@@ -862,6 +858,20 @@ func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
 	return true
 }
 
+func isArrayOfObjects(val any) bool {
+	switch val := val.(type) {
+	case []map[string]any:
+		return true
+	case []any:
+		for _, e := range val {
+			if _, isMap := e.(map[string]any); isMap {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
 	for _, def := range FieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
@@ -935,7 +945,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return false
 }
 
-func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
+func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val any) error {
 	// Validate expected normalization starting with packages following spec v2 format.
 	if v.specVersion.LessThan(semver2_0_0) {
 		return nil
@@ -943,7 +953,7 @@ func (v *Validator) validateExpectedNormalization(definition FieldDefinition, va
 	for _, normalize := range definition.Normalize {
 		switch normalize {
 		case "array":
-			if _, isArray := val.([]interface{}); val != nil && !isArray {
+			if _, isArray := val.([]any); val != nil && !isArray {
 				return fmt.Errorf("expected array, found %q (%T)", val, val)
 			}
 		}
@@ -986,7 +996,7 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
 	err := v.parseAllElementValues(key, definition, val, doc)
 	if err != nil {
 		return err
@@ -997,7 +1007,7 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 // parseAllElementValues performs validations that must be done for all elements at once in
 // case that there are multiple values.
-func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val any, doc common.MapStr) error {
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
@@ -1014,7 +1024,7 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 }
 
 // parseSingeElementValue performs validations on individual values of each element.
-func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
 	invalidTypeError := func() error {
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
@@ -1088,7 +1098,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	// Groups should only contain nested fields, not single values.
 	case "group", "nested":
 		switch val := val.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
 			if v.specVersion.LessThan(semver3_0_1) {
@@ -1099,7 +1109,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				return nil
 			}
 			return errs
-		case []interface{}:
+		case []any:
 			// This can be an array of array of objects. Elasticsearh will probably
 			// flatten this. So even if this is quite unexpected, let's try to handle it.
 			if v.specVersion.LessThan(semver3_0_1) {
@@ -1158,8 +1168,8 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr, fn func(string, FieldDefinition, interface{}, common.MapStr) error) error {
-	arr, isArray := val.([]interface{})
+func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) error) error {
+	arr, isArray := val.([]any)
 	if !isArray {
 		return fn(key, definition, val, doc)
 	}
@@ -1238,13 +1248,13 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 	return nil
 }
 
-func valueToStringsSlice(value interface{}) ([]string, error) {
+func valueToStringsSlice(value any) ([]string, error) {
 	switch v := value.(type) {
 	case nil:
 		return nil, nil
 	case string:
 		return []string{v}, nil
-	case []interface{}:
+	case []any:
 		var values []string
 		for _, e := range v {
 			s, ok := e.(string)
