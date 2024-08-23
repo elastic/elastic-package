@@ -321,10 +321,12 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 			return nil, nil, err
 		}
 		logger.Debugf("Imported ECS fields definition from external schema for validation (embedded in package: %v, stack uses ecs@mappings template: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
-		if stackSupportsEcsMapping {
-			// ecs@mappings adds additional multifields that are not defined anywhere. Add them here to the expected mappings.
-			ecsSchema = appendECSMappingMultifields(ecsSchema, "")
-		}
+
+		// ecs@mappings adds additional multifields that are not defined anywhere. Add them here to the expected mappings.
+		// Adding them also in cases where stackSupportsEcsMapping is false so these packages can be tested with versions
+		// of the stack that support ecs@mappings.
+		ecsSchema = appendECSMappingMultifields(ecsSchema, "")
+
 		schema = ecsSchema
 	}
 
