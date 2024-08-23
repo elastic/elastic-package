@@ -321,6 +321,10 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 			return nil, nil, err
 		}
 		logger.Debugf("Imported ECS fields definition from external schema for validation (embedded in package: %v, stack uses ecs@mappings template: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
+		if stackSupportsEcsMapping {
+			// ecs@mappings adds additional multifields that are not defined anywhere. Add them here to the expected mappings.
+			ecsSchema = appendECSMappingMultifields(ecsSchema, "")
+		}
 		schema = ecsSchema
 	}
 
@@ -381,6 +385,86 @@ func allVersionsIncludeECS(kibanaConstraints *semver.Constraints) bool {
 	//
 	// lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
 	// return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
+}
+
+func ecsPathWithMultifieldsMatch(name string) bool {
+	suffixes := []string{
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L87
+		".body.content",
+		"url.full",
+		"url.original",
+
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L96
+		"command_line",
+		"stack_trace",
+
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L113
+		".title",
+		".executable",
+		".name",
+		".working_directory",
+		".full_name",
+		"file.path",
+		"file.target_path",
+		"os.full",
+		"email.subject",
+		"vulnerability.description",
+		"user_agent.original",
+	}
+
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// appendECSMappingMultifields adds multifields included in ecs@mappings that are not defined anywhere, for fields
+// that don't define any multifield.
+func appendECSMappingMultifields(schema []FieldDefinition, prefix string) []FieldDefinition {
+	rules := []struct {
+		match       func(name string) bool
+		definitions []FieldDefinition
+	}{
+		{
+			match: ecsPathWithMultifieldsMatch,
+			definitions: []FieldDefinition{
+				{
+					Name: "text",
+					Type: "match_only_text",
+				},
+			},
+		},
+	}
+
+	var result []FieldDefinition
+	for _, def := range schema {
+		fullName := def.Name
+		if prefix != "" {
+			fullName = prefix + "." + fullName
+		}
+		def.Fields = appendECSMappingMultifields(def.Fields, fullName)
+
+		for _, rule := range rules {
+			if !rule.match(fullName) {
+				continue
+			}
+			for _, mf := range rule.definitions {
+				// Append multifields only if they are not already defined.
+				f := func(d FieldDefinition) bool {
+					return d.Name == mf.Name
+				}
+				if !slices.ContainsFunc(def.MultiFields, f) {
+					def.MultiFields = append(def.MultiFields, mf)
+				}
+			}
+		}
+
+		result = append(result, def)
+	}
+	return result
 }
 
 //go:embed _static/allowed_geo_ips.txt
@@ -583,12 +667,16 @@ func (v *Validator) validateScalarElement(key string, val interface{}, doc commo
 		return nil // generic field, let's skip validation for now
 	}
 
+	if definition == nil && couldBeMultifield(key, v.Schema) {
+		return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
+	}
+
 	if definition == nil {
 		switch val.(type) {
 		case []any, []map[string]interface{}:
-			return fmt.Errorf(`field "%s" is used as array of objects, expected explicit definition with type group or nested`, key)
+			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
 		default:
-			return fmt.Errorf(`field "%s" is undefined`, key)
+			return fmt.Errorf(`field %q is undefined`, key)
 		}
 	}
 
@@ -750,6 +838,26 @@ func isFieldFamilyMatching(family, key string) bool {
 func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 	definition := FindElementDefinition(key, fieldDefinitions)
 	return definition != nil && definition.Type == "flattened"
+}
+
+func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return false
+	}
+	parentKey := key[:lastDotIndex]
+	parent := FindElementDefinition(parentKey, fieldDefinitions)
+	if parent == nil {
+		// Parent is not defined, so not sure what this can be.
+		return false
+	}
+	switch parent.Type {
+	case "", "group", "nested", "group-nested", "object":
+		// Objects cannot have multifields.
+		return false
+	}
+	return true
 }
 
 func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
