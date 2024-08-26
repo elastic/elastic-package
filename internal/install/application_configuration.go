@@ -21,12 +21,14 @@ import (
 )
 
 const (
-	stackVersion715 = "7.15.0-SNAPSHOT"
-	stackVersion820 = "8.2.0-SNAPSHOT"
+	stackVersion715  = "7.15.0-SNAPSHOT"
+	stackVersion820  = "8.2.0-SNAPSHOT"
+	stackVersion8160 = "8.16.0-SNAPSHOT"
 
 	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
+	elasticAgentWolfiImageName          = "docker.elastic.co/elastic-agent/elastic-agent-wolfi"
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
@@ -37,6 +39,7 @@ const (
 var (
 	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
 	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
+	elasticAgentWolfiVersion                  = semver.MustParse(stackVersion8160)
 
 	// ProfileNameEnvVar is the name of the environment variable to set the default profile
 	ProfileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
@@ -149,6 +152,9 @@ func selectElasticAgentImageName(version string) string {
 	if err != nil {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
 		return elasticAgentImageName
+	}
+	if !v.LessThan(elasticAgentWolfiVersion) {
+		return elasticAgentWolfiImageName
 	}
 	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentCompleteImageName
