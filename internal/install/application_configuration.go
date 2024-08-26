@@ -23,7 +23,7 @@ import (
 const (
 	stackVersion715  = "7.15.0-SNAPSHOT"
 	stackVersion820  = "8.2.0-SNAPSHOT"
-	stackVersion8160 = "8.16.0-SNAPSHOT"
+	stackVersion8160 = "8.16.0-00000000-SNAPSHOT"
 
 	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
