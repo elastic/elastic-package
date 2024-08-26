@@ -163,7 +163,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
 		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
 		"kibana_http2_enabled": profile.Config(configKibanaHTTP2Enabled, "true"),
-		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "true"),
+		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
 	})
