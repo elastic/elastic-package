@@ -35,7 +35,7 @@ func ServiceLogs() (string, error) {
 	return locationManager.ServiceLogDir(), nil
 }
 
-// ServiceLogs function removes service logs from temporary directory in the `~/.elastic-package`.
+// ServiceLogsIndependentAgent function removes service logs from temporary directory for independent agents in `~/.elastic-package`.
 func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 	logger.Debug("Clean all service logs from independent Elastic Agents")
 
