@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -45,6 +46,8 @@ var (
 
 	// ProfileNameEnvVar is the name of the environment variable to set the default profile
 	ProfileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
+
+	disableElasticAgentWolfiEnvVar = environment.WithElasticPackagePrefix("DISABLE_ELASTIC_AGENT_WOLFI")
 )
 
 func DefaultConfiguration() *ApplicationConfiguration {
@@ -155,7 +158,13 @@ func selectElasticAgentImageName(version string) string {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
 		return elasticAgentImageName
 	}
-	if !v.LessThan(elasticAgentWolfiVersion) {
+
+	disableWolfiImages := false
+	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
+	if ok && strings.ToLower(valueEnv) != "false" {
+		disableWolfiImages = true
+	}
+	if !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) {
 		return elasticAgentWolfiImageName
 	}
 	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
