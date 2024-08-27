@@ -101,7 +101,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -112,7 +112,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	}
 
 	env := append(
-		appConfig.StackImageRefs(d.stackVersion).AsEnv(),
+		appConfig.StackImageRefs().AsEnv(),
 		fmt.Sprintf("%s=%s", serviceLogsDirEnv, agentInfo.Logs.Folder.Local),
 		fmt.Sprintf("%s=%s", localCACertEnv, caCertPath),
 		fmt.Sprintf("%s=%s", fleetPolicyEnv, d.policyName),
@@ -304,12 +304,12 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 }
 
 func selectElasticAgentImage(stackVersion, agentImageType string) (string, error) {
-	appConfig, err := install.Configuration(install.OptionWithAgentImageType(agentImageType))
+	appConfig, err := install.Configuration(install.OptionWithAgentImageType(agentImageType), install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	agentImage := appConfig.StackImageRefs(stackVersion).ElasticAgent
+	agentImage := appConfig.StackImageRefs().ElasticAgent
 	return agentImage, nil
 }
 

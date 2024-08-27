@@ -73,6 +73,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 type ApplicationConfiguration struct {
 	c              configFile
 	agentImageType string
+	stackVersion   string
 }
 
 type configFile struct {
@@ -120,12 +121,12 @@ func (ir ImageRefs) AsEnv() []string {
 }
 
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
-func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
-	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(version, ac.agentImageType), version))
-	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
-	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
-	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, version))
+func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
+	refs := ac.c.Stack.ImageRefOverridesForVersion(ac.stackVersion)
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(ac.stackVersion, ac.agentImageType), ac.stackVersion))
+	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
+	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
+	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
 	return refs
 }
 
@@ -180,6 +181,7 @@ func selectElasticAgentImageName(version, agentImageType string) string {
 
 type configurationOptions struct {
 	agentImageType string
+	stackVersion   string
 }
 
 type ConfigurationOption func(*configurationOptions)
@@ -188,6 +190,13 @@ type ConfigurationOption func(*configurationOptions)
 func OptionWithAgentImageType(agentImageType string) ConfigurationOption {
 	return func(opts *configurationOptions) {
 		opts.agentImageType = agentImageType
+	}
+}
+
+// OptionWithStackVersion sets the Elastic Stack version to be used.
+func OptionWithStackVersion(stackVersion string) ConfigurationOption {
+	return func(opts *configurationOptions) {
+		opts.stackVersion = stackVersion
 	}
 }
 
@@ -221,6 +230,11 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 	}
 
 	configuration.agentImageType = configOptions.agentImageType
+
+	configuration.stackVersion = DefaultStackVersion
+	if configOptions.stackVersion != "" {
+		configuration.stackVersion = configOptions.stackVersion
+	}
 
 	return &configuration, nil
 }
