@@ -221,19 +221,15 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)
 	}
 
-	configuration := ApplicationConfiguration{
-		c: c,
-	}
 	configOptions := configurationOptions{}
 	for _, option := range options {
 		option(&configOptions)
 	}
 
-	configuration.agentImageType = configOptions.agentImageType
-
-	configuration.stackVersion = DefaultStackVersion
-	if configOptions.stackVersion != "" {
-		configuration.stackVersion = configOptions.stackVersion
+	configuration := ApplicationConfiguration{
+		c:              c,
+		agentImageType: configOptions.agentImageType,
+		stackVersion:   configOptions.stackVersion,
 	}
 
 	return &configuration, nil
