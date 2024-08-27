@@ -264,14 +264,14 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		stackVersion = config.Parameters[stack.ParamServerlessLocalStackVersion]
 	}
 
-	appConfig, err := install.Configuration()
+	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.Type)
 	if err != nil {
-		return "", fmt.Errorf("can't read application configuration: %w", err)
+		return "", nil
 	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_image":            appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"agent_image":            agentImage,
 		"user":                   agentInfo.Agent.User,
 		"capabilities":           strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
 		"runtime":                agentInfo.Agent.Runtime,
@@ -301,6 +301,16 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	}
 
 	return customAgentDir, nil
+}
+
+func selectElasticAgentImage(stackVersion, agentImageType string) (string, error) {
+	appConfig, err := install.Configuration(install.OptionWithAgentImageType(agentImageType))
+	if err != nil {
+		return "", fmt.Errorf("can't read application configuration: %w", err)
+	}
+
+	agentImage := appConfig.StackImageRefs(stackVersion).ElasticAgent
+	return agentImage, nil
 }
 
 func (d *DockerComposeAgentDeployer) installDockerfileResources(agentSettings AgentSettings, folder string) error {
