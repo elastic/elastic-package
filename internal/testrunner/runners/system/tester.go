@@ -1449,8 +1449,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
-	if err := validateFields(scenario.docs, fieldsValidator, scenario.dataStream); err != nil {
-		return result.WithError(err)
+	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
 	}
 
 	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
@@ -1865,8 +1868,11 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
-		if err := validateFields(transformDocs, fieldsValidator, dataStream); err != nil {
-			return err
+		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
+			return testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
+				Details: errs.Error(),
+			}
 		}
 	}
 
@@ -2014,7 +2020,7 @@ func validateFailureStore(failureStore []failureStoreDocument) error {
 	return nil
 }
 
-func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dataStream string) error {
+func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
 	var multiErr multierror.Error
 	for _, doc := range docs {
 		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
@@ -2028,15 +2034,9 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator, dat
 			continue
 		}
 	}
-
 	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
-		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", dataStream),
-			Details: multiErr.Error(),
-		}
+		return multiErr.Unique()
 	}
-
 	return nil
 }
 
