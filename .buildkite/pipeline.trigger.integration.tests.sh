@@ -27,6 +27,8 @@ for test in "${STACK_COMMAND_TESTS[@]}"; do
     test_name=${test#"test-"}
     echo "      - label: \":go: Integration test: ${test_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        env:"
+    echo "          ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI: true"
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
