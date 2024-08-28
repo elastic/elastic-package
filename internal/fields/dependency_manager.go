@@ -162,6 +162,10 @@ type InjectFieldsOptions struct {
 	// fields that are only used for validation of documents, but are not needed on built packages.
 	IncludeValidationSettings bool
 
+	// DisableAppendECSMultifields can be set to disable the injection of the additional multifields
+	// included in ecs@mappings component teplate.
+	DisableAppendECSMultifields bool
+
 	root string
 }
 

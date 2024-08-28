@@ -31,6 +31,10 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		// SkipEmptyFields parameter when rendering fields. In other cases we want to
 		// keep them to accept them for validation.
 		SkipEmptyFields: true,
+
+		// Disable adding the additional multifields included in ecs@mappings, so they
+		// don't appear in the rendered configuration.
+		DisableAppendECSMultifields: true,
 	}
 	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir, fields.WithInjectFieldsOptions(injectOptions))
 	if err != nil {
