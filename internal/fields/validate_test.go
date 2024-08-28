@@ -825,6 +825,12 @@ func TestCompareKeys(t *testing.T) {
 			expected:    true,
 		},
 		{
+			key:         "example",
+			def:         FieldDefinition{Type: "object", ObjectType: "keyword"},
+			searchedKey: "example.foo",
+			expected:    true,
+		},
+		{
 			key:         "example.foo",
 			searchedKey: "example.*",
 			expected:    false,

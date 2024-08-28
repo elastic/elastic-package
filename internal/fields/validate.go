@@ -985,6 +985,11 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 	fieldType := def.Type
 	if def.Type == "object" && def.ObjectType != "" {
 		fieldType = def.ObjectType
+
+		// Match leaf fields for objects that don't have a wildcard at the end.
+		if parts := strings.Split(extraPart, "."); len(parts) == 2 && parts[0] == "" {
+			return true
+		}
 	}
 
 	subFields := []string{".lat", ".lon", ".values", ".counts"}
