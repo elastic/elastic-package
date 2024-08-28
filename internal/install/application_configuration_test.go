@@ -55,7 +55,8 @@ func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 func TestSelectElasticAgentImageName_WolfiImage(t *testing.T) {
 	version := "8.16.0-SNAPSHOT"
 	selected := selectElasticAgentImageName(version)
-	assert.Equal(t, selected, elasticAgentWolfiImageName)
+	// TODO: update once changed the default value
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
 func TestSelectElasticAgentImageName_DisableWolfiImageEnvVar(t *testing.T) {
