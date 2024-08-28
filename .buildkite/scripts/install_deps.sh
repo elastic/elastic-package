@@ -6,7 +6,7 @@ set -euo pipefail
 
 platform_type="$(uname)"
 hw_type="$(uname -m)"
-platform_type_lowercase="${platform_type,,}"
+platform_type_lowercase="$(echo "${platform_type}" | tr '[:upper:]' '[:lower:]')"
 
 check_platform_architecture() {
   case "${hw_type}" in

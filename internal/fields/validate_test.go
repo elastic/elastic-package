@@ -195,7 +195,7 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			title: "valid event type",
 			doc: common.MapStr{
 				"event.category": "authentication",
-				"event.type":     []interface{}{"info"},
+				"event.type":     []any{"info"},
 			},
 			valid: true,
 		},
@@ -210,15 +210,15 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			title: "multiple valid event type",
 			doc: common.MapStr{
 				"event.category": "network",
-				"event.type":     []interface{}{"protocol", "connection", "end"},
+				"event.type":     []any{"protocol", "connection", "end"},
 			},
 			valid: true,
 		},
 		{
 			title: "multiple categories",
 			doc: common.MapStr{
-				"event.category": []interface{}{"iam", "configuration"},
-				"event.type":     []interface{}{"group", "change"},
+				"event.category": []any{"iam", "configuration"},
+				"event.type":     []any{"group", "change"},
 			},
 			valid: true,
 		},
@@ -226,23 +226,23 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 			title: "unexpected event type",
 			doc: common.MapStr{
 				"event.category": "authentication",
-				"event.type":     []interface{}{"access"},
+				"event.type":     []any{"access"},
 			},
 			valid: false,
 		},
 		{
 			title: "multiple categories, no match",
 			doc: common.MapStr{
-				"event.category": []interface{}{"iam", "configuration"},
-				"event.type":     []interface{}{"denied", "end"},
+				"event.category": []any{"iam", "configuration"},
+				"event.type":     []any{"denied", "end"},
 			},
 			valid: false,
 		},
 		{
 			title: "multiple categories, some types don't match",
 			doc: common.MapStr{
-				"event.category": []interface{}{"iam", "configuration"},
-				"event.type":     []interface{}{"denied", "end", "group", "change"},
+				"event.category": []any{"iam", "configuration"},
+				"event.type":     []any{"denied", "end", "group", "change"},
 			},
 			valid: false,
 		},
@@ -329,7 +329,7 @@ func TestValidate_ExpectedDatasets(t *testing.T) {
 func Test_parseElementValue(t *testing.T) {
 	for _, test := range []struct {
 		key         string
-		value       interface{}
+		value       any
 		definition  FieldDefinition
 		fail        bool
 		assertError func(t *testing.T, err error)
@@ -338,14 +338,14 @@ func Test_parseElementValue(t *testing.T) {
 		// Arrays
 		{
 			key:   "string array to keyword",
-			value: []interface{}{"hello", "world"},
+			value: []any{"hello", "world"},
 			definition: FieldDefinition{
 				Type: "keyword",
 			},
 		},
 		{
 			key:   "numeric string array to long",
-			value: []interface{}{"123", "42"},
+			value: []any{"123", "42"},
 			definition: FieldDefinition{
 				Type: "long",
 			},
@@ -353,7 +353,7 @@ func Test_parseElementValue(t *testing.T) {
 		},
 		{
 			key:   "mixed numbers and strings in number array",
-			value: []interface{}{123, "hi"},
+			value: []any{123, "hi"},
 			definition: FieldDefinition{
 				Type: "long",
 			},
@@ -381,7 +381,7 @@ func Test_parseElementValue(t *testing.T) {
 		// keyword and constant_keyword (other)
 		{
 			key:   "bad type for keyword",
-			value: map[string]interface{}{},
+			value: map[string]any{},
 			definition: FieldDefinition{
 				Type: "keyword",
 			},
@@ -615,12 +615,12 @@ func Test_parseElementValue(t *testing.T) {
 		// arrays of objects can be stored in groups, even if not recommended
 		{
 			key: "host",
-			value: []interface{}{
-				map[string]interface{}{
+			value: []any{
+				map[string]any{
 					"id":       "somehost-id",
 					"hostname": "somehost",
 				},
-				map[string]interface{}{
+				map[string]any{
 					"id":       "otherhost-id",
 					"hostname": "otherhost",
 				},
@@ -643,8 +643,8 @@ func Test_parseElementValue(t *testing.T) {
 		// elements in arrays of objects should be validated
 		{
 			key: "details",
-			value: []interface{}{
-				map[string]interface{}{
+			value: []any{
+				map[string]any{
 					"id":       "somehost-id",
 					"hostname": "somehost",
 				},
@@ -671,8 +671,8 @@ func Test_parseElementValue(t *testing.T) {
 		// elements in nested objects
 		{
 			key: "nested",
-			value: []interface{}{
-				map[string]interface{}{
+			value: []any{
+				map[string]any{
 					"id":       "somehost-id",
 					"hostname": "somehost",
 				},
@@ -699,9 +699,9 @@ func Test_parseElementValue(t *testing.T) {
 		// arrays of elements in nested objects
 		{
 			key: "good_array_of_nested",
-			value: []interface{}{
-				[]interface{}{
-					map[string]interface{}{
+			value: []any{
+				[]any{
+					map[string]any{
 						"id":       "somehost-id",
 						"hostname": "somehost",
 					},
@@ -725,9 +725,9 @@ func Test_parseElementValue(t *testing.T) {
 		},
 		{
 			key: "array_of_nested",
-			value: []interface{}{
-				[]interface{}{
-					map[string]interface{}{
+			value: []any{
+				[]any{
+					map[string]any{
 						"id":       "somehost-id",
 						"hostname": "somehost",
 					},

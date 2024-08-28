@@ -1,15 +1,16 @@
 env:
   SETUP_GVM_VERSION: 'v0.5.1' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
-  LINUX_AGENT_IMAGE: "golang:${GO_VERSION}"
   GH_CLI_VERSION: "2.29.0"
   JQ_VERSION: "1.7"
+  # Agent images used in pipeline steps
+  LINUX_GOLANG_AGENT_IMAGE: "golang:${GO_VERSION}"
 
 steps:
   - label: ":go: Run check-static"
     key: check-static
     command: "make check-static"
     agents:
-      image: "${LINUX_AGENT_IMAGE}"
+      image: "${LINUX_GOLANG_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
   - label: ":go: :linux: Run unit tests"
@@ -19,7 +20,7 @@ steps:
       - "build/test-results/*.xml"
       - "build/test-coverage/*.xml"
     agents:
-      image: "${LINUX_AGENT_IMAGE}"
+      image: "${LINUX_GOLANG_AGENT_IMAGE}"
       cpu: "8"
       memory: "4G"
   - label: ":hammer: Create PR in integrations"
