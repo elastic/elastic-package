@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -96,6 +97,11 @@ type Conditions struct {
 	Elastic ElasticConditions `config:"elastic" json:"elastic" yaml:"elastic"`
 }
 
+// Discovery define indications for the data this package can be useful with.
+type Discovery struct {
+	Fields []string `config:"fields" json:"fields" yaml:"fields"`
+}
+
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
 	Name        string   `config:"name" json:"name" yaml:"name"`                                                       // Name of policy template.
@@ -130,6 +136,7 @@ type PackageManifest struct {
 	Version         string           `config:"version" json:"version" yaml:"version"`
 	Source          Source           `config:"source" json:"source" yaml:"source"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
+	Discovery       Discovery        `config:"discovery" json:"discovery" yaml:"discovery"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
@@ -450,7 +457,12 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
-	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
+	supportedTypes := []string{
+		"content",
+		"input",
+		"integration",
+	}
+	return slices.Contains(supportedTypes, m.Type) && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {
