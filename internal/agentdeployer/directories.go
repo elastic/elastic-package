@@ -21,8 +21,20 @@ func ServiceLogsDir(profile *profile.Profile) string {
 	return filepath.Join(profile.ProfilePath, serviceLogsDir)
 }
 
-func CreateServiceLogsDir(profile *profile.Profile, name string) (string, error) {
-	dirPath := filepath.Join(ServiceLogsDir(profile), name)
+func ServiceLogsDirGlobPackage(profile *profile.Profile, packageRootPath string) string {
+	packageFolderName := filepath.Base(packageRootPath)
+	return fmt.Sprintf("%s/agent-%s-*", ServiceLogsDir(profile), packageFolderName)
+}
+
+func CreateServiceLogsDir(profile *profile.Profile, packageRootpath, dataStream, runID string) (string, error) {
+	packageFolderName := filepath.Base(packageRootpath)
+	folderName := fmt.Sprintf("agent-%s", packageFolderName)
+	if dataStream != "" {
+		folderName = fmt.Sprintf("%s-%s", folderName, dataStream)
+	}
+	folderName = fmt.Sprintf("%s-%s", folderName, runID)
+
+	dirPath := filepath.Join(ServiceLogsDir(profile), folderName)
 	err := os.MkdirAll(dirPath, 0755)
 	if err != nil {
 		return "", fmt.Errorf("mkdir failed for service logs (path: %s): %w", dirPath, err)

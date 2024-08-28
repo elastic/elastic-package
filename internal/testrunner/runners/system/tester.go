@@ -404,13 +404,7 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	folderName := fmt.Sprintf("agent-%s", r.testFolder.Package)
-	if r.testFolder.DataStream != "" {
-		folderName = fmt.Sprintf("%s-%s", folderName, r.testFolder.DataStream)
-	}
-	folderName = fmt.Sprintf("%s-%s", folderName, runID)
-
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, folderName)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRootPath, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}

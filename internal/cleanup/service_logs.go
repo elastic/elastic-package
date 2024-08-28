@@ -44,11 +44,9 @@ func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	packageFolder := filepath.Base(packageRootPath)
-	serviceLogsDir := agentdeployer.ServiceLogsDir(profile)
+	serviceLogDirGlob := agentdeployer.ServiceLogsDirGlobPackage(profile, packageRootPath)
 
-	folderGlob := fmt.Sprintf("%s/agent-%s-*", serviceLogsDir, packageFolder)
-	folders, err := filepath.Glob(folderGlob)
+	folders, err := filepath.Glob(serviceLogDirGlob)
 	if err != nil {
 		return "", fmt.Errorf("pattern malformed: %w", err)
 	}
@@ -59,5 +57,5 @@ func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 		}
 	}
 
-	return folderGlob, nil
+	return serviceLogDirGlob, nil
 }
