@@ -429,8 +429,8 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	}
 
 	// This could be removed once package-spec adds this new field
-	if !slices.Contains([]string{"", "default", "complete"}, info.Agent.Type) {
-		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.type")
+	if !slices.Contains([]string{"", "default", "complete"}, info.Agent.BaseImage) {
+		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.base_image")
 	}
 
 	return info, nil

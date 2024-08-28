@@ -72,7 +72,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
 	c              configFile
-	agentImageType string
+	agentBaseImage string
 	stackVersion   string
 }
 
@@ -123,7 +123,7 @@ func (ir ImageRefs) AsEnv() []string {
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
 func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
 	refs := ac.c.Stack.ImageRefOverridesForVersion(ac.stackVersion)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(ac.stackVersion, ac.agentImageType), ac.stackVersion))
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(ac.stackVersion, ac.agentBaseImage), ac.stackVersion))
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
 	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
@@ -150,7 +150,7 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
-func selectElasticAgentImageName(version, agentImageType string) string {
+func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if version == "" { // as version is optional and can be empty
 		return elasticAgentImageName
 	}
@@ -168,7 +168,7 @@ func selectElasticAgentImageName(version, agentImageType string) string {
 		disableWolfiImages = false
 	}
 	switch {
-	case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) && agentImageType != "complete":
+	case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) && agentBaseImage != "complete":
 		return elasticAgentWolfiImageName
 	case !v.LessThan(elasticAgentCompleteOwnNamespaceVersion):
 		return elasticAgentCompleteImageName
@@ -180,16 +180,16 @@ func selectElasticAgentImageName(version, agentImageType string) string {
 }
 
 type configurationOptions struct {
-	agentImageType string
+	agentBaseImage string
 	stackVersion   string
 }
 
 type ConfigurationOption func(*configurationOptions)
 
-// OptionWithAgentImageType sets the agent image type to be used.
-func OptionWithAgentImageType(agentImageType string) ConfigurationOption {
+// OptionWithAgentBaseImage sets the agent image type to be used.
+func OptionWithAgentBaseImage(agentBaseImage string) ConfigurationOption {
 	return func(opts *configurationOptions) {
-		opts.agentImageType = agentImageType
+		opts.agentBaseImage = agentBaseImage
 	}
 }
 
@@ -228,7 +228,7 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 
 	configuration := ApplicationConfiguration{
 		c:              c,
-		agentImageType: configOptions.agentImageType,
+		agentBaseImage: configOptions.agentBaseImage,
 		stackVersion:   configOptions.stackVersion,
 	}
 
