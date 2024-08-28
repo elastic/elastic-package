@@ -283,6 +283,12 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	}
 
 	v.Schema = append(fields, v.Schema...)
+
+	// ecs@mappings adds additional multifields that are not defined anywhere.
+	// Adding them in all cases so packages can be tested in versions of the stack that
+	// add the ecs@mappings component template.
+	v.Schema = appendECSMappingMultifields(v.Schema, "")
+
 	return v, nil
 }
 
@@ -324,11 +330,6 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 
 		schema = ecsSchema
 	}
-
-	// ecs@mappings adds additional multifields that are not defined anywhere.
-	// Adding them in all cases so packages can be tested in versions of the stack that
-	// add the ecs@mappings component template.
-	schema = appendECSMappingMultifields(schema, "")
 
 	return fdm, schema, nil
 }
