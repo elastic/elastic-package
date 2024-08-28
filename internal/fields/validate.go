@@ -700,6 +700,7 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 
 func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.MapStr, error) {
 	var newDocs []common.MapStr
+	var multifields []string
 	for _, doc := range docs {
 		for key, contents := range doc {
 			shouldBeArray := false
@@ -726,12 +727,23 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 				}
 			}
 		}
-		expandedDoc, err := createDocExpandingObjects(doc)
+		expandedDoc, newMultifields, err := createDocExpandingObjects(doc, v.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("failure while expanding objects from doc: %w", err)
 		}
 
 		newDocs = append(newDocs, expandedDoc)
+
+		for _, multifield := range newMultifields {
+			if slices.Contains(multifields, multifield) {
+				continue
+			}
+			multifields = append(multifields, multifield)
+		}
+	}
+	if len(multifields) > 0 {
+		sort.Strings(multifields)
+		logger.Debugf("Some keys were not included in sanitized docs because they are multifields: %s", strings.Join(multifields, ", "))
 	}
 	return newDocs, nil
 }
@@ -750,7 +762,7 @@ func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {
 	return false
 }
 
-func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
+func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (common.MapStr, []string, error) {
 	keys := make([]string, 0)
 	for k := range doc {
 		keys = append(keys, k)
@@ -758,10 +770,11 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	sort.Strings(keys)
 
 	newDoc := make(common.MapStr)
+	var multifields []string
 	for _, k := range keys {
 		value, err := doc.GetValue(k)
 		if err != nil {
-			return nil, fmt.Errorf("not found key %s: %w", k, err)
+			return nil, nil, fmt.Errorf("not found key %s: %w", k, err)
 		}
 
 		_, err = newDoc.Put(k, value)
@@ -773,12 +786,17 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 		// - expected map but type is string
 		// - expected map but type is []any
 		if strings.HasPrefix(err.Error(), "expected map but type is") {
-			logger.Debugf("not able to add key %s, is this a multifield?: %s", k, err)
+			if couldBeMultifield(k, schema) {
+				// We cannot add multifields and they are not in source documents ignore them.
+				multifields = append(multifields, k)
+				continue
+			}
+			logger.Warnf("not able to add key %s: %s", k, err)
 			continue
 		}
-		return nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
+		return nil, nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
 	}
-	return newDoc, nil
+	return newDoc, multifields, nil
 }
 
 // isNumericKeyword is used to identify values that can be numbers in the documents, but are ingested
