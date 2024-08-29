@@ -161,11 +161,10 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 		return elasticAgentImageName
 	}
 
-	// TODO: Set as default using wolfi images once they are available
-	disableWolfiImages := true
+	disableWolfiImages := false
 	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
-	if ok && strings.ToLower(valueEnv) != "true" {
-		disableWolfiImages = false
+	if ok && strings.ToLower(valueEnv) != "false" {
+		disableWolfiImages = true
 	}
 	switch {
 	case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) && agentBaseImage != "complete":
