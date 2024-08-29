@@ -88,3 +88,6 @@
     - array
 - name: user.group.id
   type: keyword
+- name: attributes
+  type: object
+  object_type: keyword
