@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jedib0t/go-pretty/table"
 
@@ -350,11 +351,28 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		return
 	}
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Service", "Version", "Status"})
+	t.AppendHeader(table.Row{"Service", "Version", "Status", "Image Build Date", "VCS Ref"})
 
 	for _, service := range servicesStatus {
-		t.AppendRow(table.Row{service.Name, service.Version, service.Status})
+		t.AppendRow(table.Row{service.Name, service.Version, service.Status, formatTime(service.Labels.BuildDate), truncate(service.Labels.VCSRef, 10)})
 	}
 	t.SetStyle(table.StyleRounded)
 	cmd.Println(t.Render())
+}
+
+// formatTime returns the given RFC3339 time formated as 2006-01-02T15:04Z.
+// If the value is not in RFC3339 format, then it is returned as-is.
+func formatTime(maybeRFC3339Time string) string {
+	if t, err := time.Parse(time.RFC3339, maybeRFC3339Time); err == nil {
+		return t.UTC().Format("2006-01-02T15:04Z")
+	}
+	return maybeRFC3339Time
+}
+
+// truncate truncates text if it is longer than maxLength.
+func truncate(text string, maxLength int) string {
+	if len(text) > maxLength {
+		return text[:maxLength]
+	}
+	return text
 }

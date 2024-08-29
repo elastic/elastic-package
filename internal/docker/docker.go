@@ -49,6 +49,10 @@ type ConfigLabels struct {
 	ComposeProject string `json:"com.docker.compose.project"`
 	ComposeService string `json:"com.docker.compose.service"`
 	ComposeVersion string `json:"com.docker.compose.version"`
+
+	// http://label-schema.org/rc1/ Labels
+	BuildDate string `json:"org.label-schema.build-date,omitempty"` // This label contains the Date/Time the image was built. The value SHOULD be formatted according to RFC 3339.
+	VCSRef    string `json:"org.label-schema.vcs-ref,omitempty"`    // Identifier for the version of the source code from which this image was built. For example if the version control system is git this is the SHA.
 }
 
 // String function dumps string representation of the container description.
