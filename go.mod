@@ -1,10 +1,12 @@
 module github.com/elastic/elastic-package
 
-go 1.22.0
+go 1.22.1
+
+toolchain go1.22.5
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/Masterminds/semver/v3 v3.2.1
+	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/ProtonMail/gopenpgp/v2 v2.7.5
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.2.0
@@ -40,7 +42,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.12.0
 	helm.sh/helm/v3 v3.15.4
-	honnef.co/go/tools v0.4.7
+	honnef.co/go/tools v0.5.1
 	k8s.io/apimachinery v0.31.0
 	k8s.io/cli-runtime v0.31.0
 	k8s.io/client-go v0.31.0
@@ -49,7 +51,7 @@ require (
 require (
 	dario.cat/mergo v1.0.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/BurntSushi/toml v1.3.2 // indirect
+	github.com/BurntSushi/toml v1.4.1-0.20240526193622-a339e1f7089c // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/sprig/v3 v3.2.3 // indirect
@@ -160,7 +162,7 @@ require (
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.starlark.net v0.0.0-20230525235612-a134d8f9ddca // indirect
 	golang.org/x/crypto v0.26.0 // indirect
-	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
+	golang.org/x/exp/typeparams v0.0.0-20231108232855-2478ac86f678 // indirect
 	golang.org/x/mod v0.20.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect

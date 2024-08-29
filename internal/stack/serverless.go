@@ -171,7 +171,7 @@ func (sp *serverlessProvider) currentProject(ctx context.Context, config Config)
 	}
 
 	project, err := sp.client.GetProject(ctx, projectType, projectID)
-	if errors.Is(serverless.ErrProjectNotExist, err) {
+	if errors.Is(err, serverless.ErrProjectNotExist) {
 		return nil, err
 	}
 	if err != nil {
@@ -435,7 +435,7 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 	}
 
 	project, err := sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
-	if errors.Is(serverless.ErrProjectNotExist, err) {
+	if errors.Is(err, serverless.ErrProjectNotExist) {
 		return nil, nil
 	}
 	if err != nil {
