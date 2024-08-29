@@ -51,3 +51,22 @@ func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 	selected := selectElasticAgentImageName(version)
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
+
+func TestSelectElasticAgentImageName_WolfiImage(t *testing.T) {
+	version := "8.16.0-SNAPSHOT"
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentWolfiImageName)
+}
+
+func TestSelectElasticAgentImageName_DisableWolfiImageEnvVar(t *testing.T) {
+	version := "8.16.0-SNAPSHOT"
+	t.Setenv(disableElasticAgentWolfiEnvVar, "true")
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+func TestSelectElasticAgentImageName_EnableWolfiImageEnvVar(t *testing.T) {
+	version := "8.16.0-SNAPSHOT"
+	t.Setenv(disableElasticAgentWolfiEnvVar, "false")
+	selected := selectElasticAgentImageName(version)
+	assert.Equal(t, selected, elasticAgentWolfiImageName)
+}
