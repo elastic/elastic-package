@@ -32,18 +32,19 @@ var (
 )
 
 func applyServerlessResources(profile *profile.Profile, stackVersion string, config Config) error {
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
+	imageRefs := appConfig.StackImageRefs()
 
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"agent_version":      stackVersion,
-		"agent_image":        appConfig.StackImageRefs(stackVersion).ElasticAgent,
-		"logstash_image":     appConfig.StackImageRefs(stackVersion).Logstash,
+		"agent_image":        imageRefs.ElasticAgent,
+		"logstash_image":     imageRefs.Logstash,
 		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,

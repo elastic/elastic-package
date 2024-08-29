@@ -17,7 +17,7 @@ import (
 )
 
 func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(install.DefaultStackVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -31,7 +31,7 @@ func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *pr
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
 			withEnvs(profile.ComposeEnvVars()).
 			build(),

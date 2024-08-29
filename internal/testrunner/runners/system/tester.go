@@ -422,6 +422,11 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 		info.Agent.User = "root"
 	}
 
+	// This could be removed once package-spec adds this new field
+	if !slices.Contains([]string{"", "default", "complete"}, info.Agent.BaseImage) {
+		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.base_image: %q", info.Agent.BaseImage)
+	}
+
 	return info, nil
 }
 
@@ -648,7 +653,7 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 
 	// It seems that some index modes enable synthetic source mode even when it is not explicitly mentioned
 	// in the mappings. So assume that when these index modes are used, the synthetic mode is also used.
-	var syntheticsIndexModes = []string{
+	syntheticsIndexModes := []string{
 		"logs", // Replaced in 8.15.0 with "logsdb", see https://github.com/elastic/elasticsearch/pull/111054
 		"logsdb",
 		"time_series",

@@ -56,14 +56,14 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
@@ -82,14 +82,14 @@ func dockerComposePull(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
@@ -113,14 +113,14 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 		args = append(args, "-d")
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
@@ -140,14 +140,14 @@ func dockerComposeDown(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	downOptions := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),

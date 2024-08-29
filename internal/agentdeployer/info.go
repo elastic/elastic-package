@@ -26,6 +26,8 @@ type AgentScript struct {
 type AgentSettings struct {
 	// User user to run Elastic Agent process
 	User string `config:"user"`
+	// BaseImage elastic-agent base image to be used for testing
+	BaseImage string `config:"base_image"`
 	// PidMode selects the host PID mode
 	// (From docker-compose docs) Turns on sharing between container and the host
 	// operating system the PID address space
