@@ -1119,7 +1119,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group", "nested":
+	case "group", "nested", "object":
 		switch val := val.(type) {
 		case map[string]any:
 			// This is probably an element from an array of objects,
@@ -1143,7 +1143,19 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			// The document contains a null, let's consider this like an empty array.
 			return nil
 		default:
-			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			switch {
+			case definition.Type == "object" && definition.ObjectType != "":
+				// This is the leaf element of an object without wildcards in the name, adapt the definition and try again.
+				definition.Name = definition.Name + ".*"
+				definition.Type = definition.ObjectType
+				definition.ObjectType = ""
+				return v.parseSingleElementValue(key, definition, val, doc)
+			case definition.Type == "object" && definition.ObjectType == "":
+				// Legacy mapping, abiguous definition not allowed by recent versions of the spec, ignore it.
+				return nil
+			}
+
+			return fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
