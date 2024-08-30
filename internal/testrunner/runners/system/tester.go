@@ -1554,7 +1554,7 @@ func dumpScenarioDocs(docs any) error {
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(docs); err != nil {
-		return fmt.Errorf("failed to encode docs: %w")
+		return fmt.Errorf("failed to encode docs: %w", err)
 	}
 	return nil
 }
