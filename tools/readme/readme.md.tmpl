@@ -237,6 +237,9 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images
       (e.g. `docker.elastic.co/elastic-agent/elastic-agent-complete`). If set to `false`, the Elastic Agent image used for the running agents will be based on the wolfi
       images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `false`.
+    - `ELASTIC_PACKAGE_TEST_DUMP_SCENARIO_DOCS. If the variable is set, elastic-package will dump to a file the documents generated
+      by system tests before they are verified. This is useful to know exactly what fields are being verified when investigating
+      issues on this step. Documents are dumped to a file in the system temporary directory. It is disabled by default.
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
