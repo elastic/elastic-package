@@ -857,19 +857,13 @@ func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 }
 
 func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
-	lastDotIndex := strings.LastIndex(key, ".")
-	if lastDotIndex < 0 {
-		// Field at the root level cannot be a multifield.
-		return false
-	}
-	parentKey := key[:lastDotIndex]
-	parent := FindElementDefinition(parentKey, fieldDefinitions)
+	parent := findParentElementDefinition(key, fieldDefinitions)
 	if parent == nil {
 		// Parent is not defined, so not sure what this can be.
 		return false
 	}
 	switch parent.Type {
-	case "", "group", "nested", "group-nested", "object":
+	case "", "group", "nested", "object":
 		// Objects cannot have multifields.
 		return false
 	}
@@ -890,8 +884,8 @@ func isArrayOfObjects(val any) bool {
 	return false
 }
 
-func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
-	for _, def := range FieldDefinitions {
+func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -907,12 +901,35 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return fd
 		}
 	}
+
+	if root == "" {
+		// No definition found, check if the parent is an object with object type.
+		parent := findParentElementDefinition(searchedKey, fieldDefinitions)
+		if parent != nil && parent.Type == "object" && parent.ObjectType != "" {
+			fd := *parent
+			fd.Name = searchedKey
+			fd.Type = parent.ObjectType
+			fd.ObjectType = ""
+			return &fd
+		}
+	}
+
 	return nil
 }
 
 // FindElementDefinition is a helper function used to find the fields definition in the schema.
 func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
+}
+
+func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return nil
+	}
+	parentKey := key[:lastDotIndex]
+	return FindElementDefinition(parentKey, fieldDefinitions)
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
@@ -985,11 +1002,6 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 	fieldType := def.Type
 	if def.Type == "object" && def.ObjectType != "" {
 		fieldType = def.ObjectType
-
-		// Match leaf fields for objects that don't have a wildcard at the end.
-		if parts := strings.Split(extraPart, "."); len(parts) == 2 && parts[0] == "" {
-			return true
-		}
 	}
 
 	subFields := []string{".lat", ".lon", ".values", ".counts"}
