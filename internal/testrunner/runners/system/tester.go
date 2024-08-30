@@ -123,7 +123,8 @@ var (
 			},
 		},
 	}
-	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	enableIndependentAgentsEnv = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	dumpScenarioDocsEnv        = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 )
 
 type tester struct {
@@ -257,7 +258,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 
 	// If the environment variable is present, it always has preference over the root
 	// privileges value (if any) defined in the manifest file
-	v, ok := os.LookupEnv(enableIndependentAgents)
+	v, ok := os.LookupEnv(enableIndependentAgentsEnv)
 	if ok {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
@@ -1528,7 +1529,34 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithError(err)
 	}
 
+	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
+		err := dumpScenarioDocs(scenario.docs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
+		}
+	}
+
 	return r.validateTestScenario(ctx, result, scenario, config)
+}
+
+func dumpScenarioDocs(docs any) error {
+	timestamp := time.Now().Format("20060102150405")
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create dump file: %w", err)
+	}
+	defer f.Close()
+
+	logger.Infof("Dumping scenario documents to %s", path)
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(docs); err != nil {
+		return fmt.Errorf("failed to encode docs: %w", err)
+	}
+	return nil
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
