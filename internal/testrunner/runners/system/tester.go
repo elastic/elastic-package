@@ -1442,6 +1442,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
+		fields.WithStringNumberFields(config.StringNumberFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),

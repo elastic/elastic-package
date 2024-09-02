@@ -51,6 +51,10 @@ type testConfig struct {
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
+	// StringNumberFields holds a list of fields that have numeric
+	// types but can be ingested as strings.
+	StringNumberFields []string `config:"string_number_fields"`
+
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
 
