@@ -1,0 +1,12 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- dissect:
+    field: message
+    pattern: "%{example.count} %{example.metric}"
+- remove:
+    field: message
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'
