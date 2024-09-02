@@ -18,7 +18,8 @@ inputs:
           tags:
             - apache-error
       type: logfile
-      use_output: default
+      use_output: test-default
+namespaces: []
 output_permissions:
     default:
         _elastic_agent_checks:
