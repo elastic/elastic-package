@@ -206,6 +206,7 @@ func TestCoberturaForSinglePipeline(t *testing.T) {
 		},
 		{
 			title:           "Multi Processor - covered",
+			pipelineName:    pipelineName,
 			pipelineRelPath: "",
 			src: []ingest.Processor{
 				{Type: firstProcessorName, FirstLine: firstProcessorFirstLine, LastLine: firstProcessorFirstLine},
@@ -251,9 +252,8 @@ func TestCoberturaForSinglePipeline(t *testing.T) {
 					{Name: firstProcessorName, Lines: []*testrunner.CoberturaLine{
 						{Number: firstProcessorFirstLine, Hits: firstProcessorHitCount},
 					}},
-
-					{Name: secondProcessorFirstLine, Lines: []*testrunner.CoberturaLine{
-						{Number: secondProcessorName, Hits: secondProcessorHitCount},
+					{Name: secondProcessorName, Lines: []*testrunner.CoberturaLine{
+						{Number: secondProcessorFirstLine, Hits: secondProcessorHitCount},
 					}},
 				},
 			},
