@@ -6,6 +6,7 @@ package ingest
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -50,7 +51,7 @@ func (p Pipeline) OriginalProcessors() (procs []Processor, err error) {
 	return procs, nil
 }
 
-// extract a list of processors from a pipeline definition in YAML format.
+// Extract a list of processors from a pipeline definition in YAML format.
 func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	var p struct {
 		Processors []yaml.Node
@@ -76,7 +77,7 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	return procs, nil
 }
 
-// returns the last (greater) line number used by a yaml.Node.
+// Return the last (greater) line number used by a yaml.Node.
 func lastLine(node *yaml.Node) int {
 	if node == nil {
 		return 0
@@ -86,6 +87,12 @@ func lastLine(node *yaml.Node) int {
 		if line := lastLine(inner); line > last {
 			last = line
 		}
+		// For scalar node with multiline content, calculate the last line based on line breaks
+		if inner.Kind == yaml.ScalarNode && strings.Contains(inner.Value, "\n") {
+			lineCount := strings.Count(inner.Value, "\n")
+			last += lineCount
+		}
 	}
+
 	return last
 }

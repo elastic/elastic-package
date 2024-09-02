@@ -148,6 +148,42 @@ on_failure:
 			wantErr: true,
 		},
 		{
+			name:   "Json single line processor",
+			format: "json",
+			content: []byte(`{
+				"description": "Pipeline for parsing silly logs.",
+				"processors": [{"drop": {"if":"ctx.drop!=null"}}]
+			  }`),
+			expected: []Processor{
+				{Type: "drop", FirstLine: 3, LastLine: 3},
+			},
+		},
+		{
+			name:   "Json multiline processor",
+			format: "json",
+			content: []byte(`{
+  "processors": [
+    {
+      "script": {
+        "description": "Extract fields",
+        "lang": "painless",
+        "source": "String[] envSplit = ctx['env'].splitOnToken(params['delimiter']);\nArrayList tags = new ArrayList();\ntags.add(envSplit[params['position']].trim());\nctx['tags'] = tags;"
+      }
+    }
+  ]
+}`),
+			expected: []Processor{
+				{Type: "script", FirstLine: 3, LastLine: 10},
+				//   Source will be processed as multiline:
+				//  "source": """
+				// 		String[] envSplit = ctx['env'].splitOnToken(params['delimiter']);
+				// 		ArrayList tags = new ArrayList();
+				// 		tags.add(envSplit[params['position']].trim());
+				// 		ctx['tags'] = tags;
+				//   """,
+			},
+		},
+		{
 			name:   "Malformed Yaml pipeline",
 			format: "yml",
 			content: []byte(`---
@@ -161,6 +197,75 @@ processors:
 			format:  "yml",
 			content: []byte(`foo123"`),
 			wantErr: true,
+		},
+		{
+			name:   "Yaml single line processor",
+			format: "yml",
+			content: []byte(`---
+processors:
+  - set: { field: "event.category", value: "web" }`),
+			expected: []Processor{
+				{Type: "set", FirstLine: 3, LastLine: 3},
+			},
+		},
+		{
+			name:   "Yaml multiline processor",
+			format: "yml",
+			content: []byte(`---
+processors:
+  - script:
+      source: |
+        def a = 1;
+        def b = 2;
+`),
+			expected: []Processor{
+				{Type: "script", FirstLine: 3, LastLine: 6},
+			},
+		},
+		{
+			name:   "Yaml empty processor",
+			format: "yml",
+			content: []byte(`---
+processors:
+  - set:`),
+			expected: []Processor{
+				{Type: "set", FirstLine: 3, LastLine: 3},
+			},
+		},
+		{
+			name:   "Yaml processors with comments",
+			format: "yml",
+			content: []byte(`---
+processors:
+  # First processor
+  - set:
+      field: "event.category"
+      value: "web"
+  
+  # Second processor
+  - script:
+      source: |
+        def a = 1;
+        def b = 2;
+`),
+			expected: []Processor{
+				{Type: "set", FirstLine: 4, LastLine: 6},
+				{Type: "script", FirstLine: 9, LastLine: 12},
+			},
+		},
+		{
+			name:   "Yaml nested processor",
+			format: "yml",
+			content: []byte(`---
+processors:
+  - if:
+      condition: "ctx.event.category == 'web'"
+      processors:
+        - set: { field: "event.type", value: "start" }
+`),
+			expected: []Processor{
+				{Type: "if", FirstLine: 3, LastLine: 6},
+			},
 		},
 	}
 	for _, tt := range tests {
