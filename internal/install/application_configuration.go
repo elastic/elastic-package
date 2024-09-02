@@ -28,7 +28,8 @@ const (
 	// like 8.16.0-21bba6f5-SNAPSHOT
 	stackVersion8160 = "8.16.0-00000000-SNAPSHOT"
 
-	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentLegacyImageName         = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentImageName               = "docker.elastic.co/elastic-agent/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
 	elasticAgentWolfiImageName          = "docker.elastic.co/elastic-agent/elastic-agent-wolfi"
@@ -152,13 +153,13 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
 func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if version == "" { // as version is optional and can be empty
-		return elasticAgentImageName
+		return elasticAgentLegacyImageName
 	}
 
 	v, err := semver.NewVersion(version)
 	if err != nil {
 		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
-		return elasticAgentImageName
+		return elasticAgentLegacyImageName
 	}
 
 	disableWolfiImages := false
@@ -167,15 +168,36 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 		disableWolfiImages = true
 	}
 	switch {
-	case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) && agentBaseImage != "complete":
-		return elasticAgentWolfiImageName
-	case !v.LessThan(elasticAgentCompleteOwnNamespaceVersion):
+	case agentBaseImage == "complete":
+		return selectElasticAgentCompleteImageName(v)
+	case agentBaseImage == "systemd":
+		return selectElasticAgentSystemDImageName(v)
+	default:
+		switch {
+		case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion):
+			return elasticAgentWolfiImageName
+		default:
+			return selectElasticAgentCompleteImageName(v)
+		}
+	}
+}
+
+func selectElasticAgentCompleteImageName(version *semver.Version) string {
+	switch {
+	case !version.LessThan(elasticAgentCompleteOwnNamespaceVersion):
 		return elasticAgentCompleteImageName
-	case !v.LessThan(elasticAgentCompleteFirstSupportedVersion):
+	case !version.LessThan(elasticAgentCompleteFirstSupportedVersion):
 		return elasticAgentCompleteLegacyImageName
 	default:
+		return elasticAgentLegacyImageName
+	}
+}
+
+func selectElasticAgentSystemDImageName(version *semver.Version) string {
+	if !version.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentImageName
 	}
+	return elasticAgentLegacyImageName
 }
 
 type configurationOptions struct {
