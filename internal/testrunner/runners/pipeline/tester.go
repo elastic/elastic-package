@@ -335,7 +335,6 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	rc.TimeElapsed = time.Since(startTime)
 	validatorOptions = append(slices.Clone(validatorOptions),
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
-		fields.WithStringNumberFields(tc.config.StringNumberFields),
 	)
 	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
 	if err != nil {

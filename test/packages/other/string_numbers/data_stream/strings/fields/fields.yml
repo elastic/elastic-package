@@ -1,4 +1,0 @@
-- name: example.count
-  type: long
-- name: example.metric
-  type: double

@@ -16,7 +16,6 @@ import (
 	"regexp"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -136,12 +135,7 @@ type Validator struct {
 	expectedDatasets []string
 
 	defaultNumericConversion bool
-
-	// fields that store keywords, but can be received as numeric types.
-	numericKeywordFields []string
-
-	// fields that store numbers, but can be received as strings.
-	stringNumberFields []string
+	numericKeywordFields     map[string]struct{}
 
 	disabledDependencyManagement bool
 
@@ -182,16 +176,10 @@ func WithDefaultNumericConversion() ValidatorOption {
 // while defined as keyword or constant_keyword.
 func WithNumericKeywordFields(fields []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.numericKeywordFields = common.StringSlicesUnion(v.numericKeywordFields, fields)
-		return nil
-	}
-}
-
-// WithStringNumberFields configures the validator to accept specific fields to have fields defined as numbers
-// as their string representation.
-func WithStringNumberFields(fields []string) ValidatorOption {
-	return func(v *Validator) error {
-		v.stringNumberFields = common.StringSlicesUnion(v.stringNumberFields, fields)
+		v.numericKeywordFields = make(map[string]struct{}, len(fields))
+		for _, field := range fields {
+			v.numericKeywordFields[field] = struct{}{}
+		}
 		return nil
 	}
 }
@@ -690,6 +678,12 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		}
 	}
 
+	// Convert numeric keyword fields to string for validation.
+	_, found := v.numericKeywordFields[key]
+	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
+		val = convertNumericKeyword(val)
+	}
+
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
 		if err != nil {
@@ -803,6 +797,41 @@ func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (com
 		return nil, nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
 	}
 	return newDoc, multifields, nil
+}
+
+// isNumericKeyword is used to identify values that can be numbers in the documents, but are ingested
+// as keywords.
+func isNumericKeyword(definition FieldDefinition, val any) bool {
+	var isNumber bool
+	switch val := val.(type) {
+	case bool, []bool, float64, []float64:
+		isNumber = true
+	case []any:
+		isNumber = true
+	loop:
+		for _, v := range val {
+			switch v.(type) {
+			case bool, float64:
+			default:
+				isNumber = false
+				break loop
+			}
+		}
+	}
+	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
+}
+
+func convertNumericKeyword(val any) any {
+	switch val := val.(type) {
+	case []any:
+		converted := make([]any, len(val))
+		for i, e := range val {
+			converted[i] = convertNumericKeyword(e)
+		}
+		return converted
+	default:
+		return fmt.Sprintf("%q", val)
+	}
 }
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
@@ -1003,19 +1032,12 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
-	// Validate types first for each element, so other checks don't need to worry about types.
-	err := forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+	err := v.parseAllElementValues(key, definition, val, doc)
 	if err != nil {
 		return err
 	}
 
-	// Perform validations that need to be done on several fields at the same time.
-	err = v.parseAllElementValues(key, definition, val, doc)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 }
 
 // parseAllElementValues performs validations that must be done for all elements at once in
@@ -1024,7 +1046,11 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
-			if err := ensureExpectedEventType(key, val, definition, doc); err != nil {
+			strings, err := valueToStringsSlice(val)
+			if err != nil {
+				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
+			}
+			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
 				return err
 			}
 		}
@@ -1038,24 +1064,12 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 
-	stringValue := func() (string, bool) {
-		switch val := val.(type) {
-		case string:
-			return val, true
-		case bool, float64:
-			if slices.Contains(v.numericKeywordFields, key) {
-				return fmt.Sprintf("%v", val), true
-			}
-		}
-		return "", false
-	}
-
 	switch definition.Type {
 	// Constant keywords can define a value in the definition, if they do, all
 	// values stored in this field should be this one.
 	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		valStr, valid := stringValue()
+		valStr, valid := val.(string)
 		if !valid {
 			return invalidTypeError()
 		}
@@ -1072,7 +1086,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		valStr, valid := stringValue()
+		valStr, valid := val.(string)
 		if !valid {
 			return invalidTypeError()
 		}
@@ -1157,17 +1171,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		switch val := val.(type) {
-		case float64:
-		case json.Number:
-		case string:
-			if !slices.Contains(v.stringNumberFields, key) {
-				return invalidTypeError()
-			}
-			if _, err := strconv.ParseFloat(val, 64); err != nil {
-				return invalidTypeError()
-			}
-		default:
+		if _, valid := val.(float64); !valid {
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -1267,10 +1271,12 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 
 // ensureExpectedEventType validates that the document's `event.type` field is one of the expected
 // one for the given value.
-func ensureExpectedEventType(key string, val any, definition FieldDefinition, doc common.MapStr) error {
+func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
 	eventTypeVal, _ := doc.GetValue("event.type")
-	eventTypes := valueToStringsSlice(eventTypeVal)
-	values := valueToStringsSlice(val)
+	eventTypes, err := valueToStringsSlice(eventTypeVal)
+	if err != nil {
+		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
+	}
 	var expected []string
 	for _, value := range values {
 		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
@@ -1289,19 +1295,23 @@ func ensureExpectedEventType(key string, val any, definition FieldDefinition, do
 	return nil
 }
 
-func valueToStringsSlice(value any) []string {
+func valueToStringsSlice(value any) ([]string, error) {
 	switch v := value.(type) {
 	case nil:
-		return nil
+		return nil, nil
 	case string:
-		return []string{v}
+		return []string{v}, nil
 	case []any:
 		var values []string
 		for _, e := range v {
-			values = append(values, fmt.Sprintf("%v", e))
+			s, ok := e.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string or array of strings")
+			}
+			values = append(values, s)
 		}
-		return values
+		return values, nil
 	default:
-		return []string{fmt.Sprintf("%v", v)}
+		return nil, fmt.Errorf("expected string or array of strings")
 	}
 }
