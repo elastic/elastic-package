@@ -18,6 +18,9 @@ env:
   ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
   # Set maximum number of parallel tests to run if package allows it
   ELASTIC_PACKAGE_MAXIMUM_NUMBER_PARALLEL_TESTS: 3
+  # Enable/Disable the usage of wolfi images for Elastic Agent
+  ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI: "${ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI:-false}"
+
 
 steps:
   - label: ":go: Run check-static"
