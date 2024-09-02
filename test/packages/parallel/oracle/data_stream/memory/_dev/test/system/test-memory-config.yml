@@ -4,8 +4,13 @@ vars:
 agent:
   runtime: docker
   provisioning_script:
-    language: "bash"
+    language: "sh"
     contents: |
+      if grep wolfi /etc/os-release > /dev/null ; then
+        apk update && apk add libaio wget unzip
+      else
+        apt-get update && apt-get -y install libaio1 wget unzip
+      fi
       apt-get update && apt-get -y install libaio1 wget unzip
       mkdir -p /opt/oracle
       cd /opt/oracle
