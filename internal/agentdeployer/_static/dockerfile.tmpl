@@ -14,9 +14,10 @@ USER root
 
 {{ if ne $provisioning_script_contents "" }}
 COPY {{ $provisioning_script_filename }} .
-RUN chmod u+x {{ $provisioning_script_filename }} && \
+RUN set -eu ; \
+  chmod u+x {{ $provisioning_script_filename }} && \
   {{ $provisioning_script_language }} ./{{ $provisioning_script_filename }} && \
-  rm {{ $provisioning_script_filename }}
+  rm {{ $provisioning_script_filename }} || exit 1
 {{ end }}
 
 {{ if ne $pre_start_script_contents "" }}
