@@ -57,6 +57,9 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
+  package_name=$(cat "${d}/manifest.yml" | yq -r .name)
+  package_version=$(cat "${d}/manifest.yml" | yq -r .version)
+  PACKAGE_NAME_VERSION="${package_name}-${package_version}"
 
   elastic-package install -C "$d" -v
 

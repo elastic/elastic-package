@@ -92,11 +92,8 @@ if [[ "$SERVERLESS" == "false" ]]; then
     fi
 fi
 
-if [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
-    # just required for now while testing false positive targets
-    echo "--- install yq"
-    with_yq
-fi
+echo "--- install yq"
+with_yq
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
     echo "--- install kubectl & kind"
