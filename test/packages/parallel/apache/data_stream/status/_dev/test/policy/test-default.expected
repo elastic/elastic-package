@@ -17,7 +17,6 @@ inputs:
           server_status_path: /server-status
       type: apache/metrics
       use_output: default
-namespaces: []
 output_permissions:
     default:
         _elastic_agent_checks:

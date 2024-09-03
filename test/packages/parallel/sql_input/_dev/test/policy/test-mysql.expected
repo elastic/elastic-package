@@ -18,7 +18,6 @@ inputs:
           sql_response_format: variables
       type: sql/metrics
       use_output: default
-namespaces: []
 output_permissions:
     default:
         _elastic_agent_checks:
