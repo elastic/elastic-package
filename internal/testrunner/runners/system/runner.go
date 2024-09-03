@@ -378,7 +378,6 @@ func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) 
 		if len(variants) == 1 && variants[0] == "" {
 			logger.Debug("No variant mode")
 		}
-		logger.Debugf(">>>>>> number of variants loaded: %d - %q", len(variants), strings.Join(variants, ","))
 	}
 
 	return variants, nil
