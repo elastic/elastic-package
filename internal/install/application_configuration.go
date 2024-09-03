@@ -162,10 +162,10 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 		return elasticAgentLegacyImageName
 	}
 
-	disableWolfiImages := false
+	disableWolfiImages := true
 	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
-	if ok && strings.ToLower(valueEnv) != "false" {
-		disableWolfiImages = true
+	if ok && strings.ToLower(valueEnv) != "true" {
+		disableWolfiImages = false
 	}
 	switch {
 	case agentBaseImage == "complete":
