@@ -13,13 +13,13 @@ import (
 func TestSelectElasticAgentImageName_NoVersion(t *testing.T) {
 	var version string
 	selected := selectElasticAgentImageName(version, "")
-	assert.Equal(t, selected, elasticAgentImageName)
+	assert.Equal(t, selected, elasticAgentLegacyImageName)
 }
 
 func TestSelectElasticAgentImageName_OlderStack(t *testing.T) {
 	version := "7.14.99-SNAPSHOT"
 	selected := selectElasticAgentImageName(version, "")
-	assert.Equal(t, selected, elasticAgentImageName)
+	assert.Equal(t, selected, elasticAgentLegacyImageName)
 }
 
 func TestSelectElasticAgentImageName_FirstStackWithCompleteAgent(t *testing.T) {
@@ -52,32 +52,50 @@ func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
-func TestSelectElasticAgentImageName_WolfiImage(t *testing.T) {
-	version := "8.16.0-SNAPSHOT"
+func TestSelectElasticAgentImageName_DefaultImage816(t *testing.T) {
+	version := stackVersion8160
 	selected := selectElasticAgentImageName(version, "")
-	assert.Equal(t, selected, elasticAgentWolfiImageName)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
 func TestSelectElasticAgentImageName_DisableWolfiImageEnvVar(t *testing.T) {
-	version := "8.16.0-SNAPSHOT"
+	version := stackVersion8160
 	t.Setenv(disableElasticAgentWolfiEnvVar, "true")
 	selected := selectElasticAgentImageName(version, "")
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 func TestSelectElasticAgentImageName_EnableWolfiImageEnvVar(t *testing.T) {
-	version := "8.16.0-SNAPSHOT"
+	version := stackVersion8160
 	t.Setenv(disableElasticAgentWolfiEnvVar, "false")
 	selected := selectElasticAgentImageName(version, "")
 	assert.Equal(t, selected, elasticAgentWolfiImageName)
 }
 
 func TestSelectCompleteElasticAgentImageName_ForceCompleteImage(t *testing.T) {
-	version := "8.16.0-SNAPSHOT"
+	version := stackVersion8160
 	selected := selectElasticAgentImageName(version, "complete")
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 func TestSelectCompleteElasticAgentImageName_ForceDefaultImage(t *testing.T) {
-	version := "8.16.0-SNAPSHOT"
+	version := stackVersion8160
 	selected := selectElasticAgentImageName(version, "default")
-	assert.Equal(t, selected, elasticAgentWolfiImageName)
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
+func TestSelectCompleteElasticAgentImageName_ForceDefaultImageOldStack(t *testing.T) {
+	version := "8.15.0-SNAPSHOT"
+	selected := selectElasticAgentImageName(version, "default")
+	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
+func TestSelectCompleteElasticAgentImageName_ForceSystemDImage(t *testing.T) {
+	version := stackVersion8160
+	selected := selectElasticAgentImageName(version, "systemd")
+	assert.Equal(t, selected, elasticAgentImageName)
+}
+
+func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testing.T) {
+	version := stackVersion715
+	selected := selectElasticAgentImageName(version, "systemd")
+	assert.Equal(t, selected, elasticAgentLegacyImageName)
 }

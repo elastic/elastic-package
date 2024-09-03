@@ -19,7 +19,7 @@ require (
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
-	github.com/elastic/package-spec/v3 v3.2.1
+	github.com/elastic/package-spec/v3 v3.2.2
 	github.com/fatih/color v1.17.0
 	github.com/go-git/go-billy/v5 v5.5.0
 	github.com/go-git/go-git/v5 v5.12.0
@@ -189,5 +189,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
-
-replace github.com/elastic/package-spec/v3 => github.com/jsoriano/package-spec/v3 v3.0.0-20240902133541-ea65d05dba1e

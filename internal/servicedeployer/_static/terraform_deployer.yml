@@ -13,3 +13,4 @@ services:
     volumes:
       - ${TF_DIR}:/stage
       - ${TF_OUTPUT_DIR}:/output
+      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
