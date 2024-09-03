@@ -17,6 +17,7 @@ inputs:
             - apache-access
       type: logfile
       use_output: default
+namespaces: []
 output_permissions:
     default:
         _elastic_agent_checks:
