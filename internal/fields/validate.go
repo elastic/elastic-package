@@ -1026,7 +1026,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		case string:
 			return val, true
 		case bool, float64:
-			if slices.Contains(v.numericKeywordFields, key) {
+			if v.defaultNumericConversion || slices.Contains(v.numericKeywordFields, key) {
 				return fmt.Sprintf("%v", val), true
 			}
 		}
