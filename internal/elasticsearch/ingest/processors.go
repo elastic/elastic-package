@@ -51,7 +51,7 @@ func (p Pipeline) OriginalProcessors() (procs []Processor, err error) {
 	return procs, nil
 }
 
-// Extract a list of processors from a pipeline definition in YAML format.
+// processorsFromYAML extracts a list of processors from a pipeline definition in YAML format.
 func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	var p struct {
 		Processors []yaml.Node
