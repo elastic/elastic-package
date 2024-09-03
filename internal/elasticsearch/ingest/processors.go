@@ -77,7 +77,7 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	return procs, nil
 }
 
-// Return the last (greater) line number used by a yaml.Node.
+// lastLine returns the last (greater) line number used by a yaml.Node.
 func lastLine(node *yaml.Node) int {
 	if node == nil {
 		return 0
