@@ -612,7 +612,7 @@ Fleet (along with the Agent Policies) and a new Elastic Agent will be created fo
 file.
 
 These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
-For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
+For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/19b2d35c0d7aea7357ccfc572398f39812ff08bc/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
 ```yaml
 vars:
   hosts:
