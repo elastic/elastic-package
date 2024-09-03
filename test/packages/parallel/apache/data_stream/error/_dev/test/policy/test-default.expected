@@ -18,7 +18,7 @@ inputs:
           tags:
             - apache-error
       type: logfile
-      use_output: test-default
+      use_output: default
 namespaces: []
 output_permissions:
     default:
