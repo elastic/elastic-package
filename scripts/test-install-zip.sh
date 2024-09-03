@@ -46,13 +46,12 @@ installAndVerifyPackage() {
 }
 
 usage() {
-    echo "${0} [-s] [-h]"
+    echo "${0} [-s] [-v <stack_version>] [-h]"
     echo "Run test-install-zip suite"
     echo -e "\t-s: Use elastic-package stack shellinit to export environment variablles. By default, they should be exported manually."
     echo -e "\t-v <stack_version>: Speciy which Elastic Stack version to use. If not specified it will use the default version in elastic-package."
     echo -e "\t-h: Show this message"
 }
-
 
 USE_SHELLINIT=0
 STACK_VERSION="default"
@@ -80,7 +79,6 @@ while getopts ":sv:h" o; do
             ;;
     esac
 done
-
 
 ARG_VERSION=""
 if [ "${STACK_VERSION}" != "default" ]; then

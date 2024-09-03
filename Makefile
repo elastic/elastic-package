@@ -109,6 +109,9 @@ test-check-packages-with-custom-agent:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
+test-just-build-zip:
+	./scripts/test-just-build-zip.sh
+
 test-install-zip:
 	./scripts/test-install-zip.sh
 
