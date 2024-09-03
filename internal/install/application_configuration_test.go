@@ -5,6 +5,7 @@
 package install
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,8 +53,12 @@ func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
-func TestSelectElasticAgentImageName_DefaultImage816(t *testing.T) {
+func TestSelectElasticAgentImageName_DefaultImage816_WihtoutEnvVar(t *testing.T) {
 	version := stackVersion8160
+	// Try to keep the test agnostic from the environment variables defined in CI
+	t.Setenv(disableElasticAgentWolfiEnvVar, "")
+	os.Unsetenv(disableElasticAgentWolfiEnvVar)
+
 	selected := selectElasticAgentImageName(version, "")
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
@@ -76,10 +81,19 @@ func TestSelectCompleteElasticAgentImageName_ForceCompleteImage(t *testing.T) {
 	selected := selectElasticAgentImageName(version, "complete")
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
-func TestSelectCompleteElasticAgentImageName_ForceDefaultImage(t *testing.T) {
+
+func TestSelectCompleteElasticAgentImageName_ForceDefaultImage_DisabledEnvVar(t *testing.T) {
 	version := stackVersion8160
+	t.Setenv(disableElasticAgentWolfiEnvVar, "true")
 	selected := selectElasticAgentImageName(version, "default")
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
+}
+
+func TestSelectCompleteElasticAgentImageName_ForceDefaultImage_EnabledEnvVar(t *testing.T) {
+	version := stackVersion8160
+	t.Setenv(disableElasticAgentWolfiEnvVar, "false")
+	selected := selectElasticAgentImageName(version, "default")
+	assert.Equal(t, selected, elasticAgentWolfiImageName)
 }
 
 func TestSelectCompleteElasticAgentImageName_ForceDefaultImageOldStack(t *testing.T) {
