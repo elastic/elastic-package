@@ -5,12 +5,6 @@ set -euxo pipefail
 cleanup() {
   r=$?
 
-  # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
-
-  # Take down the stack
-  elastic-package stack down -v
-
   # Clean used resources
   for d in test/packages/*/*/; do
     elastic-package clean -C "$d" -v
@@ -45,15 +39,3 @@ done
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
-
-# Boot up the stack
-elastic-package stack up -d -v
-
-# Install zipped packages
-for d in test/packages/*/*/; do
-  # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
-    continue
-  fi
-  elastic-package install -C "$d" -v
-done

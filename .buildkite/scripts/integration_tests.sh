@@ -31,7 +31,7 @@ PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
-TEST_JUST_BUILD_ZIP_TARGET="test-just-build-zip"
+TEST_BUILD_ZIP_TARGET="test-build-zip"
 
 GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
@@ -82,7 +82,7 @@ if [[ "$SERVERLESS" == "false" ]]; then
     echo "--- install go"
     with_go
 
-    if [[ "${TARGET}" != "${TEST_JUST_BUILD_ZIP_TARGET}" ]]; then
+    if [[ "${TARGET}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
         # Not supported in Macos ARM
         echo "--- install docker"
         with_docker

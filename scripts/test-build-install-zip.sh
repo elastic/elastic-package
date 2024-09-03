@@ -5,6 +5,12 @@ set -euxo pipefail
 cleanup() {
   r=$?
 
+  # Dump stack logs
+  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
+
+  # Take down the stack
+  elastic-package stack down -v
+
   # Clean used resources
   for d in test/packages/*/*/; do
     elastic-package clean -C "$d" -v
@@ -39,3 +45,26 @@ done
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
+
+# Boot up the stack
+elastic-package stack up -d -v
+
+eval "$(elastic-package stack shellinit)"
+
+# Install packages from working copy
+for d in test/packages/*/*/; do
+  # Packages in false_positives can have issues.
+  if [ "$(testype $d)" == "false_positives" ]; then
+    continue
+  fi
+
+  elastic-package install -C "$d" -v
+
+  # check that the package is installed
+  curl -s \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+    -H 'content-type: application/json' \
+    -H 'kbn-xsrf: true' \
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | grep -q '"status":"installed"'
+done
