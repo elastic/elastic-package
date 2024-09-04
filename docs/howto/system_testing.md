@@ -612,7 +612,7 @@ Fleet (along with the Agent Policies) and a new Elastic Agent will be created fo
 file.
 
 These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
-For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
+For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/19b2d35c0d7aea7357ccfc572398f39812ff08bc/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
 ```yaml
 vars:
   hosts:
@@ -620,14 +620,20 @@ vars:
 agent:
   runtime: docker
   provisioning_script:
-    language: "bash"
+    language: "sh"
     contents: |
-      apt-get update && apt-get -y install libaio1 wget unzip
+      set -eu
+      if grep wolfi /etc/os-release > /dev/null ; then
+        apk update && apk add libaio wget unzip
+      else
+        apt-get update && apt-get -y install libaio1 wget unzip
+      fi
       mkdir -p /opt/oracle
       cd /opt/oracle
-      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
-      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip
-      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip || exit 1
+      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip || exit 1
+      mkdir -p /etc/ld.so.conf.d/
+      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig || exit 1
       cp /opt/oracle/instantclient_21_7/glogin.sql /opt/oracle/instantclient_21_7/libsqlplus.so /opt/oracle/instantclient_21_7/libsqlplusic.so /opt/oracle/instantclient_21_7/sqlplus /opt/oracle/instantclient_21_4/
   pre_start_script:
     language: "sh"
@@ -636,6 +642,9 @@ agent:
       export PATH="${PATH}:/opt/oracle/instantclient_21_7:/opt/oracle/instantclient_21_4"
       cd /opt/oracle/instantclient_21_4
 ```
+
+**IMPORTANT**: The provisioning script must exit with a code different from zero in case any of the commands defined fails.
+That will ensure that the docker build step run by `elastic-package` fails too.
 
 Another example setting capabilities to the agent ([`auditid_manager` test package](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/auditd_manager/data_stream/auditd/_dev/test/system/test-default-config.yml)):
 ```yaml
