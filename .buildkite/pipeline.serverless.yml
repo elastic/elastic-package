@@ -6,6 +6,8 @@ env:
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.29.0'
   GH_CLI_VERSION: "2.29.0"
+  YQ_VERSION: 'v4.44.3'
+
   # Agent images used in pipeline steps
   UBUNTU_X86_64_AGENT_IMAGE: "family/core-ubuntu-2204"
 

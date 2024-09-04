@@ -37,6 +37,7 @@ with_go
 
 echo "--- Install docker"
 with_docker
+
 echo "--- Install docker-compose"
 with_docker_compose_plugin
 
