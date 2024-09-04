@@ -215,6 +215,7 @@ func generateBaseGenericFileCoverageReport(repoPath, _, path string, covered boo
 	return &coverage, nil
 }
 
+// countReaderLines returns number of lines
 func countReaderLines(r io.Reader) (int, error) {
 	count := 0
 	buffered := bufio.NewReader(r)
