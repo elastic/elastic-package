@@ -742,3 +742,4 @@ git push upstream v0.15.0
 
 The CI will run a new job for the just pushed tag and publish released artifacts. Please expect an automated follow-up PR
 in the [Integrations](https://github.com/elastic/integrations) repository to bump up the version ([sample PR](https://github.com/elastic/integrations/pull/1516)).
+
