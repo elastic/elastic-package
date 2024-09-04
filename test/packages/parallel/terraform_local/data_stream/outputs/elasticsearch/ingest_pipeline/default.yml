@@ -1,0 +1,14 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- json:
+    field: message
+    target_field: target
+- set:
+    field: error.message
+    value: not present target
+    if: ctx?.target == null
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'

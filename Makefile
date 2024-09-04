@@ -73,7 +73,7 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.16.0-77b64b1f-SNAPSHOT
+	./scripts/test-stack-command.sh 8.16.0-b0e0487a-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -109,11 +109,14 @@ test-check-packages-with-custom-agent:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
-test-install-zip:
-	./scripts/test-install-zip.sh
+test-build-install-zip:
+	./scripts/test-build-install-zip.sh
 
-test-install-zip-shellinit:
-	./scripts/test-install-zip.sh -s
+test-build-install-zip-file:
+	./scripts/test-build-install-zip-file.sh
+
+test-build-install-zip-file-shellinit:
+	./scripts/test-build-install-zip-file.sh -s
 
 test-system-test-flags:
 	./scripts/test-system-test-flags.sh
@@ -124,7 +127,7 @@ test-profiles-command:
 test-check-update-version:
 	./scripts/test-check-update-version.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip test-check-update-version
+test: test-go test-stack-command test-check-packages test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
 
 check-git-clean:
 	git update-index --really-refresh

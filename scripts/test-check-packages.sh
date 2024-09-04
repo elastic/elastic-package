@@ -24,7 +24,7 @@ cleanup() {
     kind delete cluster || true
   fi
 
-  # In case it is tested with Elatic serverless, there should be just one Elastic stack
+  # In case it is tested with Elastic serverless, there should be just one Elastic stack
   # started to test all packages. In our CI, this Elastic serverless stack is started 
   # at the beginning of the pipeline and must be running for all packages without stopping it between
   # packages.

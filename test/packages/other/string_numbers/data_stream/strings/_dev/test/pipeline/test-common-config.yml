@@ -1,0 +1,3 @@
+string_number_fields:
+  - "example.count"
+  - "example.metric"
