@@ -9,3 +9,13 @@
       type: text
     - name: file
       type: keyword
+    - name: branch
+      type: keyword
+    - name: build
+      type: keyword
+    - name: created_date 
+      type: keyword
+    - name: environment
+      type: keyword
+    - name: repo 
+      type: keyword
