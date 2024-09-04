@@ -828,19 +828,13 @@ func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 }
 
 func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
-	lastDotIndex := strings.LastIndex(key, ".")
-	if lastDotIndex < 0 {
-		// Field at the root level cannot be a multifield.
-		return false
-	}
-	parentKey := key[:lastDotIndex]
-	parent := FindElementDefinition(parentKey, fieldDefinitions)
+	parent := findParentElementDefinition(key, fieldDefinitions)
 	if parent == nil {
 		// Parent is not defined, so not sure what this can be.
 		return false
 	}
 	switch parent.Type {
-	case "", "group", "nested", "group-nested", "object":
+	case "", "group", "nested", "object":
 		// Objects cannot have multifields.
 		return false
 	}
@@ -861,8 +855,8 @@ func isArrayOfObjects(val any) bool {
 	return false
 }
 
-func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
-	for _, def := range FieldDefinitions {
+func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -878,12 +872,35 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return fd
 		}
 	}
+
+	if root == "" {
+		// No definition found, check if the parent is an object with object type.
+		parent := findParentElementDefinition(searchedKey, fieldDefinitions)
+		if parent != nil && parent.Type == "object" && parent.ObjectType != "" {
+			fd := *parent
+			fd.Name = searchedKey
+			fd.Type = parent.ObjectType
+			fd.ObjectType = ""
+			return &fd
+		}
+	}
+
 	return nil
 }
 
 // FindElementDefinition is a helper function used to find the fields definition in the schema.
 func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
+}
+
+func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return nil
+	}
+	parentKey := key[:lastDotIndex]
+	return FindElementDefinition(parentKey, fieldDefinitions)
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
@@ -1100,7 +1117,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group", "nested":
+	case "group", "nested", "object":
 		switch val := val.(type) {
 		case map[string]any:
 			// This is probably an element from an array of objects,
@@ -1124,7 +1141,19 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			// The document contains a null, let's consider this like an empty array.
 			return nil
 		default:
-			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			switch {
+			case definition.Type == "object" && definition.ObjectType != "":
+				// This is the leaf element of an object without wildcards in the name, adapt the definition and try again.
+				definition.Name = definition.Name + ".*"
+				definition.Type = definition.ObjectType
+				definition.ObjectType = ""
+				return v.parseSingleElementValue(key, definition, val, doc)
+			case definition.Type == "object" && definition.ObjectType == "":
+				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
+				return nil
+			}
+
+			return fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":

@@ -64,6 +64,25 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+
+	t.Run("no-subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/no-subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{
