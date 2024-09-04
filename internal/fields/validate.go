@@ -1149,7 +1149,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				definition.ObjectType = ""
 				return v.parseSingleElementValue(key, definition, val, doc)
 			case definition.Type == "object" && definition.ObjectType == "":
-				// Legacy mapping, abiguous definition not allowed by recent versions of the spec, ignore it.
+				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
 				return nil
 			}
 
