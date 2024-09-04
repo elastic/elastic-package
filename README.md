@@ -694,11 +694,7 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images
       (e.g. `docker.elastic.co/elastic-agent/elastic-agent-complete`). If set to `false`, the Elastic Agent image used for the running agents will be based on the wolfi
-<<<<<<< HEAD
-      images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `true`.
-=======
       images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `false`.
->>>>>>> upstream/main
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
@@ -743,3 +739,4 @@ git push upstream v0.15.0
 
 The CI will run a new job for the just pushed tag and publish released artifacts. Please expect an automated follow-up PR
 in the [Integrations](https://github.com/elastic/integrations) repository to bump up the version ([sample PR](https://github.com/elastic/integrations/pull/1516)).
+
