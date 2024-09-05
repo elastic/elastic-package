@@ -5,8 +5,9 @@
 package ingest
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -59,6 +60,7 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 	if err = yaml.Unmarshal(content, &p); err != nil {
 		return nil, err
 	}
+
 	for idx, entry := range p.Processors {
 		if entry.Kind != yaml.MappingNode || len(entry.Content) != 2 {
 			return nil, fmt.Errorf("processor#%d is not a single-key map (kind:%v content:%d)", idx, entry.Kind, len(entry.Content))
@@ -71,28 +73,88 @@ func processorsFromYAML(content []byte) (procs []Processor, err error) {
 			return nil, fmt.Errorf("error decoding processor#%d type: %w", idx, err)
 		}
 		proc.FirstLine = entry.Line
-		proc.LastLine = lastLine(&entry)
+		lastLine, err := getProcessorLastLine(idx, p.Processors, proc, content)
+		if err != nil {
+			return nil, err
+		}
+		proc.LastLine = lastLine
+
 		procs = append(procs, proc)
 	}
-	return procs, nil
+	return procs, err
 }
 
-// lastLine returns the last (greater) line number used by a yaml.Node.
-func lastLine(node *yaml.Node) int {
-	if node == nil {
-		return 0
-	}
-	last := node.Line
-	for _, inner := range node.Content {
-		if line := lastLine(inner); line > last {
-			last = line
-		}
-		// For scalar node with multiline content, calculate the last line based on line breaks
-		if inner.Kind == yaml.ScalarNode && strings.Contains(inner.Value, "\n") {
-			lineCount := strings.Count(inner.Value, "\n")
-			last += lineCount
+// getProcessorLastLine determines the last line number for the given processor.
+func getProcessorLastLine(idx int, processors []yaml.Node, currentProcessor Processor, content []byte) (int, error) {
+	if idx < len(processors)-1 {
+		var endProcessor = processors[idx+1].Line - 1
+		if endProcessor < currentProcessor.FirstLine {
+			return currentProcessor.FirstLine, nil
+		} else {
+			return processors[idx+1].Line - 1, nil
 		}
 	}
 
-	return last
+	return nextProcessorOrEndOfPipeline(content)
+}
+
+// lastProcessorLine get the line before the node after the processors node. If there is none, it returns the end of file line
+func nextProcessorOrEndOfPipeline(content []byte) (int, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(content, &root); err != nil {
+		return 0, fmt.Errorf("error unmarshaling YAML: %v", err)
+	}
+
+	var nodes []*yaml.Node
+	extractNodesFromMapping(&root, &nodes)
+	for i, node := range nodes {
+
+		if node.Value == "processors" {
+			if i < len(nodes)-1 {
+
+				return nodes[i+1].Line - 1, nil
+			}
+		}
+
+	}
+	return countLinesInBytes(content)
+}
+
+// extractNodesFromMapping recursively extracts all nodes from MappingNodes within DocumentNodes.
+func extractNodesFromMapping(node *yaml.Node, nodes *[]*yaml.Node) {
+	if node == nil {
+		return
+	}
+
+	if node.Kind == yaml.DocumentNode {
+		for _, child := range node.Content {
+			extractNodesFromMapping(child, nodes)
+		}
+		return
+	}
+
+	if node.Kind == yaml.MappingNode {
+		for _, child := range node.Content {
+			if child.Kind == yaml.MappingNode || child.Kind == yaml.ScalarNode {
+				*nodes = append(*nodes, child)
+			}
+			extractNodesFromMapping(child, nodes)
+		}
+	}
+}
+
+// countLinesInBytes counts the number of lines in the given byte slice.
+func countLinesInBytes(data []byte) (int, error) {
+	scanner := bufio.NewScanner(bytes.NewReader(data))
+	lineCount := 0
+
+	for scanner.Scan() {
+		lineCount++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return 0, fmt.Errorf("error reading data: %w", err)
+	}
+
+	return lineCount, nil
 }
