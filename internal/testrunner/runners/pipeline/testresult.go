@@ -38,7 +38,7 @@ func writeTestResult(testCasePath string, result *testResult, specVersion semver
 	if err != nil {
 		return fmt.Errorf("marshalling test result failed: %w", err)
 	}
-	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
+	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), append(data, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing test result failed: %w", err)
 	}

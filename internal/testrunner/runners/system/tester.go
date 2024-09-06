@@ -2016,7 +2016,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
