@@ -53,14 +53,14 @@ func TestSelectElasticAgentImageName_NextStackInOwnNamespace(t *testing.T) {
 	assert.Equal(t, selected, elasticAgentCompleteImageName)
 }
 
-func TestSelectElasticAgentImageName_DefaultImage816_WihtoutEnvVar(t *testing.T) {
+func TestSelectElasticAgentImageName_DefaultImage816_WithoutEnvVar(t *testing.T) {
 	version := stackVersion8160
 	// Try to keep the test agnostic from the environment variables defined in CI
 	t.Setenv(disableElasticAgentWolfiEnvVar, "")
 	os.Unsetenv(disableElasticAgentWolfiEnvVar)
 
 	selected := selectElasticAgentImageName(version, "")
-	assert.Equal(t, selected, elasticAgentCompleteImageName)
+	assert.Equal(t, selected, elasticAgentWolfiImageName)
 }
 
 func TestSelectElasticAgentImageName_DisableWolfiImageEnvVar(t *testing.T) {
