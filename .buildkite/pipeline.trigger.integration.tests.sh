@@ -83,6 +83,7 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
+    echo "          - build/test-results/*.xml.expected-errors.txt"  # these files are uploaded in case it is needed to review the xUnit files in case of CI reports success the step
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
 done
 popd > /dev/null
