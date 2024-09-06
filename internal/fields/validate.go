@@ -681,6 +681,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		switch {
 		case skipValidationForField(key):
 			return nil // generic field, let's skip validation for now
+		case isFlattenedSubfield(key, v.Schema):
+			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
 		case isArrayOfObjects(val):
 			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
 		case couldBeMultifield(key, v.Schema):
@@ -852,6 +854,22 @@ func isArrayOfObjects(val any) bool {
 			}
 		}
 	}
+	return false
+}
+
+func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
+	for strings.Contains(key, ".") {
+		i := strings.LastIndex(key, ".")
+		key = key[:i]
+		ancestor := FindElementDefinition(key, schema)
+		if ancestor == nil {
+			continue
+		}
+		if ancestor.Type == "flattened" {
+			return true
+		}
+	}
+
 	return false
 }
 
