@@ -59,9 +59,10 @@ function check_expected_errors() {
     cat ${results_no_spaces} | grep -E "${line}"
   done < "${expected_errors_file}"
 
-  # Copy XML files to another extension in case they need to be reviewed
+  # Copy XML files to another extension so they are not used to check jUnit tests
+  # but those files will be able to be reviewed afterwards
   for file in $(ls $result_tests) ; do
-      mv "${file}" "${file}.txt"
+      cp "${file}" "${file}.txt"
   done
   rm -f ${result_tests}
   rm -f ${results_no_spaces}
