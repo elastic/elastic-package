@@ -828,31 +828,32 @@ func skipValidationForField(key string) bool {
 // skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
 // version of the spec. This is relevant in documents that store fields without subobjects.
 func skipLeafOfObject(root, name string, specVersion semver.Version, schema []FieldDefinition) bool {
-	if specVersion.LessThan(semver3_0_1) {
-		// Check if this is a subobject of an object we didn't traverse.
-		if !strings.Contains(name, ".") {
-			return false
-		}
-		key := name
-		if root != "" {
-			key = root + "." + name
-		}
-		_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
-			// Don't look for ancestors beyond root, these objects have been already traversed.
-			if len(key) < len(root) {
-				return false
-			}
-			if !slices.Contains([]string{"group", "object", "nested", "flattened"}, def.Type) {
-				return false
-			}
-			return true
-		})
-		if ancestor != nil {
-			return true
-		}
+	// We are only skipping validation of these fields on versions older than 3.0.1.
+	if !specVersion.LessThan(semver3_0_1) {
+		return false
 	}
 
-	return false
+	// If it doesn't contain a dot in the name, we have traversed its parent, if any.
+	if !strings.Contains(name, ".") {
+		return false
+	}
+
+	key := name
+	if root != "" {
+		key = root + "." + name
+	}
+	_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
+		// Don't look for ancestors beyond root, these objects have been already traversed.
+		if len(key) < len(root) {
+			return false
+		}
+		if !slices.Contains([]string{"group", "object", "nested", "flattened"}, def.Type) {
+			return false
+		}
+		return true
+	})
+
+	return ancestor != nil
 }
 
 func isFieldFamilyMatching(family, key string) bool {

@@ -1108,7 +1108,7 @@ func TestSkipLeafOfObject(t *testing.T) {
 	// Cases we expect to skip depending on the version.
 	okRoots := []string{"flattened", "object", "group", "nested"}
 	for _, root := range okRoots {
-		t.Run("(empty root)", func(t *testing.T) {
+		t.Run("empty root with prefix "+root, func(t *testing.T) {
 			for _, c := range cases {
 				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
 					found := skipLeafOfObject("", root+"."+c.name, *c.version, schema)
