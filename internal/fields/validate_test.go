@@ -1048,6 +1048,98 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 	}
 }
 
+func TestSkipLeafOfObject(t *testing.T) {
+	schema := []FieldDefinition{
+		{
+			Name: "foo",
+			Type: "keyword",
+		},
+		{
+			Name: "flattened",
+			Type: "flattened",
+		},
+		{
+			Name: "object",
+			Type: "object",
+		},
+		{
+			Name: "nested",
+			Type: "nested",
+		},
+		{
+			Name: "group",
+			Type: "group",
+			Fields: []FieldDefinition{
+				{
+					Name: "subgroup",
+					Type: "object",
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		name     string
+		version  *semver.Version
+		expected bool
+	}{
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+	}
+
+	// Cases we expect to skip depending on the version.
+	okRoots := []string{"flattened", "object", "group", "nested"}
+	for _, root := range okRoots {
+		t.Run("(empty root)", func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject("", root+"."+c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+		t.Run(root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+	}
+
+	// Cases we never expect to skip.
+	notOkRoots := []string{"foo", "notexists", "group.subgroup.other"}
+	for _, root := range notOkRoots {
+		t.Run("not ok "+root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, false, found)
+				})
+			}
+		})
+	}
+}
+
 func readTestResults(t *testing.T, path string) (f results) {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
