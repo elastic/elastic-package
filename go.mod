@@ -1,6 +1,8 @@
 module github.com/elastic/elastic-package
 
-go 1.23.0
+go 1.22.1
+
+toolchain go1.23.1
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
