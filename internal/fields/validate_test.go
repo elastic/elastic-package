@@ -64,6 +64,25 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+
+	t.Run("no-subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/no-subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{
@@ -78,6 +97,22 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "testdata/numeric.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_WithStringNumberFields(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithStringNumberFields([]string{
+			"foo.count",  // Contains a number as string.
+			"foo.metric", // Contains a floating number as string.
+		}),
+		WithSpecVersion("2.3.0"), // Needed to validate normalization.
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/stringnumbers.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -344,14 +379,6 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
-			key:   "numeric string array to long",
-			value: []any{"123", "42"},
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
-		},
-		{
 			key:   "mixed numbers and strings in number array",
 			value: []any{123, "hi"},
 			definition: FieldDefinition{
@@ -527,15 +554,6 @@ func Test_parseElementValue(t *testing.T) {
 			definition: FieldDefinition{
 				Type: "float",
 			},
-		},
-		// long
-		{
-			key:   "bad long",
-			value: "65537",
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
 		},
 		// allowed values
 		{
@@ -1027,6 +1045,98 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 			require.NoError(t, err)
 		}
 		assert.Equal(t, c.SupportEcs, allVersionsIncludeECS(constraint), "constraint: %s", c.Constraints)
+	}
+}
+
+func TestSkipLeafOfObject(t *testing.T) {
+	schema := []FieldDefinition{
+		{
+			Name: "foo",
+			Type: "keyword",
+		},
+		{
+			Name: "flattened",
+			Type: "flattened",
+		},
+		{
+			Name: "object",
+			Type: "object",
+		},
+		{
+			Name: "nested",
+			Type: "nested",
+		},
+		{
+			Name: "group",
+			Type: "group",
+			Fields: []FieldDefinition{
+				{
+					Name: "subgroup",
+					Type: "object",
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		name     string
+		version  *semver.Version
+		expected bool
+	}{
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+	}
+
+	// Cases we expect to skip depending on the version.
+	okRoots := []string{"flattened", "object", "group", "nested"}
+	for _, root := range okRoots {
+		t.Run("empty root with prefix "+root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject("", root+"."+c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+		t.Run(root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+	}
+
+	// Cases we never expect to skip.
+	notOkRoots := []string{"foo", "notexists", "group.subgroup.other"}
+	for _, root := range notOkRoots {
+		t.Run("not ok "+root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, false, found)
+				})
+			}
+		})
 	}
 }
 

@@ -123,7 +123,8 @@ var (
 			},
 		},
 	}
-	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	enableIndependentAgentsEnv = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	dumpScenarioDocsEnv        = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 )
 
 type tester struct {
@@ -257,7 +258,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 
 	// If the environment variable is present, it always has preference over the root
 	// privileges value (if any) defined in the manifest file
-	v, ok := os.LookupEnv(enableIndependentAgents)
+	v, ok := os.LookupEnv(enableIndependentAgentsEnv)
 	if ok {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
@@ -404,13 +405,7 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	folderName := fmt.Sprintf("agent-%s", r.testFolder.Package)
-	if r.testFolder.DataStream != "" {
-		folderName = fmt.Sprintf("%s-%s", folderName, r.testFolder.DataStream)
-	}
-	folderName = fmt.Sprintf("%s-%s", folderName, runID)
-
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, folderName)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRootPath, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
@@ -426,6 +421,11 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	// and it should not be overwritten by the value in the manifest
 	if info.Agent.User == "" && agentManifest.Privileges.Root {
 		info.Agent.User = "root"
+	}
+
+	// This could be removed once package-spec adds this new field
+	if !slices.Contains([]string{"", "default", "complete", "systemd"}, info.Agent.BaseImage) {
+		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.base_image: %q", info.Agent.BaseImage)
 	}
 
 	return info, nil
@@ -654,7 +654,7 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 
 	// It seems that some index modes enable synthetic source mode even when it is not explicitly mentioned
 	// in the mappings. So assume that when these index modes are used, the synthetic mode is also used.
-	var syntheticsIndexModes = []string{
+	syntheticsIndexModes := []string{
 		"logs", // Replaced in 8.15.0 with "logsdb", see https://github.com/elastic/elasticsearch/pull/111054
 		"logsdb",
 		"time_series",
@@ -1442,6 +1442,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
+		fields.WithStringNumberFields(config.StringNumberFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
@@ -1529,7 +1530,34 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithError(err)
 	}
 
+	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
+		err := dumpScenarioDocs(scenario.docs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
+		}
+	}
+
 	return r.validateTestScenario(ctx, result, scenario, config)
+}
+
+func dumpScenarioDocs(docs any) error {
+	timestamp := time.Now().Format("20060102150405")
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create dump file: %w", err)
+	}
+	defer f.Close()
+
+	logger.Infof("Dumping scenario documents to %s", path)
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(docs); err != nil {
+		return fmt.Errorf("failed to encode docs: %w", err)
+	}
+	return nil
 }
 
 func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {

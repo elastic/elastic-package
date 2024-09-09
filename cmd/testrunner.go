@@ -79,7 +79,7 @@ func setupTestCommand() *cobraext.Command {
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	// Just used in pipeline and system tests
-	// Keep it here for backwards compatbility
+	// Keep it here for backwards compatibility
 	cmd.PersistentFlags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 
 	assetCmd := getTestRunnerAssetCommand()
@@ -743,7 +743,6 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		}
 	}
 	return nil
-
 }
 
 func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {

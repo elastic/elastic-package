@@ -229,7 +229,7 @@ var elasticAgentManagedYamlTmpl string
 func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -246,7 +246,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName stri
 		"fleetURL":                    "https://fleet-server:8220",
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
-		"elasticAgentImage":           appConfig.StackImageRefs(stackVersion).ElasticAgent,
+		"elasticAgentImage":           appConfig.StackImageRefs().ElasticAgent,
 		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
 	})
 	if err != nil {
