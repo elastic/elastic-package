@@ -99,7 +99,12 @@ type Conditions struct {
 
 // Discovery define indications for the data this package can be useful with.
 type Discovery struct {
-	Fields []string `config:"fields" json:"fields" yaml:"fields"`
+	Fields []DiscoveryField `config:"fields" json:"fields" yaml:"fields"`
+}
+
+// DiscoveryField defines a field used for discovery.
+type DiscoveryField struct {
+	Name string `config:"name" json:"name" yaml:"name"`
 }
 
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
