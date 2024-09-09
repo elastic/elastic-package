@@ -6,6 +6,8 @@ env:
   KIND_VERSION: 'v0.20.0'
   K8S_VERSION: 'v1.29.0'
   GH_CLI_VERSION: "2.29.0"
+  YQ_VERSION: 'v4.44.3'
+
   # Agent images used in pipeline steps
   UBUNTU_X86_64_AGENT_IMAGE: "family/core-ubuntu-2204"
 
@@ -14,6 +16,9 @@ env:
   ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT: "true"
   # Disable comparison of results in pipeline tests to avoid errors related to GeoIP fields
   ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS: "true"
+  # Enable/Disable the usage of wolfi images for Elastic Agent
+  ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI: "${ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI:-false}"
+
 
 steps:
   - input: "Input values for the variables"

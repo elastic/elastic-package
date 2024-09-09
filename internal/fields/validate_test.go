@@ -64,6 +64,25 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+
+	t.Run("no-subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/no-subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{
@@ -78,6 +97,22 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "testdata/numeric.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_WithStringNumberFields(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithStringNumberFields([]string{
+			"foo.count",  // Contains a number as string.
+			"foo.metric", // Contains a floating number as string.
+		}),
+		WithSpecVersion("2.3.0"), // Needed to validate normalization.
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/stringnumbers.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -344,14 +379,6 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
-			key:   "numeric string array to long",
-			value: []any{"123", "42"},
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
-		},
-		{
 			key:   "mixed numbers and strings in number array",
 			value: []any{123, "hi"},
 			definition: FieldDefinition{
@@ -527,15 +554,6 @@ func Test_parseElementValue(t *testing.T) {
 			definition: FieldDefinition{
 				Type: "float",
 			},
-		},
-		// long
-		{
-			key:   "bad long",
-			value: "65537",
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
 		},
 		// allowed values
 		{

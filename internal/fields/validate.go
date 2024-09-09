@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -135,7 +136,12 @@ type Validator struct {
 	expectedDatasets []string
 
 	defaultNumericConversion bool
-	numericKeywordFields     map[string]struct{}
+
+	// fields that store keywords, but can be received as numeric types.
+	numericKeywordFields []string
+
+	// fields that store numbers, but can be received as strings.
+	stringNumberFields []string
 
 	disabledDependencyManagement bool
 
@@ -176,10 +182,16 @@ func WithDefaultNumericConversion() ValidatorOption {
 // while defined as keyword or constant_keyword.
 func WithNumericKeywordFields(fields []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.numericKeywordFields = make(map[string]struct{}, len(fields))
-		for _, field := range fields {
-			v.numericKeywordFields[field] = struct{}{}
-		}
+		v.numericKeywordFields = common.StringSlicesUnion(v.numericKeywordFields, fields)
+		return nil
+	}
+}
+
+// WithStringNumberFields configures the validator to accept specific fields to have fields defined as numbers
+// as their string representation.
+func WithStringNumberFields(fields []string) ValidatorOption {
+	return func(v *Validator) error {
+		v.stringNumberFields = common.StringSlicesUnion(v.stringNumberFields, fields)
 		return nil
 	}
 }
@@ -669,6 +681,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		switch {
 		case skipValidationForField(key):
 			return nil // generic field, let's skip validation for now
+		case isFlattenedSubfield(key, v.Schema):
+			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
 		case isArrayOfObjects(val):
 			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
 		case couldBeMultifield(key, v.Schema):
@@ -676,12 +690,6 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		default:
 			return fmt.Errorf(`field %q is undefined`, key)
 		}
-	}
-
-	// Convert numeric keyword fields to string for validation.
-	_, found := v.numericKeywordFields[key]
-	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
-		val = convertNumericKeyword(val)
 	}
 
 	if !v.disabledNormalization {
@@ -799,41 +807,6 @@ func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (com
 	return newDoc, multifields, nil
 }
 
-// isNumericKeyword is used to identify values that can be numbers in the documents, but are ingested
-// as keywords.
-func isNumericKeyword(definition FieldDefinition, val any) bool {
-	var isNumber bool
-	switch val := val.(type) {
-	case bool, []bool, float64, []float64:
-		isNumber = true
-	case []any:
-		isNumber = true
-	loop:
-		for _, v := range val {
-			switch v.(type) {
-			case bool, float64:
-			default:
-				isNumber = false
-				break loop
-			}
-		}
-	}
-	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
-}
-
-func convertNumericKeyword(val any) any {
-	switch val := val.(type) {
-	case []any:
-		converted := make([]any, len(val))
-		for i, e := range val {
-			converted[i] = convertNumericKeyword(e)
-		}
-		return converted
-	default:
-		return fmt.Sprintf("%q", val)
-	}
-}
-
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
 // in every (most?) documents collected by Elastic Agent, but aren't defined in any integration in `fields.yml` files.
 // FIXME https://github.com/elastic/elastic-package/issues/147
@@ -857,19 +830,13 @@ func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 }
 
 func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
-	lastDotIndex := strings.LastIndex(key, ".")
-	if lastDotIndex < 0 {
-		// Field at the root level cannot be a multifield.
-		return false
-	}
-	parentKey := key[:lastDotIndex]
-	parent := FindElementDefinition(parentKey, fieldDefinitions)
+	parent := findParentElementDefinition(key, fieldDefinitions)
 	if parent == nil {
 		// Parent is not defined, so not sure what this can be.
 		return false
 	}
 	switch parent.Type {
-	case "", "group", "nested", "group-nested", "object":
+	case "", "group", "nested", "object":
 		// Objects cannot have multifields.
 		return false
 	}
@@ -890,8 +857,24 @@ func isArrayOfObjects(val any) bool {
 	return false
 }
 
-func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
-	for _, def := range FieldDefinitions {
+func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
+	for strings.Contains(key, ".") {
+		i := strings.LastIndex(key, ".")
+		key = key[:i]
+		ancestor := FindElementDefinition(key, schema)
+		if ancestor == nil {
+			continue
+		}
+		if ancestor.Type == "flattened" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -907,12 +890,35 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return fd
 		}
 	}
+
+	if root == "" {
+		// No definition found, check if the parent is an object with object type.
+		parent := findParentElementDefinition(searchedKey, fieldDefinitions)
+		if parent != nil && parent.Type == "object" && parent.ObjectType != "" {
+			fd := *parent
+			fd.Name = searchedKey
+			fd.Type = parent.ObjectType
+			fd.ObjectType = ""
+			return &fd
+		}
+	}
+
 	return nil
 }
 
 // FindElementDefinition is a helper function used to find the fields definition in the schema.
 func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
+}
+
+func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return nil
+	}
+	parentKey := key[:lastDotIndex]
+	return FindElementDefinition(parentKey, fieldDefinitions)
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
@@ -1015,12 +1021,19 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
 func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
-	err := v.parseAllElementValues(key, definition, val, doc)
+	// Validate types first for each element, so other checks don't need to worry about types.
+	err := forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 	if err != nil {
 		return err
 	}
 
-	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+	// Perform validations that need to be done on several fields at the same time.
+	err = v.parseAllElementValues(key, definition, val, doc)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // parseAllElementValues performs validations that must be done for all elements at once in
@@ -1029,11 +1042,7 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
-			strings, err := valueToStringsSlice(val)
-			if err != nil {
-				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
-			}
-			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
+			if err := ensureExpectedEventType(key, val, definition, doc); err != nil {
 				return err
 			}
 		}
@@ -1047,12 +1056,24 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
 	}
 
+	stringValue := func() (string, bool) {
+		switch val := val.(type) {
+		case string:
+			return val, true
+		case bool, float64:
+			if v.defaultNumericConversion || slices.Contains(v.numericKeywordFields, key) {
+				return fmt.Sprintf("%v", val), true
+			}
+		}
+		return "", false
+	}
+
 	switch definition.Type {
 	// Constant keywords can define a value in the definition, if they do, all
 	// values stored in this field should be this one.
 	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
@@ -1069,7 +1090,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
@@ -1114,7 +1135,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group", "nested":
+	case "group", "nested", "object":
 		switch val := val.(type) {
 		case map[string]any:
 			// This is probably an element from an array of objects,
@@ -1138,11 +1159,33 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			// The document contains a null, let's consider this like an empty array.
 			return nil
 		default:
-			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			switch {
+			case definition.Type == "object" && definition.ObjectType != "":
+				// This is the leaf element of an object without wildcards in the name, adapt the definition and try again.
+				definition.Name = definition.Name + ".*"
+				definition.Type = definition.ObjectType
+				definition.ObjectType = ""
+				return v.parseSingleElementValue(key, definition, val, doc)
+			case definition.Type == "object" && definition.ObjectType == "":
+				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
+				return nil
+			}
+
+			return fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		if _, valid := val.(float64); !valid {
+		switch val := val.(type) {
+		case float64:
+		case json.Number:
+		case string:
+			if !slices.Contains(v.stringNumberFields, key) {
+				return invalidTypeError()
+			}
+			if _, err := strconv.ParseFloat(val, 64); err != nil {
+				return invalidTypeError()
+			}
+		default:
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -1242,12 +1285,10 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 
 // ensureExpectedEventType validates that the document's `event.type` field is one of the expected
 // one for the given value.
-func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
+func ensureExpectedEventType(key string, val any, definition FieldDefinition, doc common.MapStr) error {
 	eventTypeVal, _ := doc.GetValue("event.type")
-	eventTypes, err := valueToStringsSlice(eventTypeVal)
-	if err != nil {
-		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
-	}
+	eventTypes := valueToStringsSlice(eventTypeVal)
+	values := valueToStringsSlice(val)
 	var expected []string
 	for _, value := range values {
 		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
@@ -1266,23 +1307,19 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 	return nil
 }
 
-func valueToStringsSlice(value any) ([]string, error) {
+func valueToStringsSlice(value any) []string {
 	switch v := value.(type) {
 	case nil:
-		return nil, nil
+		return nil
 	case string:
-		return []string{v}, nil
+		return []string{v}
 	case []any:
 		var values []string
 		for _, e := range v {
-			s, ok := e.(string)
-			if !ok {
-				return nil, fmt.Errorf("expected string or array of strings")
-			}
-			values = append(values, s)
+			values = append(values, fmt.Sprintf("%v", e))
 		}
-		return values, nil
+		return values
 	default:
-		return nil, fmt.Errorf("expected string or array of strings")
+		return []string{fmt.Sprintf("%v", v)}
 	}
 }
