@@ -662,6 +662,11 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 				errs = append(errs, err...)
 			}
 		default:
+			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
+				// Till some versions we skip some validations on leaf of objects, check if it is the case.
+				break
+			}
+
 			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
 				errs = append(errs, err)
@@ -820,6 +825,37 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("event.module", key) // field is deprecated
 }
 
+// skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
+// version of the spec. This is relevant in documents that store fields without subobjects.
+func skipLeafOfObject(root, name string, specVersion semver.Version, schema []FieldDefinition) bool {
+	// We are only skipping validation of these fields on versions older than 3.0.1.
+	if !specVersion.LessThan(semver3_0_1) {
+		return false
+	}
+
+	// If it doesn't contain a dot in the name, we have traversed its parent, if any.
+	if !strings.Contains(name, ".") {
+		return false
+	}
+
+	key := name
+	if root != "" {
+		key = root + "." + name
+	}
+	_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
+		// Don't look for ancestors beyond root, these objects have been already traversed.
+		if len(key) < len(root) {
+			return false
+		}
+		if !slices.Contains([]string{"group", "object", "nested", "flattened"}, def.Type) {
+			return false
+		}
+		return true
+	})
+
+	return ancestor != nil
+}
+
 func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
@@ -858,19 +894,11 @@ func isArrayOfObjects(val any) bool {
 }
 
 func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
-	for strings.Contains(key, ".") {
-		i := strings.LastIndex(key, ".")
-		key = key[:i]
-		ancestor := FindElementDefinition(key, schema)
-		if ancestor == nil {
-			continue
-		}
-		if ancestor.Type == "flattened" {
-			return true
-		}
-	}
+	_, ancestor := findAncestorElementDefinition(key, schema, func(_ string, def *FieldDefinition) bool {
+		return def.Type == "flattened"
+	})
 
-	return false
+	return ancestor != nil
 }
 
 func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
@@ -919,6 +947,22 @@ func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition)
 	}
 	parentKey := key[:lastDotIndex]
 	return FindElementDefinition(parentKey, fieldDefinitions)
+}
+
+func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinition, cond func(string, *FieldDefinition) bool) (string, *FieldDefinition) {
+	for strings.Contains(key, ".") {
+		i := strings.LastIndex(key, ".")
+		key = key[:i]
+		ancestor := FindElementDefinition(key, fieldDefinitions)
+		if ancestor == nil {
+			continue
+		}
+		if cond(key, ancestor) {
+			return key, ancestor
+		}
+	}
+
+	return "", nil
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
