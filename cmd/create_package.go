@@ -49,7 +49,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "type",
 			Prompt: &survey.Select{
 				Message: "Package type:",
-				Options: []string{"input", "integration"},
+				Options: []string{"input", "integration", "content"},
 				Default: "integration",
 			},
 			Validate: survey.Required,
