@@ -29,7 +29,7 @@ sources:
     name: Get latest snapshot build
     kind: json
     spec:
-      file: https://storage.googleapis.com/artifacts-api/snapshots/main.json
+      file: https://storage.googleapis.com/artifacts-api/snapshots/8.x.json
       key: .build_id
 
 targets:
