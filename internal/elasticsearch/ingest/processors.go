@@ -98,7 +98,7 @@ func getProcessorLastLine(idx int, processors []yaml.Node, currentProcessor Proc
 	return nextProcessorOrEndOfPipeline(content)
 }
 
-// lastProcessorLine get the line before the node after the processors node. If there is none, it returns the end of file line
+// nextProcessorOrEndOfPipeline get the line before the node after the processors node. If there is none, it returns the end of file line
 func nextProcessorOrEndOfPipeline(content []byte) (int, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(content, &root); err != nil {
