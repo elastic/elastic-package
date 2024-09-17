@@ -44,8 +44,8 @@ function setupChocolateyPath() {
 fixCRLF
 
 withGolang $env:GO_VERSION
-withDocker $env:DOCKER_VERSION
-withDockerCompose $env:DOCKER_COMPOSE_VERSION.Substring(1)
+# withDocker $env:DOCKER_VERSION
+# withDockerCompose $env:DOCKER_COMPOSE_VERSION.Substring(1)
 
 Write-Host "--- Docker Info"
 docker info
