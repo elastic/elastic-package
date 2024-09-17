@@ -75,6 +75,7 @@ steps:
         allow_failure: false
 
   # Disable step due to docker errors: https://buildkite.com/elastic/elastic-package/builds/4023#0191ff3a-f18b-4e43-9219-4957da065c37/1827-1829
+  # Related issue: https://github.com/elastic/elastic-package/issues/2107 
   # - label: ":windows: Run stack tests"
   #   key: stack-tests-windows
   #   command: ".buildkite/scripts/stack_tests_windows.ps1"
