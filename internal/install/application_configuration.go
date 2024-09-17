@@ -158,7 +158,7 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
+		logger.Errorf("stack version not in semver format (value: %s): %v", version, err)
 		return elasticAgentWolfiImageName
 	}
 
