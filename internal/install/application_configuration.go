@@ -169,7 +169,6 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 	}
 	switch {
 	case agentBaseImage == "complete":
-		// TODO: is this kind of docker image going to available for 9.0 ?
 		return selectElasticAgentCompleteImageName(v)
 	case agentBaseImage == "systemd":
 		return selectElasticAgentSystemDImageName(v)
