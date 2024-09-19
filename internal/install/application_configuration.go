@@ -153,13 +153,13 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
 func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if version == "" { // as version is optional and can be empty
-		return elasticAgentLegacyImageName
+		return elasticAgentWolfiImageName
 	}
 
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
-		return elasticAgentLegacyImageName
+		logger.Errorf("stack version not in semver format (value: %s): %v", version, err)
+		return elasticAgentWolfiImageName
 	}
 
 	disableWolfiImages := false
