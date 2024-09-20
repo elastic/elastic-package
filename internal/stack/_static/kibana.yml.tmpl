@@ -155,3 +155,7 @@ xpack.fleet.outputs:
         {{ indent $agent_key "        " }}
   {{ end }}
 {{ end }}
+
+{{- if eq $version "9.0.0-SNAPSHOT" }}
+xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
+{{- end }}
