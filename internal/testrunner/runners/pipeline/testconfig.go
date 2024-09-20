@@ -82,8 +82,10 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 		return nil, fmt.Errorf("can't load test configuration: %s: %w", configPath, err)
 	}
 
-	if err := cfg.Unpack(&c); err != nil {
-		return nil, fmt.Errorf("can't unpack test configuration: %s: %w", commonConfigPath, err)
+	if cfg != nil {
+		if err := cfg.Unpack(&c); err != nil {
+			return nil, fmt.Errorf("can't unpack test configuration: %s: %w", commonConfigPath, err)
+		}
 	}
 	return &c, nil
 }
