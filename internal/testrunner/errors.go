@@ -25,5 +25,5 @@ type ErrTestCaseConstraintsSkip struct {
 
 // Error returns the message detailing the test case failure.
 func (e ErrTestCaseConstraintsSkip) Error() string {
-	return fmt.Sprintf("test case skipped validation against expected output due to non matching constraints")
+	return "test case skipped validation against expected output due to non matching constraints"
 }

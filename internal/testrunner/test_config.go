@@ -35,7 +35,7 @@ func (s SkipConfig) String() string {
 	if s.Link.URL != nil {
 		return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
 	} else {
-		return fmt.Sprintf("%s", s.Reason)
+		return s.Reason
 	}
 }
 
