@@ -20,6 +20,16 @@ const (
 	commonTestConfigYAML = "test-common-config.yml"
 )
 
+type TestExpectedOutput struct {
+	// Name is the name of the file that contains the output which the test is expected to match.
+	Name string `config:"name"`
+
+	// VersionConstraints holds version constraints of running services, namely "elasticsearch",
+	// "kibana", etc. that need to match in order for this output to be considered as the
+	// expected one for the test.
+	VersionConstraints map[string]string `config:"version_constraints"`
+}
+
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
@@ -34,6 +44,9 @@ type testConfig struct {
 	// StringNumberFields holds a list of fields that have numeric
 	// types but can be ingested as strings.
 	StringNumberFields []string `config:"string_number_fields"`
+
+	// ExpectedOutputs holds the expected outputs of the test case.
+	ExpectedOutputs []TestExpectedOutput `config:"expected_outputs"`
 }
 
 type multiline struct {
@@ -47,26 +60,26 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 	commonConfigPath := filepath.Join(testCaseDir, commonTestConfigYAML)
 	var c testConfig
 	cfg, err := yaml.NewConfigWithFile(commonConfigPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	if err == nil {
+		if len(c.ExpectedOutputs) > 0 {
+			return nil, fmt.Errorf("expected_outputs is not supported in common configuration: %s", commonConfigPath)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("can't load common configuration: %s: %w", commonConfigPath, err)
 	}
 
-	if err == nil {
-		if err := cfg.Unpack(&c); err != nil {
-			return nil, fmt.Errorf("can't unpack test configuration: %s: %w", commonConfigPath, err)
-		}
-	}
-
 	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
-	cfg, err = yaml.NewConfigWithFile(configPath)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	cfgTestCase, err := yaml.NewConfigWithFile(configPath)
+	if err == nil {
+		if err := cfg.Merge(cfgTestCase); err != nil {
+			return nil, fmt.Errorf("can't merge common configuration %s with test case configuration %s: %w", commonConfigPath, configPath, err)
+		}
+	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("can't load test configuration: %s: %w", configPath, err)
 	}
 
-	if err == nil {
-		if err := cfg.Unpack(&c); err != nil {
-			return nil, fmt.Errorf("can't unpack test configuration: %s: %w", configPath, err)
-		}
+	if err := cfg.Unpack(&c); err != nil {
+		return nil, fmt.Errorf("can't unpack test configuration: %s: %w", commonConfigPath, err)
 	}
 	return &c, nil
 }

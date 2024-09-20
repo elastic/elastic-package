@@ -32,7 +32,11 @@ func (u *packedURL) Unpack(s string) error {
 }
 
 func (s SkipConfig) String() string {
-	return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
+	if s.Link.URL != nil {
+		return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
+	} else {
+		return fmt.Sprintf("%s", s.Reason)
+	}
 }
 
 // SkippableConfig is a test configuration that allows skipping. This

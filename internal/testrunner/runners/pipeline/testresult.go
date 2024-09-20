@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
@@ -30,15 +29,12 @@ type testResultDefinition struct {
 	Expected []json.RawMessage `json:"expected"`
 }
 
-func writeTestResult(testCasePath string, result *testResult, specVersion semver.Version) error {
-	testCaseDir := filepath.Dir(testCasePath)
-	testCaseFile := filepath.Base(testCasePath)
-
+func writeTestResult(expectedTestResultFile string, result *testResult, specVersion semver.Version) error {
 	data, err := marshalTestResultDefinition(result, specVersion)
 	if err != nil {
 		return fmt.Errorf("marshalling test result failed: %w", err)
 	}
-	err = os.WriteFile(filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile)), data, 0644)
+	err = os.WriteFile(expectedTestResultFile, data, 0644)
 	if err != nil {
 		return fmt.Errorf("writing test result failed: %w", err)
 	}
@@ -137,12 +133,8 @@ func diffJson(want, got []byte, specVersion semver.Version) (string, error) {
 	return buf.String(), err
 }
 
-func readExpectedTestResult(testCasePath string, config *testConfig) (*testResult, error) {
-	testCaseDir := filepath.Dir(testCasePath)
-	testCaseFile := filepath.Base(testCasePath)
-
-	path := filepath.Join(testCaseDir, expectedTestResultFile(testCaseFile))
-	data, err := os.ReadFile(path)
+func readExpectedTestResult(expectedTestResultFile string, config *testConfig) (*testResult, error) {
+	data, err := os.ReadFile(expectedTestResultFile)
 	if err != nil {
 		return nil, fmt.Errorf("reading test result file failed: %w", err)
 	}

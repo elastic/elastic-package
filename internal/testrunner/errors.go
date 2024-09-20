@@ -18,3 +18,12 @@ type ErrTestCaseFailed struct {
 func (e ErrTestCaseFailed) Error() string {
 	return fmt.Sprintf("test case failed: %s", e.Reason)
 }
+
+// ErrTestCaseConstraintsSkip represents a test case skipped due to version constraints specified in the config
+type ErrTestCaseConstraintsSkip struct {
+}
+
+// Error returns the message detailing the test case failure.
+func (e ErrTestCaseConstraintsSkip) Error() string {
+	return fmt.Sprintf("test case skipped validation against expected output due to non matching constraints")
+}

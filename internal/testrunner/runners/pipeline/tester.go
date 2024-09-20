@@ -54,6 +54,8 @@ type tester struct {
 	runCompareResults bool
 
 	provider stack.Provider
+
+	servicesVersions map[string]*semver.Version
 }
 
 type PipelineTesterOptions struct {
@@ -67,6 +69,7 @@ type PipelineTesterOptions struct {
 	CoverageType       string
 	TestCaseFile       string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	ServicesVersions   map[string]*semver.Version
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -81,6 +84,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		globalTestConfig:   options.GlobalTestConfig,
+		servicesVersions:   options.ServicesVersions,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)
@@ -344,6 +348,12 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 
 	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 	if err != nil {
+		if _, ok := err.(*testrunner.ErrTestCaseConstraintsSkip); ok {
+			results, _ := rc.WithSkip(&testrunner.SkipConfig{
+				Reason: err.Error(),
+			})
+			return results, nil
+		}
 		results, _ := rc.WithErrorf("verifying test result failed: %w", err)
 		return results, nil
 	}
@@ -409,7 +419,6 @@ func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 }
 
 func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
-	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -420,8 +429,13 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 		return fmt.Errorf("failed to parse package format version %q: %w", manifest.SpecVersion, err)
 	}
 
+	expectedResultFile, err := r.extractExpectedResultFile(testCaseFile, config)
+	if err != nil {
+		return err
+	}
+
 	if r.generateTestResult {
-		err := writeTestResult(testCasePath, result, *specVersion)
+		err := writeTestResult(expectedResultFile, result, *specVersion)
 		if err != nil {
 			return fmt.Errorf("writing test result failed: %w", err)
 		}
@@ -429,7 +443,7 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 
 	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
-		err = compareResults(testCasePath, config, result, *specVersion)
+		err = compareResults(expectedResultFile, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			return err
 		}
@@ -450,6 +464,48 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 		return err
 	}
 	return nil
+}
+
+func (r *tester) extractExpectedResultFile(testCaseFile string, config *testConfig) (string, error) {
+	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
+
+	if len(config.ExpectedOutputs) == 0 {
+		return expectedTestResultFile(testCasePath), nil
+	}
+
+	for _, expectedOutput := range config.ExpectedOutputs {
+		matches := true
+		for serviceName, versionConstraint := range expectedOutput.VersionConstraints {
+			serviceVersion, ok := r.servicesVersions[serviceName]
+			if !ok {
+				return "", fmt.Errorf("service %s not found", serviceName)
+			}
+
+			constraint, err := semver.NewConstraint(versionConstraint)
+			if err != nil {
+				return "", fmt.Errorf("failed to parse service version %q for service %s: %w", serviceVersion, serviceName, err)
+			}
+
+			if !constraint.Check(serviceVersion) {
+				matches = false
+				break
+			}
+		}
+
+		if !matches {
+			continue
+		}
+
+		if strings.HasPrefix(expectedOutput.Name, "/") {
+			// this is an absolute path
+			return expectedOutput.Name, nil
+		} else {
+			// this is a relative path
+			return filepath.Join(r.testFolder.Path, expectedOutput.Name), nil
+		}
+	}
+
+	return "", &testrunner.ErrTestCaseConstraintsSkip{}
 }
 
 // stripEmptyTestResults function removes events which are nils. These nils can represent
