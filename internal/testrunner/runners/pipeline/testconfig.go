@@ -71,8 +71,12 @@ func readConfigForTestCase(testCasePath string) (*testConfig, error) {
 	configPath := filepath.Join(testCaseDir, expectedTestConfigFile(testCaseFile, configTestSuffixYAML))
 	cfgTestCase, err := yaml.NewConfigWithFile(configPath)
 	if err == nil {
-		if err := cfg.Merge(cfgTestCase); err != nil {
-			return nil, fmt.Errorf("can't merge common configuration %s with test case configuration %s: %w", commonConfigPath, configPath, err)
+		if cfg == nil {
+			cfg = cfgTestCase
+		} else {
+			if err := cfg.Merge(cfgTestCase); err != nil {
+				return nil, fmt.Errorf("can't merge common configuration %s with test case configuration %s: %w", commonConfigPath, configPath, err)
+			}
 		}
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("can't load test configuration: %s: %w", configPath, err)
