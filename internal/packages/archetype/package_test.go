@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -27,6 +28,10 @@ func TestPackage(t *testing.T) {
 	})
 	t.Run("input-package", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("input", "^8.9.0")
+		createAndCheckPackage(t, pd, true)
+	})
+	t.Run("content-package", func(t *testing.T) {
+		pd := createPackageDescriptorForTest("content", "^8.16.0")
 		createAndCheckPackage(t, pd, true)
 	})
 }
@@ -52,9 +57,20 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			},
 		}
 	}
+	version := "1.2.3"
 	specVersion, err := GetLatestStableSpecVersion()
+	excludeChecks := []string{}
 	if err != nil {
 		panic(err)
+	}
+	if packageType == "content" {
+		minSpecVersion := semver.MustParse("3.4.0")
+		if !specVersion.LessThan(minSpecVersion) {
+			panic("this code can be removed")
+		}
+		version = "0.1.0"
+		specVersion = *minSpecVersion
+		excludeChecks = append(excludeChecks, "PSR00002")
 	}
 	return PackageDescriptor{
 		Manifest: packages.PackageManifest{
@@ -62,7 +78,7 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			Name:        "go_unit_test_package",
 			Title:       "Go Unit Test Package",
 			Type:        packageType,
-			Version:     "1.2.3",
+			Version:     version,
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
 					Version: kibanaVersion,
@@ -79,12 +95,13 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			Categories:    []string{"aws", "custom"},
 			Elasticsearch: elasticsearch,
 		},
+		ExcludeChecks:       excludeChecks,
 		InputDataStreamType: inputDataStreamType,
 	}
 }
 
 func checkPackage(t *testing.T, packageRoot string, valid bool) {
-	err := validation.ValidateFromPath(packageRoot)
+	err, _ := validation.ValidateAndFilterFromPath(packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return

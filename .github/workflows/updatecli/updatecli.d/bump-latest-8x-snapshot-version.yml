@@ -1,6 +1,6 @@
 ---
-name: Bump latest elastic-stack test version
-pipelineid: 'bump-latest-elastic-stack-version'
+name: Bump latest 8.x-SNAPSHOT elastic-stack test version
+pipelineid: 'bump-latest-8x-elastic-stack-version'
 
 actions:
   default:
@@ -29,7 +29,7 @@ sources:
     name: Get latest snapshot build
     kind: json
     spec:
-      file: https://storage.googleapis.com/artifacts-api/snapshots/main.json
+      file: https://storage.googleapis.com/artifacts-api/snapshots/8.x.json
       key: .build_id
 
 targets:

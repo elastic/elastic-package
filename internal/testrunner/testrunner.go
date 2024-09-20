@@ -503,7 +503,7 @@ func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 	switch manifest.Type {
 	case "integration":
 		return true, nil
-	case "input":
+	case "input", "content":
 		return false, nil
 	default:
 		return false, fmt.Errorf("unexpected package type %q", manifest.Type)

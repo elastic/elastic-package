@@ -250,11 +250,11 @@ func addClientCertsToResources(resourceManager *resource.Manager, certResources 
 func semverLessThan(a, b string) (bool, error) {
 	sa, err := semver.NewVersion(a)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %q", err, a)
 	}
 	sb, err := semver.NewVersion(b)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %q", err, b)
 	}
 
 	return sa.LessThan(sb), nil

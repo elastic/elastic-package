@@ -20,6 +20,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-7x
     test-stack-command-86
     test-stack-command-8x
+    test-stack-command-9x
     test-stack-command-with-apm-server
 )
 

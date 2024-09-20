@@ -16,6 +16,10 @@ conditions:
     version: "{{.Manifest.Conditions.Kibana.Version}}"
   elastic:
     subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
+{{- if eq .Manifest.Type "content" }}
+discovery:
+  fields: []
+{{- end }}
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot
@@ -26,6 +30,7 @@ icons:
     title: Sample logo
     size: 32x32
     type: image/svg+xml
+{{- if (or (eq .Manifest.Type "integration") (eq .Manifest.Type "input")) }}
 policy_templates:
 {{- if eq .Manifest.Type "integration" }}
   - name: sample
@@ -71,6 +76,7 @@ policy_templates:
         default:
           - localhost
 {{ end }}
+{{ end -}}
 {{ end -}}
 {{ if .Manifest.Elasticsearch }}
 elasticsearch:
