@@ -32,6 +32,7 @@ const (
 	elasticAgentImageName               = "docker.elastic.co/elastic-agent/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
+	elasticAgentCompleteWolfiImageName  = "docker.elastic.co/elastic-agent/elastic-agent-wolfi-complete"
 	elasticAgentWolfiImageName          = "docker.elastic.co/elastic-agent/elastic-agent-wolfi"
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
@@ -167,18 +168,21 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if ok && strings.ToLower(valueEnv) != "false" {
 		disableWolfiImages = true
 	}
-	switch {
-	case agentBaseImage == "complete":
-		return selectElasticAgentCompleteImageName(v)
-	case agentBaseImage == "systemd":
+
+	shouldUseWolfiImages := !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion)
+	switch agentBaseImage {
+	case "systemd":
 		return selectElasticAgentSystemDImageName(v)
-	default:
-		switch {
-		case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion):
-			return elasticAgentWolfiImageName
-		default:
-			return selectElasticAgentCompleteImageName(v)
+	case "complete":
+		if shouldUseWolfiImages {
+			return elasticAgentCompleteWolfiImageName
 		}
+		return selectElasticAgentCompleteImageName(v)
+	default:
+		if shouldUseWolfiImages {
+			return elasticAgentWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
 	}
 }
 

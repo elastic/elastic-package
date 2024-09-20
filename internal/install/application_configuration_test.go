@@ -76,10 +76,16 @@ func TestSelectElasticAgentImageName_EnableWolfiImageEnvVar(t *testing.T) {
 	assert.Equal(t, elasticAgentWolfiImageName, selected)
 }
 
-func TestSelectCompleteElasticAgentImageName_ForceCompleteImage(t *testing.T) {
-	version := stackVersion8160
+func TestSelectCompleteElasticAgentImageName_ForceCompleteImage_NonWolfi(t *testing.T) {
+	version := "8.15.0"
 	selected := selectElasticAgentImageName(version, "complete")
 	assert.Equal(t, elasticAgentCompleteImageName, selected)
+}
+
+func TestSelectCompleteElasticAgentImageName_ForceCompleteImage_Wolfi(t *testing.T) {
+	version := stackVersion8160
+	selected := selectElasticAgentImageName(version, "complete")
+	assert.Equal(t, elasticAgentCompleteWolfiImageName, selected)
 }
 
 func TestSelectCompleteElasticAgentImageName_ForceDefaultImage_DisabledEnvVar(t *testing.T) {
