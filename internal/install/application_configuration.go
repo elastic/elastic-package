@@ -163,27 +163,32 @@ func selectElasticAgentImageName(version, agentBaseImage string) string {
 		return elasticAgentWolfiImageName
 	}
 
+	shouldUseWolfiImage := shouldUseWolfiImages(v)
+
+	switch agentBaseImage {
+	case "systemd":
+		return selectElasticAgentSystemDImageName(v)
+	case "complete":
+		if shouldUseWolfiImage {
+			return elasticAgentCompleteWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	default:
+		if shouldUseWolfiImage {
+			return elasticAgentWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	}
+}
+
+func shouldUseWolfiImages(version *semver.Version) bool {
 	disableWolfiImages := false
 	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
 	if ok && strings.ToLower(valueEnv) != "false" {
 		disableWolfiImages = true
 	}
 
-	shouldUseWolfiImages := !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion)
-	switch agentBaseImage {
-	case "systemd":
-		return selectElasticAgentSystemDImageName(v)
-	case "complete":
-		if shouldUseWolfiImages {
-			return elasticAgentCompleteWolfiImageName
-		}
-		return selectElasticAgentCompleteImageName(v)
-	default:
-		if shouldUseWolfiImages {
-			return elasticAgentWolfiImageName
-		}
-		return selectElasticAgentCompleteImageName(v)
-	}
+	return !disableWolfiImages && !version.LessThan(elasticAgentWolfiVersion)
 }
 
 func selectElasticAgentCompleteImageName(version *semver.Version) string {
