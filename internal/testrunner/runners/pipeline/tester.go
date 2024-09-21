@@ -348,12 +348,6 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 
 	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
 	if err != nil {
-		if _, ok := err.(*testrunner.ErrTestCaseConstraintsSkip); ok {
-			results, _ := rc.WithSkip(&testrunner.SkipConfig{
-				Reason: err.Error(),
-			})
-			return results, nil
-		}
 		results, _ := rc.WithErrorf("verifying test result failed: %w", err)
 		return results, nil
 	}
@@ -431,7 +425,7 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 
 	expectedResultFile, err := r.extractExpectedResultFile(testCaseFile, config)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to extract expected result file: %w", err)
 	}
 
 	if r.generateTestResult {
@@ -505,7 +499,7 @@ func (r *tester) extractExpectedResultFile(testCaseFile string, config *testConf
 		}
 	}
 
-	return "", &testrunner.ErrTestCaseConstraintsSkip{}
+	return expectedTestResultFile(testCasePath), nil
 }
 
 // stripEmptyTestResults function removes events which are nils. These nils can represent
