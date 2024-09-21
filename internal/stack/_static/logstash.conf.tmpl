@@ -21,14 +21,26 @@ filter {
 }
 
 output {
-  elasticsearch {
-    hosts => ["{{ $elasticsearch_host }}"]
-    user => '{{ fact "username" }}'
-    password => '{{ fact "password" }}'
-    ssl_enabled => true
-{{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
-    ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
-    document_id => "%{[@metadata][_ingest_document][id]}"
-{{- end }}
+  if [@metadata][_ingest_document][id] {
+    elasticsearch {
+      hosts => ["{{ $elasticsearch_host }}"]
+      user => '{{ fact "username" }}'
+      password => '{{ fact "password" }}'
+      ssl_enabled => true
+  {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
+      ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
+      document_id => "%{[@metadata][_ingest_document][id]}"
+  {{- end }}
+    }
+  } else {
+    elasticsearch {
+      hosts => ["{{ $elasticsearch_host }}"]
+      user => '{{ fact "username" }}'
+      password => '{{ fact "password" }}'
+      ssl_enabled => true
+  {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
+      ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
+  {{- end }}
+    }
   }
 }
