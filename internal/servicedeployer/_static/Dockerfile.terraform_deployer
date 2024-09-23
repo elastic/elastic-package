@@ -1,19 +1,22 @@
-FROM --platform=linux/amd64 ubuntu:20.04
-ENV GCLOUD_SDK_VERSION 370.0.0-0
-ENV TERRAFORM_VERSION 1.1.4
+FROM --platform=linux/amd64 ubuntu:24.04
+ENV GCLOUD_SDK_VERSION=467.0.0-0
+ENV TERRAFORM_VERSION=1.9.6
 
 RUN apt-get -qq update \
-  && apt-get install -yq curl apt-transport-https ca-certificates gnupg
+  && apt-get install -yq curl apt-transport-https ca-certificates gnupg \
+  && apt-get clean
 
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
-  && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg  add - \
+  && curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg \
   && apt-get update -qq \
-  && apt-get install google-cloud-sdk=${GCLOUD_SDK_VERSION} -yq
+  && apt-get install google-cloud-sdk=${GCLOUD_SDK_VERSION} -yq \
+  && apt-get clean
 
-RUN echo "deb [arch=amd64] https://apt.releases.hashicorp.com focal main" | tee -a /etc/apt/sources.list.d/hashicorp.list \
-  && curl -fsSL https://apt.releases.hashicorp.com/gpg | apt-key add - \
-  && apt-get -qq update \
-  && apt-get install -yq terraform=${TERRAFORM_VERSION}
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" | tee /etc/apt/sources.list.d/hashicorp.list \
+  && apt-get update -qq \
+  && apt-get install -yq terraform=${TERRAFORM_VERSION}-1 \
+  && apt-get clean
 
 HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
 
