@@ -14,7 +14,10 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
+
+	"github.com/Masterminds/semver/v3"
 )
 
 const (
@@ -119,6 +122,23 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 	}
 
+	servicesStatus, err := stack.Status(ctx, stack.Options{Profile: r.profile})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stack status: %w", err)
+	}
+
+	var servicesVersions map[string]*semver.Version
+	if len(servicesStatus) > 0 {
+		servicesVersions = make(map[string]*semver.Version, len(servicesVersions))
+		for _, ss := range servicesStatus {
+			version, err := semver.NewVersion(ss.Version)
+			if err != nil {
+				continue
+			}
+			servicesVersions[ss.Name] = version
+		}
+	}
+
 	var testers []testrunner.Tester
 	for _, folder := range folders {
 		testCaseFiles, err := r.listTestCaseFiles(folder)
@@ -138,6 +158,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				API:                r.esAPI,
 				TestCaseFile:       caseFile,
 				GlobalTestConfig:   r.globalTestConfig,
+				ServicesVersions:   servicesVersions,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)
