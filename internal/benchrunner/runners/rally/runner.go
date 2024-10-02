@@ -490,7 +490,6 @@ func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)
 	}
@@ -729,7 +728,6 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 
 // This seems to be the most performing way to calculate number of lines from an `io.Reader` (see: https://stackoverflow.com/a/52153000)
 func countLine(r io.Reader) (uint64, error) {
-
 	var count uint64
 	const lineBreak = '\n'
 
@@ -1062,7 +1060,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 type searchResponse struct {
 	Error *struct {
-		Reason string `json:"reson"`
+		Reason string `json:"reason"`
 	} `json:"error"`
 	ScrollID string `json:"_scroll_id"`
 	Hits     []struct {
