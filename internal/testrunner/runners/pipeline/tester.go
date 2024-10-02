@@ -168,7 +168,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	startTesting := time.Now()
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.esAPI, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath)
 	if err != nil {
 		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
@@ -278,7 +278,6 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error at parsing logs of elasticseach: %w", err)
 	}
@@ -297,7 +296,6 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	}
 
 	return []testrunner.TestResult{tr}, nil
-
 }
 
 func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) ([]testrunner.TestResult, error) {

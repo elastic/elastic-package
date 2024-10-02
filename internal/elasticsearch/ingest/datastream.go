@@ -6,6 +6,7 @@ package ingest
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -45,7 +46,7 @@ type RerouteProcessor struct {
 	Namespace []string `yaml:"namespace"`
 }
 
-func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
+func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, fmt.Errorf("reading data stream manifest failed: %w", err)
@@ -59,7 +60,7 @@ func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (
 		return "", nil, fmt.Errorf("loading ingest pipeline files failed: %w", err)
 	}
 
-	err = installPipelinesInElasticsearch(api, pipelines)
+	err = installPipelinesInElasticsearch(ctx, api, pipelines)
 	if err != nil {
 		return "", nil, err
 	}
@@ -232,9 +233,9 @@ func convertValue(value interface{}, label string) ([]string, error) {
 	}
 }
 
-func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
+func installPipelinesInElasticsearch(ctx context.Context, api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
-		if err := installPipeline(api, p); err != nil {
+		if err := installPipeline(ctx, api, p); err != nil {
 			return err
 		}
 	}
@@ -251,20 +252,22 @@ func pipelineError(err error, pipeline Pipeline, format string, args ...interfac
 	return fmt.Errorf("%s: %w", errorStr, err)
 }
 
-func installPipeline(api *elasticsearch.API, pipeline Pipeline) error {
-	if err := putIngestPipeline(api, pipeline); err != nil {
+func installPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
+	if err := putIngestPipeline(ctx, api, pipeline); err != nil {
 		return err
 	}
 	// Just to be sure the pipeline has been uploaded.
-	return getIngestPipeline(api, pipeline)
+	return getIngestPipeline(ctx, api, pipeline)
 }
 
-func putIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
+func putIngestPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
 	source, err := pipeline.MarshalJSON()
 	if err != nil {
 		return err
 	}
-	r, err := api.Ingest.PutPipeline(pipeline.Name, bytes.NewReader(source))
+	r, err := api.Ingest.PutPipeline(pipeline.Name, bytes.NewReader(source),
+		api.Ingest.PutPipeline.WithContext(ctx),
+	)
 	if err != nil {
 		return pipelineError(err, pipeline, "PutPipeline API call failed")
 	}
@@ -283,10 +286,11 @@ func putIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	return nil
 }
 
-func getIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
-	r, err := api.Ingest.GetPipeline(func(request *elasticsearch.IngestGetPipelineRequest) {
-		request.PipelineID = pipeline.Name
-	})
+func getIngestPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
+	r, err := api.Ingest.GetPipeline(
+		api.Ingest.GetPipeline.WithContext(ctx),
+		api.Ingest.GetPipeline.WithPipelineID(pipeline.Name),
+	)
 	if err != nil {
 		return pipelineError(err, pipeline, "GetPipeline API call failed")
 	}
