@@ -748,7 +748,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	logger.Debug("starting reindexing of data...")
 
-	logger.Debug("getting orignal mappings...")
+	logger.Debug("getting original mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
 		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
