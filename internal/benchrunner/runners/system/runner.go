@@ -855,7 +855,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 type searchResponse struct {
 	Error *struct {
-		Reason string `json:"reson"`
+		Reason string `json:"reason"`
 	} `json:"error"`
 	ScrollID string `json:"_scroll_id"`
 	Hits     []struct {
