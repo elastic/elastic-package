@@ -6,10 +6,12 @@ package fields
 
 import (
 	"bufio"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -153,6 +156,11 @@ type Validator struct {
 	disabledNormalization bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	esAPI            *elasticsearch.API
+	dataStream       string
+	Mappings         *Mappings
+	SchemaDataStream []FieldDefinition
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -244,6 +252,22 @@ func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	}
 }
 
+// WithElasticsearchAPI configures the Elasticsearch API client.
+func WithElasticsearchAPI(esAPI *elasticsearch.API) ValidatorOption {
+	return func(v *Validator) error {
+		v.esAPI = esAPI
+		return nil
+	}
+}
+
+// WithDataStream configures the DataStream to query in Elasticsearch.
+func WithDataStream(dataStream string) ValidatorOption {
+	return func(v *Validator) error {
+		v.dataStream = dataStream
+		return nil
+	}
+}
+
 type packageRootFinder interface {
 	FindPackageRoot() (string, bool, error)
 }
@@ -276,6 +300,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
+		logger.Debugf(">>>> Mario >> Loading ECS fields")
 		packageRoot, found, err := finder.FindPackageRoot()
 		if err != nil {
 			return nil, fmt.Errorf("can't find package root: %w", err)
@@ -289,12 +314,29 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		}
 	}
 
+	logger.Debugf(">>>>> MARIO >>> All fields from ECS\n%+v", v.Schema)
+
 	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
+	// logger.Debugf(">>>>> MARIO >>> All fields from package\n%+v", fields)
+
 	v.Schema = append(fields, v.Schema...)
+
+	v.Mappings, err = v.loadMappingsFromES()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err)
+	}
+
+	v.SchemaDataStream, err = loadFieldDefinitionsFromMappings("", &v.Mappings.Properties)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load fields definitions from mappings (data stream %s): %w", v.dataStream, err)
+	}
+
+	logger.Debugf(">>>> Mario >> Mappings DataStream Field Definition\n%+v", v.SchemaDataStream)
+
 	return v, nil
 }
 
@@ -681,6 +723,13 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		return nil // root key is always valid
 	}
 
+	dataStreamDefinition := FindElementDefinition(key, v.SchemaDataStream)
+	if dataStreamDefinition == nil {
+		logger.Debugf(">>> Mario > Not found definition in data stream for key %s", key)
+	} else {
+		logger.Debugf(">>> Mario > found definition in data stream for key %s:\n%+v", key, dataStreamDefinition)
+	}
+
 	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil {
 		switch {
@@ -696,6 +745,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 			return fmt.Errorf(`field %q is undefined`, key)
 		}
 	}
+
+	logger.Debugf(">>> Mario > definition found in schema for %s:\n%+v", key, definition)
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
@@ -822,7 +873,9 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("event", key) || // too many common fields
 		isFieldFamilyMatching("host", key) || // too many common fields
 		isFieldFamilyMatching("metricset", key) || // field is deprecated
-		isFieldFamilyMatching("event.module", key) // field is deprecated
+		isFieldFamilyMatching("event.module", key) || // field is deprecated
+		isFieldFamilyMatching("doc.before_ingested", key) || // field used to store the whole document
+		isFieldFamilyMatching("doc.before_ingested_all", key) // field used to store the whole document
 }
 
 // skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
@@ -1366,4 +1419,91 @@ func valueToStringsSlice(value any) []string {
 	default:
 		return []string{fmt.Sprintf("%v", v)}
 	}
+}
+
+type Properties map[string]Definition
+
+type Definition struct {
+	Type        string     `json:"type,omitempty"`
+	Value       string     `json:"value,omitempty"`
+	IgnoreAbove int        `json:"ignore_above,omitempty"`
+	Properties  Properties `json:"properties,omitempty"`
+	Fields      Properties `json:"fields,omitempty"` // As MultiFields in FieldDefinition
+}
+
+type Mappings struct {
+	Dynamic          bool            `json:"dynamic"`
+	DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+	DateDetection    bool            `json:"date_detection"`
+	Properties       Properties      `json:"properties"`
+}
+
+func (v *Validator) loadMappingsFromES() (*Mappings, error) {
+	mappingResp, err := v.esAPI.Indices.GetMapping(
+		v.esAPI.Indices.GetMapping.WithContext(context.TODO()),
+		v.esAPI.Indices.GetMapping.WithIndex(v.dataStream),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
+	}
+	defer mappingResp.Body.Close()
+	if mappingResp.IsError() {
+		return nil, fmt.Errorf("error getting mapping: %s", mappingResp)
+	}
+	body, err := io.ReadAll(mappingResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	mappingsRaw := map[string]struct {
+		Mappings Mappings `json:"mappings"`
+	}{}
+
+	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
+		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	if len(mappingsRaw) != 1 {
+		return nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
+	}
+
+	var mappingsDefinition Mappings
+	for _, v := range mappingsRaw {
+		mappingsDefinition = v.Mappings
+	}
+
+	logger.Debugf(">>>> Mario >> Data stream %q", v.dataStream)
+	key := "cloud"
+	logger.Debugf(">>>> Mario >> Properties [%s] -> %+v", key, mappingsDefinition.Properties[key])
+
+	return &mappingsDefinition, nil
+}
+
+func loadFieldDefinitionsFromMappings(root string, properties *Properties) ([]FieldDefinition, error) {
+	var definitions []FieldDefinition
+	var err error
+
+	for key, entry := range *properties {
+		full_path := fmt.Sprintf("%s.%s", root, key)
+		definition := FieldDefinition{
+			Name: key,
+		}
+		if entry.Type != "" {
+			definition.Type = entry.Type
+		}
+
+		definition.Fields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Properties)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load properties from %s: %w", full_path, err)
+		}
+
+		definition.MultiFields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Fields)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load fields from %s: %w", full_path, err)
+		}
+
+		definitions = append(definitions, definition)
+	}
+
+	return definitions, nil
 }

@@ -1388,7 +1388,7 @@ func (r *tester) removeServiceStateFile() error {
 
 func (r *tester) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
@@ -1446,6 +1446,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		fields.WithElasticsearchAPI(r.esAPI),
+		fields.WithDataStream(scenario.dataStream),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -2016,7 +2018,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
