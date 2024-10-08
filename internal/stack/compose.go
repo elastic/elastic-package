@@ -18,6 +18,7 @@ type ServiceStatus struct {
 	Name    string
 	Status  string
 	Version string
+	Labels  *docker.ConfigLabels // Container labels.
 }
 
 const readyServicesSuffix = "is_ready"
@@ -214,6 +215,7 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 		Name:    description.Config.Labels.ComposeService,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
+		Labels:  &description.Config.Labels,
 	}
 	if description.State.Status == "running" {
 		healthStatus := "unknown health"
