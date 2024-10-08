@@ -23,6 +23,7 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/cbroglie/mustache"
+	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -300,7 +301,6 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
-		logger.Debugf(">>>> Mario >> Loading ECS fields")
 		packageRoot, found, err := finder.FindPackageRoot()
 		if err != nil {
 			return nil, fmt.Errorf("can't find package root: %w", err)
@@ -314,28 +314,12 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		}
 	}
 
-	logger.Debugf(">>>>> MARIO >>> All fields from ECS\n%+v", v.Schema)
-
 	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
-	// logger.Debugf(">>>>> MARIO >>> All fields from package\n%+v", fields)
-
 	v.Schema = append(fields, v.Schema...)
-
-	v.Mappings, err = v.loadMappingsFromES()
-	if err != nil {
-		return nil, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err)
-	}
-
-	v.SchemaDataStream, err = loadFieldDefinitionsFromMappings("", &v.Mappings.Properties)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load fields definitions from mappings (data stream %s): %w", v.dataStream, err)
-	}
-
-	logger.Debugf(">>>> Mario >> Mappings DataStream Field Definition\n%+v", v.SchemaDataStream)
 
 	return v, nil
 }
@@ -723,12 +707,12 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		return nil // root key is always valid
 	}
 
-	dataStreamDefinition := FindElementDefinition(key, v.SchemaDataStream)
-	if dataStreamDefinition == nil {
-		logger.Debugf(">>> Mario > Not found definition in data stream for key %s", key)
-	} else {
-		logger.Debugf(">>> Mario > found definition in data stream for key %s:\n%+v", key, dataStreamDefinition)
-	}
+	// dataStreamDefinition := FindElementDefinition(key, v.SchemaDataStream)
+	// if dataStreamDefinition == nil {
+	// 	logger.Debugf(">>> Mario > Not found definition in data stream for key %s", key)
+	// } else {
+	// 	logger.Debugf(">>> Mario > found definition in data stream for key %s:\n%+v", key, dataStreamDefinition)
+	// }
 
 	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil {
@@ -746,7 +730,7 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		}
 	}
 
-	logger.Debugf(">>> Mario > definition found in schema for %s:\n%+v", key, definition)
+	// logger.Debugf(">>> Mario > definition found in schema for %s:\n%+v", key, definition)
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
@@ -1435,24 +1419,24 @@ type Mappings struct {
 	Dynamic          bool            `json:"dynamic"`
 	DynamicTemplates json.RawMessage `json:"dynamic_templates"`
 	DateDetection    bool            `json:"date_detection"`
-	Properties       Properties      `json:"properties"`
+	Properties       json.RawMessage `json:"properties"`
 }
 
-func (v *Validator) loadMappingsFromES() (*Mappings, error) {
+func (v *Validator) loadMappingsFromES() (json.RawMessage, json.RawMessage, error) {
 	mappingResp, err := v.esAPI.Indices.GetMapping(
 		v.esAPI.Indices.GetMapping.WithContext(context.TODO()),
 		v.esAPI.Indices.GetMapping.WithIndex(v.dataStream),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
+		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
 	}
 	defer mappingResp.Body.Close()
 	if mappingResp.IsError() {
-		return nil, fmt.Errorf("error getting mapping: %s", mappingResp)
+		return nil, nil, fmt.Errorf("error getting mapping: %s", mappingResp)
 	}
 	body, err := io.ReadAll(mappingResp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error reading mapping body: %w", err)
+		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
 	}
 
 	mappingsRaw := map[string]struct {
@@ -1460,11 +1444,11 @@ func (v *Validator) loadMappingsFromES() (*Mappings, error) {
 	}{}
 
 	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
-		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
 
 	if len(mappingsRaw) != 1 {
-		return nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
+		return nil, nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
 	}
 
 	var mappingsDefinition Mappings
@@ -1472,38 +1456,192 @@ func (v *Validator) loadMappingsFromES() (*Mappings, error) {
 		mappingsDefinition = v.Mappings
 	}
 
-	logger.Debugf(">>>> Mario >> Data stream %q", v.dataStream)
-	key := "cloud"
-	logger.Debugf(">>>> Mario >> Properties [%s] -> %+v", key, mappingsDefinition.Properties[key])
+	// logger.Debugf(">>>> Mario >> Data stream %q", v.dataStream)
+	// key := "cloud"
+	// logger.Debugf(">>>> Mario >> Properties [%s] -> %+v", key, mappingsDefinition.Properties[key])
 
-	return &mappingsDefinition, nil
+	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
 }
 
-func loadFieldDefinitionsFromMappings(root string, properties *Properties) ([]FieldDefinition, error) {
+func loadFieldDefinitionsFromMappings(root string, properties *Properties, flatten bool) ([]FieldDefinition, error) {
 	var definitions []FieldDefinition
 	var err error
 
 	for key, entry := range *properties {
 		full_path := fmt.Sprintf("%s.%s", root, key)
+		if root == "" {
+			full_path = key
+		}
+		definitionName := key
+		if flatten {
+			definitionName = full_path
+		}
 		definition := FieldDefinition{
-			Name: key,
+			Name: definitionName,
 		}
 		if entry.Type != "" {
 			definition.Type = entry.Type
 		}
 
-		definition.Fields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Properties)
+		definition.Fields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Properties, flatten)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load properties from %s: %w", full_path, err)
 		}
 
-		definition.MultiFields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Fields)
+		definition.MultiFields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Fields, flatten)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load fields from %s: %w", full_path, err)
 		}
 
 		definitions = append(definitions, definition)
+		if flatten && len(definition.Fields) > 0 {
+			definitions = append(definitions, definition.Fields...)
+		}
 	}
 
-	return definitions, nil
+	if !flatten {
+		return definitions, nil
+	}
+	var final []FieldDefinition
+	for _, elem := range definitions {
+		if len(elem.Fields) == 0 {
+			final = append(final, elem)
+		}
+	}
+
+	return final, nil
+}
+
+func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+	logger.Debugf("Simulate Index Template (%s)", v.dataStream)
+	resp, err := v.esAPI.Indices.SimulateIndexTemplate(v.dataStream,
+		v.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return nil, nil, fmt.Errorf("error getting mapping: %s", resp)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	type SettingsIndexTemplate struct {
+		DefaultPipeline string `json:"default_pipeline"`
+		FinalPipeline   string `json:"final_pipeline"`
+		Codec           string `json:"codec"`
+	}
+
+	type DynamicTemplateDefinition struct {
+		PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
+		Match            string `json:"match,omitempty"`
+		MatchMappingType string `json:"match_mapping_type"`
+	}
+
+	type DynamicTemplate map[string]DynamicTemplateDefinition
+
+	type MappingsIndexTemplate struct {
+		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+		Properties       json.RawMessage `json:"properties"`
+	}
+
+	type PropertiesTemplate json.RawMessage
+	type MappingsTemplate json.RawMessage
+	type SettingsTemplate json.RawMessage
+
+	// type SettingsTemplate struct {
+	// 	Index SettingsIndexTemplate `json:"index"`
+	// }
+
+	type IndexTemplateSimulated struct {
+		Settings json.RawMessage       `json:"settings"`
+		Mappings MappingsIndexTemplate `json:"mappings"`
+	}
+
+	type PreviewTemplate struct {
+		Template IndexTemplateSimulated `json:"template"`
+	}
+
+	var preview PreviewTemplate
+
+	logger.Debugf(">>>> Mario > Index template JSON:\n%s", string(body))
+
+	if err := json.Unmarshal(body, &preview); err != nil {
+		logger.Debugf(">>>> Mario > error: %s", err)
+		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	logger.Debugf(">>>> Mario >> Index template preview:\n%s", preview)
+	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
+}
+
+func (v *Validator) ValidateIndexMappings() multierror.Error {
+	var multiErr multierror.Error
+	dynamicTemplatesES, mappingsES, err := v.loadMappingsFromES()
+	if err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+	}
+
+	dynamicTemplatesPreview, mappingsPreview, err := v.getIndexTemplatePreview(context.TODO())
+	if err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+	}
+
+	if len(multiErr) > 0 {
+		return multiErr
+	}
+	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
+		return json.Valid(x) && json.Valid(y)
+	}, cmp.Transformer("ParseJSON", func(in []byte) (out interface{}) {
+		if err := json.Unmarshal(in, &out); err != nil {
+			panic(err) // should never occur given previous filter to ensure valid JSON
+		}
+		return out
+	}))
+
+	if diff := cmp.Diff(dynamicTemplatesPreview, dynamicTemplatesES, transformJSON); diff != "" {
+		multiErr = append(multiErr, fmt.Errorf("dynamic templates are different (data stream %s):\n%s", v.dataStream, diff))
+	}
+
+	if diff := cmp.Diff(mappingsES, mappingsPreview, transformJSON); diff != "" {
+		multiErr = append(multiErr, fmt.Errorf("mappings are different (data stream %s):\n%s", v.dataStream, diff))
+	}
+
+	logger.Debugf(">>> Mario >> Flatten Preview")
+	var rawPreview Properties
+	err = json.Unmarshal(mappingsPreview, &rawPreview)
+	if err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return multiErr.Unique()
+	}
+	flattenPreview, err := loadFieldDefinitionsFromMappings("", &rawPreview, true)
+	for _, elem := range flattenPreview {
+		logger.Debugf("   - %+v", elem)
+	}
+	logger.Debugf(">>> Mario >> Flatten ES")
+	var rawES Properties
+	err = json.Unmarshal(mappingsES, &rawES)
+	if err != nil {
+		multiErr = append(multiErr, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return multiErr.Unique()
+	}
+	flattenES, err := loadFieldDefinitionsFromMappings("", &rawES, true)
+	for _, elem := range flattenES {
+		logger.Debugf("   - %+v", elem)
+	}
+
+	// v.SchemaDataStream, err = loadFieldDefinitionsFromMappings("", &v.Mappings.Properties)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("failed to load fields definitions from mappings (data stream %s): %w", v.dataStream, err)
+	// }
+
+	// logger.Debugf(">>>> Mario >> Mappings DataStream Field Definition\n%+v", v.SchemaDataStream)
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
+
+	return nil
 }

@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -1152,6 +1153,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
+	// index template preview
+	r.getIndexTemplatePreview(ctx, scenario.dataStream)
+	// time.Sleep(600 * time.Second)
+
 	if r.runTearDown {
 		logger.Debug("Skip assigning package data stream to agent")
 	} else {
@@ -1452,6 +1457,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
+
+	if errs := validateMappings(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in mappings for %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
+	}
+
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
 		return result.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
@@ -2070,6 +2083,15 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
+func validateMappings(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
+	var multiErr multierror.Error
+	multiErr = fieldsValidator.ValidateIndexMappings()
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
+	return nil
+}
+
 func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	stackVersion, err := semver.NewVersion(stackVersionString)
@@ -2286,4 +2308,69 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 	}
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
+}
+
+func (r *tester) getIndexTemplatePreview(ctx context.Context, dataStream string) error {
+	logger.Debugf("SYSTEM TESTER >> Simulate Index Template (%s)", dataStream)
+	resp, err := r.esAPI.Indices.SimulateIndexTemplate(dataStream,
+		r.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to get field mapping for data stream %q: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return fmt.Errorf("error getting mapping: %s", resp)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	type SettingsIndexTemplate struct {
+		DefaultPipeline string `json:"default_pipeline"`
+		FinalPipeline   string `json:"final_pipeline"`
+		Codec           string `json:"codec"`
+	}
+
+	type DynamicTemplateDefinition struct {
+		PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
+		Match            string `json:"match,omitempty"`
+		MatchMappingType string `json:"match_mapping_type"`
+	}
+
+	type DynamicTemplate map[string]DynamicTemplateDefinition
+
+	type MappingsIndexTemplate struct {
+		DynamicTemplates []DynamicTemplate `json:"dynamic_templates"`
+	}
+
+	type PropertiesTemplate json.RawMessage
+	type MappingsTemplate json.RawMessage
+	type SettingsTemplate json.RawMessage
+
+	// type SettingsTemplate struct {
+	// 	Index SettingsIndexTemplate `json:"index"`
+	// }
+
+	type IndexTemplateSimulated struct {
+		Settings json.RawMessage `json:"settings"`
+		Mappings json.RawMessage `json:"mappings"`
+	}
+
+	type PreviewTemplate struct {
+		Template IndexTemplateSimulated `json:"template"`
+	}
+
+	var preview PreviewTemplate
+
+	logger.Debugf(">>>> Mario SYSTEM > Index template JSON:\n%s", string(body))
+
+	if err := json.Unmarshal(body, &preview); err != nil {
+		logger.Debugf(">>>> Mario > error: %s", err)
+		return fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	logger.Debugf(">>>> Mario SYSTEM >> Index template preview:\n%s", preview)
+	return nil
 }
