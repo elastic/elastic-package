@@ -5,9 +5,9 @@ on:
     types:
       - labeled
 env:
-  INGEST_PROJECT_ID: 'PVT_kwDOAGc3Zs4AEzn4'
+  INGEST_PROJECT_ID: 'PVT_kwDOAGc3Zs4AogrP'
   ECOSYSTEM_LABEL: 'Team:Ecosystem'
-  AREA_FIELD_ID: 'PVTSSF_lADOAGc3Zs4AEzn4zgEgZSo'
+  AREA_FIELD_ID: 'PVTSSF_lADOAGc3Zs4AogrPzggEiBs'
   ECOSYSTEM_OPTION_ID: 'b85d422b'
   
 permissions:
