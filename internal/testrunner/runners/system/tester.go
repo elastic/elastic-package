@@ -127,6 +127,7 @@ var (
 						// Unfortunate: https://github.com/elastic/beats/issues/34544
 						// See also https://github.com/elastic/beats/pull/39929.
 						regexp.MustCompile(`: map has no entry for key`),
+						regexp.MustCompile(`: can't evaluate field (?:[^ ]+) in type interface`),
 					},
 				},
 			},
