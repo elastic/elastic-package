@@ -120,6 +120,16 @@ var (
 						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
 					},
 				},
+				{
+					// HTTPJSON template error.
+					includes: regexp.MustCompile(`^error processing response: template: :\d+:\d+: executing "" at <`),
+					excludes: []*regexp.Regexp{
+						// Unfortunate: https://github.com/elastic/beats/issues/34544
+						// See also https://github.com/elastic/beats/pull/39929.
+						regexp.MustCompile(`: map has no entry for key`),
+						regexp.MustCompile(`: can't evaluate field (?:[^ ]+) in type interface`),
+					},
+				},
 			},
 		},
 	}
