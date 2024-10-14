@@ -1537,28 +1537,27 @@ func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessag
 		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
 	}
 
-	type SettingsIndexTemplate struct {
-		DefaultPipeline string `json:"default_pipeline"`
-		FinalPipeline   string `json:"final_pipeline"`
-		Codec           string `json:"codec"`
-	}
+	// type SettingsIndexTemplate struct {
+	// 	DefaultPipeline string `json:"default_pipeline"`
+	// 	FinalPipeline   string `json:"final_pipeline"`
+	// 	Codec           string `json:"codec"`
+	// }
 
-	type DynamicTemplateDefinition struct {
-		PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
-		Match            string `json:"match,omitempty"`
-		MatchMappingType string `json:"match_mapping_type"`
-	}
+	// type DynamicTemplateDefinition struct {
+	// 	PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
+	// 	Match            string `json:"match,omitempty"`
+	// 	MatchMappingType string `json:"match_mapping_type"`
+	// }
 
-	type DynamicTemplate map[string]DynamicTemplateDefinition
+	// type DynamicTemplate map[string]DynamicTemplateDefinition
 
 	type MappingsIndexTemplate struct {
 		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
 		Properties       json.RawMessage `json:"properties"`
 	}
 
-	type PropertiesTemplate json.RawMessage
-	type MappingsTemplate json.RawMessage
-	type SettingsTemplate json.RawMessage
+	// type MappingsTemplate json.RawMessage
+	// type SettingsTemplate json.RawMessage
 
 	// type SettingsTemplate struct {
 	// 	Index SettingsIndexTemplate `json:"index"`
