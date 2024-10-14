@@ -1512,6 +1512,14 @@ func loadFieldDefinitionsFromMappings(root string, properties *Properties, flatt
 	return final, nil
 }
 
+func fieldDefinitionsToMap(source []FieldDefinition) map[string]FieldDefinition {
+	definitions := map[string]FieldDefinition{}
+	for _, entry := range source {
+		definitions[entry.Name] = entry
+	}
+
+	return definitions
+}
 func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
 	logger.Debugf("Simulate Index Template (%s)", v.dataStream)
 	resp, err := v.esAPI.Indices.SimulateIndexTemplate(v.dataStream,
@@ -1579,20 +1587,20 @@ func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessag
 }
 
 func (v *Validator) ValidateIndexMappings() multierror.Error {
-	var multiErr multierror.Error
+	var errs multierror.Error
 	dynamicTemplatesES, mappingsES, err := v.loadMappingsFromES()
 	if err != nil {
-		multiErr = append(multiErr, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		return errs
 	}
 
 	dynamicTemplatesPreview, mappingsPreview, err := v.getIndexTemplatePreview(context.TODO())
 	if err != nil {
-		multiErr = append(multiErr, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		return errs
 	}
 
-	if len(multiErr) > 0 {
-		return multiErr
-	}
+	// Code from comment posted in https://github.com/google/go-cmp/issues/224
 	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
 		return json.Valid(x) && json.Valid(y)
 	}, cmp.Transformer("ParseJSON", func(in []byte) (out interface{}) {
@@ -1602,22 +1610,41 @@ func (v *Validator) ValidateIndexMappings() multierror.Error {
 		return out
 	}))
 
+	// Compare dynamic templates, this should always be the same in preview and after ingesting documents
 	if diff := cmp.Diff(dynamicTemplatesPreview, dynamicTemplatesES, transformJSON); diff != "" {
-		multiErr = append(multiErr, fmt.Errorf("dynamic templates are different (data stream %s):\n%s", v.dataStream, diff))
+		errs = append(errs, fmt.Errorf("dynamic templates are different (data stream %s):\n%s", v.dataStream, diff))
 	}
 
-	if diff := cmp.Diff(mappingsES, mappingsPreview, transformJSON); diff != "" {
-		multiErr = append(multiErr, fmt.Errorf("mappings are different (data stream %s):\n%s", v.dataStream, diff))
+	// Compare actual mappings:
+	// - If there are the same exact mapping definitions, everything should be good
+	// - If the same mapping exists in both, but they have different "type" (anything else to check), there is some issue
+	// - If there is a new mapping,
+	//     - Does this come from some dynamic template? ECS componente template or dynamic templates defined in the package? This mapping is valid
+	//         - conditions found in current dynamic templates: match, path_match, path_unmatch, match_mapping_type, unmatch_mapping_type
+	//     - if it does not match, there should be some issue and it should be reported
+	//     - If the mapping is a constant_keyword type (e.g. data_stream.dataset), how to check the value?
+	//         - if the constant_keyword is defined in the preview, it should be the same
+	if diff := cmp.Diff(mappingsES, mappingsPreview, transformJSON); diff == "" {
+		// No differences
+		// multiErr = append(multiErr, fmt.Errorf("mappings are different (data stream %s):\n%s", v.dataStream, diff))
+		return errs.Unique()
 	}
 
+	// Check mapping definitions:
+	// - Are there any mapping with different type ?
+	// - Are there any new mapping definitions not present in the preview?
 	logger.Debugf(">>> Mario >> Flatten Preview")
 	var rawPreview Properties
 	err = json.Unmarshal(mappingsPreview, &rawPreview)
 	if err != nil {
-		multiErr = append(multiErr, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
-		return multiErr.Unique()
+		errs = append(errs, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return errs.Unique()
 	}
 	flattenPreview, err := loadFieldDefinitionsFromMappings("", &rawPreview, true)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load field definitions from Index preview: %w", err))
+		return errs.Unique()
+	}
 	for _, elem := range flattenPreview {
 		logger.Debugf("   - %+v", elem)
 	}
@@ -1625,22 +1652,34 @@ func (v *Validator) ValidateIndexMappings() multierror.Error {
 	var rawES Properties
 	err = json.Unmarshal(mappingsES, &rawES)
 	if err != nil {
-		multiErr = append(multiErr, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
-		return multiErr.Unique()
+		errs = append(errs, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return errs.Unique()
 	}
 	flattenES, err := loadFieldDefinitionsFromMappings("", &rawES, true)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load field definitions from Elasticsearch mappings: %w", err))
+		return errs.Unique()
+	}
 	for _, elem := range flattenES {
 		logger.Debugf("   - %+v", elem)
 	}
 
-	// v.SchemaDataStream, err = loadFieldDefinitionsFromMappings("", &v.Mappings.Properties)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("failed to load fields definitions from mappings (data stream %s): %w", v.dataStream, err)
-	// }
+	flattenEsMap := fieldDefinitionsToMap(flattenES)
+	flattenPreviewMap := fieldDefinitionsToMap(flattenPreview)
 
-	// logger.Debugf(">>>> Mario >> Mappings DataStream Field Definition\n%+v", v.SchemaDataStream)
-	if len(multiErr) > 0 {
-		return multiErr.Unique()
+	for key, entry := range flattenEsMap {
+		// TODO: review how to compare mappings/properties
+		entryPreview, ok := flattenPreviewMap[key]
+		if !ok {
+			logger.Warnf("field definition %q does not exist in mappings preview", key)
+		}
+
+		if entryPreview.Type != entry.Type {
+			logger.Warnf("field definition %q does have a different type in mappings preview (%s != %s)", key, entry.Type, entryPreview.Type)
+		}
+	}
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 
 	return nil

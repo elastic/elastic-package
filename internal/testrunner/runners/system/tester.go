@@ -1153,8 +1153,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	// index template preview
-	r.getIndexTemplatePreview(ctx, scenario.dataStream)
+	// TODO: index template preview
+	// r.getIndexTemplatePreview(ctx, scenario.dataStream)
 	// time.Sleep(600 * time.Second)
 
 	if r.runTearDown {
@@ -1458,6 +1458,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
+	// TODO: creater another validator specifically to compare data stream mappings
+	// fieldsValidator err := fields.CreateValidatorFromDataStreamMappingsAPI(...)
+
+	// TODO: Add environment variable to disable these mapping validations
 	if errs := validateMappings(scenario.docs, fieldsValidator); len(errs) > 0 {
 		return result.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in mappings for %s data stream", scenario.dataStream),
