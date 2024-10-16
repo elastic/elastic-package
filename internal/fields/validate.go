@@ -160,6 +160,7 @@ type Validator struct {
 
 	esAPI            *elasticsearch.API
 	dataStream       string
+	indexTemplate    string
 	Mappings         *Mappings
 	SchemaDataStream []FieldDefinition
 }
@@ -261,10 +262,18 @@ func WithElasticsearchAPI(esAPI *elasticsearch.API) ValidatorOption {
 	}
 }
 
-// WithDataStream configures the DataStream to query in Elasticsearch.
+// WithDataStream configures the Data Stream to query in Elasticsearch.
 func WithDataStream(dataStream string) ValidatorOption {
 	return func(v *Validator) error {
 		v.dataStream = dataStream
+		return nil
+	}
+}
+
+// WithIndexTemplate configures the Index Template to query in Elasticsearch.
+func WithIndexTemplate(indexTemplate string) ValidatorOption {
+	return func(v *Validator) error {
+		v.indexTemplate = indexTemplate
 		return nil
 	}
 }
@@ -1422,9 +1431,9 @@ type Mappings struct {
 	Properties       json.RawMessage `json:"properties"`
 }
 
-func (v *Validator) loadMappingsFromES() (json.RawMessage, json.RawMessage, error) {
+func (v *Validator) loadMappingsFromES(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
 	mappingResp, err := v.esAPI.Indices.GetMapping(
-		v.esAPI.Indices.GetMapping.WithContext(context.TODO()),
+		v.esAPI.Indices.GetMapping.WithContext(ctx),
 		v.esAPI.Indices.GetMapping.WithIndex(v.dataStream),
 	)
 	if err != nil {
@@ -1521,12 +1530,13 @@ func fieldDefinitionsToMap(source []FieldDefinition) map[string]FieldDefinition 
 	return definitions
 }
 func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
-	logger.Debugf("Simulate Index Template (%s)", v.dataStream)
-	resp, err := v.esAPI.Indices.SimulateIndexTemplate(v.dataStream,
-		v.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
+	logger.Debugf("Simulate Index Template (%s)", v.indexTemplate)
+	resp, err := v.esAPI.Indices.SimulateTemplate(
+		v.esAPI.Indices.SimulateTemplate.WithContext(ctx),
+		v.esAPI.Indices.SimulateTemplate.WithName(v.indexTemplate),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
+		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.indexTemplate, err)
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
@@ -1587,7 +1597,7 @@ func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessag
 
 func (v *Validator) ValidateIndexMappings() multierror.Error {
 	var errs multierror.Error
-	dynamicTemplatesES, mappingsES, err := v.loadMappingsFromES()
+	dynamicTemplatesES, mappingsES, err := v.loadMappingsFromES(context.TODO())
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
 		return errs
@@ -1595,7 +1605,7 @@ func (v *Validator) ValidateIndexMappings() multierror.Error {
 
 	dynamicTemplatesPreview, mappingsPreview, err := v.getIndexTemplatePreview(context.TODO())
 	if err != nil {
-		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplate, err))
 		return errs
 	}
 

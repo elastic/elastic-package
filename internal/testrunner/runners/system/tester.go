@@ -830,6 +830,7 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 }
 
 type scenarioTest struct {
+	indexTemplate      string
 	dataStream         string
 	policyTemplateName string
 	kibanaDataStream   kibana.PackageDataStream
@@ -1060,10 +1061,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			dataStreamDataset = dataset
 		}
 	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
+	scenario.indexTemplate = fmt.Sprintf(
+		"%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		dataStreamDataset,
+	)
+
+	scenario.dataStream = fmt.Sprintf(
+		"%s-%s",
+		scenario.indexTemplate,
 		ds.Namespace,
 	)
 
@@ -1452,6 +1458,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
 		fields.WithElasticsearchAPI(r.esAPI),
 		fields.WithDataStream(scenario.dataStream),
+		fields.WithIndexTemplate(scenario.indexTemplate),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
