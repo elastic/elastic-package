@@ -18,6 +18,7 @@ type fieldsTableRecord struct {
 	aType       string
 	unit        string
 	metricType  string
+	value       string
 }
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
@@ -53,6 +54,7 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) {
 	unitsPresent := areUnitsPresent(collected)
 	metricTypesPresent := areMetricTypesPresent(collected)
+	valuesPresent := areValuesPresent(collected)
 
 	builder.WriteString("| Field | Description | Type |")
 	if unitsPresent {
@@ -61,6 +63,9 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	if metricTypesPresent {
 		builder.WriteString(" Metric Type |")
 	}
+	if valuesPresent {
+		builder.WriteString(" Value |")
+	}
 
 	builder.WriteString("\n")
 	builder.WriteString("|---|---|---|")
@@ -68,6 +73,9 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		builder.WriteString("---|")
 	}
 	if metricTypesPresent {
+		builder.WriteString("---|")
+	}
+	if valuesPresent {
 		builder.WriteString("---|")
 	}
 
@@ -83,6 +91,9 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		}
 		if metricTypesPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.metricType))
+		}
+		if valuesPresent {
+			builder.WriteString(fmt.Sprintf(" %s |", c.value))
 		}
 		builder.WriteString("\n")
 	}
@@ -100,6 +111,15 @@ func areUnitsPresent(collected []fieldsTableRecord) bool {
 func areMetricTypesPresent(collected []fieldsTableRecord) bool {
 	for _, c := range collected {
 		if c.metricType != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func areValuesPresent(collected []fieldsTableRecord) bool {
+	for _, c := range collected {
+		if c.value != "" {
 			return true
 		}
 	}
@@ -130,6 +150,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			aType:       f.Type,
 			unit:        f.Unit,
 			metricType:  f.MetricType,
+			value:       f.Value,
 		})
 
 		for _, multiField := range f.MultiFields {
