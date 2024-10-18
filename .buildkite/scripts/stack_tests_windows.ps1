@@ -58,7 +58,13 @@ $ErrorActionPreference = "Continue" # set +e
 
 # TODO: stack status checks that we can call docker-compose, but we should try a stack up.
 # stack up doesn't work because we didn't manage to enable the linux engine, and we don't have Windows native images.
+echo "Stack Status"
 go run . stack status -v
+echo "Stack up"
+go run . stack up -v -d
+echo "Stack Status"
+go run . stack status -v
+echo "Stack down"
 go run . stack down -v
 
 $EXITCODE=$LASTEXITCODE
