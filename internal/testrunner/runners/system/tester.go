@@ -840,6 +840,7 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 }
 
 type scenarioTest struct {
+	indexTemplate      string
 	dataStream         string
 	policyTemplateName string
 	kibanaDataStream   kibana.PackageDataStream
@@ -1070,10 +1071,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			dataStreamDataset = dataset
 		}
 	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
+	scenario.indexTemplate = fmt.Sprintf(
+		"%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		dataStreamDataset,
+	)
+
+	scenario.dataStream = fmt.Sprintf(
+		"%s-%s",
+		scenario.indexTemplate,
 		ds.Namespace,
 	)
 
@@ -1161,6 +1167,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 		return nil
 	}
+
+	// TODO: index template preview
+	// r.getIndexTemplatePreview(ctx, scenario.dataStream)
+	// time.Sleep(600 * time.Second)
 
 	if r.runTearDown {
 		logger.Debug("Skip assigning package data stream to agent")
@@ -1398,7 +1408,7 @@ func (r *tester) removeServiceStateFile() error {
 
 func (r *tester) createServiceStateDir() error {
 	dirPath := filepath.Dir(r.serviceStateFilePath)
-	err := os.MkdirAll(dirPath, 0755)
+	err := os.MkdirAll(dirPath, 0o755)
 	if err != nil {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
@@ -1456,10 +1466,25 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		fields.WithElasticsearchAPI(r.esAPI),
+		fields.WithDataStream(scenario.dataStream),
+		fields.WithIndexTemplate(scenario.indexTemplate),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
+
+	// TODO: creater another validator specifically to compare data stream mappings
+	// fieldsValidator err := fields.CreateValidatorFromDataStreamMappingsAPI(...)
+
+	// TODO: Add environment variable to disable these mapping validations
+	if errs := validateMappings(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in mappings for %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
+	}
+
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
 		return result.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
@@ -2026,7 +2051,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0o644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
@@ -2072,6 +2097,14 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 			continue
 		}
 	}
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
+	return nil
+}
+
+func validateMappings(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
+	multiErr := fieldsValidator.ValidateIndexMappings()
 	if len(multiErr) > 0 {
 		return multiErr.Unique()
 	}
@@ -2295,3 +2328,70 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
 }
+
+// Testing to retrieve the Template Preview out of the validator context
+// func (r *tester) getIndexTemplatePreview(ctx context.Context, dataStream string) error {
+// 	logger.Debugf("SYSTEM TESTER >> Simulate Index Template (%s)", dataStream)
+// 	resp, err := r.esAPI.Indices.SimulateIndexTemplate(dataStream,
+// 		r.esAPI.Indices.SimulateIndexTemplate.WithContext(ctx),
+// 	)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to get field mapping for data stream %q: %w", dataStream, err)
+// 	}
+// 	defer resp.Body.Close()
+// 	if resp.IsError() {
+// 		return fmt.Errorf("error getting mapping: %s", resp)
+// 	}
+// 	body, err := io.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return fmt.Errorf("error reading mapping body: %w", err)
+// 	}
+//
+// 	type SettingsIndexTemplate struct {
+// 		DefaultPipeline string `json:"default_pipeline"`
+// 		FinalPipeline   string `json:"final_pipeline"`
+// 		Codec           string `json:"codec"`
+// 	}
+//
+// 	type DynamicTemplateDefinition struct {
+// 		PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
+// 		Match            string `json:"match,omitempty"`
+// 		MatchMappingType string `json:"match_mapping_type"`
+// 	}
+//
+// 	type DynamicTemplate map[string]DynamicTemplateDefinition
+//
+// 	type MappingsIndexTemplate struct {
+// 		DynamicTemplates []DynamicTemplate `json:"dynamic_templates"`
+// 	}
+//
+// 	type PropertiesTemplate json.RawMessage
+// 	type MappingsTemplate json.RawMessage
+// 	type SettingsTemplate json.RawMessage
+//
+// 	// type SettingsTemplate struct {
+// 	// 	Index SettingsIndexTemplate `json:"index"`
+// 	// }
+//
+// 	type IndexTemplateSimulated struct {
+// 		Settings json.RawMessage `json:"settings"`
+// 		Mappings json.RawMessage `json:"mappings"`
+// 	}
+//
+// 	type PreviewTemplate struct {
+// 		Template IndexTemplateSimulated `json:"template"`
+// 	}
+//
+// 	var preview PreviewTemplate
+//
+// 	logger.Debugf(">>>> Mario SYSTEM > Index template JSON:\n%s", string(body))
+//
+// 	if err := json.Unmarshal(body, &preview); err != nil {
+// 		logger.Debugf(">>>> Mario > error: %s", err)
+// 		return fmt.Errorf("error unmarshaling mappings: %w", err)
+// 	}
+//
+// 	logger.Debugf(">>>> Mario SYSTEM >> Index template preview:\n%s", preview)
+// 	return nil
+// }
+//

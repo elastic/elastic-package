@@ -6,10 +6,12 @@ package fields
 
 import (
 	"bufio"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -21,9 +23,11 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/cbroglie/mustache"
+	"github.com/google/go-cmp/cmp"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -153,6 +157,12 @@ type Validator struct {
 	disabledNormalization bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	esAPI            *elasticsearch.API
+	dataStream       string
+	indexTemplate    string
+	Mappings         *Mappings
+	SchemaDataStream []FieldDefinition
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -244,6 +254,30 @@ func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	}
 }
 
+// WithElasticsearchAPI configures the Elasticsearch API client.
+func WithElasticsearchAPI(esAPI *elasticsearch.API) ValidatorOption {
+	return func(v *Validator) error {
+		v.esAPI = esAPI
+		return nil
+	}
+}
+
+// WithDataStream configures the Data Stream to query in Elasticsearch.
+func WithDataStream(dataStream string) ValidatorOption {
+	return func(v *Validator) error {
+		v.dataStream = dataStream
+		return nil
+	}
+}
+
+// WithIndexTemplate configures the Index Template to query in Elasticsearch.
+func WithIndexTemplate(indexTemplate string) ValidatorOption {
+	return func(v *Validator) error {
+		v.indexTemplate = indexTemplate
+		return nil
+	}
+}
+
 type packageRootFinder interface {
 	FindPackageRoot() (string, bool, error)
 }
@@ -295,6 +329,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	}
 
 	v.Schema = append(fields, v.Schema...)
+
 	return v, nil
 }
 
@@ -681,6 +716,13 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		return nil // root key is always valid
 	}
 
+	// dataStreamDefinition := FindElementDefinition(key, v.SchemaDataStream)
+	// if dataStreamDefinition == nil {
+	// 	logger.Debugf(">>> Mario > Not found definition in data stream for key %s", key)
+	// } else {
+	// 	logger.Debugf(">>> Mario > found definition in data stream for key %s:\n%+v", key, dataStreamDefinition)
+	// }
+
 	definition := FindElementDefinition(key, v.Schema)
 	if definition == nil {
 		switch {
@@ -696,6 +738,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 			return fmt.Errorf(`field %q is undefined`, key)
 		}
 	}
+
+	// logger.Debugf(">>> Mario > definition found in schema for %s:\n%+v", key, definition)
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
@@ -822,7 +866,9 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("event", key) || // too many common fields
 		isFieldFamilyMatching("host", key) || // too many common fields
 		isFieldFamilyMatching("metricset", key) || // field is deprecated
-		isFieldFamilyMatching("event.module", key) // field is deprecated
+		isFieldFamilyMatching("event.module", key) || // field is deprecated
+		isFieldFamilyMatching("doc.before_ingested", key) || // field used to store the whole document
+		isFieldFamilyMatching("doc.before_ingested_all", key) // field used to store the whole document
 }
 
 // skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
@@ -1366,4 +1412,284 @@ func valueToStringsSlice(value any) []string {
 	default:
 		return []string{fmt.Sprintf("%v", v)}
 	}
+}
+
+type Properties map[string]Definition
+
+type Definition struct {
+	Type        string     `json:"type,omitempty"`
+	Value       string     `json:"value,omitempty"`
+	IgnoreAbove int        `json:"ignore_above,omitempty"`
+	Properties  Properties `json:"properties,omitempty"`
+	Fields      Properties `json:"fields,omitempty"` // As MultiFields in FieldDefinition
+}
+
+type Mappings struct {
+	Dynamic          bool            `json:"dynamic"`
+	DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+	DateDetection    bool            `json:"date_detection"`
+	Properties       json.RawMessage `json:"properties"`
+}
+
+func (v *Validator) loadMappingsFromES(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+	mappingResp, err := v.esAPI.Indices.GetMapping(
+		v.esAPI.Indices.GetMapping.WithContext(ctx),
+		v.esAPI.Indices.GetMapping.WithIndex(v.dataStream),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStream, err)
+	}
+	defer mappingResp.Body.Close()
+	if mappingResp.IsError() {
+		return nil, nil, fmt.Errorf("error getting mapping: %s", mappingResp)
+	}
+	body, err := io.ReadAll(mappingResp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	mappingsRaw := map[string]struct {
+		Mappings Mappings `json:"mappings"`
+	}{}
+
+	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
+		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	if len(mappingsRaw) != 1 {
+		return nil, nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
+	}
+
+	var mappingsDefinition Mappings
+	for _, v := range mappingsRaw {
+		mappingsDefinition = v.Mappings
+	}
+
+	// logger.Debugf(">>>> Mario >> Data stream %q", v.dataStream)
+	// key := "cloud"
+	// logger.Debugf(">>>> Mario >> Properties [%s] -> %+v", key, mappingsDefinition.Properties[key])
+
+	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
+}
+
+func loadFieldDefinitionsFromMappings(root string, properties *Properties, flatten bool) ([]FieldDefinition, error) {
+	var definitions []FieldDefinition
+	var err error
+
+	for key, entry := range *properties {
+		full_path := fmt.Sprintf("%s.%s", root, key)
+		if root == "" {
+			full_path = key
+		}
+		definitionName := key
+		if flatten {
+			definitionName = full_path
+		}
+		definition := FieldDefinition{
+			Name: definitionName,
+		}
+		if entry.Type != "" {
+			definition.Type = entry.Type
+		}
+
+		definition.Fields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Properties, flatten)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load properties from %s: %w", full_path, err)
+		}
+
+		definition.MultiFields, err = loadFieldDefinitionsFromMappings(full_path, &entry.Fields, flatten)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load fields from %s: %w", full_path, err)
+		}
+
+		definitions = append(definitions, definition)
+		if flatten && len(definition.Fields) > 0 {
+			definitions = append(definitions, definition.Fields...)
+		}
+	}
+
+	if !flatten {
+		return definitions, nil
+	}
+	var final []FieldDefinition
+	for _, elem := range definitions {
+		if len(elem.Fields) == 0 {
+			final = append(final, elem)
+		}
+	}
+
+	return final, nil
+}
+
+func fieldDefinitionsToMap(source []FieldDefinition) map[string]FieldDefinition {
+	definitions := map[string]FieldDefinition{}
+	for _, entry := range source {
+		definitions[entry.Name] = entry
+	}
+
+	return definitions
+}
+func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+	logger.Debugf("Simulate Index Template (%s)", v.indexTemplate)
+	resp, err := v.esAPI.Indices.SimulateTemplate(
+		v.esAPI.Indices.SimulateTemplate.WithContext(ctx),
+		v.esAPI.Indices.SimulateTemplate.WithName(v.indexTemplate),
+	)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.indexTemplate, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return nil, nil, fmt.Errorf("error getting mapping: %s", resp)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	// type SettingsIndexTemplate struct {
+	// 	DefaultPipeline string `json:"default_pipeline"`
+	// 	FinalPipeline   string `json:"final_pipeline"`
+	// 	Codec           string `json:"codec"`
+	// }
+
+	// type DynamicTemplateDefinition struct {
+	// 	PathMatch        string `json:"path_match,omitempty"` // it can be array of strings
+	// 	Match            string `json:"match,omitempty"`
+	// 	MatchMappingType string `json:"match_mapping_type"`
+	// }
+
+	// type DynamicTemplate map[string]DynamicTemplateDefinition
+
+	type MappingsIndexTemplate struct {
+		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+		Properties       json.RawMessage `json:"properties"`
+	}
+
+	// type MappingsTemplate json.RawMessage
+	// type SettingsTemplate json.RawMessage
+
+	// type SettingsTemplate struct {
+	// 	Index SettingsIndexTemplate `json:"index"`
+	// }
+
+	type IndexTemplateSimulated struct {
+		Settings json.RawMessage       `json:"settings"`
+		Mappings MappingsIndexTemplate `json:"mappings"`
+	}
+
+	type PreviewTemplate struct {
+		Template IndexTemplateSimulated `json:"template"`
+	}
+
+	var preview PreviewTemplate
+
+	logger.Debugf(">>>> Mario > Index template JSON:\n%s", string(body))
+
+	if err := json.Unmarshal(body, &preview); err != nil {
+		logger.Debugf(">>>> Mario > error: %s", err)
+		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	logger.Debugf(">>>> Mario >> Index template preview:\n%s", preview)
+	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
+}
+
+func (v *Validator) ValidateIndexMappings() multierror.Error {
+	var errs multierror.Error
+	dynamicTemplatesES, mappingsES, err := v.loadMappingsFromES(context.TODO())
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStream, err))
+		return errs
+	}
+
+	dynamicTemplatesPreview, mappingsPreview, err := v.getIndexTemplatePreview(context.TODO())
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplate, err))
+		return errs
+	}
+
+	// Code from comment posted in https://github.com/google/go-cmp/issues/224
+	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
+		return json.Valid(x) && json.Valid(y)
+	}, cmp.Transformer("ParseJSON", func(in []byte) (out interface{}) {
+		if err := json.Unmarshal(in, &out); err != nil {
+			panic(err) // should never occur given previous filter to ensure valid JSON
+		}
+		return out
+	}))
+
+	// Compare dynamic templates, this should always be the same in preview and after ingesting documents
+	if diff := cmp.Diff(dynamicTemplatesPreview, dynamicTemplatesES, transformJSON); diff != "" {
+		errs = append(errs, fmt.Errorf("dynamic templates are different (data stream %s):\n%s", v.dataStream, diff))
+	}
+
+	// Compare actual mappings:
+	// - If there are the same exact mapping definitions, everything should be good
+	// - If the same mapping exists in both, but they have different "type" (anything else to check), there is some issue
+	// - If there is a new mapping,
+	//     - Does this come from some dynamic template? ECS componente template or dynamic templates defined in the package? This mapping is valid
+	//         - conditions found in current dynamic templates: match, path_match, path_unmatch, match_mapping_type, unmatch_mapping_type
+	//     - if it does not match, there should be some issue and it should be reported
+	//     - If the mapping is a constant_keyword type (e.g. data_stream.dataset), how to check the value?
+	//         - if the constant_keyword is defined in the preview, it should be the same
+	if diff := cmp.Diff(mappingsES, mappingsPreview, transformJSON); diff == "" {
+		// No differences
+		// multiErr = append(multiErr, fmt.Errorf("mappings are different (data stream %s):\n%s", v.dataStream, diff))
+		return errs.Unique()
+	}
+
+	// Check mapping definitions:
+	// - Are there any mapping with different type ?
+	// - Are there any new mapping definitions not present in the preview?
+	logger.Debugf(">>> Mario >> Flatten Preview")
+	var rawPreview Properties
+	err = json.Unmarshal(mappingsPreview, &rawPreview)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return errs.Unique()
+	}
+	flattenPreview, err := loadFieldDefinitionsFromMappings("", &rawPreview, true)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load field definitions from Index preview: %w", err))
+		return errs.Unique()
+	}
+	for _, elem := range flattenPreview {
+		logger.Debugf("   - %+v", elem)
+	}
+	logger.Debugf(">>> Mario >> Flatten ES")
+	var rawES Properties
+	err = json.Unmarshal(mappingsES, &rawES)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unmarshal mappings (data stream %s): %w", v.dataStream, err))
+		return errs.Unique()
+	}
+	flattenES, err := loadFieldDefinitionsFromMappings("", &rawES, true)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to load field definitions from Elasticsearch mappings: %w", err))
+		return errs.Unique()
+	}
+	for _, elem := range flattenES {
+		logger.Debugf("   - %+v", elem)
+	}
+
+	flattenEsMap := fieldDefinitionsToMap(flattenES)
+	flattenPreviewMap := fieldDefinitionsToMap(flattenPreview)
+
+	for key, entry := range flattenEsMap {
+		// TODO: review how to compare mappings/properties
+		entryPreview, ok := flattenPreviewMap[key]
+		if !ok {
+			logger.Warnf("field definition %q does not exist in mappings preview", key)
+		}
+
+		if entryPreview.Type != entry.Type {
+			logger.Warnf("field definition %q does have a different type in mappings preview (%s != %s)", key, entry.Type, entryPreview.Type)
+		}
+	}
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+
+	return nil
 }
