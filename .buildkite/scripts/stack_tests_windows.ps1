@@ -30,7 +30,7 @@ function withDocker($version) {
 
 function withDockerCompose($version) {
     Write-Host "-- Install Docker Compose $version --"
-    choco install -y docker-compose --version $version
+    choco install -y docker-compose --allow-downgrade --version $version
     setupChocolateyPath
 }
 
