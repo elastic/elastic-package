@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.0
 	github.com/ProtonMail/gopenpgp/v2 v2.7.5
 	github.com/aymerick/raymond v2.0.2+incompatible
-	github.com/boumenot/gocover-cobertura v1.2.0
+	github.com/boumenot/gocover-cobertura v1.3.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/creack/pty v1.1.19
