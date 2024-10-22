@@ -20,7 +20,7 @@ require (
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
 	github.com/elastic/package-spec/v3 v3.3.0
-	github.com/fatih/color v1.17.0
+	github.com/fatih/color v1.18.0
 	github.com/go-git/go-billy/v5 v5.6.0
 	github.com/go-git/go-git/v5 v5.12.0
 	github.com/google/go-cmp v0.6.0
