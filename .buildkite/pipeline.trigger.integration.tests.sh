@@ -44,14 +44,9 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-benchmarks
     test-check-packages-with-logstash
 )
-for independent_agent in false true ; do
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
-    label_suffix=""
-    if [[ "$independent_agent" == "false" ]]; then
-        label_suffix=" (stack agent)"
-    fi
     test_name=${test#"test-check-packages-"}
-    echo "      - label: \":go: Integration test: ${test_name}${label_suffix}\""
+    echo "      - label: \":go: Integration test: ${test_name}\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
     echo "        agents:"
     echo "          provider: \"gcp\""
@@ -64,15 +59,10 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     if [[ $test =~ with-kind$ ]]; then
         echo "          - build/kubectl-dump.txt"
     fi
-    if [[ "${independent_agent}" == "false" ]]; then
-        echo "        env:"
-        echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
-    fi
-done
 done
 
 pushd test/packages/false_positives > /dev/null
-for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
+while IFS= read -r -d '' package ; do
     package_name=$(basename "${package}")
     echo "      - label: \":go: Integration test (false positive): ${package_name}\""
     echo "        key: \"integration-false_positives-${package_name}\""
@@ -86,48 +76,40 @@ for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     echo "          - build/test-results/*.xml"
     echo "          - build/test-results/*.xml.expected-errors.txt"  # these files are uploaded in case it is needed to review the xUnit files in case of CI reports success the step
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
-done
+done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
 popd > /dev/null
 
 pushd test/packages/parallel > /dev/null
-for independent_agent in false true; do
-for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
-    label_suffix=""
-    if [[ "$independent_agent" == "false" ]]; then
-        label_suffix=" (stack agent)"
-    fi
+while IFS= read -r -d '' package ; do
     package_name=$(basename "${package}")
-    if [[ "$independent_agent" == "false" && "$package_name" == "oracle" ]]; then
-        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required software)."
-        continue
-    fi
-
-    if [[ "$independent_agent" == "false" && "$package_name" == "auditd_manager" ]]; then
-        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing capabilities)."
-        continue
-    fi
-
-    if [[ "$independent_agent" == "false" && "$package_name" == "custom_entrypoint" ]]; then
-        echoerr "Package \"${package_name}\" skipped: not supported with Elastic Agent running in the stack (missing required files deployed in provisioning)."
-        continue
-    fi
-
-    echo "      - label: \":go: Integration test: ${package_name}${label_suffix}\""
-    echo "        key: \"integration-parallel-${package_name}-agent-${independent_agent}\""
+    echo "      - label: \":go: Integration test: ${package_name}\""
+    echo "        key: \"integration-parallel-${package_name}-agent\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
     echo "          UPLOAD_SAFE_LOGS: 1"
-    if [[ "${independent_agent}" == "false" ]]; then
-        echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
-    fi
     echo "        agents:"
     echo "          provider: \"gcp\""
     echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
-done
-done
+done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
+
+# Check with Elastic Agent from stack just one package
+package_name="apache"
+echo "      - label: \":go: Integration test: ${package_name} (stack agent)\""
+echo "        key: \"integration-parallel-${package_name}-stack-agent\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
+echo "        env:"
+echo "          UPLOAD_SAFE_LOGS: 1"
+echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: false"
+echo "        agents:"
+echo "          provider: \"gcp\""
+echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
+echo "        artifact_paths:"
+echo "          - build/test-results/*.xml"
+echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
+
 popd > /dev/null
 
 # TODO: Missing docker & docker-compose in MACOS ARM agent image, skip installation of packages in the meantime.
@@ -166,19 +148,11 @@ echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
-for independent_agent in false true; do
-    label_suffix=""
-    if [[ "$independent_agent" == "false" ]]; then
-        label_suffix=" (stack agent)"
-    fi
-    echo "      - label: \":go: Integration test: system-flags${label_suffix}\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
-    echo "        agents:"
-    echo "          provider: \"gcp\""
-    echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
-    echo "        env:"
-    echo "          ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT: ${independent_agent}"
-done
+echo "      - label: \":go: Integration test: system-flags$\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
+echo "        agents:"
+echo "          provider: \"gcp\""
+echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
 
 echo "      - label: \":go: Integration test: profiles-command\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-profiles-command"
