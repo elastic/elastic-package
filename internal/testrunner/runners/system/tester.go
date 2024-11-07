@@ -133,9 +133,24 @@ var (
 			},
 		},
 	}
-	enableIndependentAgentsEnv = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
-	dumpScenarioDocsEnv        = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
+	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
+	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
 )
+
+type fieldValidationMethod int
+
+const (
+	allMethods fieldValidationMethod = iota
+	fieldsMethod
+	mappingsMethod
+)
+
+var validationMethods = map[string]fieldValidationMethod{
+	"all":      allMethods,
+	"fields":   fieldsMethod,
+	"mappings": mappingsMethod,
+}
 
 type tester struct {
 	profile            *profile.Profile
@@ -147,6 +162,8 @@ type tester struct {
 	kibanaClient       *kibana.Client
 
 	runIndependentElasticAgent bool
+
+	fieldValidationMethod fieldValidationMethod
 
 	deferCleanup   time.Duration
 	serviceVariant string
@@ -271,6 +288,17 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	v, ok := os.LookupEnv(enableIndependentAgentsEnv)
 	if ok {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
+	}
+
+	// default method using just fields
+	r.fieldValidationMethod = fieldsMethod
+	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
+	if ok {
+		method, ok := validationMethods[v]
+		if !ok {
+			return nil, fmt.Errorf("invalid field method option: %s", v)
+		}
+		r.fieldValidationMethod = method
 	}
 
 	return &r, nil
@@ -1454,50 +1482,62 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
-		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-		fields.WithNumericKeywordFields(config.NumericKeywordFields),
-		fields.WithStringNumberFields(config.StringNumberFields),
-		fields.WithExpectedDatasets(expectedDatasets),
-		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithDisableNormalization(scenario.syntheticEnabled),
-	)
-	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
-	}
-	logger.Debugf(">>>>> MARIO >>>>> Number of hits found: %d", len(scenario.docs))
-	// if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-	// 	return result.WithError(testrunner.ErrTestCaseFailed{
-	// 		Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-	// 		Details: errs.Error(),
-	// 	})
-	// }
+	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
+		fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithNumericKeywordFields(config.NumericKeywordFields),
+			fields.WithStringNumberFields(config.StringNumberFields),
+			fields.WithExpectedDatasets(expectedDatasets),
+			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithDisableNormalization(scenario.syntheticEnabled),
+		)
+		if err != nil {
+			return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
+		}
 
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+				Details: errs.Error(),
+			})
+		}
+	}
+
+	err := validateIgnoredFields(r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	mappingsValidator, err := fields.CreateValidatorForMappings(
-		fields.WithElasticsearchAPI(r.esAPI),
-		fields.WithIndexTemplate(scenario.indexTemplateName),
-		fields.WithDataStream(scenario.dataStream),
-		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-		fields.WithEnabledImportAllECSSChema(true),
-	)
-	if err != nil {
-		return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
-	}
+	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+		mappingsValidator, err := fields.CreateValidatorForMappings(
+			fields.WithElasticsearchAPI(r.esAPI),
+			fields.WithIndexTemplate(scenario.indexTemplateName),
+			fields.WithDataStream(scenario.dataStream),
+			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithEnabledImportAllECSSChema(true),
+		)
+		if err != nil {
+			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
+		}
 
-	if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
-			Details: errs.Error(),
-		})
+		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+				Details: errs.Error(),
+			})
+		}
 	}
 
 	docs := scenario.docs
 	if scenario.syntheticEnabled {
+		fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithDisableNormalization(scenario.syntheticEnabled),
+		)
+		if err != nil {
+			return result.WithErrorf("creating fields validator for sanitize synthetic docs failed: %w", err)
+		}
 		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.docs)
 		if err != nil {
 			results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
