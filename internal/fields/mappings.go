@@ -384,11 +384,13 @@ func validateFieldMapping(preview mappingDefinitions, key string, value any, cur
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
 		errs = append(errs, compareMappings(currentPath, mappingDefinitions(previewField), mappingDefinitions(actualField), ecsSchema)...)
 	case any:
-		// validate field settings
-		logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, value, value)
-		if previewValue != value {
-			errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%q) different from the actual mappings value (%q): %q", currentPath, previewValue, value, value))
-		}
+		// validate each setting/parameter of the mapping
+		// Skip: mappings should not be able to update, if a mapping exist in both preview and actual, they should be the same.
+
+		// logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, value, value)
+		// if previewValue != value {
+		// 	errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%q) different from the actual mappings value (%q): %q", currentPath, previewValue, value, value))
+		// }
 	}
 	return errs
 }
