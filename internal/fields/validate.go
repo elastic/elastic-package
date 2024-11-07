@@ -24,6 +24,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -153,6 +154,12 @@ type Validator struct {
 	disabledNormalization bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	esAPI *elasticsearch.API
+
+	indexTemplateName string
+
+	dataStreamName string
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -240,6 +247,30 @@ func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
 func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	return func(v *Validator) error {
 		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
+// WithElasticsearchAPI configures the Elasticsearch API client.
+func WithElasticsearchAPI(esAPI *elasticsearch.API) ValidatorOption {
+	return func(v *Validator) error {
+		v.esAPI = esAPI
+		return nil
+	}
+}
+
+// WithIndexTemplate configures the Index Template to query to Elasticsearch.
+func WithIndexTemplate(indexTemplate string) ValidatorOption {
+	return func(v *Validator) error {
+		v.indexTemplateName = indexTemplate
+		return nil
+	}
+}
+
+// WithDataStream configures the Data Stream to query in Elasticsearch.
+func WithDataStream(dataStream string) ValidatorOption {
+	return func(v *Validator) error {
+		v.dataStreamName = dataStream
 		return nil
 	}
 }

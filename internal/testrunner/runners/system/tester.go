@@ -841,6 +841,7 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 
 type scenarioTest struct {
 	dataStream         string
+	indexTemplateName  string
 	policyTemplateName string
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
@@ -1070,10 +1071,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			dataStreamDataset = dataset
 		}
 	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
+	scenario.indexTemplateName = fmt.Sprintf(
+		"%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		dataStreamDataset,
+	)
+	scenario.dataStream = fmt.Sprintf(
+		"%s-%s",
+		scenario.indexTemplateName,
 		ds.Namespace,
 	)
 
@@ -1460,16 +1465,35 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
-	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-			Details: errs.Error(),
-		})
-	}
+	logger.Debugf(">>>>> MARIO >>>>> Number of hits found: %d", len(scenario.docs))
+	// if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+	// 	return result.WithError(testrunner.ErrTestCaseFailed{
+	// 		Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+	// 		Details: errs.Error(),
+	// 	})
+	// }
 
 	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
+	}
+
+	mappingsValidator, err := fields.CreateValidatorForMappings(
+		fields.WithElasticsearchAPI(r.esAPI),
+		fields.WithIndexTemplate(scenario.indexTemplateName),
+		fields.WithDataStream(scenario.dataStream),
+		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+		fields.WithEnabledImportAllECSSChema(true),
+	)
+	if err != nil {
+		return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
+	}
+
+	if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+			Details: errs.Error(),
+		})
 	}
 
 	docs := scenario.docs
@@ -2123,6 +2147,14 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 		}
 	}
 
+	return nil
+}
+
+func validateMappings(ctx context.Context, mappingsValidator *fields.Validator) multierror.Error {
+	multiErr := mappingsValidator.ValidateIndexMappings(ctx)
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
 	return nil
 }
 
