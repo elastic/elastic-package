@@ -1482,19 +1482,19 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
-		fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
-			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-			fields.WithNumericKeywordFields(config.NumericKeywordFields),
-			fields.WithStringNumberFields(config.StringNumberFields),
-			fields.WithExpectedDatasets(expectedDatasets),
-			fields.WithEnabledImportAllECSSChema(true),
-			fields.WithDisableNormalization(scenario.syntheticEnabled),
-		)
-		if err != nil {
-			return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
-		}
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+		fields.WithNumericKeywordFields(config.NumericKeywordFields),
+		fields.WithStringNumberFields(config.StringNumberFields),
+		fields.WithExpectedDatasets(expectedDatasets),
+		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithDisableNormalization(scenario.syntheticEnabled),
+	)
+	if err != nil {
+		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
+	}
 
+	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
 		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
 			return result.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
@@ -1503,12 +1503,13 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	err := validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
 
 	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+		logger.Warn("Validate mappings found (technical preview)")
 		mappingsValidator, err := fields.CreateValidatorForMappings(
 			fields.WithElasticsearchAPI(r.esAPI),
 			fields.WithIndexTemplate(scenario.indexTemplateName),
@@ -1530,14 +1531,6 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 
 	docs := scenario.docs
 	if scenario.syntheticEnabled {
-		fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
-			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-			fields.WithEnabledImportAllECSSChema(true),
-			fields.WithDisableNormalization(scenario.syntheticEnabled),
-		)
-		if err != nil {
-			return result.WithErrorf("creating fields validator for sanitize synthetic docs failed: %w", err)
-		}
 		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.docs)
 		if err != nil {
 			results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
