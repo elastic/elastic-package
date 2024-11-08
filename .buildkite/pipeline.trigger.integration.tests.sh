@@ -95,7 +95,7 @@ while IFS= read -r -d '' package ; do
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
 done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
 
-# Check with Elastic Agent from stack just one package
+# Run system tests with the Elastic Agent from the Elastic stack just for one package
 package_name="apache"
 echo "      - label: \":go: Integration test: ${package_name} (stack agent)\""
 echo "        key: \"integration-parallel-${package_name}-stack-agent\""
@@ -113,7 +113,7 @@ echo "          - build/test-coverage/coverage-*.xml" # these files should not b
 # Add steps to test validation method mappings
 while IFS= read -r -d '' package ; do
     package_name=$(basename "${package}")
-    echo "      - label: \":go: Integration test: ${package_name}\""
+    echo "      - label: \":go: Integration test: ${package_name} (just validate mappings)\""
     echo "        key: \"integration-parallel-${package_name}-agent-validate-mappings\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
