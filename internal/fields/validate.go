@@ -692,6 +692,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
 		case couldBeMultifield(key, v.Schema):
 			return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
+		case !isParentEnabled(key, v.Schema):
+			return nil // parent mapping is disabled
 		default:
 			return fmt.Errorf(`field %q is undefined`, key)
 		}
@@ -874,6 +876,17 @@ func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
 	switch parent.Type {
 	case "", "group", "nested", "object":
 		// Objects cannot have multifields.
+		return false
+	}
+	return true
+}
+
+// isParentEnabled returns true by default unless the parent field exists and enabled is set false
+// This is needed in order to correctly validate the fields that should not be mapped
+// because parent field mapping was disabled
+func isParentEnabled(key string, fieldDefinitions []FieldDefinition) bool {
+	parent := findParentElementDefinition(key, fieldDefinitions)
+	if parent != nil && parent.Enabled != nil && !*parent.Enabled {
 		return false
 	}
 	return true
