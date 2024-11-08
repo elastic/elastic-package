@@ -280,8 +280,54 @@ func TestComparingMappings(t *testing.T) {
 			},
 			ecsSchema:      []FieldDefinition{},
 			expectedErrors: []string{
+				// TODO: there is an exception in the logic to not raise this error
 				// `field "_tmp" is undefined: missing definition for path`,
 			},
+		},
+		{
+			title: "skip dynamic objects", // TODO: this should be checked using dynamic templates
+			preview: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"type":    "object",
+									"dynamic": "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			actual: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "long",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			ecsSchema:      []FieldDefinition{},
+			expectedErrors: []string{},
 		},
 	}
 

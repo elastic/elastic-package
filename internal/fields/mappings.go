@@ -116,12 +116,12 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 	return nil
 }
 
-func mappingType(definition mappingDefinitions) string {
-	fieldType, ok := definition["type"]
+func mappingParameter(field string, definition mappingDefinitions) string {
+	fieldValue, ok := definition[field]
 	if !ok {
 		return ""
 	}
-	value, ok := fieldType.(string)
+	value, ok := fieldValue.(string)
 	if !ok {
 		return ""
 	}
@@ -132,7 +132,7 @@ func isEmptyObject(definition mappingDefinitions) bool {
 	if len(definition) != 1 {
 		return false
 	}
-	return mappingType(definition) == "object"
+	return mappingParameter("type", definition) == "object"
 }
 
 func isConstantKeywordType(definition mappingDefinitions) bool {
@@ -162,6 +162,19 @@ func isObject(definition mappingDefinitions) bool {
 	return true
 }
 
+func isObjectDynamic(definition mappingDefinitions) bool {
+	fieldType := mappingParameter("type", definition)
+	fieldDynamic := mappingParameter("dynamic", definition)
+
+	if fieldType != "object" {
+		return false
+	}
+	if fieldDynamic != "true" {
+		return false
+	}
+	return true
+}
+
 func isMultiFields(definition mappingDefinitions) bool {
 	_, ok := definition["type"]
 	if !ok {
@@ -184,8 +197,8 @@ func validateMappingInECS(currentPath string, definition mappingDefinitions, ecs
 		return fmt.Errorf("missing definition for path")
 	}
 
-	logger.Debugf(">> Mario > Comparing ECS type %q with actual type %q", ecsDefinition.Type, mappingType(definition))
-	if ecsDefinition.Type != mappingType(definition) {
+	logger.Debugf(">> Mario > Comparing ECS type %q with actual type %q", ecsDefinition.Type, mappingParameter("type", definition))
+	if ecsDefinition.Type != mappingParameter("type", definition) {
 		return fmt.Errorf("not matching mapping type with ECS")
 	}
 	logger.Debugf("Path FOUND in ECS: %q", currentPath)
@@ -273,7 +286,11 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 	}
 
 	if isObject(actual) {
-		if !isObject(preview) {
+		if isObjectDynamic(preview) {
+			// TODO: Skip for now, it should be required to compare with dynamic templates
+			logger.Debugf("Pending to check with dynamic templates path: %s", path)
+			return errs.Unique()
+		} else if !isObject(preview) {
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
 			return errs.Unique()
 		}
@@ -335,6 +352,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(mappingDefinitions(childField)) {
+					// TODO: Should this be raised as an error instead?
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 
 					continue
