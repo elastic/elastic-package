@@ -127,6 +127,14 @@ func mappingType(definition mappingDefinitions) string {
 	}
 	return value
 }
+
+func isEmptyObject(definition mappingDefinitions) bool {
+	if len(definition) != 1 {
+		return false
+	}
+	return mappingType(definition) == "object"
+}
+
 func isConstantKeywordType(definition mappingDefinitions) bool {
 	fieldType, ok := definition["type"]
 	if !ok {
@@ -326,6 +334,12 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 			logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
 
 			if childField, ok := value.(map[string]any); ok {
+				if isEmptyObject(mappingDefinitions(childField)) {
+					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
+
+					continue
+				}
+
 				logger.Warnf("calculating flatten fields for %s", currentPath)
 				flattenFields, err := flattenMappings(currentPath, childField)
 				if err != nil {

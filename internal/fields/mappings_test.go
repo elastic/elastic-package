@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func TestComparingMappings(t *testing.T) {
@@ -261,12 +263,34 @@ func TestComparingMappings(t *testing.T) {
 				`field "bar" is undefined: missing definition for path`,
 			},
 		},
+		{
+			title: "empty objects",
+			preview: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+			},
+			actual: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"_tmp": map[string]any{
+					"type": "object",
+				},
+			},
+			ecsSchema:      []FieldDefinition{},
+			expectedErrors: []string{
+				// `field "_tmp" is undefined: missing definition for path`,
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
+			logger.EnableDebugMode()
 			errs := compareMappings("", c.preview, c.actual, c.ecsSchema)
 			if len(c.expectedErrors) > 0 {
+				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {
 					assert.Contains(t, c.expectedErrors, err.Error())
 				}
