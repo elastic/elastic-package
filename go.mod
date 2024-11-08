@@ -7,7 +7,7 @@ toolchain go1.23.1
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.3.0
-	github.com/ProtonMail/gopenpgp/v2 v2.7.5
+	github.com/ProtonMail/gopenpgp/v2 v2.8.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.3.0
 	github.com/cbroglie/mustache v1.4.0
@@ -59,7 +59,7 @@ require (
 	github.com/PaesslerAG/gval v1.2.1 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
 	github.com/Pallinder/go-randomdata v1.2.0 // indirect
-	github.com/ProtonMail/go-crypto v1.0.0 // indirect
+	github.com/ProtonMail/go-crypto v1.1.0 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
