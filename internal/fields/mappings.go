@@ -129,6 +129,10 @@ func mappingParameter(field string, definition mappingDefinitions) string {
 }
 
 func isEmptyObject(definition mappingDefinitions) bool {
+	// Example:
+	//  "_tmp": {
+	//    "type": "object"
+	//  },
 	if len(definition) != 1 {
 		return false
 	}
@@ -163,6 +167,14 @@ func isObject(definition mappingDefinitions) bool {
 }
 
 func isObjectDynamic(definition mappingDefinitions) bool {
+	// Example:
+	//  "labels": {
+	//    "type": "object",
+	//    "dynamic": "true"
+	//  },
+	if len(definition) != 2 {
+		return false
+	}
 	fieldType := mappingParameter("type", definition)
 	fieldDynamic := mappingParameter("dynamic", definition)
 
@@ -276,12 +288,18 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 	if isConstantKeywordType(actual) {
 		if isConstantKeywordType(preview) {
 			// ignore value field if both mapping types are constant_keyword
+			logger.Debugf("Both mappings are constant_keyword type (path %s)", path)
 			return nil
 		}
 		errs = append(errs, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path))
 		if len(errs) == 0 {
 			return nil
 		}
+		return errs.Unique()
+	}
+
+	if isObjectDynamic(actual) {
+		logger.Debugf("Not fields ingested under path: %s.*", path)
 		return errs.Unique()
 	}
 
@@ -347,6 +365,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 			continue
 		}
 
+		// This key does not exist in the preview mapping
 		if _, ok := preview[key]; !ok {
 			logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
 
