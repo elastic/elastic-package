@@ -285,7 +285,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 		},
 		{
-			title: "skip dynamic objects", // TODO: this should be checked using dynamic templates
+			title: "skip dynamic objects", // TODO: should this be checked using dynamic templates?
 			preview: mappingDefinitions{
 				"@timestamp": map[string]any{
 					"type": "keyword",
@@ -328,6 +328,56 @@ func TestComparingMappings(t *testing.T) {
 			},
 			ecsSchema:      []FieldDefinition{},
 			expectedErrors: []string{},
+		},
+		{
+			title: "compare all objects even dynamic true", // TODO: should this be checked using dynamic templates?
+			preview: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"type":    "object",
+									"dynamic": "true",
+								},
+							},
+						},
+					},
+				},
+			},
+			actual: mappingDefinitions{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "long",
+										},
+									},
+								},
+								"example": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+			},
+			ecsSchema: []FieldDefinition{},
+			expectedErrors: []string{
+				`field "sql.metrics.example" is undefined: missing definition for path`,
+			},
 		},
 	}
 
