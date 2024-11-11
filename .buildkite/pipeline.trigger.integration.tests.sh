@@ -164,7 +164,7 @@ echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
 
-echo "      - label: \":go: Integration test: system-flags$\""
+echo "      - label: \":go: Integration test: system-flags\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"
 echo "        agents:"
 echo "          provider: \"gcp\""
