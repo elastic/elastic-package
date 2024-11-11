@@ -160,6 +160,8 @@ type Validator struct {
 	indexTemplateName string
 
 	dataStreamName string
+
+	LocalSchema []FieldDefinition
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.

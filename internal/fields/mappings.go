@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path/filepath"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -18,7 +19,7 @@ import (
 )
 
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(opts ...ValidatorOption) (v *Validator, err error) {
+func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	v.injectFieldsOptions.IncludeValidationSettings = false
 	for _, opt := range opts {
@@ -27,8 +28,10 @@ func CreateValidatorForMappings(opts ...ValidatorOption) (v *Validator, err erro
 		}
 	}
 
+	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 	// Load just fields from ECS
 	finder := packageRoot{}
+	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
 		packageRoot, found, err := finder.FindPackageRoot()
 		if err != nil {
@@ -37,11 +40,17 @@ func CreateValidatorForMappings(opts ...ValidatorOption) (v *Validator, err erro
 		if !found {
 			return nil, errors.New("package root not found and dependency management is enabled")
 		}
-		_, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 		}
 	}
+	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
+	if err != nil {
+		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
+	}
+
+	v.LocalSchema = fields
 	return v, nil
 }
 
@@ -106,7 +115,7 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 		return errs.Unique()
 	}
 
-	mappingErrs := compareMappings("", rawPreview, rawActual, v.Schema)
+	mappingErrs := compareMappings("", rawPreview, rawActual, v.Schema, v.LocalSchema)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -126,6 +135,14 @@ func mappingParameter(field string, definition mappingDefinitions) string {
 		return ""
 	}
 	return value
+}
+
+func isTypeArray(field string, schema []FieldDefinition) bool {
+	definition := findElementDefinitionForRoot("", field, schema)
+	if definition == nil {
+		return false
+	}
+	return definition.Type == "array"
 }
 
 func isEmptyObject(definition mappingDefinitions) bool {
@@ -282,7 +299,7 @@ func getMappingDefinitionsField(field string, definition mappingDefinitions) (ma
 	return object, nil
 }
 
-func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema []FieldDefinition) multierror.Error {
+func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 
 	if isConstantKeywordType(actual) {
@@ -328,7 +345,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
 		logger.Debugf(">>> Comparing field with properties (object): %q", path)
-		compareErrors := compareMappings(path, mappingDefinitions(previewProperties), mappingDefinitions(actualProperties), ecsSchema)
+		compareErrors := compareMappings(path, mappingDefinitions(previewProperties), mappingDefinitions(actualProperties), ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -351,7 +368,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
 		logger.Debugf(">>> Comparing multi_fields: %q", path)
-		compareErrors := compareMappings(path, mappingDefinitions(previewFields), mappingDefinitions(actualFields), ecsSchema)
+		compareErrors := compareMappings(path, mappingDefinitions(previewFields), mappingDefinitions(actualFields), ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
@@ -400,6 +417,12 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 						errs = append(errs, fmt.Errorf("invalid field definition/mapping for path: %q", fieldPath))
 						continue
 					}
+
+					if isTypeArray(fieldPath, localSchema) {
+						logger.Debugf(">> Mario > Skipped field mapping with type array: %q", fieldPath)
+						continue
+					}
+
 					// TODO: validate mapping with dynamic templates first than validating with ECS
 					// just raise an error if both validation processes fail
 
@@ -416,7 +439,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 			continue
 		}
 
-		fieldErrs := validateFieldMapping(preview, key, value, currentPath, ecsSchema)
+		fieldErrs := validateFieldMapping(preview, key, value, currentPath, ecsSchema, localSchema)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -425,7 +448,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 	return errs
 }
 
-func validateFieldMapping(preview mappingDefinitions, key string, value any, currentPath string, ecsSchema []FieldDefinition) multierror.Error {
+func validateFieldMapping(preview mappingDefinitions, key string, value any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 	previewValue := preview[key]
 	switch value.(type) {
@@ -440,7 +463,7 @@ func validateFieldMapping(preview mappingDefinitions, key string, value any, cur
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
-		errs = append(errs, compareMappings(currentPath, mappingDefinitions(previewField), mappingDefinitions(actualField), ecsSchema)...)
+		errs = append(errs, compareMappings(currentPath, mappingDefinitions(previewField), mappingDefinitions(actualField), ecsSchema, localSchema)...)
 	case any:
 		// validate each setting/parameter of the mapping
 		// Skip: mappings should not be able to update, if a mapping exist in both preview and actual, they should be the same.

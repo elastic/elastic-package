@@ -18,6 +18,7 @@ func TestComparingMappings(t *testing.T) {
 		preview        mappingDefinitions
 		actual         mappingDefinitions
 		ecsSchema      []FieldDefinition
+		localSchema    []FieldDefinition
 		expectedErrors []string
 	}{
 		{
@@ -398,12 +399,41 @@ func TestComparingMappings(t *testing.T) {
 				`field "sql.metrics.example" is undefined: missing definition for path`,
 			},
 		},
+		{
+			title: "ignore local type array objects",
+			preview: mappingDefinitions{
+				"foo": map[string]any{
+					"type":  "constant_keyword",
+					"value": "example",
+				},
+			},
+			actual: mappingDefinitions{
+				"access": map[string]any{
+					"properties": map[string]any{
+						"field": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
+			},
+			ecsSchema: []FieldDefinition{},
+			localSchema: []FieldDefinition{
+				{
+					Name: "access.field",
+					Type: "array",
+				},
+			},
+			expectedErrors: []string{
+				// `field \"access.field\" is undefined: missing definition for path`,
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
-			errs := compareMappings("", c.preview, c.actual, c.ecsSchema)
+			errs := compareMappings("", c.preview, c.actual, c.ecsSchema, c.localSchema)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {
