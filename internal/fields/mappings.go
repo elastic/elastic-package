@@ -287,8 +287,15 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema 
 
 	if isConstantKeywordType(actual) {
 		if isConstantKeywordType(preview) {
-			// ignore value field if both mapping types are constant_keyword
-			logger.Debugf("Both mappings are constant_keyword type (path %s)", path)
+			if mappingParameter("value", preview) == "" {
+				// skip validating value if preview does not have that parameter defined
+				return nil
+			}
+			actualValue := mappingParameter("value", actual)
+			previewValue := mappingParameter("value", preview)
+			if previewValue != actualValue {
+				return multierror.Error{fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)}
+			}
 			return nil
 		}
 		errs = append(errs, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path))

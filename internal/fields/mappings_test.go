@@ -149,6 +149,25 @@ func TestComparingMappings(t *testing.T) {
 			},
 		},
 		{
+			title: "validate constant_keyword value",
+			preview: mappingDefinitions{
+				"foo": map[string]any{
+					"type":  "constant_keyword",
+					"value": "example",
+				},
+			},
+			actual: mappingDefinitions{
+				"foo": map[string]any{
+					"type":  "constant_keyword",
+					"value": "bar",
+				},
+			},
+			ecsSchema: []FieldDefinition{},
+			expectedErrors: []string{
+				`constant_keyword value in preview "example" does not match the actual mapping value "bar" for path: "foo"`,
+			},
+		},
+		{
 			title: "skip constant_keyword value",
 			preview: mappingDefinitions{
 				"foo": map[string]any{
