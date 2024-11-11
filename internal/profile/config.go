@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/elastic/go-ucfg/yaml"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
