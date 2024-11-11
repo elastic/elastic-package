@@ -695,9 +695,16 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images
       (e.g. `docker.elastic.co/elastic-agent/elastic-agent-complete`). If set to `false`, the Elastic Agent image used for the running agents will be based on the wolfi
       images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `false`.
-    - `ELASTIC_PACKAGE_TEST_DUMP_SCENARIO_DOCS. If the variable is set, elastic-package will dump to a file the documents generated
+    - `ELASTIC_PACKAGE_TEST_DUMP_SCENARIO_DOCS`. If the variable is set, elastic-package will dump to a file the documents generated
       by system tests before they are verified. This is useful to know exactly what fields are being verified when investigating
       issues on this step. Documents are dumped to a file in the system temporary directory. It is disabled by default.
+    - `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT`. If the variable is set to false, all system tests defined in the package will use
+      the Elastic Agent started along with the stack. If set to true, a new Elastic Agent will be started and enrolled for each test defined in the
+      package (and unenrolled at the end of each test). Default: `true`.
+    - `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD`. This variable can take one of this values: `all`, `mappings` or `fields`. If this
+      variable is set to `fields`, then validation of fields will be based on the documents ingested into Elasticsearch. If this is set to
+      `mappings`, then validation of fields will be based on the mappings generated when the documents are ingested into Elasticsearch. If
+      set to `all`, then validation will be based on both methods mentioned previously. Default option: `fields`.
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
