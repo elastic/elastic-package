@@ -328,6 +328,8 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	}
 
 	v.Schema = append(fields, v.Schema...)
+
+	v.LocalSchema = fields
 	return v, nil
 }
 

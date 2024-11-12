@@ -20,6 +20,11 @@ import (
 
 // CreateValidatorForMappings function creates a validator for the mappings.
 func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+	p := packageRoot{}
+	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
+}
+
+func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	v.injectFieldsOptions.IncludeValidationSettings = false
 	for _, opt := range opts {
@@ -29,8 +34,7 @@ func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption)
 	}
 
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
-	// Load just fields from ECS
-	finder := packageRoot{}
+
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
 		packageRoot, found, err := finder.FindPackageRoot()
@@ -50,6 +54,8 @@ func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption)
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
+	// Load field definitions from package in a different variable
+	// It allows to check whether or not a given mapping comes from ECS
 	v.LocalSchema = fields
 	return v, nil
 }
@@ -86,9 +92,12 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 	}
 
 	// Compare actual mappings:
-	// - If there are the same exact mapping definitions, everything should be good
-	// - If the same mapping exists in both, but they have different "type" (anything else to check), there is some issue
+	// - If they are the same exact mapping definitions as in preview, everything should be good
+	// - If the same mapping exists in both, but they have different "type", there is some issue
+	//     - Could this happen?
+	//     - Should those documents being rejected directly in this case?
 	// - If there is a new mapping,
+	//     - It could come from a ECS definition, compare that mapping with the ECS field definitions
 	//     - Does this come from some dynamic template? ECS componente template or dynamic templates defined in the package? This mapping is valid
 	//         - conditions found in current dynamic templates: match, path_match, path_unmatch, match_mapping_type, unmatch_mapping_type
 	//     - if it does not match, there should be some issue and it should be reported
@@ -99,9 +108,6 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 		return errs.Unique()
 	}
 
-	// Validate mapping definitions:
-	// - Are there any mapping with different type ?
-	// - Are there any new mapping definitions not present in the preview?
 	var rawPreview mappingDefinitions
 	err = json.Unmarshal(previewMappings, &rawPreview)
 	if err != nil {
@@ -260,6 +266,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		}
 		return newDefs, nil
 	}
+
 	if !isObject(definition) {
 		newDefs[path] = definition
 		return newDefs, nil
@@ -319,7 +326,9 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			if previewValue != actualValue {
 				// This should also be detected by the failure storage (if available)
 				// or no documents being ingested
-				return multierror.Error{fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)}
+				return multierror.Error{
+					fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path),
+				}
 			}
 			return nil
 		}
@@ -393,7 +402,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			currentPath = key
 		}
 		if skipValidationForField(currentPath) {
-			logger.Debugf("Skipped checking property mapping due to path: %s", currentPath)
+			logger.Debugf("Skipped mapping due to path being part of the skipped ones: %s", currentPath)
 			continue
 		}
 
@@ -427,7 +436,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 					}
 
 					if isLocalFieldTypeArray(fieldPath, localSchema) {
-						logger.Debugf(">> Mario > Skipped field mapping with type array: %q", fieldPath)
+						logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
 						continue
 					}
 
