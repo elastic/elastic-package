@@ -255,6 +255,10 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		if err != nil {
 			return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping %q: %w", path, err)}
 		}
+
+		// Include also the definition itself
+		newDefs[path] = mappingDefinitions(definition)
+
 		for key, object := range multifields {
 			currentPath := fmt.Sprintf("%s.%s", path, key)
 			def, ok := object.(map[string]any)
