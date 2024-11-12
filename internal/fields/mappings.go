@@ -54,8 +54,9 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
 
-	// Load field definitions from package in a different variable
+	// Load field definitions from package in a different Validator variable
 	// It allows to check whether or not a given mapping comes from ECS
+	// Or just check if a packages contains some specific field definition (e.g. type array)
 	v.LocalSchema = fields
 	return v, nil
 }
@@ -238,7 +239,6 @@ func isMultiFields(definition mappingDefinitions) bool {
 func validateMappingInECS(currentPath string, definition mappingDefinitions, ecsSchema []FieldDefinition) error {
 	ecsDefinition := FindElementDefinition(currentPath, ecsSchema)
 	if ecsDefinition == nil {
-		logger.Warnf("Path not found in ECS: %q", currentPath)
 		return fmt.Errorf("missing definition for path")
 	}
 
@@ -250,7 +250,6 @@ func validateMappingInECS(currentPath string, definition mappingDefinitions, ecs
 
 func flattenMappings(path string, definition mappingDefinitions) (mappingDefinitions, error) {
 	newDefs := mappingDefinitions{}
-	// Add all multi_fields
 	if isMultiFields(definition) {
 		multifields, err := getMappingDefinitionsField("fields", definition)
 		if err != nil {
@@ -274,8 +273,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 
 	childMappings, ok := definition["properties"].(map[string]any)
 	if !ok {
-		// it should not happen
-		// it is already checked within isObject function
+		// it should not happen, it is already checked above
 		return nil, fmt.Errorf("invalid type for properties in path: %s", path)
 	}
 
@@ -289,7 +287,6 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		// there is no need to manage that case here
 		value, ok := object.(map[string]any)
 		if ok {
-			logger.Debugf(">>> Mario > Checking flattenning path: %s", currentPath)
 			other, err := flattenMappings(currentPath, mappingDefinitions(value))
 			if err != nil {
 				return nil, err
@@ -340,14 +337,14 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 	}
 
 	if isObjectDynamic(actual) {
-		logger.Debugf("Not fields ingested under path: %s.*", path)
+		logger.Debugf("Dynamic object found but no fields ingested under path: %s.*", path)
 		return errs.Unique()
 	}
 
 	if isObject(actual) {
 		if isObjectDynamic(preview) {
 			// TODO: Skip for now, it should be required to compare with dynamic templates
-			logger.Debugf("Pending to check with dynamic templates path: %s", path)
+			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
 			return errs.Unique()
 		} else if !isObject(preview) {
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
@@ -361,7 +358,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		logger.Debugf(">>> Comparing field with properties (object): %q", path)
+		// logger.Debugf(">>> Comparing field with properties (object): %q", path)
 		compareErrors := compareMappings(path, mappingDefinitions(previewProperties), mappingDefinitions(actualProperties), ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 
@@ -384,7 +381,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		logger.Debugf(">>> Comparing multi_fields: %q", path)
+		// logger.Debugf(">>> Comparing multi_fields: %q", path)
 		compareErrors := compareMappings(path, mappingDefinitions(previewFields), mappingDefinitions(actualFields), ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
@@ -408,7 +405,6 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 
 		// This key does not exist in the preview mapping
 		if _, ok := preview[key]; !ok {
-			logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
 
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(mappingDefinitions(childField)) {
@@ -418,7 +414,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 					continue
 				}
 
-				logger.Warnf("calculating flatten fields for %s", currentPath)
+				logger.Debugf("Calculating flatten fields for %s", currentPath)
 				flattenFields, err := flattenMappings(currentPath, childField)
 				if err != nil {
 					errs = append(errs, err)
@@ -430,7 +426,6 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 
 					def, ok := object.(mappingDefinitions)
 					if !ok {
-						logger.Warnf(">> Mario > %s: %+v", fieldPath, object)
 						errs = append(errs, fmt.Errorf("invalid field definition/mapping for path: %q", fieldPath))
 						continue
 					}
@@ -446,6 +441,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 					// are all fields under this key defined in ECS
 					err = validateMappingInECS(fieldPath, def, ecsSchema)
 					if err != nil {
+						logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
 						errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
 					}
 				}
@@ -530,7 +526,7 @@ func (v *Validator) loadMappingsFromES(ctx context.Context) (json.RawMessage, js
 		mappingsDefinition = v.Mappings
 	}
 
-	logger.Debugf(">>>> Mario >> Actual mappings (Properties):\n%s", mappingsDefinition.Properties)
+	logger.Debugf(">>>> Actual mappings (Properties):\n%s", mappingsDefinition.Properties)
 	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
 }
 
@@ -568,11 +564,10 @@ func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessag
 
 	var preview previewTemplate
 
-	logger.Debugf(">>>> Mario > Index template JSON:\n%s", string(body))
 	if err := json.Unmarshal(body, &preview); err != nil {
 		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
 
-	logger.Debugf(">>>> Mario >> Index template preview (Properties):\n%s", preview.Template.Mappings.Properties)
+	logger.Debugf(">>>> Index template preview (Properties):\n%s", preview.Template.Mappings.Properties)
 	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
 }
