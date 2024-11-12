@@ -137,7 +137,7 @@ func mappingParameter(field string, definition mappingDefinitions) string {
 	return value
 }
 
-func isTypeArray(field string, schema []FieldDefinition) bool {
+func isLocalFieldTypeArray(field string, schema []FieldDefinition) bool {
 	definition := findElementDefinitionForRoot("", field, schema)
 	if definition == nil {
 		return false
@@ -156,19 +156,20 @@ func isEmptyObject(definition mappingDefinitions) bool {
 	return mappingParameter("type", definition) == "object"
 }
 
-func isConstantKeywordType(definition mappingDefinitions) bool {
-	fieldType, ok := definition["type"]
-	if !ok {
-		return false
-	}
-	value, ok := fieldType.(string)
-	if !ok {
-		return false
-	}
-	return value == "constant_keyword"
-}
-
 func isObject(definition mappingDefinitions) bool {
+	// Example:
+	// "http": {
+	//   "properties": {
+	// 	   "request": {
+	// 	     "properties": {
+	//         "method": {
+	//           "type": "keyword",
+	//           "ignore_above": 1024
+	//         }
+	//       }
+	//     }
+	//   }
+	// }
 	if len(definition) > 2 {
 		// there could also be a "dynamic: true" in the mapping
 		return false
@@ -205,6 +206,15 @@ func isObjectDynamic(definition mappingDefinitions) bool {
 }
 
 func isMultiFields(definition mappingDefinitions) bool {
+	// Example:
+	//  "path": {
+	//    "type": "keyword",
+	//    "fields": {
+	//      "text": {
+	//        "type": "match_only_text"
+	//      }
+	//    }
+	//  },
 	_, ok := definition["type"]
 	if !ok {
 		return false
@@ -226,11 +236,9 @@ func validateMappingInECS(currentPath string, definition mappingDefinitions, ecs
 		return fmt.Errorf("missing definition for path")
 	}
 
-	logger.Debugf(">> Mario > Comparing ECS type %q with actual type %q", ecsDefinition.Type, mappingParameter("type", definition))
 	if ecsDefinition.Type != mappingParameter("type", definition) {
-		return fmt.Errorf("not matching mapping type with ECS")
+		return fmt.Errorf("mapping type does not match with ECS definition")
 	}
-	logger.Debugf("Path FOUND in ECS: %q", currentPath)
 	return nil
 }
 
@@ -253,7 +261,6 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		return newDefs, nil
 	}
 	if !isObject(definition) {
-		// logger.Debugf("Adding: %s", path)
 		newDefs[path] = definition
 		return newDefs, nil
 	}
@@ -281,7 +288,6 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 				return nil, err
 			}
 			for i, v := range other {
-				// logger.Debugf("> Adding: %s", i)
 				newDefs[i] = v
 			}
 		}
@@ -302,8 +308,8 @@ func getMappingDefinitionsField(field string, definition mappingDefinitions) (ma
 func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 
-	if isConstantKeywordType(actual) {
-		if isConstantKeywordType(preview) {
+	if mappingParameter("type", actual) == "constant_keyword" {
+		if mappingParameter("type", preview) == "constant_keyword" {
 			if mappingParameter("value", preview) == "" {
 				// skip validating value if preview does not have that parameter defined
 				return nil
@@ -311,6 +317,8 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			actualValue := mappingParameter("value", actual)
 			previewValue := mappingParameter("value", preview)
 			if previewValue != actualValue {
+				// This should also be detected by the failure storage (if available)
+				// or no documents being ingested
 				return multierror.Error{fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)}
 			}
 			return nil
@@ -418,7 +426,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 						continue
 					}
 
-					if isTypeArray(fieldPath, localSchema) {
+					if isLocalFieldTypeArray(fieldPath, localSchema) {
 						logger.Debugf(">> Mario > Skipped field mapping with type array: %q", fieldPath)
 						continue
 					}
@@ -432,8 +440,6 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 						errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
 					}
 				}
-
-				// errs = append(errs, fmt.Errorf("missing key %q (pending to check dynamic templates)", currentPath))
 			}
 
 			continue
@@ -554,7 +560,6 @@ func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessag
 	var preview previewTemplate
 
 	logger.Debugf(">>>> Mario > Index template JSON:\n%s", string(body))
-
 	if err := json.Unmarshal(body, &preview); err != nil {
 		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
