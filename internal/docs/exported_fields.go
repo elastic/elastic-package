@@ -31,7 +31,6 @@ type fieldsTableRecord struct {
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(fieldsParentDir string) (string, error) {
-
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -75,7 +74,6 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 	if sv.LessThan(semver3_2_3) {
 		renderFieldsTable(&builder, collected, false, false)
 	} else {
-
 		renderFieldsTable(&builder, collected, true, true)
 	}
 
@@ -86,7 +84,7 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord, 
 	unitsPresent := areUnitsPresent(collected)
 	metricTypesPresent := areMetricTypesPresent(collected)
 	valuesPresent := areValuesPresent(collected)
-	examplePresent := areExamplePresent(collected)
+	examplePresent := areExamplesPresent(collected)
 
 	builder.WriteString("| Field | Description | Type |")
 	if unitsPresent {
@@ -167,7 +165,7 @@ func areValuesPresent(collected []fieldsTableRecord) bool {
 	return false
 }
 
-func areExamplePresent(collected []fieldsTableRecord) bool {
+func areExamplesPresent(collected []fieldsTableRecord) bool {
 	for _, c := range collected {
 		if c.example != "" {
 			return true
