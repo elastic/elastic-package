@@ -3,7 +3,7 @@ env:
   DOCKER_COMPOSE_VERSION: "v2.24.1"
   DOCKER_VERSION: "26.1.2"
   KIND_VERSION: 'v0.20.0'
-  K8S_VERSION: 'v1.30.0'
+  K8S_VERSION: 'v1.31.0'
   YQ_VERSION: 'v4.44.3'
 
   # Agent images used in pipeline steps
@@ -74,21 +74,19 @@ steps:
       - step: unit-tests-linux
         allow_failure: false
 
-  # Disable step due to docker errors: https://buildkite.com/elastic/elastic-package/builds/4023#0191ff3a-f18b-4e43-9219-4957da065c37/1827-1829
-  # Related issue: https://github.com/elastic/elastic-package/issues/2107 
-  # - label: ":windows: Run stack tests"
-  #   key: stack-tests-windows
-  #   command: ".buildkite/scripts/stack_tests_windows.ps1"
-  #   agents:
-  #     provider: "gcp"
-  #     image: "${WINDOWS_AGENT_IMAGE}"
-  #   depends_on:
-  #     - step: check-static
-  #       allow_failure: false
-  #     - step: unit-tests-windows
-  #       allow_failure: false
-  #   artifact_paths:
-  #     - 'C:\ProgramData\chocolatey\logs\chocolatey.log'
+  - label: ":windows: Run stack tests"
+    key: stack-tests-windows
+    command: ".buildkite/scripts/stack_tests_windows.ps1"
+    agents:
+      provider: "gcp"
+      image: "${WINDOWS_AGENT_IMAGE}"
+    depends_on:
+      - step: check-static
+        allow_failure: false
+      - step: unit-tests-windows
+        allow_failure: false
+    artifact_paths:
+      - 'C:\ProgramData\chocolatey\logs\chocolatey.log'
 
   - wait: ~
     continue_on_failure: true
