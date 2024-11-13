@@ -1,16 +1,22 @@
-// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// Copyright Elasticsearch B.V. &&/or licensed to Elasticsearch B.V. under one
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
 package docs
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/packages"
 )
+
+var semver3_2_3 = semver.MustParse("3.2.3")
 
 type fieldsTableRecord struct {
 	name        string
@@ -19,11 +25,13 @@ type fieldsTableRecord struct {
 	unit        string
 	metricType  string
 	value       string
+	example	    string
 }
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
 func renderExportedFields(fieldsParentDir string) (string, error) {
+
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -47,14 +55,38 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		builder.WriteString("(no fields available)\n")
 		return builder.String(), nil
 	}
-	renderFieldsTable(&builder, collected)
+
+	packageRoot, found, err := packages.FindPackageRoot()
+	if err != nil {
+		return "", fmt.Errorf("locating package root failed: %w", err)
+	}
+	if !found {
+		return "", errors.New("package root not found, you can only create new data stream in the package context")
+	}
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to read package manifest from \"%s\"", packageRoot)
+	}
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+	}
+
+	if sv.LessThan(semver3_2_3) {
+		renderFieldsTable(&builder, collected, false, false)
+	} else {
+
+		renderFieldsTable(&builder, collected, true, true)
+	}
+
 	return builder.String(), nil
 }
 
-func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) {
+func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord, includeValues bool, includeExamples bool) {
 	unitsPresent := areUnitsPresent(collected)
 	metricTypesPresent := areMetricTypesPresent(collected)
 	valuesPresent := areValuesPresent(collected)
+	examplePresent := areExamplePresent(collected)
 
 	builder.WriteString("| Field | Description | Type |")
 	if unitsPresent {
@@ -63,8 +95,11 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	if metricTypesPresent {
 		builder.WriteString(" Metric Type |")
 	}
-	if valuesPresent {
+	if valuesPresent && includeValues {
 		builder.WriteString(" Value |")
+	}
+	if examplePresent && includeExamples {
+		builder.WriteString(" Example |")
 	}
 
 	builder.WriteString("\n")
@@ -75,7 +110,10 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	if metricTypesPresent {
 		builder.WriteString("---|")
 	}
-	if valuesPresent {
+	if valuesPresent && includeValues {
+		builder.WriteString("---|")
+	}
+	if examplePresent && includeExamples {
 		builder.WriteString("---|")
 	}
 
@@ -92,8 +130,11 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		if metricTypesPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.metricType))
 		}
-		if valuesPresent {
+		if valuesPresent && includeValues {
 			builder.WriteString(fmt.Sprintf(" %s |", c.value))
+		}
+		if examplePresent && includeExamples {
+			builder.WriteString(fmt.Sprintf(" %s |", c.example))
 		}
 		builder.WriteString("\n")
 	}
@@ -126,6 +167,15 @@ func areValuesPresent(collected []fieldsTableRecord) bool {
 	return false
 }
 
+func areExamplePresent(collected []fieldsTableRecord) bool {
+	for _, c := range collected {
+		if c.example != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func collectFieldsFromDefinitions(validator *fields.Validator) []fieldsTableRecord {
 	var records []fieldsTableRecord
 
@@ -151,6 +201,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			unit:        f.Unit,
 			metricType:  f.MetricType,
 			value:       f.Value,
+			example:     f.Example,
 		})
 
 		for _, multiField := range f.MultiFields {
