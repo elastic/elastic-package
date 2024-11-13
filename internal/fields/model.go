@@ -27,7 +27,7 @@ type FieldDefinition struct {
 	Unit           string            `yaml:"unit"`
 	MetricType     string            `yaml:"metric_type"`
 	External       string            `yaml:"external"`
-	Example        string			 `yaml:"example"`
+	Example        string            `yaml:"example"`
 	Index          *bool             `yaml:"index"`
 	Enabled        *bool             `yaml:"enabled"`
 	DocValues      *bool             `yaml:"doc_values"`
