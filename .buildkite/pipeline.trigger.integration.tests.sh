@@ -71,6 +71,22 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
 done
 done
 
+for iter in $(seq 1 5); do
+    test="test-check-packages-benchmarks"
+
+    test_name=${test#"test-check-packages-"}
+    echo "      - label: \":go: Integration test: ${test_name} (${iter})\""
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t ${test}"
+    echo "        agents:"
+    echo "          provider: \"gcp\""
+    echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
+    echo "        artifact_paths:"
+    echo "          - build/test-results/*.xml"
+    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
+    echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
+done
+
 pushd test/packages/false_positives > /dev/null
 for package in $(find . -maxdepth 1 -mindepth 1 -type d) ; do
     package_name=$(basename "${package}")
