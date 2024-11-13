@@ -132,6 +132,13 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 	return nil
 }
 
+func currentMappingPath(path, key string) string {
+	if path == "" {
+		return key
+	}
+	return fmt.Sprintf("%s.%s", path, key)
+}
+
 func mappingParameter(field string, definition mappingDefinitions) string {
 	fieldValue, ok := definition[field]
 	if !ok {
@@ -260,7 +267,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		newDefs[path] = mappingDefinitions(definition)
 
 		for key, object := range multifields {
-			currentPath := fmt.Sprintf("%s.%s", path, key)
+			currentPath := currentMappingPath(path, key)
 			def, ok := object.(map[string]any)
 			if !ok {
 				return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping type: %q", path)}
@@ -282,11 +289,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 	}
 
 	for key, object := range childMappings {
-		currentPath := fmt.Sprintf("%s.%s", path, key)
-		if path == "" {
-			currentPath = key
-		}
-
+		currentPath := currentMappingPath(path, key)
 		// multi_fields are already managed above
 		// there is no need to manage that case here
 		value, ok := object.(map[string]any)
@@ -398,10 +401,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			// already checked
 			continue
 		}
-		currentPath := fmt.Sprintf("%s.%s", path, key)
-		if path == "" {
-			currentPath = key
-		}
+		currentPath := currentMappingPath(path, key)
 		if skipValidationForField(currentPath) {
 			logger.Debugf("Skipped mapping due to path being part of the skipped ones: %s", currentPath)
 			continue
