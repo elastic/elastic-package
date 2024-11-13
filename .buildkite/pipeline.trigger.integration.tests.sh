@@ -71,7 +71,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
 done
 done
 
-for iter in $(seq 1 5); do
+for iter in $(seq 1 10); do
     test="test-check-packages-benchmarks"
 
     test_name=${test#"test-check-packages-"}
