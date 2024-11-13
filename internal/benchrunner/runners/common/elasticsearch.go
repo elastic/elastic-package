@@ -27,6 +27,7 @@ func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataSt
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_action_exception") {
+		logger.Debugf("could not get total hits (no_shard_available_action exception): %s", resp.String())
 		// Index is being created, but no shards are available yet.
 		// See https://github.com/elastic/elasticsearch/issues/65846
 		return 0, nil
