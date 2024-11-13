@@ -106,8 +106,9 @@ func TestValidate_EnabledNotMappedError(t *testing.T) {
 		e := readSampleEvent(t, "testdata/enabled_not_mapped.json")
 		errs := validator.ValidateDocumentBody(e)
 		if assert.Len(t, errs, 2) {
-			assert.Contains(t, errs[0].Error(), `"enabled.id" is undefined`)
-			assert.Contains(t, errs[1].Error(), `"enabled.status" is undefined`)
+			for i := 0; i < 2; i++ {
+				assert.Contains(t, []string{`field "enabled.id" is undefined`, `field "enabled.status" is undefined`}, errs[i].Error())
+			}
 		}
 	})
 }
