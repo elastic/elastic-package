@@ -83,6 +83,35 @@ func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
 	})
 }
 
+func TestValidate_DisabledParent(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("disabled", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/disabled.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
+func TestValidate_EnabledNotMappedError(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("enabled", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/enabled_not_mapped.json")
+		errs := validator.ValidateDocumentBody(e)
+		if assert.Len(t, errs, 2) {
+			assert.Contains(t, errs[0].Error(), `"enabled.id" is undefined`)
+			assert.Contains(t, errs[1].Error(), `"enabled.status" is undefined`)
+		}
+	})
+}
+
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{
