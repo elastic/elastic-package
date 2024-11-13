@@ -65,13 +65,13 @@ type mappingDefinitions map[string]any
 
 func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error {
 	var errs multierror.Error
-	actualDynamicTemplates, actualMappings, err := v.loadMappingsFromES(ctx)
+	actualDynamicTemplates, actualMappings, err := v.loadActualMappings(ctx)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStreamName, err))
 		return errs
 	}
 
-	previewDynamicTemplates, previewMappings, err := v.getIndexTemplatePreview(ctx)
+	previewDynamicTemplates, previewMappings, err := v.simulateIndexTemplate(ctx)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplateName, err))
 		return errs
@@ -491,7 +491,7 @@ func validateFieldMapping(preview mappingDefinitions, key string, value any, cur
 	return errs
 }
 
-func (v *Validator) loadMappingsFromES(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+func (v *Validator) loadActualMappings(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
 	mappingResp, err := v.esAPI.Indices.GetMapping(
 		v.esAPI.Indices.GetMapping.WithContext(ctx),
 		v.esAPI.Indices.GetMapping.WithIndex(v.dataStreamName),
@@ -534,7 +534,7 @@ func (v *Validator) loadMappingsFromES(ctx context.Context) (json.RawMessage, js
 	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
 }
 
-func (v *Validator) getIndexTemplatePreview(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
+func (v *Validator) simulateIndexTemplate(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
 	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
 	resp, err := v.esAPI.Indices.SimulateTemplate(
 		v.esAPI.Indices.SimulateTemplate.WithContext(ctx),
