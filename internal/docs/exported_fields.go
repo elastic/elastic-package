@@ -5,7 +5,6 @@
 package docs
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -16,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-var semver3_2_3 = semver.MustParse("3.2.3")
+var semver3_2_3 = semver.MustParse("3.3.1")
 
 type fieldsTableRecord struct {
 	name        string
@@ -30,7 +29,7 @@ type fieldsTableRecord struct {
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-func renderExportedFields(fieldsParentDir string) (string, error) {
+func renderExportedFields(fieldsParentDir string, pkgManifest *packages.PackageManifest) (string, error) {
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -55,27 +54,19 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		return builder.String(), nil
 	}
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	sv, err := semver.NewVersion(pkgManifest.SpecVersion)
 	if err != nil {
-		return "", fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return "", errors.New("package root not found, you can only create new data stream in the package context")
-	}
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
-	if err != nil {
-		return "", fmt.Errorf("failed to read package manifest from \"%s\"", packageRoot)
-	}
-	sv, err := semver.NewVersion(manifest.SpecVersion)
-	if err != nil {
-		return "", fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+		return "", fmt.Errorf("failed to obtain spec version from package manifest: %w", err)
 	}
 
+	renderExamples := true
+	renderValues := true
 	if sv.LessThan(semver3_2_3) {
-		renderFieldsTable(&builder, collected, false, false)
-	} else {
-		renderFieldsTable(&builder, collected, true, true)
+		renderExamples = false
+		renderValues = false
 	}
+
+	renderFieldsTable(&builder, collected, renderValues, renderExamples)
 
 	return builder.String(), nil
 }

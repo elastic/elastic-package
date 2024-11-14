@@ -191,11 +191,15 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			return renderSampleEvent(packageRoot, "")
 		},
 		"fields": func(args ...string) (string, error) {
+			manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+			if err != nil {
+				return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+			}
 			if len(args) > 0 {
 				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
-				return renderExportedFields(dataStreamPath)
+				return renderExportedFields(dataStreamPath, manifest)
 			}
-			return renderExportedFields(packageRoot)
+			return renderExportedFields(packageRoot, manifest)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}
