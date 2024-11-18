@@ -24,7 +24,7 @@ type fieldsTableRecord struct {
 	unit        string
 	metricType  string
 	value       string
-	example	    string
+	example     string
 }
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
@@ -82,7 +82,7 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord, 
 	if metricTypesPresent {
 		builder.WriteString(" Metric Type |")
 	}
-	if (examplePresent || valuesPresent)  && includeExamples {
+	if (examplePresent || valuesPresent) && includeExamples {
 		builder.WriteString(" Example |")
 	}
 
