@@ -323,7 +323,7 @@ func (c *collector) collectMetricsPreviousToStop(ctx context.Context) {
 func (c *collector) collectTotalHits(ctx context.Context) int {
 	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not get total hits: %s", err)
+		logger.Debugf("could not total hits: %w", err)
 	}
 	return totalHits
 }

@@ -23,7 +23,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: buildkite-pipeline-elastic-package
-  description: ":go: Build and test the elastic-package project"
+  description: ':go: Build and test the elastic-package project'
   links:
     - title: Pipeline
       url: https://buildkite.com/elastic/elastic-package
@@ -31,13 +31,13 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: platform-ingest
+  system: buildkite
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
     metadata:
       name: elastic-package
-      description: ":go: Build and test the elastic-package project"
+      description: ':go: Build and test the elastic-package project'
     spec:
       branch_configuration: "main v0.* v1.*"
       pipeline_file: ".buildkite/pipeline.yml"
@@ -50,11 +50,11 @@ spec:
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: "!main"
+      cancel_intermediate_builds_branch_filter: '!main'
       skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: "!main"
+      skip_intermediate_builds_branch_filter: '!main'
       env:
-        ELASTIC_PR_COMMENTS_ENABLED: "true"
+        ELASTIC_PR_COMMENTS_ENABLED: 'true'
       teams:
         ecosystem:
           access_level: MANAGE_BUILD_AND_READ
@@ -69,7 +69,7 @@ apiVersion: backstage.io/v1alpha1
 kind: Resource
 metadata:
   name: buildkite-pipeline-elastic-package-test-with-integrations
-  description: "Buildkite pipeline to run specific elastic-package version with all packages in integrations repository"
+  description: 'Buildkite pipeline to run specific elastic-package version with all packages in integrations repository'
   links:
     - title: Pipeline
       url: https://buildkite.com/elastic/elastic-package-test-with-integrations
@@ -77,13 +77,13 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: platform-ingest
+  system: buildkite
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
     metadata:
       name: elastic-package-test-with-integrations
-      description: "Buildkite pipeline to run specific elastic-package version with all packages in integrations repository"
+      description: 'Buildkite pipeline to run specific elastic-package version with all packages in integrations repository'
     spec:
       branch_configuration: main
       pipeline_file: ".buildkite/pipeline.test-with-integrations-repo.yml"
@@ -98,9 +98,9 @@ spec:
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: "!main"
+      cancel_intermediate_builds_branch_filter: '!main'
       skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: "!main"
+      skip_intermediate_builds_branch_filter: '!main'
       teams:
         ecosystem:
           access_level: MANAGE_BUILD_AND_READ
@@ -123,7 +123,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: platform-ingest
+  system: buildkite
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -141,8 +141,8 @@ spec:
         filter_enabled: true
         filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
-      cancel_intermediate_builds: false # do not cancel any build to avoid inconsistent states
-      skip_intermediate_builds: true # just need to run the latest commit
+      cancel_intermediate_builds: false  # do not cancel any build to avoid inconsistent states
+      skip_intermediate_builds: true     # just need to run the latest commit
       repository: elastic/elastic-package
       schedules:
         Daily main:
@@ -169,7 +169,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: platform-ingest
+  system: buildkite
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -189,9 +189,9 @@ spec:
         filter_condition: >-
           build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: "!main"
+      cancel_intermediate_builds_branch_filter: '!main'
       skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: "!main"
+      skip_intermediate_builds_branch_filter: '!main'
       repository: elastic/elastic-package
       schedules:
         Test Serverless Daily:
@@ -205,3 +205,4 @@ spec:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: BUILD_AND_READ
+

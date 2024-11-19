@@ -59,25 +59,6 @@ id: "2e19c1c4-185b-11ef-a7fc-43855f39047f"
 			fail: true,
 		},
 		{
-			title: "clean namespaces if empty",
-			expected: `
-`,
-			found: `
-namespaces: []
-`,
-			equal: true,
-		},
-		{
-			title: "clean namespaces only if empty",
-			expected: `
-namespaces: []
-`,
-			found: `
-namespaces: [foo]
-`,
-			equal: false,
-		},
-		{
 			title: "clean expected",
 			expected: `
 inputs:
@@ -157,7 +138,6 @@ inputs:
           password: ${SECRET_0}
       type: sql/metrics
       use_output: default
-namespaces: []
 output_permissions:
     default:
         _elastic_agent_checks:

@@ -24,41 +24,41 @@
 - name: container.image.tag
   type: keyword
   normalize:
-    - array
+  - array
 - name: event.category
   type: keyword
   allowed_values:
-    - name: authentication
-      expected_event_types:
-        - start
-        - end
-        - info
-    - name: configuration
-      expected_event_types:
-        - access
-        - change
-        - creation
-        - deletion
-        - info
-    - name: network
-      expected_event_types:
-        - access
-        - allowed
-        - connection
-        - denied
-        - end
-        - info
-        - protocol
-        - start
-    - name: iam
-      expected_event_types:
-        - admin
-        - change
-        - creation
-        - deletion
-        - group
-        - info
-        - user
+  - name: authentication
+    expected_event_types:
+    - start
+    - end
+    - info
+  - name: configuration
+    expected_event_types:
+    - access
+    - change
+    - creation
+    - deletion
+    - info
+  - name: network
+    expected_event_types:
+    - access
+    - allowed
+    - connection
+    - denied
+    - end
+    - info
+    - protocol
+    - start
+  - name: iam
+    expected_event_types:
+    - admin
+    - change
+    - creation
+    - deletion
+    - group
+    - info
+    - user
 - name: event.type
   type: keyword
   normalize:
@@ -95,6 +95,3 @@
 - name: attributes
   type: object
   object_type: keyword
-- name: disabled
-  type: object
-  enabled: false
