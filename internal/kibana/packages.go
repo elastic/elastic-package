@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -69,19 +70,31 @@ type FleetPackage struct {
 	Version     string `json:"version"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
-	SavedObject struct {
+	SavedObject *struct {
 		Attributes struct {
 			InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
 			InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
 			PackageAssets                []packages.Asset `json:"package_assets"`
 		} `json:"attributes"`
 	} `json:"savedObject"`
+	InstallationInfo *struct {
+		InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
+		InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+	} `json:"installationInfo"`
 }
 
 func (p *FleetPackage) Assets() []packages.Asset {
 	var assets []packages.Asset
-	assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
-	assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+	if p.SavedObject != nil {
+		logger.Debugf("Adding from `savedObject`")
+		assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
+		assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+		return assets
+	}
+	// starting in 9.0.0
+	logger.Debugf("Adding from `installationInfo`")
+	assets = append(assets, p.InstallationInfo.InstalledElasticsearchAssets...)
+	assets = append(assets, p.InstallationInfo.InstalledKibanaAssets...)
 	return assets
 }
 
@@ -114,6 +127,7 @@ func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, er
 		// Response is here when new packages API is used (since 8.0)
 		Item *FleetPackage `json:"item"`
 	}
+	logger.Debugf(">>> Mario > Response:\n%s", string(respBody))
 	err = json.Unmarshal(respBody, &response)
 	switch {
 	case err != nil:
