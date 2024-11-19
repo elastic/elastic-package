@@ -314,24 +314,26 @@ func getMappingDefinitionsField(field string, definition map[string]any) (map[st
 }
 
 func validateConstantKeywordField(path string, preview, actual map[string]any) (bool, error) {
+	isConstantKeyword := false
 	if mappingParameter("type", actual) != "constant_keyword" {
-		return false, nil
+		return isConstantKeyword, nil
 	}
+	isConstantKeyword = true
 	if mappingParameter("type", preview) != "constant_keyword" {
-		return false, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path)
+		return isConstantKeyword, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path)
 	}
 	if mappingParameter("value", preview) == "" {
 		// skip validating value if preview does not have that parameter defined
-		return true, nil
+		return isConstantKeyword, nil
 	}
 	actualValue := mappingParameter("value", actual)
 	previewValue := mappingParameter("value", preview)
 	if previewValue != actualValue {
 		// This should also be detected by the failure storage (if available)
 		// or no documents being ingested
-		return false, fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)
+		return isConstantKeyword, fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)
 	}
-	return true, nil
+	return isConstantKeyword, nil
 }
 
 func compareMappings(path string, preview, actual map[string]any, ecsSchema, localSchema []FieldDefinition) multierror.Error {
@@ -377,6 +379,7 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 		return errs.Unique()
 	}
 
+	containsMultifield := isMultiFields(actual)
 	if isMultiFields(actual) {
 		if !isMultiFields(preview) {
 			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %s", path))
@@ -397,7 +400,6 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 	}
 
 	// Compare all the other fields
-	containsMultifield := isMultiFields(actual)
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
 			// already checked
