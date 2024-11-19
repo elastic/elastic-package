@@ -400,6 +400,16 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 	}
 
 	// Compare all the other fields
+	propertiesErrs := validateObjectProperties(path, containsMultifield, actual, preview, localSchema, ecsSchema)
+	errs = append(errs, propertiesErrs...)
+	if len(errs) == 0 {
+		return nil
+	}
+	return errs.Unique()
+}
+
+func validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any, localSchema, ecsSchema []FieldDefinition) multierror.Error {
+	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
 			// already checked
@@ -413,12 +423,10 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 
 		// This key does not exist in the preview mapping
 		if _, ok := preview[key]; !ok {
-
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(childField) {
 					// TODO: Should this be raised as an error instead?
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
-
 					continue
 				}
 
@@ -446,7 +454,7 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 					// TODO: validate mapping with dynamic templates first than validating with ECS
 					// just raise an error if both validation processes fail
 
-					// are all fields under this key defined in ECS
+					// are all fields under this key defined in ECS?
 					err = validateMappingInSchema(fieldPath, def, ecsSchema)
 					if err != nil {
 						logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
