@@ -1896,6 +1896,12 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
+		// Check that there is no problem running the actual transform.
+		err = r.checkRunningTransformHealth(ctx, transformId)
+		if err != nil {
+			return fmt.Errorf("there are issues with installed transform %q: %w", transformId, err)
+		}
+
 		transformRootPath := filepath.Dir(transform.Path)
 		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
@@ -1976,6 +1982,161 @@ func (r *tester) previewTransform(ctx context.Context, transformId string) ([]co
 	}
 
 	return preview.Documents, nil
+}
+
+func (r *tester) scheduleTransform(ctx context.Context, transformId string) error {
+	resp, err := r.esAPI.TransformScheduleNowTransform(transformId,
+		r.esAPI.TransformScheduleNowTransform.WithContext(ctx),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("failed to schedule transform %q: %s", transformId, resp.String())
+	}
+
+	return nil
+}
+
+type transformStats struct {
+	Checkpointing struct {
+		Last struct {
+			Checkpoint int `json:"checkpoint"`
+		} `json:"last"`
+		Next struct {
+			Checkpoint int `json:"checkpoint"`
+		} `json:"next"`
+		LastSearchTime int `json:"last_search_time"`
+	} `json:"checkpointing"`
+	Health transformHealth `json:"health"`
+	Reason string          `json:"reason"`
+	State  string          `json:"state"`
+}
+
+type transformHealth struct {
+	Status string `json:"status"`
+	Issues []struct {
+		Issue           string    `json:"issue"`
+		Details         string    `json:"details"`
+		Count           int       `json:"count"`
+		FirstOccurrence time.Time `json:"first_occurrence"`
+	} `json:"issues"`
+}
+
+func (r *tester) getTransformStats(ctx context.Context, transformId string) (*transformStats, error) {
+	resp, err := r.esAPI.TransformGetTransformStats(transformId,
+		r.esAPI.TransformGetTransformStats.WithContext(ctx),
+		r.esAPI.TransformGetTransformStats.WithAllowNoMatch(false),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get transform stats for %q: %s", transformId, resp.String())
+	}
+
+	var response struct {
+		Transforms []transformStats `json:"transforms"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	if len(response.Transforms) != 1 {
+		return nil, fmt.Errorf("stats for %d transforms received when requesting only for %s", len(response.Transforms), transformId)
+	}
+	return &response.Transforms[0], nil
+}
+
+// checkRunningTransformHealth checks the following for a given transform:
+// - That it is started.
+// - That it can execute at least once during the check.
+// - That it is healthy after executing at least once.
+func (r *tester) checkRunningTransformHealth(ctx context.Context, transformId string) error {
+	const (
+		period  = 1 * time.Second
+		timeout = 60 * time.Second
+	)
+	lastSearchTime := 0
+	last := -1
+	running := false
+	ok, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		stats, err := r.getTransformStats(ctx, transformId)
+		if err != nil {
+			return false, err
+		}
+		if last < 0 {
+			last = stats.Checkpointing.Last.Checkpoint
+			lastSearchTime = stats.Checkpointing.LastSearchTime
+		}
+		logger.Debugf("transform %s state: %s, health: %s, checkpoint %d, last search %d",
+			transformId,
+			stats.State, stats.Health.Status,
+			stats.Checkpointing.Last.Checkpoint, stats.Checkpointing.LastSearchTime)
+		switch stats.State {
+		case "failed":
+			return false, fmt.Errorf("transform in failed state: %s", stats.Reason)
+		case "aborting", "stopping", "stopped":
+			return false, fmt.Errorf("transform unexpectedly %s", stats.State)
+		case "indexing":
+			// It is already running, wait till indexing finishes.
+			running = true
+			return false, nil
+		case "started":
+			if !running {
+				logger.Debugf("scheduling transform %s now", transformId)
+				err := r.scheduleTransform(ctx, transformId)
+				if err != nil {
+					return false, fmt.Errorf("failed to schedule transform: %w", err)
+				}
+				running = true
+				return false, nil
+			}
+		default:
+			return false, fmt.Errorf("unexpected transform state %q", stats.State)
+		}
+
+		if stats.Checkpointing.Last.Checkpoint <= last && stats.Checkpointing.LastSearchTime <= lastSearchTime {
+			// There hasn't been any update yet, try again.
+			return false, nil
+		}
+
+		err = healthError(stats.Health)
+		return err == nil, err
+	}, period, timeout)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("could not confirm successful executions of transform %s", transformId)
+	}
+	return nil
+}
+
+func healthError(health transformHealth) error {
+	if health.Status == "green" {
+		return nil
+	}
+
+	var msg strings.Builder
+	msg.WriteString("unexpected transform health status (" + health.Status + ")")
+
+	if len(health.Issues) > 0 {
+		msg.WriteString(": ")
+		for i, issue := range health.Issues {
+			msg.WriteString(issue.Issue + "(" + issue.Details + ")")
+			if i+1 < len(health.Issues) {
+				msg.WriteString(", ")
+			}
+		}
+	}
+
+	return errors.New(msg.String())
 }
 
 func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
