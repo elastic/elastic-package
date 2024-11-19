@@ -26,7 +26,6 @@ func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption)
 
 func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
-	v.injectFieldsOptions.IncludeValidationSettings = false
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
 			return nil, err
