@@ -97,6 +97,7 @@ type policyEntryFilter struct {
 	name            string
 	elementsEntries []policyEntryFilter
 	memberReplace   *policyEntryReplace
+	onlyIfEmpty     bool
 }
 
 type policyEntryReplace struct {
@@ -148,6 +149,9 @@ var policyEntryFilters = []policyEntryFilter{
 		regexp:  regexp.MustCompile(`^[a-z0-9]{4,}(-[a-z0-9]{4,})+$`),
 		replace: "uuid-for-permissions-on-related-indices",
 	}},
+
+	// Namespaces may not be present in older versions of the stack.
+	{name: "namespaces", onlyIfEmpty: true},
 }
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
@@ -170,15 +174,16 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
 	for _, entry := range entries {
+		v, err := policyMap.GetValue(entry.name)
+		if errors.Is(err, common.ErrKeyNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+
 		switch {
 		case len(entry.elementsEntries) > 0:
-			v, err := policyMap.GetValue(entry.name)
-			if errors.Is(err, common.ErrKeyNotFound) {
-				continue
-			}
-			if err != nil {
-				return nil, err
-			}
 			list, err := common.ToMapStrSlice(v)
 			if err != nil {
 				return nil, err
@@ -197,10 +202,6 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				return nil, err
 			}
 		case entry.memberReplace != nil:
-			v, err := policyMap.GetValue(entry.name)
-			if errors.Is(err, common.ErrKeyNotFound) {
-				continue
-			}
 			m, ok := v.(common.MapStr)
 			if !ok {
 				return nil, fmt.Errorf("expected map, found %T", v)
@@ -212,6 +213,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				}
 			}
 		default:
+			if entry.onlyIfEmpty && !isEmpty(v) {
+				continue
+			}
 			err := policyMap.Delete(entry.name)
 			if errors.Is(err, common.ErrKeyNotFound) {
 				continue
@@ -223,4 +227,17 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 	}
 
 	return policyMap, nil
+}
+
+func isEmpty(v any) bool {
+	switch v := v.(type) {
+	case nil:
+		return true
+	case []any:
+		return len(v) == 0
+	case map[string]any:
+		return len(v) == 0
+	}
+
+	return false
 }

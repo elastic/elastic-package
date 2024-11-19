@@ -95,3 +95,6 @@
 - name: attributes
   type: object
   object_type: keyword
+- name: disabled
+  type: object
+  enabled: false
