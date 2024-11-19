@@ -69,19 +69,29 @@ type FleetPackage struct {
 	Version     string `json:"version"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
-	SavedObject struct {
+	SavedObject *struct {
 		Attributes struct {
 			InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
 			InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
 			PackageAssets                []packages.Asset `json:"package_assets"`
 		} `json:"attributes"`
 	} `json:"savedObject"`
+	InstallationInfo *struct {
+		InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
+		InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+	} `json:"installationInfo"`
 }
 
 func (p *FleetPackage) Assets() []packages.Asset {
 	var assets []packages.Asset
-	assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
-	assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+	if p.SavedObject != nil {
+		assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
+		assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+		return assets
+	}
+	// starting in 9.0.0 "savedObject" fields does not exist in the API response
+	assets = append(assets, p.InstallationInfo.InstalledElasticsearchAssets...)
+	assets = append(assets, p.InstallationInfo.InstalledKibanaAssets...)
 	return assets
 }
 
