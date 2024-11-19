@@ -15,15 +15,15 @@ import (
 func TestComparingMappings(t *testing.T) {
 	cases := []struct {
 		title          string
-		preview        mappingDefinitions
-		actual         mappingDefinitions
+		preview        map[string]any
+		actual         map[string]any
 		ecsSchema      []FieldDefinition
 		localSchema    []FieldDefinition
 		expectedErrors []string
 	}{
 		{
 			title: "same mappings",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]string{
 					"type": "keyword",
 				},
@@ -50,7 +50,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]string{
 					"type": "keyword",
 				},
@@ -82,12 +82,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "validate field with ECS",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"bar": map[string]any{
 					"type": "keyword",
 				},
@@ -102,7 +102,7 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "skip host group mappings",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -114,7 +114,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -131,12 +131,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "missing mappings",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -151,13 +151,13 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "validate constant_keyword value",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type":  "constant_keyword",
 					"value": "example",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"foo": map[string]any{
 					"type":  "constant_keyword",
 					"value": "bar",
@@ -170,12 +170,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "skip constant_keyword value",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "constant_keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"foo": map[string]any{
 					"type":  "constant_keyword",
 					"value": "bar",
@@ -186,12 +186,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "unexpected constant_keyword type",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"foo": map[string]any{
 					"type":  "constant_keyword",
 					"value": "bar",
@@ -204,7 +204,7 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "validate multifields failure",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -214,7 +214,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -231,12 +231,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "missing multifields",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -253,7 +253,7 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "validate nested object",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
 				},
@@ -265,7 +265,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"bar": map[string]any{
 					"type": "keyword",
 				},
@@ -285,12 +285,12 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "empty objects",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -306,7 +306,7 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "skip dynamic objects", // TODO: should this be checked using dynamic templates?
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -324,7 +324,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -351,7 +351,7 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "compare all objects even dynamic true", // TODO: should this be checked using dynamic templates?
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -369,7 +369,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
@@ -401,13 +401,13 @@ func TestComparingMappings(t *testing.T) {
 		},
 		{
 			title: "ignore local type array objects",
-			preview: mappingDefinitions{
+			preview: map[string]any{
 				"foo": map[string]any{
 					"type":  "constant_keyword",
 					"value": "example",
 				},
 			},
-			actual: mappingDefinitions{
+			actual: map[string]any{
 				"access": map[string]any{
 					"properties": map[string]any{
 						"field": map[string]any{

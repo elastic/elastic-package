@@ -60,8 +60,6 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 	return v, nil
 }
 
-type mappingDefinitions map[string]any
-
 func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error {
 	var errs multierror.Error
 	actualDynamicTemplates, actualMappings, err := v.loadActualMappings(ctx)
@@ -108,13 +106,13 @@ func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error 
 		return errs.Unique()
 	}
 
-	var rawPreview mappingDefinitions
+	var rawPreview map[string]any
 	err = json.Unmarshal(previewMappings, &rawPreview)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal preview mappings (index template %s): %w", v.indexTemplateName, err))
 		return errs.Unique()
 	}
-	var rawActual mappingDefinitions
+	var rawActual map[string]any
 	err = json.Unmarshal(actualMappings, &rawActual)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal actual mappings (data stream %s): %w", v.dataStreamName, err))
@@ -138,7 +136,7 @@ func currentMappingPath(path, key string) string {
 	return fmt.Sprintf("%s.%s", path, key)
 }
 
-func mappingParameter(field string, definition mappingDefinitions) string {
+func mappingParameter(field string, definition map[string]any) string {
 	fieldValue, ok := definition[field]
 	if !ok {
 		return ""
@@ -158,7 +156,7 @@ func isLocalFieldTypeArray(field string, schema []FieldDefinition) bool {
 	return definition.Type == "array"
 }
 
-func isEmptyObject(definition mappingDefinitions) bool {
+func isEmptyObject(definition map[string]any) bool {
 	// Example:
 	//  "_tmp": {
 	//    "type": "object"
@@ -169,7 +167,7 @@ func isEmptyObject(definition mappingDefinitions) bool {
 	return mappingParameter("type", definition) == "object"
 }
 
-func isObject(definition mappingDefinitions) bool {
+func isObject(definition map[string]any) bool {
 	// Example:
 	// "http": {
 	//   "properties": {
@@ -197,7 +195,7 @@ func isObject(definition mappingDefinitions) bool {
 	return true
 }
 
-func isObjectDynamic(definition mappingDefinitions) bool {
+func isObjectDynamic(definition map[string]any) bool {
 	// Example:
 	//  "labels": {
 	//    "type": "object",
@@ -218,7 +216,7 @@ func isObjectDynamic(definition mappingDefinitions) bool {
 	return true
 }
 
-func isMultiFields(definition mappingDefinitions) bool {
+func isMultiFields(definition map[string]any) bool {
 	// Example:
 	//  "path": {
 	//    "type": "keyword",
@@ -242,7 +240,7 @@ func isMultiFields(definition mappingDefinitions) bool {
 	return true
 }
 
-func validateMappingInECS(currentPath string, definition mappingDefinitions, ecsSchema []FieldDefinition) error {
+func validateMappingInECS(currentPath string, definition map[string]any, ecsSchema []FieldDefinition) error {
 	ecsDefinition := FindElementDefinition(currentPath, ecsSchema)
 	if ecsDefinition == nil {
 		return fmt.Errorf("missing definition for path")
@@ -254,8 +252,8 @@ func validateMappingInECS(currentPath string, definition mappingDefinitions, ecs
 	return nil
 }
 
-func flattenMappings(path string, definition mappingDefinitions) (mappingDefinitions, error) {
-	newDefs := mappingDefinitions{}
+func flattenMappings(path string, definition map[string]any) (map[string]any, error) {
+	newDefs := map[string]any{}
 	if isMultiFields(definition) {
 		multifields, err := getMappingDefinitionsField("fields", definition)
 		if err != nil {
@@ -263,7 +261,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		}
 
 		// Include also the definition itself
-		newDefs[path] = mappingDefinitions(definition)
+		newDefs[path] = definition
 
 		for key, object := range multifields {
 			currentPath := currentMappingPath(path, key)
@@ -271,7 +269,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 			if !ok {
 				return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping type: %q", path)}
 			}
-			newDefs[currentPath] = mappingDefinitions(def)
+			newDefs[currentPath] = def
 		}
 		return newDefs, nil
 	}
@@ -293,7 +291,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 		// there is no need to manage that case here
 		value, ok := object.(map[string]any)
 		if ok {
-			other, err := flattenMappings(currentPath, mappingDefinitions(value))
+			other, err := flattenMappings(currentPath, value)
 			if err != nil {
 				return nil, err
 			}
@@ -306,7 +304,7 @@ func flattenMappings(path string, definition mappingDefinitions) (mappingDefinit
 	return newDefs, nil
 }
 
-func getMappingDefinitionsField(field string, definition mappingDefinitions) (mappingDefinitions, error) {
+func getMappingDefinitionsField(field string, definition map[string]any) (map[string]any, error) {
 	anyValue := definition[field]
 	object, ok := anyValue.(map[string]any)
 	if !ok {
@@ -315,7 +313,7 @@ func getMappingDefinitionsField(field string, definition mappingDefinitions) (ma
 	return object, nil
 }
 
-func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema, localSchema []FieldDefinition) multierror.Error {
+func compareMappings(path string, preview, actual map[string]any, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 
 	if mappingParameter("type", actual) == "constant_keyword" {
@@ -365,7 +363,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
 		// logger.Debugf(">>> Comparing field with properties (object): %q", path)
-		compareErrors := compareMappings(path, mappingDefinitions(previewProperties), mappingDefinitions(actualProperties), ecsSchema, localSchema)
+		compareErrors := compareMappings(path, previewProperties, actualProperties, ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -388,7 +386,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
 		// logger.Debugf(">>> Comparing multi_fields: %q", path)
-		compareErrors := compareMappings(path, mappingDefinitions(previewFields), mappingDefinitions(actualFields), ecsSchema, localSchema)
+		compareErrors := compareMappings(path, previewFields, actualFields, ecsSchema, localSchema)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
@@ -410,7 +408,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 		if _, ok := preview[key]; !ok {
 
 			if childField, ok := value.(map[string]any); ok {
-				if isEmptyObject(mappingDefinitions(childField)) {
+				if isEmptyObject(childField) {
 					// TODO: Should this be raised as an error instead?
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 
@@ -427,7 +425,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 				for fieldPath, object := range flattenFields {
 					logger.Debugf("- %s", fieldPath)
 
-					def, ok := object.(mappingDefinitions)
+					def, ok := object.(map[string]any)
 					if !ok {
 						errs = append(errs, fmt.Errorf("invalid field definition/mapping for path: %q", fieldPath))
 						continue
@@ -462,7 +460,7 @@ func compareMappings(path string, preview, actual mappingDefinitions, ecsSchema,
 	return errs
 }
 
-func validateFieldMapping(preview mappingDefinitions, key string, value any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
+func validateFieldMapping(preview map[string]any, key string, value any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 	previewValue := preview[key]
 	switch value.(type) {
@@ -477,7 +475,7 @@ func validateFieldMapping(preview mappingDefinitions, key string, value any, cur
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
-		errs = append(errs, compareMappings(currentPath, mappingDefinitions(previewField), mappingDefinitions(actualField), ecsSchema, localSchema)...)
+		errs = append(errs, compareMappings(currentPath, previewField, actualField, ecsSchema, localSchema)...)
 	case any:
 		// validate each setting/parameter of the mapping
 		// Skip: mappings should not be able to update, if a mapping exist in both preview and actual, they should be the same.
