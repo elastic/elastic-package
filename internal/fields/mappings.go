@@ -344,19 +344,19 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 		return multierror.Error{err}
 	}
 	if isConstantKeywordType {
-		return errs
+		return nil
 	}
 
 	if isObjectDynamic(actual) {
 		logger.Debugf("Dynamic object found but no fields ingested under path: %s.*", path)
-		return errs.Unique()
+		return nil
 	}
 
 	if isObject(actual) {
 		if isObjectDynamic(preview) {
 			// TODO: Skip for now, it should be required to compare with dynamic templates
 			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
-			return errs.Unique()
+			return nil
 		} else if !isObject(preview) {
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
 			return errs.Unique()
@@ -464,7 +464,7 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 	if len(errs) == 0 {
 		return nil
 	}
-	return errs
+	return errs.Unique()
 }
 
 func validateFieldMapping(preview map[string]any, key string, value any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
