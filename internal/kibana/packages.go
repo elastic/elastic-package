@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -86,13 +85,11 @@ type FleetPackage struct {
 func (p *FleetPackage) Assets() []packages.Asset {
 	var assets []packages.Asset
 	if p.SavedObject != nil {
-		logger.Debugf("Adding from `savedObject`")
 		assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
 		assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
 		return assets
 	}
-	// starting in 9.0.0
-	logger.Debugf("Adding from `installationInfo`")
+	// starting in 9.0.0 "savedObject" fields does not exist in the API response
 	assets = append(assets, p.InstallationInfo.InstalledElasticsearchAssets...)
 	assets = append(assets, p.InstallationInfo.InstalledKibanaAssets...)
 	return assets
@@ -127,7 +124,6 @@ func (c *Client) GetPackage(ctx context.Context, name string) (*FleetPackage, er
 		// Response is here when new packages API is used (since 8.0)
 		Item *FleetPackage `json:"item"`
 	}
-	logger.Debugf(">>> Mario > Response:\n%s", string(respBody))
 	err = json.Unmarshal(respBody, &response)
 	switch {
 	case err != nil:
