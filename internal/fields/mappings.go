@@ -313,31 +313,36 @@ func getMappingDefinitionsField(field string, definition map[string]any) (map[st
 	return object, nil
 }
 
+func validateConstantKeywordField(path string, preview, actual map[string]any) (bool, error) {
+	if mappingParameter("type", actual) != "constant_keyword" {
+		return false, nil
+	}
+	if mappingParameter("type", preview) != "constant_keyword" {
+		return false, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path)
+	}
+	if mappingParameter("value", preview) == "" {
+		// skip validating value if preview does not have that parameter defined
+		return true, nil
+	}
+	actualValue := mappingParameter("value", actual)
+	previewValue := mappingParameter("value", preview)
+	if previewValue != actualValue {
+		// This should also be detected by the failure storage (if available)
+		// or no documents being ingested
+		return false, fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)
+	}
+	return true, nil
+}
+
 func compareMappings(path string, preview, actual map[string]any, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 
-	if mappingParameter("type", actual) == "constant_keyword" {
-		if mappingParameter("type", preview) == "constant_keyword" {
-			if mappingParameter("value", preview) == "" {
-				// skip validating value if preview does not have that parameter defined
-				return nil
-			}
-			actualValue := mappingParameter("value", actual)
-			previewValue := mappingParameter("value", preview)
-			if previewValue != actualValue {
-				// This should also be detected by the failure storage (if available)
-				// or no documents being ingested
-				return multierror.Error{
-					fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path),
-				}
-			}
-			return nil
-		}
-		errs = append(errs, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path))
-		if len(errs) == 0 {
-			return nil
-		}
-		return errs.Unique()
+	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
+	if err != nil {
+		return multierror.Error{err}
+	}
+	if isConstantKeywordType {
+		return errs
 	}
 
 	if isObjectDynamic(actual) {
