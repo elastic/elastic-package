@@ -14,13 +14,15 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+func CreateValidatorForMappings(fieldsParentDir string, esAPI *elasticsearch.API, opts ...ValidatorOption) (v *Validator, err error) {
 	p := packageRoot{}
+	opts = append(opts, WithElasticsearchAPI(esAPI))
 	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
 }
 
