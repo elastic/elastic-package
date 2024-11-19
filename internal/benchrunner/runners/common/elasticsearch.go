@@ -8,6 +8,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -23,6 +25,12 @@ func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataSt
 		return 0, fmt.Errorf("could not search data stream: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusServiceUnavailable && strings.Contains(resp.String(), "no_shard_available_action_exception") {
+		// Index is being created, but no shards are available yet.
+		// See https://github.com/elastic/elasticsearch/issues/65846
+		return 0, nil
+	}
 
 	if resp.IsError() {
 		return 0, fmt.Errorf("failed to get hits count: %s", resp.String())
