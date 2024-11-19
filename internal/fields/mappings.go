@@ -240,13 +240,13 @@ func isMultiFields(definition map[string]any) bool {
 	return true
 }
 
-func validateMappingInECS(currentPath string, definition map[string]any, ecsSchema []FieldDefinition) error {
-	ecsDefinition := FindElementDefinition(currentPath, ecsSchema)
-	if ecsDefinition == nil {
+func validateMappingInSchema(currentPath string, definition map[string]any, schema []FieldDefinition) error {
+	found := FindElementDefinition(currentPath, schema)
+	if found == nil {
 		return fmt.Errorf("missing definition for path")
 	}
 
-	if ecsDefinition.Type != mappingParameter("type", definition) {
+	if found.Type != mappingParameter("type", definition) {
 		return fmt.Errorf("mapping type does not match with ECS definition")
 	}
 	return nil
@@ -440,7 +440,7 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 					// just raise an error if both validation processes fail
 
 					// are all fields under this key defined in ECS
-					err = validateMappingInECS(fieldPath, def, ecsSchema)
+					err = validateMappingInSchema(fieldPath, def, ecsSchema)
 					if err != nil {
 						logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
 						errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
