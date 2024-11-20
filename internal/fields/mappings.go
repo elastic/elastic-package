@@ -283,10 +283,6 @@ func isObject(definition map[string]any) bool {
 	//     }
 	//   }
 	// }
-	if len(definition) > 2 {
-		// there could also be a "dynamic: true" in the mapping
-		return false
-	}
 	field, ok := definition["properties"]
 	if !ok {
 		return false
