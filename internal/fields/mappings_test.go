@@ -24,12 +24,12 @@ func TestComparingMappings(t *testing.T) {
 		{
 			title: "same mappings",
 			preview: map[string]any{
-				"@timestamp": map[string]string{
+				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
 				"host": map[string]any{
 					"properties": map[string]any{
-						"name": map[string]string{
+						"name": map[string]any{
 							"type": "text",
 						},
 					},
@@ -51,12 +51,12 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			actual: map[string]any{
-				"@timestamp": map[string]string{
+				"@timestamp": map[string]any{
 					"type": "keyword",
 				},
 				"host": map[string]any{
 					"properties": map[string]any{
-						"name": map[string]string{
+						"name": map[string]any{
 							"type": "text",
 						},
 					},
@@ -491,6 +491,35 @@ func TestComparingMappings(t *testing.T) {
 			ecsSchema:      []FieldDefinition{},
 			localSchema:    []FieldDefinition{},
 			expectedErrors: []string{},
+		},
+		{
+			title: "different parameter values within an object",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":         "long",
+							"ignore_above": 2048,
+						},
+					},
+				},
+			},
+			ecsSchema:   []FieldDefinition{},
+			localSchema: []FieldDefinition{},
+			expectedErrors: []string{
+				`unexpected value found in mapping for field "foo.type.type": preview mappings value ("keyword") different from the actual mappings value ("long")`,
+				`unexpected value found in mapping for field "foo.type.ignore_above": preview mappings value (1024) different from the actual mappings value (2048)`,
+			},
 		},
 	}
 

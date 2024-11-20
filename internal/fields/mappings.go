@@ -584,30 +584,42 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 	return errs.Unique()
 }
 
-func validateFieldMapping(preview map[string]any, key string, value any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
+func validateFieldMapping(preview map[string]any, key string, actualValue any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 	previewValue := preview[key]
-	switch value.(type) {
+	switch actualValue.(type) {
 	case map[string]any:
 		// validate field
 		previewField, ok := previewValue.(map[string]any)
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath))
 		}
-		actualField, ok := value.(map[string]any)
+		actualField, ok := actualValue.(map[string]any)
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
 		errs = append(errs, compareMappings(currentPath, previewField, actualField, ecsSchema, localSchema)...)
 	case any:
-		// validate each setting/parameter of the mapping
-		// Skip: mappings should not be able to update, if a mapping exist in both preview and actual, they should be the same.
+		// Validate each setting/parameter of the mapping
+		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
 
-		// logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, value, value)
-		// if previewValue != value {
-		// 	errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%q) different from the actual mappings value (%q): %q", currentPath, previewValue, value, value))
-		// }
+		logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, actualValue, actualValue)
+		if previewValue == actualValue {
+			return nil
+		}
+		previewData, err := json.Marshal(previewValue)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("error unmarshalling preview value %s (path: %s): %w", previewValue, currentPath, err))
+			return errs
+		}
+
+		actualData, err := json.Marshal(actualValue)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("error unmarshalling actual value %s (path: %s): %w", actualValue, currentPath, err))
+			return errs
+		}
+		errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData)))
 	}
 	return errs
 }
