@@ -428,6 +428,40 @@ func TestComparingMappings(t *testing.T) {
 				// `field \"access.field\" is undefined: missing definition for path`,
 			},
 		},
+		{
+			title: "properties and type as a fields",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+						"properties": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+						"properties": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
+			},
+			ecsSchema:      []FieldDefinition{},
+			localSchema:    []FieldDefinition{},
+			expectedErrors: []string{},
+		},
 	}
 
 	for _, c := range cases {

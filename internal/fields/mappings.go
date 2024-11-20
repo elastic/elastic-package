@@ -297,15 +297,12 @@ func isObject(definition map[string]any) bool {
 	return true
 }
 
-func isObjectDynamic(definition map[string]any) bool {
+func isObjectFullyDynamic(definition map[string]any) bool {
 	// Example:
 	//  "labels": {
 	//    "type": "object",
 	//    "dynamic": "true"
 	//  },
-	if len(definition) != 2 {
-		return false
-	}
 	fieldType := mappingParameter("type", definition)
 	fieldDynamic := mappingParameter("dynamic", definition)
 
@@ -313,6 +310,20 @@ func isObjectDynamic(definition map[string]any) bool {
 		return false
 	}
 	if fieldDynamic != "true" {
+		return false
+	}
+
+	field, ok := definition["properties"]
+	if !ok {
+		return true
+	}
+	props, ok := field.(map[string]any)
+	if !ok {
+		return false
+	}
+	// It should not have properties
+	// https://www.elastic.co/guide/en/elasticsearch/reference/8.16/dynamic.html
+	if len(props) != 0 {
 		return false
 	}
 	return true
@@ -449,13 +460,13 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 		return nil
 	}
 
-	if isObjectDynamic(actual) {
+	if isObjectFullyDynamic(actual) {
 		logger.Debugf("Dynamic object found but no fields ingested under path: %s.*", path)
 		return nil
 	}
 
 	if isObject(actual) {
-		if isObjectDynamic(preview) {
+		if isObjectFullyDynamic(preview) {
 			// TODO: Skip for now, it should be required to compare with dynamic templates
 			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
 			return nil
