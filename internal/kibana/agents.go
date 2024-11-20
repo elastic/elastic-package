@@ -59,22 +59,36 @@ func (c *Client) ListAgents(ctx context.Context) ([]Agent, error) {
 	}
 
 	var resp struct {
-		List []Agent `json:"list"`
+		List  []Agent `json:"list"`
+		Items []Agent `json:"items"`
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return nil, fmt.Errorf("could not convert list agents (response) to JSON: %w", err)
 	}
 
-	return resp.List, nil
+	switch {
+	case c.semver.Major() < 9:
+		return resp.List, nil
+	default:
+		return resp.Items, nil
+	}
 }
 
 // AssignPolicyToAgent assigns the given Policy to the given Agent.
 func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
-
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
-	statusCode, respBody, err := c.put(ctx, path, []byte(reqBody))
+
+	var statusCode int
+	var err error
+	var respBody []byte
+	switch {
+	case c.semver.Major() < 9:
+		statusCode, respBody, err = c.put(ctx, path, []byte(reqBody))
+	default:
+		statusCode, respBody, err = c.post(ctx, path, []byte(reqBody))
+	}
 	if err != nil {
 		return fmt.Errorf("could not assign policy to agent: %w", err)
 	}
