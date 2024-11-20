@@ -221,11 +221,12 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 	return base64.StdEncoding.EncodeToString(d), nil
 }
 
-// getTokenPolicyName function returns the policy name for the 8.x Elastic stack. The agent's policy
-// is predefined in the Kibana configuration file. The logic is not present in older stacks.
+// getTokenPolicyName function returns the policy name for the >= 8.x Elastic stacks. The agent's policy
+// is predefined in the Kibana configuration file. The logic is not present in older stacks and it uses
+// the default policy in Kibana (empty string).
 func getTokenPolicyName(stackVersion, policyName string) string {
-	if strings.HasPrefix(stackVersion, "8.") {
-		return policyName
+	if strings.HasPrefix(stackVersion, "7.") {
+		return ""
 	}
-	return ""
+	return policyName
 }
