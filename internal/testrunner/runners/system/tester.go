@@ -1511,10 +1511,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
-			fields.WithIndexTemplate(scenario.indexTemplateName),
-			fields.WithDataStream(scenario.dataStream),
-			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
+			fields.WithMappingValidatorDataStream(scenario.dataStream),
+			fields.WithMappingValidatorSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithMappingValidatorEnabledImportAllECSSChema(true),
 		)
 		if err != nil {
 			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
@@ -2182,7 +2182,7 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 	return nil
 }
 
-func validateMappings(ctx context.Context, mappingsValidator *fields.Validator) multierror.Error {
+func validateMappings(ctx context.Context, mappingsValidator *fields.MappingValidator) multierror.Error {
 	multiErr := mappingsValidator.ValidateIndexMappings(ctx)
 	if len(multiErr) > 0 {
 		return multiErr.Unique()

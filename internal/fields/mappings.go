@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -18,15 +19,111 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
+// MappingValidator is responsible for mappings validation.
+type MappingValidator struct {
+	// Schema contains definition records.
+	Schema []FieldDefinition
+
+	// SpecVersion contains the version of the spec used by the package.
+	specVersion semver.Version
+
+	disabledDependencyManagement bool
+
+	enabledImportAllECSSchema bool
+
+	disabledNormalization bool
+
+	injectFieldsOptions InjectFieldsOptions
+
+	esClient *elasticsearch.Client
+
+	indexTemplateName string
+
+	dataStreamName string
+
+	LocalSchema []FieldDefinition
+}
+
+// MappingValidatorOption represents an optional flag that can be passed to  CreateValidatorForMappings.
+type MappingValidatorOption func(*MappingValidator) error
+
+// WithMappingValidatorSpecVersion enables validation dependant of the spec version used by the package.
+func WithMappingValidatorSpecVersion(version string) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		sv, err := semver.NewVersion(version)
+		if err != nil {
+			return fmt.Errorf("invalid version %q: %v", version, err)
+		}
+		v.specVersion = *sv
+		return nil
+	}
+}
+
+// WithMappingValidatorDisabledDependencyManagement configures the validator to ignore external fields and won't follow dependencies.
+func WithMappingValidatorDisabledDependencyManagement() MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.disabledDependencyManagement = true
+		return nil
+	}
+}
+
+// WithMappingValidatorEnabledImportAllECSSchema configures the validator to check or not the fields with the complete ECS schema.
+func WithMappingValidatorEnabledImportAllECSSChema(importSchema bool) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.enabledImportAllECSSchema = importSchema
+		return nil
+	}
+}
+
+// WithMappingValidatorDisableNormalization configures the validator to disable normalization.
+func WithMappingValidatorDisableNormalization(disabledNormalization bool) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.disabledNormalization = disabledNormalization
+		return nil
+	}
+}
+
+// WithMappingValidatorInjectFieldsOptions configures fields injection.
+func WithMappingValidatorInjectFieldsOptions(options InjectFieldsOptions) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
+// WithMappingValidatorElasticsearchClient configures the Elasticsearch client.
+func WithMappingValidatorElasticsearchClient(esClient *elasticsearch.Client) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.esClient = esClient
+		return nil
+	}
+}
+
+// WithMappingValidatorIndexTemplate configures the Index Template to query to Elasticsearch.
+func WithMappingValidatorIndexTemplate(indexTemplate string) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.indexTemplateName = indexTemplate
+		return nil
+	}
+}
+
+// WithMappingValidatorDataStream configures the Data Stream to query in Elasticsearch.
+func WithMappingValidatorDataStream(dataStream string) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.dataStreamName = dataStream
+		return nil
+	}
+}
+
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(fieldsParentDir string, esClient *elasticsearch.Client, opts ...ValidatorOption) (v *Validator, err error) {
+func CreateValidatorForMappings(fieldsParentDir string, esClient *elasticsearch.Client, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
 	p := packageRoot{}
-	opts = append(opts, WithElasticsearchClient(esClient))
+	opts = append(opts, WithMappingValidatorElasticsearchClient(esClient))
 	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
 }
 
-func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
-	v = new(Validator)
+func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
+	v = new(MappingValidator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
 			return nil, err
@@ -61,7 +158,7 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 	return v, nil
 }
 
-func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error {
+func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror.Error {
 	var errs multierror.Error
 	logger.Debugf("Get Mappings from data stream (%s)", v.dataStreamName)
 	actualDynamicTemplates, actualMappings, err := v.esClient.DataStreamMappings(ctx, v.dataStreamName)
