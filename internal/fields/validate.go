@@ -155,7 +155,7 @@ type Validator struct {
 
 	injectFieldsOptions InjectFieldsOptions
 
-	esAPI *elasticsearch.API
+	esClient *elasticsearch.Client
 
 	indexTemplateName string
 
@@ -253,10 +253,10 @@ func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	}
 }
 
-// WithElasticsearchAPI configures the Elasticsearch API client.
-func WithElasticsearchAPI(esAPI *elasticsearch.API) ValidatorOption {
+// WithElasticsearchClient configures the Elasticsearch client.
+func WithElasticsearchClient(esClient *elasticsearch.Client) ValidatorOption {
 	return func(v *Validator) error {
-		v.esAPI = esAPI
+		v.esClient = esClient
 		return nil
 	}
 }

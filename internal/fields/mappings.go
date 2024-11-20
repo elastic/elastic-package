@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"path/filepath"
 
 	"github.com/google/go-cmp/cmp"
@@ -20,9 +19,9 @@ import (
 )
 
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(fieldsParentDir string, esAPI *elasticsearch.API, opts ...ValidatorOption) (v *Validator, err error) {
+func CreateValidatorForMappings(fieldsParentDir string, esClient *elasticsearch.Client, opts ...ValidatorOption) (v *Validator, err error) {
 	p := packageRoot{}
-	opts = append(opts, WithElasticsearchAPI(esAPI))
+	opts = append(opts, WithElasticsearchClient(esClient))
 	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
 }
 
@@ -64,17 +63,21 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 
 func (v *Validator) ValidateIndexMappings(ctx context.Context) multierror.Error {
 	var errs multierror.Error
-	actualDynamicTemplates, actualMappings, err := v.loadActualMappings(ctx)
+	logger.Debugf("Get Mappings from data stream (%s)", v.dataStreamName)
+	actualDynamicTemplates, actualMappings, err := v.esClient.DataStreamMappings(ctx, v.dataStreamName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStreamName, err))
 		return errs
 	}
+	logger.Debugf(">>>> Actual mappings (Properties):\n%s", actualMappings)
 
-	previewDynamicTemplates, previewMappings, err := v.simulateIndexTemplate(ctx)
+	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
+	previewDynamicTemplates, previewMappings, err := v.esClient.SimulateIndexTemplate(ctx, v.indexTemplateName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplateName, err))
 		return errs
 	}
+	logger.Debugf(">>>> Index template preview (Properties):\n%s", previewMappings)
 
 	// Code from comment posted in https://github.com/google/go-cmp/issues/224
 	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
@@ -503,89 +506,4 @@ func validateFieldMapping(preview map[string]any, key string, value any, current
 		// }
 	}
 	return errs
-}
-
-func (v *Validator) loadActualMappings(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
-	mappingResp, err := v.esAPI.Indices.GetMapping(
-		v.esAPI.Indices.GetMapping.WithContext(ctx),
-		v.esAPI.Indices.GetMapping.WithIndex(v.dataStreamName),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.dataStreamName, err)
-	}
-	defer mappingResp.Body.Close()
-	if mappingResp.IsError() {
-		return nil, nil, fmt.Errorf("error getting mapping: %s", mappingResp)
-	}
-	body, err := io.ReadAll(mappingResp.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
-	}
-
-	type mappings struct {
-		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
-		Properties       json.RawMessage `json:"properties"`
-	}
-
-	mappingsRaw := map[string]struct {
-		Mappings mappings `json:"mappings"`
-	}{}
-
-	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
-	}
-
-	if len(mappingsRaw) != 1 {
-		return nil, nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
-	}
-
-	var mappingsDefinition mappings
-	for _, v := range mappingsRaw {
-		mappingsDefinition = v.Mappings
-	}
-
-	logger.Debugf(">>>> Actual mappings (Properties):\n%s", mappingsDefinition.Properties)
-	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
-}
-
-func (v *Validator) simulateIndexTemplate(ctx context.Context) (json.RawMessage, json.RawMessage, error) {
-	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
-	resp, err := v.esAPI.Indices.SimulateTemplate(
-		v.esAPI.Indices.SimulateTemplate.WithContext(ctx),
-		v.esAPI.Indices.SimulateTemplate.WithName(v.indexTemplateName),
-	)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", v.indexTemplateName, err)
-	}
-	defer resp.Body.Close()
-	if resp.IsError() {
-		return nil, nil, fmt.Errorf("error getting mapping: %s", resp)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
-	}
-
-	type mappingsIndexTemplate struct {
-		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
-		Properties       json.RawMessage `json:"properties"`
-	}
-
-	type indexTemplateSimulated struct {
-		// Settings json.RawMessage       `json:"settings"`
-		Mappings mappingsIndexTemplate `json:"mappings"`
-	}
-
-	type previewTemplate struct {
-		Template indexTemplateSimulated `json:"template"`
-	}
-
-	var preview previewTemplate
-
-	if err := json.Unmarshal(body, &preview); err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
-	}
-
-	logger.Debugf(">>>> Index template preview (Properties):\n%s", preview.Template.Mappings.Properties)
-	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
 }
