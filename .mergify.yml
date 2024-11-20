@@ -17,7 +17,8 @@ pull_request_rules:
       review:
         type: APPROVE
         message: Automatically approving dependabot
-  - name: refactored queue action rule
+  - name: automatic merge of bot 🤖
     conditions: []
     actions:
       queue:
+        name: default
