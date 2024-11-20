@@ -339,8 +339,8 @@ func isMultiFields(definition map[string]any) bool {
 	//      }
 	//    }
 	//  },
-	_, ok := definition["type"]
-	if !ok {
+	fieldType := mappingParameter("type", definition)
+	if fieldType == "" {
 		return false
 	}
 	field, ok := definition["fields"]
