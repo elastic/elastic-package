@@ -607,7 +607,7 @@ func validateFieldMapping(preview map[string]any, key string, actualValue any, c
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
 
-		logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, actualValue, actualValue)
+		// logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, actualValue, actualValue)
 		if previewValue == actualValue {
 			return nil
 		}
