@@ -1511,6 +1511,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
+			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
 			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
 			fields.WithMappingValidatorDataStream(scenario.dataStream),
 			fields.WithMappingValidatorSpecVersion(r.pkgManifest.SpecVersion),

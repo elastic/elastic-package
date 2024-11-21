@@ -17,8 +17,7 @@ func TestComparingMappings(t *testing.T) {
 		title          string
 		preview        map[string]any
 		actual         map[string]any
-		ecsSchema      []FieldDefinition
-		localSchema    []FieldDefinition
+		schema         []FieldDefinition
 		expectedErrors []string
 	}{
 		{
@@ -77,7 +76,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{},
 		},
 		{
@@ -91,14 +90,34 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"type": "keyword",
 				},
-			},
-			ecsSchema: []FieldDefinition{
-				{
-					Name: "bar",
-					Type: "keyword",
+				"metrics": map[string]any{
+					"type": "long",
+				},
+				"user": map[string]any{
+					"type": "text",
 				},
 			},
-			expectedErrors: []string{},
+			schema: []FieldDefinition{
+				{
+					Name:     "bar",
+					Type:     "keyword",
+					External: "ecs",
+				},
+				{
+					Name:     "metrics",
+					Type:     "keyword",
+					External: "ecs",
+				},
+				{
+					Name:     "user",
+					Type:     "keyword",
+					External: "",
+				},
+			},
+			expectedErrors: []string{
+				`field "user" is undefined: missing definition for path`,
+				`field "metrics" is undefined: mapping type does not match with ECS definition`,
+			},
 		},
 		{
 			title: "skip host group mappings",
@@ -126,7 +145,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{},
 		},
 		{
@@ -144,7 +163,7 @@ func TestComparingMappings(t *testing.T) {
 					"type": "keyword",
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`field "foo" is undefined: missing definition for path`,
 			},
@@ -163,7 +182,7 @@ func TestComparingMappings(t *testing.T) {
 					"value": "bar",
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`constant_keyword value in preview "example" does not match the actual mapping value "bar" for path: "foo"`,
 			},
@@ -181,7 +200,7 @@ func TestComparingMappings(t *testing.T) {
 					"value": "bar",
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{},
 		},
 		{
@@ -197,7 +216,7 @@ func TestComparingMappings(t *testing.T) {
 					"value": "bar",
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`invalid type for "foo": no constant_keyword type set in preview mapping`,
 			},
@@ -254,7 +273,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`field "foo.text" is undefined: missing definition for path`,
 			},
@@ -276,7 +295,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`not found multi_fields in preview mappings for path: foo`,
 			},
@@ -307,7 +326,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`field "file.path" is undefined: missing definition for path`,
 				`field "bar" is undefined: missing definition for path`,
@@ -328,7 +347,7 @@ func TestComparingMappings(t *testing.T) {
 					"type": "object",
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{
 				// TODO: there is an exception in the logic to not raise this error
 				// `field "_tmp" is undefined: missing definition for path`,
@@ -376,7 +395,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{},
 		},
 		{
@@ -424,7 +443,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`field "sql.metrics.example" is undefined: missing definition for path`,
 			},
@@ -446,16 +465,39 @@ func TestComparingMappings(t *testing.T) {
 						},
 					},
 				},
+				"error": map[string]any{
+					"properties": map[string]any{
+						"field": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
+				"status": map[string]any{
+					"properties": map[string]any{
+						"field": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
 			},
-			ecsSchema: []FieldDefinition{},
-			localSchema: []FieldDefinition{
+			schema: []FieldDefinition{
 				{
-					Name: "access.field",
-					Type: "array",
+					Name:     "access.field",
+					Type:     "array",
+					External: "",
+				},
+				{
+					Name:     "status.field",
+					Type:     "array",
+					External: "ecs",
 				},
 			},
 			expectedErrors: []string{
-				// `field \"access.field\" is undefined: missing definition for path`,
+				`field "error.field" is undefined: missing definition for path`,
+				// should status.field return error ? or should it be ignored?
+				`field "status.field" is undefined: mapping type does not match with ECS definition`,
 			},
 		},
 		{
@@ -488,8 +530,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema:      []FieldDefinition{},
-			localSchema:    []FieldDefinition{},
+			schema:         []FieldDefinition{},
 			expectedErrors: []string{},
 		},
 		{
@@ -514,8 +555,7 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			ecsSchema:   []FieldDefinition{},
-			localSchema: []FieldDefinition{},
+			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`unexpected value found in mapping for field "foo.type.type": preview mappings value ("keyword") different from the actual mappings value ("long")`,
 				`unexpected value found in mapping for field "foo.type.ignore_above": preview mappings value (1024) different from the actual mappings value (2048)`,
@@ -526,7 +566,7 @@ func TestComparingMappings(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
-			errs := compareMappings("", c.preview, c.actual, c.ecsSchema, c.localSchema)
+			errs := compareMappings("", c.preview, c.actual, c.schema)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {
