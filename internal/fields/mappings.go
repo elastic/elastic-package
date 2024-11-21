@@ -175,15 +175,22 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs
 	}
 	logger.Debugf(">>>> Index template preview (Properties):\n%s", previewMappings)
+	// previewDynamicTemplates = []byte(`{"@timestamp": {"type": "keyword"}, "some": "foo"}`)
+	// actualDynamicTemplates = []byte(`{"some": "foo", "@timestamp": {"type": "date"}}`)
 
 	// Code from comment posted in https://github.com/google/go-cmp/issues/224
 	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
 		return json.Valid(x) && json.Valid(y)
-	}, cmp.Transformer("ParseJSON", func(in []byte) (out interface{}) {
-		if err := json.Unmarshal(in, &out); err != nil {
+	}, cmp.Transformer("ParseJSON", func(in []byte) string {
+		var tmp interface{}
+		if err := json.Unmarshal(in, &tmp); err != nil {
 			panic(err) // should never occur given previous filter to ensure valid JSON
 		}
-		return out
+		out, err := json.MarshalIndent(tmp, "", " ")
+		if err != nil {
+			panic(err)
+		}
+		return string(out)
 	}))
 
 	// Compare dynamic templates, this should always be the same in preview and after ingesting documents
@@ -194,8 +201,6 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 	// Compare actual mappings:
 	// - If they are the same exact mapping definitions as in preview, everything should be good
 	// - If the same mapping exists in both, but they have different "type", there is some issue
-	//     - Could this happen?
-	//     - Should those documents being rejected directly in this case?
 	// - If there is a new mapping,
 	//     - It could come from a ECS definition, compare that mapping with the ECS field definitions
 	//     - Does this come from some dynamic template? ECS componente template or dynamic templates defined in the package? This mapping is valid
