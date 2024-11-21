@@ -175,8 +175,6 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs
 	}
 	logger.Debugf(">>>> Index template preview (Properties):\n%s", previewMappings)
-	// previewDynamicTemplates = []byte(`{"@timestamp": {"type": "keyword"}, "some": "foo"}`)
-	// actualDynamicTemplates = []byte(`{"some": "foo", "@timestamp": {"type": "date"}}`)
 
 	// Code from comment posted in https://github.com/google/go-cmp/issues/224
 	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
