@@ -541,38 +541,9 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 					continue
 				}
-
-				logger.Debugf("Calculating flatten fields for %s", currentPath)
-				flattenFields, err := flattenMappings(currentPath, childField)
-				if err != nil {
-					errs = append(errs, err)
-					return errs
-				}
-
-				for fieldPath, object := range flattenFields {
-					logger.Debugf("- %s", fieldPath)
-
-					def, ok := object.(map[string]any)
-					if !ok {
-						errs = append(errs, fmt.Errorf("invalid field definition/mapping for path: %q", fieldPath))
-						continue
-					}
-
-					if isLocalFieldTypeArray(fieldPath, localSchema) {
-						logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
-						continue
-					}
-
-					// TODO: validate mapping with dynamic templates first than validating with ECS
-					// just raise an error if both validation processes fail
-
-					// are all fields under this key defined in ECS?
-					err = validateMappingInSchema(fieldPath, def, ecsSchema)
-					if err != nil {
-						logger.Warnf("missing key %q in path %q (pending to check dynamic templates)", key, path)
-						errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
-					}
-				}
+				errs = append(errs,
+					validateMappingsNotInPreview(currentPath, childField, localSchema, ecsSchema)...,
+				)
 			}
 
 			continue
@@ -583,6 +554,42 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 	}
 	if len(errs) == 0 {
 		return nil
+	}
+	return errs.Unique()
+}
+
+func validateMappingsNotInPreview(currentPath string, childField map[string]any, localSchema, ecsSchema []FieldDefinition) multierror.Error {
+	var errs multierror.Error
+	logger.Debugf("Calculating flatten fields for %s", currentPath)
+	flattenFields, err := flattenMappings(currentPath, childField)
+	if err != nil {
+		errs = append(errs, err)
+		return errs
+	}
+
+	for fieldPath, object := range flattenFields {
+		logger.Debugf("- %s", fieldPath)
+
+		def, ok := object.(map[string]any)
+		if !ok {
+			errs = append(errs, fmt.Errorf("invalid field definition/mapping for path: %q", fieldPath))
+			continue
+		}
+
+		if isLocalFieldTypeArray(fieldPath, localSchema) {
+			logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
+			continue
+		}
+
+		// TODO: validate mapping with dynamic templates first than validating with ECS
+		// just raise an error if both validation processes fail
+
+		// are all fields under this key defined in ECS?
+		err = validateMappingInSchema(fieldPath, def, ecsSchema)
+		if err != nil {
+			logger.Warnf("undefined path %q (pending to check dynamic templates)", currentPath)
+			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
+		}
 	}
 	return errs.Unique()
 }
