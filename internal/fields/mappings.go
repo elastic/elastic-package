@@ -587,7 +587,7 @@ func validateMappingsNotInPreview(currentPath string, childField map[string]any,
 		// are all fields under this key defined in ECS?
 		err = validateMappingInSchema(fieldPath, def, ecsSchema)
 		if err != nil {
-			logger.Warnf("undefined path %q (pending to check dynamic templates)", currentPath)
+			logger.Warnf("undefined path %q (pending to check dynamic templates)", fieldPath)
 			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
 		}
 	}
