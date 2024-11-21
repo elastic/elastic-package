@@ -364,6 +364,8 @@ func validateMappingInSchema(currentPath string, definition map[string]any, sche
 	return nil
 }
 
+// flattenMappings returns all the mapping definitions found at "path" flattened including
+// specific entries for multi fields too.
 func flattenMappings(path string, definition map[string]any) (map[string]any, error) {
 	newDefs := map[string]any{}
 	if isMultiFields(definition) {
@@ -511,7 +513,7 @@ func compareMappings(path string, preview, actual map[string]any, ecsSchema, loc
 		// not returning here to keep validating the other fields of this object if any
 	}
 
-	// Compare all the other fields
+	// Compare and validate the elements under "properties": objects or fields and its parameters
 	propertiesErrs := validateObjectProperties(path, containsMultifield, actual, preview, localSchema, ecsSchema)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
@@ -533,7 +535,7 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 			continue
 		}
 
-		// This key does not exist in the preview mapping
+		// This key (object) does not exist in the preview mapping
 		if _, ok := preview[key]; !ok {
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(childField) {
@@ -549,7 +551,7 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 			continue
 		}
 
-		fieldErrs := validateFieldMapping(preview, key, value, currentPath, ecsSchema, localSchema)
+		fieldErrs := validateObjectMappingAndParameters(preview[key], value, currentPath, ecsSchema, localSchema)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -558,6 +560,8 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 	return errs.Unique()
 }
 
+// validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
+// like ECS schema, dynamic templates or local fields defined in the package (type array).
 func validateMappingsNotInPreview(currentPath string, childField map[string]any, localSchema, ecsSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
 	logger.Debugf("Calculating flatten fields for %s", currentPath)
@@ -594,12 +598,13 @@ func validateMappingsNotInPreview(currentPath string, childField map[string]any,
 	return errs.Unique()
 }
 
-func validateFieldMapping(preview map[string]any, key string, actualValue any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
+// validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
+// in the actual mapping with the values in the preview mapping.
+func validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, ecsSchema, localSchema []FieldDefinition) multierror.Error {
 	var errs multierror.Error
-	previewValue := preview[key]
 	switch actualValue.(type) {
 	case map[string]any:
-		// validate field
+		// there could be other objects nested under this key/path
 		previewField, ok := previewValue.(map[string]any)
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath))
