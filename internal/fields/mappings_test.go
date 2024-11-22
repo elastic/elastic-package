@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -116,7 +117,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			expectedErrors: []string{
 				`field "user" is undefined: missing definition for path`,
-				`field "metrics" is undefined: mapping type does not match with ECS definition`,
+				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
 			},
 		},
 		{
@@ -497,7 +498,7 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{
 				`field "error.field" is undefined: missing definition for path`,
 				// should status.field return error ? or should it be ignored?
-				`field "status.field" is undefined: mapping type does not match with ECS definition`,
+				`field "status.field" is undefined: actual mapping type (keyword) does not match with ECS definition type: array`,
 			},
 		},
 		{
@@ -566,7 +567,13 @@ func TestComparingMappings(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
-			errs := compareMappings("", c.preview, c.actual, c.schema)
+			v, err := CreateValidatorForMappings("", nil,
+				WithMappingValidatorFallbackSchema(c.schema),
+				WithMappingValidatorDisabledDependencyManagement(),
+			)
+			require.NoError(t, err)
+
+			errs := v.compareMappings("", c.preview, c.actual)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {

@@ -231,7 +231,7 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	mappingErrs := compareMappings("", rawPreview, rawActual, v.Schema)
+	mappingErrs := v.compareMappings("", rawPreview, rawActual)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -362,8 +362,8 @@ func isMultiFields(definition map[string]any) bool {
 	return true
 }
 
-func validateMappingInECSSchema(currentPath string, definition map[string]any, schema []FieldDefinition) error {
-	found := FindElementDefinition(currentPath, schema)
+func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) error {
+	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
 		return fmt.Errorf("missing definition for path")
 	}
@@ -374,8 +374,9 @@ func validateMappingInECSSchema(currentPath string, definition map[string]any, s
 
 	logger.Debugf("Found ECS field %q for path %s (External %q)", found.Name, currentPath, found.External)
 
-	if found.Type != mappingParameter("type", definition) {
-		return fmt.Errorf("mapping type does not match with ECS definition")
+	actualType := mappingParameter("type", definition)
+	if found.Type != actualType {
+		return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, found.Type)
 	}
 	// any other field to validate here?
 	return nil
@@ -467,7 +468,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	return isConstantKeyword, nil
 }
 
-func compareMappings(path string, preview, actual map[string]any, schema []FieldDefinition) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -475,6 +476,11 @@ func compareMappings(path string, preview, actual map[string]any, schema []Field
 		return multierror.Error{err}
 	}
 	if isConstantKeywordType {
+		return nil
+	}
+
+	if v.specVersion.LessThan(semver3_0_1) && mappingParameter("type", actual) == "nested" {
+		logger.Debugf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
 		return nil
 	}
 
@@ -501,7 +507,7 @@ func compareMappings(path string, preview, actual map[string]any, schema []Field
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
 		// logger.Debugf(">>> Comparing field with properties (object): %q", path)
-		compareErrors := compareMappings(path, previewProperties, actualProperties, schema)
+		compareErrors := v.compareMappings(path, previewProperties, actualProperties)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -525,13 +531,13 @@ func compareMappings(path string, preview, actual map[string]any, schema []Field
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
 		// logger.Debugf(">>> Comparing multi_fields: %q", path)
-		compareErrors := compareMappings(path, previewFields, actualFields, schema)
+		compareErrors := v.compareMappings(path, previewFields, actualFields)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := validateObjectProperties(path, containsMultifield, actual, preview, schema)
+	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -539,7 +545,7 @@ func compareMappings(path string, preview, actual map[string]any, schema []Field
 	return errs.Unique()
 }
 
-func validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any, schema []FieldDefinition) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -561,14 +567,14 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 					continue
 				}
 				errs = append(errs,
-					validateMappingsNotInPreview(currentPath, childField, schema)...,
+					v.validateMappingsNotInPreview(currentPath, childField)...,
 				)
 			}
 
 			continue
 		}
 
-		fieldErrs := validateObjectMappingAndParameters(preview[key], value, currentPath, schema)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -579,7 +585,7 @@ func validateObjectProperties(path string, containsMultifield bool, actual, prev
 
 // validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
-func validateMappingsNotInPreview(currentPath string, childField map[string]any, schema []FieldDefinition) multierror.Error {
+func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any) multierror.Error {
 	var errs multierror.Error
 	logger.Debugf("Calculating flatten fields for %s", currentPath)
 	flattenFields, err := flattenMappings(currentPath, childField)
@@ -597,7 +603,7 @@ func validateMappingsNotInPreview(currentPath string, childField map[string]any,
 			continue
 		}
 
-		if isLocalFieldTypeArray(fieldPath, schema) {
+		if isLocalFieldTypeArray(fieldPath, v.Schema) && v.specVersion.LessThan(semver2_0_0) {
 			logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
 			continue
 		}
@@ -606,7 +612,7 @@ func validateMappingsNotInPreview(currentPath string, childField map[string]any,
 		// just raise an error if both validation processes fail
 
 		// are all fields under this key defined in ECS?
-		err = validateMappingInECSSchema(fieldPath, def, schema)
+		err = v.validateMappingInECSSchema(fieldPath, def)
 		if err != nil {
 			logger.Warnf("undefined path %q (pending to check dynamic templates)", fieldPath)
 			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
@@ -617,7 +623,7 @@ func validateMappingsNotInPreview(currentPath string, childField map[string]any,
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, schema []FieldDefinition) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -631,7 +637,7 @@ func validateObjectMappingAndParameters(previewValue, actualValue any, currentPa
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
-		errs = append(errs, compareMappings(currentPath, previewField, actualField, schema)...)
+		errs = append(errs, v.compareMappings(currentPath, previewField, actualField)...)
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
