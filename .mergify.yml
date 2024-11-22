@@ -1,7 +1,13 @@
 queue_rules:
   - name: default
-    conditions:
+    queue_conditions:
       - check-success=buildkite/elastic-package
+      - check-success=CLA
+      - base=main
+      - author~=^dependabot(|-preview)\[bot\]$
+    merge_conditions:
+      - check-success=buildkite/elastic-package
+    merge_method: squash
 
 pull_request_rules:
   - name: automatic approval for Dependabot pull requests
@@ -12,12 +18,7 @@ pull_request_rules:
         type: APPROVE
         message: Automatically approving dependabot
   - name: automatic merge of bot 🤖
-    conditions:
-      - check-success=buildkite/elastic-package
-      - check-success=CLA
-      - base=main
-      - author~=^dependabot(|-preview)\[bot\]$
+    conditions: []
     actions:
       queue:
-        method: squash
         name: default
