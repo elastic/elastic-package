@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -1984,6 +1985,39 @@ func (r *tester) previewTransform(ctx context.Context, transformId string) ([]co
 	return preview.Documents, nil
 }
 
+func (r *tester) resetTransform(ctx context.Context, transformId string) error {
+	resp, err := r.esAPI.TransformResetTransform(transformId,
+		r.esAPI.TransformResetTransform.WithContext(ctx),
+		r.esAPI.TransformResetTransform.WithForce(true),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("failed to reset transform %q: %s", transformId, resp.String())
+	}
+
+	return nil
+}
+
+func (r *tester) startTransform(ctx context.Context, transformId string) error {
+	resp, err := r.esAPI.TransformStartTransform(transformId,
+		r.esAPI.TransformStartTransform.WithContext(ctx),
+	)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return fmt.Errorf("failed to start transform %q: %s", transformId, resp.String())
+	}
+
+	return nil
+}
+
 func (r *tester) scheduleTransform(ctx context.Context, transformId string) error {
 	resp, err := r.esAPI.TransformScheduleNowTransform(transformId,
 		r.esAPI.TransformScheduleNowTransform.WithContext(ctx),
@@ -2053,9 +2087,45 @@ func (r *tester) getTransformStats(ctx context.Context, transformId string) (*tr
 	return &response.Transforms[0], nil
 }
 
+func (r *tester) checkTransformAuditMessages(ctx context.Context, transformId string) error {
+	// XXX: This is an internal API, are these audit messages available somewhere else?
+	const internalTransformsPath = "/internal/transform/transforms"
+	messagesPath := path.Join(internalTransformsPath, transformId, "messages")
+	query := "?sortField=timestamp&sortDirection=desc" // Required
+	statusCode, body, err := r.kibanaClient.SendRequest(ctx, http.MethodGet, messagesPath+query, nil)
+	if err != nil {
+		return fmt.Errorf("could not get transform audit messages: %w", err)
+	}
+	if statusCode >= 400 {
+		return fmt.Errorf("could not get transform audit messages: status code %d, body: %s", statusCode, body)
+	}
+
+	var resp struct {
+		Messages []struct {
+			TransformID string `json:"transform_id"`
+			Message     string `json:"message"`
+			Level       string `json:"level"`
+			Timestamp   int    `json:"timestamp"`
+			NodeName    string `json:"node_name"`
+		} `json:"messages"`
+	}
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		return fmt.Errorf("could not decode response: %w", err)
+	}
+
+	for _, message := range resp.Messages {
+		if message.Level == "error" {
+			return fmt.Errorf("failure found in transform: %s", message.Message)
+		}
+	}
+	return nil
+}
+
 // checkRunningTransformHealth checks the following for a given transform:
 // - That it is started.
 // - That it can execute at least once during the check.
+// - That it hasn't generated any error message.
 // - That it is healthy after executing at least once.
 func (r *tester) checkRunningTransformHealth(ctx context.Context, transformId string) error {
 	const (
@@ -2065,6 +2135,18 @@ func (r *tester) checkRunningTransformHealth(ctx context.Context, transformId st
 	lastSearchTime := 0
 	last := -1
 	running := false
+
+	// Reset transform to clean any previous state.
+	/* XXX: It fails to create the index after reset :?
+	err := r.resetTransform(ctx, transformId)
+	if err != nil {
+		return fmt.Errorf("failed to reset transform: %w", err)
+	}
+	err = r.startTransform(ctx, transformId)
+	if err != nil {
+		return fmt.Errorf("failed to start transform after reset: %w", err)
+	}
+	*/
 	ok, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		stats, err := r.getTransformStats(ctx, transformId)
 		if err != nil {
@@ -2104,6 +2186,12 @@ func (r *tester) checkRunningTransformHealth(ctx context.Context, transformId st
 		if stats.Checkpointing.Last.Checkpoint <= last && stats.Checkpointing.LastSearchTime <= lastSearchTime {
 			// There hasn't been any update yet, try again.
 			return false, nil
+		}
+
+		// We need to check the audit messages in case a document is removed but caused issues.
+		err = r.checkTransformAuditMessages(ctx, transformId)
+		if err != nil {
+			return false, err
 		}
 
 		err = healthError(stats.Health)
