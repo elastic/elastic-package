@@ -1985,6 +1985,8 @@ func (r *tester) previewTransform(ctx context.Context, transformId string) ([]co
 	return preview.Documents, nil
 }
 
+/* XXX: unused code now, commented out for the linter till we investigate the issues with reset
+
 func (r *tester) resetTransform(ctx context.Context, transformId string) error {
 	resp, err := r.esAPI.TransformResetTransform(transformId,
 		r.esAPI.TransformResetTransform.WithContext(ctx),
@@ -2017,6 +2019,8 @@ func (r *tester) startTransform(ctx context.Context, transformId string) error {
 
 	return nil
 }
+
+*/
 
 func (r *tester) scheduleTransform(ctx context.Context, transformId string) error {
 	resp, err := r.esAPI.TransformScheduleNowTransform(transformId,
