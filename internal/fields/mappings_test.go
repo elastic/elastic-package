@@ -347,6 +347,13 @@ func TestComparingMappings(t *testing.T) {
 				"_tmp": map[string]any{
 					"type": "object",
 				},
+				"nonexisting": map[string]any{
+					"properties": map[string]any{
+						"field": map[string]any{
+							"type": "object",
+						},
+					},
+				},
 			},
 			schema:         []FieldDefinition{},
 			expectedErrors: []string{

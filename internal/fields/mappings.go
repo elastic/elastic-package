@@ -603,6 +603,11 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 			continue
 		}
 
+		if isEmptyObject(def) {
+			logger.Debugf("Skip empty object path: %q", fieldPath)
+			continue
+		}
+
 		if isLocalFieldTypeArray(fieldPath, v.Schema) && v.specVersion.LessThan(semver2_0_0) {
 			logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
 			continue
