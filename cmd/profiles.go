@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/spf13/cobra"
 
@@ -124,7 +126,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
-			ctx, span = tracer.Start(ctx, "Fetch all profiles")
+			_, fetchSpan := tracer.Start(ctx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
 				return fmt.Errorf("error listing all profiles: %w", err)
@@ -133,14 +135,18 @@ User profiles can be configured with a "config.yml" file in the profile director
 				fmt.Println("There are no profiles yet.")
 				return nil
 			}
-			span.End()
+			fetchSpan.End()
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
-			ctx, span = tracer.Start(ctx, "Format profiles")
+			_, formatSpan := tracer.Start(ctx, "Format profiles",
+				trace.WithAttributes(
+					attribute.String("elastic-package.profiles.format", format),
+				),
+			)
 			switch format {
 			case tableFormat:
 				config, err := install.Configuration()
@@ -153,11 +159,13 @@ User profiles can be configured with a "config.yml" file in the profile director
 			default:
 				err = fmt.Errorf("format %s not supported", format)
 			}
-			err = fmt.Errorf("test")
 			if err != nil {
-				span.SetStatus(codes.Error, "error formatting profiles")
+				formatSpan.RecordError(err)
+				formatSpan.SetStatus(codes.Error, "error formatting profiles")
+			} else {
+				formatSpan.SetStatus(codes.Ok, "profiles listed")
 			}
-			span.End()
+			formatSpan.End()
 			return err
 		},
 	}

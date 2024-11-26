@@ -102,12 +102,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
+	manifest, err := installer.Manifest(ctx)
+	if err != nil {
+		return err
+	}
 	if len(keyValuePairs) > 0 {
-		manifest, err := installer.Manifest(ctx)
-		if err != nil {
-			return err
-		}
-		ctx, span = tracer.Start(ctx, "Check conditions",
+		_, checkSpan := tracer.Start(ctx, "Check conditions",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(manifest.Name),
 				telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -120,14 +120,20 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		if err != nil {
 			return fmt.Errorf("checking conditions failed: %w", err)
 		}
-		span.End()
+		checkSpan.End()
 		cmd.Println("Requirements satisfied - the package can be installed.")
 		cmd.Println("Done")
 		return nil
 	}
 
-	ctx, span = tracer.Start(ctx, "Install package")
+	ctx, installSpan := tracer.Start(ctx, "Install package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
+		),
+	)
 	_, err = installer.Install(ctx)
-	span.End()
+	installSpan.End()
 	return err
 }
