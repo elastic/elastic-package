@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"go.opentelemetry.io/otel/codes"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 // jsonFormat is the format for JSON output
@@ -114,10 +116,15 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "List available profiles",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx, span := telemetry.StartSpanForCommand(tracer, cmd)
+			defer span.End()
+
 			loc, err := locations.NewLocationManager()
 			if err != nil {
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
+
+			ctx, span = tracer.Start(ctx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
 				return fmt.Errorf("error listing all profiles: %w", err)
@@ -126,24 +133,32 @@ User profiles can be configured with a "config.yml" file in the profile director
 				fmt.Println("There are no profiles yet.")
 				return nil
 			}
+			span.End()
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
+			ctx, span = tracer.Start(ctx, "Format profiles")
 			switch format {
 			case tableFormat:
 				config, err := install.Configuration()
 				if err != nil {
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
-				return formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
+				err = formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
 			case jsonFormat:
-				return formatJSON(profileList)
+				err = formatJSON(profileList)
 			default:
-				return fmt.Errorf("format %s not supported", format)
+				err = fmt.Errorf("format %s not supported", format)
 			}
+			err = fmt.Errorf("test")
+			if err != nil {
+				span.SetStatus(codes.Error, "error formatting profiles")
+			}
+			span.End()
+			return err
 		},
 	}
 	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
@@ -204,7 +219,7 @@ func formatJSON(profileList []profile.Metadata) error {
 
 func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
+	profilesTable := profileToList(profilesDir, profileList, currentProfile)
 
 	table.SetHeader([]string{"Name", "Date Created", "Version", "Path"})
 	table.SetHeaderColor(

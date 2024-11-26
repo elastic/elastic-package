@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
@@ -16,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 const installLongDescription = `Use this command to install the package in Kibana.
@@ -41,6 +43,9 @@ func setupInstallCommand() *cobraext.Command {
 }
 
 func installCommandAction(cmd *cobra.Command, _ []string) error {
+	ctx, span := telemetry.StartSpanForCommand(tracer, cmd)
+	defer span.End()
+
 	zipPathFile, err := cmd.Flags().GetString(cobraext.ZipPackageFilePathFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ZipPackageFilePathFlagName)
@@ -98,21 +103,31 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
 	if len(keyValuePairs) > 0 {
-		manifest, err := installer.Manifest(cmd.Context())
+		manifest, err := installer.Manifest(ctx)
 		if err != nil {
 			return err
 		}
+		ctx, span = tracer.Start(ctx, "Check conditions",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(manifest.Name),
+				telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+				telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
+			),
+		)
 
 		cmd.Println("Check conditions for package")
 		err = packages.CheckConditions(*manifest, keyValuePairs)
 		if err != nil {
 			return fmt.Errorf("checking conditions failed: %w", err)
 		}
+		span.End()
 		cmd.Println("Requirements satisfied - the package can be installed.")
 		cmd.Println("Done")
 		return nil
 	}
 
-	_, err = installer.Install(cmd.Context())
+	ctx, span = tracer.Start(ctx, "Install package")
+	_, err = installer.Install(ctx)
+	span.End()
 	return err
 }
