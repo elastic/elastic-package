@@ -123,22 +123,26 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			loc, err := locations.NewLocationManager()
 			if err != nil {
+				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
 			_, fetchSpan := telemetry.CmdTracer.Start(globalCtx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
+				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				return fmt.Errorf("error listing all profiles: %w", err)
 			}
 			if len(profileList) == 0 {
 				fmt.Println("There are no profiles yet.")
+				telemetry.ProfilesListSuccessCnt.Add(globalCtx, 1)
 				return nil
 			}
 			fetchSpan.End()
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
+				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
@@ -152,6 +156,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				var config *install.ApplicationConfiguration
 				config, err = install.Configuration()
 				if err != nil {
+					telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
 				err = formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
@@ -163,8 +168,10 @@ User profiles can be configured with a "config.yml" file in the profile director
 			if err != nil {
 				formatSpan.RecordError(err)
 				formatSpan.SetStatus(codes.Error, "error formatting profiles")
+				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 			} else {
 				formatSpan.SetStatus(codes.Ok, "profiles listed")
+				telemetry.ProfilesListSuccessCnt.Add(globalCtx, 1)
 			}
 			formatSpan.End()
 			return err

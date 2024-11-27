@@ -78,7 +78,11 @@ func RootCmd() *cobra.Command {
 					return fmt.Errorf("failed to set up OpenTelemetry: %w", err)
 				}
 
-				telemetry.CmdTracer = otel.Tracer("elastic.co./elastic/elastic-package")
+				telemetry.CmdTracer = otel.Tracer("elastic.co/elastic-package")
+
+				// TODO: Just a quick example to send metrics
+				telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
+				telemetry.SetupMetrics(telemetry.CmdMeter)
 
 				otelShutdown = shutdown
 
