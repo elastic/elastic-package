@@ -21,7 +21,10 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type runner struct {
@@ -117,6 +120,24 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		return nil
 	}
 
+	stackVersion, err := r.kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	ctx, installSpan := telemetry.CmdTracer.Start(ctx, "Install Package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
 	logger.Debug("Installing package...")
@@ -124,16 +145,27 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		// Install it unless we are running the tear down only.
 		installedPackage: !r.runTearDown,
 	}
-	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 	if err != nil {
 		return fmt.Errorf("can't install the package: %w", err)
 	}
+	installSpan.End()
 
 	if r.checkFailureStore {
+		ctx, failureStoreSpan := telemetry.CmdTracer.Start(ctx, "Setup failure store",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+				telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+				telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+				telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+			),
+		)
 		err := r.setupFailureStore(ctx)
 		if err != nil {
+			failureStoreSpan.SetStatus(codes.Error, "can't enable the failure store")
 			return fmt.Errorf("can't enable the failure store: %w", err)
 		}
+		failureStoreSpan.End()
 	}
 
 	return nil
