@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
@@ -22,6 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/formats"
 	"github.com/elastic/elastic-package/internal/testrunner/reporters/outputs"
@@ -435,6 +437,8 @@ func getTestRunnerSystemCommand() *cobra.Command {
 }
 
 func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
+	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
+	defer span.End()
 	cmd.Printf("Run system tests for the package\n")
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -585,16 +589,33 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		CheckFailureStore:  checkFailureStore,
 	})
 
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
+		),
+	)
 	logger.Debugf("Running suite...")
 	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {
 		return err
 	}
+	runSuiteSpan.End()
 
+	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
+		),
+	)
 	err = processResults(results, runner.Type(), reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		return fmt.Errorf("failed to process results: %w", err)
 	}
+	processResultsSpan.End()
+
 	return nil
 }
 

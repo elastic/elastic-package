@@ -118,7 +118,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "List available profiles",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx, span := telemetry.StartSpanForCommand(tracer, cmd)
+			globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 			defer span.End()
 
 			loc, err := locations.NewLocationManager()
@@ -126,7 +126,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
-			_, fetchSpan := tracer.Start(ctx, "Fetch all profiles")
+			_, fetchSpan := telemetry.CmdTracer.Start(globalCtx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
 				return fmt.Errorf("error listing all profiles: %w", err)
@@ -142,14 +142,15 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
-			_, formatSpan := tracer.Start(ctx, "Format profiles",
+			_, formatSpan := telemetry.CmdTracer.Start(globalCtx, "Format profiles",
 				trace.WithAttributes(
 					attribute.String("elastic-package.profiles.format", format),
 				),
 			)
 			switch format {
 			case tableFormat:
-				config, err := install.Configuration()
+				var config *install.ApplicationConfiguration
+				config, err = install.Configuration()
 				if err != nil {
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}

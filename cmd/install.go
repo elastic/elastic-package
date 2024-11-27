@@ -43,7 +43,7 @@ func setupInstallCommand() *cobraext.Command {
 }
 
 func installCommandAction(cmd *cobra.Command, _ []string) error {
-	ctx, span := telemetry.StartSpanForCommand(tracer, cmd)
+	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
 
 	zipPathFile, err := cmd.Flags().GetString(cobraext.ZipPackageFilePathFlagName)
@@ -102,12 +102,12 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
-	manifest, err := installer.Manifest(ctx)
+	manifest, err := installer.Manifest(globalCtx)
 	if err != nil {
 		return err
 	}
 	if len(keyValuePairs) > 0 {
-		_, checkSpan := tracer.Start(ctx, "Check conditions",
+		_, checkSpan := telemetry.CmdTracer.Start(globalCtx, "Check conditions",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(manifest.Name),
 				telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -126,7 +126,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	ctx, installSpan := tracer.Start(ctx, "Install package",
+	ctx, installSpan := telemetry.CmdTracer.Start(globalCtx, "Install package",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),

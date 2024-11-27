@@ -14,7 +14,6 @@ import (
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	"go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -75,20 +74,20 @@ func SetupOTelSDK(ctx context.Context, version string) (shutdown func(context.Co
 	return
 }
 
-func newMeterProvider(ctx context.Context, res *resource.Resource) (*metric.MeterProvider, error) {
-	metricReader, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	meterProvider := metric.NewMeterProvider(
-		metric.WithResource(res),
-		metric.WithReader(
-			metricReader,
-		),
-	)
-	return meterProvider, nil
-}
+// func newMeterProvider(ctx context.Context, res *resource.Resource) (*metric.MeterProvider, error) {
+// 	metricReader, err := autoexport.NewMetricReader(ctx)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+//
+// 	meterProvider := metric.NewMeterProvider(
+// 		metric.WithResource(res),
+// 		metric.WithReader(
+// 			metricReader,
+// 		),
+// 	)
+// 	return meterProvider, nil
+// }
 
 func newPropagator() propagation.TextMapPropagator {
 	return propagation.NewCompositeTextMapPropagator(
