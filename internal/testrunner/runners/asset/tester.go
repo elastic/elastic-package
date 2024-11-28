@@ -90,6 +90,8 @@ func (r *tester) resources(installedPackage bool) resources.Resources {
 }
 
 func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType: TestType,
 		Package:  r.testFolder.Package,
@@ -126,7 +128,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err))
 	}
 
-	ctx, installSpan := telemetry.CmdTracer.Start(ctx, "Install Package",
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install Package",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
@@ -141,7 +143,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	installSpan.End()
 
-	ctx, getPackageSpan := telemetry.CmdTracer.Start(ctx, "Get Package",
+	ctx, getPackageSpan := telemetry.CmdTracer.Start(mainCtx, "Get Package",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
@@ -156,7 +158,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	installedAssets := installedPackage.Assets()
 	getPackageSpan.End()
 
-	ctx, loadAssetsSpan := telemetry.CmdTracer.Start(ctx, "Load package assets",
+	ctx, loadAssetsSpan := telemetry.CmdTracer.Start(mainCtx, "Load package assets",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
@@ -177,7 +179,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	loadAssetsSpan.End()
 
-	ctx, validateAssetsSpan := telemetry.CmdTracer.Start(ctx, "Validate assets",
+	ctx, validateAssetsSpan := telemetry.CmdTracer.Start(mainCtx, "Validate assets",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
