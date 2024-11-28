@@ -19,38 +19,53 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
+	mainCtx := ctx
+	ctx, downloadPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Download Agent Policy")
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
+	downloadPolicySpan.End()
 
+	ctx, cleanSpan := telemetry.CmdTracer.Start(mainCtx, "Clean Agent Policy")
 	d, err := cleanPolicy(policy, policyEntryFilters)
 	if err != nil {
 		return fmt.Errorf("failed to prepare policy to store: %w", err)
 	}
+	cleanSpan.End()
 
+	ctx, writepan := telemetry.CmdTracer.Start(mainCtx, "Write Agent Policy")
 	err = os.WriteFile(expectedPathFor(testPath), d, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write policy: %w", err)
 	}
+	writepan.End()
 
 	return nil
 }
 
 func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
+	mainCtx := ctx
+
+	ctx, downloadPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Download Agent Policy")
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
+
 	expectedPolicy, err := os.ReadFile(expectedPathFor(testPath))
 	if err != nil {
 		return fmt.Errorf("failed to read expected policy: %w", err)
 	}
+	downloadPolicySpan.End()
 
+	ctx, comparePolicySpan := telemetry.CmdTracer.Start(mainCtx, "Compare Agent Policies")
 	diff, err := comparePolicies(expectedPolicy, policy)
+	comparePolicySpan.End()
 	if err != nil {
 		return fmt.Errorf("failed to compare policies: %w", err)
 	}

@@ -10,10 +10,12 @@ import (
 	"strings"
 
 	"github.com/elastic/go-resource"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -87,6 +89,8 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 }
 
 func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPath string) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Name:       filepath.Base(testPath),
@@ -122,19 +126,53 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 			},
 		},
 	}
+	ctx, installAgentPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Install agent policy",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+			telemetry.AttributeKeyAgentPolicyName.String(testName),
+		),
+	)
+
 	resources := resource.Resources{&policy}
 	_, testErr := manager.ApplyCtx(ctx, resources)
+	installAgentPolicySpan.End()
+
 	if testErr == nil {
 		if r.generateTestResult {
+			ctx, dumpPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Dump Agent Policy",
+				trace.WithAttributes(
+					telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+					telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+					telemetry.AttributeKeyAgentPolicyName.String(testName),
+				),
+			)
 			testErr = dumpExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
+			dumpPolicySpan.End()
 		} else {
+			ctx, assertPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Assert Agent Policy",
+				trace.WithAttributes(
+					telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+					telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+					telemetry.AttributeKeyAgentPolicyName.String(testName),
+				),
+			)
 			testErr = assertExpectedAgentPolicy(ctx, r.kibanaClient, testPath, policy.ID)
+			assertPolicySpan.End()
 		}
 	}
 
 	// Cleanup
+	ctx, cleanupSpan := telemetry.CmdTracer.Start(mainCtx, "Cleanup Agent Policy",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+			telemetry.AttributeKeyAgentPolicyName.String(testName),
+		),
+	)
 	policy.Absent = true
 	_, err = manager.ApplyCtx(ctx, resources)
+	cleanupSpan.End()
 	if err != nil {
 		if testErr != nil {
 			return result.WithErrorf("cleanup failed with %w after test failed: %w", err, testErr)
@@ -143,10 +181,18 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	if r.withCoverage {
+		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create Coverage",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+				telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+				telemetry.AttributeKeyAgentPolicyName.String(testName),
+			),
+		)
 		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRootPath, r.testFolder.DataStream, r.coverageType)
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
 		}
+		coverageSpan.End()
 		result = result.WithCoverage(coverage)
 	}
 
