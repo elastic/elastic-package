@@ -22,6 +22,8 @@ const (
 	AttributeKeyPackageVersion     attribute.Key = "package.version"
 	AttributeKeyPackageSpecVersion attribute.Key = "package.specversion"
 
+	AttributeKeyDataStreamName attribute.Key = "package.data_stream.name"
+
 	AttributeKeyStackVersion attribute.Key = "stack.version"
 
 	AttributeKeySystemTestVariant    attribute.Key = "system.test.variant"

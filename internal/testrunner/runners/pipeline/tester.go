@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -31,6 +33,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -150,10 +153,17 @@ func (r *tester) TearDown(ctx context.Context) error {
 		case <-ctx.Done():
 		}
 	}
+	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Uninstall data stream pipelines",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+		),
+	)
 
 	if err := ingest.UninstallPipelines(ctx, r.esAPI, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
+	uninstallSpan.End()
 	return nil
 }
 
@@ -165,14 +175,6 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if !found {
 		return nil, errors.New("data stream root not found")
 	}
-
-	startTesting := time.Now()
-	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath)
-	if err != nil {
-		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
-	}
-
 	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
@@ -183,6 +185,31 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
 
+	mainCtx := ctx
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install data stream pipelines",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyDataStreamName.String(dsManifest.Name),
+		),
+	)
+	startTesting := time.Now()
+	var entryPipeline string
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath)
+	if err != nil {
+		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
+	}
+	installSpan.End()
+
+	ctx, expectedDatasetsSpan := telemetry.CmdTracer.Start(mainCtx, "Get expected datasets",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyDataStreamName.String(dsManifest.Name),
+		),
+	)
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
@@ -205,7 +232,16 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
+	expectedDatasetsSpan.End()
 
+	ctx, testCaseSpan := telemetry.CmdTracer.Start(mainCtx, "Run test case",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyDataStreamName.String(dsManifest.Name),
+		),
+	)
 	results := make([]testrunner.TestResult, 0)
 	validatorOptions := []fields.ValidatorOption{
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
@@ -219,12 +255,23 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	testCaseSpan.End()
 	results = append(results, result...)
+
+	ctx, checkESLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Check Elasticsearch logs",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyDataStreamName.String(dsManifest.Name),
+		),
+	)
 
 	esLogs, err := r.checkElasticsearchLogs(ctx, startTesting)
 	if err != nil {
 		return nil, err
 	}
+	checkESLogsSpan.End()
 	results = append(results, esLogs...)
 
 	return results, nil
@@ -299,6 +346,8 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 }
 
 func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
 	rc := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
@@ -306,12 +355,19 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	})
 	startTime := time.Now()
 
+	ctx, loadTestCaseSpan := telemetry.CmdTracer.Start(mainCtx, "Load test case",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+		),
+	)
 	tc, err := loadTestCaseFile(r.testFolder.Path, testCaseFile)
 	if err != nil {
 		results, _ := rc.WithErrorf("loading test case failed: %w", err)
 		return results, nil
 	}
 	rc.Name = tc.name
+	loadTestCaseSpan.End()
 
 	if skip := testrunner.AnySkipConfig(tc.config.Skip, r.globalTestConfig.Skip); skip != nil {
 		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
@@ -321,15 +377,29 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		return results, nil
 	}
 
+	ctx, simualteSpan := telemetry.CmdTracer.Start(mainCtx, "Simulate pipeline",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+		),
+	)
 	simulateDataStream := dsType + "-" + r.testFolder.Package + "." + r.testFolder.DataStream + "-default"
 	processedEvents, err := ingest.SimulatePipeline(ctx, r.esAPI, pipeline, tc.events, simulateDataStream)
 	if err != nil {
 		results, _ := rc.WithErrorf("simulating pipeline processing failed: %w", err)
 		return results, nil
 	}
+	simualteSpan.End()
 
 	result := &testResult{events: processedEvents}
 
+	ctx, verifySpan := telemetry.CmdTracer.Start(mainCtx, "Verify results",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+			attribute.String("test.pipeline.test_case_file", testCaseFile),
+		),
+	)
 	rc.TimeElapsed = time.Since(startTime)
 	validatorOptions = append(slices.Clone(validatorOptions),
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
@@ -340,13 +410,20 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		return rc.WithErrorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
 	}
 
-	err = r.verifyResults(testCaseFile, tc.config, result, fieldsValidator)
+	err = r.verifyResults(ctx, testCaseFile, tc.config, result, fieldsValidator)
 	if err != nil {
 		results, _ := rc.WithErrorf("verifying test result failed: %w", err)
 		return results, nil
 	}
+	verifySpan.End()
 
 	if r.withCoverage {
+		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create coverage",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+				telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+			),
+		)
 		options := PipelineTesterOptions{
 			TestFolder:      r.testFolder,
 			API:             r.esAPI,
@@ -357,6 +434,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		if err != nil {
 			return rc.WithErrorf("error calculating pipeline coverage: %w", err)
 		}
+		coverageSpan.End()
 	}
 
 	return rc.WithSuccess()
@@ -406,7 +484,9 @@ func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 	return tc, nil
 }
 
-func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
+func (r *tester) verifyResults(ctx context.Context, testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
+	mainCtx := ctx
+
 	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
@@ -427,6 +507,13 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 
 	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
+		_, compareResultsSpan := telemetry.CmdTracer.Start(mainCtx, "Compare results",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+				telemetry.AttributeKeyPackageName.String(manifest.Name),
+				telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			),
+		)
 		err = compareResults(testCasePath, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			return err
@@ -434,19 +521,36 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 		if err != nil {
 			return fmt.Errorf("comparing test results failed: %w", err)
 		}
+		compareResultsSpan.End()
 	}
 
 	result = stripEmptyTestResults(result)
 
+	ctx, dynamicFieldsSpan := telemetry.CmdTracer.Start(mainCtx, "Verify dynamic fields",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+		),
+	)
 	err = verifyDynamicFields(result, config)
 	if err != nil {
 		return err
 	}
+	dynamicFieldsSpan.End()
 
+	ctx, verifyTestResultSpan := telemetry.CmdTracer.Start(mainCtx, "Verify fields in test result",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+		),
+	)
 	err = verifyFieldsInTestResult(result, fieldsValidator)
 	if err != nil {
 		return err
 	}
+	verifyTestResultSpan.End()
 	return nil
 }
 
