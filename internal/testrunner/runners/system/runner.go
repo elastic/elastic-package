@@ -115,6 +115,8 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r *runner) SetupRunner(ctx context.Context) error {
+	mainCtx := ctx
+
 	if r.runTearDown {
 		logger.Debug("Skip installing package")
 		return nil
@@ -130,7 +132,7 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	ctx, installSpan := telemetry.CmdTracer.Start(ctx, "Install Package",
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install Package",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
@@ -152,7 +154,7 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 	installSpan.End()
 
 	if r.checkFailureStore {
-		ctx, failureStoreSpan := telemetry.CmdTracer.Start(ctx, "Setup failure store",
+		ctx, failureStoreSpan := telemetry.CmdTracer.Start(mainCtx, "Setup failure store",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
 				telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
