@@ -26,9 +26,10 @@ const (
 
 	AttributeKeyStackVersion attribute.Key = "stack.version"
 
-	AttributeKeySystemTestVariant    attribute.Key = "system.test.variant"
-	AttributeKeySystemTestCfgFile    attribute.Key = "system.test.cfg_file"
-	AttributeKeySystemTestDataStream attribute.Key = "system.test.data_stream"
+	AttributeKeySystemTestVariant attribute.Key = "system.test.variant"
+	AttributeKeySystemTestCfgFile attribute.Key = "system.test.cfg_file"
+
+	AttributeKeyAgentPolicyName attribute.Key = "policy.test.agent_policy"
 )
 
 func StartSpanForCommand(tracer trace.Tracer, cmd *cobra.Command) (context.Context, trace.Span) {

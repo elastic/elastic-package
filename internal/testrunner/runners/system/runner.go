@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -23,8 +26,6 @@ import (
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type runner struct {
@@ -210,6 +211,10 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	mainCtx := ctx
+	ctx, getTestsSpan := telemetry.CmdTracer.Start(mainCtx, "Get tests")
+	defer getTestsSpan.End()
+
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {

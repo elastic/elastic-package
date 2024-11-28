@@ -10,13 +10,14 @@ import (
 	"fmt"
 	"strings"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type tester struct {

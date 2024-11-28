@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -18,7 +20,6 @@ import (
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
-	"go.opentelemetry.io/otel/trace"
 )
 
 type tester struct {
