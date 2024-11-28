@@ -153,6 +153,7 @@ func (r tester) verifySampleEvent(ctx context.Context, pkgManifest *packages.Pac
 	}
 
 	if r.withCoverage {
+		// Not used context returned by Start
 		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Generate coverage",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
@@ -176,7 +177,7 @@ func (r tester) verifySampleEvent(ctx context.Context, pkgManifest *packages.Pac
 		),
 	)
 
-	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
+	expectedDatasets, err := r.getExpectedDatasets(ctx, pkgManifest)
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
@@ -236,7 +237,7 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	return sampleEventPath, true, nil
 }
 
-func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
+func (r tester) getExpectedDatasets(_ context.Context, pkgManifest *packages.PackageManifest) ([]string, error) {
 	dsName := r.testFolder.DataStream
 	if dsName == "" {
 		// TODO: This should return the package name plus the policy name, but we don't know

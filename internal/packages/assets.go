@@ -5,6 +5,7 @@
 package packages
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -62,7 +63,7 @@ func (asset Asset) String() string {
 }
 
 // LoadPackageAssets parses the package contents and returns a list of assets defined by the package.
-func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
+func LoadPackageAssets(ctx context.Context, pkgRootPath string) ([]Asset, error) {
 	assets, err := loadKibanaAssets(pkgRootPath)
 	if err != nil {
 		return nil, fmt.Errorf("could not load kibana assets: %w", err)

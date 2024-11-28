@@ -211,8 +211,8 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
-	mainCtx := ctx
-	ctx, getTestsSpan := telemetry.CmdTracer.Start(mainCtx, "Get tests")
+	// Not used context returned by Start
+	_, getTestsSpan := telemetry.CmdTracer.Start(ctx, "Get tests")
 	defer getTestsSpan.End()
 
 	var folders []testrunner.TestFolder

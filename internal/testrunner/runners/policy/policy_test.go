@@ -5,6 +5,7 @@
 package policy
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -280,7 +281,7 @@ secret_references:
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			diff, err := comparePolicies([]byte(c.expected), []byte(c.found))
+			diff, err := comparePolicies(context.Background(), []byte(c.expected), []byte(c.found))
 			if c.fail {
 				assert.Error(t, err)
 				return

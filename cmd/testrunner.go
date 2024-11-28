@@ -5,6 +5,7 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -118,6 +119,7 @@ func getTestRunnerAssetCommand() *cobra.Command {
 func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
+
 	cmd.Printf("Run asset tests for the package\n")
 	testType := testrunner.TestType("asset")
 
@@ -163,7 +165,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	globalCtx, stop := signal.Enable(globalCtx, logger.Info)
 	defer stop()
 
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
@@ -197,14 +199,14 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	runSuiteSpan.End()
 
-	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+	ctx, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
 		),
 	)
-	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(ctx, results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		processResultsSpan.SetStatus(codes.Error, "failed to process results")
 	}
@@ -230,6 +232,7 @@ func getTestRunnerStaticCommand() *cobra.Command {
 func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
+
 	cmd.Printf("Run static tests for the package\n")
 	testType := testrunner.TestType("static")
 
@@ -280,7 +283,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	globalCtx, stop := signal.Enable(globalCtx, logger.Info)
 	defer stop()
 
 	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
@@ -310,14 +313,14 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	runSuiteSpan.End()
 
-	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+	ctx, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
 		),
 	)
-	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(ctx, results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		processResultsSpan.SetStatus(codes.Error, "failed to process results")
 	}
@@ -344,6 +347,7 @@ func getTestRunnerPipelineCommand() *cobra.Command {
 func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
+
 	cmd.Printf("Run pipeline tests for the package\n")
 	testType := testrunner.TestType("pipeline")
 
@@ -453,14 +457,14 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	runSuiteSpan.End()
 
-	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+	ctx, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
 		),
 	)
-	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(ctx, results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		processResultsSpan.SetStatus(codes.Error, "failed to process results")
 	}
@@ -507,6 +511,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
+
 	cmd.Printf("Run system tests for the package\n")
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -671,14 +676,14 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	runSuiteSpan.End()
 
-	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+	ctx, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
 		),
 	)
-	err = processResults(results, runner.Type(), reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(ctx, results, runner.Type(), reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		processResultsSpan.SetStatus(codes.Error, "failed to process results")
 	}
@@ -705,6 +710,7 @@ func getTestRunnerPolicyCommand() *cobra.Command {
 func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
 	defer span.End()
+
 	cmd.Printf("Run policy tests for the package\n")
 	testType := testrunner.TestType("policy")
 
@@ -760,7 +766,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
+	globalCtx, stop := signal.Enable(globalCtx, logger.Info)
 	defer stop()
 
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
@@ -802,14 +808,14 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	runSuiteSpan.End()
 
-	_, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
+	ctx, processResultsSpan := telemetry.CmdTracer.Start(globalCtx, "Process results tests",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			telemetry.AttributeKeyPackageVersion.String(manifest.SpecVersion),
 		),
 	)
-	err = processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(ctx, results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		processResultsSpan.SetStatus(codes.Error, "failed to process results")
 	}
@@ -817,7 +823,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	return err
 }
 
-func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
+func processResults(_ context.Context, results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Package != results[j].Package {
 			return results[i].Package < results[j].Package

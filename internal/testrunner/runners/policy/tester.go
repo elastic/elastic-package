@@ -181,14 +181,14 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	if r.withCoverage {
-		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create Coverage",
+		ctx, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create Coverage",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
 				telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
 				telemetry.AttributeKeyAgentPolicyName.String(testName),
 			),
 		)
-		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRootPath, r.testFolder.DataStream, r.coverageType)
+		coverage, err := generateCoverageReport(ctx, result.CoveragePackageName(), r.packageRootPath, r.testFolder.DataStream, r.coverageType)
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
 		}
@@ -205,7 +205,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 // generateCoverageReport generates a coverage report that includes the manifests and template files in the package or data stream.
 // TODO: For manifests, mark as covered only the variables used.
 // TODO: For templates, mark as covered only the parts used, but this requires introspection in handlebars.
-func generateCoverageReport(pkgName, rootPath, dataStream, coverageType string) (testrunner.CoverageReport, error) {
+func generateCoverageReport(_ context.Context, pkgName, rootPath, dataStream, coverageType string) (testrunner.CoverageReport, error) {
 	dsPattern := "*"
 	if dataStream != "" {
 		dsPattern = dataStream

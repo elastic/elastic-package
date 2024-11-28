@@ -659,14 +659,14 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	}
 	dumpLogsSpan.End()
 
-	_, checkAgentLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Review Elastic Agent logs from stack",
+	ctx, checkAgentLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Review Elastic Agent logs from stack",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
 			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
 			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
 		),
 	)
-	logResults, err := r.checkAgentLogs(dump, startTesting, errorPatterns)
+	logResults, err := r.checkAgentLogs(ctx, dump, startTesting, errorPatterns)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1582,7 +1582,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
 		),
 	)
-	if err := validateFailureStore(scenario.failureStore); err != nil {
+	if err := validateFailureStore(ctx, scenario.failureStore); err != nil {
 		return result.WithError(err)
 	}
 	failureStoreSpan.End()
@@ -1655,7 +1655,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	validateFieldsSpan.AddEvent("Validate ignored fields")
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	err = validateIgnoredFields(ctx, r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1724,7 +1724,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.withCoverage {
-		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Generate coverage report",
+		ctx, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Generate coverage report",
 			trace.WithAttributes(
 				telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
 				telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
@@ -1733,7 +1733,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
 			),
 		)
-		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
+		coverage, err := r.generateCoverageReport(ctx, result.CoveragePackageName())
 		coverageSpan.End()
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
@@ -2279,7 +2279,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 	return nil
 }
 
-func validateFailureStore(failureStore []failureStoreDocument) error {
+func validateFailureStore(_ context.Context, failureStore []failureStoreDocument) error {
 	var multiErr multierror.Error
 	for _, doc := range failureStore {
 		// TODO: Move this to the trace log level when available.
@@ -2323,7 +2323,7 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
-func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(_ context.Context, stackVersionString string, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	stackVersion, err := semver.NewVersion(stackVersionString)
 	if err != nil {
@@ -2451,7 +2451,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	return results, nil
 }
 
-func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *tester) checkAgentLogs(_ context.Context, dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
@@ -2524,7 +2524,7 @@ func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 	return nil
 }
 
-func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageReport, error) {
+func (r *tester) generateCoverageReport(_ context.Context, pkgName string) (testrunner.CoverageReport, error) {
 	dsPattern := "*"
 	if r.dataStreamManifest != nil && r.dataStreamManifest.Name != "" {
 		dsPattern = r.dataStreamManifest.Name

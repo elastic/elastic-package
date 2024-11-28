@@ -82,8 +82,7 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
-	mainCtx := ctx
-	ctx, getTestsSpan := telemetry.CmdTracer.Start(mainCtx, "Get tests")
+	ctx, getTestsSpan := telemetry.CmdTracer.Start(ctx, "Get tests")
 	defer getTestsSpan.End()
 
 	var folders []testrunner.TestFolder
@@ -126,7 +125,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 
 	var testers []testrunner.Tester
 	for _, folder := range folders {
-		testCaseFiles, err := r.listTestCaseFiles(folder)
+		testCaseFiles, err := r.listTestCaseFiles(ctx, folder)
 		if err != nil {
 			return nil, fmt.Errorf("listing test case definitions failed: %w", err)
 		}
@@ -157,7 +156,7 @@ func (r *runner) Type() testrunner.TestType {
 	return TestType
 }
 
-func (r *runner) listTestCaseFiles(folder testrunner.TestFolder) ([]string, error) {
+func (r *runner) listTestCaseFiles(_ context.Context, folder testrunner.TestFolder) ([]string, error) {
 	fis, err := os.ReadDir(folder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("reading pipeline tests failed (path: %s): %w", folder.Path, err)

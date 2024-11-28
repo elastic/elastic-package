@@ -107,6 +107,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 	if len(keyValuePairs) > 0 {
+		// Not used context returned by Start
 		_, checkSpan := telemetry.CmdTracer.Start(globalCtx, "Check conditions",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(manifest.Name),

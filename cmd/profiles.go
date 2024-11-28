@@ -127,6 +127,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
+			// Not used context returned by Start
 			_, fetchSpan := telemetry.CmdTracer.Start(globalCtx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
@@ -146,6 +147,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
+			// Not used context returned by Start
 			_, formatSpan := telemetry.CmdTracer.Start(globalCtx, "Format profiles",
 				trace.WithAttributes(
 					attribute.String("elastic-package.profiles.format", format),

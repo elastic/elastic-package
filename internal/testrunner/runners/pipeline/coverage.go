@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -18,7 +19,7 @@ import (
 )
 
 // getPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
-func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
+func getPipelineCoverage(_ context.Context, pkgName string, options PipelineTesterOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)

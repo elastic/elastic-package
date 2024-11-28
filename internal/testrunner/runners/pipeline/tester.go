@@ -202,7 +202,8 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	installSpan.End()
 
-	ctx, expectedDatasetsSpan := telemetry.CmdTracer.Start(mainCtx, "Get expected datasets",
+	// Not used context returned by Start
+	_, expectedDatasetsSpan := telemetry.CmdTracer.Start(mainCtx, "Get expected datasets",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
@@ -361,7 +362,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
 		),
 	)
-	tc, err := loadTestCaseFile(r.testFolder.Path, testCaseFile)
+	tc, err := loadTestCaseFile(ctx, r.testFolder.Path, testCaseFile)
 	if err != nil {
 		results, _ := rc.WithErrorf("loading test case failed: %w", err)
 		return results, nil
@@ -418,7 +419,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	verifySpan.End()
 
 	if r.withCoverage {
-		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create coverage",
+		ctx, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Create coverage",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
 				telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
@@ -430,7 +431,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 			PackageRootPath: r.packageRootPath,
 			CoverageType:    r.coverageType,
 		}
-		rc.Coverage, err = getPipelineCoverage(rc.CoveragePackageName(), options, r.pipelines)
+		rc.Coverage, err = getPipelineCoverage(ctx, rc.CoveragePackageName(), options, r.pipelines)
 		if err != nil {
 			return rc.WithErrorf("error calculating pipeline coverage: %w", err)
 		}
@@ -440,7 +441,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	return rc.WithSuccess()
 }
 
-func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
+func loadTestCaseFile(_ context.Context, testFolderPath, testCaseFile string) (*testCase, error) {
 	testCasePath := filepath.Join(testFolderPath, testCaseFile)
 	testCaseData, err := os.ReadFile(testCasePath)
 	if err != nil {
@@ -507,14 +508,14 @@ func (r *tester) verifyResults(ctx context.Context, testCaseFile string, config 
 
 	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
-		_, compareResultsSpan := telemetry.CmdTracer.Start(mainCtx, "Compare results",
+		ctx, compareResultsSpan := telemetry.CmdTracer.Start(mainCtx, "Compare results",
 			trace.WithAttributes(
 				telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 				telemetry.AttributeKeyPackageName.String(manifest.Name),
 				telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 			),
 		)
-		err = compareResults(testCasePath, config, result, *specVersion)
+		err = compareResults(ctx, testCasePath, config, result, *specVersion)
 		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			return err
 		}
@@ -533,7 +534,7 @@ func (r *tester) verifyResults(ctx context.Context, testCaseFile string, config 
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 		),
 	)
-	err = verifyDynamicFields(result, config)
+	err = verifyDynamicFields(ctx, result, config)
 	if err != nil {
 		return err
 	}
@@ -546,7 +547,7 @@ func (r *tester) verifyResults(ctx context.Context, testCaseFile string, config 
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
 		),
 	)
-	err = verifyFieldsInTestResult(result, fieldsValidator)
+	err = verifyFieldsInTestResult(ctx, result, fieldsValidator)
 	if err != nil {
 		return err
 	}
@@ -567,7 +568,7 @@ func stripEmptyTestResults(result *testResult) *testResult {
 	return &tr
 }
 
-func verifyDynamicFields(result *testResult, config *testConfig) error {
+func verifyDynamicFields(_ context.Context, result *testResult, config *testConfig) error {
 	if config == nil || config.DynamicFields == nil {
 		return nil
 	}
@@ -612,7 +613,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 	return nil
 }
 
-func verifyFieldsInTestResult(result *testResult, fieldsValidator *fields.Validator) error {
+func verifyFieldsInTestResult(_ context.Context, result *testResult, fieldsValidator *fields.Validator) error {
 	var multiErr multierror.Error
 	for _, event := range result.events {
 		err := checkErrorMessage(event)

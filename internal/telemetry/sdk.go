@@ -150,6 +150,4 @@ func SetupMetrics(meter metric.Meter) {
 	if err != nil {
 		panic(err)
 	}
-
-	return
 }

@@ -174,7 +174,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
 	// support for Elasticsearch assets in input packages.
 	// Related issue: https://github.com/elastic/elastic-package/issues/1623
-	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
+	expectedAssets, err := packages.LoadPackageAssets(ctx, r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
@@ -198,7 +198,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		})
 
 		var tr []testrunner.TestResult
-		if !findActualAsset(installedAssets, e) {
+		if !findActualAsset(ctx, installedAssets, e) {
 			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
 				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
@@ -238,7 +238,8 @@ func (r *tester) TearDown(ctx context.Context) error {
 
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
-	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Uninstall Package",
+
+	cleanupCtx, uninstallSpan := telemetry.CmdTracer.Start(cleanupCtx, "Uninstall Package",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
@@ -257,7 +258,7 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+func findActualAsset(_ context.Context, actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
 	for _, a := range actualAssets {
 		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
 			return true
