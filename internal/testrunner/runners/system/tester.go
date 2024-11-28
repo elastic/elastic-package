@@ -486,55 +486,112 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Reset agent policy handler",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
+		span.End()
 	}
 
 	// Shutting down the service should be run one of the first actions
 	// to ensure that resources created by terraform are deleted even if other
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Shutdown service handler",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownServiceHandler = nil
+		span.End()
 	}
 
 	if r.cleanTestScenarioHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Clean test scenario",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.cleanTestScenarioHandler = nil
+		span.End()
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Reset Elastic Agent log level",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.resetAgentLogLevelHandler = nil
+		span.End()
 	}
 
 	if r.removeAgentHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Remove Elastic Agent",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.removeAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.removeAgentHandler = nil
+		span.End()
 	}
 
 	if r.deleteTestPolicyHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Delete test policies",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
+		span.End()
 	}
 
 	if r.shutdownAgentHandler != nil {
+		cleanupCtx, span := telemetry.CmdTracer.Start(cleanupCtx, "Shutdown Elastic Agent",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownAgentHandler = nil
+		span.End()
 	}
 
 	return nil
