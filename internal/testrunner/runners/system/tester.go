@@ -300,6 +300,16 @@ func (r tester) Parallel() bool {
 // Run runs the system tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
+		ctx, executeTestSpan := telemetry.CmdTracer.Start(ctx, "Running test scenario",
+			trace.WithAttributes(
+				telemetry.AttributeKeySystemTestVariant.String(r.serviceVariant),
+				telemetry.AttributeKeySystemTestCfgFile.String(r.configFileName),
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		defer executeTestSpan.End()
 		return r.run(ctx)
 	}
 
@@ -608,7 +618,6 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 
 func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
 	mainCtx := ctx
-
 	result := r.newResult("(init)")
 
 	startTesting := time.Now()
@@ -678,7 +687,8 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 
 func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	mainCtx := ctx
-	ctx, checkSpan := telemetry.CmdTracer.Start(mainCtx, "Run test per variant",
+
+	ctx, runTestSpan := telemetry.CmdTracer.Start(mainCtx, "Run test",
 		trace.WithAttributes(
 			telemetry.AttributeKeySystemTestVariant.String(variantName),
 			telemetry.AttributeKeySystemTestCfgFile.String(cfgFile),
@@ -701,7 +711,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(ctx, testConfig, svcInfo)
-	checkSpan.End()
+	runTestSpan.End()
 
 	ctx, tearDownSpan := telemetry.CmdTracer.Start(mainCtx, "Tear down test",
 		trace.WithAttributes(
