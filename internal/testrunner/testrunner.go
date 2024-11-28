@@ -23,6 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 var (
@@ -467,6 +468,9 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 
 // run method delegates execution of tests to the given test runner.
 func run(ctx context.Context, tester Tester) ([]TestResult, error) {
+	ctx, executeTestSpan := telemetry.CmdTracer.Start(ctx, "Test scenario")
+	defer executeTestSpan.End()
+
 	results, err := tester.Run(ctx)
 	tdErr := tester.TearDown(ctx)
 	if err != nil {

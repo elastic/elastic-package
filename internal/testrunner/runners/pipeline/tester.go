@@ -141,6 +141,14 @@ func (r tester) Parallel() bool {
 
 // Run runs the pipeline tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+	ctx, span := telemetry.CmdTracer.Start(ctx, "Run test scenario",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+		),
+	)
+	defer span.End()
+
 	return r.run(ctx)
 }
 

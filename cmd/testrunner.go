@@ -186,7 +186,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:     testCoverageFormat,
 	})
 
-	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running asset tests suite",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -300,7 +300,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:       testCoverageFormat,
 	})
 
-	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running static tests suite",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -443,7 +443,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.Pipeline,
 	})
 
-	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running pipeline tests suite",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -662,7 +662,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		CheckFailureStore:  checkFailureStore,
 	})
 
-	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running system tests suite",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
@@ -795,7 +795,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:       testCoverageFormat,
 	})
 
-	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running suite tests",
+	ctx, runSuiteSpan := telemetry.CmdTracer.Start(globalCtx, "Running policy tests suite",
 		trace.WithAttributes(
 			telemetry.AttributeKeyPackageName.String(manifest.Name),
 			telemetry.AttributeKeyPackageVersion.String(manifest.Version),

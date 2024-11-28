@@ -300,16 +300,6 @@ func (r tester) Parallel() bool {
 // Run runs the system tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
-		ctx, executeTestSpan := telemetry.CmdTracer.Start(ctx, "Running test scenario",
-			trace.WithAttributes(
-				telemetry.AttributeKeySystemTestVariant.String(r.serviceVariant),
-				telemetry.AttributeKeySystemTestCfgFile.String(r.configFileName),
-				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
-				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
-				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
-			),
-		)
-		defer executeTestSpan.End()
 		return r.run(ctx)
 	}
 
