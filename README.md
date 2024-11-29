@@ -412,24 +412,6 @@ _Context: global_
 
 Sets the profile to use when no other is specified.
 
-### `elastic-package promote`
-
-_Context: global_
-
-[DEPRECATED] Use this command to move packages between the snapshot, staging, and production stages of the package registry.
-
-This command is intended primarily for use by administrators.
-
-It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
-
-### `elastic-package publish`
-
-_Context: package_
-
-[DEPRECATED] Use this command to publish a new package revision.
-
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
-
 ### `elastic-package report`
 
 _Context: package_
