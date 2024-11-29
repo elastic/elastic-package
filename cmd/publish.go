@@ -16,10 +16,11 @@ The command checks if the package hasn't been already published (whether it's pr
 
 func setupPublishCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   "publish",
-		Short: "Publish the package to the Package Registry",
-		Long:  publishLongDescription,
-		RunE:  publishCommandAction,
+		Use:        "publish",
+		Short:      "Publish the package to the Package Registry",
+		Long:       publishLongDescription,
+		Deprecated: "Package candidates to the Package Storage v2 are published using CI jobs. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md",
+		RunE:       publishCommandAction,
 	}
 
 	// Fork flag can be a workaround for users that don't own forks of the Package Storage.
@@ -33,8 +34,5 @@ func setupPublishCommand() *cobraext.Command {
 }
 
 func publishCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Publish the package")
-	cmd.Println("DEPRECATED: Package candidates to the Package Storage v2 are published using Jenkins jobs. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
-
 	return nil
 }

@@ -22,6 +22,7 @@ func setupPromoteCommand() *cobraext.Command {
 		Short:        "Promote packages",
 		Long:         promoteLongDescription,
 		RunE:         promoteCommandAction,
+		Deprecated:   "Packages stored in the Package Storage v2 do not require to be promoted. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md",
 		SilenceUsage: true,
 	}
 
@@ -33,7 +34,5 @@ func setupPromoteCommand() *cobraext.Command {
 }
 
 func promoteCommandAction(cmd *cobra.Command, _ []string) error {
-	cmd.Println("Promote packages")
-	cmd.Println("DEPRECATED: Packages stored in the Package Storage v2 do not require to be promoted. README: https://github.com/elastic/elastic-package/blob/main/docs/howto/use_package_storage_v2.md")
 	return nil
 }
