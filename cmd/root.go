@@ -50,19 +50,14 @@ var (
 	cmdSpan      trace.Span
 )
 
-//func enabledTelemetry() bool {
-//	value, exists := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
-//	if !exists {
-//		return false
-//	}
-//	if value != "" {
-//		return true
-//	}
-//	return false
-//}
-
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
+	_, exists := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if !exists {
+		os.Setenv("OTEL_METRICS_EXPORTER", "none")
+		os.Setenv("OTEL_LOGS_EXPORTER", "none")
+		os.Setenv("OTEL_TRACES_EXPORTER", "none")
+	}
 	rootCmd := &cobra.Command{
 		Use:          "elastic-package",
 		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
@@ -127,6 +122,7 @@ func RootCmd() *cobra.Command {
 		cmdSpan.End()
 
 		if otelShutdown != nil {
+			// TODO: should it be used some inner command instead of root?
 			err := otelShutdown(rootCmd.Context())
 			if err != nil {
 				// we don't want to fail the process if telemetry can't be sent
