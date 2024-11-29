@@ -68,28 +68,26 @@ func RootCmd() *cobra.Command {
 		Short:        "elastic-package - Command line tool for developing Elastic Integrations",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if enabledTelemetry() {
-				versionInfo := version.CommitHash
-				if version.Tag != "" {
-					versionInfo = version.Tag
-				}
-				shutdown, err := telemetry.SetupOTelSDK(cmd.Context(), versionInfo)
-				if err != nil {
-					return fmt.Errorf("failed to set up OpenTelemetry: %w", err)
-				}
-
-				telemetry.CmdTracer = otel.Tracer("elastic.co/elastic-package")
-
-				// TODO: Just a quick example to send metrics
-				// telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
-				// telemetry.SetupMetrics(telemetry.CmdMeter)
-
-				otelShutdown = shutdown
-
-				// wrap the whole command in a Span
-				_, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
-				cmdSpan = span
+			versionInfo := version.CommitHash
+			if version.Tag != "" {
+				versionInfo = version.Tag
 			}
+			shutdown, err := telemetry.SetupOTelSDK(cmd.Context(), versionInfo)
+			if err != nil {
+				return fmt.Errorf("failed to set up OpenTelemetry: %w", err)
+			}
+
+			telemetry.CmdTracer = otel.Tracer("elastic.co/elastic-package")
+
+			// TODO: Just a quick example to send metrics
+			// telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
+			// telemetry.SetupMetrics(telemetry.CmdMeter)
+
+			otelShutdown = shutdown
+
+			// wrap the whole command in a Span
+			_, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
+			cmdSpan = span
 
 			return cobraext.ComposeCommandActions(cmd, args,
 				processPersistentFlags,
@@ -123,9 +121,9 @@ func RootCmd() *cobra.Command {
 	}
 
 	terminateSpan := func() {
-		if !enabledTelemetry() {
-			return
-		}
+		// if !enabledTelemetry() {
+		// 	return
+		// }
 		cmdSpan.End()
 
 		if otelShutdown != nil {
