@@ -51,7 +51,7 @@ func defaultResources(version string) (*resource.Resource, error) {
 			semconv.HostArchKey.String(runtime.GOARCH),
 			semconv.ServiceName("elastic-package"),
 			semconv.ServiceVersion(version),
-			semconv.DeploymentEnvironment("development"),
+			semconv.DeploymentEnvironment("dev"),
 		),
 	)
 }

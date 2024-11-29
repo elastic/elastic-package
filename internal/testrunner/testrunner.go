@@ -468,7 +468,7 @@ func runSuiteParallel(ctx context.Context, testers []Tester) ([]TestResult, erro
 
 // run method delegates execution of tests to the given test runner.
 func run(ctx context.Context, tester Tester) ([]TestResult, error) {
-	ctx, executeTestSpan := telemetry.CmdTracer.Start(ctx, "Test scenario")
+	ctx, executeTestSpan := telemetry.CmdTracer.Start(ctx, "Launch test scenario")
 	defer executeTestSpan.End()
 
 	results, err := tester.Run(ctx)

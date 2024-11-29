@@ -69,6 +69,8 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r *runner) SetupRunner(ctx context.Context) error {
+	ctx, setupSpan := telemetry.CmdTracer.Start(ctx, "Setup Runner")
+	defer setupSpan.End()
 	cleanup, err := r.setupSuite(ctx, r.resourcesManager)
 	if err != nil {
 		return fmt.Errorf("failed to setup test runner: %w", err)
@@ -81,13 +83,13 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 // TearDownRunner cleans up any global test runner resources. It must be called
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
-	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Uninstall package")
+	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Tear down runner - Uninstall package")
+	defer uninstallSpan.End()
 	logger.Debug("Uninstalling package...")
 	err := r.cleanup(context.WithoutCancel(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to clean up test runner: %w", err)
 	}
-	uninstallSpan.End()
 	return nil
 }
 
