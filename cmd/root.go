@@ -96,21 +96,24 @@ func RootCmd() *cobra.Command {
 				checkVersionUpdate,
 			)
 		},
-		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			if enabledTelemetry() {
-				cmdSpan.End()
+		// Not able to use PersistentPostRunE due to https: //github.com/spf13/cobra/issues/1893
+		// PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+		// 	if !enabledTelemetry() {
+		// 		return nil
+		// 	}
+		// 	logger.Info("Post Run execution performing it")
+		// 	cmdSpan.End()
 
-				if otelShutdown != nil {
-					err := otelShutdown(cmd.Context())
-					if err != nil {
-						// we don't want to fail the process if telemetry can't be sent
-						logger.Errorf("Failed to shut down OpenTelemetry: %s", err)
-					}
-				}
-			}
+		// 	if otelShutdown != nil {
+		// 		err := otelShutdown(cmd.Context())
+		// 		if err != nil {
+		// 			// we don't want to fail the process if telemetry can't be sent
+		// 			logger.Errorf("Failed to shut down OpenTelemetry: %s", err)
+		// 		}
+		// 	}
 
-			return nil
-		},
+		// 	return nil
+		// },
 	}
 	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, cobraext.VerboseFlagShorthand, false, cobraext.VerboseFlagDescription)
 	rootCmd.PersistentFlags().StringP(cobraext.ChangeDirectoryFlagName, cobraext.ChangeDirectoryFlagShorthand, "", cobraext.ChangeDirectoryFlagDescription)
@@ -118,6 +121,24 @@ func RootCmd() *cobra.Command {
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
 	}
+
+	terminateSpan := func() {
+		if !enabledTelemetry() {
+			return
+		}
+		cmdSpan.End()
+
+		if otelShutdown != nil {
+			err := otelShutdown(rootCmd.Context())
+			if err != nil {
+				// we don't want to fail the process if telemetry can't be sent
+				logger.Errorf("Failed to shut down OpenTelemetry: %s", err)
+			}
+		}
+	}
+
+	// Not able to use PersistentPostRunE due to https: //github.com/spf13/cobra/issues/1893
+	cobra.OnFinalize(terminateSpan)
 	return rootCmd
 }
 
