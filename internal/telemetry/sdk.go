@@ -15,7 +15,6 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
-	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
@@ -26,8 +25,7 @@ var (
 	CmdTracer trace.Tracer
 	CmdMeter  metric.Meter
 
-	ProfilesListSuccessCnt metric.Int64Counter
-	ProfilesListFailureCnt metric.Int64Counter
+	enabledTelemetry bool
 )
 
 func defaultResources(version string) (*resource.Resource, error) {
@@ -75,15 +73,7 @@ func SetupOTelSDK(ctx context.Context, version string) (shutdown func(context.Co
 		return nil, fmt.Errorf("failed to set up default Resource configuration: %w", err)
 	}
 
-	meterProvider, err := newMeterProvider(ctx, res)
-	if err != nil {
-		handleErr(err)
-		return
-	}
-
-	shutdownFuncs = append(shutdownFuncs, meterProvider.Shutdown)
-	otel.SetMeterProvider(meterProvider)
-
+	// TODO: Check if this is actually needed
 	prop := newPropagator()
 	otel.SetTextMapPropagator(prop)
 
@@ -96,21 +86,6 @@ func SetupOTelSDK(ctx context.Context, version string) (shutdown func(context.Co
 	otel.SetTracerProvider(tracerProvider)
 
 	return
-}
-
-func newMeterProvider(ctx context.Context, res *resource.Resource) (*sdkmetric.MeterProvider, error) {
-	metricReader, err := autoexport.NewMetricReader(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	meterProvider := sdkmetric.NewMeterProvider(
-		sdkmetric.WithResource(res),
-		sdkmetric.WithReader(
-			metricReader,
-		),
-	)
-	return meterProvider, nil
 }
 
 func newPropagator() propagation.TextMapPropagator {
@@ -134,20 +109,4 @@ func newTraceProvider(ctx context.Context, res *resource.Resource) (*sdktrace.Tr
 		),
 	)
 	return traceProvider, nil
-}
-
-func SetupMetrics(meter metric.Meter) {
-	var err error
-	ProfilesListSuccessCnt, err = meter.Int64Counter("elastic-package.profiles.list.success",
-		metric.WithDescription("The number of executions of profiles list finished successfully"),
-		metric.WithUnit("{profile}"))
-	if err != nil {
-		panic(err)
-	}
-	ProfilesListFailureCnt, err = meter.Int64Counter("elastic-package.profiles.list.failure",
-		metric.WithDescription("The number of executions of profiles list finished with failure"),
-		metric.WithUnit("{profile}"))
-	if err != nil {
-		panic(err)
-	}
 }

@@ -74,10 +74,6 @@ func RootCmd() *cobra.Command {
 
 			telemetry.CmdTracer = otel.Tracer("elastic.co/elastic-package")
 
-			// TODO: Just a quick example to send metrics
-			// telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
-			// telemetry.SetupMetrics(telemetry.CmdMeter)
-
 			otelShutdown = shutdown
 
 			// wrap the whole command in a Span
@@ -91,10 +87,6 @@ func RootCmd() *cobra.Command {
 		},
 		// Not able to use PersistentPostRunE due to https: //github.com/spf13/cobra/issues/1893
 		// PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-		// 	if !enabledTelemetry() {
-		// 		return nil
-		// 	}
-		// 	logger.Info("Post Run execution performing it")
 		// 	cmdSpan.End()
 
 		// 	if otelShutdown != nil {
@@ -116,9 +108,6 @@ func RootCmd() *cobra.Command {
 	}
 
 	terminateSpan := func() {
-		// if !enabledTelemetry() {
-		// 	return
-		// }
 		cmdSpan.End()
 
 		if otelShutdown != nil {

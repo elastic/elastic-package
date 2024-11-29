@@ -123,7 +123,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			loc, err := locations.NewLocationManager()
 			if err != nil {
-				// telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				span.SetStatus(codes.Error, "error fetching profile")
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
@@ -132,20 +131,17 @@ User profiles can be configured with a "config.yml" file in the profile director
 			_, fetchSpan := telemetry.CmdTracer.Start(globalCtx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
-				// telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				fetchSpan.SetStatus(codes.Error, "error listing all profiles")
 				return fmt.Errorf("error listing all profiles: %w", err)
 			}
 			if len(profileList) == 0 {
 				fmt.Println("There are no profiles yet.")
-				// telemetry.ProfilesListSuccessCnt.Add(globalCtx, 1)
 				return nil
 			}
 			fetchSpan.End()
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
-				// telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 				span.SetStatus(codes.Error, "flag error")
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
@@ -162,7 +158,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 				var config *install.ApplicationConfiguration
 				config, err = install.Configuration()
 				if err != nil {
-					telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 					formatSpan.SetStatus(codes.Error, "failed to retrieve elastic-package configuration")
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
@@ -175,9 +170,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 			if err != nil {
 				formatSpan.RecordError(err)
 				formatSpan.SetStatus(codes.Error, "error formatting profiles")
-				// telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
-			} else {
-				// telemetry.ProfilesListSuccessCnt.Add(globalCtx, 1)
 			}
 			formatSpan.End()
 			return err
