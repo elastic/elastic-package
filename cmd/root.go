@@ -81,8 +81,8 @@ func RootCmd() *cobra.Command {
 				telemetry.CmdTracer = otel.Tracer("elastic.co/elastic-package")
 
 				// TODO: Just a quick example to send metrics
-				telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
-				telemetry.SetupMetrics(telemetry.CmdMeter)
+				// telemetry.CmdMeter = otel.Meter("elastic.co/elastic-package")
+				// telemetry.SetupMetrics(telemetry.CmdMeter)
 
 				otelShutdown = shutdown
 
