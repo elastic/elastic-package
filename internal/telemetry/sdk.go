@@ -24,8 +24,6 @@ import (
 var (
 	CmdTracer trace.Tracer
 	CmdMeter  metric.Meter
-
-	enabledTelemetry bool
 )
 
 func defaultResources(version string) (*resource.Resource, error) {
