@@ -124,6 +124,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 			loc, err := locations.NewLocationManager()
 			if err != nil {
 				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
+				span.SetStatus(codes.Error, "error fetching profile")
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
@@ -132,6 +133,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
 				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
+				fetchSpan.SetStatus(codes.Error, "error listing all profiles")
 				return fmt.Errorf("error listing all profiles: %w", err)
 			}
 			if len(profileList) == 0 {
@@ -144,6 +146,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
 				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
+				span.SetStatus(codes.Error, "flag error")
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
@@ -153,12 +156,14 @@ User profiles can be configured with a "config.yml" file in the profile director
 					attribute.String("elastic-package.profiles.format", format),
 				),
 			)
+
 			switch format {
 			case tableFormat:
 				var config *install.ApplicationConfiguration
 				config, err = install.Configuration()
 				if err != nil {
 					telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
+					formatSpan.SetStatus(codes.Error, "failed to retrieve elastic-package configuration")
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
 				err = formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
@@ -172,7 +177,6 @@ User profiles can be configured with a "config.yml" file in the profile director
 				formatSpan.SetStatus(codes.Error, "error formatting profiles")
 				telemetry.ProfilesListFailureCnt.Add(globalCtx, 1)
 			} else {
-				formatSpan.SetStatus(codes.Ok, "profiles listed")
 				telemetry.ProfilesListSuccessCnt.Add(globalCtx, 1)
 			}
 			formatSpan.End()
