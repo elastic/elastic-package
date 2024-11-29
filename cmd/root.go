@@ -50,16 +50,16 @@ var (
 	cmdSpan      trace.Span
 )
 
-func enabledTelemetry() bool {
-	value, exists := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if !exists {
-		return false
-	}
-	if value != "" {
-		return true
-	}
-	return false
-}
+//func enabledTelemetry() bool {
+//	value, exists := os.LookupEnv("OTEL_EXPORTER_OTLP_ENDPOINT")
+//	if !exists {
+//		return false
+//	}
+//	if value != "" {
+//		return true
+//	}
+//	return false
+//}
 
 // RootCmd creates and returns root cmd for elastic-package
 func RootCmd() *cobra.Command {
