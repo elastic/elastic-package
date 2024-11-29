@@ -27,19 +27,44 @@ var (
 )
 
 func defaultResources(version string) (*resource.Resource, error) {
+	ctx := context.Background()
 	extraResources, err := resource.New(
-		context.Background(),
+		ctx,
 		resource.WithOSType(),
-		resource.WithHostID(),
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	var hostResources, containerResources *resource.Resource
+	hostResources, err = resource.New(
+		ctx,
+		resource.WithHostID(),
+	)
+	if err == nil {
+		// (all?) container hosts cannot retrieve the host id
+		// failed to set up default Resource configuration: error detecting resource: host id not found in: /etc/machine-id or /var/lib/dbus/machine-id
+		extraResources, err = resource.Merge(extraResources, hostResources)
+		if err != nil {
+			return nil, err
+		}
+	}
+	containerResources, err = resource.New(
+		ctx,
+		resource.WithContainerID(),
+	)
+	if err == nil {
+		extraResources, err = resource.Merge(extraResources, containerResources)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	defaultResource, err := resource.Merge(resource.Default(), extraResources)
 	if err != nil {
 		return nil, err
 	}
+
 	return resource.Merge(
 		defaultResource,
 		resource.NewWithAttributes(
