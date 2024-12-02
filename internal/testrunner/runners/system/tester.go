@@ -1130,6 +1130,13 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			// triggered with the flags for running spolicyToAssignDatastreamTestsetup stage (--setup)
 			return nil
 		}
+
+		// RunTestOnly step (--no-provision) should also reassign back the previous (original) policy
+		// even with with independent Elastic Agents, since this step creates a new test policy each execution
+		if r.runIndependentElasticAgent && !r.runTestsOnly {
+			return nil
+		}
+
 		logger.Debug("reassigning original policy back to agent...")
 		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
