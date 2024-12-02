@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
@@ -362,6 +363,14 @@ func isMultiFields(definition map[string]any) bool {
 	return true
 }
 
+func isNumberTypeField(previewType, actualType string) bool {
+	if slices.Contains([]string{"float", "long", "double"}, previewType) && slices.Contains([]string{"float", "long", "double"}, string(actualType)) {
+		return true
+	}
+
+	return false
+}
+
 func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) error {
 	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
@@ -375,11 +384,16 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	logger.Debugf("Found ECS field %q for path %s (External %q)", found.Name, currentPath, found.External)
 
 	actualType := mappingParameter("type", definition)
-	if found.Type != actualType {
-		return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, found.Type)
+	if found.Type == actualType {
+		return nil
+	}
+
+	if isNumberTypeField(found.Type, actualType) {
+		logger.Debugf("> Mario > Allow number fields with different types (ECS %s - actual %s)", string(found.Type), string(actualType))
+		return nil
 	}
 	// any other field to validate here?
-	return nil
+	return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, found.Type)
 }
 
 // flattenMappings returns all the mapping definitions found at "path" flattened including
@@ -663,6 +677,14 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 			errs = append(errs, fmt.Errorf("error marshalling actual value %s (path: %s): %w", actualValue, currentPath, err))
 			return errs
 		}
+
+		// some exceptions related to numbers
+		// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
+		if isNumberTypeField(string(previewData), string(actualData)) {
+			logger.Debugf("> Mario > Allow number fields with different types (preview %s - actual %s)", string(previewData), string(actualData))
+			return nil
+		}
+
 		errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData)))
 	}
 	return errs
