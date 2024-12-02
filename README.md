@@ -114,7 +114,7 @@ Usually, this process would require the following manual steps:
    go mod tidy
    ```
 4. Push these changes into a branch and create a Pull Request
-    - Creating this PR would automatically trigger a new Jenkins pipeline.
+    - Creating this PR would automatically trigger a new build of the corresponding Buildkite pipeline.
 
 
 ### Testing with Elastic serverless
@@ -412,24 +412,6 @@ _Context: global_
 
 Sets the profile to use when no other is specified.
 
-### `elastic-package promote`
-
-_Context: global_
-
-[DEPRECATED] Use this command to move packages between the snapshot, staging, and production stages of the package registry.
-
-This command is intended primarily for use by administrators.
-
-It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
-
-### `elastic-package publish`
-
-_Context: package_
-
-[DEPRECATED] Use this command to publish a new package revision.
-
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
-
 ### `elastic-package report`
 
 _Context: package_
@@ -716,7 +698,7 @@ There are available some environment variables that could be used to change some
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+is automatically managed by the Buildkite CI ([Pipeline](https://github.com/elastic/elastic-package/blob/main/.buildkite/pipeline.yml))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release

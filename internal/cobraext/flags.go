@@ -221,21 +221,4 @@ const (
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
-
-	// To be removed promote commands flags
-	DirectionFlagName        = "direction"
-	DirectionFlagDescription = "promotion direction"
-
-	NewestOnlyFlagName        = "newest-only"
-	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
-
-	PromotedPackagesFlagName        = "packages"
-	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
-
-	// To be removed publish commands flags
-	ForkFlagName        = "fork"
-	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
-
-	SkipPullRequestFlagName        = "skip-pull-request"
-	SkipPullRequestFlagDescription = "skip opening a new pull request"
 )

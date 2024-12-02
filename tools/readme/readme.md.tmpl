@@ -114,7 +114,7 @@ Usually, this process would require the following manual steps:
    go mod tidy
    ```
 4. Push these changes into a branch and create a Pull Request
-    - Creating this PR would automatically trigger a new Jenkins pipeline.
+    - Creating this PR would automatically trigger a new build of the corresponding Buildkite pipeline.
 
 
 ### Testing with Elastic serverless
@@ -258,7 +258,7 @@ There are available some environment variables that could be used to change some
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+is automatically managed by the Buildkite CI ([Pipeline](https://github.com/elastic/elastic-package/blob/main/.buildkite/pipeline.yml))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release
