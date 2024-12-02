@@ -1158,9 +1158,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
+		if r.runTestsOnly || r.runSetup {
 			return nil
 		}
+
+		// No need to reset agent log level when running independent Elastic Agents
+		// since the Elastic Agent is going to be removed/uninstalled
+		if r.runIndependentElasticAgent {
+			return nil
+		}
+
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
