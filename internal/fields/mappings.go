@@ -215,7 +215,7 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 	//     - If the mapping is a constant_keyword type (e.g. data_stream.dataset), how to check the value?
 	//         - if the constant_keyword is defined in the preview, it should be the same
 	if diff := cmp.Diff(actualMappings, previewMappings, transformJSON); diff == "" {
-		logger.Debugf("No changes found in mappings")
+		logger.Debug("No changes found in mappings")
 		return errs.Unique()
 	}
 
@@ -388,8 +388,9 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return nil
 	}
 
+	// exceptions related to numbers
 	if isNumberTypeField(found.Type, actualType) {
-		logger.Debugf("> Mario > Allow number fields with different types (ECS %s - actual %s)", string(found.Type), string(actualType))
+		logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(found.Type), string(actualType))
 		return nil
 	}
 	// any other field to validate here?
@@ -493,9 +494,11 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		return nil
 	}
 
-	if v.specVersion.LessThan(semver3_0_1) && mappingParameter("type", actual) == "nested" {
-		logger.Debugf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
-		return nil
+	if v.specVersion.LessThan(semver3_0_1) {
+		if mappingParameter("type", actual) == "nested" {
+			logger.Debugf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
+			return nil
+		}
 	}
 
 	if isObjectFullyDynamic(actual) {
@@ -665,7 +668,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if previewValue == actualValue {
 			return nil
 		}
-		// Get the string representation via JSON Marshalling
+		// Get the string representation of the types via JSON Marshalling
 		previewData, err := json.Marshal(previewValue)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("error marshalling preview value %s (path: %s): %w", previewValue, currentPath, err))
@@ -678,10 +681,10 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 			return errs
 		}
 
-		// some exceptions related to numbers
+		// exceptions related to numbers
 		// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
 		if isNumberTypeField(string(previewData), string(actualData)) {
-			logger.Debugf("> Mario > Allow number fields with different types (preview %s - actual %s)", string(previewData), string(actualData))
+			logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", string(previewData), string(actualData))
 			return nil
 		}
 
