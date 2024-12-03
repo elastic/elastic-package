@@ -1133,7 +1133,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 		// RunTestOnly step (--no-provision) should also reassign back the previous (original) policy
 		// even with with independent Elastic Agents, since this step creates a new test policy each execution
-		if r.runIndependentElasticAgent && !r.runTestsOnly {
+		// Moreover, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent && !r.runTestsOnly {
 			return nil
 		}
 
@@ -1164,7 +1165,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 		// No need to reset agent log level when running independent Elastic Agents
 		// since the Elastic Agent is going to be removed/uninstalled
-		if r.runIndependentElasticAgent {
+		// Morevoer, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent {
 			return nil
 		}
 
@@ -1316,7 +1318,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.AgentNetworkName = agentInfo.NetworkName
 	}
 
-	// Set the right folder for logs execpt for custom agents that are still deployed using "servicedeployer"
+	// Set the right folder for logs except for custom agents that are still deployed using "servicedeployer"
 	if r.runIndependentElasticAgent && agentDeployed != nil {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
