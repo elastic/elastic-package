@@ -485,6 +485,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 
 func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any) multierror.Error {
 	var errs multierror.Error
+	isNestedParent := false
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
 	if err != nil {
@@ -496,8 +497,8 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 
 	if v.specVersion.LessThan(semver3_0_1) {
 		if mappingParameter("type", actual) == "nested" {
-			logger.Debugf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
-			return nil
+			logger.Warnf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
+			isNestedParent = true
 		}
 	}
 
@@ -512,6 +513,10 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
 			return nil
 		} else if !isObject(preview) {
+			if isNestedParent {
+				logger.Warnf("skipped due to field of type \"nested\": not found properties in preview mappings for path %q", path)
+				return nil
+			}
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
 			return errs.Unique()
 		}
@@ -526,6 +531,11 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		// logger.Debugf(">>> Comparing field with properties (object): %q", path)
 		compareErrors := v.compareMappings(path, previewProperties, actualProperties)
 		errs = append(errs, compareErrors...)
+
+		if isNestedParent {
+			logger.Warnf("skip validation due to parent type nested:\n%s", errs.Unique().Error())
+			return nil
+		}
 
 		if len(errs) == 0 {
 			return nil
@@ -556,6 +566,10 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	// Compare and validate the elements under "properties": objects or fields and its parameters
 	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview)
 	errs = append(errs, propertiesErrs...)
+	if isNestedParent {
+		logger.Warnf("skip validation due to parent type nested:\n%s", errs.Unique().Error())
+		return nil
+	}
 	if len(errs) == 0 {
 		return nil
 	}
@@ -583,9 +597,8 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 					continue
 				}
-				errs = append(errs,
-					v.validateMappingsNotInPreview(currentPath, childField)...,
-				)
+				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField)
+				errs = append(errs, ecsErrors...)
 			}
 
 			continue
@@ -626,6 +639,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		if isLocalFieldTypeArray(fieldPath, v.Schema) && v.specVersion.LessThan(semver2_0_0) {
+			// Example: https://github.com/elastic/elastic-package/blob/25344b16c6eabe1478067fc55966258a59c769cd/test/packages/parallel/nginx/data_stream/access/fields/fields.yml#L5
 			logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
 			continue
 		}
