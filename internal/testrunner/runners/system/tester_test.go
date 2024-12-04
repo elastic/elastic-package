@@ -381,7 +381,7 @@ func TestCheckAgentLogs(t *testing.T) {
 					DataStream: "datastream",
 				},
 			}
-			results, err := tester.checkAgentLogs(dump, startTime, tc.errorPatterns)
+			results, err := tester.checkAgentLogs(context.Background(), dump, startTime, tc.errorPatterns)
 			require.NoError(t, err)
 			require.Len(t, results, tc.expectedErrors)
 

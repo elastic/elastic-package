@@ -12,6 +12,9 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/spf13/cobra"
 
@@ -19,6 +22,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 // jsonFormat is the format for JSON output
@@ -114,36 +118,61 @@ User profiles can be configured with a "config.yml" file in the profile director
 		Short: "List available profiles",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			globalCtx, span := telemetry.StartSpanForCommand(telemetry.CmdTracer, cmd)
+			defer span.End()
+
 			loc, err := locations.NewLocationManager()
 			if err != nil {
+				span.SetStatus(codes.Error, "error fetching profile")
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
+
+			// Not used context returned by Start
+			_, fetchSpan := telemetry.CmdTracer.Start(globalCtx, "Fetch all profiles")
 			profileList, err := profile.FetchAllProfiles(loc.ProfileDir())
 			if err != nil {
+				fetchSpan.SetStatus(codes.Error, "error listing all profiles")
 				return fmt.Errorf("error listing all profiles: %w", err)
 			}
 			if len(profileList) == 0 {
 				fmt.Println("There are no profiles yet.")
 				return nil
 			}
+			fetchSpan.End()
 
 			format, err := cmd.Flags().GetString(cobraext.ProfileFormatFlagName)
 			if err != nil {
+				span.SetStatus(codes.Error, "flag error")
 				return cobraext.FlagParsingError(err, cobraext.ProfileFormatFlagName)
 			}
 
+			// Not used context returned by Start
+			_, formatSpan := telemetry.CmdTracer.Start(globalCtx, "Format profiles",
+				trace.WithAttributes(
+					attribute.String("elastic-package.profiles.format", format),
+				),
+			)
+
 			switch format {
 			case tableFormat:
-				config, err := install.Configuration()
+				var config *install.ApplicationConfiguration
+				config, err = install.Configuration()
 				if err != nil {
+					formatSpan.SetStatus(codes.Error, "failed to retrieve elastic-package configuration")
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
-				return formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
+				err = formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
 			case jsonFormat:
-				return formatJSON(profileList)
+				err = formatJSON(profileList)
 			default:
-				return fmt.Errorf("format %s not supported", format)
+				err = fmt.Errorf("format %s not supported", format)
 			}
+			if err != nil {
+				formatSpan.RecordError(err)
+				formatSpan.SetStatus(codes.Error, "error formatting profiles")
+			}
+			formatSpan.End()
+			return err
 		},
 	}
 	profileListCommand.Flags().String(cobraext.ProfileFormatFlagName, tableFormat, cobraext.ProfileFormatFlagDescription)
@@ -204,7 +233,7 @@ func formatJSON(profileList []profile.Metadata) error {
 
 func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
 	table := tablewriter.NewWriter(os.Stdout)
-	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
+	profilesTable := profileToList(profilesDir, profileList, currentProfile)
 
 	table.SetHeader([]string{"Name", "Date Created", "Version", "Path"})
 	table.SetHeaderColor(

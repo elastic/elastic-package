@@ -6,6 +6,12 @@ env:
   K8S_VERSION: 'v1.31.0'
   YQ_VERSION: 'v4.44.3'
 
+  # Force to disable OTEL telemetry (autoexport package)
+  # https://pkg.go.dev/go.opentelemetry.io/contrib/exporters/autoexport
+  OTEL_METRICS_EXPORTER: none
+  OTEL_TRACES_EXPORTER: none
+  OTEL_LOGS_EXPORTER: none
+
   # Agent images used in pipeline steps
   LINUX_GOLANG_AGENT_IMAGE: "golang:${GO_VERSION}"
   UBUNTU_X86_64_AGENT_IMAGE: "family/core-ubuntu-2204"

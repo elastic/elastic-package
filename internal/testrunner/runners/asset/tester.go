@@ -10,10 +10,13 @@ import (
 	"fmt"
 	"strings"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -88,6 +91,8 @@ func (r *tester) resources(installedPackage bool) resources.Resources {
 }
 
 func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
 	result := testrunner.NewResultComposer(testrunner.TestResult{
 		TestType: TestType,
 		Package:  r.testFolder.Package,
@@ -114,22 +119,54 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithSkip(skip)
 	}
 
-	logger.Debug("installing package...")
-	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
+	stackVersion, err := r.kibanaClient.Version()
 	if err != nil {
-		return result.WithError(fmt.Errorf("can't install the package: %w", err))
+		return result.WithError(fmt.Errorf("cannot request Kibana version: %w", err))
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err))
 	}
+
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install Package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
+	logger.Debug("installing package...")
+	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(true))
+	if err != nil {
+		return result.WithError(fmt.Errorf("can't install the package: %w", err))
+	}
+	installSpan.End()
+
+	ctx, getPackageSpan := telemetry.CmdTracer.Start(mainCtx, "Get Package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
 	installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
 	if err != nil {
 		return result.WithError(fmt.Errorf("cannot get installed package %q: %w", manifest.Name, err))
 	}
 	installedAssets := installedPackage.Assets()
+	getPackageSpan.End()
 
+	ctx, loadAssetsSpan := telemetry.CmdTracer.Start(mainCtx, "Load package assets",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
 	// No Elasticsearch asset is created when an Input package is installed through the API.
 	// This would require to create a Agent policy and add that input package to the Agent policy.
 	// As those input packages could have some required fields, it would also require to add
@@ -137,11 +174,20 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
 	// support for Elasticsearch assets in input packages.
 	// Related issue: https://github.com/elastic/elastic-package/issues/1623
-	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
+	expectedAssets, err := packages.LoadPackageAssets(ctx, r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
+	loadAssetsSpan.End()
 
+	ctx, validateAssetsSpan := telemetry.CmdTracer.Start(mainCtx, "Validate assets",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
 	results := make([]testrunner.TestResult, 0, len(expectedAssets))
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
@@ -152,7 +198,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		})
 
 		var tr []testrunner.TestResult
-		if !findActualAsset(installedAssets, e) {
+		if !findActualAsset(ctx, installedAssets, e) {
 			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
 				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
@@ -174,24 +220,45 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 		results = append(results, result)
 	}
+	validateAssetsSpan.End()
 
 	return results, nil
 }
 
 func (r *tester) TearDown(ctx context.Context) error {
+	stackVersion, err := r.kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err)
+	}
+
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	cleanupCtx, uninstallSpan := telemetry.CmdTracer.Start(cleanupCtx, "Uninstall Package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(manifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(manifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(manifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
+
 	logger.Debug("removing package...")
-	_, err := r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(false))
+	_, err = r.resourcesManager.ApplyCtx(cleanupCtx, r.resources(false))
 	if err != nil {
 		return err
 	}
+	uninstallSpan.End()
 
 	return nil
 }
 
-func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+func findActualAsset(_ context.Context, actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
 	for _, a := range actualAssets {
 		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
 			return true

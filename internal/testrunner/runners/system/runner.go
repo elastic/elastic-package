@@ -13,6 +13,9 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -21,6 +24,7 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -112,11 +116,32 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r *runner) SetupRunner(ctx context.Context) error {
+	mainCtx, setupSpan := telemetry.CmdTracer.Start(ctx, "Setup Runner")
+	defer setupSpan.End()
+
 	if r.runTearDown {
 		logger.Debug("Skip installing package")
 		return nil
 	}
 
+	stackVersion, err := r.kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("cannot request Kibana version: %w", err)
+	}
+
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed: %w", err)
+	}
+
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install Package",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+			telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+			telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+			telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+		),
+	)
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
 	logger.Debug("Installing package...")
@@ -124,16 +149,27 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		// Install it unless we are running the tear down only.
 		installedPackage: !r.runTearDown,
 	}
-	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
+	_, err = r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 	if err != nil {
 		return fmt.Errorf("can't install the package: %w", err)
 	}
+	installSpan.End()
 
 	if r.checkFailureStore {
+		ctx, failureStoreSpan := telemetry.CmdTracer.Start(mainCtx, "Setup failure store",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageSpecVersion.String(pkgManifest.SpecVersion),
+				telemetry.AttributeKeyPackageName.String(pkgManifest.Name),
+				telemetry.AttributeKeyPackageVersion.String(pkgManifest.Version),
+				telemetry.AttributeKeyStackVersion.String(stackVersion.Version()),
+			),
+		)
 		err := r.setupFailureStore(ctx)
 		if err != nil {
+			failureStoreSpan.SetStatus(codes.Error, "can't enable the failure store")
 			return fmt.Errorf("can't enable the failure store: %w", err)
 		}
+		failureStoreSpan.End()
 	}
 
 	return nil
@@ -163,6 +199,9 @@ func (r *runner) setupFailureStore(ctx context.Context) error {
 // TearDownRunner cleans up any global test runner resources. It must be called
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
+	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Tear down runner - Uninstall package")
+	defer uninstallSpan.End()
+
 	logger.Debug("Uninstalling package...")
 	resourcesOptions := resourcesOptions{
 		// Keep it installed only if we were running setup, or tests only.
@@ -176,6 +215,10 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	// Not used context returned by Start
+	_, getTestsSpan := telemetry.CmdTracer.Start(ctx, "Get tests")
+	defer getTestsSpan.End()
+
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {

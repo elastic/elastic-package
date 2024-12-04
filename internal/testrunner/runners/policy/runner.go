@@ -14,6 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -68,6 +69,8 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 
 // SetupRunner prepares global resources required by the test runner.
 func (r *runner) SetupRunner(ctx context.Context) error {
+	ctx, setupSpan := telemetry.CmdTracer.Start(ctx, "Setup Runner")
+	defer setupSpan.End()
 	cleanup, err := r.setupSuite(ctx, r.resourcesManager)
 	if err != nil {
 		return fmt.Errorf("failed to setup test runner: %w", err)
@@ -80,6 +83,8 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 // TearDownRunner cleans up any global test runner resources. It must be called
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
+	ctx, uninstallSpan := telemetry.CmdTracer.Start(ctx, "Tear down runner - Uninstall package")
+	defer uninstallSpan.End()
 	logger.Debug("Uninstalling package...")
 	err := r.cleanup(context.WithoutCancel(ctx))
 	if err != nil {
@@ -89,6 +94,10 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	// Not used context returned by Start
+	_, getTestsSpan := telemetry.CmdTracer.Start(ctx, "Get tests")
+	defer getTestsSpan.End()
+
 	var folders []testrunner.TestFolder
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
@@ -167,6 +176,10 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 		_, err := manager.ApplyCtx(ctx, setupResources)
 		return err
 	}
+
+	mainCtx := ctx
+	ctx, installSpan := telemetry.CmdTracer.Start(mainCtx, "Install package")
+	defer installSpan.End()
 
 	logger.Debugf("Installing package...")
 	_, err = manager.ApplyCtx(ctx, setupResources)

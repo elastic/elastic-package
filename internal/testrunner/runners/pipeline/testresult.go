@@ -6,6 +6,7 @@ package pipeline
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -45,7 +46,7 @@ func writeTestResult(testCasePath string, result *testResult, specVersion semver
 	return nil
 }
 
-func compareResults(testCasePath string, config *testConfig, result *testResult, specVersion semver.Version) error {
+func compareResults(_ context.Context, testCasePath string, config *testConfig, result *testResult, specVersion semver.Version) error {
 	resultsWithoutDynamicFields, err := adjustTestResult(result, config)
 	if err != nil {
 		return fmt.Errorf("can't adjust test results: %w", err)

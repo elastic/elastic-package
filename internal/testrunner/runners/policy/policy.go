@@ -19,38 +19,54 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/telemetry"
 )
 
 func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
+	mainCtx := ctx
+	ctx, downloadPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Download Agent Policy")
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
+	downloadPolicySpan.End()
 
-	d, err := cleanPolicy(policy, policyEntryFilters)
+	ctx, cleanSpan := telemetry.CmdTracer.Start(mainCtx, "Clean Agent Policy")
+	d, err := cleanPolicy(ctx, policy, policyEntryFilters)
 	if err != nil {
 		return fmt.Errorf("failed to prepare policy to store: %w", err)
 	}
+	cleanSpan.End()
 
+	// Not used context returned by Start
+	_, writeSpan := telemetry.CmdTracer.Start(mainCtx, "Write Agent Policy")
 	err = os.WriteFile(expectedPathFor(testPath), d, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write policy: %w", err)
 	}
+	writeSpan.End()
 
 	return nil
 }
 
 func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
+	mainCtx := ctx
+
+	ctx, downloadPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Download Agent Policy")
 	policy, err := kibanaClient.DownloadPolicy(ctx, policyID)
 	if err != nil {
 		return fmt.Errorf("failed to download policy %q: %w", policyID, err)
 	}
+
 	expectedPolicy, err := os.ReadFile(expectedPathFor(testPath))
 	if err != nil {
 		return fmt.Errorf("failed to read expected policy: %w", err)
 	}
+	downloadPolicySpan.End()
 
-	diff, err := comparePolicies(expectedPolicy, policy)
+	ctx, comparePolicySpan := telemetry.CmdTracer.Start(mainCtx, "Compare Agent Policies")
+	diff, err := comparePolicies(ctx, expectedPolicy, policy)
+	comparePolicySpan.End()
 	if err != nil {
 		return fmt.Errorf("failed to compare policies: %w", err)
 	}
@@ -61,12 +77,12 @@ func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client,
 	return nil
 }
 
-func comparePolicies(expected, found []byte) (string, error) {
-	want, err := cleanPolicy(expected, policyEntryFilters)
+func comparePolicies(ctx context.Context, expected, found []byte) (string, error) {
+	want, err := cleanPolicy(ctx, expected, policyEntryFilters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare expected policy: %w", err)
 	}
-	got, err := cleanPolicy(found, policyEntryFilters)
+	got, err := cleanPolicy(ctx, found, policyEntryFilters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare found policy: %w", err)
 	}
@@ -157,7 +173,7 @@ var policyEntryFilters = []policyEntryFilter{
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
-func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
+func cleanPolicy(_ context.Context, policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
 	if err != nil {

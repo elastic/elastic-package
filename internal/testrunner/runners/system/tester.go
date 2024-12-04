@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"go.opentelemetry.io/otel/trace"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
@@ -37,6 +38,7 @@ import (
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 	"github.com/elastic/elastic-package/internal/wait"
 )
@@ -484,55 +486,112 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
-		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Reset agent policy handler",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+
+		if err := r.resetAgentPolicyHandler(ctx); err != nil {
 			return err
 		}
 		r.resetAgentPolicyHandler = nil
+		span.End()
 	}
 
 	// Shutting down the service should be run one of the first actions
 	// to ensure that resources created by terraform are deleted even if other
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
-		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Shutdown service handler",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.shutdownServiceHandler(ctx); err != nil {
 			return err
 		}
 		r.shutdownServiceHandler = nil
+		span.End()
 	}
 
 	if r.cleanTestScenarioHandler != nil {
-		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Clean test scenario",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.cleanTestScenarioHandler(ctx); err != nil {
 			return err
 		}
 		r.cleanTestScenarioHandler = nil
+		span.End()
 	}
 
 	if r.resetAgentLogLevelHandler != nil {
-		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Reset Elastic Agent log level",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.resetAgentLogLevelHandler(ctx); err != nil {
 			return err
 		}
 		r.resetAgentLogLevelHandler = nil
+		span.End()
 	}
 
 	if r.removeAgentHandler != nil {
-		if err := r.removeAgentHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Remove Elastic Agent",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.removeAgentHandler(ctx); err != nil {
 			return err
 		}
 		r.removeAgentHandler = nil
+		span.End()
 	}
 
 	if r.deleteTestPolicyHandler != nil {
-		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Delete test policies",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.deleteTestPolicyHandler(ctx); err != nil {
 			return err
 		}
 		r.deleteTestPolicyHandler = nil
+		span.End()
 	}
 
 	if r.shutdownAgentHandler != nil {
-		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
+		ctx, span := telemetry.CmdTracer.Start(cleanupCtx, "Shutdown Elastic Agent",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		if err := r.shutdownAgentHandler(ctx); err != nil {
 			return err
 		}
 		r.shutdownAgentHandler = nil
+		span.End()
 	}
 
 	return nil
@@ -548,6 +607,7 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 }
 
 func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
+	mainCtx := ctx
 	result := r.newResult("(init)")
 
 	startTesting := time.Now()
@@ -564,6 +624,13 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 		logger.Debugf("Test skipped, avoid checking agent logs")
 		return results, nil
 	}
+	ctx, dumpLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Dump logs from stack",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
 
 	tempDir, err := os.MkdirTemp("", "test-system-")
 	if err != nil {
@@ -589,17 +656,38 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	if err != nil {
 		return nil, fmt.Errorf("dump failed: %w", err)
 	}
+	dumpLogsSpan.End()
 
-	logResults, err := r.checkAgentLogs(dump, startTesting, errorPatterns)
+	ctx, checkAgentLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Review Elastic Agent logs from stack",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+	logResults, err := r.checkAgentLogs(ctx, dump, startTesting, errorPatterns)
 	if err != nil {
 		return result.WithError(err)
 	}
+	checkAgentLogsSpan.End()
 	results = append(results, logResults...)
 
 	return results, nil
 }
 
 func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
+	ctx, runTestSpan := telemetry.CmdTracer.Start(mainCtx, "Run test",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(variantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(cfgFile),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -613,7 +701,18 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(ctx, testConfig, svcInfo)
+	runTestSpan.End()
 
+	ctx, tearDownSpan := telemetry.CmdTracer.Start(mainCtx, "Tear down test",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(variantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(cfgFile),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+	defer tearDownSpan.End()
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
 		return partial, err
@@ -903,6 +1002,7 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 }
 
 func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+	mainCtx := ctx
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
 	var err error
@@ -923,6 +1023,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	serviceOptions.DeployIndependentAgent = r.runIndependentElasticAgent
+
+	ctx, createPoliciesSpan := telemetry.CmdTracer.Start(mainCtx, "Create Policies",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
@@ -962,6 +1072,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if err != nil {
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
+		createPoliciesSpan.AddEvent("Created enroll policy")
 	}
 
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
@@ -1000,7 +1111,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		if err != nil {
 			return nil, fmt.Errorf("could not create test policy: %w", err)
 		}
+		createPoliciesSpan.AddEvent("Created test policy")
 	}
+
+	createPoliciesSpan.End()
 
 	r.deleteTestPolicyHandler = func(ctx context.Context) error {
 		logger.Debug("deleting test policies...")
@@ -1016,6 +1130,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
+	ctx, setupAgentSpan := telemetry.CmdTracer.Start(mainCtx, "Setup Elastic Agent",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+
 	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
 	policy := policyToEnroll
 	if r.runTearDown || r.runTestsOnly {
@@ -1030,6 +1154,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	scenario.agent = agentDeployed
+	setupAgentSpan.End()
+
+	ctx, setupServiceSpan := telemetry.CmdTracer.Start(mainCtx, "Setup Service",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+		),
+	)
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
 	if errors.Is(err, os.ErrNotExist) {
@@ -1037,6 +1171,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	} else if err != nil {
 		return nil, err
 	}
+
+	setupServiceSpan.End()
 
 	// Reload test config with ctx variable substitution.
 	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
@@ -1086,6 +1222,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
+	ctx, enrolledAgentsSpan := telemetry.CmdTracer.Start(mainCtx, "Check enrolled Elastic Agents",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+		),
+	)
+
 	// FIXME: running per stages does not work when multiple agents are created
 	var origPolicy kibana.Policy
 	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
@@ -1096,6 +1241,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 	agent := agents[0]
 	logger.Debugf("Selected enrolled agent %q", agent.ID)
+	enrolledAgentsSpan.End()
 
 	r.removeAgentHandler = func(ctx context.Context) error {
 		if r.runTestsOnly {
@@ -1162,6 +1308,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
+	ctx, assignPolicySpan := telemetry.CmdTracer.Start(mainCtx, "Assign policy to agent",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+		),
+	)
+
 	if r.runTearDown {
 		logger.Debug("Skip assigning package data stream to agent")
 	} else {
@@ -1175,6 +1330,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
+	assignPolicySpan.End()
 
 	// Signal to the service that the agent is ready (policy is assigned).
 	if service != nil && config.ServiceNotifySignal != "" {
@@ -1186,6 +1342,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	if r.runTearDown {
 		return &scenario, nil
 	}
+
+	ctx, waitForDataSpan := telemetry.CmdTracer.Start(mainCtx, "Wait for data",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+		),
+	)
 
 	// Use custom timeout if the service can't collect data immediately.
 	waitForDataTimeout := waitForDataDefaultTimeout
@@ -1232,6 +1397,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
+
+	waitForDataSpan.End()
 
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
@@ -1406,9 +1573,19 @@ func (r *tester) createServiceStateDir() error {
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
-	if err := validateFailureStore(scenario.failureStore); err != nil {
+	mainCtx := ctx
+	ctx, failureStoreSpan := telemetry.CmdTracer.Start(mainCtx, "Validate Failure Store",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+		),
+	)
+	if err := validateFailureStore(ctx, scenario.failureStore); err != nil {
 		return result.WithError(err)
 	}
+	failureStoreSpan.End()
 
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
@@ -1449,6 +1626,16 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
+	ctx, validateFieldsSpan := telemetry.CmdTracer.Start(mainCtx, "Validate Fields",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -1467,10 +1654,13 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	validateFieldsSpan.AddEvent("Validate ignored fields")
+	err = validateIgnoredFields(ctx, r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
+
+	validateFieldsSpan.End()
 
 	docs := scenario.docs
 	if scenario.syntheticEnabled {
@@ -1497,13 +1687,34 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
+	ctx, transformsSpan := telemetry.CmdTracer.Start(mainCtx, "Check transforms",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+
 	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.kibanaDataStream, scenario.dataStream, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
+	transformsSpan.End()
 
 	if scenario.agent != nil {
+		ctx, agentLogsSpan := telemetry.CmdTracer.Start(mainCtx, "Review Elastic Agent logs from test",
+			trace.WithAttributes(
+				telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+				telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
 		logResults, err := r.checkNewAgentLogs(ctx, scenario.agent, scenario.startTestTime, errorPatterns, config.Name())
+		agentLogsSpan.End()
 		if err != nil {
 			return result.WithError(err)
 		}
@@ -1513,7 +1724,17 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.withCoverage {
-		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
+		ctx, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Generate coverage report",
+			trace.WithAttributes(
+				telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+				telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+				telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+				telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+				telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+			),
+		)
+		coverage, err := r.generateCoverageReport(ctx, result.CoveragePackageName())
+		coverageSpan.End()
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
 		}
@@ -1524,6 +1745,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 }
 
 func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
+	mainCtx := ctx
+
 	result := r.newResult(config.Name())
 
 	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
@@ -1535,10 +1758,20 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
+	ctx, prepareScenarioSpan := telemetry.CmdTracer.Start(mainCtx, "Prepare scenario test",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
 	scenario, err := r.prepareScenario(ctx, config, svcInfo)
 	if err != nil {
 		return result.WithError(err)
 	}
+	prepareScenarioSpan.End()
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
 		err := dumpScenarioDocs(scenario.docs)
@@ -1547,7 +1780,19 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		}
 	}
 
-	return r.validateTestScenario(ctx, result, scenario, config)
+	ctx, validateScenarioSpan := telemetry.CmdTracer.Start(mainCtx, "Validate test scenario",
+		trace.WithAttributes(
+			telemetry.AttributeKeySystemTestVariant.String(config.ServiceVariantName),
+			telemetry.AttributeKeySystemTestCfgFile.String(config.Name()),
+			telemetry.AttributeKeyPackageName.String(r.pkgManifest.Name),
+			telemetry.AttributeKeyPackageSpecVersion.String(r.pkgManifest.SpecVersion),
+			telemetry.AttributeKeyStackVersion.String(r.stackVersion.Version()),
+		),
+	)
+	testResults, err := r.validateTestScenario(ctx, result, scenario, config)
+
+	validateScenarioSpan.End()
+	return testResults, err
 }
 
 func dumpScenarioDocs(docs any) error {
@@ -2034,7 +2279,7 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 	return nil
 }
 
-func validateFailureStore(failureStore []failureStoreDocument) error {
+func validateFailureStore(_ context.Context, failureStore []failureStoreDocument) error {
 	var multiErr multierror.Error
 	for _, doc := range failureStore {
 		// TODO: Move this to the trace log level when available.
@@ -2078,7 +2323,7 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
-func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(_ context.Context, stackVersionString string, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	stackVersion, err := semver.NewVersion(stackVersionString)
 	if err != nil {
@@ -2206,7 +2451,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	return results, nil
 }
 
-func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
+func (r *tester) checkAgentLogs(_ context.Context, dump []stack.DumpResult, startTesting time.Time, errorPatterns []logsByContainer) (results []testrunner.TestResult, err error) {
 	for _, patternsContainer := range errorPatterns {
 		startTime := time.Now()
 
@@ -2279,7 +2524,7 @@ func (r *tester) anyErrorMessages(logsFilePath string, startTime time.Time, erro
 	return nil
 }
 
-func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageReport, error) {
+func (r *tester) generateCoverageReport(_ context.Context, pkgName string) (testrunner.CoverageReport, error) {
 	dsPattern := "*"
 	if r.dataStreamManifest != nil && r.dataStreamManifest.Name != "" {
 		dsPattern = r.dataStreamManifest.Name

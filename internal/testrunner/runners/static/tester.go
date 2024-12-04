@@ -11,11 +11,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
+	"github.com/elastic/elastic-package/internal/telemetry"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -97,7 +100,7 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 
 	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(ctx, pkgManifest)...), nil
 }
 
 func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
@@ -129,7 +132,9 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	return results
 }
 
-func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+func (r tester) verifySampleEvent(ctx context.Context, pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+	mainCtx := ctx
+
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
@@ -148,19 +153,36 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	}
 
 	if r.withCoverage {
+		// Not used context returned by Start
+		_, coverageSpan := telemetry.CmdTracer.Start(mainCtx, "Generate coverage",
+			trace.WithAttributes(
+				telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+				telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+			),
+		)
+
 		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
 		if err != nil {
 			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
 			return results
 		}
 		resultComposer = resultComposer.WithCoverage(coverage)
+		coverageSpan.End()
 	}
 
-	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
+	ctx, validateSampleSpan := telemetry.CmdTracer.Start(mainCtx, "Validate sample event",
+		trace.WithAttributes(
+			telemetry.AttributeKeyPackageName.String(r.testFolder.Package),
+			telemetry.AttributeKeyDataStreamName.String(r.testFolder.DataStream),
+		),
+	)
+
+	expectedDatasets, err := r.getExpectedDatasets(ctx, pkgManifest)
 	if err != nil {
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
+	validateSampleSpan.AddEvent("Got expected datasets")
 	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
@@ -177,6 +199,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
 		return results
 	}
+	validateSampleSpan.AddEvent("Read sample event file")
 
 	multiErr := fieldsValidator.ValidateDocumentBody(content)
 	if len(multiErr) > 0 {
@@ -186,6 +209,8 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		})
 		return results
 	}
+	validateSampleSpan.AddEvent("Validated sample event file")
+	validateSampleSpan.End()
 
 	results, _ := resultComposer.WithSuccess()
 	return results
@@ -212,7 +237,7 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	return sampleEventPath, true, nil
 }
 
-func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
+func (r tester) getExpectedDatasets(_ context.Context, pkgManifest *packages.PackageManifest) ([]string, error) {
 	dsName := r.testFolder.DataStream
 	if dsName == "" {
 		// TODO: This should return the package name plus the policy name, but we don't know
