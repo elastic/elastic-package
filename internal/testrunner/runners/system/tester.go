@@ -1130,6 +1130,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			// triggered with the flags for running spolicyToAssignDatastreamTestsetup stage (--setup)
 			return nil
 		}
+
+		// RunTestOnly step (--no-provision) should also reassign back the previous (original) policy
+		// even with with independent Elastic Agents, since this step creates a new test policy each execution
+		// Moreover, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent && !r.runTestsOnly {
+			return nil
+		}
+
 		logger.Debug("reassigning original policy back to agent...")
 		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
@@ -1151,9 +1159,17 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
+		if r.runTestsOnly || r.runSetup {
 			return nil
 		}
+
+		// No need to reset agent log level when running independent Elastic Agents
+		// since the Elastic Agent is going to be removed/uninstalled
+		// Morevoer, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent {
+			return nil
+		}
+
 		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
 
 		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
@@ -1302,7 +1318,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.AgentNetworkName = agentInfo.NetworkName
 	}
 
-	// Set the right folder for logs execpt for custom agents that are still deployed using "servicedeployer"
+	// Set the right folder for logs except for custom agents that are still deployed using "servicedeployer"
 	if r.runIndependentElasticAgent && agentDeployed != nil {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
