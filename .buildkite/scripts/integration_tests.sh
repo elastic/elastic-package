@@ -122,6 +122,10 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
             package_folder="${package_folder}-stack_agent"
         fi
 
+        if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
+            package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
+        fi
+
         if [[ "${retry_count}" -ne 0 ]]; then
             package_folder="${package_folder}_retry_${retry_count}"
         fi

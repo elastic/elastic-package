@@ -342,7 +342,29 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 	// add the ecs@mappings component template.
 	schema = appendECSMappingMultifields(schema, "")
 
+	// Force to set External as "ecs" in all these fields to be able to distinguish
+	// which fields come from ECS and which ones are loaded from the package directory
+	schema = setExternalAsECS(schema)
+
 	return fdm, schema, nil
+}
+
+func setExternalAsECS(fields []FieldDefinition) []FieldDefinition {
+	for i := 0; i < len(fields); i++ {
+		f := &fields[i]
+		f.External = "ecs"
+		if len(f.MultiFields) > 0 {
+			for j := 0; j < len(f.MultiFields); j++ {
+				mf := &f.MultiFields[j]
+				mf.External = "ecs"
+			}
+		}
+		if len(f.Fields) > 0 {
+			f.Fields = setExternalAsECS(f.Fields)
+		}
+	}
+
+	return fields
 }
 
 // supportsECSMappings check if all the versions of the stack the package can run on support ECS mappings.
