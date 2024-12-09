@@ -261,6 +261,9 @@ func TestComparingMappings(t *testing.T) {
 						"text": map[string]any{
 							"type": "match_only_text",
 						},
+						"other": map[string]any{
+							"type": "match_only_text",
+						},
 					},
 				},
 				"bar": map[string]any{
@@ -470,6 +473,10 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			actual: map[string]any{
+				"foo": map[string]any{
+					"type":  "constant_keyword",
+					"value": "example",
+				},
 				"access": map[string]any{
 					"properties": map[string]any{
 						"field": map[string]any{
