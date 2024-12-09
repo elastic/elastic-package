@@ -466,12 +466,14 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	if mappingParameter("type", preview) != "constant_keyword" {
 		return isConstantKeyword, fmt.Errorf("invalid type for %q: no constant_keyword type set in preview mapping", path)
 	}
-	if mappingParameter("value", preview) == "" {
+	actualValue := mappingParameter("value", actual)
+	previewValue := mappingParameter("value", preview)
+
+	if previewValue == "" {
 		// skip validating value if preview does not have that parameter defined
 		return isConstantKeyword, nil
 	}
-	actualValue := mappingParameter("value", actual)
-	previewValue := mappingParameter("value", preview)
+
 	if previewValue != actualValue {
 		// This should also be detected by the failure storage (if available)
 		// or no documents being ingested
