@@ -14,11 +14,13 @@ import (
 )
 
 func TestComparingMappings(t *testing.T) {
+	defaultSpecVersion := "3.3.0"
 	cases := []struct {
 		title          string
 		preview        map[string]any
 		actual         map[string]any
 		schema         []FieldDefinition
+		spec           string
 		expectedErrors []string
 	}{
 		{
@@ -502,6 +504,7 @@ func TestComparingMappings(t *testing.T) {
 					External: "ecs",
 				},
 			},
+			spec: "1.0.0",
 			expectedErrors: []string{
 				`field "error.field" is undefined: missing definition for path`,
 				// should status.field return error ? or should it be ignored?
@@ -593,12 +596,38 @@ func TestComparingMappings(t *testing.T) {
 			},
 			expectedErrors: []string{},
 		},
+		{
+			title: "skip nested types before spec 3.0.1",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"type": "nested",
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "nested",
+					"properties": map[string]any{
+						"bar": map[string]any{
+							"type": "long",
+						},
+					},
+				},
+			},
+			spec:           "3.0.0",
+			schema:         []FieldDefinition{},
+			expectedErrors: []string{},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
+			specVersion := defaultSpecVersion
+			if c.spec != "" {
+				specVersion = c.spec
+			}
 			v, err := CreateValidatorForMappings("", nil,
+				WithMappingValidatorSpecVersion(specVersion),
 				WithMappingValidatorFallbackSchema(c.schema),
 				WithMappingValidatorDisabledDependencyManagement(),
 			)
