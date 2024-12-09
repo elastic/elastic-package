@@ -96,8 +96,8 @@ func TestComparingMappings(t *testing.T) {
 				"metrics": map[string]any{
 					"type": "long",
 				},
-				"user": map[string]any{
-					"type": "text",
+				"foo": map[string]any{
+					"type": "keyword",
 				},
 			},
 			schema: []FieldDefinition{
@@ -118,7 +118,6 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			expectedErrors: []string{
-				`field "user" is undefined: missing definition for path`,
 				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
 			},
 		},
@@ -142,13 +141,17 @@ func TestComparingMappings(t *testing.T) {
 				},
 				"host": map[string]any{
 					"properties": map[string]any{
+						"name": map[string]any{
+							"type": "text",
+						},
 						"os": map[string]any{
 							"type": "text",
 						},
 					},
 				},
 			},
-			schema:         []FieldDefinition{},
+			schema: []FieldDefinition{},
+			// If this skip is not present, `host.os` would be undefined
 			expectedErrors: []string{},
 		},
 		{
