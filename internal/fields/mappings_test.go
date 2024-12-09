@@ -569,6 +569,30 @@ func TestComparingMappings(t *testing.T) {
 				`unexpected value found in mapping for field "foo.type.ignore_above": preview mappings value (1024) different from the actual mappings value (2048)`,
 			},
 		},
+		{
+			title: "different number types",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"type": "float",
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "long",
+				},
+				"bar": map[string]any{
+					"type": "long",
+				},
+			},
+			schema: []FieldDefinition{
+				{
+					Name:     "bar",
+					Type:     "float",
+					External: "ecs",
+				},
+			},
+			expectedErrors: []string{},
+		},
 	}
 
 	for _, c := range cases {

@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
@@ -687,10 +688,13 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 			return errs
 		}
 
+		// Strings from `json.Marshal` include double quotes, so they need to be removed (e.g. "\"float\"")
+		previewDataString := strings.ReplaceAll(string(previewData), "\"", "")
+		actualDataString := strings.ReplaceAll(string(actualData), "\"", "")
 		// exceptions related to numbers
 		// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
-		if isNumberTypeField(string(previewData), string(actualData)) {
-			logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", string(previewData), string(actualData))
+		if isNumberTypeField(previewDataString, actualDataString) {
+			logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", previewDataString, actualDataString)
 			return nil
 		}
 
