@@ -174,7 +174,6 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStreamName, err))
 		return errs
 	}
-	logger.Debugf(">>>> Actual mappings (Properties):\n%s", actualMappings)
 
 	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
 	previewDynamicTemplates, previewMappings, err := v.esClient.SimulateIndexTemplate(ctx, v.indexTemplateName)
@@ -182,7 +181,6 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplateName, err))
 		return errs
 	}
-	logger.Debugf(">>>> Index template preview (Properties):\n%s", previewMappings)
 
 	// Code from comment posted in https://github.com/google/go-cmp/issues/224
 	transformJSON := cmp.FilterValues(func(x, y []byte) bool {
@@ -381,8 +379,6 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return fmt.Errorf("missing definition for path")
 	}
 
-	logger.Debugf("Found ECS field %q for path %s (External %q)", found.Name, currentPath, found.External)
-
 	actualType := mappingParameter("type", definition)
 	if found.Type == actualType {
 		return nil
@@ -528,7 +524,6 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		// logger.Debugf(">>> Comparing field with properties (object): %q", path)
 		compareErrors := v.compareMappings(path, previewProperties, actualProperties)
 		errs = append(errs, compareErrors...)
 
@@ -544,7 +539,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	}
 
 	containsMultifield := isMultiFields(actual)
-	if isMultiFields(actual) {
+	if containsMultifield {
 		if !isMultiFields(preview) {
 			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %s", path))
 			return errs.Unique()
@@ -557,7 +552,6 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		// logger.Debugf(">>> Comparing multi_fields: %q", path)
 		compareErrors := v.compareMappings(path, previewFields, actualFields)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
@@ -677,8 +671,6 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
-
-		// logger.Debugf("Checking mapping Values %s:\nPreview (%T):\n%s\nActual (%T):\n%s\n", currentPath, previewValue, previewValue, actualValue, actualValue)
 		if previewValue == actualValue {
 			return nil
 		}
