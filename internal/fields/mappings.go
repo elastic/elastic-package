@@ -565,7 +565,6 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 		}
 		currentPath := currentMappingPath(path, key)
 		if skipValidationForField(currentPath) {
-			logger.Debugf("Skipped mapping due to path being part of the skipped ones: %s", currentPath)
 			continue
 		}
 
@@ -597,7 +596,6 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
 func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any) multierror.Error {
 	var errs multierror.Error
-	logger.Debugf("Calculating flatten fields for %s", currentPath)
 	flattenFields, err := flattenMappings(currentPath, childField)
 	if err != nil {
 		errs = append(errs, err)
@@ -605,7 +603,6 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 	}
 
 	for fieldPath, object := range flattenFields {
-		logger.Debugf("- %s", fieldPath)
 		if slices.Contains(v.exceptionFields, fieldPath) {
 			logger.Warnf("Found exception field, skip its validation: %s", fieldPath)
 			return nil
@@ -650,8 +647,6 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		// TODO: To remove
-		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
 		errs = append(errs, v.compareMappings(currentPath, previewField, actualField)...)
 	case any:
 		// Validate each setting/parameter of the mapping

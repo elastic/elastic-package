@@ -2151,11 +2151,6 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 			allFields = append(allFields, f)
 		}
 	}
-	// TODO: To remove
-	logger.Warn("Exception fields:")
-	for _, f := range allFields {
-		logger.Warnf("- %q", f)
-	}
 
 	return allFields
 }
