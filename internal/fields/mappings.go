@@ -42,6 +42,8 @@ type MappingValidator struct {
 	indexTemplateName string
 
 	dataStreamName string
+
+	exceptionFields []string
 }
 
 // MappingValidatorOption represents an optional flag that can be passed to  CreateValidatorForMappings.
@@ -119,6 +121,14 @@ func WithMappingValidatorDataStream(dataStream string) MappingValidatorOption {
 func WithMappingValidatorFallbackSchema(schema []FieldDefinition) MappingValidatorOption {
 	return func(v *MappingValidator) error {
 		v.Schema = schema
+		return nil
+	}
+}
+
+// WithMappingValidatorExceptionFields configures the fields to be ignored during the validation process.
+func WithMappingValidatorExceptionFields(fields []string) MappingValidatorOption {
+	return func(v *MappingValidator) error {
+		v.exceptionFields = fields
 		return nil
 	}
 }
@@ -260,17 +270,6 @@ func mappingParameter(field string, definition map[string]any) string {
 	return value
 }
 
-func isLocalFieldTypeArray(field string, schema []FieldDefinition) bool {
-	definition := findElementDefinitionForRoot("", field, schema)
-	if definition == nil {
-		return false
-	}
-	if definition.External != "" {
-		return false
-	}
-	return definition.Type == "array"
-}
-
 func isEmptyObject(definition map[string]any) bool {
 	// Example:
 	//  "_tmp": {
@@ -377,7 +376,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	}
 
 	if found.External != "ecs" {
-		return fmt.Errorf("missing definition for path")
+		return fmt.Errorf("missing definition for path (not in ECS)")
 	}
 
 	actualType := mappingParameter("type", definition)
@@ -484,7 +483,6 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 
 func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any) multierror.Error {
 	var errs multierror.Error
-	isNestedParent := false
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
 	if err != nil {
@@ -494,11 +492,9 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		return nil
 	}
 
-	if v.specVersion.LessThan(semver3_0_1) {
-		if mappingParameter("type", actual) == "nested" {
-			logger.Warnf("Skip validation of nested object (spec version %s): %s", path, v.specVersion)
-			isNestedParent = true
-		}
+	if slices.Contains(v.exceptionFields, path) {
+		logger.Warnf("Found exception field, skip its validation: %s", path)
+		return nil
 	}
 
 	if isObjectFullyDynamic(actual) {
@@ -512,10 +508,6 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
 			return nil
 		} else if !isObject(preview) {
-			if isNestedParent {
-				logger.Warnf("skipped due to field of type \"nested\": not found properties in preview mappings for path %q", path)
-				return nil
-			}
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
 			return errs.Unique()
 		}
@@ -529,11 +521,6 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		}
 		compareErrors := v.compareMappings(path, previewProperties, actualProperties)
 		errs = append(errs, compareErrors...)
-
-		if isNestedParent {
-			logger.Warnf("skip validation due to parent type nested:\n%s", errs.Unique().Error())
-			return nil
-		}
 
 		if len(errs) == 0 {
 			return nil
@@ -563,10 +550,6 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	// Compare and validate the elements under "properties": objects or fields and its parameters
 	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview)
 	errs = append(errs, propertiesErrs...)
-	if isNestedParent {
-		logger.Warnf("skip validation due to parent type nested:\n%s", errs.Unique().Error())
-		return nil
-	}
 	if len(errs) == 0 {
 		return nil
 	}
@@ -623,6 +606,10 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		logger.Debugf("- %s", fieldPath)
+		if slices.Contains(v.exceptionFields, fieldPath) {
+			logger.Warnf("Found exception field, skip its validation: %s", fieldPath)
+			return nil
+		}
 
 		def, ok := object.(map[string]any)
 		if !ok {
@@ -632,12 +619,6 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 		if isEmptyObject(def) {
 			logger.Debugf("Skip empty object path: %q", fieldPath)
-			continue
-		}
-
-		if isLocalFieldTypeArray(fieldPath, v.Schema) && v.specVersion.LessThan(semver2_0_0) {
-			// Example: https://github.com/elastic/elastic-package/blob/25344b16c6eabe1478067fc55966258a59c769cd/test/packages/parallel/nginx/data_stream/access/fields/fields.yml#L5
-			logger.Debugf("Found field definition with type array, skipping path: %q", fieldPath)
 			continue
 		}
 
@@ -669,6 +650,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
+		// TODO: To remove
 		logger.Debugf(">>>> Comparing Mappings map[string]any: path %s", currentPath)
 		errs = append(errs, v.compareMappings(currentPath, previewField, actualField)...)
 	case any:

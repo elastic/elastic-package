@@ -1508,6 +1508,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
+	exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
+
 	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
@@ -1516,6 +1518,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 			fields.WithMappingValidatorDataStream(scenario.dataStream),
 			fields.WithMappingValidatorSpecVersion(r.pkgManifest.SpecVersion),
 			fields.WithMappingValidatorEnabledImportAllECSSChema(true),
+			fields.WithMappingValidatorExceptionFields(exceptionFields),
 		)
 		if err != nil {
 			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
@@ -2133,6 +2136,28 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 		return multiErr.Unique()
 	}
 	return nil
+}
+
+func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator) []string {
+	var allFields []string
+	visited := make(map[string]any)
+	for _, doc := range docs {
+		fields := fieldsValidator.ListExceptionFields(doc)
+		for _, f := range fields {
+			if _, ok := visited[f]; ok {
+				continue
+			}
+			visited[f] = struct{}{}
+			allFields = append(allFields, f)
+		}
+	}
+	// TODO: To remove
+	logger.Warn("Exception fields:")
+	for _, f := range allFields {
+		logger.Warnf("- %q", f)
+	}
+
+	return allFields
 }
 
 func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {

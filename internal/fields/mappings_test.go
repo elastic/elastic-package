@@ -16,12 +16,13 @@ import (
 func TestComparingMappings(t *testing.T) {
 	defaultSpecVersion := "3.3.0"
 	cases := []struct {
-		title          string
-		preview        map[string]any
-		actual         map[string]any
-		schema         []FieldDefinition
-		spec           string
-		expectedErrors []string
+		title           string
+		preview         map[string]any
+		actual          map[string]any
+		schema          []FieldDefinition
+		spec            string
+		exceptionFields []string
+		expectedErrors  []string
 	}{
 		{
 			title: "same mappings",
@@ -514,7 +515,8 @@ func TestComparingMappings(t *testing.T) {
 					External: "ecs",
 				},
 			},
-			spec: "1.0.0",
+			exceptionFields: []string{"access.field"},
+			spec:            "1.0.0",
 			expectedErrors: []string{
 				`field "error.field" is undefined: missing definition for path`,
 				// should status.field return error ? or should it be ignored?
@@ -623,9 +625,10 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
-			spec:           "3.0.0",
-			schema:         []FieldDefinition{},
-			expectedErrors: []string{},
+			exceptionFields: []string{"foo"},
+			spec:            "3.0.0",
+			schema:          []FieldDefinition{},
+			expectedErrors:  []string{},
 		},
 	}
 
@@ -640,6 +643,7 @@ func TestComparingMappings(t *testing.T) {
 				WithMappingValidatorSpecVersion(specVersion),
 				WithMappingValidatorFallbackSchema(c.schema),
 				WithMappingValidatorDisabledDependencyManagement(),
+				WithMappingValidatorExceptionFields(c.exceptionFields),
 			)
 			require.NoError(t, err)
 
