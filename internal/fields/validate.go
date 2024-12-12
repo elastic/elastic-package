@@ -446,8 +446,9 @@ func appendECSMappingMultifields(schema []FieldDefinition, prefix string) []Fiel
 			match: ecsPathWithMultifieldsMatch,
 			definitions: []FieldDefinition{
 				{
-					Name: "text",
-					Type: "match_only_text",
+					Name:     "text",
+					Type:     "match_only_text",
+					External: "ecs",
 				},
 			},
 		},

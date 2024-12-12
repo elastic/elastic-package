@@ -133,9 +133,24 @@ var (
 			},
 		},
 	}
-	enableIndependentAgentsEnv = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
-	dumpScenarioDocsEnv        = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
+	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
+	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
 )
+
+type fieldValidationMethod int
+
+const (
+	allMethods fieldValidationMethod = iota
+	fieldsMethod
+	mappingsMethod
+)
+
+var validationMethods = map[string]fieldValidationMethod{
+	"all":      allMethods,
+	"fields":   fieldsMethod,
+	"mappings": mappingsMethod,
+}
 
 type tester struct {
 	profile            *profile.Profile
@@ -147,6 +162,8 @@ type tester struct {
 	kibanaClient       *kibana.Client
 
 	runIndependentElasticAgent bool
+
+	fieldValidationMethod fieldValidationMethod
 
 	deferCleanup   time.Duration
 	serviceVariant string
@@ -271,6 +288,17 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	v, ok := os.LookupEnv(enableIndependentAgentsEnv)
 	if ok {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
+	}
+
+	// default method using just fields
+	r.fieldValidationMethod = fieldsMethod
+	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
+	if ok {
+		method, ok := validationMethods[v]
+		if !ok {
+			return nil, fmt.Errorf("invalid field method option: %s", v)
+		}
+		r.fieldValidationMethod = method
 	}
 
 	return &r, nil
@@ -841,6 +869,7 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 
 type scenarioTest struct {
 	dataStream         string
+	indexTemplateName  string
 	policyTemplateName string
 	kibanaDataStream   kibana.PackageDataStream
 	syntheticEnabled   bool
@@ -1070,10 +1099,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			dataStreamDataset = dataset
 		}
 	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
+	scenario.indexTemplateName = fmt.Sprintf(
+		"%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
 		dataStreamDataset,
+	)
+	scenario.dataStream = fmt.Sprintf(
+		"%s-%s",
+		scenario.indexTemplateName,
 		ds.Namespace,
 	)
 
@@ -1476,16 +1509,43 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
-	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-			Details: errs.Error(),
-		})
+
+	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
+		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+				Details: errs.Error(),
+			})
+		}
 	}
 
 	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
 	if err != nil {
 		return result.WithError(err)
+	}
+
+	exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
+
+	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+		logger.Warn("Validate mappings found (technical preview)")
+		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
+			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
+			fields.WithMappingValidatorDataStream(scenario.dataStream),
+			fields.WithMappingValidatorSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithMappingValidatorEnabledImportAllECSSChema(true),
+			fields.WithMappingValidatorExceptionFields(exceptionFields),
+		)
+		if err != nil {
+			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
+		}
+
+		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+				Details: errs.Error(),
+			})
+		}
 	}
 
 	docs := scenario.docs
@@ -2094,6 +2154,23 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
+func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator) []string {
+	var allFields []string
+	visited := make(map[string]any)
+	for _, doc := range docs {
+		fields := fieldsValidator.ListExceptionFields(doc)
+		for _, f := range fields {
+			if _, ok := visited[f]; ok {
+				continue
+			}
+			visited[f] = struct{}{}
+			allFields = append(allFields, f)
+		}
+	}
+
+	return allFields
+}
+
 func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	stackVersion, err := semver.NewVersion(stackVersionString)
@@ -2139,6 +2216,14 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 		}
 	}
 
+	return nil
+}
+
+func validateMappings(ctx context.Context, mappingsValidator *fields.MappingValidator) multierror.Error {
+	multiErr := mappingsValidator.ValidateIndexMappings(ctx)
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
 	return nil
 }
 
