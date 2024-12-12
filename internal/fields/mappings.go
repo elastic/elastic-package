@@ -241,7 +241,14 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	mappingErrs := v.compareMappings("", rawPreview, rawActual)
+	var rawDynamicTemplates map[string]any
+	err = json.Unmarshal(actualDynamicTemplates, &rawDynamicTemplates)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unmarshal actual dynamic templates (data stream %s): %w", v.dataStreamName, err))
+		return errs.Unique()
+	}
+
+	mappingErrs := v.compareMappings("", rawPreview, rawActual, rawDynamicTemplates)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -481,7 +488,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	return isConstantKeyword, nil
 }
 
-func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, preview, actual, dynamicTemplates map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -519,7 +526,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, previewProperties, actualProperties)
+		compareErrors := v.compareMappings(path, previewProperties, actualProperties, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -542,13 +549,13 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, previewFields, actualFields)
+		compareErrors := v.compareMappings(path, previewFields, actualFields, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview)
+	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -556,7 +563,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview, dynamicTemplates map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -576,14 +583,14 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 					continue
 				}
-				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField)
+				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
 				errs = append(errs, ecsErrors...)
 			}
 
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -594,7 +601,7 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 
 // validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
-func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any) multierror.Error {
+func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField, dynamicTemplates map[string]any) multierror.Error {
 	var errs multierror.Error
 	flattenFields, err := flattenMappings(currentPath, childField)
 	if err != nil {
@@ -634,7 +641,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates map[string]any) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -647,7 +654,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		errs = append(errs, v.compareMappings(currentPath, previewField, actualField)...)
+		errs = append(errs, v.compareMappings(currentPath, previewField, actualField, dynamicTemplates)...)
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case

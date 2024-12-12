@@ -634,6 +634,8 @@ func TestComparingMappings(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
+			dynamicTemplates := map[string]any{}
+
 			logger.EnableDebugMode()
 			specVersion := defaultSpecVersion
 			if c.spec != "" {
@@ -647,7 +649,7 @@ func TestComparingMappings(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			errs := v.compareMappings("", c.preview, c.actual)
+			errs := v.compareMappings("", c.preview, c.actual, dynamicTemplates)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {
