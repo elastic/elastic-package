@@ -29,7 +29,13 @@ script.context.template.cache_max_size: 2000
 
 {{ $apm_enabled := fact "apm_enabled" }}
 {{ if eq $apm_enabled "true" }}
+{{ if semverLessThan $version "8.14.0" }}
 tracing.apm.enabled: true
 tracing.apm.agent.server_url: "http://fleet-server:8200"
 tracing.apm.agent.environment: "dev"
+{{- else -}}
+telemetry.tracing.enabled: true
+telemetry.agent.server_url: "http://fleet-server:8200"
+telemetry.agent.environment: "dev"
+{{- end -}}
 {{- end -}}
