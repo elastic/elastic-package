@@ -451,7 +451,7 @@ func getMappingDefinitionsField(field string, definition map[string]any) (map[st
 	anyValue := definition[field]
 	object, ok := anyValue.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type found for %s: %T ", field, anyValue)
+		return nil, fmt.Errorf("unexpected type found for %q: %T ", field, anyValue)
 	}
 	return object, nil
 }
@@ -493,22 +493,22 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	}
 
 	if slices.Contains(v.exceptionFields, path) {
-		logger.Warnf("Found exception field, skip its validation: %s", path)
+		logger.Warnf("Found exception field, skip its validation: %q", path)
 		return nil
 	}
 
 	if isObjectFullyDynamic(actual) {
-		logger.Debugf("Dynamic object found but no fields ingested under path: %s.*", path)
+		logger.Debugf("Dynamic object found but no fields ingested under path: \"%s.*\"", path)
 		return nil
 	}
 
 	if isObject(actual) {
 		if isObjectFullyDynamic(preview) {
 			// TODO: Skip for now, it should be required to compare with dynamic templates
-			logger.Debugf("Pending to validate with the dynamic templates defined the path: %s", path)
+			logger.Debugf("Pending to validate with the dynamic templates defined the path: %q", path)
 			return nil
 		} else if !isObject(preview) {
-			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %s", path))
+			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %q", path))
 			return errs.Unique()
 		}
 		previewProperties, err := getMappingDefinitionsField("properties", preview)
@@ -531,7 +531,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	containsMultifield := isMultiFields(actual)
 	if containsMultifield {
 		if !isMultiFields(preview) {
-			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %s", path))
+			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %q", path))
 			return errs.Unique()
 		}
 		previewFields, err := getMappingDefinitionsField("fields", preview)
@@ -604,7 +604,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation: %s", fieldPath)
+			logger.Warnf("Found exception field, skip its validation: %q", fieldPath)
 			return nil
 		}
 

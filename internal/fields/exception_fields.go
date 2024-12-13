@@ -38,7 +38,6 @@ func (v *Validator) listExceptionFieldsMapElement(root string, elem common.MapSt
 		default:
 			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
 				// Till some versions we skip some validations on leaf of objects, check if it is the case.
-				all = append(all, root)
 				break
 			}
 
@@ -124,6 +123,7 @@ func (v *Validator) parseExceptionField(key string, definition FieldDefinition, 
 				return v.parseExceptionField(key, definition, val)
 			case definition.Type == "object" && definition.ObjectType == "":
 				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
+				logger.Warnf("Skip legacy mapping: object field without \"object_type\" parameter: %q", key)
 				return []string{key}
 			}
 

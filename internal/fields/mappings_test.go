@@ -307,7 +307,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`not found multi_fields in preview mappings for path: foo`,
+				`not found multi_fields in preview mappings for path: "foo"`,
 			},
 		},
 		{
