@@ -96,6 +96,7 @@ xpack.fleet.agentPolicies:
         package:
           name: fleet_server
       {{ if eq $apm_enabled "true" }}
+      {{ if not (semverLessThan $version "8.5.0") }}
         inputs:
           - type: fleet-server
             vars:
@@ -106,6 +107,7 @@ xpack.fleet.agentPolicies:
                       enabled: true
                       hosts: ["http://fleet-server:8200"]
                       environment: "dev"
+      {{ end }}
       - name: apm-1
         package:
           name: apm
