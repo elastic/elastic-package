@@ -1524,10 +1524,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
-	exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
-
 	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
+		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
+
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
 			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
 			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
