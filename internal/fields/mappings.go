@@ -391,6 +391,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	if found.Type == actualType {
 		return nil
 	}
+	// TODO: Compare all parameters and multifieds
 
 	// exceptions related to numbers
 	if isNumberTypeField(found.Type, actualType) {
@@ -695,6 +696,8 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			} else {
 				r = strings.ReplaceAll(v, ".", "\\.")
 				r = strings.ReplaceAll(r, "*", ".*")
+				// Force to match beginning and ending
+				r = fmt.Sprintf("^%s$", r)
 			}
 
 			match, err := regexp.MatchString(r, elem)
@@ -746,8 +749,9 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 		// matches with the current definitions and path
 		// https://www.elastic.co/guide/en/elasticsearch/reference/current/dynamic-templates.html
-		matched := true
+		allMatched := true
 		for setting, value := range contents {
+			matched := true
 			switch setting {
 			case "mapping":
 				// Skip
@@ -821,11 +825,12 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 					break
 				}
 			case "match_mapping_type":
-				logger.Debugf("> Check match_mapping_type: %q (type %s vs mapping type %q)", currentPath, definition, fieldType)
+				logger.Debugf("> Check match_mapping_type: %q (type %s)", currentPath, fieldType)
 				values, err := parseSetting(value)
 				if err != nil {
 					return false, fmt.Errorf("failed to check match_mapping_type setting: %w", err)
 				}
+				logger.Debugf(">> Comparing to values: %s", values)
 				if slices.Contains(values, "*") {
 					continue
 				}
@@ -835,11 +840,12 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 					break
 				}
 			case "unmatch_mapping_type":
-				logger.Debugf("> Check unmatch_mapping_type: %q (type %s vs mapping type %q)", currentPath, definition, fieldType)
+				logger.Debugf("> Check unmatch_mapping_type: %q (type %s)", currentPath, fieldType)
 				values, err := parseSetting(value)
 				if err != nil {
 					return false, fmt.Errorf("failed to check unmatch_mapping_type setting: %w", err)
 				}
+				logger.Debugf(">> Comparing to values: %s", values)
 				if slices.Contains(values, fieldType) {
 					logger.Debugf(">> Issue: matches")
 					matched = false
@@ -848,8 +854,13 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			default:
 				return false, fmt.Errorf("unexpected setting found in dynamic template")
 			}
+			if !matched {
+				// If just one parameter does not match, this dynamic template can be skipped
+				allMatched = false
+				break
+			}
 		}
-		if matched {
+		if allMatched {
 			logger.Debugf("> Found dynamic template matched: %s", templateName)
 			return true, nil
 		}
