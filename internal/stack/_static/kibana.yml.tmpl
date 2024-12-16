@@ -101,7 +101,9 @@ xpack.fleet.agentPolicies:
             vars:
               - name: custom
                 value: |
+      {{ if not (semverLessThan $version "8.8.0") }}
                   server:
+      {{ end }}
                     instrumentation:
                       enabled: true
                       hosts: ["http://fleet-server:8200"]
