@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -241,7 +242,7 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	var rawDynamicTemplates map[string]any
+	var rawDynamicTemplates []map[string]any
 	err = json.Unmarshal(actualDynamicTemplates, &rawDynamicTemplates)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal actual dynamic templates (data stream %s): %w", v.dataStreamName, err))
@@ -488,7 +489,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	return isConstantKeyword, nil
 }
 
-func (v *MappingValidator) compareMappings(path string, preview, actual, dynamicTemplates map[string]any) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -563,7 +564,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual, dynamic
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview, dynamicTemplates map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -601,7 +602,7 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 
 // validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
-func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField, dynamicTemplates map[string]any) multierror.Error {
+func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	flattenFields, err := flattenMappings(currentPath, childField)
 	if err != nil {
@@ -611,7 +612,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation: %q", fieldPath)
+			logger.Warnf("Found exception field, skip its validation (not in preview): %q", fieldPath)
 			return nil
 		}
 
@@ -628,6 +629,12 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 		// TODO: validate mapping with dynamic templates first than validating with ECS
 		// just raise an error if both validation processes fail
+		matched, err := v.matchingWithDynamicTemplates(fieldPath, def, dynamicTemplates)
+		if err == nil {
+			// TODO
+			logger.Debugf("Matched: %t", matched)
+			continue
+		}
 
 		// are all fields under this key defined in ECS?
 		err = v.validateMappingInECSSchema(fieldPath, def)
@@ -639,9 +646,222 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 	return errs.Unique()
 }
 
+func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, definition map[string]any, dynamicTemplates []map[string]any) (bool, error) {
+
+	parseSetting := func(value any) ([]string, error) {
+		all := []string{}
+		switch v := value.(type) {
+		case []any:
+			for _, elem := range v {
+				s, ok := elem.(string)
+				if !ok {
+					return nil, fmt.Errorf("failed to cast to string: %s", elem)
+				}
+				all = append(all, s)
+			}
+		case any:
+			s, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("failed to cast to string: %s", v)
+			}
+			all = append(all, s)
+		default:
+			return nil, fmt.Errorf("unexpected type for setting: %T", value)
+
+		}
+		return all, nil
+	}
+
+	fieldName := func(path string) string {
+		if !strings.Contains(path, ".") {
+			return path
+		}
+
+		elems := strings.Split(path, ".")
+		return elems[len(elems)-1]
+	}
+
+	stringMatchesPatterns := func(regexes []string, elem string, fullRegex bool) (bool, error) {
+		applies := false
+		for _, v := range regexes {
+			if !strings.Contains(v, "*") {
+				// not a regex
+				continue
+			}
+
+			var r string
+			if fullRegex {
+				r = v
+			} else {
+				r = strings.ReplaceAll(v, ".", "\\.")
+				r = strings.ReplaceAll(r, "*", ".*")
+			}
+
+			match, err := regexp.MatchString(r, elem)
+			if err != nil {
+				return false, fmt.Errorf("failed to build regex %s: %w", r, err)
+			}
+			if match {
+				applies = true
+				break
+			}
+		}
+		return applies, nil
+	}
+
+	fieldType := mappingParameter("type", definition)
+	if fieldType == "" {
+		return false, fmt.Errorf("missing type for the field %s", currentPath)
+	}
+
+	for _, template := range dynamicTemplates {
+		if len(template) != 1 {
+			return false, fmt.Errorf("unexpected number of dynamic template definitions found")
+		}
+
+		templateName := ""
+		var rawContents any
+		for key, value := range template {
+			templateName = key
+			rawContents = value
+		}
+		logger.Debugf("Checking dynamic template for %q: %q", currentPath, templateName)
+
+		contents, ok := rawContents.(map[string]any)
+		if !ok {
+			return false, fmt.Errorf("unexpected dynamic template format found for %s", templateName)
+		}
+
+		fullRegex := false
+		if v, ok := contents["match_pattern"]; ok {
+			s, ok := v.(string)
+			if !ok {
+				return false, fmt.Errorf("invalid type for \"match_pattern\": %T", v)
+			}
+			if s == "regex" {
+				logger.Debugf("Use full regex in dynamic templates (match_pattern: regex)")
+				fullRegex = true
+			}
+		}
+
+		// matches with the current definitions and path
+		// https://www.elastic.co/guide/en/elasticsearch/reference/current/dynamic-templates.html
+		matched := true
+		for setting, value := range contents {
+			switch setting {
+			case "mapping":
+				// Skip
+			case "match_pattern":
+				// Skip
+			case "match":
+				name := fieldName(currentPath)
+				logger.Debugf("> Check match: %q (key %q)", currentPath, name)
+				values, err := parseSetting(value)
+				if err != nil {
+					return false, fmt.Errorf("failed to check match setting: %w", err)
+				}
+				if !slices.Contains(values, name) {
+					matched = false
+					break
+				}
+				matches, err := stringMatchesPatterns(values, name, fullRegex)
+				if err != nil {
+					return false, fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if !matches {
+					logger.Debugf(">> Issue: not matches")
+					matched = false
+					break
+				}
+			case "unmatch":
+				name := fieldName(currentPath)
+				logger.Debugf("> Check unmatch: %q (key %q)", currentPath, name)
+				values, err := parseSetting(value)
+				if err != nil {
+					return false, fmt.Errorf("failed to check match setting: %w", err)
+				}
+				if slices.Contains(values, name) {
+					matched = false
+					break
+				}
+				matches, err := stringMatchesPatterns(values, name, fullRegex)
+				if err != nil {
+					return false, fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if matches {
+					logger.Debugf(">> Issue: matches")
+					matched = false
+					break
+				}
+			case "path_match":
+				logger.Debugf("> Check path_match: %q", currentPath)
+				values, err := parseSetting(value)
+				matches, err := stringMatchesPatterns(values, currentPath, false)
+				if err != nil {
+					return false, fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if !matches {
+					logger.Debugf(">> Issue: not matches")
+					matched = false
+					break
+				}
+			case "path_unmatch":
+				logger.Debugf("> Check path_unmatch: %q", currentPath)
+				values, err := parseSetting(value)
+				if err != nil {
+					return false, fmt.Errorf("failed to check path_unmatch setting: %w", err)
+				}
+				matches, err := stringMatchesPatterns(values, currentPath, false)
+				if err != nil {
+					return false, fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if matches {
+					logger.Debugf(">> Issue: matches")
+					matched = false
+					break
+				}
+			case "match_mapping_type":
+				logger.Debugf("> Check match_mapping_type: %q (type %s vs mapping type %q)", currentPath, definition, fieldType)
+				values, err := parseSetting(value)
+				if err != nil {
+					return false, fmt.Errorf("failed to check match_mapping_type setting: %w", err)
+				}
+				if slices.Contains(values, "*") {
+					continue
+				}
+				if !slices.Contains(values, fieldType) {
+					logger.Debugf(">> Issue: not matches")
+					matched = false
+					break
+				}
+			case "unmatch_mapping_type":
+				logger.Debugf("> Check unmatch_mapping_type: %q (type %s vs mapping type %q)", currentPath, definition, fieldType)
+				values, err := parseSetting(value)
+				if err != nil {
+					return false, fmt.Errorf("failed to check unmatch_mapping_type setting: %w", err)
+				}
+				if slices.Contains(values, fieldType) {
+					logger.Debugf(">> Issue: matches")
+					matched = false
+					break
+				}
+			default:
+				return false, fmt.Errorf("unexpected setting found in dynamic template")
+			}
+		}
+		if matched {
+			logger.Debugf("> Found dynamic template matched: %s", templateName)
+			return true, nil
+		}
+	}
+
+	logger.Debugf(">>> No template matching")
+	return false, nil
+}
+
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:

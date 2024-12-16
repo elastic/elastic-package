@@ -634,7 +634,7 @@ func TestComparingMappings(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			dynamicTemplates := map[string]any{}
+			dynamicTemplates := []map[string]any{}
 
 			logger.EnableDebugMode()
 			specVersion := defaultSpecVersion
