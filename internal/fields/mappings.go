@@ -775,15 +775,15 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 		// Filter out dynamic templates created by elastic-package (import_mappings)
 		// or added automatically by ecs@mappings component template
-		if strings.HasPrefix(templateName, "_embedded_ecs-") {
-			continue
-		}
-		if strings.HasPrefix(templateName, "ecs_") {
-			continue
-		}
-		if slices.Contains([]string{"all_strings_to_keywords", "strings_as_keyword"}, templateName) {
-			continue
-		}
+		// if strings.HasPrefix(templateName, "_embedded_ecs-") {
+		// 	continue
+		// }
+		// if strings.HasPrefix(templateName, "ecs_") {
+		// 	continue
+		// }
+		// if slices.Contains([]string{"all_strings_to_keywords", "strings_as_keyword"}, templateName) {
+		// 	continue
+		// }
 
 		logger.Debugf("Checking dynamic template for %q: %q", currentPath, templateName)
 
