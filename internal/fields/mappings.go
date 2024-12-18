@@ -249,7 +249,7 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	mappingErrs := v.compareMappings("", rawPreview, rawActual, rawDynamicTemplates)
+	mappingErrs := v.compareMappings("", false, rawPreview, rawActual, rawDynamicTemplates)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -533,7 +533,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	return isConstantKeyword, nil
 }
 
-func (v *MappingValidator) compareMappings(path string, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -554,7 +554,9 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		return nil
 	}
 
-	if isObject(actual) {
+	// Ensure to validate properties from an object (subfields) in the right location of the mappings
+	// there could be "sub-fields" with name "properties" too
+	if couldBeParametersDefinition && isObject(actual) {
 		if isObjectFullyDynamic(preview) {
 			// TODO: Skip for now, it should be required to compare with dynamic templates
 			logger.Debugf("Pending to validate with the dynamic templates defined the path: %q", path)
@@ -571,7 +573,7 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, previewProperties, actualProperties, dynamicTemplates)
+		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -594,13 +596,13 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, previewFields, actualFields, dynamicTemplates)
+		compareErrors := v.compareMappings(path, false, previewFields, actualFields, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, containsMultifield, actual, preview, dynamicTemplates)
+	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, actual, preview, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -608,13 +610,14 @@ func (v *MappingValidator) compareMappings(path string, preview, actual map[stri
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, actual, preview map[string]any, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, actual, preview map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
 			// already checked
 			continue
 		}
+
 		currentPath := currentMappingPath(path, key)
 		if skipValidationForField(currentPath) {
 			continue
@@ -630,12 +633,14 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 				}
 				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
 				errs = append(errs, ecsErrors...)
+				continue
 			}
-
+			// Parameter not defined
+			errs = append(errs, fmt.Errorf("field %q is undefined", currentPath))
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates, true)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -939,7 +944,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		}
 
 		logger.Debugf(">> Check all the other parameters (%q): %q", templateName, currentPath)
-		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{})
+		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			return fmt.Errorf("invalid mapping found for %q: %w", currentPath, errs.Unique())
 		}
@@ -953,7 +958,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeObjectDefinition bool) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -969,7 +974,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if len(dynamicTemplates) == 0 {
 			logger.Debugf(">>> Compare mappings map[string]any %s", currentPath)
 		}
-		errs = append(errs, v.compareMappings(currentPath, previewField, actualField, dynamicTemplates)...)
+		errs = append(errs, v.compareMappings(currentPath, couldBeObjectDefinition, previewField, actualField, dynamicTemplates)...)
 	case any:
 		if len(dynamicTemplates) == 0 {
 			logger.Debugf(">>> Compare mappings any %s", currentPath)
