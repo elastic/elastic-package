@@ -550,7 +550,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, true, containsMultifield, actual, preview)
+	propertiesErrs := v.validateObjectProperties(path, true, containsMultifield, preview, actual)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -558,7 +558,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, actual, preview map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
