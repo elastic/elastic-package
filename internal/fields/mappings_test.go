@@ -16,13 +16,14 @@ import (
 func TestComparingMappings(t *testing.T) {
 	defaultSpecVersion := "3.3.0"
 	cases := []struct {
-		title           string
-		preview         map[string]any
-		actual          map[string]any
-		schema          []FieldDefinition
-		spec            string
-		exceptionFields []string
-		expectedErrors  []string
+		title            string
+		preview          map[string]any
+		actual           map[string]any
+		schema           []FieldDefinition
+		dynamicTemplates []map[string]any
+		spec             string
+		exceptionFields  []string
+		expectedErrors   []string
 	}{
 		{
 			title: "same mappings",
@@ -706,12 +707,85 @@ func TestComparingMappings(t *testing.T) {
 				`not found properties in preview mappings for path: "foo"`,
 			},
 		},
+		{
+			title:   "fields matching dynamic templates",
+			preview: map[string]any{},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "keyword",
+				},
+				"foa": map[string]any{
+					"type": "long",
+				},
+				"fob": map[string]any{
+					"type":               "double",
+					"time_series_metric": "gauge",
+				},
+				"bar": map[string]any{
+					"type": "text",
+					"fields": map[string]any{
+						"type": "keyword",
+					},
+				},
+				"bar_double": map[string]any{
+					"type": "double",
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"fo*_keyword": map[string]any{
+						"path_match":           "fo*",
+						"unmatch_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+				{
+					"fo*_number": map[string]any{
+						"path_match":         "fo*",
+						"match_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type":               "double",
+							"time_series_metric": "counter",
+						},
+					},
+				},
+				{
+					"bar_match": map[string]any{
+						"unmatch":            []any{"foo", "foo42", "*42"},
+						"match":              []any{"*ar", "bar42"},
+						"match_mapping_type": "text",
+						"mapping": map[string]any{
+							"type": "text",
+							"fields": map[string]any{
+								"type": "keyword",
+							},
+						},
+					},
+				},
+				{
+					"bar_star_double": map[string]any{
+						"match":                "*",
+						"unmatch_mapping_type": []any{"text"},
+						"mapping": map[string]any{
+							"type": "double",
+						},
+					},
+				},
+			},
+			exceptionFields: []string{},
+			spec:            "3.0.0",
+			schema:          []FieldDefinition{},
+			expectedErrors: []string{
+				// Should it be considered this error in "foa" "missing time_series_metric bar",
+				`field "fob" is undefined: missing definition for path`,
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			dynamicTemplates := []map[string]any{}
-
 			logger.EnableDebugMode()
 			specVersion := defaultSpecVersion
 			if c.spec != "" {
@@ -725,7 +799,7 @@ func TestComparingMappings(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			errs := v.compareMappings("", false, c.preview, c.actual, dynamicTemplates)
+			errs := v.compareMappings("", false, c.preview, c.actual, c.dynamicTemplates)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {

@@ -401,13 +401,13 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		}
 	}
 
-	if isMultiFields(definition) != (len(ecsMultiFields) > 0) {
-		return fmt.Errorf("not matched definitions for multifields for %q: actual multi_fields in mappings %t - ECS multi_fields length %d", currentPath, isMultiFields(definition), len(ecsMultiFields))
-	}
-
 	// if there are no multifieds in ECS, nothing to compare
 	if len(ecsMultiFields) == 0 {
 		return nil
+	}
+
+	if isMultiFields(definition) != (len(ecsMultiFields) > 0) {
+		return fmt.Errorf("not matched definitions for multifields for %q: actual multi_fields in mappings %t - ECS multi_fields length %d", currentPath, isMultiFields(definition), len(ecsMultiFields))
 	}
 
 	actualMultiFields, err := getMappingDefinitionsField("fields", definition)
@@ -573,6 +573,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
+		// logger.Debugf(">> Compare object properties (mappings) - length %d: %q", len(actualProperties), path)
 		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 
@@ -596,11 +597,17 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
+		// if len(dynamicTemplates) == 0 {
+		// 	logger.Debugf(">>> Compare multi-fields %q", path)
+		// }
 		compareErrors := v.compareMappings(path, false, previewFields, actualFields, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
+	// if len(dynamicTemplates) == 0 {
+	// 	logger.Debugf(">>> Compare object properties %q", path)
+	// }
 	// Compare and validate the elements under "properties": objects or fields and its parameters
 	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, actual, preview, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
@@ -677,9 +684,11 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		// validate whether or not the field has a corresponding dynamic template
-		err := v.matchingWithDynamicTemplates(fieldPath, def, dynamicTemplates)
-		if err == nil {
-			continue
+		if len(dynamicTemplates) > 0 {
+			err := v.matchingWithDynamicTemplates(fieldPath, def, dynamicTemplates)
+			if err == nil {
+				continue
+			}
 		}
 
 		// validate whether or not all fields under this key are defined in ECS
@@ -780,15 +789,15 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 		// Filter out dynamic templates created by elastic-package (import_mappings)
 		// or added automatically by ecs@mappings component template
-		// if strings.HasPrefix(templateName, "_embedded_ecs-") {
-		// 	continue
-		// }
-		// if strings.HasPrefix(templateName, "ecs_") {
-		// 	continue
-		// }
-		// if slices.Contains([]string{"all_strings_to_keywords", "strings_as_keyword"}, templateName) {
-		// 	continue
-		// }
+		if strings.HasPrefix(templateName, "_embedded_ecs-") {
+			continue
+		}
+		if strings.HasPrefix(templateName, "ecs_") {
+			continue
+		}
+		if slices.Contains([]string{"all_strings_to_keywords", "strings_as_keyword"}, templateName) {
+			continue
+		}
 
 		logger.Debugf("Checking dynamic template for %q: %q", currentPath, templateName)
 
@@ -822,11 +831,12 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 				logger.Debugf("> Check match: %q (key %q)", currentPath, name)
 				values, err := parseSetting(value)
 				if err != nil {
+					logger.Warnf("failed to check match setting: %s", err)
 					return fmt.Errorf("failed to check match setting: %w", err)
 				}
-				if !slices.Contains(values, name) {
-					matched = false
-					break
+				if slices.Contains(values, name) {
+					logger.Warnf(">>>> no contained %s: %s", values, name)
+					continue
 				}
 
 				var matches bool
@@ -939,20 +949,20 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		logger.Debugf("> Found dynamic template matched: %s", templateName)
 		mappingParameter, ok := contents["mapping"]
 		if !ok {
-			logger.Warnf(">> Missing \"mapping\" field: %s", templateName)
 			return fmt.Errorf("missing mapping parameter in %s", templateName)
 		}
 
-		logger.Debugf(">> Check all the other parameters (%q): %q", templateName, currentPath)
+		logger.Debugf(">> Check parameters (%q): %q", templateName, currentPath)
 		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
+			logger.Warnf("invalid mapping found for %q:\n%s", currentPath, errs.Unique())
 			return fmt.Errorf("invalid mapping found for %q: %w", currentPath, errs.Unique())
 		}
 
 		return nil
 	}
 
-	logger.Debugf(">>> No template matching")
+	logger.Debugf(">>> No template matching for path: %q", currentPath)
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 
@@ -971,14 +981,14 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		if len(dynamicTemplates) == 0 {
-			logger.Debugf(">>> Compare mappings map[string]any %s", currentPath)
-		}
+		// if len(dynamicTemplates) == 0 {
+		// 	logger.Debugf(">>> Compare mappings map[string]any %s - length %d", currentPath, len(actualField))
+		// }
 		errs = append(errs, v.compareMappings(currentPath, couldBeObjectDefinition, previewField, actualField, dynamicTemplates)...)
 	case any:
-		if len(dynamicTemplates) == 0 {
-			logger.Debugf(">>> Compare mappings any %s", currentPath)
-		}
+		// if len(dynamicTemplates) == 0 {
+		// 	logger.Debugf(">>> Compare mappings any %s", currentPath)
+		// }
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
 		if previewValue == actualValue {
