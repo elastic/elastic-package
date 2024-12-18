@@ -639,7 +639,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, couldBeObjectDefinition bool) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, couldBeParametersDefinition bool) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -652,7 +652,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		errs = append(errs, v.compareMappings(currentPath, couldBeObjectDefinition, previewField, actualField)...)
+		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField)...)
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
