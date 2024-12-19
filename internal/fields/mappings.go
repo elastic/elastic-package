@@ -942,14 +942,15 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			return fmt.Errorf("missing mapping parameter in %s", templateName)
 		}
 
-		logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
+		// logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
 		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			// Look for another dynamic template
-			logger.Debugf("invalid mapping found for %q:\n%s", currentPath, errs.Unique())
+			logger.Debugf("invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
 			continue
 		}
 
+		logger.Debugf("Valid template for path %q: %q", currentPath, templateName)
 		return nil
 	}
 

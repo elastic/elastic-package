@@ -730,6 +730,9 @@ func TestComparingMappings(t *testing.T) {
 				"bar_double": map[string]any{
 					"type": "double",
 				},
+				"full_regex_1": map[string]any{
+					"type": "double",
+				},
 			},
 			dynamicTemplates: []map[string]any{
 				{
@@ -769,7 +772,17 @@ func TestComparingMappings(t *testing.T) {
 				{
 					"bar_star_double": map[string]any{
 						"match":                "*",
+						"unmatch":              "full*",
 						"unmatch_mapping_type": []any{"text"},
+						"mapping": map[string]any{
+							"type": "double",
+						},
+					},
+				},
+				{
+					"full_regex_1": map[string]any{
+						"match_pattern": "regex",
+						"match":         "^full_.*\\d$",
 						"mapping": map[string]any{
 							"type": "double",
 						},
