@@ -907,31 +907,35 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 					logger.Debugf(">> Issue: matches")
 					matched = false
 				}
-			case "match_mapping_type":
-				logger.Debugf("> Check match_mapping_type: %q (type %s)", currentPath, fieldType)
-				values, err := parseSetting(value)
-				if err != nil {
-					return fmt.Errorf("failed to check match_mapping_type setting: %w", err)
-				}
-				logger.Debugf(">> Comparing to values: %s", values)
-				if slices.Contains(values, "*") {
-					continue
-				}
-				if !slices.Contains(values, fieldType) {
-					logger.Debugf(">> Issue: not matches")
-					matched = false
-				}
-			case "unmatch_mapping_type":
-				logger.Debugf("> Check unmatch_mapping_type: %q (type %s)", currentPath, fieldType)
-				values, err := parseSetting(value)
-				if err != nil {
-					return fmt.Errorf("failed to check unmatch_mapping_type setting: %w", err)
-				}
-				logger.Debugf(">> Comparing to values: %s", values)
-				if slices.Contains(values, fieldType) {
-					logger.Debugf(">> Issue: matches")
-					matched = false
-				}
+			case "match_mapping_type", "unmatch_mapping_type":
+				// Do nothing
+				// These comparisons are done with the original data, and it's likely that the
+				// resulting mapping does not have the same type since it could change by the `mapping` field
+			// case "match_mapping_type":
+			// 	logger.Debugf("> Check match_mapping_type: %q (type %s)", currentPath, fieldType)
+			// 	values, err := parseSetting(value)
+			// 	if err != nil {
+			// 		return fmt.Errorf("failed to check match_mapping_type setting: %w", err)
+			// 	}
+			// 	logger.Debugf(">> Comparing to values: %s", values)
+			// 	if slices.Contains(values, "*") {
+			// 		continue
+			// 	}
+			// 	if !slices.Contains(values, fieldType) {
+			// 		logger.Debugf(">> Issue: not matches")
+			// 		matched = false
+			// 	}
+			// case "unmatch_mapping_type":
+			// 	logger.Debugf("> Check unmatch_mapping_type: %q (type %s)", currentPath, fieldType)
+			// 	values, err := parseSetting(value)
+			// 	if err != nil {
+			// 		return fmt.Errorf("failed to check unmatch_mapping_type setting: %w", err)
+			// 	}
+			// 	logger.Debugf(">> Comparing to values: %s", values)
+			// 	if slices.Contains(values, fieldType) {
+			// 		logger.Debugf(">> Issue: matches")
+			// 		matched = false
+			// 	}
 			default:
 				return fmt.Errorf("unexpected setting found in dynamic template")
 			}
@@ -956,7 +960,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			logger.Warnf("invalid mapping found for %q:\n%s", currentPath, errs.Unique())
-			return fmt.Errorf("invalid mapping found for %q: %w", currentPath, errs.Unique())
+			continue
 		}
 
 		return nil

@@ -715,7 +715,7 @@ func TestComparingMappings(t *testing.T) {
 					"type": "keyword",
 				},
 				"foa": map[string]any{
-					"type": "long",
+					"type": "double",
 				},
 				"fob": map[string]any{
 					"type":               "double",
@@ -735,6 +735,7 @@ func TestComparingMappings(t *testing.T) {
 				{
 					"fo*_keyword": map[string]any{
 						"path_match":           "fo*",
+						"path_unmatch":         []any{"foa", "fob"},
 						"unmatch_mapping_type": []any{"long", "double"},
 						"mapping": map[string]any{
 							"type": "keyword",
@@ -744,6 +745,7 @@ func TestComparingMappings(t *testing.T) {
 				{
 					"fo*_number": map[string]any{
 						"path_match":         "fo*",
+						"path_unmatch":       "foo",
 						"match_mapping_type": []any{"long", "double"},
 						"mapping": map[string]any{
 							"type":               "double",
