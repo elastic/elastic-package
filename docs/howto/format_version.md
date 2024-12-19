@@ -3,10 +3,10 @@
 Packages need to indicate the version of the [Package Spec](https://github.com/elastic/package-spec) they are using.
 This is done by setting the `format_version` field in the main manifest.
 
-The version of the spec uses influences the features available for the package,
-and the validations that are performed. In general newer versions include more
-validations intended to improve the reliability of packages. They also include
-definitions that enable the use of some features.
+The version of the spec used influences the features available for the package,
+the validations that are performed and some formatting rules. In general newer
+versions include more validations intended to improve the reliability of
+packages. They also include definitions that enable the use of some features.
 
 Some stack versions restrict the discovery and installation of packages of
 specific spec versions. This helps to avoid using packages that require features
