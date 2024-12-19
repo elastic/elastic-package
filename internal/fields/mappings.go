@@ -609,7 +609,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	// 	logger.Debugf(">>> Compare object properties %q", path)
 	// }
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, actual, preview, dynamicTemplates)
+	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, preview, actual, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -617,7 +617,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, actual, preview map[string]any, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -972,7 +972,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeObjectDefinition bool) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -988,7 +988,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		// if len(dynamicTemplates) == 0 {
 		// 	logger.Debugf(">>> Compare mappings map[string]any %s - length %d", currentPath, len(actualField))
 		// }
-		errs = append(errs, v.compareMappings(currentPath, couldBeObjectDefinition, previewField, actualField, dynamicTemplates)...)
+		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)...)
 	case any:
 		// if len(dynamicTemplates) == 0 {
 		// 	logger.Debugf(">>> Compare mappings any %s", currentPath)
