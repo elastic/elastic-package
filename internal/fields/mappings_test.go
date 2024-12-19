@@ -16,13 +16,14 @@ import (
 func TestComparingMappings(t *testing.T) {
 	defaultSpecVersion := "3.3.0"
 	cases := []struct {
-		title           string
-		preview         map[string]any
-		actual          map[string]any
-		schema          []FieldDefinition
-		spec            string
-		exceptionFields []string
-		expectedErrors  []string
+		title            string
+		preview          map[string]any
+		actual           map[string]any
+		schema           []FieldDefinition
+		dynamicTemplates []map[string]any
+		spec             string
+		exceptionFields  []string
+		expectedErrors   []string
 	}{
 		{
 			title: "same mappings",
@@ -538,6 +539,16 @@ func TestComparingMappings(t *testing.T) {
 						},
 					},
 				},
+				"bar": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type": "keyword",
+						},
+						"properties": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
 			},
 			actual: map[string]any{
 				"foo": map[string]any{
@@ -552,9 +563,24 @@ func TestComparingMappings(t *testing.T) {
 						},
 					},
 				},
+				"bar": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+						"properties": map[string]any{
+							"type":         "keyword",
+							"ignore_above": 1024,
+						},
+					},
+				},
 			},
-			schema:         []FieldDefinition{},
-			expectedErrors: []string{},
+			schema: []FieldDefinition{},
+			expectedErrors: []string{
+				`field "bar.type.ignore_above" is undefined`,
+				`field "bar.properties.ignore_above" is undefined`,
+			},
 		},
 		{
 			title: "different parameter values within an object",
@@ -582,6 +608,32 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{
 				`unexpected value found in mapping for field "foo.type.type": preview mappings value ("keyword") different from the actual mappings value ("long")`,
 				`unexpected value found in mapping for field "foo.type.ignore_above": preview mappings value (1024) different from the actual mappings value (2048)`,
+			},
+		},
+		{
+			title: "undefined parameter values within an object",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"properties": map[string]any{
+						"type": map[string]any{
+							"type":               "keyword",
+							"time_series_matric": "counter",
+						},
+					},
+				},
+			},
+			schema: []FieldDefinition{},
+			expectedErrors: []string{
+				`field "foo.type.time_series_matric" is undefined`,
 			},
 		},
 		{
@@ -625,10 +677,112 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
+			// foo is added to the exception list because it is type nested
 			exceptionFields: []string{"foo"},
 			spec:            "3.0.0",
 			schema:          []FieldDefinition{},
 			expectedErrors:  []string{},
+		},
+		{
+			title: "validate nested types starting spec 3.0.1",
+			preview: map[string]any{
+				"foo": map[string]any{
+					"type": "nested",
+				},
+			},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "nested",
+					"properties": map[string]any{
+						"bar": map[string]any{
+							"type": "long",
+						},
+					},
+				},
+			},
+			exceptionFields: []string{},
+			spec:            "3.0.1",
+			schema:          []FieldDefinition{},
+			expectedErrors: []string{
+				`not found properties in preview mappings for path: "foo"`,
+			},
+		},
+		{
+			title:   "fields matching dynamic templates",
+			preview: map[string]any{},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "keyword",
+				},
+				"foa": map[string]any{
+					"type": "double",
+				},
+				"fob": map[string]any{
+					"type":               "double",
+					"time_series_metric": "gauge",
+				},
+				"bar": map[string]any{
+					"type": "text",
+					"fields": map[string]any{
+						"type": "keyword",
+					},
+				},
+				"bar_double": map[string]any{
+					"type": "double",
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"fo*_keyword": map[string]any{
+						"path_match":           "fo*",
+						"path_unmatch":         []any{"foa", "fob"},
+						"unmatch_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+				{
+					"fo*_number": map[string]any{
+						"path_match":         "fo*",
+						"path_unmatch":       "foo",
+						"match_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type":               "double",
+							"time_series_metric": "counter",
+						},
+					},
+				},
+				{
+					"bar_match": map[string]any{
+						"unmatch":            []any{"foo", "foo42", "*42"},
+						"match":              []any{"*ar", "bar42"},
+						"match_mapping_type": "text",
+						"mapping": map[string]any{
+							"type": "text",
+							"fields": map[string]any{
+								"type": "keyword",
+							},
+						},
+					},
+				},
+				{
+					"bar_star_double": map[string]any{
+						"match":                "*",
+						"unmatch_mapping_type": []any{"text"},
+						"mapping": map[string]any{
+							"type": "double",
+						},
+					},
+				},
+			},
+			exceptionFields: []string{},
+			spec:            "3.0.0",
+			schema:          []FieldDefinition{},
+			expectedErrors: []string{
+				// Should it be considered this error in "foa" "missing time_series_metric bar",
+				`field "fob" is undefined: missing definition for path`,
+			},
 		},
 	}
 
@@ -647,7 +801,7 @@ func TestComparingMappings(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			errs := v.compareMappings("", c.preview, c.actual)
+			errs := v.compareMappings("", false, c.preview, c.actual, c.dynamicTemplates)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {
