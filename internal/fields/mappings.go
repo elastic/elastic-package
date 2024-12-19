@@ -813,7 +813,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			case "mapping", "match_pattern":
 				// Do nothing
 			case "match":
-				name := fieldName(currentPath)
+				name := fieldNameFromPath(currentPath)
 				// logger.Debugf("> Check match: %q (key %q)", currentPath, name)
 				values, err := parseSetting(value)
 				if err != nil {
@@ -840,7 +840,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 					matched = false
 				}
 			case "unmatch":
-				name := fieldName(currentPath)
+				name := fieldNameFromPath(currentPath)
 				// logger.Debugf("> Check unmatch: %q (key %q)", currentPath, name)
 				values, err := parseSetting(value)
 				if err != nil {
@@ -936,13 +936,13 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			continue
 		}
 
-		logger.Debugf("> Found dynamic template matched: %s", templateName)
+		logger.Debugf("Found dynamic template matched: %s", templateName)
 		mappingParameter, ok := contents["mapping"]
 		if !ok {
 			return fmt.Errorf("missing mapping parameter in %s", templateName)
 		}
 
-		logger.Debugf(">> Check parameters (%q): %q", templateName, currentPath)
+		logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
 		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			// Look for another dynamic template
@@ -953,7 +953,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		return nil
 	}
 
-	logger.Debugf(">>> No template matching for path: %q", currentPath)
+	logger.Debugf(">> No template matching for path: %q", currentPath)
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 
