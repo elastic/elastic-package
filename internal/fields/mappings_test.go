@@ -793,7 +793,8 @@ func TestComparingMappings(t *testing.T) {
 			spec:            "3.0.0",
 			schema:          []FieldDefinition{},
 			expectedErrors: []string{
-				// Should it be considered this error in "foa" "missing time_series_metric bar",
+				// Should it be considered this error in "foa" "missing time_series_metric bar"?
+				// "fob" is failing because it does not have the expected value for the "time_series_metric" field
 				`field "fob" is undefined: missing definition for path`,
 			},
 		},
