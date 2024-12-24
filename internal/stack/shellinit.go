@@ -20,9 +20,10 @@ import (
 
 // Environment variables describing the stack.
 var (
+	ElasticsearchAPIKeyEnv   = environment.WithElasticPackagePrefix("ELASTICSEARCH_API_KEY")
 	ElasticsearchHostEnv     = environment.WithElasticPackagePrefix("ELASTICSEARCH_HOST")
-	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
 	ElasticsearchPasswordEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_PASSWORD")
+	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
 	KibanaHostEnv            = environment.WithElasticPackagePrefix("KIBANA_HOST")
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
@@ -46,6 +47,7 @@ func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, 
 	}
 
 	return fmt.Sprintf(t,
+		ElasticsearchAPIKeyEnv, config.ElasticsearchAPIKey,
 		ElasticsearchHostEnv, config.ElasticsearchHostPort,
 		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
 		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
@@ -61,6 +63,7 @@ const (
 export %s=%s
 export %s=%s
 export %s=%s
+export %s=%s
 export %s=%s`
 
 	// fish shell init code.
@@ -69,11 +72,13 @@ export %s=%s`
 set -x %s %s;
 set -x %s %s;
 set -x %s %s;
+set -x %s %s;
 set -x %s %s;`
 
 	// PowerShell init code.
 	// Output to be evaluated with `elastic-package stack shellinit | Invoke-Expression
 	powershellTemplate = `$Env:%s="%s";
+$Env:%s="%s";
 $Env:%s="%s";
 $Env:%s="%s";
 $Env:%s="%s";

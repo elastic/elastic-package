@@ -79,6 +79,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
+	config.ElasticsearchAPIKey = project.Credentials.APIKey
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
@@ -117,10 +118,12 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
-	err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
-	if err != nil {
-		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
-	}
+	/*
+		err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
+		if err != nil {
+			return Config{}, fmt.Errorf("not all services are healthy: %w", err)
+		}
+	*/
 
 	if settings.LogstashEnabled {
 		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
@@ -376,6 +379,10 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 	}
 
 	project, err := sp.currentProject(ctx, config)
+	if errors.Is(err, serverless.ErrProjectNotExist) {
+		logger.Debug("Project does not exist")
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
 	}

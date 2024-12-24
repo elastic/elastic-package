@@ -27,6 +27,7 @@ var ErrUndefinedHost = errors.New("missing kibana host")
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
+	apiKey   string
 	username string
 	password string
 
@@ -91,6 +92,13 @@ func (c *Client) Address() string {
 func Address(address string) ClientOption {
 	return func(c *Client) {
 		c.host = address
+	}
+}
+
+// APIKey option sets the API key to be used by the client for authentication.
+func APIKey(apiKey string) ClientOption {
+	return func(c *Client) {
+		c.apiKey = apiKey
 	}
 }
 
