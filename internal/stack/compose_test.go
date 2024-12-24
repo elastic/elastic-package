@@ -78,6 +78,7 @@ func TestNewServiceStatus(t *testing.T) {
 				Name:    "myservice",
 				Status:  "running (healthy)",
 				Version: "1.42.0",
+				Labels:  &docker.ConfigLabels{ComposeService: "myservice"},
 			},
 		},
 		{
@@ -112,6 +113,7 @@ func TestNewServiceStatus(t *testing.T) {
 				Name:    "myservice",
 				Status:  "exited (128)",
 				Version: "1.42.0",
+				Labels:  &docker.ConfigLabels{ComposeService: "myservice"},
 			},
 		},
 		{
@@ -155,6 +157,7 @@ func TestNewServiceStatus(t *testing.T) {
 				Name:    "myservice",
 				Status:  "running (starting)",
 				Version: "1.42.0",
+				Labels:  &docker.ConfigLabels{ComposeService: "myservice"},
 			},
 		},
 	}
