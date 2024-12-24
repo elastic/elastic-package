@@ -39,8 +39,9 @@ type Project struct {
 	Region string `json:"region_id"`
 
 	Credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		APIKey   string `json:"apiKey,omitempty"`
+		Username string `json:"username,omitempty"`
+		Password string `json:"password,omitempty"`
 	} `json:"credentials"`
 
 	Endpoints struct {

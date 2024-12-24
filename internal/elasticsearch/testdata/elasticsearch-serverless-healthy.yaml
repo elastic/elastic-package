@@ -1,0 +1,122 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic YWRtaW46cWN5V21PNTM5WTBlOWw5T1lxM3Y1TjIx
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.23.4)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.23.4,t=7.17.10,hc=1.23.4
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        transfer_encoding: []
+        trailer: {}
+        content_length: 508
+        uncompressed: false
+        body: |
+            {
+              "name" : "serverless",
+              "cluster_name" : "b28743a6426f4b58829f422195a77b1b",
+              "cluster_uuid" : "RzabjGAWQRCQ0vHoYTrRMA",
+              "version" : {
+                "number" : "8.11.0",
+                "build_flavor" : "serverless",
+                "build_type" : "docker",
+                "build_hash" : "00000000",
+                "build_date" : "2023-10-31",
+                "build_snapshot" : false,
+                "lucene_version" : "9.7.0",
+                "minimum_wire_compatibility_version" : "8.11.0",
+                "minimum_index_compatibility_version" : "8.11.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "508"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 24 Dec 2024 16:55:35 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            X-Cloud-Request-Id:
+                - OcEBAr_LQMioTlvn_pbkIQ
+            X-Elastic-Product:
+                - Elasticsearch
+            X-Found-Handling-Cluster:
+                - b28743a6426f4b58829f422195a77b1b.es
+            X-Found-Handling-Instance:
+                - es-es-search-7b77d558d4-pv8xf
+        status: 200 OK
+        code: 200
+        duration: 5.561667976s
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic YWRtaW46cWN5V21PNTM5WTBlOWw5T1lxM3Y1TjIx
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.23.4)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.23.4,t=7.17.10,hc=1.23.4
+        url: https://127.0.0.1:9200/_cluster/health
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        transfer_encoding: []
+        trailer: {}
+        content_length: 363
+        uncompressed: false
+        body: '{"error":{"root_cause":[{"type":"api_not_available_exception","reason":"Request for uri [/_cluster/health] with method [GET] exists but is not available when running in serverless mode"}],"type":"api_not_available_exception","reason":"Request for uri [/_cluster/health] with method [GET] exists but is not available when running in serverless mode"},"status":410}'
+        headers:
+            Content-Length:
+                - "363"
+            Content-Type:
+                - application/json
+            Date:
+                - Tue, 24 Dec 2024 16:55:35 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            X-Cloud-Request-Id:
+                - z0crFf48SH6oYcdTJWoptQ
+            X-Elastic-Product:
+                - Elasticsearch
+            X-Found-Handling-Cluster:
+                - b28743a6426f4b58829f422195a77b1b.es
+            X-Found-Handling-Instance:
+                - es-es-search-7b77d558d4-pv8xf
+        status: 410 Gone
+        code: 410
+        duration: 129.604829ms

@@ -79,6 +79,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
+	config.ElasticsearchAPIKey = project.Credentials.APIKey
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
 
@@ -376,6 +377,10 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 	}
 
 	project, err := sp.currentProject(ctx, config)
+	if errors.Is(err, serverless.ErrProjectNotExist) {
+		logger.Debug("Project does not exist")
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
 	}
