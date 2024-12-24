@@ -118,12 +118,10 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, fmt.Errorf("failed to store config: %w", err)
 	}
 
-	/*
-		err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
-		if err != nil {
-			return Config{}, fmt.Errorf("not all services are healthy: %w", err)
-		}
-	*/
+	err = project.EnsureHealthy(ctx, sp.elasticsearchClient, sp.kibanaClient)
+	if err != nil {
+		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
+	}
 
 	if settings.LogstashEnabled {
 		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)

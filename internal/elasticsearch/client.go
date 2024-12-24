@@ -154,6 +154,10 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusGone {
+		// We are in a managed deployment, API not available, assume healthy.
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to check cluster health: %s", resp.String())
 	}
