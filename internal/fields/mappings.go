@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -152,6 +153,7 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 		return v, nil
 	}
 
+	// TODO: Should we remove this code to load external and local fields?
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 
 	var fdm *DependencyManager
@@ -241,7 +243,14 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	mappingErrs := v.compareMappings("", false, rawPreview, rawActual)
+	var rawDynamicTemplates []map[string]any
+	err = json.Unmarshal(actualDynamicTemplates, &rawDynamicTemplates)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unmarshal actual dynamic templates (data stream %s): %w", v.dataStreamName, err))
+		return errs.Unique()
+	}
+
+	mappingErrs := v.compareMappings("", false, rawPreview, rawActual, rawDynamicTemplates)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -256,6 +265,15 @@ func currentMappingPath(path, key string) string {
 		return key
 	}
 	return fmt.Sprintf("%s.%s", path, key)
+}
+
+func fieldNameFromPath(path string) string {
+	if !strings.Contains(path, ".") {
+		return path
+	}
+
+	elems := strings.Split(path, ".")
+	return elems[len(elems)-1]
 }
 
 func mappingParameter(field string, definition map[string]any) string {
@@ -379,18 +397,73 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return fmt.Errorf("missing definition for path (not in ECS)")
 	}
 
-	actualType := mappingParameter("type", definition)
-	if found.Type == actualType {
+	err := compareFieldDefinitionWithECS(currentPath, found, definition)
+	if err != nil {
+		return err
+	}
+
+	// Compare multifields
+	var ecsMultiFields []FieldDefinition
+	// Filter multi-fields added by appendECSMappingMultifields
+	for _, f := range found.MultiFields {
+		// TODO: Should we use another way to filter these fields?
+		if f.External != externalFieldAppendedTag {
+			ecsMultiFields = append(ecsMultiFields, f)
+		}
+	}
+
+	// if there are no multifieds in ECS, nothing to compare
+	if len(ecsMultiFields) == 0 {
 		return nil
 	}
 
-	// exceptions related to numbers
-	if isNumberTypeField(found.Type, actualType) {
-		logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(found.Type), string(actualType))
-		return nil
+	if isMultiFields(definition) != (len(ecsMultiFields) > 0) {
+		return fmt.Errorf("not matched definitions for multifields for %q: actual multi_fields in mappings %t - ECS multi_fields length %d", currentPath, isMultiFields(definition), len(ecsMultiFields))
 	}
-	// any other field to validate here?
-	return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, found.Type)
+
+	actualMultiFields, err := getMappingDefinitionsField("fields", definition)
+	if err != nil {
+		return fmt.Errorf("invalid multi_field mapping %q: %w", currentPath, err)
+	}
+
+	for _, ecsMultiField := range ecsMultiFields {
+		multiFieldPath := currentMappingPath(currentPath, ecsMultiField.Name)
+		actualMultiField, ok := actualMultiFields[ecsMultiField.Name]
+		if !ok {
+			return fmt.Errorf("missing multi_field definition for %q", multiFieldPath)
+		}
+
+		def, ok := actualMultiField.(map[string]any)
+		if !ok {
+			return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
+		}
+
+		err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) error {
+	actualType := mappingParameter("type", actual)
+	if ecs.Type != actualType {
+		// exceptions related to numbers
+		if !isNumberTypeField(ecs.Type, actualType) {
+			return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type)
+		} else {
+			logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(ecs.Type), string(actualType))
+		}
+	}
+
+	// Compare other parameters
+	metricType := mappingParameter("time_series_metric", actual)
+	if ecs.MetricType != metricType {
+		return fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType)
+	}
+	return nil
 }
 
 // flattenMappings returns all the mapping definitions found at "path" flattened including
@@ -398,22 +471,9 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 func flattenMappings(path string, definition map[string]any) (map[string]any, error) {
 	newDefs := map[string]any{}
 	if isMultiFields(definition) {
-		multifields, err := getMappingDefinitionsField("fields", definition)
-		if err != nil {
-			return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping %q: %w", path, err)}
-		}
-
-		// Include also the definition itself
 		newDefs[path] = definition
-
-		for key, object := range multifields {
-			currentPath := currentMappingPath(path, key)
-			def, ok := object.(map[string]any)
-			if !ok {
-				return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping type: %q", path)}
-			}
-			newDefs[currentPath] = def
-		}
+		// multi_fields are going to be validated directly with the dynamic templates
+		// or with ECS fields
 		return newDefs, nil
 	}
 
@@ -448,7 +508,10 @@ func flattenMappings(path string, definition map[string]any) (map[string]any, er
 }
 
 func getMappingDefinitionsField(field string, definition map[string]any) (map[string]any, error) {
-	anyValue := definition[field]
+	anyValue, ok := definition[field]
+	if !ok {
+		return nil, fmt.Errorf("not found field: %q", field)
+	}
 	object, ok := anyValue.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type found for %q: %T ", field, anyValue)
@@ -481,7 +544,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	return isConstantKeyword, nil
 }
 
-func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -521,7 +584,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties)
+		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -544,13 +607,13 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, false, previewFields, actualFields)
+		compareErrors := v.compareMappings(path, false, previewFields, actualFields, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, true, containsMultifield, preview, actual)
+	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, preview, actual, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -558,7 +621,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -579,7 +642,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
 					continue
 				}
-				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField)
+				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
 				errs = append(errs, ecsErrors...)
 				continue
 			}
@@ -588,7 +651,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, true)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates, true)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -599,7 +662,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 
 // validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
-func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any) multierror.Error {
+func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	flattenFields, err := flattenMappings(currentPath, childField)
 	if err != nil {
@@ -609,7 +672,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation: %q", fieldPath)
+			logger.Warnf("Found exception field, skip its validation (not in preview): %q", fieldPath)
 			return nil
 		}
 
@@ -624,22 +687,295 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 			continue
 		}
 
-		// TODO: validate mapping with dynamic templates first than validating with ECS
-		// just raise an error if both validation processes fail
+		// validate whether or not the field has a corresponding dynamic template
+		if len(dynamicTemplates) > 0 {
+			err := v.matchingWithDynamicTemplates(fieldPath, def, dynamicTemplates)
+			if err == nil {
+				continue
+			}
+		}
 
-		// are all fields under this key defined in ECS?
+		// validate whether or not all fields under this key are defined in ECS
 		err = v.validateMappingInECSSchema(fieldPath, def)
 		if err != nil {
-			logger.Warnf("undefined path %q (pending to check dynamic templates)", fieldPath)
 			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
 		}
 	}
 	return errs.Unique()
 }
 
+// matchingWithDynamicTemplates validates a given definition (currentPath) with a set of dynamic templates.
+// The dynamic templates parameters are based on https://www.elastic.co/guide/en/elasticsearch/reference/8.17/dynamic-templates.html
+func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, definition map[string]any, dynamicTemplates []map[string]any) error {
+
+	parseSetting := func(value any) ([]string, error) {
+		all := []string{}
+		switch v := value.(type) {
+		case []any:
+			for _, elem := range v {
+				s, ok := elem.(string)
+				if !ok {
+					return nil, fmt.Errorf("failed to cast to string: %s", elem)
+				}
+				all = append(all, s)
+			}
+		case any:
+			s, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("failed to cast to string: %s", v)
+			}
+			all = append(all, s)
+		default:
+			return nil, fmt.Errorf("unexpected type for setting: %T", value)
+
+		}
+		return all, nil
+	}
+
+	stringMatchesPatterns := func(regexes []string, elem string) (bool, error) {
+		applies := false
+		for _, v := range regexes {
+			if !strings.Contains(v, "*") {
+				// not a regex
+				continue
+			}
+
+			match, err := regexp.MatchString(v, elem)
+			if err != nil {
+				return false, fmt.Errorf("failed to build regex %s: %w", v, err)
+			}
+			if match {
+				applies = true
+				break
+			}
+		}
+		return applies, nil
+	}
+
+	stringMatchesWildcards := func(regexes []string, elem string) (bool, error) {
+		for i, v := range regexes {
+			r := strings.ReplaceAll(v, ".", "\\.")
+			r = strings.ReplaceAll(r, "*", ".*")
+			// Force to match beginning and ending
+			r = fmt.Sprintf("^%s$", r)
+
+			regexes[i] = r
+		}
+		return stringMatchesPatterns(regexes, elem)
+	}
+
+	fieldType := mappingParameter("type", definition)
+	if fieldType == "" {
+		return fmt.Errorf("missing type parameter for field: %q", currentPath)
+	}
+
+	for _, template := range dynamicTemplates {
+		if len(template) != 1 {
+			return fmt.Errorf("unexpected number of dynamic template definitions found")
+		}
+
+		// there is just one dynamic template per object
+		templateName := ""
+		var rawContents any
+		for key, value := range template {
+			templateName = key
+			rawContents = value
+		}
+
+		if shouldSkipDynamicTemplate(templateName) {
+			continue
+		}
+
+		// logger.Debugf("Checking dynamic template for %q: %q", currentPath, templateName)
+		contents, ok := rawContents.(map[string]any)
+		if !ok {
+			return fmt.Errorf("unexpected dynamic template format found for %q", templateName)
+		}
+
+		fullRegex := false
+		if v, ok := contents["match_pattern"]; ok {
+			s, ok := v.(string)
+			if !ok {
+				return fmt.Errorf("invalid type for \"match_pattern\": %T", v)
+			}
+			if s == "regex" {
+				logger.Debugf("Use full regex in dynamic templates (match_pattern: regex)")
+				fullRegex = true
+			}
+		}
+
+		// matches with the current definitions and path
+		// https://www.elastic.co/guide/en/elasticsearch/reference/current/dynamic-templates.html
+		allMatched := true
+		for setting, value := range contents {
+			matched := true
+			switch setting {
+			case "mapping", "match_pattern":
+				// Do nothing
+			case "match":
+				name := fieldNameFromPath(currentPath)
+				// logger.Debugf("> Check match: %q (key %q)", currentPath, name)
+				values, err := parseSetting(value)
+				if err != nil {
+					logger.Warnf("failed to check match setting: %s", err)
+					return fmt.Errorf("failed to check match setting: %w", err)
+				}
+				if slices.Contains(values, name) {
+					logger.Warnf(">>>> no contained %s: %s", values, name)
+					continue
+				}
+
+				var matches bool
+				if fullRegex {
+					matches, err = stringMatchesPatterns(values, name)
+				} else {
+					matches, err = stringMatchesWildcards(values, name)
+				}
+				if err != nil {
+					return fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+
+				if !matches {
+					// logger.Debugf(">> Issue: not matches")
+					matched = false
+				}
+			case "unmatch":
+				name := fieldNameFromPath(currentPath)
+				// logger.Debugf("> Check unmatch: %q (key %q)", currentPath, name)
+				values, err := parseSetting(value)
+				if err != nil {
+					return fmt.Errorf("failed to check unmatch setting: %w", err)
+				}
+				if slices.Contains(values, name) {
+					matched = false
+					break
+				}
+
+				var matches bool
+				if fullRegex {
+					matches, err = stringMatchesPatterns(values, name)
+				} else {
+					matches, err = stringMatchesWildcards(values, name)
+				}
+				if err != nil {
+					return fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+
+				if matches {
+					// logger.Debugf(">> Issue: matches")
+					matched = false
+				}
+			case "path_match":
+				// logger.Debugf("> Check path_match: %q", currentPath)
+				values, err := parseSetting(value)
+				if err != nil {
+					return fmt.Errorf("failed to check path_match setting: %w", err)
+				}
+				matches, err := stringMatchesWildcards(values, currentPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if !matches {
+					// logger.Debugf(">> Issue: not matches")
+					matched = false
+				}
+			case "path_unmatch":
+				// logger.Debugf("> Check path_unmatch: %q", currentPath)
+				values, err := parseSetting(value)
+				if err != nil {
+					return fmt.Errorf("failed to check path_unmatch setting: %w", err)
+				}
+				matches, err := stringMatchesWildcards(values, currentPath)
+				if err != nil {
+					return fmt.Errorf("failed to parse dynamic template %s: %w", templateName, err)
+				}
+				if matches {
+					// logger.Debugf(">> Issue: matches")
+					matched = false
+				}
+			case "match_mapping_type", "unmatch_mapping_type":
+				// Do nothing
+				// These comparisons are done with the original data, and it's likely that the
+				// resulting mapping does not have the same type since it could change by the `mapping` field
+				// case "match_mapping_type":
+				// 	logger.Debugf("> Check match_mapping_type: %q (type %s)", currentPath, fieldType)
+				// 	values, err := parseSetting(value)
+				// 	if err != nil {
+				// 		return fmt.Errorf("failed to check match_mapping_type setting: %w", err)
+				// 	}
+				// 	logger.Debugf(">> Comparing to values: %s", values)
+				// 	if slices.Contains(values, "*") {
+				// 		continue
+				// 	}
+				// 	if !slices.Contains(values, fieldType) {
+				// 		logger.Debugf(">> Issue: not matches")
+				// 		matched = false
+				// 	}
+				// case "unmatch_mapping_type":
+				// 	logger.Debugf("> Check unmatch_mapping_type: %q (type %s)", currentPath, fieldType)
+				// 	values, err := parseSetting(value)
+				// 	if err != nil {
+				// 		return fmt.Errorf("failed to check unmatch_mapping_type setting: %w", err)
+				// 	}
+				// 	logger.Debugf(">> Comparing to values: %s", values)
+				// 	if slices.Contains(values, fieldType) {
+				// 		logger.Debugf(">> Issue: matches")
+				// 		matched = false
+				// 	}
+			default:
+				return fmt.Errorf("unexpected setting found in dynamic template")
+			}
+			if !matched {
+				// If just one parameter does not match, this dynamic template can be skipped
+				allMatched = false
+				break
+			}
+		}
+		if !allMatched {
+			// Look for another dynamic template
+			continue
+		}
+
+		logger.Debugf("Found dynamic template matched: %s", templateName)
+		mappingParameter, ok := contents["mapping"]
+		if !ok {
+			return fmt.Errorf("missing mapping parameter in %s", templateName)
+		}
+
+		// logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
+		errs := v.validateObjectMappingAndParameters(mappingParameter, definition, currentPath, []map[string]any{}, true)
+		if errs != nil {
+			// Look for another dynamic template
+			logger.Debugf("invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
+			continue
+		}
+
+		logger.Debugf("Valid template for path %q: %q", currentPath, templateName)
+		return nil
+	}
+
+	logger.Debugf(">> No template matching for path: %q", currentPath)
+	return fmt.Errorf("no template matching for path: %q", currentPath)
+}
+
+func shouldSkipDynamicTemplate(templateName string) bool {
+	// Filter out dynamic templates created by elastic-package (import_mappings)
+	// or added automatically by ecs@mappings component template
+	if strings.HasPrefix(templateName, "_embedded_ecs-") {
+		return true
+	}
+	if strings.HasPrefix(templateName, "ecs_") {
+		return true
+	}
+	if slices.Contains([]string{"all_strings_to_keywords", "strings_as_keyword"}, templateName) {
+		return true
+	}
+	return false
+}
+
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, couldBeParametersDefinition bool) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -652,7 +988,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField)...)
+		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)...)
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case

@@ -30,6 +30,8 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
+const externalFieldAppendedTag = "ecs_component"
+
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
@@ -448,7 +450,7 @@ func appendECSMappingMultifields(schema []FieldDefinition, prefix string) []Fiel
 				{
 					Name:     "text",
 					Type:     "match_only_text",
-					External: "ecs",
+					External: externalFieldAppendedTag,
 				},
 			},
 		},
