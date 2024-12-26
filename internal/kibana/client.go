@@ -74,9 +74,14 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		}
 		c.versionInfo = v.Version
 
-		c.semver, err = semver.NewVersion(c.versionInfo.Number)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		if c.versionInfo.Number == "" {
+			// Version info may not contain any version if this is a managed Kibana.
+			c.semver = semver.MustParse("9.0.0")
+		} else {
+			c.semver, err = semver.NewVersion(c.versionInfo.Number)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+			}
 		}
 	}
 
@@ -190,7 +195,11 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 		return nil, fmt.Errorf("could not create %v request to Kibana API resource: %s: %w", method, resourcePath, err)
 	}
 
-	req.SetBasicAuth(c.username, c.password)
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "ApiKey "+c.apiKey)
+	} else {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
