@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -247,6 +249,11 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 		return nil, nil
 	}
 	if err != nil {
+		if !isLocalElasticsearchFromEnv() {
+			// This is likely a remote elasticsearch, ignore the error.
+			logger.Warnf("Not checking Elasticsearch logs, check stack provider, getting logs failed with %s", err)
+			return nil, nil
+		}
 		return nil, fmt.Errorf("error at getting the logs of elasticsearch: %w", err)
 	}
 
@@ -296,6 +303,40 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	}
 
 	return []testrunner.TestResult{tr}, nil
+}
+
+// isLocalElasticsearchFromEnv checks if there are environment variables configuring
+// the elasticsearch host, and if they refer to a remote host.
+func isLocalElasticsearchFromEnv() bool {
+	host, found := os.LookupEnv(stack.ElasticsearchHostEnv)
+	if !found || host == "" {
+		return false
+	}
+
+	u, err := url.Parse(host)
+	if err != nil {
+		return false
+	}
+
+	hostname := u.Hostname()
+	var ips []net.IP
+	ip := net.ParseIP(hostname)
+	if ip != nil {
+		ips = append(ips, ip)
+	} else {
+		ips, err = net.LookupIP(hostname)
+		if err != nil {
+			return false
+		}
+	}
+
+	for _, ip := range ips {
+		if ip.IsPrivate() || ip.IsLoopback() {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) ([]testrunner.TestResult, error) {
