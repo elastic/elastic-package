@@ -156,6 +156,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"fleet_url":          "https://fleet-server:8220",
 		"elasticsearch_host": "https://elasticsearch:9200",
 
+		"api_key":  "", // TODO: This won't be needed.
 		"username": elasticsearchUsername,
 		"password": elasticsearchPassword,
 

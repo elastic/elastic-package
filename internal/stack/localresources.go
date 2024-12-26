@@ -19,10 +19,10 @@ import (
 )
 
 var (
-	serverlessStackResources = []resource.Resource{
+	localStackResources = []resource.Resource{
 		&resource.File{
 			Path:    ComposeFile,
-			Content: staticSource.Template("_static/serverless-docker-compose.yml.tmpl"),
+			Content: staticSource.Template("_static/local-services-docker-compose.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticAgentEnvFile,
@@ -31,7 +31,9 @@ var (
 	}
 )
 
-func applyServerlessResources(profile *profile.Profile, stackVersion string, config Config) error {
+// applyLocalResources creates the local resources needed to run system tests when the stack
+// is not local.
+func applyLocalResources(profile *profile.Profile, stackVersion string, config Config) error {
 	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
@@ -46,6 +48,7 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		"agent_image":        imageRefs.ElasticAgent,
 		"logstash_image":     imageRefs.Logstash,
 		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
+		"api_key":            config.ElasticsearchAPIKey, // TODO: !! We will need to enroll with an enrollment token?
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,
 		"kibana_host":        config.KibanaHost,
@@ -58,13 +61,13 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		Prefix: stackDir,
 	})
 
-	resources := append([]resource.Resource{}, serverlessStackResources...)
+	resources := append([]resource.Resource{}, localStackResources...)
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
 	resourceManager.RegisterProvider("certs", &resource.FileProvider{
 		Prefix: profile.ProfilePath,
 	})
-	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsServicesServerless)
+	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsLocalServices)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}

@@ -32,7 +32,9 @@ var tlsServices = []tlsService{
 	{Name: "elastic-agent", IsClient: true},
 }
 
-var tlsServicesServerless = []tlsService{
+// tlsLocalServices is the list of server TLS certificates that will
+// be created for local services when the stack is not local.
+var tlsLocalServices = []tlsService{
 	{Name: "logstash"},
 	{Name: "elastic-agent", IsClient: true},
 }

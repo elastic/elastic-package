@@ -258,10 +258,11 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
 	stackVersion := d.stackVersion
-	if config.Provider == stack.ProviderServerless {
-		fleetURL = config.Parameters[stack.ParamServerlessFleetURL]
-		kibanaHost = config.KibanaHost
-		stackVersion = config.Parameters[stack.ParamServerlessLocalStackVersion]
+	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
+		fleetURL = url
+	}
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
+		stackVersion = version
 	}
 
 	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)

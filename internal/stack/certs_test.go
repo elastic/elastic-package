@@ -21,7 +21,7 @@ func TestTLSCertsInitialization(t *testing.T) {
 		services []tlsService
 	}{
 		{"tlsServices", tlsServices},
-		{"tlsServicesServerless", tlsServicesServerless},
+		{"tlsServicesServerless", tlsLocalServices},
 	}
 	profilePath := t.TempDir()
 	caCertFile := filepath.Join(profilePath, "certs", "ca-cert.pem")

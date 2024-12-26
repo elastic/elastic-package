@@ -61,7 +61,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		return nil, fmt.Errorf("can't remove output location: %w", err)
 	}
 
-	services, err := localServiceNames(DockerComposeProjectName(options.Profile))
+	services, err := localServiceNames(options.Profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local services: %w", err)
 	}
