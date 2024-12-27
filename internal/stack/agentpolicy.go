@@ -1,0 +1,72 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package stack
+
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/registry"
+)
+
+// createAgentPolicy creates an agent policy with the initial configuration used for
+// agents managed by elastic-package.
+func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) error {
+	policy := kibana.Policy{
+		ID:                "elastic-agent-managed-ep",
+		Name:              "Elastic-Agent (elastic-package)",
+		Description:       "Policy created by elastic-package",
+		Namespace:         "default",
+		MonitoringEnabled: []string{},
+		DataOutputID:      outputId,
+	}
+	if selfMonitor {
+		policy.MonitoringEnabled = []string{"logs", "metrics"}
+	}
+
+	newPolicy, err := kibanaClient.CreatePolicy(ctx, policy)
+	if err != nil {
+		return fmt.Errorf("error while creating agent policy: %w", err)
+	}
+
+	if selfMonitor {
+		err := createSystemPackagePolicy(ctx, kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
+	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
+		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
+	})
+	if err != nil {
+		return fmt.Errorf("could not get the system package version for Kibana %v: %w", stackVersion, err)
+	}
+	if len(systemPackages) != 1 {
+		return fmt.Errorf("unexpected number of system package versions for Kibana %s - found %d expected 1", stackVersion, len(systemPackages))
+	}
+	logger.Debugf("Found %s package - version %s", systemPackages[0].Name, systemPackages[0].Version)
+	packagePolicy := kibana.PackagePolicy{
+		Name:      "system-1",
+		PolicyID:  agentPolicyID,
+		Namespace: namespace,
+	}
+	packagePolicy.Package.Name = "system"
+	packagePolicy.Package.Version = systemPackages[0].Version
+
+	_, err = kibanaClient.CreatePackagePolicy(ctx, packagePolicy)
+	if err != nil {
+		return fmt.Errorf("error while creating package policy: %w", err)
+	}
+
+	return nil
+}
