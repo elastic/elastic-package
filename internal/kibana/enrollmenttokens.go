@@ -56,7 +56,7 @@ func (c *Client) getEnrollmentTokens(ctx context.Context, kuery string) ([]Enrol
 		PerPage int               `json:"perPage`
 	}
 	for {
-		var values url.Values
+		values := make(url.Values)
 		values.Set("page", strconv.Itoa(resp.Page+1))
 		values.Set("kuery", kuery)
 		resource := fmt.Sprintf("%s/enrollment_api_keys?%s", FleetAPI, values.Encode())
@@ -79,7 +79,7 @@ func (c *Client) getEnrollmentTokens(ctx context.Context, kuery string) ([]Enrol
 			tokens = append(tokens, resp.Items...)
 		}
 
-		if resp.Total >= resp.Page*resp.PerPage {
+		if resp.Page*resp.PerPage >= resp.Total {
 			break
 		}
 	}

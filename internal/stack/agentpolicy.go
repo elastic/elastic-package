@@ -16,7 +16,7 @@ import (
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
-func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) error {
+func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) (*kibana.Policy, error) {
 	policy := kibana.Policy{
 		ID:                "elastic-agent-managed-ep",
 		Name:              "Elastic-Agent (elastic-package)",
@@ -31,17 +31,17 @@ func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVe
 
 	newPolicy, err := kibanaClient.CreatePolicy(ctx, policy)
 	if err != nil {
-		return fmt.Errorf("error while creating agent policy: %w", err)
+		return nil, fmt.Errorf("error while creating agent policy: %w", err)
 	}
 
 	if selfMonitor {
 		err := createSystemPackagePolicy(ctx, kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return newPolicy, nil
 }
 
 func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {

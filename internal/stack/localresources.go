@@ -48,11 +48,11 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 		"agent_image":        imageRefs.ElasticAgent,
 		"logstash_image":     imageRefs.Logstash,
 		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
-		"api_key":            config.ElasticsearchAPIKey, // TODO: !! We will need to enroll with an enrollment token?
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,
 		"kibana_host":        config.KibanaHost,
 		"fleet_url":          config.Parameters[ParamServerlessFleetURL],
+		"enrollment_token":   config.EnrollmentToken,
 		"logstash_enabled":   profile.Config("stack.logstash_enabled", "false"),
 	})
 

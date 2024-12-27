@@ -53,6 +53,26 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return fmt.Errorf("cannot discover default fleet server URL: %w", err)
 	}
 
+	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
+	logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
+	outputID := ""
+	if logstashEnabled {
+		outputID = "TODO"
+	}
+
+	// TODO: Handle policy already present.
+	// TODO: Handle deletion of policy on tear down.
+	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, outputID, selfMonitor)
+	if err != nil {
+		return fmt.Errorf("failed to create agent policy: %w", err)
+	}
+	if config.ElasticsearchAPIKey != "" {
+		config.EnrollmentToken, err = p.kibana.GetEnrollmentTokenForPolicyID(ctx, policy.ID)
+		if err != nil {
+			return fmt.Errorf("failed to get an enrollment token for policy %s: %w", policy.Name, err)
+		}
+	}
+
 	localServices := &localServicesManager{
 		profile: options.Profile,
 	}

@@ -67,6 +67,8 @@ type AgentInfo struct {
 		Name string
 		// ID is the name of the test Agent Policy created for the given agent
 		ID string
+		// Enrollment token is a valid enrollment token for the test Agent Policy
+		EnrollmentToken string
 	}
 
 	// Ports is a list of ports that the service listens on, as addressable

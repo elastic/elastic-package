@@ -284,6 +284,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"kibana_host":            kibanaHost,
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
+		"enrollment_token":       agentInfo.Policy.EnrollmentToken,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{

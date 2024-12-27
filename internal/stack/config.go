@@ -26,6 +26,10 @@ type Config struct {
 	ElasticsearchPassword string `json:"elasticsearch_password,omitempty"`
 	KibanaHost            string `json:"kibana_host,omitempty"`
 	CACertFile            string `json:"ca_cert_file,omitempty"`
+
+	// EnrollmentToken is the token used during initialization, it can expire,
+	// so don't persist it, it won't be reused.
+	EnrollmentToken string `json:"-"`
 }
 
 func configPath(profile *profile.Profile) string {
