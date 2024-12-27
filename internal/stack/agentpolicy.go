@@ -6,6 +6,7 @@ package stack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -66,6 +67,16 @@ func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client,
 	_, err = kibanaClient.CreatePackagePolicy(ctx, packagePolicy)
 	if err != nil {
 		return fmt.Errorf("error while creating package policy: %w", err)
+	}
+
+	return nil
+}
+
+func deleteAgentPolicy(ctx context.Context, kibanaClient *kibana.Client) error {
+	err := kibanaClient.DeletePolicy(ctx, "elastic-agent-managed-ep")
+	var notFoundError *kibana.ErrPolicyNotFound
+	if err != nil && !errors.As(err, &notFoundError) {
+		return fmt.Errorf("failed to delete policy: %w", err)
 	}
 
 	return nil
