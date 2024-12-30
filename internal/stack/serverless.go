@@ -268,11 +268,6 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve latest project created: %w", err)
-		}
-
 		outputID := ""
 		if settings.LogstashEnabled {
 			outputID = serverless.FleetLogstashOutput
