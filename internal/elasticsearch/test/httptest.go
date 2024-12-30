@@ -5,10 +5,13 @@
 package test
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/dnaeon/go-vcr.v3/cassette"
 	"gopkg.in/dnaeon/go-vcr.v3/recorder"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -20,16 +23,10 @@ import (
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
 func NewClient(t *testing.T, recordFileName string) *elasticsearch.Client {
-	address := os.Getenv(stack.ElasticsearchHostEnv)
-	if address == "" {
-		address = "https://127.0.0.1:9200"
-	}
-	config, err := elasticsearch.NewConfig(
-		elasticsearch.OptionWithAddress(address),
-		elasticsearch.OptionWithPassword(os.Getenv(stack.ElasticsearchPasswordEnv)),
-		elasticsearch.OptionWithUsername(os.Getenv(stack.ElasticsearchUsernameEnv)),
-		elasticsearch.OptionWithCertificateAuthority(os.Getenv(stack.CACertificateEnv)),
-	)
+	options, err := clientOptionsForRecord(recordFileName)
+	require.NoError(t, err)
+
+	config, err := elasticsearch.NewConfig(options...)
 	require.NoError(t, err)
 
 	rec, err := recorder.NewWithOptions(&recorder.Options{
@@ -50,4 +47,28 @@ func NewClient(t *testing.T, recordFileName string) *elasticsearch.Client {
 	})
 
 	return client
+}
+
+func clientOptionsForRecord(recordFileName string) ([]elasticsearch.ClientOption, error) {
+	const defaultAddress = "https://127.0.0.1:9200"
+	_, err := os.Stat(cassette.New(recordFileName).File)
+	if errors.Is(err, os.ErrNotExist) {
+		address := os.Getenv(stack.ElasticsearchHostEnv)
+		if address == "" {
+			address = defaultAddress
+		}
+		return []elasticsearch.ClientOption{
+			elasticsearch.OptionWithAddress(address),
+			elasticsearch.OptionWithPassword(os.Getenv(stack.ElasticsearchPasswordEnv)),
+			elasticsearch.OptionWithUsername(os.Getenv(stack.ElasticsearchUsernameEnv)),
+			elasticsearch.OptionWithCertificateAuthority(os.Getenv(stack.CACertificateEnv)),
+		}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if record file name exists %s: %w", recordFileName, err)
+	}
+	options := []elasticsearch.ClientOption{
+		elasticsearch.OptionWithAddress(defaultAddress),
+	}
+	return options, nil
 }
