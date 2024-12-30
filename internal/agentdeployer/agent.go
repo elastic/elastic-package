@@ -267,8 +267,9 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		}
 	}
 
+	// TODO: Include these settings more explicitly in `config`.
 	fleetURL := "https://fleet-server:8220"
-	kibanaHost := "https://kibana:5601"
+	kibanaHost := config.KibanaHost
 	stackVersion := d.stackVersion
 	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
 		fleetURL = url
