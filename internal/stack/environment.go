@@ -122,10 +122,13 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
-	// TODO: unenroll agent.
 	kibanaClient, err := NewKibanaClientFromProfile(options.Profile)
 	if err != nil {
 		return fmt.Errorf("failed to create kibana client: %w", err)
+	}
+	err = forceUnenrollAgentsWithPolicy(ctx, kibanaClient)
+	if err != nil {
+		return fmt.Errorf("failed to remove agents associated to test policy")
 	}
 	err = deleteAgentPolicy(ctx, kibanaClient)
 	if err != nil {

@@ -15,11 +15,13 @@ import (
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
+const managedAgentPolicyID = "elastic-agent-managed-ep"
+
 // createAgentPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
 func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) (*kibana.Policy, error) {
 	policy := kibana.Policy{
-		ID:                "elastic-agent-managed-ep",
+		ID:                managedAgentPolicyID,
 		Name:              "Elastic-Agent (elastic-package)",
 		Description:       "Policy created by elastic-package",
 		Namespace:         "default",
@@ -73,10 +75,26 @@ func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client,
 }
 
 func deleteAgentPolicy(ctx context.Context, kibanaClient *kibana.Client) error {
-	err := kibanaClient.DeletePolicy(ctx, "elastic-agent-managed-ep")
+	err := kibanaClient.DeletePolicy(ctx, managedAgentPolicyID)
 	var notFoundError *kibana.ErrPolicyNotFound
 	if err != nil && !errors.As(err, &notFoundError) {
 		return fmt.Errorf("failed to delete policy: %w", err)
+	}
+
+	return nil
+}
+
+func forceUnenrollAgentsWithPolicy(ctx context.Context, kibanaClient *kibana.Client) error {
+	agents, err := kibanaClient.QueryAgents(ctx, fmt.Sprintf("policy_id: %s", managedAgentPolicyID))
+	if err != nil {
+		return fmt.Errorf("error while querying agents with policy %s: %w", managedAgentPolicyID, err)
+	}
+
+	for _, agent := range agents {
+		err := kibanaClient.RemoveAgent(ctx, agent)
+		if err != nil {
+			return fmt.Errorf("failed to remove agent %s: %w", agent.ID, err)
+		}
 	}
 
 	return nil
