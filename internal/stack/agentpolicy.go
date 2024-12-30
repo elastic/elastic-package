@@ -8,14 +8,21 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
-const managedAgentPolicyID = "elastic-agent-managed-ep"
+const (
+	managedAgentPolicyID  = "elastic-agent-managed-ep"
+	fleetLogstashOutput   = "fleet-logstash-output"
+	paramLogstashOutputID = "logstash_output"
+)
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
@@ -95,6 +102,54 @@ func forceUnenrollAgentsWithPolicy(ctx context.Context, kibanaClient *kibana.Cli
 		if err != nil {
 			return fmt.Errorf("failed to remove agent %s: %w", agent.ID, err)
 		}
+	}
+
+	return nil
+}
+
+func addLogstashFleetOutput(ctx context.Context, kibanaClient *kibana.Client) error {
+	logstashFleetOutput := kibana.FleetOutput{
+		Name:  "logstash-output",
+		ID:    fleetLogstashOutput,
+		Type:  "logstash",
+		Hosts: []string{"logstash:5044"},
+	}
+
+	if err := kibanaClient.AddFleetOutput(ctx, logstashFleetOutput); err != nil {
+		return fmt.Errorf("failed to add logstash fleet output: %w", err)
+	}
+
+	return nil
+}
+
+func updateLogstashFleetOutput(ctx context.Context, profile *profile.Profile, kibanaClient *kibana.Client) error {
+	certsDir := filepath.Join(profile.ProfilePath, "certs", "elastic-agent")
+
+	caFile, err := os.ReadFile(filepath.Join(certsDir, "ca-cert.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read ca certificate: %w", err)
+	}
+
+	certFile, err := os.ReadFile(filepath.Join(certsDir, "cert.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read client certificate: %w", err)
+	}
+
+	keyFile, err := os.ReadFile(filepath.Join(certsDir, "key.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to read client certificate private key: %w", err)
+	}
+
+	logstashFleetOutput := kibana.FleetOutput{
+		SSL: &kibana.AgentSSL{
+			CertificateAuthorities: []string{string(caFile)},
+			Certificate:            string(certFile),
+			Key:                    string(keyFile),
+		},
+	}
+
+	if err := kibanaClient.UpdateFleetOutput(ctx, logstashFleetOutput, fleetLogstashOutput); err != nil {
+		return fmt.Errorf("failed to update logstash fleet output: %w", err)
 	}
 
 	return nil

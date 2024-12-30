@@ -122,7 +122,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 
 	if settings.LogstashEnabled {
-		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = addLogstashFleetOutput(ctx, sp.kibanaClient)
 		if err != nil {
 			return Config{}, err
 		}
@@ -305,7 +305,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	// Updating the output with ssl certificates created in startLocalServices
 	// The certificates are updated only when a new project is created and logstash is enabled
 	if isNewProject && settings.LogstashEnabled {
-		err = project.UpdateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = updateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err
 		}

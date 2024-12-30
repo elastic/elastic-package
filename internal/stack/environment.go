@@ -54,18 +54,27 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return fmt.Errorf("cannot discover default fleet server URL: %w", err)
 	}
 
-	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
 	outputID := ""
-	// TODO: Support logstash.
-	/*
-		logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
-		if logstashEnabled {
-			outputID = "TODO"
+	logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
+	if logstashEnabled {
+		err := addLogstashFleetOutput(ctx, p.kibana)
+		if err != nil {
+			return fmt.Errorf("failed to create logstash output: %w", err)
 		}
-	*/
+		outputID = fleetLogstashOutput
+		config.Parameters[paramLogstashOutputID] = fleetLogstashOutput
+	}
+
+	// We need to store the config here to be able to clean up the logstash output if something
+	// fails later.
+	err = storeConfig(options.Profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
+	}
 
 	// TODO: Handle policy already present.
 	// TODO: Handle deletion of policy on tear down.
+	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
 	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, outputID, selfMonitor)
 	if err != nil {
 		return fmt.Errorf("failed to create agent policy: %w", err)
@@ -83,6 +92,13 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 	err = localServices.start(ctx, options, config)
 	if err != nil {
 		return fmt.Errorf("failed to start local services: %w", err)
+	}
+
+	if logstashEnabled {
+		err = updateLogstashFleetOutput(ctx, options.Profile, p.kibana)
+		if err != nil {
+			return fmt.Errorf("cannot configure fleet output: %w", err)
+		}
 	}
 
 	err = storeConfig(options.Profile, config)
@@ -137,6 +153,18 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 	err = deleteAgentPolicy(ctx, kibanaClient)
 	if err != nil {
 		return fmt.Errorf("failed to delete agent policy: %v", err)
+	}
+
+	config, err := LoadConfig(options.Profile)
+	if err != nil {
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+	logstashOutput, logstashEnabled := config.Parameters[paramLogstashOutputID]
+	if logstashEnabled && logstashOutput != "" {
+		err := kibanaClient.RemoveFleetOutput(ctx, logstashOutput)
+		if err != nil {
+			return fmt.Errorf("failed to delete %s output: %s", fleetLogstashOutput, err)
+		}
 	}
 
 	return nil

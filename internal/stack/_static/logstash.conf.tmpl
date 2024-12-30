@@ -44,8 +44,12 @@ output {
   } else {
     elasticsearch {
       hosts => ["{{ $elasticsearch_host }}"]
+  {{- if eq $api_key "" }}
       user => '{{ fact "username" }}'
       password => '{{ fact "password" }}'
+  {{- else }}
+      api_key => '{{ $api_key }}'
+  {{- end }}
       ssl_enabled => true
   {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
       ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"

@@ -48,6 +48,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 		"agent_image":        imageRefs.ElasticAgent,
 		"logstash_image":     imageRefs.Logstash,
 		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
+		"api_key":            config.ElasticsearchAPIKey,
 		"username":           config.ElasticsearchUsername,
 		"password":           config.ElasticsearchPassword,
 		"kibana_host":        config.KibanaHost,

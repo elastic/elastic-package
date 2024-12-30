@@ -99,6 +99,24 @@ func (c *Client) AddFleetOutput(ctx context.Context, fo FleetOutput) error {
 	return nil
 }
 
+// RemoveFleetOutput removes an output from Fleet
+func (c *Client) RemoveFleetOutput(ctx context.Context, outputID string) error {
+	statusCode, respBody, err := c.delete(ctx, fmt.Sprintf("%s/outputs/%s", FleetAPI, outputID))
+	if err != nil {
+		return fmt.Errorf("could not delete fleet output: %w", err)
+	}
+
+	if statusCode == http.StatusNotFound {
+		// Already removed, ignore error.
+		return nil
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not add fleet output; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
+}
+
 func (c *Client) SetAgentLogLevel(ctx context.Context, agentID, level string) error {
 	path := fmt.Sprintf("%s/agents/%s/actions", FleetAPI, agentID)
 
