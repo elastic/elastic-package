@@ -48,17 +48,21 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return err
 	}
 	// TODO: Migrate from serverless variables.
+	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
 	config.Parameters[ParamServerlessFleetURL], err = p.kibana.DefaultFleetServerURL(ctx)
 	if err != nil {
 		return fmt.Errorf("cannot discover default fleet server URL: %w", err)
 	}
 
 	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
-	logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
 	outputID := ""
-	if logstashEnabled {
-		outputID = "TODO"
-	}
+	// TODO: Support logstash.
+	/*
+		logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
+		if logstashEnabled {
+			outputID = "TODO"
+		}
+	*/
 
 	// TODO: Handle policy already present.
 	// TODO: Handle deletion of policy on tear down.

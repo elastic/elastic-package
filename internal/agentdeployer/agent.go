@@ -254,6 +254,18 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	if err != nil {
 		return "", fmt.Errorf("failed to load config from profile: %w", err)
 	}
+	enrollmentToken := ""
+	if config.ElasticsearchAPIKey != "" {
+		// TODO: Review if this is the correct place to get the enrollment token.
+		kibanaClient, err := stack.NewKibanaClientFromProfile(d.profile)
+		if err != nil {
+			return "", fmt.Errorf("failed to create kibana client: %w", err)
+		}
+		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(context.TODO(), agentInfo.Policy.ID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+		}
+	}
 
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
@@ -284,7 +296,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"kibana_host":            kibanaHost,
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
-		"enrollment_token":       agentInfo.Policy.EnrollmentToken,
+		"enrollment_token":       enrollmentToken,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
