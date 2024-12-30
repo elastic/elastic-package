@@ -40,6 +40,9 @@ func (c *Client) CreatePolicy(ctx context.Context, p Policy) (*Policy, error) {
 		return nil, fmt.Errorf("could not create policy: %w", err)
 	}
 
+	if statusCode == http.StatusConflict {
+		return nil, fmt.Errorf("could not create policy: %w", ErrConflict)
+	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not create policy; API status code = %d; response body = %s", statusCode, respBody)
 	}

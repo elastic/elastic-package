@@ -22,7 +22,10 @@ import (
 	"github.com/elastic/elastic-package/internal/retry"
 )
 
-var ErrUndefinedHost = errors.New("missing kibana host")
+var (
+	ErrUndefinedHost = errors.New("missing kibana host")
+	ErrConflict      = errors.New("resource already exists")
+)
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {

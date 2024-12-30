@@ -92,6 +92,9 @@ func (c *Client) AddFleetOutput(ctx context.Context, fo FleetOutput) error {
 		return fmt.Errorf("could not create fleet output: %w", err)
 	}
 
+	if statusCode == http.StatusConflict {
+		return fmt.Errorf("could not add fleet output: %w", ErrConflict)
+	}
 	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not add fleet output; API status code = %d; response body = %s", statusCode, respBody)
 	}

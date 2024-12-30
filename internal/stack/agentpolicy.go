@@ -40,6 +40,13 @@ func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVe
 	}
 
 	newPolicy, err := kibanaClient.CreatePolicy(ctx, policy)
+	if errors.Is(err, kibana.ErrConflict) {
+		newPolicy, err = kibanaClient.GetPolicy(ctx, policy.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error while getting existing policy: %w", err)
+		}
+		return newPolicy, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error while creating agent policy: %w", err)
 	}
@@ -115,7 +122,12 @@ func addLogstashFleetOutput(ctx context.Context, kibanaClient *kibana.Client) er
 		Hosts: []string{"logstash:5044"},
 	}
 
-	if err := kibanaClient.AddFleetOutput(ctx, logstashFleetOutput); err != nil {
+	err := kibanaClient.AddFleetOutput(ctx, logstashFleetOutput)
+	if errors.Is(err, kibana.ErrConflict) {
+		// Output already exists.
+		return nil
+	}
+	if err != nil {
 		return fmt.Errorf("failed to add logstash fleet output: %w", err)
 	}
 

@@ -72,8 +72,6 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
-	// TODO: Handle policy already present.
-	// TODO: Handle deletion of policy on tear down.
 	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
 	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, outputID, selfMonitor)
 	if err != nil {
