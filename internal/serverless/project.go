@@ -6,14 +6,11 @@ package serverless
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/fleetserver"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -143,39 +140,15 @@ func (p *Project) getKibanaHealth(ctx context.Context, kibanaClient *kibana.Clie
 }
 
 func (p *Project) getFleetHealth(ctx context.Context) error {
-	statusURL, err := url.JoinPath(p.Endpoints.Fleet, "/api/status")
-	if err != nil {
-		return fmt.Errorf("could not build URL: %w", err)
-	}
-	logger.Debugf("GET %s", statusURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", statusURL, nil)
+	client := fleetserver.NewClient(p.Endpoints.Fleet)
+	status, err := client.Status(ctx)
 	if err != nil {
 		return err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("request failed (url: %s): %w", statusURL, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode >= 300 {
-		return fmt.Errorf("unexpected status code %v", resp.StatusCode)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-	var status struct {
-		Name   string `json:"name"`
-		Status string `json:"status"`
-	}
-	err = json.Unmarshal(body, &status)
-	if err != nil {
-		return fmt.Errorf("failed to parse response body: %w", err)
 	}
 
 	if status.Status != "HEALTHY" {
 		return fmt.Errorf("fleet status %s", status.Status)
-
 	}
+
 	return nil
 }

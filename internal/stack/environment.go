@@ -8,8 +8,10 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/fleetserver"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -187,6 +189,118 @@ func (p *environmentProvider) Dump(ctx context.Context, options DumpOptions) ([]
 }
 
 // Status obtains status information of the stack.
-func (p *environmentProvider) Status(context.Context, Options) ([]ServiceStatus, error) {
-	return nil, fmt.Errorf("not implemented")
+func (p *environmentProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
+	status := []ServiceStatus{
+		p.elasticsearchStatus(ctx, options),
+		p.kibanaStatus(ctx, options),
+		p.fleetStatus(ctx, options),
+	}
+
+	localServices := &localServicesManager{
+		profile: options.Profile,
+	}
+	localStatus, err := localServices.status()
+	if err != nil {
+		return nil, fmt.Errorf("cannot obtain status of local services: %w", err)
+	}
+
+	status = append(status, localStatus...)
+	return status, nil
+}
+
+func (p *environmentProvider) elasticsearchStatus(ctx context.Context, options Options) ServiceStatus {
+	status := ServiceStatus{
+		Name: "elasticsearch",
+	}
+	client, err := NewElasticsearchClientFromProfile(options.Profile)
+	if err != nil {
+		status.Status = "unknown: failed to create client: " + err.Error()
+		return status
+	}
+
+	err = client.CheckHealth(ctx)
+	if err != nil {
+		status.Status = "unhealthy: " + err.Error()
+	} else {
+		status.Status = "healthy"
+	}
+
+	info, err := client.Info(ctx)
+	if err != nil {
+		status.Version = "unknown"
+	} else if info.Version.BuildFlavor == "serverless" {
+		status.Version = "serverless"
+	} else {
+		status.Version = info.Version.Number
+	}
+
+	return status
+}
+
+func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options) ServiceStatus {
+	status := ServiceStatus{
+		Name: "kibana",
+	}
+	client, err := NewKibanaClientFromProfile(options.Profile)
+	if err != nil {
+		status.Status = "unknown: failed to create client: " + err.Error()
+		return status
+	}
+
+	err = client.CheckHealth(ctx)
+	if err != nil {
+		status.Status = "unhealthy: " + err.Error()
+	} else {
+		status.Status = "healthy"
+	}
+
+	versionInfo, err := client.Version()
+	if err != nil {
+		status.Version = "unknown"
+	} else if versionInfo.BuildFlavor == "serverless" {
+		status.Version = "serverless"
+	} else {
+		status.Version = versionInfo.Version()
+	}
+
+	return status
+}
+
+func (p *environmentProvider) fleetStatus(ctx context.Context, options Options) ServiceStatus {
+	status := ServiceStatus{
+		Name: "fleet",
+	}
+
+	config, err := LoadConfig(options.Profile)
+	if err != nil {
+		status.Status = "failed to load configuration: " + err.Error()
+		return status
+	}
+
+	address, ok := config.Parameters[ParamServerlessFleetURL]
+	if !ok || address == "" {
+		status.Status = "unknown address"
+		return status
+	}
+
+	// TODO: Add authentication for fleet server client.
+	client := fleetserver.NewClient(address)
+	fleetServerStatus, err := client.Status(ctx)
+	if err != nil {
+		status.Status = "unknown: " + err.Error()
+	} else if fleetServerStatus.Status != "" {
+		status.Status = strings.ToLower(fleetServerStatus.Status)
+	} else {
+		status.Status = "unknown"
+	}
+
+	if fleetServerStatus != nil {
+		if version := fleetServerStatus.Version.Number; version != "" {
+			status.Version = version
+		} else {
+			status.Version = "unknown"
+		}
+	}
+
+	return status
 }

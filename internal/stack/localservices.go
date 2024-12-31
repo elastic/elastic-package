@@ -77,6 +77,40 @@ func (m *localServicesManager) destroy(ctx context.Context) error {
 	return nil
 }
 
+func (m *localServicesManager) status() ([]ServiceStatus, error) {
+	var services []ServiceStatus
+	serviceStatusFunc := func(description docker.ContainerDescription) error {
+		service, err := newServiceStatus(&description)
+		if err != nil {
+			return err
+		}
+		services = append(services, *service)
+		return nil
+	}
+
+	err := m.visitDescriptions(serviceStatusFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
+func (m *localServicesManager) serviceNames() ([]string, error) {
+	services := []string{}
+	serviceFunc := func(description docker.ContainerDescription) error {
+		services = append(services, description.Config.Labels.ComposeService)
+		return nil
+	}
+
+	err := m.visitDescriptions(serviceFunc)
+	if err != nil {
+		return nil, err
+	}
+
+	return services, nil
+}
+
 func (m *localServicesManager) visitDescriptions(serviceFunc func(docker.ContainerDescription) error) error {
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	project := m.composeProjectName()

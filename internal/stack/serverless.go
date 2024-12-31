@@ -11,7 +11,6 @@ import (
 	"slices"
 	"time"
 
-	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -394,7 +393,10 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 		})
 	}
 
-	agentStatus, err := sp.localAgentStatus()
+	localServices := &localServicesManager{
+		profile: sp.profile,
+	}
+	agentStatus, err := localServices.status()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local agent status: %w", err)
 	}
@@ -402,44 +404,4 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 	serviceStatus = append(serviceStatus, agentStatus...)
 
 	return serviceStatus, nil
-}
-
-func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
-	var services []ServiceStatus
-	serviceStatusFunc := func(description docker.ContainerDescription) error {
-		service, err := newServiceStatus(&description)
-		if err != nil {
-			return err
-		}
-		services = append(services, *service)
-		return nil
-	}
-
-	localServices := &localServicesManager{
-		profile: sp.profile,
-	}
-	err := localServices.visitDescriptions(serviceStatusFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	return services, nil
-}
-
-func localServiceNames(profile *profile.Profile) ([]string, error) {
-	services := []string{}
-	serviceFunc := func(description docker.ContainerDescription) error {
-		services = append(services, description.Config.Labels.ComposeService)
-		return nil
-	}
-
-	localServices := &localServicesManager{
-		profile: profile,
-	}
-	err := localServices.visitDescriptions(serviceFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	return services, nil
 }
