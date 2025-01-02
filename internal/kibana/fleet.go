@@ -21,11 +21,19 @@ type FleetOutput struct {
 	SSL   *AgentSSL `json:"ssl,omitempty"`
 }
 
+type FleetServerHost struct {
+	URLs      []string `json:"host_urls"`
+	Name      string   `json:"name"`
+	IsDefault bool     `json:"is_default"`
+}
+
 type AgentSSL struct {
 	CertificateAuthorities []string `json:"certificate_authorities,omitempty"`
 	Certificate            string   `json:"certificate,omitempty"`
 	Key                    string   `json:"key,omitempty"`
 }
+
+var ErrFleetServerNotFound = errors.New("could not find a fleet server URL")
 
 // DefaultFleetServerURL returns the default Fleet server configured in Kibana
 func (c *Client) DefaultFleetServerURL(ctx context.Context) (string, error) {
@@ -57,7 +65,7 @@ func (c *Client) DefaultFleetServerURL(ctx context.Context) (string, error) {
 		}
 	}
 
-	return "", errors.New("could not find the fleet server URL for this project")
+	return "", ErrFleetServerNotFound
 }
 
 // UpdateFleetOutput updates an existing output to fleet
@@ -167,4 +175,47 @@ func (c *Client) SetAgentLogLevel(ctx context.Context, agentID, level string) er
 		return fmt.Errorf("could not convert actions agent (response) to JSON: %w", err)
 	}
 	return nil
+}
+
+func (c *Client) AddFleetServerHost(ctx context.Context, host FleetServerHost) error {
+	reqBody, err := json.Marshal(host)
+	if err != nil {
+		return fmt.Errorf("could not convert fleet server host to JSON: %w", err)
+	}
+
+	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/fleet_server_hosts", FleetAPI), reqBody)
+	if err != nil {
+		return fmt.Errorf("could not add fleet server host: %w", err)
+	}
+
+	if statusCode == http.StatusConflict {
+		return fmt.Errorf("could not add fleet server host: %w", ErrConflict)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not add fleet server host; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
+}
+
+// CreateFleetServiceToken creates a service token for Fleet, to be used when enrolling Fleet Servers.
+func (c *Client) CreateFleetServiceToken(ctx context.Context) (string, error) {
+	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/service_tokens", FleetAPI), nil)
+	if err != nil {
+		return "", fmt.Errorf("could not request fleet service token: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("could not request fleet service token; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	var resp struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return "", fmt.Errorf("could not convert actions agent (response) to JSON: %w", err)
+	}
+
+	return resp.Value, nil
 }

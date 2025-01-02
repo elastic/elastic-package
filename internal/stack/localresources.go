@@ -18,8 +18,14 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+const paramFleetServerManaged = "fleet_server_managed"
+
 var (
 	localStackResources = []resource.Resource{
+		&resource.File{
+			Path:    FleetServerHealthcheckFile,
+			Content: staticSource.File("_static/fleet-server-healthcheck.sh"),
+		},
 		&resource.File{
 			Path:    ComposeFile,
 			Content: staticSource.Template("_static/local-services-docker-compose.yml.tmpl"),
@@ -44,17 +50,20 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_version":      stackVersion,
-		"agent_image":        imageRefs.ElasticAgent,
-		"logstash_image":     imageRefs.Logstash,
-		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
-		"api_key":            config.ElasticsearchAPIKey,
-		"username":           config.ElasticsearchUsername,
-		"password":           config.ElasticsearchPassword,
-		"kibana_host":        config.KibanaHost,
-		"fleet_url":          config.Parameters[ParamServerlessFleetURL],
-		"enrollment_token":   config.EnrollmentToken,
-		"logstash_enabled":   profile.Config("stack.logstash_enabled", "false"),
+		"agent_version":        stackVersion,
+		"agent_image":          imageRefs.ElasticAgent,
+		"logstash_image":       imageRefs.Logstash,
+		"elasticsearch_host":   dockerInternalHost(esHostWithPort(config.ElasticsearchHost)),
+		"api_key":              config.ElasticsearchAPIKey,
+		"username":             config.ElasticsearchUsername,
+		"password":             config.ElasticsearchPassword,
+		"kibana_host":          dockerInternalHost(config.KibanaHost),
+		"fleet_url":            config.Parameters[ParamServerlessFleetURL],
+		"enrollment_token":     config.EnrollmentToken,
+		"logstash_enabled":     profile.Config("stack.logstash_enabled", "false"),
+		"fleet_server_managed": config.Parameters[paramFleetServerManaged],
+		"fleet_server_policy":  managedFleetServerPolicyID,
+		"fleet_service_token":  config.FleetServiceToken,
 	})
 
 	os.MkdirAll(stackDir, 0755)
@@ -103,6 +112,27 @@ func esHostWithPort(host string) string {
 
 	if url.Port() == "" {
 		url.Host = net.JoinHostPort(url.Hostname(), "443")
+		return url.String()
+	}
+
+	return host
+}
+
+func dockerInternalHost(host string) string {
+	url, err := url.Parse(host)
+	if err != nil {
+		return host
+	}
+
+	ip := net.ParseIP(url.Hostname())
+	if url.Hostname() == "localhost" || (ip != nil && ip.IsLoopback()) {
+		const hostInternal = "host.docker.internal"
+		if url.Port() == "" {
+			url.Host = hostInternal
+		} else {
+			url.Host = net.JoinHostPort(hostInternal, url.Port())
+		}
+
 		return url.String()
 	}
 

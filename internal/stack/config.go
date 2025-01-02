@@ -30,6 +30,10 @@ type Config struct {
 	// EnrollmentToken is the token used during initialization, it can expire,
 	// so don't persist it, it won't be reused.
 	EnrollmentToken string `json:"-"`
+
+	// FleetServiceToken is the service token used during initialization when
+	// a local Fleet Server is needed.
+	FleetServiceToken string `json:"-"`
 }
 
 func configPath(profile *profile.Profile) string {

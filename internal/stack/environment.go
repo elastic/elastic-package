@@ -6,6 +6,7 @@ package stack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -51,9 +52,17 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 	}
 	// TODO: Migrate from serverless variables.
 	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
-	config.Parameters[ParamServerlessFleetURL], err = p.kibana.DefaultFleetServerURL(ctx)
+
+	config, err = p.setupFleet(ctx, config, options.StackVersion)
 	if err != nil {
-		return fmt.Errorf("cannot discover default fleet server URL: %w", err)
+		return fmt.Errorf("failed to setup Fleet: %w", err)
+	}
+
+	// We need to store the config here to be able to clean up Fleet if something
+	// fails later.
+	err = storeConfig(options.Profile, config)
+	if err != nil {
+		return fmt.Errorf("failed to store config: %w", err)
 	}
 
 	outputID := ""
@@ -132,6 +141,48 @@ func (p *environmentProvider) initClients() error {
 	return nil
 }
 
+func (p environmentProvider) setupFleet(ctx context.Context, config Config, stackVersion string) (Config, error) {
+	const localFleetServerURL = "https://fleet-server:8220"
+
+	fleetServerURL, err := p.kibana.DefaultFleetServerURL(ctx)
+	if errors.Is(err, kibana.ErrFleetServerNotFound) || !isFleetServerReachable(ctx, fleetServerURL) {
+		// We need to setup a local Fleet Server
+		fleetServerURL = localFleetServerURL
+		config.Parameters[paramFleetServerManaged] = "true"
+
+		host := kibana.FleetServerHost{
+			URLs:      []string{fleetServerURL},
+			IsDefault: true,
+			Name:      "elastic-package-managed-fleet-server",
+		}
+		// TODO: Check if it is already there to avoid creating many of them.
+		err := p.kibana.AddFleetServerHost(ctx, host)
+		if err != nil && !errors.Is(err, kibana.ErrConflict) {
+			return config, fmt.Errorf("failed to add Fleet Server host: %w", err)
+		}
+
+		_, err = createFleetServerPolicy(ctx, p.kibana, stackVersion)
+		if err != nil {
+			return config, fmt.Errorf("failed to create agent policy for Fleet Server: %w", err)
+		}
+
+		config.FleetServiceToken, err = p.kibana.CreateFleetServiceToken(ctx)
+		if err != nil {
+			return config, fmt.Errorf("failed to create service token for Fleet Server: %w", err)
+		}
+	} else if err != nil {
+		return config, fmt.Errorf("failed to discover Fleet Server URL: %w", err)
+	}
+
+	config.Parameters[ParamServerlessFleetURL] = fleetServerURL
+	return config, nil
+}
+
+func isFleetServerReachable(ctx context.Context, address string) bool {
+	status, err := fleetserver.NewClient(address).Status(ctx)
+	return err == nil && strings.ToLower(status.Status) == "healthy"
+}
+
 // TearDown stops and/or removes a stack.
 func (p *environmentProvider) TearDown(ctx context.Context, options Options) error {
 	localServices := &localServicesManager{
@@ -148,7 +199,7 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 	}
 	err = forceUnenrollAgentsWithPolicy(ctx, kibanaClient)
 	if err != nil {
-		return fmt.Errorf("failed to remove agents associated to test policy")
+		return fmt.Errorf("failed to remove agents associated to test policy: %w", err)
 	}
 	err = deleteAgentPolicy(ctx, kibanaClient)
 	if err != nil {
@@ -159,6 +210,18 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
+	if managed, found := config.Parameters[paramFleetServerManaged]; found && managed == "true" {
+		err = forceUnenrollFleetServerWithPolicy(ctx, kibanaClient)
+		if err != nil {
+			return fmt.Errorf("failed to remove managed fleet servers: %w", err)
+		}
+
+		err = deleteFleetServerPolicy(ctx, kibanaClient)
+		if err != nil {
+			return fmt.Errorf("failed to delete fleet server policy: %w", err)
+		}
+	}
+
 	logstashOutput, logstashEnabled := config.Parameters[paramLogstashOutputID]
 	if logstashEnabled && logstashOutput != "" {
 		err := kibanaClient.RemoveFleetOutput(ctx, logstashOutput)
