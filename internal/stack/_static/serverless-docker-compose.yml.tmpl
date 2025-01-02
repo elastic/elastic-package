@@ -46,7 +46,7 @@ services:
        - "127.0.0.1:5044:5044"
        - "127.0.0.1:9600:9600"
     environment:
-      - xpack.monitoring.enabled=false
+      - XPACK_MONITORING_ENABLED=false
       - ELASTIC_USER={{ fact "username" }}
       - ELASTIC_PASSWORD={{ fact "password" }}
       - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
