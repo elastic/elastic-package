@@ -20,9 +20,10 @@ import (
 
 // Environment variables describing the stack.
 var (
+	ElasticsearchAPIKeyEnv   = environment.WithElasticPackagePrefix("ELASTICSEARCH_API_KEY")
 	ElasticsearchHostEnv     = environment.WithElasticPackagePrefix("ELASTICSEARCH_HOST")
-	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
 	ElasticsearchPasswordEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_PASSWORD")
+	ElasticsearchUsernameEnv = environment.WithElasticPackagePrefix("ELASTICSEARCH_USERNAME")
 	KibanaHostEnv            = environment.WithElasticPackagePrefix("KIBANA_HOST")
 	CACertificateEnv         = environment.WithElasticPackagePrefix("CA_CERT")
 )
@@ -38,60 +39,70 @@ func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, 
 	if err != nil {
 		return "", nil
 	}
+	return shellInitWithConfig(config, shellType)
+}
 
-	// NOTE: to add new env vars, the template need to be adjusted
-	t, err := initTemplate(shellType)
+func shellInitWithConfig(config *InitConfig, shellType string) (string, error) {
+	pattern, err := selectPattern(shellType)
 	if err != nil {
 		return "", fmt.Errorf("cannot get shell init template: %w", err)
 	}
 
-	return fmt.Sprintf(t,
-		ElasticsearchHostEnv, config.ElasticsearchHostPort,
-		ElasticsearchUsernameEnv, config.ElasticsearchUsername,
-		ElasticsearchPasswordEnv, config.ElasticsearchPassword,
-		KibanaHostEnv, config.KibanaHostPort,
-		CACertificateEnv, config.CACertificatePath,
-	), nil
+	template := genTemplate(pattern)
+	return template([]generatorEnvVar{
+		{ElasticsearchAPIKeyEnv, config.ElasticsearchAPIKey},
+		{ElasticsearchHostEnv, config.ElasticsearchHostPort},
+		{ElasticsearchUsernameEnv, config.ElasticsearchUsername},
+		{ElasticsearchPasswordEnv, config.ElasticsearchPassword},
+		{KibanaHostEnv, config.KibanaHostPort},
+		{CACertificateEnv, config.CACertificatePath},
+	}), nil
+}
+
+type generatorEnvVar struct {
+	name  string
+	value string
 }
 
 const (
 	// shell init code for POSIX compliant shells.
 	// IEEE POSIX Shell and Tools portion of the IEEE POSIX specification (IEEE Standard 1003.1)
-	posixTemplate = `export %s=%s
-export %s=%s
-export %s=%s
-export %s=%s
-export %s=%s`
+	posixPattern = `export %s=%s`
 
 	// fish shell init code.
 	// fish shell is similar but not compliant to POSIX.
-	fishTemplate = `set -x %s %s;
-set -x %s %s;
-set -x %s %s;
-set -x %s %s;
-set -x %s %s;`
+	fishPattern = `set -x %s %s;`
 
 	// PowerShell init code.
 	// Output to be evaluated with `elastic-package stack shellinit | Invoke-Expression
-	powershellTemplate = `$Env:%s="%s";
-$Env:%s="%s";
-$Env:%s="%s";
-$Env:%s="%s";
-$Env:%s="%s";`
+	powershellPattern = `$Env:%s="%s";`
 )
+
+func genTemplate(pattern string) func([]generatorEnvVar) string {
+	return func(vars []generatorEnvVar) string {
+		var builder strings.Builder
+		for i, v := range vars {
+			fmt.Fprintf(&builder, pattern, v.name, v.value)
+			if i < len(vars)-1 {
+				builder.WriteString("\n")
+			}
+		}
+		return builder.String()
+	}
+}
 
 // availableShellTypes list all available values for s in initTemplate
 var availableShellTypes = []string{"bash", "dash", "fish", "sh", "zsh", "pwsh", "powershell"}
 
-// InitTemplate returns code templates for shell initialization
-func initTemplate(s string) (string, error) {
+// SelectPattern returns the patterns to generate list of environment variables for each shell.
+func selectPattern(s string) (string, error) {
 	switch s {
 	case "bash", "dash", "sh", "zsh":
-		return posixTemplate, nil
+		return posixPattern, nil
 	case "fish":
-		return fishTemplate, nil
+		return fishPattern, nil
 	case "pwsh", "powershell":
-		return powershellTemplate, nil
+		return powershellPattern, nil
 	default:
 		return "", errors.New("shell type is unknown, should be one of " + strings.Join(availableShellTypes, ", "))
 	}

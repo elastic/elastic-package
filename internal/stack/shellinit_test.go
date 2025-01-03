@@ -22,22 +22,47 @@ func TestCodeTemplate(t *testing.T) {
 		args args
 		want string
 	}{
-		{"bash code template", args{"bash"}, posixTemplate},
-		{"fish code template", args{"fish"}, fishTemplate},
-		{"sh code template", args{"sh"}, posixTemplate},
-		{"zsh code template", args{"zsh"}, posixTemplate},
+		{"bash code template", args{"bash"}, posixPattern},
+		{"fish code template", args{"fish"}, fishPattern},
+		{"sh code template", args{"sh"}, posixPattern},
+		{"zsh code template", args{"zsh"}, posixPattern},
+		{"pwsh code template", args{"pwsh"}, powershellPattern},
+		{"powershell code template", args{"powershell"}, powershellPattern},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got, _ := initTemplate(tt.args.s); got != tt.want {
+			if got, _ := selectPattern(tt.args.s); got != tt.want {
 				t.Errorf("CodeTemplate() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
+func TestShellInit(t *testing.T) {
+	config := InitConfig{
+		ElasticsearchHostPort: "https://elastic.example.com:9200",
+		ElasticsearchUsername: "admin",
+		ElasticsearchPassword: "secret",
+		KibanaHostPort:        "https://kibana.example.com:5601",
+	}
+
+	expected := strings.TrimSpace(`
+export ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY=
+export ELASTIC_PACKAGE_ELASTICSEARCH_HOST=https://elastic.example.com:9200
+export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=admin
+export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=secret
+export ELASTIC_PACKAGE_KIBANA_HOST=https://kibana.example.com:5601
+export ELASTIC_PACKAGE_CA_CERT=
+`)
+
+	result, err := shellInitWithConfig(&config, "bash")
+	require.NoError(t, err)
+
+	assert.Equal(t, expected, result)
+}
+
 func TestCodeTemplate_wrongInput(t *testing.T) {
-	_, err := initTemplate("invalid shell type")
+	_, err := selectPattern("invalid shell type")
 	assert.Error(t, err, "shell type is unknown, should be one of "+strings.Join(availableShellTypes, ", "))
 }
 

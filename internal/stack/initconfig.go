@@ -9,6 +9,7 @@ import (
 )
 
 type InitConfig struct {
+	ElasticsearchAPIKey   string
 	ElasticsearchHostPort string
 	ElasticsearchUsername string
 	ElasticsearchPassword string
@@ -23,6 +24,7 @@ func StackInitConfig(profile *profile.Profile) (*InitConfig, error) {
 	}
 
 	return &InitConfig{
+		ElasticsearchAPIKey:   config.ElasticsearchAPIKey,
 		ElasticsearchHostPort: config.ElasticsearchHost,
 		ElasticsearchUsername: config.ElasticsearchUsername,
 		ElasticsearchPassword: config.ElasticsearchPassword,
