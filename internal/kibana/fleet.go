@@ -22,9 +22,12 @@ type FleetOutput struct {
 }
 
 type FleetServerHost struct {
-	URLs      []string `json:"host_urls"`
-	Name      string   `json:"name"`
-	IsDefault bool     `json:"is_default"`
+	ID   string   `json:"id,omitempty"`
+	URLs []string `json:"host_urls"`
+	Name string   `json:"name"`
+
+	// TODO: Avoid using is_default, so a cluster can be used for multiple environments.
+	IsDefault bool `json:"is_default"`
 }
 
 type AgentSSL struct {
@@ -193,6 +196,31 @@ func (c *Client) AddFleetServerHost(ctx context.Context, host FleetServerHost) e
 	}
 	if statusCode != http.StatusOK {
 		return fmt.Errorf("could not add fleet server host; API status code = %d; response body = %s", statusCode, respBody)
+	}
+
+	return nil
+}
+
+func (c *Client) UpdateFleetServerHost(ctx context.Context, host FleetServerHost) error {
+	if host.ID == "" {
+		return fmt.Errorf("host id required when updating fleet server host")
+	}
+
+	// Payload should not contain the ID, it is set in the URL.
+	id := host.ID
+	host.ID = ""
+	reqBody, err := json.Marshal(host)
+	if err != nil {
+		return fmt.Errorf("could not convert fleet server host to JSON: %w", err)
+	}
+
+	statusCode, respBody, err := c.put(ctx, fmt.Sprintf("%s/fleet_server_hosts/%s", FleetAPI, id), reqBody)
+	if err != nil {
+		return fmt.Errorf("could not update fleet server host: %w", err)
+	}
+
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not update fleet server host; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	return nil

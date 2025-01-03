@@ -53,7 +53,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 	// TODO: Migrate from serverless variables.
 	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
 
-	config, err = p.setupFleet(ctx, config, options.StackVersion)
+	config, err = p.setupFleet(ctx, config, options)
 	if err != nil {
 		return fmt.Errorf("failed to setup Fleet: %w", err)
 	}
@@ -141,7 +141,7 @@ func (p *environmentProvider) initClients() error {
 	return nil
 }
 
-func (p environmentProvider) setupFleet(ctx context.Context, config Config, stackVersion string) (Config, error) {
+func (p environmentProvider) setupFleet(ctx context.Context, config Config, options Options) (Config, error) {
 	const localFleetServerURL = "https://fleet-server:8220"
 
 	fleetServerURL, err := p.kibana.DefaultFleetServerURL(ctx)
@@ -151,17 +151,23 @@ func (p environmentProvider) setupFleet(ctx context.Context, config Config, stac
 		config.Parameters[paramFleetServerManaged] = "true"
 
 		host := kibana.FleetServerHost{
+			ID:        fleetServerHostID(options.Profile.ProfileName),
 			URLs:      []string{fleetServerURL},
 			IsDefault: true,
 			Name:      "elastic-package-managed-fleet-server",
 		}
-		// TODO: Check if it is already there to avoid creating many of them.
 		err := p.kibana.AddFleetServerHost(ctx, host)
-		if err != nil && !errors.Is(err, kibana.ErrConflict) {
+		if errors.Is(err, kibana.ErrConflict) {
+			err = p.kibana.UpdateFleetServerHost(ctx, host)
+			if err != nil {
+				return config, fmt.Errorf("failed to update existing Fleet Server host (id: %s): %w", host.ID, err)
+			}
+		}
+		if err != nil {
 			return config, fmt.Errorf("failed to add Fleet Server host: %w", err)
 		}
 
-		_, err = createFleetServerPolicy(ctx, p.kibana, stackVersion)
+		_, err = createFleetServerPolicy(ctx, p.kibana, options.StackVersion, options.Profile.ProfileName)
 		if err != nil {
 			return config, fmt.Errorf("failed to create agent policy for Fleet Server: %w", err)
 		}
@@ -176,6 +182,10 @@ func (p environmentProvider) setupFleet(ctx context.Context, config Config, stac
 
 	config.Parameters[ParamServerlessFleetURL] = fleetServerURL
 	return config, nil
+}
+
+func fleetServerHostID(namespace string) string {
+	return "elastic-package-" + namespace
 }
 
 func isFleetServerReachable(ctx context.Context, address string) bool {

@@ -21,7 +21,7 @@ const (
 
 // createFleetServerPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
-func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string) (*kibana.Policy, error) {
+func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, namespace string) (*kibana.Policy, error) {
 	policy := kibana.Policy{
 		Name:                 "Fleet Server (elastic-package)",
 		ID:                   managedFleetServerPolicyID,
