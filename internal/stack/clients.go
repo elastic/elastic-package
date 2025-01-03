@@ -21,6 +21,7 @@ import (
 func NewElasticsearchClient(customOptions ...elasticsearch.ClientOption) (*elasticsearch.Client, error) {
 	options := []elasticsearch.ClientOption{
 		elasticsearch.OptionWithAddress(os.Getenv(ElasticsearchHostEnv)),
+		elasticsearch.OptionWithAPIKey(os.Getenv(ElasticsearchAPIKeyEnv)),
 		elasticsearch.OptionWithPassword(os.Getenv(ElasticsearchPasswordEnv)),
 		elasticsearch.OptionWithUsername(os.Getenv(ElasticsearchUsernameEnv)),
 		elasticsearch.OptionWithCertificateAuthority(os.Getenv(CACertificateEnv)),
@@ -58,6 +59,10 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 		elasticsearchHost = profileConfig.ElasticsearchHostPort
 		logger.Debugf("Connecting with Elasticsearch host from current profile (profile: %s, host: %q)", profile.ProfileName, elasticsearchHost)
 	}
+	elasticsearchAPIKey, found := os.LookupEnv(ElasticsearchAPIKeyEnv)
+	if !found {
+		elasticsearchAPIKey = profileConfig.ElasticsearchAPIKey
+	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
 		elasticsearchPassword = profileConfig.ElasticsearchPassword
@@ -73,6 +78,7 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 
 	options := []elasticsearch.ClientOption{
 		elasticsearch.OptionWithAddress(elasticsearchHost),
+		elasticsearch.OptionWithAPIKey(elasticsearchAPIKey),
 		elasticsearch.OptionWithPassword(elasticsearchPassword),
 		elasticsearch.OptionWithUsername(elasticsearchUsername),
 		elasticsearch.OptionWithCertificateAuthority(caCertificate),
@@ -86,6 +92,7 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 func NewKibanaClient(customOptions ...kibana.ClientOption) (*kibana.Client, error) {
 	options := []kibana.ClientOption{
 		kibana.Address(os.Getenv(KibanaHostEnv)),
+		kibana.APIKey(os.Getenv(ElasticsearchAPIKeyEnv)),
 		kibana.Password(os.Getenv(ElasticsearchPasswordEnv)),
 		kibana.Username(os.Getenv(ElasticsearchUsernameEnv)),
 		kibana.CertificateAuthority(os.Getenv(CACertificateEnv)),
@@ -123,6 +130,10 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 		kibanaHost = profileConfig.KibanaHostPort
 		logger.Debugf("Connecting with Kibana host from current profile (profile: %s, host: %q)", profile.ProfileName, kibanaHost)
 	}
+	elasticsearchAPIKey, found := os.LookupEnv(ElasticsearchAPIKeyEnv)
+	if !found {
+		elasticsearchAPIKey = profileConfig.ElasticsearchAPIKey
+	}
 	elasticsearchPassword, found := os.LookupEnv(ElasticsearchPasswordEnv)
 	if !found {
 		elasticsearchPassword = profileConfig.ElasticsearchPassword
@@ -138,6 +149,7 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	options := []kibana.ClientOption{
 		kibana.Address(kibanaHost),
+		kibana.APIKey(elasticsearchAPIKey),
 		kibana.Password(elasticsearchPassword),
 		kibana.Username(elasticsearchUsername),
 		kibana.CertificateAuthority(caCertificate),
@@ -156,6 +168,11 @@ func FindCACertificate(profile *profile.Profile) (string, error) {
 			return "", fmt.Errorf("failed to load config from profile: %w", err)
 		}
 		caCertPath = profileConfig.CACertificatePath
+	}
+
+	// Avoid returning an empty certificate path, fallback to the default path.
+	if caCertPath == "" {
+		caCertPath = profile.Path(CACertificateFile)
 	}
 
 	return caCertPath, nil

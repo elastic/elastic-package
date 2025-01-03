@@ -480,6 +480,7 @@ The output of this command is intended to be evaluated by the current shell. For
 
 Relevant environment variables are:
 
+- ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY
 - ELASTIC_PACKAGE_ELASTICSEARCH_HOST
 - ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 - ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
@@ -690,13 +691,15 @@ There are available some environment variables that could be used to change some
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
-    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch (e.g. elastic)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch and kibana (e.g. elastic)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD`: Password of that user.
     - `ELASTIC_PACKAGE_ELASTICSEARCH_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure an external metricstore while running benchmarks (more info at [system benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_benchmarking.md#setting-up-an-external-metricstore) or [rally benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/rally_benchmarking.md#setting-up-an-external-metricstore)):
     - `ELASTIC_PACKAGE_ESMETRICSTORE_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
     - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.

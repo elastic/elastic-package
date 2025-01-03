@@ -655,16 +655,18 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
 	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
+	apiKey := os.Getenv(benchcommon.ESMetricstoreAPIKeyEnv)
 	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
 	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
 	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
-	if address == "" || user == "" || pass == "" {
+	if address == "" || ((user == "" || pass == "") && apiKey == "") {
 		logger.Debugf("can't initialize metricstore, missing environment configuration")
 		return nil, nil
 	}
 
 	esClient, err := stack.NewElasticsearchClient(
 		elasticsearch.OptionWithAddress(address),
+		elasticsearch.OptionWithAPIKey(apiKey),
 		elasticsearch.OptionWithUsername(user),
 		elasticsearch.OptionWithPassword(pass),
 		elasticsearch.OptionWithCertificateAuthority(cacert),
