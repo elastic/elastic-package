@@ -297,7 +297,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
 		"stack_version":          stackVersion,
 		"fleet_url":              fleetURL,
-		"kibana_host":            kibanaHost,
+		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
 		"enrollment_token":       enrollmentToken,

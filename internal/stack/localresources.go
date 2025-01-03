@@ -53,11 +53,11 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 		"agent_version":        stackVersion,
 		"agent_image":          imageRefs.ElasticAgent,
 		"logstash_image":       imageRefs.Logstash,
-		"elasticsearch_host":   dockerInternalHost(esHostWithPort(config.ElasticsearchHost)),
+		"elasticsearch_host":   DockerInternalHost(esHostWithPort(config.ElasticsearchHost)),
 		"api_key":              config.ElasticsearchAPIKey,
 		"username":             config.ElasticsearchUsername,
 		"password":             config.ElasticsearchPassword,
-		"kibana_host":          dockerInternalHost(config.KibanaHost),
+		"kibana_host":          DockerInternalHost(config.KibanaHost),
 		"fleet_url":            config.Parameters[ParamServerlessFleetURL],
 		"enrollment_token":     config.EnrollmentToken,
 		"logstash_enabled":     profile.Config("stack.logstash_enabled", "false"),
@@ -118,7 +118,7 @@ func esHostWithPort(host string) string {
 	return host
 }
 
-func dockerInternalHost(host string) string {
+func DockerInternalHost(host string) string {
 	url, err := url.Parse(host)
 	if err != nil {
 		return host

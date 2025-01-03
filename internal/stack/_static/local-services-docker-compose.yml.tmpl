@@ -36,6 +36,8 @@ services:
     - "./fleet-server-healthcheck.sh:/healthcheck.sh:ro"
     ports:
     - "127.0.0.1:8220:8220"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
   fleet-server_is_ready:
     image: tianon/true:multiarch
@@ -70,6 +72,8 @@ services:
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
     - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
   elastic-agent_is_ready:
     image: tianon/true:multiarch
@@ -101,6 +105,8 @@ services:
       - ELASTIC_USER={{ fact "username" }}
       - ELASTIC_PASSWORD={{ fact "password" }}
       - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   logstash_is_ready:
     image: tianon/true:multiarch

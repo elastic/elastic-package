@@ -62,3 +62,5 @@ services:
         source: ${SERVICE_LOGS_DIR}
         target: /run/service_logs/
         read_only: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
