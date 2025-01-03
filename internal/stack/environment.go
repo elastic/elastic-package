@@ -256,7 +256,15 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 	status := []ServiceStatus{
 		p.elasticsearchStatus(ctx, options),
 		p.kibanaStatus(ctx, options),
-		p.fleetStatus(ctx, options),
+	}
+
+	config, err := LoadConfig(options.Profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load configuration: %w", err)
+	}
+	// If fleet is managed, it will be included in the local services status.
+	if managed, ok := config.Parameters[paramFleetServerManaged]; !ok && managed != "true" {
+		status = append(status, p.fleetStatus(ctx, options, config))
 	}
 
 	localServices := &localServicesManager{
@@ -329,15 +337,9 @@ func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options)
 	return status
 }
 
-func (p *environmentProvider) fleetStatus(ctx context.Context, options Options) ServiceStatus {
+func (p *environmentProvider) fleetStatus(ctx context.Context, options Options, config Config) ServiceStatus {
 	status := ServiceStatus{
 		Name: "fleet",
-	}
-
-	config, err := LoadConfig(options.Profile)
-	if err != nil {
-		status.Status = "failed to load configuration: " + err.Error()
-		return status
 	}
 
 	address, ok := config.Parameters[ParamServerlessFleetURL]
