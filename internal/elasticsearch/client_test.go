@@ -64,6 +64,11 @@ func TestClusterHealth(t *testing.T) {
 			Record: "./testdata/elasticsearch-8-5-healthy",
 		},
 		{
+			// To reproduce the scenario, start a project in serverless, and
+			// replace the host in the urls with https://127.0.0.1:9200.
+			Record: "./testdata/elasticsearch-serverless-healthy",
+		},
+		{
 			// To reproduce the scenario, start the stack with 8.5 version and
 			// limited disk space. If difficult to reproduce, manually modify
 			// the recording using info from previous changesets.

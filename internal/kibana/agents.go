@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -49,7 +50,18 @@ func (a *Agent) String() string {
 
 // ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents(ctx context.Context) ([]Agent, error) {
-	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agents", FleetAPI))
+	return c.QueryAgents(ctx, "")
+}
+
+// QueryAgents returns the list of agents enrolled with Fleet that satisfy a kibana query.
+func (c *Client) QueryAgents(ctx context.Context, kuery string) ([]Agent, error) {
+	resource := fmt.Sprintf("%s/agents", FleetAPI)
+	if kuery != "" {
+		values := make(url.Values)
+		values.Set("kuery", kuery)
+		resource += "?" + values.Encode()
+	}
+	statusCode, respBody, err := c.get(ctx, resource)
 	if err != nil {
 		return nil, fmt.Errorf("could not list agents: %w", err)
 	}

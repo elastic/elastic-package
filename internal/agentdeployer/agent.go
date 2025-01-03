@@ -254,14 +254,31 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	if err != nil {
 		return "", fmt.Errorf("failed to load config from profile: %w", err)
 	}
+	enrollmentToken := ""
+	if config.ElasticsearchAPIKey != "" {
+		// TODO: Review if this is the correct place to get the enrollment token.
+		kibanaClient, err := stack.NewKibanaClientFromProfile(d.profile)
+		if err != nil {
+			return "", fmt.Errorf("failed to create kibana client: %w", err)
+		}
+		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(context.TODO(), agentInfo.Policy.ID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+		}
+	}
 
+	// TODO: Include these settings more explicitly in `config`.
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
 	stackVersion := d.stackVersion
-	if config.Provider == stack.ProviderServerless {
-		fleetURL = config.Parameters[stack.ParamServerlessFleetURL]
+	if config.Provider != stack.ProviderCompose {
 		kibanaHost = config.KibanaHost
-		stackVersion = config.Parameters[stack.ParamServerlessLocalStackVersion]
+	}
+	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
+		fleetURL = url
+	}
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
+		stackVersion = version
 	}
 
 	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)
@@ -280,9 +297,10 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
 		"stack_version":          stackVersion,
 		"fleet_url":              fleetURL,
-		"kibana_host":            kibanaHost,
+		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
+		"enrollment_token":       enrollmentToken,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{

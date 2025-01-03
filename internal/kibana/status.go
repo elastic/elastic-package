@@ -16,6 +16,7 @@ const SNAPSHOT_SUFFIX = "-SNAPSHOT"
 type VersionInfo struct {
 	Number        string `json:"number"`
 	BuildSnapshot bool   `json:"build_snapshot"`
+	BuildFlavor   string `json:"build_flavor"`
 }
 
 func (v VersionInfo) Version() string {

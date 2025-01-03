@@ -35,6 +35,7 @@ type ClusterStateRequest = esapi.ClusterStateRequest
 // clientOptions are used to configure a client.
 type clientOptions struct {
 	address  string
+	apiKey   string
 	username string
 	password string
 
@@ -46,6 +47,13 @@ type clientOptions struct {
 }
 
 type ClientOption func(*clientOptions)
+
+// OptionWithAPIKey sets the API key to be used by the client for authentication.
+func OptionWithAPIKey(apiKey string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.apiKey = apiKey
+	}
+}
 
 // OptionWithAddress sets the address to be used by the client.
 func OptionWithAddress(address string) ClientOption {
@@ -109,6 +117,7 @@ func NewConfig(customOptions ...ClientOption) (elasticsearch.Config, error) {
 
 	config := elasticsearch.Config{
 		Addresses: []string{options.address},
+		APIKey:    options.apiKey,
 		Username:  options.username,
 		Password:  options.password,
 	}
@@ -145,6 +154,10 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusGone {
+		// We are in a managed deployment, API not available, assume healthy.
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to check cluster health: %s", resp.String())
 	}
@@ -174,6 +187,37 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+type Info struct {
+	Name        string `json:"name"`
+	ClusterName string `json:"cluster_name"`
+	ClusterUUID string `json:"cluster_uuid"`
+	Version     struct {
+		Number      string `json:"number"`
+		BuildFlavor string `json:"build_flavor"`
+	} `json:"version`
+}
+
+// Info gets cluster information and metadata.
+func (client *Client) Info(ctx context.Context) (*Info, error) {
+	resp, err := client.Client.Info(client.Client.Info.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get cluster info: %s", resp.String())
+	}
+
+	var info Info
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding cluster info: %w", err)
+	}
+
+	return &info, nil
 }
 
 // IsFailureStoreAvailable checks if the failure store is available.
