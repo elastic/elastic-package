@@ -170,5 +170,10 @@ func FindCACertificate(profile *profile.Profile) (string, error) {
 		caCertPath = profileConfig.CACertificatePath
 	}
 
+	// Avoid returning an empty certificate path, fallback to the default path.
+	if caCertPath == "" {
+		caCertPath = profile.Path(CACertificateFile)
+	}
+
 	return caCertPath, nil
 }
