@@ -7,14 +7,11 @@ package fields
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -27,17 +24,6 @@ type MappingValidator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
 
-	// SpecVersion contains the version of the spec used by the package.
-	specVersion semver.Version
-
-	disabledDependencyManagement bool
-
-	enabledImportAllECSSchema bool
-
-	disabledNormalization bool
-
-	injectFieldsOptions InjectFieldsOptions
-
 	esClient *elasticsearch.Client
 
 	indexTemplateName string
@@ -49,50 +35,6 @@ type MappingValidator struct {
 
 // MappingValidatorOption represents an optional flag that can be passed to  CreateValidatorForMappings.
 type MappingValidatorOption func(*MappingValidator) error
-
-// WithMappingValidatorSpecVersion enables validation dependant of the spec version used by the package.
-func WithMappingValidatorSpecVersion(version string) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		sv, err := semver.NewVersion(version)
-		if err != nil {
-			return fmt.Errorf("invalid version %q: %v", version, err)
-		}
-		v.specVersion = *sv
-		return nil
-	}
-}
-
-// WithMappingValidatorDisabledDependencyManagement configures the validator to ignore external fields and won't follow dependencies.
-func WithMappingValidatorDisabledDependencyManagement() MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.disabledDependencyManagement = true
-		return nil
-	}
-}
-
-// WithMappingValidatorEnabledImportAllECSSchema configures the validator to check or not the fields with the complete ECS schema.
-func WithMappingValidatorEnabledImportAllECSSChema(importSchema bool) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.enabledImportAllECSSchema = importSchema
-		return nil
-	}
-}
-
-// WithMappingValidatorDisableNormalization configures the validator to disable normalization.
-func WithMappingValidatorDisableNormalization(disabledNormalization bool) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.disabledNormalization = disabledNormalization
-		return nil
-	}
-}
-
-// WithMappingValidatorInjectFieldsOptions configures fields injection.
-func WithMappingValidatorInjectFieldsOptions(options InjectFieldsOptions) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.injectFieldsOptions = options
-		return nil
-	}
-}
 
 // WithMappingValidatorElasticsearchClient configures the Elasticsearch client.
 func WithMappingValidatorElasticsearchClient(esClient *elasticsearch.Client) MappingValidatorOption {
@@ -135,13 +77,12 @@ func WithMappingValidatorExceptionFields(fields []string) MappingValidatorOption
 }
 
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(fieldsParentDir string, esClient *elasticsearch.Client, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
-	p := packageRoot{}
+func CreateValidatorForMappings(esClient *elasticsearch.Client, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
 	opts = append(opts, WithMappingValidatorElasticsearchClient(esClient))
-	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
+	return createValidatorForMappingsAndPackageRoot(opts...)
 }
 
-func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
+func createValidatorForMappingsAndPackageRoot(opts ...MappingValidatorOption) (v *MappingValidator, err error) {
 	v = new(MappingValidator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -149,33 +90,6 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 		}
 	}
 
-	if len(v.Schema) > 0 {
-		return v, nil
-	}
-
-	// TODO: Should we remove this code to load external and local fields?
-	fieldsDir := filepath.Join(fieldsParentDir, "fields")
-
-	var fdm *DependencyManager
-	if !v.disabledDependencyManagement {
-		packageRoot, found, err := finder.FindPackageRoot()
-		if err != nil {
-			return nil, fmt.Errorf("can't find package root: %w", err)
-		}
-		if !found {
-			return nil, errors.New("package root not found and dependency management is enabled")
-		}
-		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
-		}
-	}
-	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
-	if err != nil {
-		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
-	}
-
-	v.Schema = append(fields, v.Schema...)
 	return v, nil
 }
 

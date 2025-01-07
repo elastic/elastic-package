@@ -14,14 +14,12 @@ import (
 )
 
 func TestComparingMappings(t *testing.T) {
-	defaultSpecVersion := "3.3.0"
 	cases := []struct {
 		title            string
 		preview          map[string]any
 		actual           map[string]any
 		schema           []FieldDefinition
 		dynamicTemplates []map[string]any
-		spec             string
 		exceptionFields  []string
 		expectedErrors   []string
 	}{
@@ -517,7 +515,6 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			exceptionFields: []string{"access.field"},
-			spec:            "1.0.0",
 			expectedErrors: []string{
 				`field "error.field" is undefined: missing definition for path`,
 				// should status.field return error ? or should it be ignored?
@@ -679,7 +676,6 @@ func TestComparingMappings(t *testing.T) {
 			},
 			// foo is added to the exception list because it is type nested
 			exceptionFields: []string{"foo"},
-			spec:            "3.0.0",
 			schema:          []FieldDefinition{},
 			expectedErrors:  []string{},
 		},
@@ -701,7 +697,6 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			exceptionFields: []string{},
-			spec:            "3.0.1",
 			schema:          []FieldDefinition{},
 			expectedErrors: []string{
 				`not found properties in preview mappings for path: "foo"`,
@@ -790,7 +785,6 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			exceptionFields: []string{},
-			spec:            "3.0.0",
 			schema:          []FieldDefinition{},
 			expectedErrors: []string{
 				// Should it be considered this error in "foa" "missing time_series_metric bar"?
@@ -803,14 +797,8 @@ func TestComparingMappings(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
-			specVersion := defaultSpecVersion
-			if c.spec != "" {
-				specVersion = c.spec
-			}
-			v, err := CreateValidatorForMappings("", nil,
-				WithMappingValidatorSpecVersion(specVersion),
+			v, err := CreateValidatorForMappings(nil,
 				WithMappingValidatorFallbackSchema(c.schema),
-				WithMappingValidatorDisabledDependencyManagement(),
 				WithMappingValidatorExceptionFields(c.exceptionFields),
 			)
 			require.NoError(t, err)
