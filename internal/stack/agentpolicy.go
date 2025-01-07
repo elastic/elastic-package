@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	managedAgentPolicyID  = "elastic-agent-managed-ep"
-	fleetLogstashOutput   = "fleet-logstash-output"
-	paramLogstashOutputID = "logstash_output"
+	managedAgentPolicyID     = "elastic-agent-managed-ep"
+	fleetLogstashOutput      = "fleet-logstash-output"
+	fleetElasticsearchOutput = "fleet-elasticsearch-output"
 )
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
@@ -114,24 +114,32 @@ func forceUnenrollAgentsWithPolicy(ctx context.Context, kibanaClient *kibana.Cli
 	return nil
 }
 
-func addLogstashFleetOutput(ctx context.Context, kibanaClient *kibana.Client) error {
-	logstashFleetOutput := kibana.FleetOutput{
-		Name:  "logstash-output",
-		ID:    fleetLogstashOutput,
-		Type:  "logstash",
-		Hosts: []string{"logstash:5044"},
+func addFleetOutput(ctx context.Context, client *kibana.Client, outputType, host, id string) error {
+	output := kibana.FleetOutput{
+		Name:  id,
+		ID:    id,
+		Type:  outputType,
+		Hosts: []string{host},
 	}
 
-	err := kibanaClient.AddFleetOutput(ctx, logstashFleetOutput)
+	err := client.AddFleetOutput(ctx, output)
 	if errors.Is(err, kibana.ErrConflict) {
 		// Output already exists.
 		return nil
 	}
 	if err != nil {
-		return fmt.Errorf("failed to add logstash fleet output: %w", err)
+		return fmt.Errorf("failed to add %s fleet output of type %s: %w", id, outputType, err)
 	}
 
 	return nil
+}
+
+func addLogstashFleetOutput(ctx context.Context, client *kibana.Client) error {
+	return addFleetOutput(ctx, client, "logstash", "logstash:5044", fleetLogstashOutput)
+}
+
+func addElasticsearchFleetOutput(ctx context.Context, client *kibana.Client, host string) error {
+	return addFleetOutput(ctx, client, "elasticsearch", host, fleetElasticsearchOutput)
 }
 
 func updateLogstashFleetOutput(ctx context.Context, profile *profile.Profile, kibanaClient *kibana.Client) error {

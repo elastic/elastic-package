@@ -27,6 +27,9 @@ type Config struct {
 	KibanaHost            string `json:"kibana_host,omitempty"`
 	CACertFile            string `json:"ca_cert_file,omitempty"`
 
+	OutputID      string `json:"output_id,omitempty"`
+	FleetServerID string `json:"fleet_server_id,omitempty"`
+
 	// EnrollmentToken is the token used during initialization, it can expire,
 	// so don't persist it, it won't be reused.
 	EnrollmentToken string `json:"-"`

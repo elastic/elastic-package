@@ -325,8 +325,13 @@ func (r tester) Parallel() bool {
 
 // Run runs the system tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+	stackConfig, err := stack.LoadConfig(r.profile)
+	if err != nil {
+		return nil, err
+	}
+
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
-		return r.run(ctx)
+		return r.run(ctx, stackConfig)
 	}
 
 	result := r.newResult("(init)")
@@ -354,7 +359,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo)
+	scenario, err := r.prepareScenario(ctx, testConfig, stackConfig, svcInfo)
 	if r.runSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -575,12 +580,12 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
+func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 
 	startTesting := time.Now()
 
-	results, err = r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
+	results, err = r.runTestPerVariant(ctx, stackConfig, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
 	}
@@ -598,11 +603,6 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	stackConfig, err := stack.LoadConfig(r.profile)
-	if err != nil {
-		return nil, err
-	}
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -627,7 +627,7 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	return results, nil
 }
 
-func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -640,7 +640,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, svcInfo)
+	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -931,7 +931,7 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
-func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
 	var err error
@@ -1022,8 +1022,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			Namespace:   common.CreateTestRunID(),
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		// TODO: Migrate from stack.logstash_enabled to the stack config.
 		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
 			policy.DataOutputID = "fleet-logstash-output"
+		}
+		if stackConfig.OutputID != "" {
+			policy.DataOutputID = stackConfig.OutputID
 		}
 		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
 		if err != nil {
@@ -1599,7 +1603,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
+func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
@@ -1611,7 +1615,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, svcInfo)
+	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
 		return result.WithError(err)
 	}

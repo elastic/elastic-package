@@ -65,15 +65,22 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return fmt.Errorf("failed to store config: %w", err)
 	}
 
-	outputID := ""
 	logstashEnabled := options.Profile.Config(configLogstashEnabled, "false") == "true"
 	if logstashEnabled {
 		err := addLogstashFleetOutput(ctx, p.kibana)
 		if err != nil {
 			return fmt.Errorf("failed to create logstash output: %w", err)
 		}
-		outputID = fleetLogstashOutput
-		config.Parameters[paramLogstashOutputID] = fleetLogstashOutput
+		config.OutputID = fleetLogstashOutput
+	} else {
+		internalHost := DockerInternalHost(config.ElasticsearchHost)
+		if internalHost != config.ElasticsearchHost {
+			err := addElasticsearchFleetOutput(ctx, p.kibana, internalHost)
+			if err != nil {
+				fmt.Errorf("failed to create elasticsearch output")
+			}
+			config.OutputID = fleetElasticsearchOutput
+		}
 	}
 
 	// We need to store the config here to be able to clean up the logstash output if something
@@ -84,7 +91,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 	}
 
 	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
-	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, outputID, selfMonitor)
+	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, config.OutputID, selfMonitor)
 	if err != nil {
 		return fmt.Errorf("failed to create agent policy: %w", err)
 	}
@@ -232,11 +239,10 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 		}
 	}
 
-	logstashOutput, logstashEnabled := config.Parameters[paramLogstashOutputID]
-	if logstashEnabled && logstashOutput != "" {
-		err := kibanaClient.RemoveFleetOutput(ctx, logstashOutput)
+	if config.OutputID != "" {
+		err := kibanaClient.RemoveFleetOutput(ctx, config.OutputID)
 		if err != nil {
-			return fmt.Errorf("failed to delete %s output: %s", fleetLogstashOutput, err)
+			return fmt.Errorf("failed to delete %s output: %s", config.OutputID, err)
 		}
 	}
 
