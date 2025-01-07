@@ -284,6 +284,13 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain status of local services: %w", err)
 	}
+	if len(localStatus) == 0 {
+		localStatus = []ServiceStatus{{
+			Name:    "elastic-agent",
+			Version: "unknown",
+			Status:  "missing",
+		}}
+	}
 
 	status = append(status, localStatus...)
 	return status, nil
@@ -291,7 +298,8 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 
 func (p *environmentProvider) elasticsearchStatus(ctx context.Context, options Options) ServiceStatus {
 	status := ServiceStatus{
-		Name: "elasticsearch",
+		Name:    "elasticsearch",
+		Version: "unknown",
 	}
 	client, err := NewElasticsearchClientFromProfile(options.Profile)
 	if err != nil {
@@ -320,7 +328,8 @@ func (p *environmentProvider) elasticsearchStatus(ctx context.Context, options O
 
 func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options) ServiceStatus {
 	status := ServiceStatus{
-		Name: "kibana",
+		Name:    "kibana",
+		Version: "unknown",
 	}
 	client, err := NewKibanaClientFromProfile(options.Profile)
 	if err != nil {
@@ -336,12 +345,12 @@ func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options)
 	}
 
 	versionInfo, err := client.Version()
-	if err != nil {
-		status.Version = "unknown"
-	} else if versionInfo.BuildFlavor == "serverless" {
-		status.Version = "serverless"
-	} else {
-		status.Version = versionInfo.Version()
+	if err == nil {
+		if versionInfo.BuildFlavor == "serverless" {
+			status.Version = "serverless"
+		} else {
+			status.Version = versionInfo.Version()
+		}
 	}
 
 	return status
@@ -349,7 +358,8 @@ func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options)
 
 func (p *environmentProvider) fleetStatus(ctx context.Context, options Options, config Config) ServiceStatus {
 	status := ServiceStatus{
-		Name: "fleet",
+		Name:    "fleet-server",
+		Version: "unknown",
 	}
 
 	address, ok := config.Parameters[ParamServerlessFleetURL]
@@ -365,8 +375,6 @@ func (p *environmentProvider) fleetStatus(ctx context.Context, options Options, 
 		status.Status = "unknown: " + err.Error()
 	} else if fleetServerStatus.Status != "" {
 		status.Status = strings.ToLower(fleetServerStatus.Status)
-	} else {
-		status.Status = "unknown"
 	}
 
 	if fleetServerStatus != nil {
