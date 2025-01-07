@@ -25,7 +25,6 @@ type dynamicTemplate struct {
 
 func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any) (bool, error) {
 	fullRegex := d.matchPattern == "regex"
-	var err error
 
 	if len(d.match) > 0 {
 		name := fieldNameFromPath(currentPath)
@@ -33,12 +32,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			// If there is no an exact match, it is compared with patterns/wildcards
 
 			// logger.Warnf(">>>> no contained %s: %s", d.match, name)
-			var matches bool
-			if fullRegex {
-				matches, err = stringMatchesPatterns(d.match, name)
-			} else {
-				matches, err = stringMatchesWildcards(d.match, name)
-			}
+			matches, err := stringMatchesPatterns(d.match, name, fullRegex)
 			if err != nil {
 				return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 			}
@@ -56,12 +50,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			return false, nil
 		}
 
-		var matches bool
-		if fullRegex {
-			matches, err = stringMatchesPatterns(d.unmatch, name)
-		} else {
-			matches, err = stringMatchesWildcards(d.unmatch, name)
-		}
+		matches, err := stringMatchesPatterns(d.unmatch, name, fullRegex)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 		}
@@ -74,7 +63,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 
 	if len(d.pathMatch) > 0 {
 		// logger.Debugf("path_match -> Comparing %s to %q", strings.Join(d.pathMatch, ";"), currentPath)
-		matches, err := stringMatchesWildcards(d.pathMatch, currentPath)
+		matches, err := stringMatchesPatterns(d.pathMatch, currentPath, fullRegex)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 		}
@@ -85,7 +74,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 	}
 
 	if len(d.unpathMatch) > 0 {
-		matches, err := stringMatchesWildcards(d.unpathMatch, currentPath)
+		matches, err := stringMatchesPatterns(d.unpathMatch, currentPath, fullRegex)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 		}
@@ -97,7 +86,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 	return true, nil
 }
 
-func stringMatchesPatterns(regexes []string, elem string) (bool, error) {
+func stringMatchesRegex(regexes []string, elem string) (bool, error) {
 	applies := false
 	for _, v := range regexes {
 		if !strings.Contains(v, "*") {
@@ -117,7 +106,12 @@ func stringMatchesPatterns(regexes []string, elem string) (bool, error) {
 	return applies, nil
 }
 
-func stringMatchesWildcards(regexes []string, elem string) (bool, error) {
+func stringMatchesPatterns(regexes []string, elem string, fullRegex bool) (bool, error) {
+	if fullRegex {
+		return stringMatchesRegex(regexes, elem)
+	}
+
+	// transform wildcards to valid regexes
 	updatedRegexes := []string{}
 	for _, v := range regexes {
 		r := strings.ReplaceAll(v, ".", "\\.")
@@ -128,7 +122,7 @@ func stringMatchesWildcards(regexes []string, elem string) (bool, error) {
 
 		updatedRegexes = append(updatedRegexes, r)
 	}
-	return stringMatchesPatterns(updatedRegexes, elem)
+	return stringMatchesRegex(updatedRegexes, elem)
 }
 
 func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTemplate, error) {
