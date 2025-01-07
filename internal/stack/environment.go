@@ -77,7 +77,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		if internalHost != config.ElasticsearchHost {
 			err := addElasticsearchFleetOutput(ctx, p.kibana, internalHost)
 			if err != nil {
-				fmt.Errorf("failed to create elasticsearch output")
+				return fmt.Errorf("failed to create elasticsearch output: %w", err)
 			}
 			config.OutputID = fleetElasticsearchOutput
 		}
