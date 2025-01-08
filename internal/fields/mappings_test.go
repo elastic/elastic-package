@@ -99,6 +99,24 @@ func TestComparingMappings(t *testing.T) {
 				"foo": map[string]any{
 					"type": "keyword",
 				},
+				"user": map[string]any{
+					"type": "keyword",
+				},
+				"time": map[string]any{
+					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+						"other": map[string]any{
+							"type": "match_only_text",
+						},
+					},
+				},
+				// Should this fail since it has no multi-fields as in the ECS definition?
+				"name": map[string]any{
+					"type": "keyword",
+				},
 			},
 			schema: []FieldDefinition{
 				{
@@ -116,9 +134,35 @@ func TestComparingMappings(t *testing.T) {
 					Type:     "keyword",
 					External: "",
 				},
+				{
+					Name:     "time",
+					Type:     "keyword",
+					External: "ecs",
+					MultiFields: []FieldDefinition{
+						{
+							Name:     "text",
+							Type:     "match_only_text",
+							External: "ecs",
+						},
+					},
+				},
+				{
+					Name:     "name",
+					Type:     "keyword",
+					External: "ecs",
+					MultiFields: []FieldDefinition{
+						{
+							Name:     "text",
+							Type:     "match_only_text",
+							External: "ecs",
+						},
+					},
+				},
 			},
 			expectedErrors: []string{
 				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
+				`field "user" is undefined: missing definition for path (not in ECS)`,
+				`field "time" is undefined: missing definition for multi-fields in ECS: "other"`,
 			},
 		},
 		{
@@ -230,6 +274,14 @@ func TestComparingMappings(t *testing.T) {
 		{
 			title: "validate multifields failure",
 			preview: map[string]any{
+				"time": map[string]any{
+					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+					},
+				},
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -255,6 +307,10 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			actual: map[string]any{
+				// Should this fail since it has no multi-fields as in the preview?
+				"time": map[string]any{
+					"type": "keyword",
+				},
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{

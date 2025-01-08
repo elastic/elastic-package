@@ -315,7 +315,29 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return err
 	}
 
-	// Compare multifields
+	return compareMultiFieldsInECSSchema(currentPath, found, definition)
+}
+
+func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) error {
+	actualType := mappingParameter("type", actual)
+	if ecs.Type != actualType {
+		// exceptions related to numbers
+		if !isNumberTypeField(ecs.Type, actualType) {
+			return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type)
+		} else {
+			logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(ecs.Type), string(actualType))
+		}
+	}
+
+	// Compare other parameters
+	metricType := mappingParameter("time_series_metric", actual)
+	if ecs.MetricType != metricType {
+		return fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType)
+	}
+	return nil
+}
+
+func compareMultiFieldsInECSSchema(currentPath string, found *FieldDefinition, definition map[string]any) error {
 	var ecsMultiFields []FieldDefinition
 	// Filter multi-fields added by appendECSMappingMultifields
 	for _, f := range found.MultiFields {
@@ -342,6 +364,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return fmt.Errorf("invalid multi_field mapping %q: %w", currentPath, err)
 	}
 
+	missingMultiFields := []string{}
 	for key, value := range actualMultiFields {
 		multiFieldPath := currentMappingPath(currentPath, key)
 
@@ -349,14 +372,26 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		if !ok {
 			return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
 		}
+		found := false
 		for _, ecsMultiField := range ecsMultiFields {
+			if ecsMultiField.Name != key {
+				continue
+			}
 			err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
 			if err == nil {
-				return nil
+				found = true
+				break
 			}
 		}
+		if !found {
+			missingMultiFields = append(missingMultiFields, key)
+		}
 	}
-	return fmt.Errorf("not found multi-field definition in ECS for %q", currentPath)
+	if len(missingMultiFields) > 0 {
+		return fmt.Errorf("missing definition for multi-fields in ECS: %q", strings.Join(missingMultiFields, ", "))
+	}
+
+	return nil
 
 	// for _, ecsMultiField := range ecsMultiFields {
 	// 	multiFieldPath := currentMappingPath(currentPath, ecsMultiField.Name)
@@ -377,25 +412,6 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	// }
 
 	// return nil
-}
-
-func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) error {
-	actualType := mappingParameter("type", actual)
-	if ecs.Type != actualType {
-		// exceptions related to numbers
-		if !isNumberTypeField(ecs.Type, actualType) {
-			return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type)
-		} else {
-			logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(ecs.Type), string(actualType))
-		}
-	}
-
-	// Compare other parameters
-	metricType := mappingParameter("time_series_metric", actual)
-	if ecs.MetricType != metricType {
-		return fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType)
-	}
-	return nil
 }
 
 // flattenMappings returns all the mapping definitions found at "path" flattened including
@@ -670,7 +686,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		return nil
 	}
 
-	logger.Debugf(">> No template matching for path: %q", currentPath)
+	// logger.Debugf(">> No template matching for path: %q", currentPath)
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 
