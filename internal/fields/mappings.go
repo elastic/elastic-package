@@ -325,13 +325,16 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		}
 	}
 
-	// if there are no multifieds in ECS, nothing to compare
-	if len(ecsMultiFields) == 0 {
+	// if there are no multifieds in the actual definition, nothing to compare
+	if !isMultiFields(definition) {
 		return nil
 	}
+	// if len(ecsMultiFields) == 0 {
+	// 	return nil
+	// }
 
-	if isMultiFields(definition) != (len(ecsMultiFields) > 0) {
-		return fmt.Errorf("not matched definitions for multifields for %q: actual multi_fields in mappings %t - ECS multi_fields length %d", currentPath, isMultiFields(definition), len(ecsMultiFields))
+	if len(ecsMultiFields) == 0 {
+		return fmt.Errorf("not matched definitions for multifields for %q: no multi-fields found in ECS", currentPath)
 	}
 
 	actualMultiFields, err := getMappingDefinitionsField("fields", definition)
@@ -339,25 +342,41 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return fmt.Errorf("invalid multi_field mapping %q: %w", currentPath, err)
 	}
 
-	for _, ecsMultiField := range ecsMultiFields {
-		multiFieldPath := currentMappingPath(currentPath, ecsMultiField.Name)
-		actualMultiField, ok := actualMultiFields[ecsMultiField.Name]
-		if !ok {
-			return fmt.Errorf("missing multi_field definition for %q", multiFieldPath)
-		}
+	for key, value := range actualMultiFields {
+		multiFieldPath := currentMappingPath(currentPath, key)
 
-		def, ok := actualMultiField.(map[string]any)
+		def, ok := value.(map[string]any)
 		if !ok {
 			return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
 		}
-
-		err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
-		if err != nil {
-			return err
+		for _, ecsMultiField := range ecsMultiFields {
+			err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
+			if err == nil {
+				return nil
+			}
 		}
 	}
+	return fmt.Errorf("not found multi-field definition in ECS for %q", currentPath)
 
-	return nil
+	// for _, ecsMultiField := range ecsMultiFields {
+	// 	multiFieldPath := currentMappingPath(currentPath, ecsMultiField.Name)
+	// 	actualMultiField, ok := actualMultiFields[ecsMultiField.Name]
+	// 	if !ok {
+	// 		return fmt.Errorf("missing multi_field definition for %q", multiFieldPath)
+	// 	}
+
+	// 	def, ok := actualMultiField.(map[string]any)
+	// 	if !ok {
+	// 		return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
+	// 	}
+
+	// 	err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
+
+	// return nil
 }
 
 func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) error {

@@ -805,9 +805,6 @@ func TestComparingMappings(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		if c.title != "validate multifields failure" {
-			continue
-		}
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
 			v, err := CreateValidatorForMappings(nil,
