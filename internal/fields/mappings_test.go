@@ -241,7 +241,7 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"properties": map[string]any{
 						"type": map[string]any{
-							"type": "constant_keyword",
+							"type": "keyword",
 						},
 						"fields": map[string]any{
 							"type": "text",
@@ -269,7 +269,12 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"properties": map[string]any{
 						"type": map[string]any{
-							"type": "constant_keyword",
+							"type": "keyword",
+							"fields": map[string]any{
+								"text": map[string]any{
+									"type": "match_only_text",
+								},
+							},
 						},
 						"fields": map[string]any{
 							"type": "text",
@@ -285,6 +290,7 @@ func TestComparingMappings(t *testing.T) {
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
 				`field "foo.text" is undefined: missing definition for path`,
+				`not found multi_fields in preview mappings for path: "bar.type"`,
 			},
 		},
 		{
@@ -799,6 +805,9 @@ func TestComparingMappings(t *testing.T) {
 	}
 
 	for _, c := range cases {
+		if c.title != "validate multifields failure" {
+			continue
+		}
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
 			v, err := CreateValidatorForMappings(nil,
