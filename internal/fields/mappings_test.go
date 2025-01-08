@@ -719,7 +719,9 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"type": "text",
 					"fields": map[string]any{
-						"type": "keyword",
+						"text": map[string]any{
+							"type": "keyword",
+						},
 					},
 				},
 				"bar_double": map[string]any{
@@ -759,7 +761,9 @@ func TestComparingMappings(t *testing.T) {
 						"mapping": map[string]any{
 							"type": "text",
 							"fields": map[string]any{
-								"type": "keyword",
+								"text": map[string]any{
+									"type": "keyword",
+								},
 							},
 						},
 					},
