@@ -27,6 +27,7 @@ var ErrUndefinedHost = errors.New("missing kibana host")
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
+	apiKey   string
 	username string
 	password string
 
@@ -91,6 +92,13 @@ func (c *Client) Address() string {
 func Address(address string) ClientOption {
 	return func(c *Client) {
 		c.host = address
+	}
+}
+
+// APIKey option sets the API key to be used by the client for authentication.
+func APIKey(apiKey string) ClientOption {
+	return func(c *Client) {
+		c.apiKey = apiKey
 	}
 }
 
@@ -182,7 +190,11 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 		return nil, fmt.Errorf("could not create %v request to Kibana API resource: %s: %w", method, resourcePath, err)
 	}
 
-	req.SetBasicAuth(c.username, c.password)
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "ApiKey "+c.apiKey)
+	} else {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 
