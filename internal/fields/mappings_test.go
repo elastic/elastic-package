@@ -83,7 +83,7 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{},
 		},
 		{
-			title: "validate field with ECS",
+			title: "validate fields with ECS",
 			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
@@ -308,9 +308,13 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			actual: map[string]any{
-				// Should this fail since it has no multi-fields as in the preview?
 				"time": map[string]any{
 					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+					},
 				},
 				"foo": map[string]any{
 					"type": "keyword",
