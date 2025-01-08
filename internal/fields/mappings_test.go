@@ -162,7 +162,7 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{
 				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
 				`field "user" is undefined: missing definition for path (not in ECS)`,
-				`field "time" is undefined: missing definition for multi-fields in ECS: "other"`,
+				`field "time" is undefined: missing definition for multi-field in ECS: "other"`,
 			},
 		},
 		{

@@ -300,30 +300,31 @@ func isNumberTypeField(previewType, actualType string) bool {
 	return false
 }
 
-func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) error {
+func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) multierror.Error {
 	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
-		return fmt.Errorf("missing definition for path")
+		return multierror.Error{fmt.Errorf("missing definition for path")}
 	}
 
 	if found.External != "ecs" {
-		return fmt.Errorf("missing definition for path (not in ECS)")
+		return multierror.Error{fmt.Errorf("missing definition for path (not in ECS)")}
 	}
 
-	err := compareFieldDefinitionWithECS(currentPath, found, definition)
-	if err != nil {
-		return err
+	errs := compareFieldDefinitionWithECS(currentPath, found, definition)
+	if len(errs) > 0 {
+		return errs
 	}
 
 	return compareMultiFieldsInECSSchema(currentPath, found, definition)
 }
 
-func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) error {
+func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) multierror.Error {
+	var errs multierror.Error
 	actualType := mappingParameter("type", actual)
 	if ecs.Type != actualType {
 		// exceptions related to numbers
 		if !isNumberTypeField(ecs.Type, actualType) {
-			return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type)
+			errs = append(errs, fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type))
 		} else {
 			logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(ecs.Type), string(actualType))
 		}
@@ -332,86 +333,76 @@ func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, act
 	// Compare other parameters
 	metricType := mappingParameter("time_series_metric", actual)
 	if ecs.MetricType != metricType {
-		return fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType)
+		errs = append(errs, fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType))
+	}
+
+	if len(errs) > 0 {
+		return errs
 	}
 	return nil
 }
 
-func compareMultiFieldsInECSSchema(currentPath string, found *FieldDefinition, definition map[string]any) error {
-	var ecsMultiFields []FieldDefinition
-	// Filter multi-fields added by appendECSMappingMultifields
-	for _, f := range found.MultiFields {
-		// TODO: Should we use another way to filter these fields?
-		if f.External != externalFieldAppendedTag {
-			ecsMultiFields = append(ecsMultiFields, f)
+func compareMultiFieldsInECSSchema(currentPath string, found *FieldDefinition, definition map[string]any) multierror.Error {
+	var errs multierror.Error
+
+	actualMultiFields := map[string]any{}
+	if isMultiFields(definition) {
+		var err error
+		actualMultiFields, err = getMappingDefinitionsField("fields", definition)
+		if err != nil {
+			return multierror.Error{fmt.Errorf("invalid multi_field mapping %q: %w", currentPath, err)}
 		}
 	}
 
-	// if there are no multifieds in the actual definition, nothing to compare
-	if !isMultiFields(definition) {
-		return nil
-	}
-	// if len(ecsMultiFields) == 0 {
-	// 	return nil
-	// }
-
-	if len(ecsMultiFields) == 0 {
-		return fmt.Errorf("not matched definitions for multifields for %q: no multi-fields found in ECS", currentPath)
-	}
-
-	actualMultiFields, err := getMappingDefinitionsField("fields", definition)
-	if err != nil {
-		return fmt.Errorf("invalid multi_field mapping %q: %w", currentPath, err)
-	}
-
-	missingMultiFields := []string{}
+	// Check whehter or not all the multi-fields in the actual mapping are in ECS
 	for key, value := range actualMultiFields {
 		multiFieldPath := currentMappingPath(currentPath, key)
 
 		def, ok := value.(map[string]any)
 		if !ok {
-			return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
+			errs = append(errs, fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath))
+			return errs
 		}
-		found := false
-		for _, ecsMultiField := range ecsMultiFields {
+		foundMultiField := false
+		for _, ecsMultiField := range found.MultiFields {
 			if ecsMultiField.Name != key {
 				continue
 			}
 			err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
 			if err == nil {
-				found = true
+				foundMultiField = true
 				break
 			}
 		}
-		if !found {
-			missingMultiFields = append(missingMultiFields, key)
+		if !foundMultiField {
+			errs = append(errs, fmt.Errorf("missing definition for multi-field in ECS: %q", key))
 		}
 	}
-	if len(missingMultiFields) > 0 {
-		return fmt.Errorf("missing definition for multi-fields in ECS: %q", strings.Join(missingMultiFields, ", "))
-	}
 
-	return nil
-
-	// for _, ecsMultiField := range ecsMultiFields {
+	// // Check whehter or not all the multi-fields in ECS are present in the actual mapping
+	// for _, ecsMultiField := range found.MultiFields {
 	// 	multiFieldPath := currentMappingPath(currentPath, ecsMultiField.Name)
 	// 	actualMultiField, ok := actualMultiFields[ecsMultiField.Name]
 	// 	if !ok {
-	// 		return fmt.Errorf("missing multi_field definition for %q", multiFieldPath)
+	// 		errs = append(errs, fmt.Errorf("missing ECS multi_field definition for %q", multiFieldPath))
+	// 		continue
 	// 	}
 
 	// 	def, ok := actualMultiField.(map[string]any)
 	// 	if !ok {
-	// 		return fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)
+	// 		return multierror.Error{fmt.Errorf("invalid multi_field mapping type: %q", multiFieldPath)}
 	// 	}
 
 	// 	err := compareFieldDefinitionWithECS(multiFieldPath, &ecsMultiField, def)
 	// 	if err != nil {
-	// 		return err
+	// 		errs = append(errs, fmt.Errorf("missing ECS definition for multi-field in actual mapping: %q", ecsMultiField.Name))
 	// 	}
 	// }
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
 
-	// return nil
+	return nil
 }
 
 // flattenMappings returns all the mapping definitions found at "path" flattened including
@@ -649,9 +640,11 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		// validate whether or not all fields under this key are defined in ECS
-		err = v.validateMappingInECSSchema(fieldPath, def)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
+		ecsErrs := v.validateMappingInECSSchema(fieldPath, def)
+		if len(ecsErrs) > 0 {
+			for _, e := range ecsErrs {
+				errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, e))
+			}
 		}
 	}
 	return errs.Unique()
@@ -671,18 +664,18 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			continue
 		}
 
-		logger.Debugf("Found dynamic template matched: %s", template.name)
+		// logger.Debugf("Found dynamic template matched: %s", template.name)
 
 		// logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
 		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			// Look for another dynamic template
-			logger.Debugf("invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
+			// logger.Debugf("invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
 			continue
 		}
 
-		logger.Debugf("Valid template for path %q: %q", currentPath, template.name)
+		// logger.Debugf("Valid template for path %q: %q", currentPath, template.name)
 		return nil
 	}
 
