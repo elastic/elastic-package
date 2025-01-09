@@ -303,11 +303,11 @@ func isNumberTypeField(previewType, actualType string) bool {
 func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) multierror.Error {
 	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
-		return multierror.Error{fmt.Errorf("missing definition for path")}
+		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
 	if found.External != "ecs" {
-		return multierror.Error{fmt.Errorf("missing definition for path (not in ECS)")}
+		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
 	errs := compareFieldDefinitionWithECS(currentPath, found, definition)
@@ -391,11 +391,11 @@ func flattenMappings(path string, definition map[string]any) (map[string]any, er
 func getMappingDefinitionsField(field string, definition map[string]any) (map[string]any, error) {
 	anyValue, ok := definition[field]
 	if !ok {
-		return nil, fmt.Errorf("not found field: %q", field)
+		return nil, fmt.Errorf("field not found: %q", field)
 	}
 	object, ok := anyValue.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type found for %q: %T ", field, anyValue)
+		return nil, fmt.Errorf("unexpected type found for field %q: %T ", field, anyValue)
 	}
 	return object, nil
 }
@@ -420,7 +420,7 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	if previewValue != actualValue {
 		// This should also be detected by the failure storage (if available)
 		// or no documents being ingested
-		return isConstantKeyword, fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)
+		return isConstantKeyword, fmt.Errorf("invalid value in field %q: constant_keyword value in preview %q does not match the actual mapping value %q", path, previewValue, actualValue)
 	}
 	return isConstantKeyword, nil
 }
@@ -442,7 +442,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	if isObjectFullyDynamic(actual) {
-		logger.Debugf("Dynamic object found but no fields ingested under path: \"%s.*\"", path)
+		logger.Warnf("Dynamic object found but no fields ingested under path: \"%s.*\"", path)
 		return nil
 	}
 
@@ -477,7 +477,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	containsMultifield := isMultiFields(actual)
 	if containsMultifield {
 		if !isMultiFields(preview) {
-			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %q", path))
+			errs = append(errs, fmt.Errorf("field %q is undefined: not found multi_fields definitions in preview mapping", path))
 			return errs.Unique()
 		}
 		previewFields, err := getMappingDefinitionsField("fields", preview)
@@ -527,7 +527,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 				errs = append(errs, ecsErrors...)
 				continue
 			}
-			// Parameter not defined
+			// Field or Parameter not defined
 			errs = append(errs, fmt.Errorf("field %q is undefined", currentPath))
 			continue
 		}

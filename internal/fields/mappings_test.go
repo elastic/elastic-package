@@ -162,7 +162,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			expectedErrors: []string{
 				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
-				`field "user" is undefined: missing definition for path (not in ECS)`,
+				`field "user" is undefined: field definition not found`,
 				// `field "time" is undefined: missing definition for multi-field in ECS: "other"`, // multi-fields are skipped
 			},
 		},
@@ -216,7 +216,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "foo" is undefined: missing definition for path`,
+				`field "foo" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -235,7 +235,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`constant_keyword value in preview "example" does not match the actual mapping value "bar" for path: "foo"`,
+				`invalid value in field "foo": constant_keyword value in preview "example" does not match the actual mapping value "bar"`,
 			},
 		},
 		{
@@ -350,8 +350,8 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "foo.text" is undefined: missing definition for path`,
-				`not found multi_fields in preview mappings for path: "bar.type"`,
+				`field "foo.text" is undefined: field definition not found`,
+				`field "bar.type" is undefined: not found multi_fields definitions in preview mapping`,
 			},
 		},
 		{
@@ -373,7 +373,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`not found multi_fields in preview mappings for path: "foo"`,
+				`field "foo" is undefined: not found multi_fields definitions in preview mapping`,
 			},
 		},
 		{
@@ -404,8 +404,8 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "file.path" is undefined: missing definition for path`,
-				`field "bar" is undefined: missing definition for path`,
+				`field "file.path" is undefined: field definition not found`,
+				`field "bar" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -433,7 +433,7 @@ func TestComparingMappings(t *testing.T) {
 			schema:         []FieldDefinition{},
 			expectedErrors: []string{
 				// TODO: there is an exception in the logic to not raise this error
-				// `field "_tmp" is undefined: missing definition for path`,
+				// `field "_tmp" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -528,7 +528,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "sql.metrics.example" is undefined: missing definition for path`,
+				`field "sql.metrics.example" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -583,7 +583,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			exceptionFields: []string{"access.field"},
 			expectedErrors: []string{
-				`field "error.field" is undefined: missing definition for path`,
+				`field "error.field" is undefined: field definition not found`,
 				// should status.field return error ? or should it be ignored?
 				`field "status.field" is undefined: actual mapping type (keyword) does not match with ECS definition type: array`,
 			},
@@ -860,7 +860,7 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{
 				// Should it be considered this error in "foa" "missing time_series_metric bar"?
 				// "fob" is failing because it does not have the expected value for the "time_series_metric" field
-				`field "fob" is undefined: missing definition for path`,
+				`field "fob" is undefined: field definition not found`,
 			},
 		},
 	}
