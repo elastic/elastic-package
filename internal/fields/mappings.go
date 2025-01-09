@@ -609,22 +609,22 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			continue
 		}
 
-		// logger.Debugf("Found dynamic template matched: %s", template.name)
+		logger.Warnf("> Found dynamic template matched: %s", template.name)
 
-		// logger.Debugf("> Check parameters (%q): %q", templateName, currentPath)
+		logger.Debugf("> Check parameters (%q): %q", template.name, currentPath)
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
 		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			// Look for another dynamic template
-			// logger.Debugf("invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
+			logger.Warnf(">> Invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
 			continue
 		}
 
-		// logger.Debugf("Valid template for path %q: %q", currentPath, template.name)
+		logger.Warnf("> Valid template for path %q: %q", currentPath, template.name)
 		return nil
 	}
 
-	// logger.Debugf(">> No template matching for path: %q", currentPath)
+	logger.Warnf(">> No template matching for path: %q", currentPath)
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 
