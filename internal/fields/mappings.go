@@ -523,7 +523,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(childField) {
 					// TODO: Should this be raised as an error instead?
-					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
+					logger.Debugf("field %q skipped: empty object wihtout definition in the preview", currentPath)
 					continue
 				}
 				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
