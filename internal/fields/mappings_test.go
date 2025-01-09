@@ -437,7 +437,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 		},
 		{
-			title: "skip dynamic objects", // TODO: should this be checked using dynamic templates?
+			title: "validate fully dynamic objects in preview",
 			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
@@ -451,74 +451,11 @@ func TestComparingMappings(t *testing.T) {
 									"type":    "object",
 									"dynamic": "true",
 								},
-							},
-						},
-					},
-				},
-			},
-			actual: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
-									"dynamic": "true",
-									"properties": map[string]any{
-										"innodb_data_fsyncs": map[string]any{
-											"type": "long",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			schema:         []FieldDefinition{},
-			expectedErrors: []string{},
-		},
-		{
-			title: "compare all objects even dynamic true", // TODO: should this be checked using dynamic templates?
-			preview: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
+								"string": map[string]any{
 									"type":    "object",
 									"dynamic": "true",
 								},
-							},
-						},
-					},
-				},
-			},
-			actual: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
-									"dynamic": "true",
-									"properties": map[string]any{
-										"innodb_data_fsyncs": map[string]any{
-											"type": "long",
-										},
-									},
-								},
-								"example": map[string]any{
+								"foo": map[string]any{
 									"type": "keyword",
 								},
 							},
@@ -526,8 +463,55 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
+			actual: map[string]any{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "long",
+										},
+									},
+								},
+								"string": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+								"example": map[string]any{
+									"type": "keyword",
+								},
+								"foo": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"sql.metrics.string.*": map[string]any{
+						"path_match": "sql.metrics.string.*",
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
+				`field "sql.metrics.numeric.innodb_data_fsyncs" is undefined: field definition not found`,
 				`field "sql.metrics.example" is undefined: field definition not found`,
 			},
 		},

@@ -30,15 +30,13 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 		name := fieldNameFromPath(currentPath)
 		if !slices.Contains(d.match, name) {
 			// If there is no an exact match, it is compared with patterns/wildcards
-
-			// logger.Warnf(">>>> no contained %s: %s", d.match, name)
 			matches, err := stringMatchesPatterns(d.match, name, fullRegex)
 			if err != nil {
-				return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
+				return false, fmt.Errorf("failed to parse dynamic template %q: %w", d.name, err)
 			}
 
 			if !matches {
-				// logger.Debugf(">> Issue match: not matches")
+				// logger.Debugf(">> Issue matchi %q: not matches", d.name)
 				return false, nil
 			}
 		}
@@ -52,11 +50,11 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 
 		matches, err := stringMatchesPatterns(d.unmatch, name, fullRegex)
 		if err != nil {
-			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
+			return false, fmt.Errorf("failed to parse dynamic template %q: %w", d.name, err)
 		}
 
 		if matches {
-			// logger.Debugf(">> Issue unmatch: matches")
+			// logger.Debugf(">> Issue unmatchi %q: matches", d.name)
 			return false, nil
 		}
 	}
@@ -68,7 +66,7 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 		}
 		if !matches {
-			logger.Debugf(">> Issue path_match: not matches (currentPath %s)", currentPath)
+			// logger.Debugf(">> Issue path_match %q: not matches (currentPath %s)", d.name, currentPath)
 			return false, nil
 		}
 	}
@@ -76,10 +74,10 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 	if len(d.unpathMatch) > 0 {
 		matches, err := stringMatchesPatterns(d.unpathMatch, currentPath, fullRegex)
 		if err != nil {
-			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
+			return false, fmt.Errorf("failed to parse dynamic template %q: %w", d.name, err)
 		}
 		if matches {
-			// logger.Debugf(">> Issue unpath_match: matches")
+			// logger.Debugf(">> Issue unpath_matchi %q: matches", d.name)
 			return false, nil
 		}
 	}

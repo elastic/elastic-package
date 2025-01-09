@@ -450,8 +450,11 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	// there could be "sub-fields" with name "properties" too
 	if couldBeParametersDefinition && isObject(actual) {
 		if isObjectFullyDynamic(preview) {
-			// TODO: Skip for now, it should be required to compare with dynamic templates
-			logger.Debugf("Pending to validate with the dynamic templates defined the path: %q", path)
+			dynamicErrors := v.validateMappingsNotInPreview(path, actual, dynamicTemplates)
+			errs = append(errs, dynamicErrors...)
+			if len(errs) > 0 {
+				return errs.Unique()
+			}
 			return nil
 		} else if !isObject(preview) {
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %q", path))
