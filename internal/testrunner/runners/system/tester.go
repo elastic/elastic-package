@@ -461,6 +461,13 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 		info.Agent.User = "root"
 	}
 
+	if info.Agent.User == "root" {
+		// Ensure that CAP_CHOWN is present if the user for testing is root
+		if !slices.Contains(info.Agent.LinuxCapabilities, "CAP_CHOWN") {
+			info.Agent.LinuxCapabilities = append(info.Agent.LinuxCapabilities, "CAP_CHOWN")
+		}
+	}
+
 	// This could be removed once package-spec adds this new field
 	if !slices.Contains([]string{"", "default", "complete", "systemd"}, info.Agent.BaseImage) {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.base_image: %q", info.Agent.BaseImage)
