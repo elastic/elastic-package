@@ -436,7 +436,7 @@ func (r *tester) createServiceOptions(variantName string) servicedeployer.Factor
 	}
 }
 
-func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
+func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.testFolder.Package
@@ -456,8 +456,8 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Agent.AgentSettings = config.Agent.AgentSettings
 
 	// If user is defined in the configuration file, it has preference
-	// and it should not be overwritten by the value in the manifest
-	if info.Agent.User == "" && agentManifest.Privileges.Root {
+	// and it should not be overwritten by the value in the package or DataStream manifest
+	if info.Agent.User == "" && (r.pkgManifest.Agent.Privileges.Root || r.dataStreamManifest.Agent.Privileges.Root) {
 		info.Agent.User = "root"
 	}
 
@@ -1060,7 +1060,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		policy = policyCurrent
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, r.pkgManifest.Agent)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -1399,7 +1399,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *tester) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *tester) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.runIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
@@ -1408,7 +1408,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 		agentRunID = state.AgentRunID
 	}
 	logger.Debug("setting up independent Elastic Agent...")
-	agentInfo, err := r.createAgentInfo(policy, config, agentRunID, agentManifest)
+	agentInfo, err := r.createAgentInfo(policy, config, agentRunID)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
 	}
