@@ -22,7 +22,10 @@ import (
 	"github.com/elastic/elastic-package/internal/retry"
 )
 
-var ErrUndefinedHost = errors.New("missing kibana host")
+var (
+	ErrUndefinedHost = errors.New("missing kibana host")
+	ErrConflict      = errors.New("resource already exists")
+)
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
@@ -74,9 +77,14 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		}
 		c.versionInfo = v.Version
 
-		c.semver, err = semver.NewVersion(c.versionInfo.Number)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		if c.versionInfo.Number == "" {
+			// Version info may not contain any version if this is a managed Kibana.
+			c.semver = semver.MustParse("9.0.0")
+		} else {
+			c.semver, err = semver.NewVersion(c.versionInfo.Number)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+			}
 		}
 	}
 
