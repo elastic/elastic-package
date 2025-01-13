@@ -181,14 +181,18 @@ mappings:
                     text:
                         type: match_only_text
                 type: wildcard
-            path_match: '*.url.full'
+            # not available in 8.6.x
+            #unmatch_mapping_type: object
+            path_match: '*url.full'
         - url_original_to_multifield:
             mapping:
                 fields:
                     text:
                         type: match_only_text
                 type: wildcard
-            path_match: '*.url.original'
+            # not available in 8.6.x
+            # unmatch_mapping_type: object
+            path_match: '*url.original'
         - user_agent_original_to_multifield:
             mapping:
                 fields:
