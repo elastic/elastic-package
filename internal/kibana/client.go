@@ -77,10 +77,8 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		}
 		c.versionInfo = v.Version
 
-		if c.versionInfo.Number == "" {
-			// Version info may not contain any version if this is a managed Kibana.
-			c.semver = semver.MustParse("9.0.0")
-		} else {
+		// Version info may not contain any version if this is a managed Kibana.
+		if c.versionInfo.Number != "" {
 			c.semver, err = semver.NewVersion(c.versionInfo.Number)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
