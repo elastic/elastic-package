@@ -125,7 +125,7 @@ func (c *Client) RemoveFleetOutput(ctx context.Context, outputID string) error {
 		return nil
 	}
 	if statusCode != http.StatusOK {
-		return fmt.Errorf("could not add fleet output; API status code = %d; response body = %s", statusCode, respBody)
+		return fmt.Errorf("could not remove fleet output; API status code = %d; response body = %s", statusCode, respBody)
 	}
 
 	return nil
