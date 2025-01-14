@@ -1,0 +1,119 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.23.4)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.23.4,t=7.17.10,hc=1.23.4
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 547
+        uncompressed: false
+        body: |
+            {
+              "name" : "da1c4d2b1379",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "KPcvXrW1Rnega2GT0sn3mg",
+              "version" : {
+                "number" : "9.0.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "873dc52360a9265824a70b3113c3dd350ff9249a",
+                "build_date" : "2025-01-13T13:20:37.908330789Z",
+                "build_snapshot" : true,
+                "lucene_version" : "10.0.0",
+                "minimum_wire_compatibility_version" : "8.18.0",
+                "minimum_index_compatibility_version" : "8.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "547"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 3.494911ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.23.4)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.23.4,t=7.17.10,hc=1.23.4
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 547
+        uncompressed: false
+        body: |
+            {
+              "name" : "da1c4d2b1379",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "KPcvXrW1Rnega2GT0sn3mg",
+              "version" : {
+                "number" : "9.0.0-SNAPSHOT",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "873dc52360a9265824a70b3113c3dd350ff9249a",
+                "build_date" : "2025-01-13T13:20:37.908330789Z",
+                "build_snapshot" : true,
+                "lucene_version" : "10.0.0",
+                "minimum_wire_compatibility_version" : "8.18.0",
+                "minimum_index_compatibility_version" : "8.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "547"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 474.3µs

@@ -93,6 +93,13 @@ func TestClusterHealth(t *testing.T) {
 	}
 }
 
+func TestClusterInfo(t *testing.T) {
+	client := test.NewClient(t, "./testdata/elasticsearch-9-info")
+	info, err := client.Info(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "9.0.0-SNAPSHOT", info.Version.Number)
+}
+
 func writeCACertFile(t *testing.T, cert *x509.Certificate) string {
 	var d bytes.Buffer
 	err := pem.Encode(&d, &pem.Block{

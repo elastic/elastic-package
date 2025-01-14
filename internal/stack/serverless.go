@@ -123,7 +123,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 
 	if settings.LogstashEnabled {
-		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = addLogstashFleetOutput(ctx, sp.kibanaClient)
 		if err != nil {
 			return Config{}, err
 		}
@@ -269,18 +269,13 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve latest project created: %w", err)
-		}
-
 		outputID := ""
 		if settings.LogstashEnabled {
 			outputID = serverless.FleetLogstashOutput
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
+		_, err = createAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
 
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
@@ -303,7 +298,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	// Updating the output with ssl certificates created in startLocalServices
 	// The certificates are updated only when a new project is created and logstash is enabled
 	if isNewProject && settings.LogstashEnabled {
-		err = project.UpdateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = updateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err
 		}
