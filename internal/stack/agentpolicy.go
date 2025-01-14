@@ -19,9 +19,8 @@ import (
 )
 
 const (
-	managedAgentPolicyID     = "elastic-agent-managed-ep"
-	fleetLogstashOutput      = "fleet-logstash-output"
-	fleetElasticsearchOutput = "fleet-elasticsearch-output"
+	managedAgentPolicyID = "elastic-agent-managed-ep"
+	fleetLogstashOutput  = "fleet-logstash-output"
 )
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
