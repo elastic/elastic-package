@@ -35,6 +35,7 @@ type ClusterStateRequest = esapi.ClusterStateRequest
 // clientOptions are used to configure a client.
 type clientOptions struct {
 	address  string
+	apiKey   string
 	username string
 	password string
 
@@ -46,6 +47,13 @@ type clientOptions struct {
 }
 
 type ClientOption func(*clientOptions)
+
+// OptionWithAPIKey sets the API key to be used by the client for authentication.
+func OptionWithAPIKey(apiKey string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.apiKey = apiKey
+	}
+}
 
 // OptionWithAddress sets the address to be used by the client.
 func OptionWithAddress(address string) ClientOption {
@@ -109,6 +117,7 @@ func NewConfig(customOptions ...ClientOption) (elasticsearch.Config, error) {
 
 	config := elasticsearch.Config{
 		Addresses: []string{options.address},
+		APIKey:    options.apiKey,
 		Username:  options.username,
 		Password:  options.password,
 	}
@@ -145,6 +154,10 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusGone {
+		// We are in a managed deployment, API not available, assume healthy.
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to check cluster health: %s", resp.String())
 	}

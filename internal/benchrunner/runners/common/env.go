@@ -7,6 +7,7 @@ package common
 import "github.com/elastic/elastic-package/internal/environment"
 
 var (
+	ESMetricstoreAPIKeyEnv        = environment.WithElasticPackagePrefix("ESMETRICSTORE_API_KEY")
 	ESMetricstoreHostEnv          = environment.WithElasticPackagePrefix("ESMETRICSTORE_HOST")
 	ESMetricstoreUsernameEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_USERNAME")
 	ESMetricstorePasswordEnv      = environment.WithElasticPackagePrefix("ESMETRICSTORE_PASSWORD")

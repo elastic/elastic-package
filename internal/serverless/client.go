@@ -171,11 +171,6 @@ func (c *Client) CreateProject(ctx context.Context, name, region, projectType st
 		return nil, fmt.Errorf("error while decoding create project response: %w", err)
 	}
 
-	err = c.ResetCredentials(ctx, serverlessProject)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reset credentials: %w", err)
-	}
-
 	return serverlessProject, nil
 }
 
@@ -228,34 +223,6 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 	}
 
 	return status.Phase, nil
-}
-
-func (c *Client) ResetCredentials(ctx context.Context, project *Project) error {
-	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-internal-credentials")
-	if err != nil {
-		return fmt.Errorf("could not build the URL: %w", err)
-	}
-	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
-	if err != nil {
-		return fmt.Errorf("error creating project: %w", err)
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d", statusCode)
-	}
-
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-	if err := json.Unmarshal(respBody, &credentials); err != nil {
-		return fmt.Errorf("unable to decode credentials: %w", err)
-	}
-
-	project.Credentials.Username = credentials.Username
-	project.Credentials.Password = credentials.Password
-
-	return nil
 }
 
 func (c *Client) DeleteProject(ctx context.Context, project *Project) error {

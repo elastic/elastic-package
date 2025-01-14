@@ -20,6 +20,7 @@ type Config struct {
 	Provider   string            `json:"provider,omitempty"`
 	Parameters map[string]string `json:"parameters,omitempty"`
 
+	ElasticsearchAPIKey   string `json:"elasticsearch_api_key,omitempty"`
 	ElasticsearchHost     string `json:"elasticsearch_host,omitempty"`
 	ElasticsearchUsername string `json:"elasticsearch_username,omitempty"`
 	ElasticsearchPassword string `json:"elasticsearch_password,omitempty"`
