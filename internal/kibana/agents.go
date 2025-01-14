@@ -80,7 +80,7 @@ func (c *Client) QueryAgents(ctx context.Context, kuery string) ([]Agent, error)
 	}
 
 	switch {
-	case c.semver.Major() < 9:
+	case c.semver != nil && c.semver.Major() < 9:
 		return resp.List, nil
 	default:
 		return resp.Items, nil
@@ -96,7 +96,7 @@ func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) err
 	var err error
 	var respBody []byte
 	switch {
-	case c.semver.Major() < 9:
+	case c.semver != nil && c.semver.Major() < 9:
 		statusCode, respBody, err = c.put(ctx, path, []byte(reqBody))
 	default:
 		statusCode, respBody, err = c.post(ctx, path, []byte(reqBody))

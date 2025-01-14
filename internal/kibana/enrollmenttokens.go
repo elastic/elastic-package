@@ -69,7 +69,7 @@ func (c *Client) getEnrollmentTokens(ctx context.Context, kuery string) ([]Enrol
 		}
 
 		if err := json.Unmarshal(respBody, &resp); err != nil {
-			return nil, fmt.Errorf("could not decode policies response: %w", err)
+			return nil, fmt.Errorf("could not decode response to get enrollment tokens: %w", err)
 		}
 
 		// Tokens are listed twice, at least on some versions, get only one copy of them.

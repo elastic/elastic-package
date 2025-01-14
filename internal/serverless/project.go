@@ -140,7 +140,10 @@ func (p *Project) getKibanaHealth(ctx context.Context, kibanaClient *kibana.Clie
 }
 
 func (p *Project) getFleetHealth(ctx context.Context) error {
-	client := fleetserver.NewClient(p.Endpoints.Fleet)
+	client, err := fleetserver.NewClient(p.Endpoints.Fleet)
+	if err != nil {
+		return fmt.Errorf("could not create Fleet Server client: %w", err)
+	}
 	status, err := client.Status(ctx)
 	if err != nil {
 		return err

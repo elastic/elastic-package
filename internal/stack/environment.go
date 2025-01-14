@@ -148,11 +148,11 @@ func (p *environmentProvider) initClients() error {
 	return nil
 }
 
-func (p environmentProvider) setupFleet(ctx context.Context, config Config, options Options) (Config, error) {
+func (p *environmentProvider) setupFleet(ctx context.Context, config Config, options Options) (Config, error) {
 	const localFleetServerURL = "https://fleet-server:8220"
 
 	fleetServerURL, err := p.kibana.DefaultFleetServerURL(ctx)
-	if errors.Is(err, kibana.ErrFleetServerNotFound) || !isFleetServerReachable(ctx, fleetServerURL) {
+	if errors.Is(err, kibana.ErrFleetServerNotFound) || !isFleetServerReachable(ctx, fleetServerURL, config) {
 		// We need to setup a local Fleet Server
 		fleetServerURL = localFleetServerURL
 		config.Parameters[paramFleetServerManaged] = "true"
@@ -195,8 +195,12 @@ func fleetServerHostID(namespace string) string {
 	return "elastic-package-" + namespace
 }
 
-func isFleetServerReachable(ctx context.Context, address string) bool {
-	status, err := fleetserver.NewClient(address).Status(ctx)
+func isFleetServerReachable(ctx context.Context, address string, config Config) bool {
+	client, err := fleetserver.NewClient(address, fleetserver.APIKey(config.ElasticsearchAPIKey))
+	if err != nil {
+		return false
+	}
+	status, err := client.Status(ctx)
 	return err == nil && strings.ToLower(status.Status) == "healthy"
 }
 
@@ -374,8 +378,14 @@ func (p *environmentProvider) fleetStatus(ctx context.Context, options Options, 
 		return status
 	}
 
-	// TODO: Add authentication for fleet server client.
-	client := fleetserver.NewClient(address)
+	client, err := fleetserver.NewClient(address,
+		fleetserver.APIKey(config.ElasticsearchAPIKey),
+		fleetserver.CertificateAuthority(config.CACertFile),
+	)
+	if err != nil {
+		status.Status = "unknown: " + err.Error()
+	}
+
 	fleetServerStatus, err := client.Status(ctx)
 	if err != nil {
 		status.Status = "unknown: " + err.Error()
