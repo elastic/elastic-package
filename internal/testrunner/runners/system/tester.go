@@ -740,7 +740,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		r.esAPI.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("could not search data stream: %w", err)
+		return nil, fmt.Errorf("could not search index or data stream: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -750,7 +750,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return &hits{}, nil
 	}
 	if resp.IsError() {
-		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
+		return nil, fmt.Errorf("failed to search docs for index or data stream %s: %s", dataStream, resp.String())
 	}
 
 	var results struct {
@@ -791,10 +791,10 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 
 	numHits := results.Hits.Total.Value
 	if results.Error != nil {
-		logger.Debugf("found %d hits in %s data stream: %s: %s Status=%d",
+		logger.Debugf("found %d hits in %s index or data stream: %s: %s Status=%d",
 			numHits, dataStream, results.Error.Type, results.Error.Reason, results.Status)
 	} else {
-		logger.Debugf("found %d hits in %s data stream", numHits, dataStream)
+		logger.Debugf("found %d hits in %s index or data stream", numHits, dataStream)
 	}
 
 	var hits hits
@@ -1243,52 +1243,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return &scenario, nil
 	}
 
-	// Use custom timeout if the service can't collect data immediately.
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if config.WaitForDataTimeout > 0 {
-		waitForDataTimeout = config.WaitForDataTimeout
-	}
+	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream, 1*time.Second, true)
 
-	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
-	var hits *hits
-	oldHits := 0
-	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		var err error
-		hits, err = r.getDocs(ctx, scenario.dataStream)
-		if err != nil {
-			return false, err
-		}
-
-		if r.checkFailureStore {
-			failureStore, err := r.getFailureStoreDocs(ctx, scenario.dataStream)
-			if err != nil {
-				return false, fmt.Errorf("failed to check failure store: %w", err)
-			}
-			if n := len(failureStore); n > 0 {
-				// Interrupt loop earlier if there are failures in the document store.
-				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), scenario.dataStream)
-				return true, nil
-			}
-		}
-
-		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
-				return false, nil
-			}
-
-			ret := hits.size() == oldHits
-			if !ret {
-				oldHits = hits.size()
-				time.Sleep(4 * time.Second)
-			}
-
-			return ret, nil
-		}
-
-		return hits.size() > 0, nil
-	}, 1*time.Second, waitForDataTimeout)
-
+	// before checking "waitErr" error , it is necessary to check if the service has finished with error
+	// to report as a test case failed
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
@@ -1301,10 +1259,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 	if waitErr != nil {
 		return nil, waitErr
-	}
-
-	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
 	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
@@ -1987,10 +1941,62 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
-		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
-			return testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
-				Details: errs.Error(),
+		if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
+			if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
+				return testrunner.ErrTestCaseFailed{
+					Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
+					Details: errs.Error(),
+				}
+			}
+		}
+
+		if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+			destIndexTransform := transform.Definition.Dest.Index
+			// IDs format is: "<type>-<package>.<transform>-template"
+			// For instance: "logs-ti_anomali.latest_intelligence-template"
+			indexTemplateTransform := fmt.Sprintf("%s-%s.%s-template",
+				ds.Inputs[0].Streams[0].DataStream.Type,
+				pkgManifest.Name,
+				transform.Name,
+			)
+
+			// TODO: use the docs obtained here for the fields validator too
+			// In order to compare the mappings, it is required to wait until the documents has been
+			// ingested in the given transform index
+			// It looks like that not all documents ingested previously in the main data stream are going
+			// to be ingested in the destination index of the transform. That's the reason to disable
+			// the asserts
+			hits, waitErr := r.waitForDocs(ctx, config, destIndexTransform, 5*time.Second, false)
+			if waitErr != nil {
+				return waitErr
+			}
+			logger.Debugf("Check whether or not synthetic source mode is enabled (transform index %s)...", destIndexTransform)
+			syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, destIndexTransform)
+			if err != nil {
+				return fmt.Errorf("failed to check if synthetic source mode is enabled for transform index %s: %w", destIndexTransform, err)
+			}
+			logger.Debugf("Index %s has synthetic source mode enabled: %t", destIndexTransform, syntheticEnabled)
+
+			transformDocs := hits.getDocs(syntheticEnabled)
+
+			logger.Warn("Validate mappings found in transform (technical preview)")
+			exceptionFields := listExceptionFields(transformDocs, fieldsValidator)
+
+			mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
+				fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+				fields.WithMappingValidatorIndexTemplate(indexTemplateTransform),
+				fields.WithMappingValidatorDataStream(destIndexTransform),
+				fields.WithMappingValidatorExceptionFields(exceptionFields),
+			)
+			if err != nil {
+				return fmt.Errorf("creating mappings validator for the transform index failed (index: %s): %w", destIndexTransform, err)
+			}
+
+			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+				return testrunner.ErrTestCaseFailed{
+					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform (index %s)", indexTemplateTransform, destIndexTransform),
+					Details: errs.Error(),
+				}
 			}
 		}
 	}
@@ -2400,4 +2406,66 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 	}
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
+}
+
+func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string, period time.Duration, checkAsserts bool) (*hits, error) {
+	// Use custom timeout if the service can't collect data immediately.
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
+	// (TODO in future) Optionally exercise service to generate load.
+	logger.Debugf("checking for expected data in data stream or index (%s)...", waitForDataTimeout)
+	var hits *hits
+	oldHits := 0
+	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		var err error
+		hits, err = r.getDocs(ctx, dataStream)
+		if err != nil {
+			return false, err
+		}
+
+		if r.checkFailureStore {
+			failureStore, err := r.getFailureStoreDocs(ctx, dataStream)
+			if err != nil {
+				return false, fmt.Errorf("failed to check failure store: %w", err)
+			}
+			if n := len(failureStore); n > 0 {
+				// Interrupt loop earlier if there are failures in the document store.
+				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), dataStream)
+				return true, nil
+			}
+		}
+
+		if !checkAsserts {
+			return hits.size() > 0, nil
+		}
+
+		if config.Assert.HitCount > 0 {
+			if hits.size() < config.Assert.HitCount {
+				return false, nil
+			}
+
+			ret := hits.size() == oldHits
+			if !ret {
+				oldHits = hits.size()
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret, nil
+		}
+
+		return hits.size() > 0, nil
+	}, period, waitForDataTimeout)
+
+	if waitErr != nil {
+		return nil, waitErr
+	}
+
+	if !passed {
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in data stream or index: %s", dataStream)}
+	}
+
+	return hits, nil
 }
