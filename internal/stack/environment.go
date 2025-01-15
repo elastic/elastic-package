@@ -283,7 +283,9 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 	// If fleet is managed, it will be included in the local services status.
-	if managed, ok := config.Parameters[paramFleetServerManaged]; !ok && managed != "true" {
+	fleetManaged := true
+	if managed, ok := config.Parameters[paramFleetServerManaged]; !ok || managed != "true" {
+		fleetManaged = false
 		status = append(status, p.fleetStatus(ctx, options, config))
 	}
 
@@ -300,6 +302,13 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 			Version: "unknown",
 			Status:  "missing",
 		}}
+		if fleetManaged {
+			localStatus = append(localStatus, ServiceStatus{
+				Name:    "fleet-server",
+				Version: "unknown",
+				Status:  "missing",
+			})
+		}
 	}
 
 	status = append(status, localStatus...)
