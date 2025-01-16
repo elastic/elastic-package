@@ -1282,7 +1282,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 				return false, nil
 			}
 
-			logger.Debugf("Hits size %d oldHits %d", hits.size(), oldHits)
 			ret := hits.size() == oldHits
 			if !ret {
 				time.Sleep(4 * time.Second)
@@ -2026,7 +2025,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 					logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
 				}
 				if foundHits {
-					logger.Debugf("Found %s hits in %s index", destIndexTransform)
+					logger.Debugf("Found %s hits in %s index", hits.size(), destIndexTransform)
 				}
 				return foundDeleted || foundHits, nil
 			})
