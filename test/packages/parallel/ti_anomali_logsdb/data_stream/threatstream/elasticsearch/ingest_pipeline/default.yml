@@ -239,6 +239,13 @@ processors:
       field: "@timestamp"
       copy_from: _temp_.timestamp
       if: ctx._temp_?.timestamp != null
+
+  # Processor added just to update timestamp for testing purposes
+  - set:
+      tag: set_timestamp
+      field: "@timestamp"
+      value: "{{{_ingest.timestamp}}}"
+      if: 'ctx.tags != null && ctx.tags.contains("force_update_elastic_package_ci")'
   #
   # Map IP geolocation fields.
   #
