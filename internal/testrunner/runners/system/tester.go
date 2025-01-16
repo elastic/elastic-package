@@ -1276,22 +1276,27 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return &scenario, nil
 	}
 
-	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream, 1*time.Second, func(hits *hits, oldHits int) (bool, error) {
-		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
-				return false, nil
+	waitOpts := waitForDocsOptions{
+		timeout: config.WaitForDataTimeout,
+		stopCondition: func(hits *hits, oldHits int) (bool, error) {
+			if config.Assert.HitCount > 0 {
+				if hits.size() < config.Assert.HitCount {
+					return false, nil
+				}
+
+				ret := hits.size() == oldHits
+				if !ret {
+					time.Sleep(4 * time.Second)
+				}
+
+				return ret, nil
 			}
 
-			ret := hits.size() == oldHits
-			if !ret {
-				time.Sleep(4 * time.Second)
-			}
+			return hits.size() > 0, nil
+		},
+	}
 
-			return ret, nil
-		}
-
-		return hits.size() > 0, nil
-	})
+	hits, waitErr := r.waitForDocs(ctx, scenario.dataStream, waitOpts)
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report as a test case failed
@@ -2014,21 +2019,27 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			// It looks like that not all documents ingested previously in the main data stream are going
 			// to be ingested in the destination index of the transform. That's the reason to disable
 			// the asserts
-			_, waitErr := r.waitForDocs(ctx, config, destIndexTransform, 5*time.Second, func(hits *hits, _ int) (bool, error) {
-				deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
-				if err != nil {
-					return false, err
-				}
-				foundDeleted := deleted > 0
-				foundHits := hits.size() > 0
-				if foundDeleted {
-					logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
-				}
-				if foundHits {
-					logger.Debugf("Found %s hits in %s index", hits.size(), destIndexTransform)
-				}
-				return foundDeleted || foundHits, nil
-			})
+			waitOpts := waitForDocsOptions{
+				period:  5 * time.Second,
+				timeout: 10 * time.Minute,
+				stopCondition: func(hits *hits, oldHits int) (bool, error) {
+					deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
+					if err != nil {
+						return false, err
+					}
+					foundDeleted := deleted > 0
+					foundHits := hits.size() > 0
+					if foundDeleted {
+						logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
+					}
+					if foundHits {
+						logger.Debugf("Found %d hits in %s index", hits.size(), destIndexTransform)
+					}
+					return foundDeleted || foundHits, nil
+				},
+			}
+
+			_, waitErr := r.waitForDocs(ctx, destIndexTransform, waitOpts)
 			if waitErr != nil {
 				return waitErr
 			}
@@ -2464,11 +2475,22 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
 }
 
-func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string, period time.Duration, stopCondition func(*hits, int) (bool, error)) (*hits, error) {
+type waitForDocsOptions struct {
+	period        time.Duration
+	timeout       time.Duration
+	stopCondition func(*hits, int) (bool, error)
+}
+
+func (r *tester) waitForDocs(ctx context.Context, dataStream string, opts waitForDocsOptions) (*hits, error) {
 	// Use custom timeout if the service can't collect data immediately.
 	waitForDataTimeout := waitForDataDefaultTimeout
-	if config.WaitForDataTimeout > 0 {
-		waitForDataTimeout = config.WaitForDataTimeout
+	if opts.timeout > 0 {
+		waitForDataTimeout = opts.timeout
+	}
+
+	periodTime := 1 * time.Second
+	if opts.period > 0 {
+		periodTime = opts.period
 	}
 
 	// (TODO in future) Optionally exercise service to generate load.
@@ -2497,8 +2519,8 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			oldHits = hits.size()
 		}()
 
-		if stopCondition != nil {
-			ret, err := stopCondition(hits, oldHits)
+		if opts.stopCondition != nil {
+			ret, err := opts.stopCondition(hits, oldHits)
 			if err != nil {
 				return false, err
 			}
@@ -2506,7 +2528,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		}
 
 		return hits.size() > 0, nil
-	}, period, waitForDataTimeout)
+	}, periodTime, waitForDataTimeout)
 
 	if waitErr != nil {
 		return nil, waitErr
