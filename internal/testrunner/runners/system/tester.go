@@ -729,6 +729,39 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
+func (r *tester) getDeletedDocs(ctx context.Context, dataStream string) (int, error) {
+	resp, err := r.esAPI.Indices.Stats(
+		r.esAPI.Indices.Stats.WithContext(ctx),
+		r.esAPI.Indices.Stats.WithIndex(dataStream),
+		r.esAPI.Indices.Stats.WithMetric("docs"),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("could not get stats for index: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return 0, fmt.Errorf("failed to get stats for index %s: %s", dataStream, resp.String())
+	}
+
+	var results struct {
+		All struct {
+			Total struct {
+				Docs struct {
+					Count   int `json:"count"`
+					Deleted int `json:"deleted"`
+				} `json:"docs"`
+			} `json:"total"`
+		} `json:"_all"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
+		return 0, fmt.Errorf("could not decode index stats results response: %w", err)
+	}
+
+	return results.All.Total.Docs.Deleted, nil
+}
+
 func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) {
 	resp, err := r.esAPI.Search(
 		r.esAPI.Search.WithContext(ctx),
@@ -1243,7 +1276,23 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return &scenario, nil
 	}
 
-	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream, 1*time.Second, true)
+	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream, 1*time.Second, func(hits *hits, oldHits int) (bool, error) {
+		if config.Assert.HitCount > 0 {
+			if hits.size() < config.Assert.HitCount {
+				return false, nil
+			}
+
+			logger.Debugf("Hits size %d oldHits %d", hits.size(), oldHits)
+			ret := hits.size() == oldHits
+			if !ret {
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret, nil
+		}
+
+		return hits.size() > 0, nil
+	})
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report as a test case failed
@@ -1952,7 +2001,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 
 		if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
 			destIndexTransform := transform.Definition.Dest.Index
-			// IDs format is: "<type>-<package>.<transform>-template"
+			// Index Template format is: "<type>-<package>.<transform>-template"
 			// For instance: "logs-ti_anomali.latest_intelligence-template"
 			indexTemplateTransform := fmt.Sprintf("%s-%s.%s-template",
 				ds.Inputs[0].Streams[0].DataStream.Type,
@@ -1966,19 +2015,27 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			// It looks like that not all documents ingested previously in the main data stream are going
 			// to be ingested in the destination index of the transform. That's the reason to disable
 			// the asserts
-			hits, waitErr := r.waitForDocs(ctx, config, destIndexTransform, 5*time.Second, false)
+			_, waitErr := r.waitForDocs(ctx, config, destIndexTransform, 5*time.Second, func(hits *hits, _ int) (bool, error) {
+				deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
+				if err != nil {
+					return false, err
+				}
+				foundDeleted := deleted > 0
+				foundHits := hits.size() > 0
+				if foundDeleted {
+					logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
+				}
+				if foundHits {
+					logger.Debugf("Found %s hits in %s index", destIndexTransform)
+				}
+				return foundDeleted || foundHits, nil
+			})
 			if waitErr != nil {
 				return waitErr
 			}
-			logger.Debugf("Check whether or not synthetic source mode is enabled (transform index %s)...", destIndexTransform)
-			syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, destIndexTransform)
-			if err != nil {
-				return fmt.Errorf("failed to check if synthetic source mode is enabled for transform index %s: %w", destIndexTransform, err)
-			}
-			logger.Debugf("Index %s has synthetic source mode enabled: %t", destIndexTransform, syntheticEnabled)
 
-			transformDocs := hits.getDocs(syntheticEnabled)
-
+			// As it could happen that there are no hits found , just deleted docs
+			// Here it is used the docs found in the preview API response
 			logger.Warn("Validate mappings found in transform (technical preview)")
 			exceptionFields := listExceptionFields(transformDocs, fieldsValidator)
 
@@ -1994,7 +2051,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 
 			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
 				return testrunner.ErrTestCaseFailed{
-					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform (index %s)", indexTemplateTransform, destIndexTransform),
+					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform (index %s)", destIndexTransform),
 					Details: errs.Error(),
 				}
 			}
@@ -2408,7 +2465,7 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
 }
 
-func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string, period time.Duration, checkAsserts bool) (*hits, error) {
+func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string, period time.Duration, stopCondition func(*hits, int) (bool, error)) (*hits, error) {
 	// Use custom timeout if the service can't collect data immediately.
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
@@ -2437,22 +2494,15 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 				return true, nil
 			}
 		}
+		defer func() {
+			oldHits = hits.size()
+		}()
 
-		if !checkAsserts {
-			return hits.size() > 0, nil
-		}
-
-		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
-				return false, nil
+		if stopCondition != nil {
+			ret, err := stopCondition(hits, oldHits)
+			if err != nil {
+				return false, err
 			}
-
-			ret := hits.size() == oldHits
-			if !ret {
-				oldHits = hits.size()
-				time.Sleep(4 * time.Second)
-			}
-
 			return ret, nil
 		}
 
