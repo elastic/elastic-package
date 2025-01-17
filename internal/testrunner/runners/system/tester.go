@@ -561,18 +561,18 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 		r.removeAgentHandler = nil
 	}
 
-	if r.deleteTestPolicyHandler != nil {
-		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.deleteTestPolicyHandler = nil
-	}
-
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownAgentHandler = nil
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.deleteTestPolicyHandler = nil
 	}
 
 	return nil

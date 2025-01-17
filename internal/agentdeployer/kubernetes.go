@@ -57,7 +57,7 @@ type kubernetesDeployedAgent struct {
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.stackVersion, s.agentInfo.Policy.Name, s.agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(s.profile, s.agentInfo, s.stackVersion, s.agentName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -123,7 +123,7 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, agentInfo.Policy.Name, agentName)
+		err = installElasticAgentInCluster(ctx, ksd.profile, agentInfo, ksd.stackVersion, agentName)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -155,10 +155,10 @@ func (ksd *KubernetesAgentDeployer) agentName() string {
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName, agentName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName, agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, agentInfo, stackVersion, agentName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -176,8 +176,36 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName, agentName string) ([]byte, error) {
+func getElasticAgentYAML(profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+	config, err := stack.LoadConfig(profile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load config from profile: %w", err)
+	}
+	fleetURL := "https://fleet-server:8220"
+	kibanaURL := "https://kibana:5601"
+	if config.Provider != stack.ProviderCompose {
+		kibanaURL = config.KibanaHost
+	}
+	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
+		fleetURL = url
+	}
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
+		stackVersion = version
+	}
+
+	enrollmentToken := ""
+	if config.ElasticsearchAPIKey != "" {
+		// TODO: Review if this is the correct place to get the enrollment token.
+		kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create kibana client: %w", err)
+		}
+		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(context.TODO(), agentInfo.Policy.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+		}
+	}
 
 	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
 	if err != nil {
@@ -193,11 +221,14 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName, age
 
 	var elasticAgentYaml bytes.Buffer
 	err = tmpl.Execute(&elasticAgentYaml, map[string]string{
-		"fleetURL":                    "https://fleet-server:8220",
-		"kibanaURL":                   "https://kibana:5601",
+		"fleetURL":                    fleetURL,
+		"kibanaURL":                   kibanaURL,
+		"username":                    config.ElasticsearchUsername,
+		"password":                    config.ElasticsearchPassword,
+		"enrollmentToken":             enrollmentToken,
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs().ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, agentInfo.Policy.Name),
 		"agentName":                   agentName,
 	})
 	if err != nil {
