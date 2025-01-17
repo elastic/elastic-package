@@ -14,6 +14,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/fleetserver"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -28,6 +29,7 @@ func newEnvironmentProvider(profile *profile.Profile) (*environmentProvider, err
 
 // BootUp configures the profile to use as stack the one indicated using environment variables.
 func (p *environmentProvider) BootUp(ctx context.Context, options Options) error {
+	logger.Warn("Configuring an stack from environment variables is in technical preview")
 	config := Config{
 		Provider:              ProviderEnvironment,
 		ElasticsearchAPIKey:   os.Getenv(ElasticsearchAPIKeyEnv),
