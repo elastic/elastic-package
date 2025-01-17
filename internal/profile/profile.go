@@ -239,7 +239,7 @@ func LoadProfile(profileName string) (*Profile, error) {
 
 	profile, err := loadProfile(loc.ProfileDir(), profileName)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	err = profile.migrate(currentVersion)
