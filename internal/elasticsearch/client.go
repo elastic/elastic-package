@@ -330,6 +330,12 @@ func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName st
 		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
 
+	// TODO
+	// // In case there are no dynamic templates, set an empty array
+	// if string(preview.Template.Mappings.DynamicTemplates) == "" {
+	// 	preview.Template.Mappings.DynamicTemplates = []byte("[]")
+	// }
+
 	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
 }
 
@@ -371,6 +377,12 @@ func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) 
 	for _, v := range mappingsRaw {
 		mappingsDefinition = v.Mappings
 	}
+
+	// TODO
+	// // In case there are no dynamic templates, set an empty array
+	// if string(mappingsDefinition.DynamicTemplates) == "" {
+	// 	mappingsDefinition.DynamicTemplates = []byte("[]")
+	// }
 
 	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
 }
