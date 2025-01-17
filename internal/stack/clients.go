@@ -47,13 +47,9 @@ func NewElasticsearchClientFromProfile(profile *profile.Profile, customOptions .
 
 	elasticsearchHost, found := os.LookupEnv(ElasticsearchHostEnv)
 	if !found {
-		// Using backgound context on initial call to avoid context cancellation.
-		status, err := Status(context.Background(), Options{Profile: profile})
+		err := checkClientStackAvailability(profile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
-		}
-		if len(status) == 0 {
-			return nil, ErrUnavailableStack
+			return nil, err
 		}
 
 		elasticsearchHost = profileConfig.ElasticsearchHostPort
@@ -118,13 +114,9 @@ func NewKibanaClientFromProfile(profile *profile.Profile, customOptions ...kiban
 
 	kibanaHost, found := os.LookupEnv(KibanaHostEnv)
 	if !found {
-		// Using background context on initial call to avoid context cancellation.
-		status, err := Status(context.Background(), Options{Profile: profile})
+		err := checkClientStackAvailability(profile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to check status of stack in current profile: %w", err)
-		}
-		if len(status) == 0 {
-			return nil, ErrUnavailableStack
+			return nil, err
 		}
 
 		kibanaHost = profileConfig.KibanaHostPort
@@ -176,4 +168,26 @@ func FindCACertificate(profile *profile.Profile) (string, error) {
 	}
 
 	return caCertPath, nil
+}
+
+func checkClientStackAvailability(profile *profile.Profile) error {
+	config, err := LoadConfig(profile)
+	if err != nil {
+		return fmt.Errorf("cannot load stack configuration: %w", err)
+	}
+
+	// Checking it only with the compose provider because other providers need
+	// a client, and we fall in infinite recursion.
+	if config.Provider == ProviderCompose || config.Provider == "" {
+		// Using backgound context on initial call to avoid context cancellation.
+		status, err := Status(context.Background(), Options{Profile: profile})
+		if err != nil {
+			return fmt.Errorf("failed to check status of stack in current profile: %w", err)
+		}
+		if len(status) == 0 {
+			return ErrUnavailableStack
+		}
+	}
+
+	return nil
 }
