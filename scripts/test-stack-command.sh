@@ -103,7 +103,7 @@ Status of Elastic stack services:
 ├──────────────────┼─────────┼───────────────────┤
 │ elastic-agent    │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
 │ elasticsearch    │ ${EXPECTED_VERSION}   │ running (healthy) │
-│ fleet-server     │ ${EXPECTED_VERSION}   │ running (healthy) │
+│ fleet-server     │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
 │ kibana           │ ${EXPECTED_VERSION}   │ running (healthy) │
 │ package-registry │ latest  │ running (healthy) │
 ╰──────────────────┴─────────┴───────────────────╯
