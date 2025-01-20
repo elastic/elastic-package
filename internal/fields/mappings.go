@@ -101,21 +101,11 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs
 	}
 
-	// In case there are no dynamic templates, set an empty array
-	if string(actualDynamicTemplates) == "" {
-		actualDynamicTemplates = []byte("[]")
-	}
-
 	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
 	previewDynamicTemplates, previewMappings, err := v.esClient.SimulateIndexTemplate(ctx, v.indexTemplateName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplateName, err))
 		return errs
-	}
-
-	// In case there are no dynamic templates, set an empty array
-	if string(previewDynamicTemplates) == "" {
-		previewDynamicTemplates = []byte("[]")
 	}
 
 	// Code from comment posted in https://github.com/google/go-cmp/issues/224
