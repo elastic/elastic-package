@@ -36,7 +36,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			}
 
 			if !matches {
-				// logger.Debugf(">> Issue matchi %q: not matches", d.name)
 				return false, nil
 			}
 		}
@@ -54,7 +53,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 		}
 
 		if matches {
-			// logger.Debugf(">> Issue unmatchi %q: matches", d.name)
 			return false, nil
 		}
 	}
@@ -66,7 +64,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
 		}
 		if !matches {
-			// logger.Debugf(">> Issue path_match %q: not matches (currentPath %s)", d.name, currentPath)
 			return false, nil
 		}
 	}
@@ -77,7 +74,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 			return false, fmt.Errorf("failed to parse dynamic template %q: %w", d.name, err)
 		}
 		if matches {
-			// logger.Debugf(">> Issue unpath_matchi %q: matches", d.name)
 			return false, nil
 		}
 	}
@@ -147,7 +143,6 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			name: templateName,
 		}
 
-		// logger.Debugf("Checking dynamic template for %q: %q", currentPath, templateName)
 		contents, ok := rawContents.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("unexpected dynamic template format found for %q", templateName)
@@ -164,7 +159,6 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 				}
 				aDynamicTemplate.matchPattern = s
 			case "match":
-				// logger.Debugf("> Check match: %q (key %q)", currentPath, name)
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					logger.Warnf("failed to check match setting: %s", err)
@@ -172,21 +166,18 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 				}
 				aDynamicTemplate.match = values
 			case "unmatch":
-				// logger.Debugf("> Check unmatch: %q (key %q)", currentPath, name)
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check unmatch setting: %w", err)
 				}
 				aDynamicTemplate.unmatch = values
 			case "path_match":
-				// logger.Debugf("> Check path_match: %q", currentPath)
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check path_match setting: %w", err)
 				}
 				aDynamicTemplate.pathMatch = values
 			case "path_unmatch":
-				// logger.Debugf("> Check path_unmatch: %q", currentPath)
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check path_unmatch setting: %w", err)
