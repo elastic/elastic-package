@@ -77,6 +77,14 @@ mkdir -p "${OUTPUT_PATH_STATUS}"
 elastic-package stack status 2> "${OUTPUT_PATH_STATUS}/initial.txt"
 grep "\- No service running" "${OUTPUT_PATH_STATUS}/initial.txt"
 
+EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}"
+if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
+    # Required starting with STACK_VERSION 7.17.21
+    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_VERSION}-amd64"
+    EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}-amd64"
+    echo "Override elastic-agent docker image: ${ELASTIC_AGENT_IMAGE_REF_OVERRIDE}"
+fi
+
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
@@ -93,9 +101,9 @@ Status of Elastic stack services:
 ╭──────────────────┬─────────┬───────────────────╮
 │ SERVICE          │ VERSION │ STATUS            │
 ├──────────────────┼─────────┼───────────────────┤
-│ elastic-agent    │ ${EXPECTED_VERSION}   │ running (healthy) │
+│ elastic-agent    │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
 │ elasticsearch    │ ${EXPECTED_VERSION}   │ running (healthy) │
-│ fleet-server     │ ${EXPECTED_VERSION}   │ running (healthy) │
+│ fleet-server     │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
 │ kibana           │ ${EXPECTED_VERSION}   │ running (healthy) │
 │ package-registry │ latest  │ running (healthy) │
 ╰──────────────────┴─────────┴───────────────────╯
