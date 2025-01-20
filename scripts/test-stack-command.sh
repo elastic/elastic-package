@@ -77,6 +77,11 @@ mkdir -p "${OUTPUT_PATH_STATUS}"
 elastic-package stack status 2> "${OUTPUT_PATH_STATUS}/initial.txt"
 grep "\- No service running" "${OUTPUT_PATH_STATUS}/initial.txt"
 
+if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
+    # Required starting with STACK_VERSION 7.17.21
+    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_VERSION}-amd64"
+fi
+
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
