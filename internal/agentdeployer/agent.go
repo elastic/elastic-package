@@ -119,7 +119,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 	)
 
-	configDir, err := d.installDockerCompose(agentInfo)
+	configDir, err := d.installDockerCompose(ctx, agentInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -233,7 +233,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 
 // installDockerCompose creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (string, error) {
+func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, agentInfo AgentInfo) (string, error) {
 	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s-%s", d.agentName(), d.agentRunID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
@@ -261,7 +261,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		if err != nil {
 			return "", fmt.Errorf("failed to create kibana client: %w", err)
 		}
-		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(context.TODO(), agentInfo.Policy.ID)
+		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
 		if err != nil {
 			return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
 		}
