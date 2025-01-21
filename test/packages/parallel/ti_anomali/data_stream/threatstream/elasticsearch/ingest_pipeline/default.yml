@@ -239,7 +239,6 @@ processors:
       field: "@timestamp"
       copy_from: _temp_.timestamp
       if: ctx._temp_?.timestamp != null
-
   #
   # Map IP geolocation fields.
   #
