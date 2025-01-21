@@ -748,7 +748,6 @@ func (r *tester) getDeletedDocs(ctx context.Context, dataStream string) (int, er
 		All struct {
 			Total struct {
 				Docs struct {
-					Count   int `json:"count"`
 					Deleted int `json:"deleted"`
 				} `json:"docs"`
 			} `json:"total"`
