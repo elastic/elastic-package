@@ -8,11 +8,5 @@ data_stream:
     listen_port: 9080
     ioc_expiration_duration: 5d
     preserve_original_event: true
-    # Default tags plus the tag to force updating timestamp fields in order to be processed
-    # documents by the transform
-    tags:
-      - forwarded
-      - anomali-threatstream
-      - force_update_elastic_package_ci
 assert:
   hit_count: 100

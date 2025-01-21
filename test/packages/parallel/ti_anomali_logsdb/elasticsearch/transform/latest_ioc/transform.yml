@@ -22,7 +22,8 @@ description: Latest Anomali IoC data
 frequency: 30s
 sync:
   time:
-    field: "@timestamp"
+    # ensure that the field used to synchronize uses the current timestamp so it is processed
+    field: "event.ingested"
     # Updated to 120s because of refresh delay in Serverless. With default 60s, sometimes transform wouldn't process all documents.
     delay: 120s
 retention_policy:

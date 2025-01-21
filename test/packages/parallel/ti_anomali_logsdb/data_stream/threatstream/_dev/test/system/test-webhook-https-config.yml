@@ -8,12 +8,6 @@ data_stream:
     listen_port: 7443
     preserve_original_event: true
     ioc_expiration_duration: 5d
-    # Default tags plus the tag to force updating timestamp fields in order to be processed
-    # documents by the transform
-    tags:
-      - forwarded
-      - anomali-threatstream
-      - force_update_elastic_package_ci
     ssl: |-
       certificate: |
         -----BEGIN CERTIFICATE-----
