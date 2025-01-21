@@ -47,7 +47,12 @@ To expose local packages in the Package Registry, build them first and boot up t
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
-You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
+You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.
+
+There are different providers supported, that can be selected with the --provider flag.
+- compose: Starts a local stack using Docker Compose. This is the default.
+- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances.
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key.`
 
 const stackShellinitLongDescription = `Use this command to export to the current shell the configuration of the stack managed by elastic-package.
 
