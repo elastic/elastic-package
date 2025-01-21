@@ -26,6 +26,17 @@ type Config struct {
 	ElasticsearchPassword string `json:"elasticsearch_password,omitempty"`
 	KibanaHost            string `json:"kibana_host,omitempty"`
 	CACertFile            string `json:"ca_cert_file,omitempty"`
+
+	OutputID      string `json:"output_id,omitempty"`
+	FleetServerID string `json:"fleet_server_id,omitempty"`
+
+	// EnrollmentToken is the token used during initialization, it can expire,
+	// so don't persist it, it won't be reused.
+	EnrollmentToken string `json:"-"`
+
+	// FleetServiceToken is the service token used during initialization when
+	// a local Fleet Server is needed.
+	FleetServiceToken string `json:"-"`
 }
 
 func configPath(profile *profile.Profile) string {

@@ -18,11 +18,17 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+const paramFleetServerManaged = "fleet_server_managed"
+
 var (
-	serverlessStackResources = []resource.Resource{
+	localStackResources = []resource.Resource{
+		&resource.File{
+			Path:    FleetServerHealthcheckFile,
+			Content: staticSource.File("_static/fleet-server-healthcheck.sh"),
+		},
 		&resource.File{
 			Path:    ComposeFile,
-			Content: staticSource.Template("_static/serverless-docker-compose.yml.tmpl"),
+			Content: staticSource.Template("_static/local-services-docker-compose.yml.tmpl"),
 		},
 		&resource.File{
 			Path:    ElasticAgentEnvFile,
@@ -31,7 +37,9 @@ var (
 	}
 )
 
-func applyServerlessResources(profile *profile.Profile, stackVersion string, config Config) error {
+// applyLocalResources creates the local resources needed to run system tests when the stack
+// is not local.
+func applyLocalResources(profile *profile.Profile, stackVersion string, config Config) error {
 	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
@@ -42,15 +50,20 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_version":      stackVersion,
-		"agent_image":        imageRefs.ElasticAgent,
-		"logstash_image":     imageRefs.Logstash,
-		"elasticsearch_host": esHostWithPort(config.ElasticsearchHost),
-		"username":           config.ElasticsearchUsername,
-		"password":           config.ElasticsearchPassword,
-		"kibana_host":        config.KibanaHost,
-		"fleet_url":          config.Parameters[ParamServerlessFleetURL],
-		"logstash_enabled":   profile.Config("stack.logstash_enabled", "false"),
+		"agent_version":        stackVersion,
+		"agent_image":          imageRefs.ElasticAgent,
+		"logstash_image":       imageRefs.Logstash,
+		"elasticsearch_host":   DockerInternalHost(esHostWithPort(config.ElasticsearchHost)),
+		"api_key":              config.ElasticsearchAPIKey,
+		"username":             config.ElasticsearchUsername,
+		"password":             config.ElasticsearchPassword,
+		"kibana_host":          DockerInternalHost(config.KibanaHost),
+		"fleet_url":            config.Parameters[ParamServerlessFleetURL],
+		"enrollment_token":     config.EnrollmentToken,
+		"logstash_enabled":     profile.Config("stack.logstash_enabled", "false"),
+		"fleet_server_managed": config.Parameters[paramFleetServerManaged],
+		"fleet_server_policy":  managedFleetServerPolicyID,
+		"fleet_service_token":  config.FleetServiceToken,
 	})
 
 	os.MkdirAll(stackDir, 0755)
@@ -58,13 +71,13 @@ func applyServerlessResources(profile *profile.Profile, stackVersion string, con
 		Prefix: stackDir,
 	})
 
-	resources := append([]resource.Resource{}, serverlessStackResources...)
+	resources := append([]resource.Resource{}, localStackResources...)
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
 	resourceManager.RegisterProvider("certs", &resource.FileProvider{
 		Prefix: profile.ProfilePath,
 	})
-	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsServicesServerless)
+	certResources, err := initTLSCertificates("certs", profile.ProfilePath, tlsLocalServices)
 	if err != nil {
 		return fmt.Errorf("failed to create TLS files: %w", err)
 	}
@@ -99,6 +112,27 @@ func esHostWithPort(host string) string {
 
 	if url.Port() == "" {
 		url.Host = net.JoinHostPort(url.Hostname(), "443")
+		return url.String()
+	}
+
+	return host
+}
+
+func DockerInternalHost(host string) string {
+	url, err := url.Parse(host)
+	if err != nil {
+		return host
+	}
+
+	ip := net.ParseIP(url.Hostname())
+	if url.Hostname() == "localhost" || (ip != nil && ip.IsLoopback()) {
+		const hostInternal = "host.docker.internal"
+		if url.Port() == "" {
+			url.Host = hostInternal
+		} else {
+			url.Host = net.JoinHostPort(hostInternal, url.Port())
+		}
+
 		return url.String()
 	}
 

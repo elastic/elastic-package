@@ -31,8 +31,8 @@ type Project struct {
 	Region string `json:"region_id"`
 
 	Credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username string `json:"username,omitempty"`
+		Password string `json:"password,omitempty"`
 	} `json:"credentials"`
 
 	Endpoints struct {
@@ -150,7 +150,7 @@ func (p *Project) getFleetHealth(ctx context.Context) error {
 
 	if status.Status != "HEALTHY" {
 		return fmt.Errorf("fleet status %s", status.Status)
-
 	}
+
 	return nil
 }

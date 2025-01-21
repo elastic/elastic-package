@@ -107,7 +107,4 @@ type AgentInfo struct {
 
 		AgentSettings
 	}
-
-	// CustomProperties store additional data used to boot up the service, e.g. AWS credentials.
-	CustomProperties map[string]interface{}
 }

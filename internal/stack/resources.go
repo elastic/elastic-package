@@ -156,8 +156,10 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"fleet_url":          "https://fleet-server:8220",
 		"elasticsearch_host": "https://elasticsearch:9200",
 
-		"username": elasticsearchUsername,
-		"password": elasticsearchPassword,
+		"api_key":          "",
+		"username":         elasticsearchUsername,
+		"password":         elasticsearchPassword,
+		"enrollment_token": "",
 
 		"agent_publish_ports":  strings.Join(agentPorts, ","),
 		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
