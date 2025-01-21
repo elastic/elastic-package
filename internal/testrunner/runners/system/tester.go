@@ -1983,6 +1983,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
+		logger.Debugf("Found %d documents in preview for transform %q", len(transformDocs), transformId)
+
 		transformRootPath := filepath.Dir(transform.Path)
 		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
@@ -2019,7 +2021,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			// to be ingested in the destination index of the transform. That's the reason to disable
 			// the asserts
 			waitOpts := waitForDocsOptions{
-				period:  5 * time.Second,
+				period: 5 * time.Second,
+				// Add specific timeout to ensure transform processes the documents (depends on "delay" field?)
 				timeout: 10 * time.Minute,
 				stopCondition: func(hits *hits, oldHits int) (bool, error) {
 					deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
@@ -2027,7 +2030,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 						return false, err
 					}
 					foundDeleted := deleted > 0
-					foundHits := hits.size() > 0
+					// Wait at least for the number of documents found after running the transform preview
+					foundHits := hits.size() > len(transformDocs)
 					if foundDeleted {
 						logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
 					}
