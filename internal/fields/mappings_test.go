@@ -14,15 +14,14 @@ import (
 )
 
 func TestComparingMappings(t *testing.T) {
-	defaultSpecVersion := "3.3.0"
 	cases := []struct {
-		title           string
-		preview         map[string]any
-		actual          map[string]any
-		schema          []FieldDefinition
-		spec            string
-		exceptionFields []string
-		expectedErrors  []string
+		title            string
+		preview          map[string]any
+		actual           map[string]any
+		schema           []FieldDefinition
+		dynamicTemplates []map[string]any
+		exceptionFields  []string
+		expectedErrors   []string
 	}{
 		{
 			title: "same mappings",
@@ -84,7 +83,7 @@ func TestComparingMappings(t *testing.T) {
 			expectedErrors: []string{},
 		},
 		{
-			title: "validate field with ECS",
+			title: "validate fields with ECS",
 			preview: map[string]any{
 				"foo": map[string]any{
 					"type": "keyword",
@@ -98,6 +97,25 @@ func TestComparingMappings(t *testing.T) {
 					"type": "long",
 				},
 				"foo": map[string]any{
+					"type": "keyword",
+				},
+				"user": map[string]any{
+					"type": "keyword",
+				},
+				"time": map[string]any{
+					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+						// there should be a dynamic template in order to exist this multi-field
+						"other": map[string]any{
+							"type": "match_only_text",
+						},
+					},
+				},
+				// Should this fail since it has no multi-fields as in the ECS definition?
+				"name": map[string]any{
 					"type": "keyword",
 				},
 			},
@@ -117,9 +135,34 @@ func TestComparingMappings(t *testing.T) {
 					Type:     "keyword",
 					External: "",
 				},
+				{
+					Name:     "time",
+					Type:     "keyword",
+					External: "ecs",
+					MultiFields: []FieldDefinition{
+						{
+							Name:     "text",
+							Type:     "match_only_text",
+							External: "ecs",
+						},
+					},
+				},
+				{
+					Name:     "name",
+					Type:     "keyword",
+					External: "ecs",
+					MultiFields: []FieldDefinition{
+						{
+							Name:     "text",
+							Type:     "match_only_text",
+							External: "ecs",
+						},
+					},
+				},
 			},
 			expectedErrors: []string{
 				`field "metrics" is undefined: actual mapping type (long) does not match with ECS definition type: keyword`,
+				`field "user" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -172,7 +215,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "foo" is undefined: missing definition for path`,
+				`field "foo" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -191,7 +234,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`constant_keyword value in preview "example" does not match the actual mapping value "bar" for path: "foo"`,
+				`invalid value in field "foo": constant_keyword value in preview "example" does not match the actual mapping value "bar"`,
 			},
 		},
 		{
@@ -231,6 +274,14 @@ func TestComparingMappings(t *testing.T) {
 		{
 			title: "validate multifields failure",
 			preview: map[string]any{
+				"time": map[string]any{
+					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+					},
+				},
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -242,7 +293,7 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"properties": map[string]any{
 						"type": map[string]any{
-							"type": "constant_keyword",
+							"type": "keyword",
 						},
 						"fields": map[string]any{
 							"type": "text",
@@ -256,6 +307,14 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			actual: map[string]any{
+				"time": map[string]any{
+					"type": "keyword",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "match_only_text",
+						},
+					},
+				},
 				"foo": map[string]any{
 					"type": "keyword",
 					"fields": map[string]any{
@@ -270,7 +329,12 @@ func TestComparingMappings(t *testing.T) {
 				"bar": map[string]any{
 					"properties": map[string]any{
 						"type": map[string]any{
-							"type": "constant_keyword",
+							"type": "keyword",
+							"fields": map[string]any{
+								"text": map[string]any{
+									"type": "match_only_text",
+								},
+							},
 						},
 						"fields": map[string]any{
 							"type": "text",
@@ -285,7 +349,8 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "foo.text" is undefined: missing definition for path`,
+				`field "foo.text" is undefined: field definition not found`,
+				`field "bar.type" is undefined: not found multi_fields definitions in preview mapping`,
 			},
 		},
 		{
@@ -307,7 +372,7 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`not found multi_fields in preview mappings for path: "foo"`,
+				`field "foo" is undefined: not found multi_fields definitions in preview mapping`,
 			},
 		},
 		{
@@ -338,8 +403,8 @@ func TestComparingMappings(t *testing.T) {
 			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "file.path" is undefined: missing definition for path`,
-				`field "bar" is undefined: missing definition for path`,
+				`field "file.path" is undefined: field definition not found`,
+				`field "bar" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -367,11 +432,11 @@ func TestComparingMappings(t *testing.T) {
 			schema:         []FieldDefinition{},
 			expectedErrors: []string{
 				// TODO: there is an exception in the logic to not raise this error
-				// `field "_tmp" is undefined: missing definition for path`,
+				// `field "_tmp" is undefined: field definition not found`,
 			},
 		},
 		{
-			title: "skip dynamic objects", // TODO: should this be checked using dynamic templates?
+			title: "validate fully dynamic objects in preview",
 			preview: map[string]any{
 				"@timestamp": map[string]any{
 					"type": "keyword",
@@ -385,74 +450,11 @@ func TestComparingMappings(t *testing.T) {
 									"type":    "object",
 									"dynamic": "true",
 								},
-							},
-						},
-					},
-				},
-			},
-			actual: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
-									"dynamic": "true",
-									"properties": map[string]any{
-										"innodb_data_fsyncs": map[string]any{
-											"type": "long",
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			schema:         []FieldDefinition{},
-			expectedErrors: []string{},
-		},
-		{
-			title: "compare all objects even dynamic true", // TODO: should this be checked using dynamic templates?
-			preview: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
+								"string": map[string]any{
 									"type":    "object",
 									"dynamic": "true",
 								},
-							},
-						},
-					},
-				},
-			},
-			actual: map[string]any{
-				"@timestamp": map[string]any{
-					"type": "keyword",
-				},
-				"sql": map[string]any{
-					"properties": map[string]any{
-						"metrics": map[string]any{
-							"properties": map[string]any{
-								"dynamic": "true",
-								"numeric": map[string]any{
-									"dynamic": "true",
-									"properties": map[string]any{
-										"innodb_data_fsyncs": map[string]any{
-											"type": "long",
-										},
-									},
-								},
-								"example": map[string]any{
+								"foo": map[string]any{
 									"type": "keyword",
 								},
 							},
@@ -460,9 +462,56 @@ func TestComparingMappings(t *testing.T) {
 					},
 				},
 			},
+			actual: map[string]any{
+				"@timestamp": map[string]any{
+					"type": "keyword",
+				},
+				"sql": map[string]any{
+					"properties": map[string]any{
+						"metrics": map[string]any{
+							"properties": map[string]any{
+								"dynamic": "true",
+								"numeric": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "long",
+										},
+									},
+								},
+								"string": map[string]any{
+									"dynamic": "true",
+									"properties": map[string]any{
+										"innodb_data_fsyncs": map[string]any{
+											"type": "keyword",
+										},
+									},
+								},
+								"example": map[string]any{
+									"type": "keyword",
+								},
+								"foo": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"sql.metrics.string.*": map[string]any{
+						"path_match": "sql.metrics.string.*",
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+			},
 			schema: []FieldDefinition{},
 			expectedErrors: []string{
-				`field "sql.metrics.example" is undefined: missing definition for path`,
+				`field "sql.metrics.numeric.innodb_data_fsyncs" is undefined: field definition not found`,
+				`field "sql.metrics.example" is undefined: field definition not found`,
 			},
 		},
 		{
@@ -516,9 +565,8 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			exceptionFields: []string{"access.field"},
-			spec:            "1.0.0",
 			expectedErrors: []string{
-				`field "error.field" is undefined: missing definition for path`,
+				`field "error.field" is undefined: field definition not found`,
 				// should status.field return error ? or should it be ignored?
 				`field "status.field" is undefined: actual mapping type (keyword) does not match with ECS definition type: array`,
 			},
@@ -678,7 +726,6 @@ func TestComparingMappings(t *testing.T) {
 			},
 			// foo is added to the exception list because it is type nested
 			exceptionFields: []string{"foo"},
-			spec:            "3.0.0",
 			schema:          []FieldDefinition{},
 			expectedErrors:  []string{},
 		},
@@ -700,10 +747,103 @@ func TestComparingMappings(t *testing.T) {
 				},
 			},
 			exceptionFields: []string{},
-			spec:            "3.0.1",
 			schema:          []FieldDefinition{},
 			expectedErrors: []string{
 				`not found properties in preview mappings for path: "foo"`,
+			},
+		},
+		{
+			title:   "fields matching dynamic templates",
+			preview: map[string]any{},
+			actual: map[string]any{
+				"foo": map[string]any{
+					"type": "keyword",
+				},
+				"foa": map[string]any{
+					"type": "double",
+				},
+				"fob": map[string]any{
+					"type":               "double",
+					"time_series_metric": "gauge",
+				},
+				"bar": map[string]any{
+					"type": "text",
+					"fields": map[string]any{
+						"text": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+				"bar_double": map[string]any{
+					"type": "double",
+				},
+				"full_regex_1": map[string]any{
+					"type": "double",
+				},
+			},
+			dynamicTemplates: []map[string]any{
+				{
+					"fo*_keyword": map[string]any{
+						"path_match":           "fo*",
+						"path_unmatch":         []any{"foa", "fob"},
+						"unmatch_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type": "keyword",
+						},
+					},
+				},
+				{
+					"fo*_number": map[string]any{
+						"path_match":         "fo*",
+						"path_unmatch":       "foo",
+						"match_mapping_type": []any{"long", "double"},
+						"mapping": map[string]any{
+							"type":               "double",
+							"time_series_metric": "counter",
+						},
+					},
+				},
+				{
+					"bar_match": map[string]any{
+						"unmatch":            []any{"foo", "foo42", "*42"},
+						"match":              []any{"*ar", "bar42"},
+						"match_mapping_type": "text",
+						"mapping": map[string]any{
+							"type": "text",
+							"fields": map[string]any{
+								"text": map[string]any{
+									"type": "keyword",
+								},
+							},
+						},
+					},
+				},
+				{
+					"bar_star_double": map[string]any{
+						"match":                "*",
+						"unmatch":              "full*",
+						"unmatch_mapping_type": []any{"text"},
+						"mapping": map[string]any{
+							"type": "double",
+						},
+					},
+				},
+				{
+					"full_regex_1": map[string]any{
+						"match_pattern": "regex",
+						"match":         "^full_.*\\d$",
+						"mapping": map[string]any{
+							"type": "double",
+						},
+					},
+				},
+			},
+			exceptionFields: []string{},
+			schema:          []FieldDefinition{},
+			expectedErrors: []string{
+				// Should it be considered this error in "foa" "missing time_series_metric bar"?
+				// "fob" is failing because it does not have the expected value for the "time_series_metric" field
+				`field "fob" is undefined: field definition not found`,
 			},
 		},
 	}
@@ -711,19 +851,13 @@ func TestComparingMappings(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			logger.EnableDebugMode()
-			specVersion := defaultSpecVersion
-			if c.spec != "" {
-				specVersion = c.spec
-			}
-			v, err := CreateValidatorForMappings("", nil,
-				WithMappingValidatorSpecVersion(specVersion),
+			v, err := CreateValidatorForMappings(nil,
 				WithMappingValidatorFallbackSchema(c.schema),
-				WithMappingValidatorDisabledDependencyManagement(),
 				WithMappingValidatorExceptionFields(c.exceptionFields),
 			)
 			require.NoError(t, err)
 
-			errs := v.compareMappings("", false, c.preview, c.actual)
+			errs := v.compareMappings("", false, c.preview, c.actual, c.dynamicTemplates)
 			if len(c.expectedErrors) > 0 {
 				assert.Len(t, errs, len(c.expectedErrors))
 				for _, err := range errs {

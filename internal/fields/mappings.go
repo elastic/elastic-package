@@ -7,13 +7,10 @@ package fields
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -26,17 +23,6 @@ type MappingValidator struct {
 	// Schema contains definition records.
 	Schema []FieldDefinition
 
-	// SpecVersion contains the version of the spec used by the package.
-	specVersion semver.Version
-
-	disabledDependencyManagement bool
-
-	enabledImportAllECSSchema bool
-
-	disabledNormalization bool
-
-	injectFieldsOptions InjectFieldsOptions
-
 	esClient *elasticsearch.Client
 
 	indexTemplateName string
@@ -48,50 +34,6 @@ type MappingValidator struct {
 
 // MappingValidatorOption represents an optional flag that can be passed to  CreateValidatorForMappings.
 type MappingValidatorOption func(*MappingValidator) error
-
-// WithMappingValidatorSpecVersion enables validation dependant of the spec version used by the package.
-func WithMappingValidatorSpecVersion(version string) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		sv, err := semver.NewVersion(version)
-		if err != nil {
-			return fmt.Errorf("invalid version %q: %v", version, err)
-		}
-		v.specVersion = *sv
-		return nil
-	}
-}
-
-// WithMappingValidatorDisabledDependencyManagement configures the validator to ignore external fields and won't follow dependencies.
-func WithMappingValidatorDisabledDependencyManagement() MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.disabledDependencyManagement = true
-		return nil
-	}
-}
-
-// WithMappingValidatorEnabledImportAllECSSchema configures the validator to check or not the fields with the complete ECS schema.
-func WithMappingValidatorEnabledImportAllECSSChema(importSchema bool) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.enabledImportAllECSSchema = importSchema
-		return nil
-	}
-}
-
-// WithMappingValidatorDisableNormalization configures the validator to disable normalization.
-func WithMappingValidatorDisableNormalization(disabledNormalization bool) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.disabledNormalization = disabledNormalization
-		return nil
-	}
-}
-
-// WithMappingValidatorInjectFieldsOptions configures fields injection.
-func WithMappingValidatorInjectFieldsOptions(options InjectFieldsOptions) MappingValidatorOption {
-	return func(v *MappingValidator) error {
-		v.injectFieldsOptions = options
-		return nil
-	}
-}
 
 // WithMappingValidatorElasticsearchClient configures the Elasticsearch client.
 func WithMappingValidatorElasticsearchClient(esClient *elasticsearch.Client) MappingValidatorOption {
@@ -134,13 +76,12 @@ func WithMappingValidatorExceptionFields(fields []string) MappingValidatorOption
 }
 
 // CreateValidatorForMappings function creates a validator for the mappings.
-func CreateValidatorForMappings(fieldsParentDir string, esClient *elasticsearch.Client, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
-	p := packageRoot{}
+func CreateValidatorForMappings(esClient *elasticsearch.Client, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
 	opts = append(opts, WithMappingValidatorElasticsearchClient(esClient))
-	return createValidatorForMappingsAndPackageRoot(fieldsParentDir, p, opts...)
+	return createValidatorForMappingsAndPackageRoot(opts...)
 }
 
-func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...MappingValidatorOption) (v *MappingValidator, err error) {
+func createValidatorForMappingsAndPackageRoot(opts ...MappingValidatorOption) (v *MappingValidator, err error) {
 	v = new(MappingValidator)
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
@@ -148,32 +89,6 @@ func createValidatorForMappingsAndPackageRoot(fieldsParentDir string, finder pac
 		}
 	}
 
-	if len(v.Schema) > 0 {
-		return v, nil
-	}
-
-	fieldsDir := filepath.Join(fieldsParentDir, "fields")
-
-	var fdm *DependencyManager
-	if !v.disabledDependencyManagement {
-		packageRoot, found, err := finder.FindPackageRoot()
-		if err != nil {
-			return nil, fmt.Errorf("can't find package root: %w", err)
-		}
-		if !found {
-			return nil, errors.New("package root not found and dependency management is enabled")
-		}
-		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
-		}
-	}
-	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
-	if err != nil {
-		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
-	}
-
-	v.Schema = append(fields, v.Schema...)
 	return v, nil
 }
 
@@ -241,7 +156,14 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 		return errs.Unique()
 	}
 
-	mappingErrs := v.compareMappings("", false, rawPreview, rawActual)
+	var rawDynamicTemplates []map[string]any
+	err = json.Unmarshal(actualDynamicTemplates, &rawDynamicTemplates)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("failed to unmarshal actual dynamic templates (data stream %s): %w", v.dataStreamName, err))
+		return errs.Unique()
+	}
+
+	mappingErrs := v.compareMappings("", false, rawPreview, rawActual, rawDynamicTemplates)
 	errs = append(errs, mappingErrs...)
 
 	if len(errs) > 0 {
@@ -256,6 +178,15 @@ func currentMappingPath(path, key string) string {
 		return key
 	}
 	return fmt.Sprintf("%s.%s", path, key)
+}
+
+func fieldNameFromPath(path string) string {
+	if !strings.Contains(path, ".") {
+		return path
+	}
+
+	elems := strings.Split(path, ".")
+	return elems[len(elems)-1]
 }
 
 func mappingParameter(field string, definition map[string]any) string {
@@ -369,28 +300,51 @@ func isNumberTypeField(previewType, actualType string) bool {
 	return false
 }
 
-func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) error {
+func (v *MappingValidator) validateMappingInECSSchema(currentPath string, definition map[string]any) multierror.Error {
 	found := FindElementDefinition(currentPath, v.Schema)
 	if found == nil {
-		return fmt.Errorf("missing definition for path")
+		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
 	if found.External != "ecs" {
-		return fmt.Errorf("missing definition for path (not in ECS)")
+		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
-	actualType := mappingParameter("type", definition)
-	if found.Type == actualType {
-		return nil
+	errs := compareFieldDefinitionWithECS(currentPath, found, definition)
+	if len(errs) > 0 {
+		return errs
 	}
 
-	// exceptions related to numbers
-	if isNumberTypeField(found.Type, actualType) {
-		logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(found.Type), string(actualType))
-		return nil
+	// Currently, validation of multi-fields with ECS is skipped
+	// Any multi-field found in the actual mapping must come from a definition from the preview or
+	// a dynamic template, therefore there is a definition for it.
+	// Example of this validation can be found at:
+	// https://github.com/elastic/elastic-package/pull/2285/commits/51656120
+	return nil
+}
+
+func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) multierror.Error {
+	var errs multierror.Error
+	actualType := mappingParameter("type", actual)
+	if ecs.Type != actualType {
+		// exceptions related to numbers
+		if !isNumberTypeField(ecs.Type, actualType) {
+			errs = append(errs, fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, ecs.Type))
+		} else {
+			logger.Debugf("Allowed number fields with different types (ECS %s - actual %s)", string(ecs.Type), string(actualType))
+		}
 	}
-	// any other field to validate here?
-	return fmt.Errorf("actual mapping type (%s) does not match with ECS definition type: %s", actualType, found.Type)
+
+	// Compare other parameters
+	metricType := mappingParameter("time_series_metric", actual)
+	if ecs.MetricType != metricType {
+		errs = append(errs, fmt.Errorf("actual mapping \"time_series_metric\" (%s) does not match with ECS definition value: %s", metricType, ecs.MetricType))
+	}
+
+	if len(errs) > 0 {
+		return errs
+	}
+	return nil
 }
 
 // flattenMappings returns all the mapping definitions found at "path" flattened including
@@ -398,22 +352,9 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 func flattenMappings(path string, definition map[string]any) (map[string]any, error) {
 	newDefs := map[string]any{}
 	if isMultiFields(definition) {
-		multifields, err := getMappingDefinitionsField("fields", definition)
-		if err != nil {
-			return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping %q: %w", path, err)}
-		}
-
-		// Include also the definition itself
 		newDefs[path] = definition
-
-		for key, object := range multifields {
-			currentPath := currentMappingPath(path, key)
-			def, ok := object.(map[string]any)
-			if !ok {
-				return nil, multierror.Error{fmt.Errorf("invalid multi_field mapping type: %q", path)}
-			}
-			newDefs[currentPath] = def
-		}
+		// multi_fields are going to be validated directly with the dynamic templates
+		// or with ECS fields
 		return newDefs, nil
 	}
 
@@ -448,10 +389,13 @@ func flattenMappings(path string, definition map[string]any) (map[string]any, er
 }
 
 func getMappingDefinitionsField(field string, definition map[string]any) (map[string]any, error) {
-	anyValue := definition[field]
+	anyValue, ok := definition[field]
+	if !ok {
+		return nil, fmt.Errorf("field not found: %q", field)
+	}
 	object, ok := anyValue.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("unexpected type found for %q: %T ", field, anyValue)
+		return nil, fmt.Errorf("unexpected type found for field %q: %T ", field, anyValue)
 	}
 	return object, nil
 }
@@ -476,12 +420,12 @@ func validateConstantKeywordField(path string, preview, actual map[string]any) (
 	if previewValue != actualValue {
 		// This should also be detected by the failure storage (if available)
 		// or no documents being ingested
-		return isConstantKeyword, fmt.Errorf("constant_keyword value in preview %q does not match the actual mapping value %q for path: %q", previewValue, actualValue, path)
+		return isConstantKeyword, fmt.Errorf("invalid value in field %q: constant_keyword value in preview %q does not match the actual mapping value %q", path, previewValue, actualValue)
 	}
 	return isConstantKeyword, nil
 }
 
-func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any) multierror.Error {
+func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinition bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 
 	isConstantKeywordType, err := validateConstantKeywordField(path, preview, actual)
@@ -498,7 +442,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	if isObjectFullyDynamic(actual) {
-		logger.Debugf("Dynamic object found but no fields ingested under path: \"%s.*\"", path)
+		logger.Warnf("Dynamic object found but no fields ingested under path: \"%s.*\"", path)
 		return nil
 	}
 
@@ -506,8 +450,11 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	// there could be "sub-fields" with name "properties" too
 	if couldBeParametersDefinition && isObject(actual) {
 		if isObjectFullyDynamic(preview) {
-			// TODO: Skip for now, it should be required to compare with dynamic templates
-			logger.Debugf("Pending to validate with the dynamic templates defined the path: %q", path)
+			dynamicErrors := v.validateMappingsNotInPreview(path, actual, dynamicTemplates)
+			errs = append(errs, dynamicErrors...)
+			if len(errs) > 0 {
+				return errs.Unique()
+			}
 			return nil
 		} else if !isObject(preview) {
 			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %q", path))
@@ -521,7 +468,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid properties type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties)
+		compareErrors := v.compareMappings(path, false, previewProperties, actualProperties, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 
 		if len(errs) == 0 {
@@ -533,7 +480,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	containsMultifield := isMultiFields(actual)
 	if containsMultifield {
 		if !isMultiFields(preview) {
-			errs = append(errs, fmt.Errorf("not found multi_fields in preview mappings for path: %q", path))
+			errs = append(errs, fmt.Errorf("field %q is undefined: not found multi_fields definitions in preview mapping", path))
 			return errs.Unique()
 		}
 		previewFields, err := getMappingDefinitionsField("fields", preview)
@@ -544,13 +491,13 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 		if err != nil {
 			errs = append(errs, fmt.Errorf("found invalid multi_fields type in actual mappings for path %q: %w", path, err))
 		}
-		compareErrors := v.compareMappings(path, false, previewFields, actualFields)
+		compareErrors := v.compareMappings(path, false, previewFields, actualFields, dynamicTemplates)
 		errs = append(errs, compareErrors...)
 		// not returning here to keep validating the other fields of this object if any
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, true, containsMultifield, preview, actual)
+	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, preview, actual, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -558,7 +505,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -576,19 +523,19 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(childField) {
 					// TODO: Should this be raised as an error instead?
-					logger.Debugf("field %q is an empty object and it does not exist in the preview", currentPath)
+					logger.Debugf("field %q skipped: empty object without definition in the preview", currentPath)
 					continue
 				}
-				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField)
+				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
 				errs = append(errs, ecsErrors...)
 				continue
 			}
-			// Parameter not defined
+			// Field or Parameter not defined
 			errs = append(errs, fmt.Errorf("field %q is undefined", currentPath))
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, true)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates, true)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -599,7 +546,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 
 // validateMappingsNotInPreview validates the object and the nested objects in the current path with other resources
 // like ECS schema, dynamic templates or local fields defined in the package (type array).
-func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any) multierror.Error {
+func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, childField map[string]any, rawDynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	flattenFields, err := flattenMappings(currentPath, childField)
 	if err != nil {
@@ -607,9 +554,14 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		return errs
 	}
 
+	dynamicTemplates, err := parseDynamicTemplates(rawDynamicTemplates)
+	if err != nil {
+		return multierror.Error{fmt.Errorf("failed to parse dynamic templates: %w", err)}
+	}
+
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation: %q", fieldPath)
+			logger.Warnf("Found exception field, skip its validation (not present in preview): %q", fieldPath)
 			return nil
 		}
 
@@ -620,26 +572,59 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		if isEmptyObject(def) {
-			logger.Debugf("Skip empty object path: %q", fieldPath)
+			logger.Debugf("Skip field which value is an empty object: %q", fieldPath)
 			continue
 		}
 
-		// TODO: validate mapping with dynamic templates first than validating with ECS
-		// just raise an error if both validation processes fail
+		// validate whether or not the field has a corresponding dynamic template
+		if len(rawDynamicTemplates) > 0 {
+			err := v.matchingWithDynamicTemplates(fieldPath, def, dynamicTemplates)
+			if err == nil {
+				continue
+			}
+		}
 
-		// are all fields under this key defined in ECS?
-		err = v.validateMappingInECSSchema(fieldPath, def)
-		if err != nil {
-			logger.Warnf("undefined path %q (pending to check dynamic templates)", fieldPath)
-			errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, err))
+		// validate whether or not all fields under this key are defined in ECS
+		ecsErrs := v.validateMappingInECSSchema(fieldPath, def)
+		if len(ecsErrs) > 0 {
+			for _, e := range ecsErrs {
+				errs = append(errs, fmt.Errorf("field %q is undefined: %w", fieldPath, e))
+			}
 		}
 	}
 	return errs.Unique()
 }
 
+// matchingWithDynamicTemplates validates a given definition (currentPath) with a set of dynamic templates.
+// The dynamic templates parameters are based on https://www.elastic.co/guide/en/elasticsearch/reference/8.17/dynamic-templates.html
+func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, definition map[string]any, dynamicTemplates []dynamicTemplate) error {
+	for _, template := range dynamicTemplates {
+		matches, err := template.Matches(currentPath, definition)
+		if err != nil {
+			return fmt.Errorf("failed to validate %q with dynamic template %q: %w", currentPath, template.name, err)
+		}
+
+		if !matches {
+			// Look for another dynamic template
+			continue
+		}
+
+		// Check that all parameters match (setting no dynamic templates to avoid recursion)
+		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
+		if errs != nil {
+			// Look for another dynamic template
+			continue
+		}
+
+		return nil
+	}
+
+	return fmt.Errorf("no template matching for path: %q", currentPath)
+}
+
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, couldBeParametersDefinition bool) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
@@ -652,7 +637,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 		if !ok {
 			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
 		}
-		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField)...)
+		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)...)
 	case any:
 		// Validate each setting/parameter of the mapping
 		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case

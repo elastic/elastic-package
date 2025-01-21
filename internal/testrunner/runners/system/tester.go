@@ -1535,12 +1535,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		logger.Warn("Validate mappings found (technical preview)")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
-		mappingsValidator, err := fields.CreateValidatorForMappings(r.dataStreamPath, r.esClient,
+		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
 			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
 			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
 			fields.WithMappingValidatorDataStream(scenario.dataStream),
-			fields.WithMappingValidatorSpecVersion(r.pkgManifest.SpecVersion),
-			fields.WithMappingValidatorEnabledImportAllECSSChema(true),
 			fields.WithMappingValidatorExceptionFields(exceptionFields),
 		)
 		if err != nil {
