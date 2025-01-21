@@ -142,7 +142,7 @@ func (c *Client) epmPackageUrl(name, version string) string {
 		return fmt.Sprintf("%s/epm/packages/%s", FleetAPI, name)
 	}
 	switch {
-	case c.semver.Major() < 8:
+	case c.semver != nil && c.semver.Major() < 8:
 		return fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
 	default:
 		return fmt.Sprintf("%s/epm/packages/%s/%s", FleetAPI, name, version)

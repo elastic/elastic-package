@@ -523,7 +523,7 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 			if childField, ok := value.(map[string]any); ok {
 				if isEmptyObject(childField) {
 					// TODO: Should this be raised as an error instead?
-					logger.Debugf("field %q skipped: empty object wihtout definition in the preview", currentPath)
+					logger.Debugf("field %q skipped: empty object without definition in the preview", currentPath)
 					continue
 				}
 				ecsErrors := v.validateMappingsNotInPreview(currentPath, childField, dynamicTemplates)
@@ -561,7 +561,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation (not in preview): %q", fieldPath)
+			logger.Warnf("Found exception field, skip its validation (not present in preview): %q", fieldPath)
 			return nil
 		}
 
@@ -572,7 +572,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		if isEmptyObject(def) {
-			logger.Debugf("Skip empty object path: %q", fieldPath)
+			logger.Debugf("Skip field which value is an empty object: %q", fieldPath)
 			continue
 		}
 
@@ -609,22 +609,16 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 			continue
 		}
 
-		logger.Warnf("> Found dynamic template matched: %s", template.name)
-
-		logger.Debugf("> Check parameters (%q): %q", template.name, currentPath)
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
 		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
 		if errs != nil {
 			// Look for another dynamic template
-			logger.Warnf(">> Invalid dynamic template for %q:\n%s", currentPath, errs.Unique())
 			continue
 		}
 
-		logger.Warnf("> Valid template for path %q: %q", currentPath, template.name)
 		return nil
 	}
 
-	logger.Warnf(">> No template matching for path: %q", currentPath)
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 

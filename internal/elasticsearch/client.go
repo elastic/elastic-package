@@ -189,6 +189,37 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
+type Info struct {
+	Name        string `json:"name"`
+	ClusterName string `json:"cluster_name"`
+	ClusterUUID string `json:"cluster_uuid"`
+	Version     struct {
+		Number      string `json:"number"`
+		BuildFlavor string `json:"build_flavor"`
+	} `json:"version`
+}
+
+// Info gets cluster information and metadata.
+func (client *Client) Info(ctx context.Context) (*Info, error) {
+	resp, err := client.Client.Info(client.Client.Info.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("error getting cluster info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get cluster info: %s", resp.String())
+	}
+
+	var info Info
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding cluster info: %w", err)
+	}
+
+	return &info, nil
+}
+
 // IsFailureStoreAvailable checks if the failure store is available.
 func (client *Client) IsFailureStoreAvailable(ctx context.Context) (bool, error) {
 	// FIXME: Using the low-level transport till the API SDK supports the failure store.
