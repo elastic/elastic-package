@@ -43,7 +43,7 @@ func configPath(profile *profile.Profile) string {
 	return profile.Path(ProfileStackPath, configFileName)
 }
 
-func defaultConfig(profile *profile.Profile) Config {
+func defaultConfig() Config {
 	return Config{
 		Provider: DefaultProvider,
 
@@ -52,14 +52,19 @@ func defaultConfig(profile *profile.Profile) Config {
 		ElasticsearchUsername: elasticsearchUsername,
 		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHost:            "https://127.0.0.1:5601",
-		CACertFile:            profile.Path(CACertificateFile),
 	}
 }
 
 func LoadConfig(profile *profile.Profile) (Config, error) {
 	d, err := os.ReadFile(configPath(profile))
 	if errors.Is(err, os.ErrNotExist) {
-		return defaultConfig(profile), nil
+		config := defaultConfig()
+		caCertFile := profile.Path(CACertificateFile)
+		// Use CA file in the profile only if it exists.
+		if _, err := os.Stat(caCertFile); err == nil {
+			config.CACertFile = caCertFile
+		}
+		return config, nil
 	}
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to read stack config: %w", err)
