@@ -2031,7 +2031,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 					}
 					foundDeleted := deleted > 0
 					// Wait at least for the number of documents found after running the transform preview
-					foundHits := hits.size() > len(transformDocs)
+					foundHits := hits.size() >= len(transformDocs)
 					if foundDeleted {
 						logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
 					}
