@@ -729,38 +729,6 @@ func (h hits) size() int {
 	return len(h.Source)
 }
 
-func (r *tester) getDeletedDocs(ctx context.Context, dataStream string) (int, error) {
-	resp, err := r.esAPI.Indices.Stats(
-		r.esAPI.Indices.Stats.WithContext(ctx),
-		r.esAPI.Indices.Stats.WithIndex(dataStream),
-		r.esAPI.Indices.Stats.WithMetric("docs"),
-	)
-	if err != nil {
-		return 0, fmt.Errorf("could not get stats for index: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.IsError() {
-		return 0, fmt.Errorf("failed to get stats for index %s: %s", dataStream, resp.String())
-	}
-
-	var results struct {
-		All struct {
-			Total struct {
-				Docs struct {
-					Deleted int `json:"deleted"`
-				} `json:"docs"`
-			} `json:"total"`
-		} `json:"_all"`
-	}
-
-	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
-		return 0, fmt.Errorf("could not decode index stats results response: %w", err)
-	}
-
-	return results.All.Total.Docs.Deleted, nil
-}
-
 func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) {
 	resp, err := r.esAPI.Search(
 		r.esAPI.Search.WithContext(ctx),
