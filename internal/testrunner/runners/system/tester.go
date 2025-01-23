@@ -2014,63 +2014,70 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 				transform.Name,
 			)
 
-			// TODO: use the docs obtained here for the fields validator too
-			// In order to compare the mappings, it is required to wait until the documents has been
-			// ingested in the given transform index
-			// It looks like that not all documents ingested previously in the main data stream are going
-			// to be ingested in the destination index of the transform. That's the reason to disable
-			// the asserts
-			waitOpts := waitForDocsOptions{
-				period: 5 * time.Second,
-				// Add specific timeout to ensure transform processes the documents (depends on "delay" field?)
-				timeout: 10 * time.Minute,
-				stopCondition: func(hits *hits, oldHits int) (bool, error) {
-					deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
-					if err != nil {
-						return false, err
-					}
-					foundDeleted := deleted > 0
-					// Wait at least for the number of documents found after running the transform preview
-					foundHits := hits.size() >= len(transformDocs)
-					if foundDeleted {
-						logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
-					}
-					if foundHits {
-						logger.Debugf("Found %d hits in %s index", hits.size(), destIndexTransform)
-					}
-					return foundDeleted || foundHits, nil
-				},
-			}
-
-			_, waitErr := r.waitForDocs(ctx, destIndexTransform, waitOpts)
-			if waitErr != nil {
-				return waitErr
-			}
-
-			// As it could happen that there are no hits found , just deleted docs
-			// Here it is used the docs found in the preview API response
-			logger.Warn("Validate mappings found in transform (technical preview)")
-			exceptionFields := listExceptionFields(transformDocs, fieldsValidator)
-
-			mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
-				fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
-				fields.WithMappingValidatorIndexTemplate(indexTemplateTransform),
-				fields.WithMappingValidatorDataStream(destIndexTransform),
-				fields.WithMappingValidatorExceptionFields(exceptionFields),
-			)
+			err := r.validateTransformsWithMappings(ctx, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
 			if err != nil {
-				return fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transform.Name, destIndexTransform, err)
-			}
-
-			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
-				return testrunner.ErrTestCaseFailed{
-					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transform.Name, destIndexTransform),
-					Details: errs.Error(),
-				}
+				return err
 			}
 		}
 	}
 
+	return nil
+}
+
+func (r *tester) validateTransformsWithMappings(ctx context.Context, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
+	// TODO: use the docs obtained here for the fields validator too
+	// In order to compare the mappings, it is required to wait until the documents has been
+	// ingested in the given transform index
+	// It looks like that not all documents ingested previously in the main data stream are going
+	// to be ingested in the destination index of the transform. That's the reason to disable
+	// the asserts
+	waitOpts := waitForDocsOptions{
+		period: 5 * time.Second,
+		// Add specific timeout to ensure transform processes the documents (depends on "delay" field?)
+		timeout: 10 * time.Minute,
+		stopCondition: func(hits *hits, oldHits int) (bool, error) {
+			deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
+			if err != nil {
+				return false, err
+			}
+			foundDeleted := deleted > 0
+			// Wait at least for the number of documents found after running the transform preview
+			foundHits := hits.size() >= len(transformDocs)
+			if foundDeleted {
+				logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
+			}
+			if foundHits {
+				logger.Debugf("Found %d hits in %s index", hits.size(), destIndexTransform)
+			}
+			return foundDeleted || foundHits, nil
+		},
+	}
+
+	if _, err := r.waitForDocs(ctx, destIndexTransform, waitOpts); err != nil {
+		return err
+	}
+
+	// As it could happen that there are no hits found , just deleted docs
+	// Here it is used the docs found in the preview API response
+	logger.Warn("Validate mappings found in transform (technical preview)")
+	exceptionFields := listExceptionFields(transformDocs, fieldsValidator)
+
+	mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
+		fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+		fields.WithMappingValidatorIndexTemplate(indexTemplateTransform),
+		fields.WithMappingValidatorDataStream(destIndexTransform),
+		fields.WithMappingValidatorExceptionFields(exceptionFields),
+	)
+	if err != nil {
+		return fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transformName, destIndexTransform, err)
+	}
+
+	if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+		return testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transformName, destIndexTransform),
+			Details: errs.Error(),
+		}
+	}
 	return nil
 }
 
