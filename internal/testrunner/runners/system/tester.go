@@ -2059,12 +2059,12 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 				fields.WithMappingValidatorExceptionFields(exceptionFields),
 			)
 			if err != nil {
-				return fmt.Errorf("creating mappings validator for the transform index failed (index: %s): %w", destIndexTransform, err)
+				return fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transform.Name, destIndexTransform, err)
 			}
 
 			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
 				return testrunner.ErrTestCaseFailed{
-					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform (index %s)", destIndexTransform),
+					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transform.Name, destIndexTransform),
 					Details: errs.Error(),
 				}
 			}
