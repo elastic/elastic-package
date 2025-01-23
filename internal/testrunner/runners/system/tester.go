@@ -2025,7 +2025,6 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 }
 
 func (r *tester) validateTransformsWithMappings(ctx context.Context, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
-	// TODO: use the docs obtained here for the fields validator too
 	// In order to compare the mappings, it is required to wait until the documents has been
 	// ingested in the given transform index
 	// It looks like that not all documents ingested previously in the main data stream are going
