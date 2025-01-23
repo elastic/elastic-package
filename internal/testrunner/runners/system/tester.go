@@ -920,9 +920,12 @@ func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) 
 	return result, nil
 }
 
-func (r *tester) checkDeprecationWarnings(dataStream string, warnings []deprecationWarning, configName string) []testrunner.TestResult {
+func (r *tester) checkDeprecationWarnings(stackVersion *semver.Version, dataStream string, warnings []deprecationWarning, configName string) []testrunner.TestResult {
 	var results []testrunner.TestResult
 	for _, warning := range warnings {
+		if ignoredDeprecationWarning(stackVersion, warning) {
+			continue
+		}
 		details := warning.Details
 		if warning.index != "" {
 			details = fmt.Sprintf("%s (index: %s)", details, warning.index)
@@ -938,6 +941,39 @@ func (r *tester) checkDeprecationWarnings(dataStream string, warnings []deprecat
 		results = append(results, tr)
 	}
 	return results
+}
+
+func mustParseConstraint(c string) *semver.Constraints {
+	constraint, err := semver.NewConstraint(c)
+	if err != nil {
+		panic(err)
+	}
+	return constraint
+}
+
+var ignoredWarnings = []struct {
+	constraints *semver.Constraints
+	pattern     *regexp.Regexp
+}{
+	{
+		// This deprecation warning was introduced in 8.17.0 and fixed in Fleet in 8.17.2.
+		// See https://github.com/elastic/kibana/pull/207133
+		// Ignoring it because packages cannot do much about this on these versions.
+		constraints: mustParseConstraint(`>=8.17.0,<8.17.2`),
+		pattern:     regexp.MustCompile(`^Configuring source mode in mappings is deprecated and will be removed in future versions.`),
+	},
+}
+
+func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecationWarning) bool {
+	for _, rule := range ignoredWarnings {
+		if rule.constraints != nil && !rule.constraints.Check(stackVersion) {
+			continue
+		}
+		if rule.pattern.MatchString(warning.Message) {
+			return true
+		}
+	}
+	return false
 }
 
 type scenarioTest struct {
@@ -1605,7 +1641,12 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1672,7 +1713,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	if results := r.checkDeprecationWarnings(scenario.dataStream, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+	if results := r.checkDeprecationWarnings(stackVersion, scenario.dataStream, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
 		return results, nil
 	}
 
@@ -2259,12 +2300,8 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 	return allFields
 }
 
-func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
-	stackVersion, err := semver.NewVersion(stackVersionString)
-	if err != nil {
-		return fmt.Errorf("failed to parse stack version: %w", err)
-	}
 	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
 		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		skipIgnoredFields = append(skipIgnoredFields, "event.original")
