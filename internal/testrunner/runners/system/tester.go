@@ -874,18 +874,85 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 	return docs, nil
 }
 
+type deprecationWarning struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
+	URL     string `json:"url"`
+	Details string `json:"details"`
+
+	ResolveDuringRollingUpgrade bool `json:"resolve_during_rolling_upgrade"`
+
+	index string
+}
+
+func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) ([]deprecationWarning, error) {
+	resp, err := r.esAPI.Migration.Deprecations(
+		r.esAPI.Migration.Deprecations.WithContext(ctx),
+		r.esAPI.Migration.Deprecations.WithIndex(dataStream),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("unexpected status code in response: %s", resp.String())
+	}
+
+	// Apart from index_settings, there are also cluster_settings, node_settings and ml_settings.
+	// There is also a data_streams field in the response that is not documented and is empty.
+	// Here we are interested only on warnings on index settings.
+	var results struct {
+		IndexSettings map[string][]deprecationWarning `json:"index_settings"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&results)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode response: %w", err)
+	}
+
+	var result []deprecationWarning
+	for index, warnings := range results.IndexSettings {
+		for _, warning := range warnings {
+			warning.index = index
+			result = append(result, warning)
+		}
+	}
+	return result, nil
+}
+
+func (r *tester) checkDeprecationWarnings(dataStream string, warnings []deprecationWarning, configName string) []testrunner.TestResult {
+	var results []testrunner.TestResult
+	for _, warning := range warnings {
+		details := warning.Details
+		if warning.index != "" {
+			details = fmt.Sprintf("%s (index: %s)", details, warning.index)
+		}
+		tr := testrunner.TestResult{
+			TestType:       TestType,
+			Name:           "Deprecation warnings - " + configName,
+			Package:        r.testFolder.Package,
+			DataStream:     r.testFolder.DataStream,
+			FailureMsg:     warning.Message,
+			FailureDetails: details,
+		}
+		results = append(results, tr)
+	}
+	return results
+}
+
 type scenarioTest struct {
-	dataStream         string
-	indexTemplateName  string
-	policyTemplateName string
-	kibanaDataStream   kibana.PackageDataStream
-	syntheticEnabled   bool
-	docs               []common.MapStr
-	failureStore       []failureStoreDocument
-	ignoredFields      []string
-	degradedDocs       []common.MapStr
-	agent              agentdeployer.DeployedAgent
-	startTestTime      time.Time
+	dataStream          string
+	indexTemplateName   string
+	policyTemplateName  string
+	kibanaDataStream    kibana.PackageDataStream
+	syntheticEnabled    bool
+	docs                []common.MapStr
+	failureStore        []failureStoreDocument
+	deprecationWarnings []deprecationWarning
+	ignoredFields       []string
+	degradedDocs        []common.MapStr
+	agent               agentdeployer.DeployedAgent
+	startTestTime       time.Time
 }
 
 type pipelineTrace []string
@@ -1293,6 +1360,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
+	// Get deprecation warnings after ensuring that there are ingested docs and thus the
+	// data stream exists.
+	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
+
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
@@ -1595,6 +1670,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		if len(logResults) > 0 {
 			return logResults, nil
 		}
+	}
+
+	if results := r.checkDeprecationWarnings(scenario.dataStream, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+		return results, nil
 	}
 
 	if r.withCoverage {
