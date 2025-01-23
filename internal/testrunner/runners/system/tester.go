@@ -2014,7 +2014,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 				transform.Name,
 			)
 
-			err := r.validateTransformsWithMappings(ctx, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
+			err := r.validateTransformsWithMappings(ctx, transformId, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
 			if err != nil {
 				return err
 			}
@@ -2024,7 +2024,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 	return nil
 }
 
-func (r *tester) validateTransformsWithMappings(ctx context.Context, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
+func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
 	// In order to compare the mappings, it is required to wait until the documents has been
 	// ingested in the given transform index
 	// It looks like that not all documents ingested previously in the main data stream are going
@@ -2034,21 +2034,15 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformNa
 		period: 5 * time.Second,
 		// Add specific timeout to ensure transform processes the documents (depends on "delay" field?)
 		timeout: 10 * time.Minute,
-		stopCondition: func(hits *hits, oldHits int) (bool, error) {
-			deleted, err := r.getDeletedDocs(ctx, destIndexTransform)
+		stopCondition: func(_ *hits, _ int) (bool, error) {
+			processed, err := r.processedTransformDocs(ctx, transformId)
 			if err != nil {
 				return false, err
 			}
-			foundDeleted := deleted > 0
-			// Wait at least for the number of documents found after running the transform preview
-			foundHits := hits.size() >= len(transformDocs)
-			if foundDeleted {
-				logger.Debugf("Found %d deleted docs in %s index", deleted, destIndexTransform)
+			if processed > 0 {
+				logger.Debugf("Documents processed by transform %q: %d", transformId, processed)
 			}
-			if foundHits {
-				logger.Debugf("Found %d hits in %s index", hits.size(), destIndexTransform)
-			}
-			return foundDeleted || foundHits, nil
+			return processed >= len(transformDocs), nil
 		},
 	}
 
@@ -2139,6 +2133,40 @@ func (r *tester) previewTransform(ctx context.Context, transformId string) ([]co
 	}
 
 	return preview.Documents, nil
+}
+
+func (r *tester) processedTransformDocs(ctx context.Context, transformId string) (int, error) {
+	resp, err := r.esAPI.TransformGetTransformStats(transformId,
+		r.esAPI.TransformGetTransformStats.WithContext(ctx),
+	)
+	if err != nil {
+		return 0, err
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return 0, fmt.Errorf("failed to get stats for transform %q: %s", transformId, resp.String())
+	}
+
+	var stats struct {
+		Transforms []struct {
+			Stats struct {
+				DocumentsProcessed int `json:"documents_processed"`
+			} `json:"stats"`
+		} `json:"transforms"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&stats)
+	if err != nil {
+		return 0, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if len(stats.Transforms) == 0 {
+		logger.Debugf("No stats information for transform %q", transformId)
+		return 0, nil
+	}
+
+	// As it is requested one stransform, there must be just one element in the Transform array
+	return stats.Transforms[0].Stats.DocumentsProcessed, nil
 }
 
 func filterAgents(allAgents []kibana.Agent, svcInfo servicedeployer.ServiceInfo) []kibana.Agent {
