@@ -327,8 +327,13 @@ func (r tester) Parallel() bool {
 
 // Run runs the system tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+	stackConfig, err := stack.LoadConfig(r.profile)
+	if err != nil {
+		return nil, err
+	}
+
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
-		return r.run(ctx)
+		return r.run(ctx, stackConfig)
 	}
 
 	result := r.newResult("(init)")
@@ -356,7 +361,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo)
+	scenario, err := r.prepareScenario(ctx, testConfig, stackConfig, svcInfo)
 	if r.runSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -558,18 +563,18 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 		r.removeAgentHandler = nil
 	}
 
-	if r.deleteTestPolicyHandler != nil {
-		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.deleteTestPolicyHandler = nil
-	}
-
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownAgentHandler = nil
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.deleteTestPolicyHandler = nil
 	}
 
 	return nil
@@ -584,12 +589,12 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
+func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 
 	startTesting := time.Now()
 
-	results, err = r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
+	results, err = r.runTestPerVariant(ctx, stackConfig, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
 	}
@@ -607,11 +612,6 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	stackConfig, err := stack.LoadConfig(r.profile)
-	if err != nil {
-		return nil, err
-	}
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -636,7 +636,7 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	return results, nil
 }
 
-func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -649,7 +649,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, svcInfo)
+	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -876,18 +876,121 @@ func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]
 	return docs, nil
 }
 
+type deprecationWarning struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
+	URL     string `json:"url"`
+	Details string `json:"details"`
+
+	ResolveDuringRollingUpgrade bool `json:"resolve_during_rolling_upgrade"`
+
+	index string
+}
+
+func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) ([]deprecationWarning, error) {
+	resp, err := r.esAPI.Migration.Deprecations(
+		r.esAPI.Migration.Deprecations.WithContext(ctx),
+		r.esAPI.Migration.Deprecations.WithIndex(dataStream),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("unexpected status code in response: %s", resp.String())
+	}
+
+	// Apart from index_settings, there are also cluster_settings, node_settings and ml_settings.
+	// There is also a data_streams field in the response that is not documented and is empty.
+	// Here we are interested only on warnings on index settings.
+	var results struct {
+		IndexSettings map[string][]deprecationWarning `json:"index_settings"`
+	}
+	err = json.NewDecoder(resp.Body).Decode(&results)
+	if err != nil {
+		return nil, fmt.Errorf("cannot decode response: %w", err)
+	}
+
+	var result []deprecationWarning
+	for index, warnings := range results.IndexSettings {
+		for _, warning := range warnings {
+			warning.index = index
+			result = append(result, warning)
+		}
+	}
+	return result, nil
+}
+
+func (r *tester) checkDeprecationWarnings(stackVersion *semver.Version, dataStream string, warnings []deprecationWarning, configName string) []testrunner.TestResult {
+	var results []testrunner.TestResult
+	for _, warning := range warnings {
+		if ignoredDeprecationWarning(stackVersion, warning) {
+			continue
+		}
+		details := warning.Details
+		if warning.index != "" {
+			details = fmt.Sprintf("%s (index: %s)", details, warning.index)
+		}
+		tr := testrunner.TestResult{
+			TestType:       TestType,
+			Name:           "Deprecation warnings - " + configName,
+			Package:        r.testFolder.Package,
+			DataStream:     r.testFolder.DataStream,
+			FailureMsg:     warning.Message,
+			FailureDetails: details,
+		}
+		results = append(results, tr)
+	}
+	return results
+}
+
+func mustParseConstraint(c string) *semver.Constraints {
+	constraint, err := semver.NewConstraint(c)
+	if err != nil {
+		panic(err)
+	}
+	return constraint
+}
+
+var ignoredWarnings = []struct {
+	constraints *semver.Constraints
+	pattern     *regexp.Regexp
+}{
+	{
+		// This deprecation warning was introduced in 8.17.0 and fixed in Fleet in 8.17.2.
+		// See https://github.com/elastic/kibana/pull/207133
+		// Ignoring it because packages cannot do much about this on these versions.
+		constraints: mustParseConstraint(`>=8.17.0,<8.17.2`),
+		pattern:     regexp.MustCompile(`^Configuring source mode in mappings is deprecated and will be removed in future versions.`),
+	},
+}
+
+func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecationWarning) bool {
+	for _, rule := range ignoredWarnings {
+		if rule.constraints != nil && !rule.constraints.Check(stackVersion) {
+			continue
+		}
+		if rule.pattern.MatchString(warning.Message) {
+			return true
+		}
+	}
+	return false
+}
+
 type scenarioTest struct {
-	dataStream         string
-	indexTemplateName  string
-	policyTemplateName string
-	kibanaDataStream   kibana.PackageDataStream
-	syntheticEnabled   bool
-	docs               []common.MapStr
-	failureStore       []failureStoreDocument
-	ignoredFields      []string
-	degradedDocs       []common.MapStr
-	agent              agentdeployer.DeployedAgent
-	startTestTime      time.Time
+	dataStream          string
+	indexTemplateName   string
+	policyTemplateName  string
+	kibanaDataStream    kibana.PackageDataStream
+	syntheticEnabled    bool
+	docs                []common.MapStr
+	failureStore        []failureStoreDocument
+	deprecationWarnings []deprecationWarning
+	ignoredFields       []string
+	degradedDocs        []common.MapStr
+	agent               agentdeployer.DeployedAgent
+	startTestTime       time.Time
 }
 
 type pipelineTrace []string
@@ -940,7 +1043,7 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
-func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
 
 	var err error
@@ -1031,8 +1134,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			Namespace:   common.CreateTestRunID(),
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		// TODO: Migrate from stack.logstash_enabled to the stack config.
 		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
 			policy.DataOutputID = "fleet-logstash-output"
+		}
+		if stackConfig.OutputID != "" {
+			policy.DataOutputID = stackConfig.OutputID
 		}
 		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
 		if err != nil {
@@ -1266,6 +1373,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	hits, waitErr := r.waitForDocs(ctx, scenario.dataStream, waitOpts)
+
+	// Get deprecation warnings after ensuring that there are ingested docs and thus the
+	// data stream exists.
+	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report as a test case failed
@@ -1502,7 +1617,12 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1569,6 +1689,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
+	if results := r.checkDeprecationWarnings(stackVersion, scenario.dataStream, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+		return results, nil
+	}
+
 	if r.withCoverage {
 		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
 		if err != nil {
@@ -1580,7 +1704,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
+func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
@@ -1592,7 +1716,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 
 	logger.Debugf("running test with configuration '%s'", config.Name())
 
-	scenario, err := r.prepareScenario(ctx, config, svcInfo)
+	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -2276,12 +2400,8 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 	return allFields
 }
 
-func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
-	stackVersion, err := semver.NewVersion(stackVersionString)
-	if err != nil {
-		return fmt.Errorf("failed to parse stack version: %w", err)
-	}
 	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
 		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		skipIgnoredFields = append(skipIgnoredFields, "event.original")

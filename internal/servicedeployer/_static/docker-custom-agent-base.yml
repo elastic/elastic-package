@@ -6,6 +6,8 @@ services:
       retries: 180
       interval: 1s
     hostname: docker-custom-agent
+    cap_add:
+      - CAP_CHOWN
     cap_drop:
       - ALL
     environment:

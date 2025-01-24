@@ -13,14 +13,16 @@ import (
 )
 
 const (
-	ProviderCompose    = "compose"
-	ProviderServerless = "serverless"
+	ProviderCompose     = "compose"
+	ProviderEnvironment = "environment"
+	ProviderServerless  = "serverless"
 )
 
 var (
 	DefaultProvider    = ProviderCompose
 	SupportedProviders = []string{
 		ProviderCompose,
+		ProviderEnvironment,
 		ProviderServerless,
 	}
 )
@@ -55,6 +57,8 @@ func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 	switch name {
 	case ProviderCompose:
 		return &composeProvider{}, nil
+	case ProviderEnvironment:
+		return newEnvironmentProvider(profile)
 	case ProviderServerless:
 		return newServerlessProvider(profile)
 	}

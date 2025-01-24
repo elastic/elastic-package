@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	managedAgentPolicyID = "elastic-agent-managed-ep"
-	fleetLogstashOutput  = "fleet-logstash-output"
+	managedAgentPolicyID     = "elastic-agent-managed-ep"
+	fleetLogstashOutput      = "fleet-logstash-output"
+	fleetElasticsearchOutput = "fleet-elasticsearch-output"
 )
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
@@ -87,6 +88,32 @@ func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client,
 	return nil
 }
 
+func deleteAgentPolicy(ctx context.Context, kibanaClient *kibana.Client) error {
+	err := kibanaClient.DeletePolicy(ctx, managedAgentPolicyID)
+	var notFoundError *kibana.ErrPolicyNotFound
+	if err != nil && !errors.As(err, &notFoundError) {
+		return fmt.Errorf("failed to delete policy: %w", err)
+	}
+
+	return nil
+}
+
+func forceUnenrollAgentsWithPolicy(ctx context.Context, kibanaClient *kibana.Client) error {
+	agents, err := kibanaClient.QueryAgents(ctx, fmt.Sprintf("policy_id: %s", managedAgentPolicyID))
+	if err != nil {
+		return fmt.Errorf("error while querying agents with policy %s: %w", managedAgentPolicyID, err)
+	}
+
+	for _, agent := range agents {
+		err := kibanaClient.RemoveAgent(ctx, agent)
+		if err != nil {
+			return fmt.Errorf("failed to remove agent %s: %w", agent.ID, err)
+		}
+	}
+
+	return nil
+}
+
 func addFleetOutput(ctx context.Context, client *kibana.Client, outputType, host, id string) error {
 	output := kibana.FleetOutput{
 		Name:  id,
@@ -109,6 +136,10 @@ func addFleetOutput(ctx context.Context, client *kibana.Client, outputType, host
 
 func addLogstashFleetOutput(ctx context.Context, client *kibana.Client) error {
 	return addFleetOutput(ctx, client, "logstash", "logstash:5044", fleetLogstashOutput)
+}
+
+func addElasticsearchFleetOutput(ctx context.Context, client *kibana.Client, host string) error {
+	return addFleetOutput(ctx, client, "elasticsearch", host, fleetElasticsearchOutput)
 }
 
 func updateLogstashFleetOutput(ctx context.Context, profile *profile.Profile, kibanaClient *kibana.Client) error {
