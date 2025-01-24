@@ -136,6 +136,8 @@ var (
 	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
+
+	semver_8_14_0 = semver.MustParse("8.14.0")
 )
 
 type fieldValidationMethod int
@@ -1915,6 +1917,25 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
 	}
+
+	// Before stack version 8.14.0, there are some issues generating the corresponding
+	// mappings for the fields defined in the transforms
+	// Forced to not use mappings to validate transforms before 8.14.0
+	// Related issue: https://github.com/elastic/kibana/issues/175331
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return fmt.Errorf("invalid stack version: %w", err)
+	}
+
+	validationMethod := r.fieldValidationMethod
+	if stackVersion.LessThan(semver_8_14_0) {
+		logger.Debugf("Forced to validate transforms based on fields, not available for stack versions < 8.14.0")
+		validationMethod = fieldsMethod
+	}
+
+	fieldsValidationBased := validationMethod == allMethods || validationMethod == fieldsMethod
+	mappingsValidationBased := validationMethod == allMethods || validationMethod == mappingsMethod
+
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
 		if err != nil {
@@ -1963,7 +1984,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
-		if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
+
+		if fieldsValidationBased {
 			if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
 				return testrunner.ErrTestCaseFailed{
 					Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
@@ -1972,7 +1994,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			}
 		}
 
-		if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+		if mappingsValidationBased {
 			destIndexTransform := transform.Definition.Dest.Index
 			// Index Template format is: "<type>-<package>.<transform>-template"
 			// For instance: "logs-ti_anomali.latest_intelligence-template"
