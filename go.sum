@@ -84,8 +84,8 @@ github.com/elastic/gojsonschema v1.2.1 h1:cUMbgsz0wyEB4x7xf3zUEvUVDl6WCz2RKcQPul
 github.com/elastic/gojsonschema v1.2.1/go.mod h1:biw5eBS2Z4T02wjATMRSfecfjCmwaDPvuaqf844gLrg=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.3.1 h1:4KjVPz9fGC4bl6ENDTbsYIVq/ltKhw7s5wbN9QxghiE=
-github.com/elastic/package-spec/v3 v3.3.1/go.mod h1:T/TAI0MuTpKs1vGWDhMlKunzYKXklWUn5L89mASM6pI=
+github.com/elastic/package-spec/v3 v3.3.2 h1:hUoGvVZU19akdx7gyOtSNGVHjWXeN50NDSqtcGxXtJk=
+github.com/elastic/package-spec/v3 v3.3.2/go.mod h1:worvQ1JmqxT8/SaW3Tijspa5nKR/X7jS6u/hmAxa93w=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
 github.com/emicklei/go-restful/v3 v3.11.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/evanphx/json-patch v5.9.0+incompatible h1:fBXyNpNMuTTDdquAq/uisOr2lShz4oaXpDTX2bLe7ls=
@@ -275,8 +275,10 @@ github.com/onsi/ginkgo/v2 v2.21.0 h1:7rg/4f3rB88pb5obDgNZrNHrQ4e6WpjonchcpuBRnZM
 github.com/onsi/ginkgo/v2 v2.21.0/go.mod h1:7Du3c42kxCUegi0IImZ1wUQzMBVecgIHjR1C+NkhLQo=
 github.com/onsi/gomega v1.35.1 h1:Cwbd75ZBPxFSuZ6T+rN/WCb/gOc6YgFBXLlZLhC7Ds4=
 github.com/onsi/gomega v1.35.1/go.mod h1:PvZbdDc8J6XJEpDK4HCuRBm8a6Fzp9/DmhC9C7yFlog=
-github.com/otiai10/copy v1.14.0 h1:dCI/t1iTdYGtkvCuBG2BgR6KZa83PTclw4U5n2wAllU=
-github.com/otiai10/copy v1.14.0/go.mod h1:ECfuL02W+/FkTWZWgQqXPWZgW9oeKCSQ5qVfSc4qc4w=
+github.com/otiai10/copy v1.14.1 h1:5/7E6qsUMBaH5AnQ0sSLzzTg1oTECmcCmT6lvF45Na8=
+github.com/otiai10/copy v1.14.1/go.mod h1:oQwrEDDOci3IM8dJF0d8+jnbfPDllW6vUjNc3DoZm9I=
+github.com/otiai10/mint v1.6.3 h1:87qsV/aw1F5as1eH1zS/yqHY85ANKVMgkDrf9rcxbQs=
+github.com/otiai10/mint v1.6.3/go.mod h1:MJm72SBthJjz8qhefc4z1PYEieWmy8Bku7CjcAqyUSM=
 github.com/peterbourgon/diskv v2.0.1+incompatible h1:UBdAOUP5p4RWqPBg048CAvpKN+vxiaj6gdUUzhl4XmI=
 github.com/peterbourgon/diskv v2.0.1+incompatible/go.mod h1:uqqh8zWWbv1HBMNONnaR/tNboyR3/BZd58JJSHlUSCU=
 github.com/pierrec/lz4/v4 v4.1.2/go.mod h1:gZWDp/Ze/IJXGXf23ltt2EXimqmTUXEy0GFuRQyBid4=
