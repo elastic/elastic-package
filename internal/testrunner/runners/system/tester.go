@@ -1646,6 +1646,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 
 		if mappingsErrs := validateMappings(ctx, mappingsValidator); len(mappingsErrs) > 0 {
 			errs = append(errs, mappingsErrs...)
+		}
+		if len(errs) > 0 {
 			return result.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
 				Details: errs.Error(),
@@ -2179,9 +2181,10 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 	}
 
 	errs := ensureNoErrorsInDocs(transformDocs)
-
 	if mappingErrs := validateMappings(ctx, mappingsValidator); len(mappingErrs) > 0 {
 		errs = append(errs, mappingErrs...)
+	}
+	if len(errs) > 0 {
 		return testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transformName, destIndexTransform),
 			Details: errs.Error(),
