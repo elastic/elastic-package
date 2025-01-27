@@ -1678,7 +1678,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.kibanaDataStream, scenario.dataStream, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, stackVersion, config, r.pkgManifest, scenario.kibanaDataStream, scenario.dataStream, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -2040,7 +2040,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
+func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Version, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
@@ -2050,11 +2050,6 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 	// mappings for the fields defined in the transforms
 	// Forced to not use mappings to validate transforms before 8.14.0
 	// Related issue: https://github.com/elastic/kibana/issues/175331
-	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
-	if err != nil {
-		return fmt.Errorf("invalid stack version: %w", err)
-	}
-
 	validationMethod := r.fieldValidationMethod
 	if stackVersion.LessThan(semver_8_14_0) {
 		logger.Debugf("Forced to validate transforms based on fields, not available for stack versions < 8.14.0")
@@ -2153,7 +2148,7 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 		// Add specific timeout to ensure transform processes the documents (depends on "delay" field?)
 		timeout: 10 * time.Minute,
 		stopCondition: func(_ *hits, _ int) (bool, error) {
-			processed, err := r.processedTransformDocs(ctx, transformId)
+			processed, err := r.processedDocsByTransform(ctx, transformId)
 			if err != nil {
 				return false, err
 			}
@@ -2256,7 +2251,7 @@ func (r *tester) previewTransform(ctx context.Context, transformId string) ([]co
 	return preview.Documents, nil
 }
 
-func (r *tester) processedTransformDocs(ctx context.Context, transformId string) (int, error) {
+func (r *tester) processedDocsByTransform(ctx context.Context, transformId string) (int, error) {
 	resp, err := r.esAPI.TransformGetTransformStats(transformId,
 		r.esAPI.TransformGetTransformStats.WithContext(ctx),
 	)
