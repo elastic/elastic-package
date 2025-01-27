@@ -1641,7 +1641,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
 		}
 
-		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+		// any error found in ingested docs
+		errs := ensureNoErrorsInDocs(scenario.docs)
+
+		if mappingsErrs := validateMappings(ctx, mappingsValidator); len(mappingsErrs) > 0 {
+			errs = append(errs, mappingsErrs...)
 			return result.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
 				Details: errs.Error(),
@@ -2179,7 +2183,10 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 		return fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transformName, destIndexTransform, err)
 	}
 
-	if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+	errs := ensureNoErrorsInDocs(transformDocs)
+
+	if mappingErrs := validateMappings(ctx, mappingsValidator); len(mappingErrs) > 0 {
+		errs = append(errs, mappingErrs...)
 		return testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transformName, destIndexTransform),
 			Details: errs.Error(),
@@ -2364,13 +2371,9 @@ func validateFailureStore(failureStore []failureStoreDocument) error {
 }
 
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
-	var multiErr multierror.Error
-	for _, doc := range docs {
-		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
-			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
-			continue
-		}
+	multiErr := ensureNoErrorsInDocs(docs)
 
+	for _, doc := range docs {
 		errs := fieldsValidator.ValidateDocumentMap(doc)
 		if errs != nil {
 			multiErr = append(multiErr, errs...)
@@ -2686,4 +2689,19 @@ func (r *tester) waitForDocs(ctx context.Context, dataStream string, opts waitFo
 	}
 
 	return hits, nil
+}
+
+func ensureNoErrorsInDocs(docs []common.MapStr) multierror.Error {
+	var multiErr multierror.Error
+	for _, doc := range docs {
+		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
+			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+		}
+	}
+
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
+
+	return nil
 }
