@@ -1374,14 +1374,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	hits, waitErr := r.waitForDocs(ctx, scenario.dataStream, waitOpts)
 
-	// Get deprecation warnings after ensuring that there are ingested docs and thus the
-	// data stream exists.
-	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
-	}
-	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
-
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report as a test case failed
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
@@ -1397,6 +1389,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if waitErr != nil {
 		return nil, waitErr
 	}
+
+	// Get deprecation warnings after ensuring that there are ingested docs and thus the
+	// data stream exists.
+	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
 
 	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
 	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
