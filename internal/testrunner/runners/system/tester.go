@@ -143,14 +143,11 @@ var (
 type fieldValidationMethod int
 
 const (
-	allMethods fieldValidationMethod = iota
-	fieldsMethod
+	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
 
 var validationMethods = map[string]fieldValidationMethod{
-	"all":      allMethods,
-	"fields":   fieldsMethod,
 	"mappings": mappingsMethod,
 }
 
@@ -1608,26 +1605,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
-		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-				Details: errs.Error(),
-			})
-		}
+	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
 	}
 
-	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
-	if err != nil {
-		return result.WithErrorf("failed to parse stack version: %w", err)
-	}
-
-	err = validateIgnoredFields(stackVersion, scenario, config)
-	if err != nil {
-		return result.WithError(err)
-	}
-
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+	if r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1641,18 +1626,22 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
 		}
 
-		// any error found in ingested docs
-		errs := ensureNoErrorsInDocs(scenario.docs)
-
-		if mappingsErrs := validateMappings(ctx, mappingsValidator); len(mappingsErrs) > 0 {
-			errs = append(errs, mappingsErrs...)
-		}
-		if len(errs) > 0 {
+		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
 			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template (data stream %q)", scenario.indexTemplateName, scenario.dataStream),
 				Details: errs.Error(),
 			})
 		}
+	}
+
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
+	if err != nil {
+		return result.WithError(err)
 	}
 
 	docs := scenario.docs
@@ -2058,9 +2047,6 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 		validationMethod = fieldsMethod
 	}
 
-	fieldsValidationBased := validationMethod == allMethods || validationMethod == fieldsMethod
-	mappingsValidationBased := validationMethod == allMethods || validationMethod == mappingsMethod
-
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
 		if err != nil {
@@ -2110,16 +2096,14 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
 
-		if fieldsValidationBased {
-			if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
-				return testrunner.ErrTestCaseFailed{
-					Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
-					Details: errs.Error(),
-				}
+		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
+			return testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
+				Details: errs.Error(),
 			}
 		}
 
-		if mappingsValidationBased {
+		if validationMethod == mappingsMethod {
 			destIndexTransform := transform.Definition.Dest.Index
 			// Index Template format is: "<type>-<package>.<transform>-template"
 			// For instance: "logs-ti_anomali.latest_intelligence-template"
@@ -2129,9 +2113,12 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 				transform.Name,
 			)
 
-			err := r.validateTransformsWithMappings(ctx, transformId, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
-			if err != nil {
-				return err
+			mappingErrs := r.validateTransformsWithMappings(ctx, transformId, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
+			if len(mappingErrs) > 0 {
+				return testrunner.ErrTestCaseFailed{
+					Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transform.Name, destIndexTransform),
+					Details: mappingErrs.Error(),
+				}
 			}
 		}
 	}
@@ -2139,7 +2126,7 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 	return nil
 }
 
-func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
+func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
 	// In order to compare the mappings, it is required to wait until the documents has been
 	// ingested in the given transform index
 	// It looks like that not all documents ingested previously in the main data stream are going
@@ -2162,7 +2149,7 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 	}
 
 	if _, err := r.waitForDocs(ctx, destIndexTransform, waitOpts); err != nil {
-		return err
+		return multierror.Error{err}
 	}
 
 	// As it could happen that there are no hits found , just deleted docs
@@ -2177,18 +2164,11 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 		fields.WithMappingValidatorExceptionFields(exceptionFields),
 	)
 	if err != nil {
-		return fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transformName, destIndexTransform, err)
+		return multierror.Error{fmt.Errorf("creating mappings validator for the %q transform index failed (index: %s): %w", transformName, destIndexTransform, err)}
 	}
 
-	errs := ensureNoErrorsInDocs(transformDocs)
-	if mappingErrs := validateMappings(ctx, mappingsValidator); len(mappingErrs) > 0 {
-		errs = append(errs, mappingErrs...)
-	}
-	if len(errs) > 0 {
-		return testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in mappings in the transform %q (index %s)", transformName, destIndexTransform),
-			Details: errs.Error(),
-		}
+	if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
