@@ -2129,7 +2129,7 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 				transform.Name,
 			)
 
-			err := r.validateTransformsWithMappings(ctx, transformId, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
+			err := r.validateTransformsWithMappings(ctx, dataStream, transformId, transform.Name, destIndexTransform, indexTemplateTransform, transformDocs, fieldsValidator)
 			if err != nil {
 				return err
 			}
@@ -2139,7 +2139,12 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 	return nil
 }
 
-func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
+func (r *tester) validateTransformsWithMappings(ctx context.Context, sourceDataStream, transformId, transformName, destIndexTransform, indexTemplateTransform string, transformDocs []common.MapStr, fieldsValidator *fields.Validator) error {
+	logger.Debugf("Searching the number of documents found in source data stream %q before validating transform %q", sourceDataStream, transformId)
+	sourceDataStreamHits, err := r.getDocs(ctx, sourceDataStream)
+	if err != nil {
+		return fmt.Errorf("failed to get docs for transform (%q) validation from data stream %q: %w", transformId, sourceDataStream, err)
+	}
 	// In order to compare the mappings, it is required to wait until the documents has been
 	// ingested in the given transform index
 	// It looks like that not all documents ingested previously in the main data stream are going
@@ -2157,7 +2162,7 @@ func (r *tester) validateTransformsWithMappings(ctx context.Context, transformId
 			if processed > 0 {
 				logger.Debugf("Documents processed by transform %q: %d", transformId, processed)
 			}
-			return processed >= len(transformDocs), nil
+			return processed >= sourceDataStreamHits.size(), nil
 		},
 	}
 
