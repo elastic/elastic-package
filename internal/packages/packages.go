@@ -199,6 +199,9 @@ type TransformDefinition struct {
 	Source struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
+	Dest struct {
+		Index string `config:"index" yaml:"index"`
+	} `config:"dest" yaml:"dest"`
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
