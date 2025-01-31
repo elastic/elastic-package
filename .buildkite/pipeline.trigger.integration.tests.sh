@@ -113,7 +113,7 @@ echo "          - build/test-coverage/coverage-*.xml" # these files should not b
 # Add steps to test validation method mappings
 while IFS= read -r -d '' package ; do
     package_name=$(basename "${package}")
-    echo "      - label: \":go: Integration test: ${package_name} (just validate mappings)\""
+    echo "      - label: \":go: Integration test: ${package_name} (validate mappings)\""
     echo "        key: \"integration-parallel-${package_name}-agent-validate-mappings\""
     echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
     echo "        env:"
