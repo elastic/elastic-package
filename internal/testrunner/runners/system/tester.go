@@ -141,13 +141,11 @@ var (
 type fieldValidationMethod int
 
 const (
-	allMethods fieldValidationMethod = iota
-	fieldsMethod
+	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
 
 var validationMethods = map[string]fieldValidationMethod{
-	"all":      allMethods,
 	"fields":   fieldsMethod,
 	"mappings": mappingsMethod,
 }
@@ -1632,13 +1630,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
-		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-				Details: errs.Error(),
-			})
-		}
+	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
 	}
 
 	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
@@ -1651,7 +1647,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithError(err)
 	}
 
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
+	if r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validate mappings found (technical preview)")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
