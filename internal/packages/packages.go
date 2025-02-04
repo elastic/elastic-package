@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -207,14 +208,19 @@ type TransformDefinition struct {
 // HasSource checks if a given index or data stream name maches the transform sources
 func (t *Transform) HasSource(name string) (bool, error) {
 	for _, indexPattern := range t.Definition.Source.Index {
-		// Using filepath.Match to match index patterns because the syntax
-		// is basically the same.
-		found, err := filepath.Match(indexPattern, name)
-		if err != nil {
-			return false, fmt.Errorf("maching pattern %q with %q: %w", indexPattern, name, err)
-		}
-		if found {
-			return true, nil
+		// Split the pattern by commas in case the source indexes are provided with a
+		// comma-separated index strings
+		patterns := strings.Split(indexPattern, ",")
+		for _, pattern := range patterns {
+			// Using filepath.Match to match index patterns because the syntax
+			// is basically the same.
+			found, err := filepath.Match(pattern, name)
+			if err != nil {
+				return false, fmt.Errorf("maching pattern %q with %q: %w", pattern, name, err)
+			}
+			if found {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
