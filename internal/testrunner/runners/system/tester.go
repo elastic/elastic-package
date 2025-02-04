@@ -2057,6 +2057,10 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
+	if config.SkipTransformValidation {
+		return nil
+	}
+
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
