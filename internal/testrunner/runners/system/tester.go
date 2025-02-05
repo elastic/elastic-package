@@ -1394,6 +1394,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
+	// before checking "waitErr" error , it is necessary to check if the service has finished with error
+	// to report it as a test case failed
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
@@ -1637,16 +1639,6 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
-	if err != nil {
-		return result.WithErrorf("failed to parse stack version: %w", err)
-	}
-
-	err = validateIgnoredFields(stackVersion, scenario, config)
-	if err != nil {
-		return result.WithError(err)
-	}
-
 	if r.fieldValidationMethod == mappingsMethod {
 		logger.Warn("Validation based on mappings enabled (technical preview)")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
@@ -1667,6 +1659,16 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 				Details: errs.Error(),
 			})
 		}
+	}
+
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
+	if err != nil {
+		return result.WithError(err)
 	}
 
 	docs := scenario.docs
