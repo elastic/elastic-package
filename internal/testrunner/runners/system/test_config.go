@@ -42,6 +42,8 @@ type testConfig struct {
 		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
+	SkipTransformValidation bool `config:"skip_transform_validation"`
+
 	Assert struct {
 		// Expected number of hits for a given test
 		HitCount int `config:"hit_count"`
