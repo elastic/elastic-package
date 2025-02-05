@@ -148,6 +148,7 @@ const (
 )
 
 var validationMethods = map[string]fieldValidationMethod{
+	"fields":   fieldsMethod,
 	"mappings": mappingsMethod,
 }
 
@@ -1613,7 +1614,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.fieldValidationMethod == mappingsMethod {
-		logger.Warn("Validate mappings found (technical preview)")
+		logger.Warn("Validation based on mappings enabled (technical preview)")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
