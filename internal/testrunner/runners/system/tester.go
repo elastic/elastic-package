@@ -2033,6 +2033,10 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Version, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
+	if config.SkipTransformValidation {
+		return nil
+	}
+
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
@@ -2063,7 +2067,10 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 		// IDs format is: "<type>-<package>.<transform>-<namespace>-<version>"
 		// For instance: "logs-ti_anomali.latest_ioc-default-0.1.0"
 		transformPattern := fmt.Sprintf("%s-%s.%s-*-%s",
-			ds.Inputs[0].Streams[0].DataStream.Type,
+			// It cannot be used "ds.Inputs[0].Streams[0].DataStream.Type" since Fleet
+			// always create the transform with the prefix "logs-"
+			// https://github.com/elastic/kibana/blob/eed02b930ad332ad7261a0a4dff521e36021fb31/x-pack/platform/plugins/shared/fleet/server/services/epm/elasticsearch/transform/install.ts#L855
+			"logs",
 			pkgManifest.Name,
 			transform.Name,
 			transform.Definition.Meta.FleetTransformVersion,

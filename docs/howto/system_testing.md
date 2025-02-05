@@ -429,6 +429,7 @@ for system tests.
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
 | skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
+| skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 
