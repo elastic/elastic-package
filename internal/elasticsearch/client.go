@@ -324,31 +324,31 @@ func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 	return strings.Join(causes, ", "), nil
 }
 
-func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName string) (json.RawMessage, json.RawMessage, error) {
+type Mappings struct {
+	Properties       json.RawMessage `json:"properties"`
+	DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+}
+
+func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName string) (*Mappings, error) {
 	resp, err := c.Indices.SimulateTemplate(
 		c.Indices.SimulateTemplate.WithContext(ctx),
 		c.Indices.SimulateTemplate.WithName(indexTemplateName),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", indexTemplateName, err)
+		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", indexTemplateName, err)
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {
-		return nil, nil, fmt.Errorf("error getting mapping: %s", resp)
+		return nil, fmt.Errorf("error getting mapping: %s", resp)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
-	}
-
-	type mappingsIndexTemplate struct {
-		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
-		Properties       json.RawMessage `json:"properties"`
+		return nil, fmt.Errorf("error reading mapping body: %w", err)
 	}
 
 	type indexTemplateSimulated struct {
 		// Settings json.RawMessage       `json:"settings"`
-		Mappings mappingsIndexTemplate `json:"mappings"`
+		Mappings Mappings `json:"mappings"`
 	}
 
 	type previewTemplate struct {
@@ -358,7 +358,7 @@ func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName st
 	var preview previewTemplate
 
 	if err := json.Unmarshal(body, &preview); err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
 
 	// In case there are no dynamic templates, set an empty array
@@ -371,44 +371,39 @@ func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName st
 		preview.Template.Mappings.Properties = []byte("{}")
 	}
 
-	return preview.Template.Mappings.DynamicTemplates, preview.Template.Mappings.Properties, nil
+	return &preview.Template.Mappings, nil
 }
 
-func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) (json.RawMessage, json.RawMessage, error) {
+func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) (*Mappings, error) {
 	mappingResp, err := c.Indices.GetMapping(
 		c.Indices.GetMapping.WithContext(ctx),
 		c.Indices.GetMapping.WithIndex(dataStreamName),
 	)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", dataStreamName, err)
+		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", dataStreamName, err)
 	}
 	defer mappingResp.Body.Close()
 	if mappingResp.IsError() {
-		return nil, nil, fmt.Errorf("error getting mapping: %s", mappingResp)
+		return nil, fmt.Errorf("error getting mapping: %s", mappingResp)
 	}
 	body, err := io.ReadAll(mappingResp.Body)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error reading mapping body: %w", err)
-	}
-
-	type mappings struct {
-		DynamicTemplates json.RawMessage `json:"dynamic_templates"`
-		Properties       json.RawMessage `json:"properties"`
+		return nil, fmt.Errorf("error reading mapping body: %w", err)
 	}
 
 	mappingsRaw := map[string]struct {
-		Mappings mappings `json:"mappings"`
+		Mappings Mappings `json:"mappings"`
 	}{}
 
 	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
-		return nil, nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
 	}
 
 	if len(mappingsRaw) != 1 {
-		return nil, nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
+		return nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
 	}
 
-	var mappingsDefinition mappings
+	var mappingsDefinition Mappings
 	for _, v := range mappingsRaw {
 		mappingsDefinition = v.Mappings
 	}
@@ -423,5 +418,5 @@ func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) 
 		mappingsDefinition.Properties = []byte("{}")
 	}
 
-	return mappingsDefinition.DynamicTemplates, mappingsDefinition.Properties, nil
+	return &mappingsDefinition, nil
 }
