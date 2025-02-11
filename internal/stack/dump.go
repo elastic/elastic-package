@@ -71,7 +71,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 	for _, requestedService := range options.Services {
 		if !slices.Contains(services, requestedService) {
-			return nil, fmt.Errorf("local service %s does not exist", requestedService)
+			return nil, fmt.Errorf("%w: local service %s does not exist", ErrUnavailableStack, requestedService)
 		}
 	}
 
