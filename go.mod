@@ -39,7 +39,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.12.0
 	helm.sh/helm/v3 v3.17.0
-	honnef.co/go/tools v0.5.1
+	honnef.co/go/tools v0.6.0
 	k8s.io/apimachinery v0.32.1
 	k8s.io/cli-runtime v0.32.1
 	k8s.io/client-go v0.32.1
