@@ -681,7 +681,12 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 			} `json:"mappings"`
 			Settings struct {
 				Index struct {
-					Mode string `json:"mode"`
+					Mode    string `json:"mode"`
+					Mapping struct {
+						Source struct {
+							Mode string `json:"mode"`
+						} `json:"source"`
+					} `json:"mapping"`
 				} `json:"index"`
 			} `json:"settings"`
 		} `json:"template"`
@@ -691,7 +696,8 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 		return false, fmt.Errorf("could not decode index template simulation response: %w", err)
 	}
 
-	if results.Template.Mappings.Source.Mode == "synthetic" {
+	// in 8.17.2 source mode definition is now under settings object
+	if results.Template.Mappings.Source.Mode == "synthetic" || results.Template.Settings.Index.Mapping.Source.Mode == "synthetic" {
 		return true, nil
 	}
 

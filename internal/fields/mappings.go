@@ -95,14 +95,14 @@ func createValidatorForMappingsAndPackageRoot(opts ...MappingValidatorOption) (v
 func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror.Error {
 	var errs multierror.Error
 	logger.Debugf("Get Mappings from data stream (%s)", v.dataStreamName)
-	actualDynamicTemplates, actualMappings, err := v.esClient.DataStreamMappings(ctx, v.dataStreamName)
+	actualMappings, err := v.esClient.DataStreamMappings(ctx, v.dataStreamName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from ES (data stream %s): %w", v.dataStreamName, err))
 		return errs
 	}
 
 	logger.Debugf("Simulate Index Template (%s)", v.indexTemplateName)
-	previewDynamicTemplates, previewMappings, err := v.esClient.SimulateIndexTemplate(ctx, v.indexTemplateName)
+	previewMappings, err := v.esClient.SimulateIndexTemplate(ctx, v.indexTemplateName)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to load mappings from index template preview (%s): %w", v.indexTemplateName, err))
 		return errs
@@ -124,7 +124,7 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 	}))
 
 	// Compare dynamic templates, this should always be the same in preview and after ingesting documents
-	if diff := cmp.Diff(previewDynamicTemplates, actualDynamicTemplates, transformJSON); diff != "" {
+	if diff := cmp.Diff(previewMappings.DynamicTemplates, actualMappings.DynamicTemplates, transformJSON); diff != "" {
 		errs = append(errs, fmt.Errorf("dynamic templates are different (data stream %s):\n%s", v.dataStreamName, diff))
 	}
 
@@ -138,26 +138,26 @@ func (v *MappingValidator) ValidateIndexMappings(ctx context.Context) multierror
 	//     - if it does not match, there should be some issue and it should be reported
 	//     - If the mapping is a constant_keyword type (e.g. data_stream.dataset), how to check the value?
 	//         - if the constant_keyword is defined in the preview, it should be the same
-	if diff := cmp.Diff(actualMappings, previewMappings, transformJSON); diff == "" {
+	if diff := cmp.Diff(actualMappings.Properties, previewMappings.Properties, transformJSON); diff == "" {
 		logger.Debug("No changes found in mappings")
 		return errs.Unique()
 	}
 
 	var rawPreview map[string]any
-	err = json.Unmarshal(previewMappings, &rawPreview)
+	err = json.Unmarshal(previewMappings.Properties, &rawPreview)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal preview mappings (index template %s): %w", v.indexTemplateName, err))
 		return errs.Unique()
 	}
 	var rawActual map[string]any
-	err = json.Unmarshal(actualMappings, &rawActual)
+	err = json.Unmarshal(actualMappings.Properties, &rawActual)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal actual mappings (data stream %s): %w", v.dataStreamName, err))
 		return errs.Unique()
 	}
 
 	var rawDynamicTemplates []map[string]any
-	err = json.Unmarshal(actualDynamicTemplates, &rawDynamicTemplates)
+	err = json.Unmarshal(actualMappings.DynamicTemplates, &rawDynamicTemplates)
 	if err != nil {
 		errs = append(errs, fmt.Errorf("failed to unmarshal actual dynamic templates (data stream %s): %w", v.dataStreamName, err))
 		return errs.Unique()
