@@ -18,6 +18,7 @@ type fieldsTableRecord struct {
 	aType       string
 	unit        string
 	metricType  string
+	runtime     bool
 }
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
@@ -74,10 +75,14 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	builder.WriteString("\n")
 	for _, c := range collected {
 		description := strings.TrimSpace(strings.ReplaceAll(c.description, "\n", " "))
+		fieldType := c.aType
+		if c.runtime {
+			fieldType = fmt.Sprintf("%s (runtime)", c.aType)
+		}
 		builder.WriteString(fmt.Sprintf("| %s | %s | %s |",
 			escaper.Replace(c.name),
 			escaper.Replace(description),
-			c.aType))
+			fieldType))
 		if unitsPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.unit))
 		}
@@ -117,7 +122,7 @@ func collectFieldsFromDefinitions(validator *fields.Validator) []fieldsTableReco
 }
 
 func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) []fieldsTableRecord {
-	var name = namePrefix
+	name := namePrefix
 	if namePrefix != "" {
 		name += "."
 	}
@@ -130,6 +135,7 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			aType:       f.Type,
 			unit:        f.Unit,
 			metricType:  f.MetricType,
+			runtime:     f.Runtime.IsEnabled(),
 		})
 
 		for _, multiField := range f.MultiFields {

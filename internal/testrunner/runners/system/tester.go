@@ -1007,7 +1007,7 @@ func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
 	case string:
 		*p = append(*p, v)
 	case []any:
-		// asume it is going to be an array of strings
+		// assume it is going to be an array of strings
 		for _, value := range v {
 			*p = append(*p, fmt.Sprint(value))
 		}

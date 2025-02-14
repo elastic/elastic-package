@@ -34,6 +34,7 @@ type FieldDefinition struct {
 	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
 	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
 	Reusable       *ReusableConfig   `yaml:"reusable,omitempty"`
+	Runtime        runtimeField      `yaml:"runtime"`
 
 	// disallowAtTopLevel transfers the reusability config from parent groups to nested fields.
 	// It is negated respect to Reusable.TopLevel, so it is disabled by default.
