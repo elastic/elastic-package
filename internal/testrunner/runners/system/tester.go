@@ -1646,7 +1646,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.fieldValidationMethod == mappingsMethod {
-		logger.Warn("Validation based on mappings enabled (technical preview)")
+		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
