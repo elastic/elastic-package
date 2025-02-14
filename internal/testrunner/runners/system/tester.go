@@ -1746,7 +1746,14 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 
 	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
-		return result.WithError(err)
+		// Known issue: do not include this as part of the xUnit results
+		// Example: https://buildkite.com/elastic/integrations/builds/22313#01950431-67a5-4544-a720-6047f5de481b/706-2459
+		if strings.Contains(err.Error(), "fork/exec /usr/bin/docker: operation not permitted") {
+			return result.WithError(err)
+		}
+		// report all other errors as error entries in the xUnit file
+		results, _ := result.WithError(err)
+		return results, nil
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {

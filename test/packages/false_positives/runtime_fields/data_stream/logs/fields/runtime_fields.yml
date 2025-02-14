@@ -1,0 +1,23 @@
+# Example with dynamic templates
+- name: labels.*
+  type: keyword
+  runtime: true
+- name: labels.a
+  type: text
+- name: metrics.day_of_week
+  type: keyword
+  runtime: "emit(doc['@timestamp'].value.dayOfWeekEnum.getDisplayName(TextStyle.FULL, Locale.ENGLISH))"
+- name: metrics
+  type: group
+  fields:
+    - name: day_of_week_german
+      type: keyword
+      runtime: "emit(doc['@timestamp'].value.dayOfWeekEnum.getDisplayName(TextStyle.FULL, Locale.GERMAN))"
+    - name: foo
+      type: keyword
+      runtime: true
+    - name: bar
+      type: long
+- name: day_of_week
+  type: keyword
+  runtime: "emit(doc['@tip'].value.dayOfWeekEnum.getDisplayName(TextStyle.FULL, Locale.ENGLISH))"

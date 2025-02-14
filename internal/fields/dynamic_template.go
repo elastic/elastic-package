@@ -147,10 +147,13 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			return nil, fmt.Errorf("unexpected dynamic template format found for %q", templateName)
 		}
 
+		isRuntime := false
 		for setting, value := range contents {
 			switch setting {
 			case "mapping":
 				aDynamicTemplate.mapping = value
+			case "runtime":
+				isRuntime = true
 			case "match_pattern":
 				s, ok := value.(string)
 				if !ok {
@@ -191,6 +194,9 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			}
 		}
 
+		if isRuntime {
+			continue
+		}
 		dynamicTemplates = append(dynamicTemplates, aDynamicTemplate)
 	}
 
