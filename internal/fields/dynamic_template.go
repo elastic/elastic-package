@@ -58,7 +58,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 	}
 
 	if len(d.pathMatch) > 0 {
-		// logger.Debugf("path_match -> Comparing %s to %q", strings.Join(d.pathMatch, ";"), currentPath)
 		matches, err := stringMatchesPatterns(d.pathMatch, currentPath, fullRegex)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
