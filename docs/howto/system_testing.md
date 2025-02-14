@@ -18,6 +18,8 @@ Conceptually, running a system test involves the following steps:
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
    mappings declared for the field.
+1. Validate mappings generated after ingesting documents are valid according to the definitions installed by the package.
+    - Requires `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD` to be unset or set to `mappings`.
 1. If the Elastic Agent from the stack is not used, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once the data stream have been system tested, unenroll and remove the Elastic Agent

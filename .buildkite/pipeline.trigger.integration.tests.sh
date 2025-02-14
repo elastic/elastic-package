@@ -110,22 +110,6 @@ echo "        artifact_paths:"
 echo "          - build/test-results/*.xml"
 echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
 
-# Add steps to test validation method mappings
-while IFS= read -r -d '' package ; do
-    package_name=$(basename "${package}")
-    echo "      - label: \":go: Integration test: ${package_name} (validate mappings)\""
-    echo "        key: \"integration-parallel-${package_name}-agent-validate-mappings\""
-    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-parallel -p ${package_name}"
-    echo "        env:"
-    echo "          UPLOAD_SAFE_LOGS: 1"
-    echo "          ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD: mappings"
-    echo "        agents:"
-    echo "          provider: \"gcp\""
-    echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
-    echo "        artifact_paths:"
-    echo "          - build/test-results/*.xml"
-    echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
-done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
 popd > /dev/null
 
 # TODO: Missing docker & docker-compose in MACOS ARM agent image, skip installation of packages in the meantime.
