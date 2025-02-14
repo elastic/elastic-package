@@ -288,8 +288,8 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
 
-	// default method using just fields
-	r.fieldValidationMethod = fieldsMethod
+	// default method to validate using mappings (along with fields)
+	r.fieldValidationMethod = mappingsMethod
 	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
 	if ok {
 		method, ok := validationMethods[v]
