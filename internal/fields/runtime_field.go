@@ -17,10 +17,8 @@ type runtimeField struct {
 	script  string
 }
 
-// Ensure runtime implements these interfaces.
-var (
-	_ yaml.Unmarshaler = new(runtimeField)
-)
+// Ensure runtimeField implements yaml.Unmarshaler.
+var _ yaml.Unmarshaler = new(runtimeField)
 
 func (r *runtimeField) IsEnabled() bool {
 	if r.enabled {
@@ -54,6 +52,5 @@ func (r *runtimeField) unmarshalString(text string) error {
 
 // UnmarshalYAML implements the yaml.Marshaler interface for runtime.
 func (r *runtimeField) UnmarshalYAML(value *yaml.Node) error {
-	// For some reason go-yaml doesn't like the UnmarshalJSON function above.
 	return r.unmarshalString(value.Value)
 }
