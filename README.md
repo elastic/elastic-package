@@ -689,10 +689,11 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT`. If the variable is set to false, all system tests defined in the package will use
       the Elastic Agent started along with the stack. If set to true, a new Elastic Agent will be started and enrolled for each test defined in the
       package (and unenrolled at the end of each test). Default: `true`.
-    - `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD`. This variable can take one of these values: `all`, `mappings` or `fields`. If this
-      variable is set to `fields`, then validation of fields will be based on the documents ingested into Elasticsearch. If this is set to
-      `mappings`, then validation of fields will be based on the mappings generated when the documents are ingested into Elasticsearch. If
-      set to `all`, then validation will be based on both methods mentioned previously. Default option: `fields`.
+    - `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD`. This variable can take one of these values: `mappings` or `fields`. If this
+      variable is set to `fields`, then validation of fields will be based on the contents of the documents ingested into Elasticsearch. If this is set to
+      `mappings`, then validation of fields will be based on their mappings generated when the documents are ingested into Elasticsearch as well as
+      the contents of the documents ingested into Elasticsearch.
+      Default option: `mappings`.
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)

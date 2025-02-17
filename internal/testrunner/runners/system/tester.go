@@ -289,8 +289,8 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
 
-	// default method using just fields
-	r.fieldValidationMethod = fieldsMethod
+	// default method to validate using mappings (along with fields)
+	r.fieldValidationMethod = mappingsMethod
 	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
 	if ok {
 		method, ok := validationMethods[v]
@@ -1647,7 +1647,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.fieldValidationMethod == mappingsMethod {
-		logger.Warn("Validation based on mappings enabled (technical preview)")
+		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
