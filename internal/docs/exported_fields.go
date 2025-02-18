@@ -75,14 +75,14 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	builder.WriteString("\n")
 	for _, c := range collected {
 		description := strings.TrimSpace(strings.ReplaceAll(c.description, "\n", " "))
-		fieldType := c.aType
-		if c.runtime {
-			fieldType = fmt.Sprintf("%s (runtime)", c.aType)
-		}
-		fmt.Fprintf(builder, "| %s | %s | %s |",
+		fmt.Fprintf(builder, "| %s | %s | %s",
 			escaper.Replace(c.name),
 			escaper.Replace(description),
-			fieldType)
+			c.aType)
+		if c.runtime {
+			builder.WriteString(" (runtime)")
+		}
+		builder.WriteString(" |")
 		if unitsPresent {
 			fmt.Fprintf(builder, " %s |", c.unit)
 		}
