@@ -122,7 +122,7 @@ func collectFieldsFromDefinitions(validator *fields.Validator) []fieldsTableReco
 }
 
 func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTableRecord) []fieldsTableRecord {
-	name := namePrefix
+	var name = namePrefix
 	if namePrefix != "" {
 		name += "."
 	}
