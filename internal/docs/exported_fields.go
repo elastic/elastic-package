@@ -9,8 +9,13 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/packages"
 )
+
+var semver3_2_3 = semver.MustParse("3.4.0")
 
 type fieldsTableRecord struct {
 	name        string
@@ -18,11 +23,13 @@ type fieldsTableRecord struct {
 	aType       string
 	unit        string
 	metricType  string
+	value       string
+	example     string
 }
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-func renderExportedFields(fieldsParentDir string) (string, error) {
+func renderExportedFields(fieldsParentDir string, pkgManifest *packages.PackageManifest) (string, error) {
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -46,13 +53,27 @@ func renderExportedFields(fieldsParentDir string) (string, error) {
 		builder.WriteString("(no fields available)\n")
 		return builder.String(), nil
 	}
-	renderFieldsTable(&builder, collected)
+
+	sv, err := semver.NewVersion(pkgManifest.SpecVersion)
+	if err != nil {
+		return "", fmt.Errorf("failed to obtain spec version from package manifest: %w", err)
+	}
+
+	renderExamples := true
+	if sv.LessThan(semver3_2_3) {
+		renderExamples = false
+	}
+
+	renderFieldsTable(&builder, collected, renderExamples)
+
 	return builder.String(), nil
 }
 
-func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) {
+func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord, includeExamples bool) {
 	unitsPresent := areUnitsPresent(collected)
 	metricTypesPresent := areMetricTypesPresent(collected)
+	examplePresent := areExamplesPresent(collected)
+	valuesPresent := areValuesPresent(collected)
 
 	builder.WriteString("| Field | Description | Type |")
 	if unitsPresent {
@@ -61,6 +82,9 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 	if metricTypesPresent {
 		builder.WriteString(" Metric Type |")
 	}
+	if (examplePresent || valuesPresent) && includeExamples {
+		builder.WriteString(" Example |")
+	}
 
 	builder.WriteString("\n")
 	builder.WriteString("|---|---|---|")
@@ -68,6 +92,9 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		builder.WriteString("---|")
 	}
 	if metricTypesPresent {
+		builder.WriteString("---|")
+	}
+	if (examplePresent || valuesPresent) && includeExamples { // Check whether there are examples to render or whether fields are constants
 		builder.WriteString("---|")
 	}
 
@@ -83,6 +110,13 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		}
 		if metricTypesPresent {
 			builder.WriteString(fmt.Sprintf(" %s |", c.metricType))
+		}
+		if (examplePresent || valuesPresent) && includeExamples {
+			if c.aType == "constant_keyword" {
+				builder.WriteString(fmt.Sprintf(" %s |", c.value))
+			} else {
+				builder.WriteString(fmt.Sprintf(" %s |", c.example))
+			}
 		}
 		builder.WriteString("\n")
 	}
@@ -100,6 +134,24 @@ func areUnitsPresent(collected []fieldsTableRecord) bool {
 func areMetricTypesPresent(collected []fieldsTableRecord) bool {
 	for _, c := range collected {
 		if c.metricType != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func areValuesPresent(collected []fieldsTableRecord) bool {
+	for _, c := range collected {
+		if c.aType == "constant_keyword" && c.value != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func areExamplesPresent(collected []fieldsTableRecord) bool {
+	for _, c := range collected {
+		if c.example != "" {
 			return true
 		}
 	}
@@ -130,6 +182,8 @@ func visitFields(namePrefix string, f fields.FieldDefinition, records []fieldsTa
 			aType:       f.Type,
 			unit:        f.Unit,
 			metricType:  f.MetricType,
+			value:       f.Value,
+			example:     f.Example,
 		})
 
 		for _, multiField := range f.MultiFields {

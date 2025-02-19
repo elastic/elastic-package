@@ -141,44 +141,44 @@ An example event for `threatstream` looks as following:
 
 **Exported fields**
 
-| Field | Description | Type |
-|---|---|---|
-| @timestamp | Event timestamp. | date |
-| anomali.threatstream.added_at | Date when IOC was added. | date |
-| anomali.threatstream.classification | Indicates whether an indicator is private or from a public feed and available publicly. Possible values: private, public. | keyword |
-| anomali.threatstream.confidence | The measure of the accuracy (from 0 to 100) assigned by ThreatStream's predictive analytics technology to indicators. | short |
-| anomali.threatstream.deleted_at | Date when IOC was deleted/expired. | date |
-| anomali.threatstream.detail2 | Detail text for indicator. | text |
-| anomali.threatstream.id | The ID of the indicator. | keyword |
-| anomali.threatstream.import_session_id | ID of the import session that created the indicator on ThreatStream. | keyword |
-| anomali.threatstream.itype | Indicator type. Possible values: "apt_domain", "apt_email", "apt_ip", "apt_url", "bot_ip", "c2_domain", "c2_ip", "c2_url", "i2p_ip", "mal_domain", "mal_email", "mal_ip", "mal_md5", "mal_url", "parked_ip", "phish_email", "phish_ip", "phish_url", "scan_ip", "spam_domain", "ssh_ip", "suspicious_domain", "tor_ip" and "torrent_tracker_url". | keyword |
-| anomali.threatstream.maltype | Information regarding a malware family, a CVE ID, or another attack or threat, associated with the indicator. | wildcard |
-| anomali.threatstream.md5 | Hash for the indicator. | keyword |
-| anomali.threatstream.resource_uri | Relative URI for the indicator details. | keyword |
-| anomali.threatstream.severity | Criticality associated with the threat feed that supplied the indicator. Possible values: low, medium, high, very-high. | keyword |
-| anomali.threatstream.source | Source for the indicator. | keyword |
-| anomali.threatstream.source_feed_id | ID for the integrator source. | keyword |
-| anomali.threatstream.state | State for this indicator. | keyword |
-| anomali.threatstream.trusted_circle_ids | ID of the trusted circle that imported the indicator. | keyword |
-| anomali.threatstream.update_id | Update ID. | keyword |
-| anomali.threatstream.url | URL for the indicator. | keyword |
-| anomali.threatstream.value_type | Data type of the indicator. Possible values: ip, domain, url, email, md5. | keyword |
-| cloud.image.id | Image ID for the cloud instance. | keyword |
-| data_stream.dataset | Data stream dataset name. | constant_keyword |
-| data_stream.namespace | Data stream namespace. | constant_keyword |
-| data_stream.type | Data stream type. | constant_keyword |
-| event.dataset | Event dataset | constant_keyword |
-| event.module | Event module | constant_keyword |
-| host.containerized | If the host is a container. | boolean |
-| host.os.build | OS build information. | keyword |
-| host.os.codename | OS codename, if any. | keyword |
-| input.type | Type of Filebeat input. | keyword |
-| labels.is_ioc_transform_source | Field indicating if its the transform source for supporting IOC expiration. This field is dropped from destination indices to facilitate easier filtering of indicators. | constant_keyword |
-| log.flags | Flags for the log file. | keyword |
-| log.offset | Offset of the entry in the log file. | long |
-| threat.feed.dashboard_id | Dashboard ID used for Kibana CTI UI | constant_keyword |
-| threat.feed.name | Display friendly feed name | constant_keyword |
-| threat.indicator.first_seen | The date and time when intelligence source first reported sighting this indicator. | date |
-| threat.indicator.last_seen | The date and time when intelligence source last reported sighting this indicator. | date |
-| threat.indicator.modified_at | The date and time when intelligence source last modified information for this indicator. | date |
+| Field | Description | Type | Example |
+|---|---|---|---|
+| @timestamp | Event timestamp. | date |  |
+| anomali.threatstream.added_at | Date when IOC was added. | date |  |
+| anomali.threatstream.classification | Indicates whether an indicator is private or from a public feed and available publicly. Possible values: private, public. | keyword | private |
+| anomali.threatstream.confidence | The measure of the accuracy (from 0 to 100) assigned by ThreatStream's predictive analytics technology to indicators. | short |  |
+| anomali.threatstream.deleted_at | Date when IOC was deleted/expired. | date |  |
+| anomali.threatstream.detail2 | Detail text for indicator. | text | Imported by user 42. |
+| anomali.threatstream.id | The ID of the indicator. | keyword |  |
+| anomali.threatstream.import_session_id | ID of the import session that created the indicator on ThreatStream. | keyword |  |
+| anomali.threatstream.itype | Indicator type. Possible values: "apt_domain", "apt_email", "apt_ip", "apt_url", "bot_ip", "c2_domain", "c2_ip", "c2_url", "i2p_ip", "mal_domain", "mal_email", "mal_ip", "mal_md5", "mal_url", "parked_ip", "phish_email", "phish_ip", "phish_url", "scan_ip", "spam_domain", "ssh_ip", "suspicious_domain", "tor_ip" and "torrent_tracker_url". | keyword |  |
+| anomali.threatstream.maltype | Information regarding a malware family, a CVE ID, or another attack or threat, associated with the indicator. | wildcard |  |
+| anomali.threatstream.md5 | Hash for the indicator. | keyword |  |
+| anomali.threatstream.resource_uri | Relative URI for the indicator details. | keyword |  |
+| anomali.threatstream.severity | Criticality associated with the threat feed that supplied the indicator. Possible values: low, medium, high, very-high. | keyword |  |
+| anomali.threatstream.source | Source for the indicator. | keyword | Analyst |
+| anomali.threatstream.source_feed_id | ID for the integrator source. | keyword |  |
+| anomali.threatstream.state | State for this indicator. | keyword | active |
+| anomali.threatstream.trusted_circle_ids | ID of the trusted circle that imported the indicator. | keyword |  |
+| anomali.threatstream.update_id | Update ID. | keyword |  |
+| anomali.threatstream.url | URL for the indicator. | keyword |  |
+| anomali.threatstream.value_type | Data type of the indicator. Possible values: ip, domain, url, email, md5. | keyword |  |
+| cloud.image.id | Image ID for the cloud instance. | keyword |  |
+| data_stream.dataset | Data stream dataset name. | constant_keyword |  |
+| data_stream.namespace | Data stream namespace. | constant_keyword |  |
+| data_stream.type | Data stream type. | constant_keyword |  |
+| event.dataset | Event dataset | constant_keyword | ti_anomali.threatstream |
+| event.module | Event module | constant_keyword | ti_anomali |
+| host.containerized | If the host is a container. | boolean |  |
+| host.os.build | OS build information. | keyword | 18D109 |
+| host.os.codename | OS codename, if any. | keyword | stretch |
+| input.type | Type of Filebeat input. | keyword |  |
+| labels.is_ioc_transform_source | Field indicating if its the transform source for supporting IOC expiration. This field is dropped from destination indices to facilitate easier filtering of indicators. | constant_keyword | true |
+| log.flags | Flags for the log file. | keyword |  |
+| log.offset | Offset of the entry in the log file. | long |  |
+| threat.feed.dashboard_id | Dashboard ID used for Kibana CTI UI | constant_keyword | ti_anomali-96fe1e60-4261-11ec-b7be-d3026acdf1cf |
+| threat.feed.name | Display friendly feed name | constant_keyword | Anomali ThreatStream |
+| threat.indicator.first_seen | The date and time when intelligence source first reported sighting this indicator. | date |  |
+| threat.indicator.last_seen | The date and time when intelligence source last reported sighting this indicator. | date |  |
+| threat.indicator.modified_at | The date and time when intelligence source last modified information for this indicator. | date |  |
 
