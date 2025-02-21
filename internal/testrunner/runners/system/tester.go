@@ -1402,6 +1402,24 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return hits.size() >= config.Assert.MinCount, nil
 		}
 
+		if len(config.Assert.FieldPresent) > 0 {
+			for _, f := range config.Assert.FieldPresent {
+				found := false
+				for _, d := range hits.Fields {
+					if _, err := d.GetValue(f); err == nil {
+						logger.Debugf("> Found field %q in hits", f)
+						found = true
+						break
+					}
+				}
+				if !found {
+					logger.Debugf("Not found field %q in hits", f)
+					return false, nil
+				}
+			}
+			return true, nil
+		}
+
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 

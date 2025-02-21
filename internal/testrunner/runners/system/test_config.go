@@ -50,6 +50,9 @@ type testConfig struct {
 
 		// Minimum number of hits for a given test
 		MinCount int `config:"min_count"`
+
+		// Field present
+		FieldPresent []string `config:"fields_present"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
