@@ -47,6 +47,9 @@ type testConfig struct {
 	Assert struct {
 		// Expected number of hits for a given test
 		HitCount int `config:"hit_count"`
+
+		// Minimum number of hits for a given test
+		MinCount int `config:"min_count"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
@@ -121,6 +124,10 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 
 	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
 		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	if c.Assert.HitCount > 0 && c.Assert.MinCount > 0 {
+		return nil, fmt.Errorf("assert.hit_count and assert.min_count are mutually exclusive settings")
 	}
 
 	return &c, nil

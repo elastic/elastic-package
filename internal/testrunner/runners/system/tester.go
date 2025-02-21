@@ -1398,6 +1398,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return ret, nil
 		}
 
+		if config.Assert.MinCount > 0 {
+			return hits.size() >= config.Assert.MinCount, nil
+		}
+
 		return hits.size() > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
