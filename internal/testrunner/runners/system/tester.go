@@ -1365,12 +1365,17 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
 	var hits *hits
 	oldHits := 0
+	prevTime := time.Now()
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err = r.getDocs(ctx, scenario.dataStream)
 		if err != nil {
 			return false, err
 		}
+
+		defer func() {
+			oldHits = hits.size()
+		}()
 
 		if r.checkFailureStore {
 			failureStore, err := r.getFailureStoreDocs(ctx, scenario.dataStream)
@@ -1391,11 +1396,27 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 			ret := hits.size() == oldHits
 			if !ret {
-				oldHits = hits.size()
 				time.Sleep(4 * time.Second)
 			}
 
 			return ret, nil
+		}
+
+		if config.Assert.SecondsWithoutChange.Seconds() > 0 {
+			if hits.size() == 0 {
+				// At least there should be one document ingested
+				return false, nil
+			}
+			if oldHits != hits.size() {
+				prevTime = time.Now()
+				return false, nil
+			}
+
+			if time.Since(prevTime) > config.Assert.SecondsWithoutChange {
+				logger.Debugf("No new documents ingested in %s", config.Assert.SecondsWithoutChange)
+				return true, nil
+			}
+			return false, nil
 		}
 
 		if config.Assert.MinCount > 0 {

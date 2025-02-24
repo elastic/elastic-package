@@ -53,6 +53,9 @@ type testConfig struct {
 
 		// Field present
 		FieldPresent []string `config:"fields_present"`
+
+		// SecondsWithoutChange
+		SecondsWithoutChange time.Duration `config:"seconds_without_change"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
