@@ -51,8 +51,8 @@ type testConfig struct {
 		// Minimum number of hits for a given test
 		MinCount int `config:"min_count"`
 
-		// Field present
-		FieldPresent []string `config:"fields_present"`
+		// Fields present
+		FieldsPresent []string `config:"fields_present"`
 
 		// SecondsWithoutChange
 		SecondsWithoutChange time.Duration `config:"seconds_without_change"`

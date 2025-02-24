@@ -1604,11 +1604,11 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			return hits.size() >= config.Assert.MinCount, nil
 		}
 
-		if len(config.Assert.FieldPresent) > 0 {
+		if len(config.Assert.FieldsPresent) > 0 {
 			if hits.size() == 0 {
 				return false, nil
 			}
-			for _, f := range config.Assert.FieldPresent {
+			for _, f := range config.Assert.FieldsPresent {
 				found := false
 				for _, d := range hits.Fields {
 					if _, err := d.GetValue(f); err == nil {
