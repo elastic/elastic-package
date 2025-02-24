@@ -1583,49 +1583,55 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			return ret, nil
 		}
 
-		if config.Assert.SecondsWithoutChange.Seconds() > 0 {
+		assertSecondsWithoutChange := func() bool {
+			if config.Assert.SecondsWithoutChange.Seconds() == 0 {
+				// not enabled
+				return true
+			}
 			if hits.size() == 0 {
-				// At least there should be one document ingested
-				return false, nil
+				return false
 			}
 			if oldHits != hits.size() {
 				prevTime = time.Now()
-				return false, nil
+				return false
 			}
-
 			if time.Since(prevTime) > config.Assert.SecondsWithoutChange {
 				logger.Debugf("No new documents ingested in %s", config.Assert.SecondsWithoutChange)
-				return true, nil
+				return true
 			}
-			return false, nil
-		}
+			return false
+		}()
 
-		if config.Assert.MinCount > 0 {
-			return hits.size() >= config.Assert.MinCount, nil
-		}
-
-		if len(config.Assert.FieldsPresent) > 0 {
+		assertFieldsPresent := func() bool {
+			if len(config.Assert.FieldsPresent) == 0 {
+				// not enabled
+				return true
+			}
 			if hits.size() == 0 {
-				return false, nil
+				// At least there should be one document ingested
+				return false
 			}
 			for _, f := range config.Assert.FieldsPresent {
 				found := false
 				for _, d := range hits.Fields {
 					if _, err := d.GetValue(f); err == nil {
-						logger.Debugf("> Found field %q in hits", f)
 						found = true
 						break
 					}
 				}
 				if !found {
 					logger.Debugf("Not found field %q in hits", f)
-					return false, nil
+					return false
 				}
+				logger.Debugf("> Found field %q in hits", f)
 			}
-			return true, nil
-		}
+			return true
+		}()
 
-		return hits.size() > 0, nil
+		// By default, config.Assert.MinCount is zero
+		assertMinCount := hits.size() > config.Assert.MinCount
+
+		return assertSecondsWithoutChange && assertFieldsPresent && assertMinCount, nil
 	}, 1*time.Second, waitForDataTimeout)
 
 	if waitErr != nil {
