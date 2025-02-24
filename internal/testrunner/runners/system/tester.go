@@ -1570,9 +1570,13 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			}
 		}
 
-		if config.Assert.HitCount > 0 {
+		assertHitCount := func() bool {
+			if config.Assert.HitCount == 0 {
+				// not enabled
+				return true
+			}
 			if hits.size() < config.Assert.HitCount {
-				return false, nil
+				return false
 			}
 
 			ret := hits.size() == oldHits
@@ -1580,8 +1584,8 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 				time.Sleep(4 * time.Second)
 			}
 
-			return ret, nil
-		}
+			return ret
+		}()
 
 		assertSecondsWithoutChange := func() bool {
 			if config.Assert.SecondsWithoutChange.Seconds() == 0 {
@@ -1631,7 +1635,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		// By default, config.Assert.MinCount is zero
 		assertMinCount := hits.size() > config.Assert.MinCount
 
-		return assertSecondsWithoutChange && assertFieldsPresent && assertMinCount, nil
+		return assertSecondsWithoutChange && assertFieldsPresent && assertMinCount && assertHitCount, nil
 	}, 1*time.Second, waitForDataTimeout)
 
 	if waitErr != nil {
