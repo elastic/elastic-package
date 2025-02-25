@@ -1,17 +1,17 @@
 <!-- Use this template language as a starting point, replacing {placeholder text} with details about the integration. -->
 <!-- Find more detailed documentation guidelines in https://github.com/elastic/integrations/blob/main/docs/documentation_guidelines.md -->
 
-# Fields Present Assertion Test
+# System Test Assert Conditions Test
 
-<!-- The Fields Present Assertion Test integration allows you to monitor {name of service}. {name of service} is {describe service}.
+<!-- The System Test Assert Conditions Test integration allows you to monitor {name of service}. {name of service} is {describe service}.
 
-Use the Fields Present Assertion Test integration to {purpose}. Then visualize that data in Kibana, create alerts to notify you if something goes wrong, and reference {data stream type} when troubleshooting an issue.
+Use the System Test Assert Conditions Test integration to {purpose}. Then visualize that data in Kibana, create alerts to notify you if something goes wrong, and reference {data stream type} when troubleshooting an issue.
 
 For example, if you wanted to {sample use case} you could {action}. Then you can {visualize|alert|troubleshoot} by {action}. -->
 
 ## Data streams
 
-<!-- The Fields Present Assertion Test integration collects {one|two} type{s} of data streams: {logs and/or metrics}. -->
+<!-- The System Test Assert Conditions Test integration collects {one|two} type{s} of data streams: {logs and/or metrics}. -->
 
 <!-- If applicable -->
 <!-- **Logs** help you keep a record of events happening in {service}.

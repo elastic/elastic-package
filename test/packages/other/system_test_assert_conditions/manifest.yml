@@ -1,10 +1,10 @@
 format_version: 3.3.2
-name: fields_present_assertion
-title: "Fields Present Assertion Test"
+name: system_test_assert_conditions
+title: "System Test Assert Conditions Test"
 version: 0.0.1
 source:
   license: "Elastic-2.0"
-description: "Test for Fields Present Assertion"
+description: "Test for System Test Assertion Conditions"
 type: integration
 categories:
   - custom
