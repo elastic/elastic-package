@@ -1547,6 +1547,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 	var hits *hits
 	oldHits := 0
 	prevTime := time.Now()
+	foundFields := map[string]any{}
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err = r.getDocs(ctx, dataStream)
@@ -1616,6 +1617,9 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 				return false
 			}
 			for _, f := range config.Assert.FieldsPresent {
+				if _, found := foundFields[f]; found {
+					continue
+				}
 				found := false
 				for _, d := range hits.Fields {
 					if _, err := d.GetValue(f); err == nil {
@@ -1628,6 +1632,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 					return false
 				}
 				logger.Debugf("> Found field %q in hits", f)
+				foundFields[f] = struct{}{}
 			}
 			return true
 		}()
