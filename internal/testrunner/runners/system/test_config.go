@@ -51,11 +51,11 @@ type testConfig struct {
 		// Minimum number of hits for a given test
 		MinCount int `config:"min_count"`
 
-		// Fields present
+		// FieldsPresent
 		FieldsPresent []string `config:"fields_present"`
 
-		// SecondsWithoutChange
-		SecondsWithoutChange time.Duration `config:"seconds_without_change"`
+		// IngestionIdleTime time elapsed since the last document was ingested
+		IngestionIdleTime time.Duration `config:"ingestion_idle_time"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword

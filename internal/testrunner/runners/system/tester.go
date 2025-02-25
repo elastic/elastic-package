@@ -1588,8 +1588,8 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			return ret
 		}()
 
-		assertSecondsWithoutChange := func() bool {
-			if config.Assert.SecondsWithoutChange.Seconds() == 0 {
+		assertIngestionIdleTime := func() bool {
+			if config.Assert.IngestionIdleTime.Seconds() == 0 {
 				// not enabled
 				return true
 			}
@@ -1600,8 +1600,8 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 				prevTime = time.Now()
 				return false
 			}
-			if time.Since(prevTime) > config.Assert.SecondsWithoutChange {
-				logger.Debugf("No new documents ingested in %s", config.Assert.SecondsWithoutChange)
+			if time.Since(prevTime) > config.Assert.IngestionIdleTime {
+				logger.Debugf("No new documents ingested in %s", config.Assert.IngestionIdleTime)
 				return true
 			}
 			return false
@@ -1640,7 +1640,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		// By default, config.Assert.MinCount is zero
 		assertMinCount := hits.size() > config.Assert.MinCount
 
-		return assertSecondsWithoutChange && assertFieldsPresent && assertMinCount && assertHitCount, nil
+		return assertIngestionIdleTime && assertFieldsPresent && assertMinCount && assertHitCount, nil
 	}, 1*time.Second, waitForDataTimeout)
 
 	if waitErr != nil {

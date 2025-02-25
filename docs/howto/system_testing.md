@@ -437,7 +437,7 @@ for system tests.
 | assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
 | assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
 | assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
-| assert.seconds_without_change | duration |  | Amount of time without ingesting new documents. |
+| assert.ingestion_idle_time | duration |  | Minimum time elapsed since the last document was ingested. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
@@ -483,13 +483,13 @@ validated in this default scenario depends on how fast the documents are ingeste
 
 There are other 4 options available:
 - Wait for collecting exactly `assert.hit_count` documents into the data stream.
-    - It will fail if there are more than `assert.hit_count` documents ingested.
+    - It will fail if the final number of documents ingested into Elasticsearch is different from `assert.hit_count` documents.
 - Wait for collecting at least `assert.min_count` documents into the data stream.
     - Once there have been `assert.min_count` or more documents ingested, `elastic-package` will proceed to validate the documents.
     - This could be used to ensure that a wide range of different documents have been ingested into Elasticsearch.
 - Collect data into the data stream until all the fields defined in the list `assert.fields_present` are present in any of the documents.
     - Each field in that list could be present in different documents.
-- Wait for a period of time (`assert.seconds_without_change`) without ingesting new documents into given the data stream.
+- Wait for a period of time (`assert.ingestion_idle_time`) without ingesting new documents into given the data stream.
     - That period of time is just taken into account if at least there is one document in the data stream.
     - It could be used when it is not known the exact number of documents that tests are going to be sending to Elasticsearch.
 
