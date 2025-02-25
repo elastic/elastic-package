@@ -45,13 +45,13 @@ type testConfig struct {
 	SkipTransformValidation bool `config:"skip_transform_validation"`
 
 	Assert struct {
-		// Expected number of hits for a given test
+		// HitCount expected number of hits for a given test
 		HitCount int `config:"hit_count"`
 
-		// Minimum number of hits for a given test
+		// MinCount minimum number of hits for a given test
 		MinCount int `config:"min_count"`
 
-		// FieldsPresent
+		// FieldsPresent list of fields that must be present in any of documents ingested
 		FieldsPresent []string `config:"fields_present"`
 
 		// IngestionIdleTime time elapsed since the last document was ingested
