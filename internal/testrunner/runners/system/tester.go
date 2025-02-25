@@ -1355,51 +1355,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	// Use custom timeout if the service can't collect data immediately.
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if config.WaitForDataTimeout > 0 {
-		waitForDataTimeout = config.WaitForDataTimeout
-	}
-
-	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
-	var hits *hits
-	oldHits := 0
-	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		var err error
-		hits, err = r.getDocs(ctx, scenario.dataStream)
-		if err != nil {
-			return false, err
-		}
-
-		if r.checkFailureStore {
-			failureStore, err := r.getFailureStoreDocs(ctx, scenario.dataStream)
-			if err != nil {
-				return false, fmt.Errorf("failed to check failure store: %w", err)
-			}
-			if n := len(failureStore); n > 0 {
-				// Interrupt loop earlier if there are failures in the document store.
-				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), scenario.dataStream)
-				return true, nil
-			}
-		}
-
-		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
-				return false, nil
-			}
-
-			ret := hits.size() == oldHits
-			if !ret {
-				oldHits = hits.size()
-				time.Sleep(4 * time.Second)
-			}
-
-			return ret, nil
-		}
-
-		return hits.size() > 0, nil
-	}, 1*time.Second, waitForDataTimeout)
+	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream)
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report it as a test case failed
@@ -1415,10 +1371,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	if waitErr != nil {
 		return nil, waitErr
-	}
-
-	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
 	}
 
 	// Get deprecation warnings after ensuring that there are ingested docs and thus the
@@ -1581,6 +1533,125 @@ func (r *tester) createServiceStateDir() error {
 		return fmt.Errorf("mkdir failed (path: %s): %w", dirPath, err)
 	}
 	return nil
+}
+
+func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string) (*hits, error) {
+	// Use custom timeout if the service can't collect data immediately.
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
+	// (TODO in future) Optionally exercise service to generate load.
+	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
+	var hits *hits
+	oldHits := 0
+	prevTime := time.Now()
+	foundFields := map[string]any{}
+	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		var err error
+		hits, err = r.getDocs(ctx, dataStream)
+		if err != nil {
+			return false, err
+		}
+
+		defer func() {
+			oldHits = hits.size()
+		}()
+
+		if r.checkFailureStore {
+			failureStore, err := r.getFailureStoreDocs(ctx, dataStream)
+			if err != nil {
+				return false, fmt.Errorf("failed to check failure store: %w", err)
+			}
+			if n := len(failureStore); n > 0 {
+				// Interrupt loop earlier if there are failures in the document store.
+				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), dataStream)
+				return true, nil
+			}
+		}
+
+		assertHitCount := func() bool {
+			if config.Assert.HitCount == 0 {
+				// not enabled
+				return true
+			}
+			if hits.size() < config.Assert.HitCount {
+				return false
+			}
+
+			ret := hits.size() == oldHits
+			if !ret {
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret
+		}()
+
+		assertIngestionIdleTime := func() bool {
+			if config.Assert.IngestionIdleTime.Seconds() == 0 {
+				// not enabled
+				return true
+			}
+			if hits.size() == 0 {
+				return false
+			}
+			if oldHits != hits.size() {
+				prevTime = time.Now()
+				return false
+			}
+			if time.Since(prevTime) > config.Assert.IngestionIdleTime {
+				logger.Debugf("No new documents ingested in %s", config.Assert.IngestionIdleTime)
+				return true
+			}
+			return false
+		}()
+
+		assertFieldsPresent := func() bool {
+			if len(config.Assert.FieldsPresent) == 0 {
+				// not enabled
+				return true
+			}
+			if hits.size() == 0 {
+				// At least there should be one document ingested
+				return false
+			}
+			for _, f := range config.Assert.FieldsPresent {
+				if _, found := foundFields[f]; found {
+					continue
+				}
+				found := false
+				for _, d := range hits.Fields {
+					if _, err := d.GetValue(f); err == nil {
+						found = true
+						break
+					}
+				}
+				if !found {
+					logger.Debugf("Not found field %q in hits", f)
+					return false
+				}
+				logger.Debugf("> Found field %q in hits", f)
+				foundFields[f] = struct{}{}
+			}
+			return true
+		}()
+
+		// By default, config.Assert.MinCount is zero
+		assertMinCount := hits.size() > config.Assert.MinCount
+
+		return assertIngestionIdleTime && assertFieldsPresent && assertMinCount && assertHitCount, nil
+	}, 1*time.Second, waitForDataTimeout)
+
+	if waitErr != nil {
+		return nil, waitErr
+	}
+
+	if !passed {
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", dataStream)}
+	}
+
+	return hits, nil
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {

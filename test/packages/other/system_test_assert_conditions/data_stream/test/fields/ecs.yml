@@ -1,0 +1,8 @@
+- external: ecs
+  name: ecs.version
+- external: ecs
+  name: log.file.path
+- external: ecs
+  name: error.message
+- external: ecs
+  name: message
