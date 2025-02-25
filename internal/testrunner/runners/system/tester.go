@@ -2372,9 +2372,12 @@ func validateFailureStore(failureStore []failureStoreDocument) error {
 }
 
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
-	multiErr := ensureNoErrorsInDocs(docs)
-
+	var multiErr multierror.Error
 	for _, doc := range docs {
+		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
+			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+			continue
+		}
 		errs := fieldsValidator.ValidateDocumentMap(doc)
 		if errs != nil {
 			multiErr = append(multiErr, errs...)
@@ -2690,19 +2693,4 @@ func (r *tester) waitForDocs(ctx context.Context, dataStream string, opts waitFo
 	}
 
 	return hits, nil
-}
-
-func ensureNoErrorsInDocs(docs []common.MapStr) multierror.Error {
-	var multiErr multierror.Error
-	for _, doc := range docs {
-		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
-			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
-		}
-	}
-
-	if len(multiErr) > 0 {
-		return multiErr.Unique()
-	}
-
-	return nil
 }
