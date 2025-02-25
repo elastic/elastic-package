@@ -235,6 +235,15 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	testingTime := startTesting.Truncate(time.Second)
 
+	statusOptions := stack.Options{
+		Profile: r.profile,
+	}
+	_, err := r.provider.Status(ctx, statusOptions)
+	if err != nil {
+		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		return nil, nil
+	}
+
 	dumpOptions := stack.DumpOptions{
 		Profile:  r.profile,
 		Services: []string{"elasticsearch"},
@@ -242,7 +251,7 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	}
 	dump, err := r.provider.Dump(ctx, dumpOptions)
 	var notImplementedErr *stack.ErrNotImplemented
-	if errors.As(err, &notImplementedErr) {
+	if errors.As(err, &notImplementedErr) || errors.Is(err, stack.ErrUnavailableStack) {
 		logger.Debugf("Not checking Elasticsearch logs: %s", err)
 		return nil, nil
 	}

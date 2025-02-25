@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -143,13 +144,11 @@ var (
 type fieldValidationMethod int
 
 const (
-	allMethods fieldValidationMethod = iota
-	fieldsMethod
+	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
 
 var validationMethods = map[string]fieldValidationMethod{
-	"all":      allMethods,
 	"fields":   fieldsMethod,
 	"mappings": mappingsMethod,
 }
@@ -292,8 +291,8 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
 
-	// default method using just fields
-	r.fieldValidationMethod = fieldsMethod
+	// default method to validate using mappings (along with fields)
+	r.fieldValidationMethod = mappingsMethod
 	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
 	if ok {
 		method, ok := validationMethods[v]
@@ -685,7 +684,12 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 			} `json:"mappings"`
 			Settings struct {
 				Index struct {
-					Mode string `json:"mode"`
+					Mode    string `json:"mode"`
+					Mapping struct {
+						Source struct {
+							Mode string `json:"mode"`
+						} `json:"source"`
+					} `json:"mapping"`
 				} `json:"index"`
 			} `json:"settings"`
 		} `json:"template"`
@@ -695,7 +699,8 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 		return false, fmt.Errorf("could not decode index template simulation response: %w", err)
 	}
 
-	if results.Template.Mappings.Source.Mode == "synthetic" {
+	// in 8.17.2 source mode definition is now under settings object
+	if results.Template.Mappings.Source.Mode == "synthetic" || results.Template.Settings.Index.Mapping.Source.Mode == "synthetic" {
 		return true, nil
 	}
 
@@ -1004,7 +1009,7 @@ func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
 	case string:
 		*p = append(*p, v)
 	case []any:
-		// asume it is going to be an array of strings
+		// assume it is going to be an array of strings
 		for _, value := range v {
 			*p = append(*p, fmt.Sprint(value))
 		}
@@ -1375,7 +1380,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	hits, waitErr := r.waitForDocs(ctx, scenario.dataStream, waitOpts)
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
-	// to report as a test case failed
+	// to report it as a test case failed
 	if service != nil && config.Service != "" && !config.IgnoreServiceError {
 		exited, code, err := service.ExitCode(ctx, config.Service)
 		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
@@ -1608,27 +1613,15 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == fieldsMethod {
-		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-				Details: errs.Error(),
-			})
-		}
+	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
 	}
 
-	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
-	if err != nil {
-		return result.WithErrorf("failed to parse stack version: %w", err)
-	}
-
-	err = validateIgnoredFields(stackVersion, scenario, config)
-	if err != nil {
-		return result.WithError(err)
-	}
-
-	if r.fieldValidationMethod == allMethods || r.fieldValidationMethod == mappingsMethod {
-		logger.Warn("Validate mappings found (technical preview)")
+	if r.fieldValidationMethod == mappingsMethod {
+		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
@@ -1653,6 +1646,16 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 				Details: errs.Error(),
 			})
 		}
+	}
+
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
+	if err != nil {
+		return result.WithError(err)
 	}
 
 	docs := scenario.docs
@@ -1724,7 +1727,15 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 
 	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
-		return result.WithError(err)
+		// Known issue: do not include this as part of the xUnit results
+		// Example: https://buildkite.com/elastic/integrations/builds/22313#01950431-67a5-4544-a720-6047f5de481b/706-2459
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
+			return result.WithError(err)
+		}
+		// report all other errors as error entries in the xUnit file
+		results, _ := result.WithError(err)
+		return results, nil
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
@@ -2043,6 +2054,10 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Version, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
+	if config.SkipTransformValidation {
+		return nil
+	}
+
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
@@ -2058,8 +2073,7 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 		validationMethod = fieldsMethod
 	}
 
-	fieldsValidationBased := validationMethod == allMethods || validationMethod == fieldsMethod
-	mappingsValidationBased := validationMethod == allMethods || validationMethod == mappingsMethod
+	mappingsValidationBased := validationMethod == mappingsMethod
 
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
@@ -2076,7 +2090,10 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 		// IDs format is: "<type>-<package>.<transform>-<namespace>-<version>"
 		// For instance: "logs-ti_anomali.latest_ioc-default-0.1.0"
 		transformPattern := fmt.Sprintf("%s-%s.%s-*-%s",
-			ds.Inputs[0].Streams[0].DataStream.Type,
+			// It cannot be used "ds.Inputs[0].Streams[0].DataStream.Type" since Fleet
+			// always create the transform with the prefix "logs-"
+			// https://github.com/elastic/kibana/blob/eed02b930ad332ad7261a0a4dff521e36021fb31/x-pack/platform/plugins/shared/fleet/server/services/epm/elasticsearch/transform/install.ts#L855
+			"logs",
 			pkgManifest.Name,
 			transform.Name,
 			transform.Definition.Meta.FleetTransformVersion,
@@ -2110,12 +2127,10 @@ func (r *tester) checkTransforms(ctx context.Context, stackVersion *semver.Versi
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
 		}
 
-		if fieldsValidationBased {
-			if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
-				return testrunner.ErrTestCaseFailed{
-					Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
-					Details: errs.Error(),
-				}
+		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
+			return testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("errors found in documents of preview for transform %s for data stream %s", transformId, dataStream),
+				Details: errs.Error(),
 			}
 		}
 

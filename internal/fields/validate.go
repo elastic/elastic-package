@@ -1256,6 +1256,25 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	return nil
 }
 
+// IsDocumentation reports whether ip is a reserved address for documentation,
+// according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation) and
+// RFC 3849 (IPv6 Address Prefix Reserved for Documentation).
+func IsDocumentation(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		// Following RFC 5737, Section 3. Documentation Address Blocks which says:
+		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
+		//   and 203.0.113.0/24 (TEST-NET-3) are provided for use in
+		//   documentation.
+		return ((ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2) ||
+			(ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100) ||
+			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113))
+	}
+	// Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
+	// says:
+	//   The prefix allocated for documentation purposes is 2001:DB8::/32
+	return len(ip) == net.IPv6len && ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184
+}
+
 // isAllowedIPValue checks if the provided IP is allowed for testing
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
@@ -1276,6 +1295,7 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 	if ip.IsUnspecified() ||
 		ip.IsPrivate() ||
+		IsDocumentation(ip) ||
 		ip.IsLoopback() ||
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||

@@ -58,7 +58,6 @@ func (d *dynamicTemplate) Matches(currentPath string, definition map[string]any)
 	}
 
 	if len(d.pathMatch) > 0 {
-		// logger.Debugf("path_match -> Comparing %s to %q", strings.Join(d.pathMatch, ";"), currentPath)
 		matches, err := stringMatchesPatterns(d.pathMatch, currentPath, fullRegex)
 		if err != nil {
 			return false, fmt.Errorf("failed to parse dynamic template %s: %w", d.name, err)
@@ -148,10 +147,13 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			return nil, fmt.Errorf("unexpected dynamic template format found for %q", templateName)
 		}
 
+		isRuntime := false
 		for setting, value := range contents {
 			switch setting {
 			case "mapping":
 				aDynamicTemplate.mapping = value
+			case "runtime":
+				isRuntime = true
 			case "match_pattern":
 				s, ok := value.(string)
 				if !ok {
@@ -192,6 +194,9 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			}
 		}
 
+		if isRuntime {
+			continue
+		}
 		dynamicTemplates = append(dynamicTemplates, aDynamicTemplate)
 	}
 

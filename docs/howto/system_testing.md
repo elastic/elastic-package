@@ -18,6 +18,8 @@ Conceptually, running a system test involves the following steps:
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
    mappings declared for the field.
+1. Validate mappings generated after ingesting documents are valid according to the definitions installed by the package.
+    - Requires `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD` to be unset or set to `mappings`.
 1. If the Elastic Agent from the stack is not used, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once the data stream have been system tested, unenroll and remove the Elastic Agent
@@ -429,6 +431,7 @@ for system tests.
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
 | skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
+| skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 
