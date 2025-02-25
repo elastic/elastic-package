@@ -132,10 +132,6 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
 	}
 
-	if c.Assert.HitCount > 0 && c.Assert.MinCount > 0 {
-		return nil, fmt.Errorf("assert.hit_count and assert.min_count are mutually exclusive settings")
-	}
-
 	return &c, nil
 }
 
