@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -290,8 +291,8 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
 	}
 
-	// default method using just fields
-	r.fieldValidationMethod = fieldsMethod
+	// default method to validate using mappings (along with fields)
+	r.fieldValidationMethod = mappingsMethod
 	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
 	if ok {
 		method, ok := validationMethods[v]
@@ -1008,7 +1009,7 @@ func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
 	case string:
 		*p = append(*p, v)
 	case []any:
-		// asume it is going to be an array of strings
+		// assume it is going to be an array of strings
 		for _, value := range v {
 			*p = append(*p, fmt.Sprint(value))
 		}
@@ -1620,7 +1621,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if r.fieldValidationMethod == mappingsMethod {
-		logger.Warn("Validation based on mappings enabled (technical preview)")
+		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
@@ -1720,7 +1721,15 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 
 	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
-		return result.WithError(err)
+		// Known issue: do not include this as part of the xUnit results
+		// Example: https://buildkite.com/elastic/integrations/builds/22313#01950431-67a5-4544-a720-6047f5de481b/706-2459
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
+			return result.WithError(err)
+		}
+		// report all other errors as error entries in the xUnit file
+		results, _ := result.WithError(err)
+		return results, nil
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {

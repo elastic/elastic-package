@@ -1,0 +1,16 @@
+---
+description: Pipeline for processing sample logs
+processors:
+- set:
+    field: labels.foo
+    value: "bar"
+- set:
+    field: labels.version
+    value: "v1"
+- set:
+    field: metrics.bar
+    value: 10
+on_failure:
+- set:
+    field: error.message
+    value: '{{ _ingest.on_failure_message }}'
