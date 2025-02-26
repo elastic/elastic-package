@@ -1542,6 +1542,14 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
+	if config.Assert.HitCount >= elasticsearchQuerySize {
+		return nil, fmt.Errorf("invalid value for assert.hit_count (%d): it must be lower of the maximum query size (%d)", config.Assert.HitCount, elasticsearchQuerySize)
+	}
+
+	if config.Assert.MinCount >= elasticsearchQuerySize {
+		return nil, fmt.Errorf("invalid value for assert.min_count (%d): it must be lower of the maximum query size (%d)", config.Assert.MinCount, elasticsearchQuerySize)
+	}
+
 	// (TODO in future) Optionally exercise service to generate load.
 	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
 	var hits *hits
