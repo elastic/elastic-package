@@ -1616,10 +1616,9 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 					}
 				}
 				if !found {
-					logger.Debugf("Not found field %q in hits", f)
 					return false
 				}
-				logger.Debugf("> Found field %q in hits", f)
+				logger.Debugf("Found field %q in hits", f)
 				foundFields[f] = struct{}{}
 			}
 			return true
