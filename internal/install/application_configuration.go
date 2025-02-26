@@ -10,12 +10,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Masterminds/semver/v3"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -85,8 +88,15 @@ type configFile struct {
 	} `yaml:"profile"`
 }
 
+type dockerGCConfig struct {
+	Enabled      *bool            `yaml:"enabled"`
+	MaxTotalSize *common.ByteSize `yaml:"max_total_size"`
+	MaxUnused    *time.Duration   `yaml:"max_unused"`
+}
+
 type stack struct {
-	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
+	ImageRefOverrides map[string]ImageRefs  `yaml:"image_ref_overrides"`
+	GC                docker.ImagesGCConfig `yaml:"gc"`
 }
 
 func checkImageRefOverride(envVar, fallback string) string {
@@ -130,6 +140,10 @@ func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
 	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
 	return refs
+}
+
+func (ac *ApplicationConfiguration) DockerGCConfig() docker.ImagesGCConfig {
+	return ac.c.Stack.GC
 }
 
 // CurrentProfile returns the current profile, or the default one if not set.
@@ -246,6 +260,7 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 	}
 
 	var c configFile
+	c.Stack.GC = docker.DefaultImagesGCConfig()
 	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)
