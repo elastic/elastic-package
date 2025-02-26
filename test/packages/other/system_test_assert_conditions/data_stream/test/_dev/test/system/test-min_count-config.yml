@@ -4,7 +4,7 @@ data_stream:
     paths:
       - "/custom/paths/logs.json"
 assert:
-  min_count: 50
+  min_count: 500
 agent:
   provisioning_script:
     language: bash
@@ -13,7 +13,7 @@ agent:
       cd /custom/paths
       touch logs.json
       # elastic-package just retrieves the 500 first documents in the search query
-      for i in $(seq 1 100) ; do
+      for i in $(seq 1 501) ; do
         echo '{ "contents": "Message from file", "file": "logs.json"}'
       done >> logs.json
   pre_start_script:

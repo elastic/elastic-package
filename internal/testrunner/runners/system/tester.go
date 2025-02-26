@@ -1554,7 +1554,6 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
 	var hits *hits
 	oldHits := 0
-	prevTime := time.Now()
 	foundFields := map[string]any{}
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
@@ -1596,25 +1595,6 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			return ret
 		}()
 
-		assertIngestionIdleTime := func() bool {
-			if config.Assert.IngestionIdleTime.Seconds() == 0 {
-				// not enabled
-				return true
-			}
-			if hits.size() == 0 {
-				return false
-			}
-			if oldHits != hits.size() {
-				prevTime = time.Now()
-				return false
-			}
-			if time.Since(prevTime) > config.Assert.IngestionIdleTime {
-				logger.Debugf("No new documents ingested in %s", config.Assert.IngestionIdleTime)
-				return true
-			}
-			return false
-		}()
-
 		assertFieldsPresent := func() bool {
 			if len(config.Assert.FieldsPresent) == 0 {
 				// not enabled
@@ -1648,7 +1628,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		// By default, config.Assert.MinCount is zero
 		assertMinCount := hits.size() > config.Assert.MinCount
 
-		return assertIngestionIdleTime && assertFieldsPresent && assertMinCount && assertHitCount, nil
+		return assertFieldsPresent && assertMinCount && assertHitCount, nil
 	}, 1*time.Second, waitForDataTimeout)
 
 	if waitErr != nil {

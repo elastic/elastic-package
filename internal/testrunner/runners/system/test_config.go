@@ -53,9 +53,6 @@ type testConfig struct {
 
 		// FieldsPresent list of fields that must be present in any of documents ingested
 		FieldsPresent []string `config:"fields_present"`
-
-		// IngestionIdleTime time elapsed since the last document was ingested
-		IngestionIdleTime time.Duration `config:"ingestion_idle_time"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword

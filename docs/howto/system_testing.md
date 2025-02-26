@@ -489,9 +489,6 @@ There are other 4 options available:
     - This could be used to ensure that a wide range of different documents have been ingested into Elasticsearch.
 - Collect data into the data stream until all the fields defined in the list `assert.fields_present` are present in any of the documents.
     - Each field in that list could be present in different documents.
-- Wait for a period of time (`assert.ingestion_idle_time`) without ingesting new documents into given the data stream.
-    - That period of time is just taken into account if at least there is one document in the data stream.
-    - It could be used when it is not known the exact number of documents that tests are going to be sending to Elasticsearch.
 
 The following example shows how to add an assertion on the number of hits in a given system test using `assert.hit_count`.
 
