@@ -1542,11 +1542,11 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	if config.Assert.HitCount >= elasticsearchQuerySize {
+	if config.Assert.HitCount > elasticsearchQuerySize {
 		return nil, fmt.Errorf("invalid value for assert.hit_count (%d): it must be lower of the maximum query size (%d)", config.Assert.HitCount, elasticsearchQuerySize)
 	}
 
-	if config.Assert.MinCount >= elasticsearchQuerySize {
+	if config.Assert.MinCount > elasticsearchQuerySize {
 		return nil, fmt.Errorf("invalid value for assert.min_count (%d): it must be lower of the maximum query size (%d)", config.Assert.MinCount, elasticsearchQuerySize)
 	}
 
@@ -1625,8 +1625,13 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			return true
 		}()
 
-		// By default, config.Assert.MinCount is zero
-		assertMinCount := hits.size() > config.Assert.MinCount
+		assertMinCount := func() bool {
+			if config.Assert.MinCount > 0 {
+				return hits.size() >= config.Assert.MinCount
+			}
+			// By default at least one document
+			return hits.size() > 0
+		}()
 
 		return assertFieldsPresent && assertMinCount && assertHitCount, nil
 	}, 1*time.Second, waitForDataTimeout)
