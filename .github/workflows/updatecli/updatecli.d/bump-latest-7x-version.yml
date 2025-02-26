@@ -29,8 +29,7 @@ sources:
     name: Get latest 7.x snapshot
     kind: json
     spec:
-      file: https://storage.googleapis.com/artifacts-api/snapshots/7.17.json
-      key: .version
+      file: https://storage.googleapis.com/artifacts-api/releases/current/7.17
 
 targets:
   update-7x-version:
