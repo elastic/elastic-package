@@ -434,6 +434,10 @@ for system tests.
 | skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
+| assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
+| assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
+| assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
+| assert.ingestion_idle_time | duration |  | Minimum time elapsed since the last document was ingested. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
@@ -470,7 +474,25 @@ you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first
 stream declared in the manifest will be tested.
 
-To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
+#### Available assertions to wait for documents
+
+System tests allow to define different conditions to collect data from the integration service and index it into the correct Elasticsearch data stream.
+
+By default, `elastic-package` waits until there are more than zero documents ingested. The exact number of documents to be
+validated in this default scenario depends on how fast the documents are ingested.
+
+There are other 4 options available:
+- Wait for collecting exactly `assert.hit_count` documents into the data stream.
+    - It will fail if the final number of documents ingested into Elasticsearch is different from `assert.hit_count` documents.
+- Wait for collecting at least `assert.min_count` documents into the data stream.
+    - Once there have been `assert.min_count` or more documents ingested, `elastic-package` will proceed to validate the documents.
+    - This could be used to ensure that a wide range of different documents have been ingested into Elasticsearch.
+- Collect data into the data stream until all the fields defined in the list `assert.fields_present` are present in any of the documents.
+    - Each field in that list could be present in different documents.
+
+The following example shows how to add an assertion on the number of hits in a given system test using `assert.hit_count`.
+
+Consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
 
 ```yaml
 input: httpjson
@@ -518,6 +540,11 @@ response.split:
 inserts the value of `response_split` from the test configuration into the integration, in this case, ensuring the `total.hits[]` array from the test-stub response yields 3 hits.
 
 Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
+
+#### Defining new Elastic Agents for a given test
+
+System tests allow to create specific an Elsatic Agent for each test with custom settings or additional software.
+Elastic Agents can be customized by defining the needed `agent.*` settings.
 
 As an example to add settings to create a new Elastic Agent in a given test,
 the`auditd_manager/audtid` data stream's `test-default-config.yml` is shown below:

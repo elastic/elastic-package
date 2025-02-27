@@ -1,0 +1,1 @@
+<failure>test case failed: could not find the expected hits in logs-failed_fields_present_assert.test-[[:digit:]]+ data stream</failure>
