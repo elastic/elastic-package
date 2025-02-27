@@ -61,7 +61,7 @@ type imagesGCClient interface {
 	TotalImagesSize() (common.ByteSize, error)
 }
 
-var BusyImageErr = errors.New("image is being used")
+var ErrBusyImage = errors.New("image is being used")
 
 func defaultImagesGC() ImagesGC {
 	return ImagesGC{
@@ -175,7 +175,7 @@ func (gc *ImagesGC) Run() error {
 		if !sizeOk || image.LastUsed.Before(maxUnused) {
 			if slices.Contains(present, image.ImageTag) {
 				err := gc.client.RemoveImage(image.ImageTag)
-				if errors.Is(err, BusyImageErr) {
+				if errors.Is(err, ErrBusyImage) {
 					continue
 				}
 				if err != nil {
@@ -238,7 +238,7 @@ func (c *localImagesGCClient) RemoveImage(image string) error {
 	if err != nil {
 		errMessage := errOutput.String()
 		if removeConflictRegexp.MatchString(errMessage) {
-			return BusyImageErr
+			return ErrBusyImage
 		}
 		return fmt.Errorf("%w: %s", err, strings.TrimPrefix(errMessage, "Error response from daemon: "))
 	}

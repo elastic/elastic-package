@@ -10,13 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/Masterminds/semver/v3"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
@@ -86,12 +84,6 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
-}
-
-type dockerGCConfig struct {
-	Enabled      *bool            `yaml:"enabled"`
-	MaxTotalSize *common.ByteSize `yaml:"max_total_size"`
-	MaxUnused    *time.Duration   `yaml:"max_unused"`
 }
 
 type stack struct {
