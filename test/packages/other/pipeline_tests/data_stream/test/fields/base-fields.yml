@@ -48,9 +48,9 @@
       type: group
       fields:
         - name: body.bytes
-          type: number
+          type: long
         - name: status_code
-          type: number
+          type: long
 
 - name: message
   type: keyword
