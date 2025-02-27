@@ -10,29 +10,49 @@
 - name: '@timestamp'
   type: date
   description: Event timestamp.
-- name: container.id
-  description: Unique container id.
-  ignore_above: 1024
+- name: nginx.access
+  type: group
+  fields:
+    - name: info
+      type: keyword
+    - name: remote_ip_list
+      type: keyword
+    - name: time
+      type: keyword
+- name: user_agent
+  type: group
+  fields: 
+    - name: device.name
+      type: keyword
+    - name: name
+      type: keyword
+    - name: original
+      type: keyword
+    - name: version
+      type: keyword
+    - name: os
+      type: group
+      fields:
+        - name: full
+          type: keyword
+        - name: name
+          type: keyword
+        - name: version
+          type: keyword
+- name: http
+  type: group
+  fields:
+    - name: request.referrer
+      type: keyword
+    - name: response
+      type: group
+      fields:
+        - name: body.bytes
+          type: number
+        - name: status_code
+          type: number
+
+- name: message
   type: keyword
-- name: input.type
-  description: Type of Filebeat input.
-  type: keyword
-- name: log.file.path
-  description: Full path to the log file this event came from.
-  example: /var/log/fun-times.log
-  ignore_above: 1024
-  type: keyword
-- name: log.source.address
-  description: Source address from which the log event was read / sent from.
-  type: keyword
-- name: log.flags
-  description: Flags for the log file.
-  type: keyword
-- name: log.offset
-  description: Offset of the entry in the log file.
-  type: long
-- name: tags
-  description: List of keywords used to tag each event.
-  example: '["production", "env2"]'
-  ignore_above: 1024
+- name: error.message
   type: keyword

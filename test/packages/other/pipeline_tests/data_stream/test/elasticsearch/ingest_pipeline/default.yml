@@ -17,6 +17,11 @@ processors:
   - user_agent:
       field: user_agent.original
       ignore_missing: true
+  - set:
+      tag: "set the error message"
+      field: error.message
+      value: 'Got a 404'
+      if: "ctx?.http?.response?.status_code == 404"
   - drop:
       if: "ctx?.user_agent?.original?.startsWith('skip-this-one')"
 on_failure:

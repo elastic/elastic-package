@@ -31,6 +31,18 @@ func (p packageRootTestFinder) FindPackageRoot() (string, bool, error) {
 	return p.packageRootPath, true, nil
 }
 
+func TestValidate_ErrorMessageIsSometimesValid(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("../../test/packages/other/pipeline_tests/data_stream/test", WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	f := readTestResults(t, "../../test/packages/other/pipeline_tests/data_stream/test/_dev/test/pipeline/test-with-error.log-expected.json")
+	for _, e := range f.Expected {
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	}
+}
+
 func TestValidate_NoWildcardFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs", WithDisabledDependencyManagement())
 	require.NoError(t, err)

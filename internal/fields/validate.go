@@ -556,9 +556,45 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	return v.ValidateDocumentMap(c)
 }
 
+func (v *Validator) ValidateErrors(c common.MapStr) multierror.Error {
+	var errs multierror.Error
+	key := "error"
+	if e, mapContainsError := c[key]; mapContainsError {
+		switch val := e.(type) {
+		case []map[string]any:
+			err := fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
+			errs = append(errs, err)
+		case map[string]any:
+			if isFieldTypeFlattened(key, v.Schema) {
+				// Do not traverse into objects with flattened data types
+				// because the entire object is mapped as a single field.
+				err := fmt.Errorf(`field %q is flattened, which is not valid for 'error'`, key)
+				errs = append(errs, err)
+			} else {
+				err := v.validateMapElement(key, val, c)
+				if err != nil {
+					errs = append(errs, err)
+				}
+			}
+		default:
+			err := fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	errs := v.validateDocumentValues(body)
+
+	// validate errors first, because if the errors don't match, nothing else will match
+	foundErrors := v.ValidateErrors(body)
+	if len(foundErrors) > 0 {
+		errs = append(errs, foundErrors...)
+		return errs
+	}
+
 	errs = append(errs, v.validateMapElement("", body, body)...)
 	if len(errs) == 0 {
 		return nil
