@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
 )
@@ -50,6 +51,34 @@ func (eb *envBuilder) build() []string {
 	return eb.vars
 }
 
+func runDockerImagesGC(ctx context.Context, project *compose.Project, opts compose.CommandOptions, appConfig *install.ApplicationConfiguration) error {
+	loc, err := locations.NewLocationManager()
+	if err != nil {
+		return err
+	}
+	opts = compose.CommandOptions{
+		Env: opts.Env,
+	}
+	config, err := project.Config(ctx, opts)
+	if err != nil {
+		return fmt.Errorf("failed to get project config: %w", err)
+	}
+	gc, err := docker.NewImagesGCFromCacheDir(loc.CacheDir(""))
+	if err != nil {
+		return fmt.Errorf("failed to open GC data file: %w", err)
+	}
+	gc.ImagesGCConfig = appConfig.DockerGCConfig()
+	err = gc.Track(config.Images()...)
+	if err != nil {
+		return fmt.Errorf("failed to track docker images for GC: %w", err)
+	}
+	err = gc.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run GC: %w", err)
+	}
+	return gc.Persist()
+}
+
 func dockerComposeBuild(ctx context.Context, options Options) error {
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
@@ -68,6 +97,10 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
+	}
+	err = runDockerImagesGC(ctx, c, opts, appConfig)
+	if err != nil {
+		return fmt.Errorf("could not run docker images GC: %w", err)
 	}
 
 	if err := c.Build(ctx, opts); err != nil {
@@ -94,6 +127,10 @@ func dockerComposePull(ctx context.Context, options Options) error {
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
+	}
+	err = runDockerImagesGC(ctx, c, opts, appConfig)
+	if err != nil {
+		return fmt.Errorf("could not run docker images GC: %w", err)
 	}
 
 	if err := c.Pull(ctx, opts); err != nil {
@@ -126,6 +163,10 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 			build(),
 		ExtraArgs: args,
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
+	}
+	err = runDockerImagesGC(ctx, c, opts, appConfig)
+	if err != nil {
+		return fmt.Errorf("could not run docker images GC: %w", err)
 	}
 
 	if err := c.Up(ctx, opts); err != nil {

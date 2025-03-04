@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -60,7 +61,23 @@ type Config struct {
 	Services map[string]service
 }
 
+// Images lists the images found in the configuration.
+func (c *Config) Images() []string {
+	var images []string
+	for _, service := range c.Services {
+		if service.Image == "" {
+			continue
+		}
+		if slices.Contains(images, service.Image) {
+			continue
+		}
+		images = append(images, service.Image)
+	}
+	return images
+}
+
 type service struct {
+	Image       string
 	Ports       []portMapping
 	Environment map[string]string
 }
