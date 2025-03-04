@@ -1179,7 +1179,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	scenario.agent = agentDeployed
 
-	if r.runIndependentElasticAgent {
+	if agentDeployed != nil {
 		// Ensure agent created by `r.setupAgent` is removed if service fails to start
 		// This function should also be called after setting the service, since custom agents or kubernetes deployer
 		// create new Elastic Agents too.
