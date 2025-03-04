@@ -1180,9 +1180,11 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.agent = agentDeployed
 
 	if agentDeployed != nil {
-		// Ensure agent created by `r.setupAgent` is removed if service fails to start
-		// This function should also be called after setting the service, since custom agents or kubernetes deployer
-		// create new Elastic Agents too.
+		// The Elastic Agent created in `r.setupAgent` needs to be retrieved just after starting it, to ensure
+		// it can be removed and unenrolled if the service fails to start.
+		// This function must also be called after setting the service (r.setupService), since there are other
+		// deployers like custom agents or kubernetes deployer that create new Elastic Agents too that needs to
+		// be retrieved too.
 		_, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
 		if err != nil {
 			return nil, fmt.Errorf("can't check enrolled agents: %w", err)
@@ -1249,7 +1251,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
-	// this "checkEnrolledAgents" call to must be located after creating the service.
+	// this "checkEnrolledAgents" call must be duplicated here after creating the service too. This will
+	// ensure to get the right Enrolled Elastic Agent too.
 	agent, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
