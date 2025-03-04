@@ -43,9 +43,16 @@ func DefaultImagesGCConfig() ImagesGCConfig {
 }
 
 type ImagesGC struct {
-	path   string
+	// path contains the path to the GC cache when read from disk.
+	path string
+
+	// images contains the entries of the tracked docker images.
 	images []gcEntry
-	clock  func() time.Time
+
+	// clock returns the current time.
+	clock func() time.Time
+
+	// client implements a docker client.
 	client imagesGCClient
 
 	ImagesGCConfig
@@ -113,11 +120,16 @@ func (gc *ImagesGC) Persist() error {
 		return nil
 	}
 
+	err := os.MkdirAll(filepath.Dir(gc.path), 0755)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return err
+	}
+
 	d, err := json.Marshal(gc.images)
 	if err != nil {
 		return fmt.Errorf("failed to encode list of images: %w", err)
 	}
-	return os.WriteFile(gc.path, d, 0o644)
+	return os.WriteFile(gc.path, d, 0644)
 }
 
 // Track images before they are downloaded. Images already present are ignored if they are not already tracked.
