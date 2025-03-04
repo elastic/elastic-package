@@ -50,7 +50,7 @@ func parseFileSizeInt(s string) (uint64, error) {
 // the string representation in a format that can be unmarshaled back to an
 // equivalent value.
 func (s ByteSize) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.String() + `"`), nil
+	return json.Marshal(s.String())
 }
 
 // MarshalYAML implements the yaml.Marshaler interface for FileSize, it returns

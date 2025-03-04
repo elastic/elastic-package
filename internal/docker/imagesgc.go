@@ -11,12 +11,13 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
 	"time"
+
+	"golang.org/x/sys/execabs"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -54,7 +55,7 @@ type imagesGCClient interface {
 	// ListImages should list local images in the same format as "docker-compose images".
 	ListImages() ([]string, error)
 
-	// RemoveImage should try to remove an image. If the image is busy, it should return a known error.
+	// RemoveImage should try to remove an image. If the image is busy, it returns ErrBusyImage.
 	RemoveImage(image string) error
 
 	// TotalImagesSize returns the total size of the local images.
@@ -116,7 +117,7 @@ func (gc *ImagesGC) Persist() error {
 	if err != nil {
 		return fmt.Errorf("failed to encode list of images: %w", err)
 	}
-	return os.WriteFile(gc.path, d, 0644)
+	return os.WriteFile(gc.path, d, 0o644)
 }
 
 // Track images before they are downloaded. Images already present are ignored if they are not already tracked.
@@ -129,20 +130,21 @@ func (gc *ImagesGC) Track(images ...string) error {
 	now := gc.clock()
 	for _, image := range images {
 		currentIndex := slices.IndexFunc(gc.images, func(i gcEntry) bool { return i.ImageTag == image })
-		if slices.Contains(present, image) && currentIndex < 0 {
-			// We don't track images already present.
+		if currentIndex >= 0 {
+			// Already tracked, update last used time.
+			gc.images[currentIndex].LastUsed = now
 			continue
 		}
 
-		if currentIndex < 0 {
-			gc.images = append(gc.images, gcEntry{
-				ImageTag: image,
-				LastUsed: now,
-			})
+		if slices.Contains(present, image) {
+			// Don't track images already present.
 			continue
 		}
 
-		gc.images[currentIndex].LastUsed = now
+		gc.images = append(gc.images, gcEntry{
+			ImageTag: image,
+			LastUsed: now,
+		})
 	}
 
 	return nil
@@ -196,18 +198,18 @@ func (gc *ImagesGC) Run() error {
 type localImagesGCClient struct {
 }
 
-func defaultImagesGCClient() *localImagesGCClient {
-	return &localImagesGCClient{}
+func defaultImagesGCClient() localImagesGCClient {
+	return localImagesGCClient{}
 }
 
-func (c *localImagesGCClient) ListImages() ([]string, error) {
-	cmd := exec.Command("docker", "image", "list", "--format=json")
+func (localImagesGCClient) ListImages() ([]string, error) {
+	cmd := execabs.Command("docker", "image", "list", "--format=json")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
 	output, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("docker image list failed (stderr=%q): %w", errOutput.String(), err)
+		return nil, fmt.Errorf("docker image list failed (stderr=%q): %w", errOutput, err)
 	}
 
 	var line struct {
@@ -229,8 +231,8 @@ func (c *localImagesGCClient) ListImages() ([]string, error) {
 
 var removeConflictRegexp = regexp.MustCompile("container [^/s]+ is using its referenced image [^/s]+")
 
-func (c *localImagesGCClient) RemoveImage(image string) error {
-	cmd := exec.Command("docker", "image", "rm", image)
+func (localImagesGCClient) RemoveImage(image string) error {
+	cmd := execabs.Command("docker", "image", "rm", image)
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
@@ -246,14 +248,14 @@ func (c *localImagesGCClient) RemoveImage(image string) error {
 	return nil
 }
 
-func (c *localImagesGCClient) TotalImagesSize() (common.ByteSize, error) {
-	cmd := exec.Command("docker", "system", "df", "--format=json")
+func (localImagesGCClient) TotalImagesSize() (common.ByteSize, error) {
+	cmd := execabs.Command("docker", "system", "df", "--format=json")
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
 	output, err := cmd.Output()
 	if err != nil {
-		return 0, fmt.Errorf("docker system df failed (stderr=%q): %w", errOutput.String(), err)
+		return 0, fmt.Errorf("docker system df failed (stderr=%q): %w", errOutput, err)
 	}
 
 	var df struct {
