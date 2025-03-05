@@ -1090,9 +1090,9 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 	}
 
 	// Perform validations that need to be done on several fields at the same time.
-	err = v.parseAllElementValues(key, definition, val, doc)
-	if err != nil {
-		errs = append(errs, err...)
+	allElementsErr := v.parseAllElementValues(key, definition, val, doc)
+	if allElementsErr != nil {
+		errs = append(errs, allElementsErr)
 	}
 
 	if len(errs) > 0 {
@@ -1104,12 +1104,12 @@ func (v *Validator) parseElementValue(key string, definition FieldDefinition, va
 
 // parseAllElementValues performs validations that must be done for all elements at once in
 // case that there are multiple values.
-func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val any, doc common.MapStr) error {
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
 			if err := ensureExpectedEventType(key, val, definition, doc); err != nil {
-				return multierror.Error{err}
+				return err
 			}
 		}
 	}
@@ -1118,8 +1118,8 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 
 // parseSingeElementValue performs validations on individual values of each element.
 func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
-	invalidTypeError := func() error {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+	invalidTypeError := func() multierror.Error {
+		return multierror.Error{fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)}
 	}
 
 	stringValue := func() (string, bool) {
@@ -1141,7 +1141,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	case "constant_keyword":
 		valStr, valid := stringValue()
 		if !valid {
-			return multierror.Error{invalidTypeError()}
+			return invalidTypeError()
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
@@ -1158,7 +1158,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	case "keyword", "text":
 		valStr, valid := stringValue()
 		if !valid {
-			return multierror.Error{invalidTypeError()}
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
@@ -1182,7 +1182,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				return multierror.Error{fmt.Errorf("numeric date in field %q, but pattern defined", key)}
 			}
 		default:
-			return multierror.Error{invalidTypeError()}
+			return invalidTypeError()
 		}
 	// IP values should be actual IPs, included in the ranges of IPs available
 	// in the geoip test database.
@@ -1190,7 +1190,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	case "ip":
 		valStr, valid := val.(string)
 		if !valid {
-			return multierror.Error{invalidTypeError()}
+			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
@@ -1246,13 +1246,13 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		case json.Number:
 		case string:
 			if !slices.Contains(v.stringNumberFields, key) {
-				return multierror.Error{invalidTypeError()}
+				return invalidTypeError()
 			}
 			if _, err := strconv.ParseFloat(val, 64); err != nil {
-				return multierror.Error{invalidTypeError()}
+				return invalidTypeError()
 			}
 		default:
-			return multierror.Error{invalidTypeError()}
+			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
 	default:
