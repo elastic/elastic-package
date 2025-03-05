@@ -48,8 +48,8 @@ func (v *Validator) listExceptionFieldsMapElement(root string, elem common.MapSt
 			all = append(all, fields...)
 		}
 	}
-	all = slices.Compact(all)
 	slices.Sort(all)
+	all = slices.Compact(all)
 	return all
 }
 
