@@ -5,6 +5,7 @@
 package fields
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -37,6 +38,8 @@ func (v *Validator) listExceptionFieldsMapElement(root string, elem common.MapSt
 			all = append(all, fields...)
 		default:
 			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
+				logger.Tracef("Skip validating leaf of object (spec %q): %q", v.specVersion, key)
+				all = append(all, key)
 				// Till some versions we skip some validations on leaf of objects, check if it is the case.
 				break
 			}
@@ -45,6 +48,8 @@ func (v *Validator) listExceptionFieldsMapElement(root string, elem common.MapSt
 			all = append(all, fields...)
 		}
 	}
+	slices.Sort(all)
+	all = slices.Compact(all)
 	return all
 }
 
@@ -86,7 +91,7 @@ func (v *Validator) parseExceptionField(key string, definition FieldDefinition, 
 	case "ip":
 	case "array":
 		if v.specVersion.LessThan(semver2_0_0) {
-			logger.Warnf("Skip validating field of type array with spec < 2.0.0 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
+			logger.Tracef("Skip validating field of type array with spec < 2.0.0 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
 			return []string{key}
 		}
 		return nil
@@ -97,7 +102,7 @@ func (v *Validator) parseExceptionField(key string, definition FieldDefinition, 
 			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
 			if v.specVersion.LessThan(semver3_0_1) {
-				logger.Warnf("Skip validating object (map[string]any) in package spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
+				logger.Tracef("Skip validating object (map[string]any) in package spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
 				return []string{key}
 			}
 			return nil
@@ -105,13 +110,13 @@ func (v *Validator) parseExceptionField(key string, definition FieldDefinition, 
 			// This can be an array of array of objects. Elasticsearh will probably
 			// flatten this. So even if this is quite unexpected, let's try to handle it.
 			if v.specVersion.LessThan(semver3_0_1) {
-				logger.Warnf("Skip validating object ([]any) because spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
+				logger.Tracef("Skip validating object ([]any) because spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
 				return []string{key}
 			}
 			return nil
 		case nil:
 			// The document contains a null, let's consider this like an empty array.
-			logger.Warnf("Skip validating object empty array because spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
+			logger.Tracef("Skip validating object empty array because spec < 3.0.1 (key %q type %q spec %q)", key, definition.Type, v.specVersion)
 			return []string{key}
 		default:
 			switch {
@@ -123,7 +128,7 @@ func (v *Validator) parseExceptionField(key string, definition FieldDefinition, 
 				return v.parseExceptionField(key, definition, val)
 			case definition.Type == "object" && definition.ObjectType == "":
 				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
-				logger.Warnf("Skip legacy mapping: object field without \"object_type\" parameter: %q", key)
+				logger.Tracef("Skip legacy mapping: object field without \"object_type\" parameter: %q", key)
 				return []string{key}
 			}
 

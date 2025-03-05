@@ -36,7 +36,7 @@ func TestFindExceptionElements(t *testing.T) {
 					Type: "array",
 				},
 			},
-			expected:    []string{"remote_ip_list", "remote_ip_list"},
+			expected:    []string{"remote_ip_list"},
 			specVersion: *semver.MustParse("1.5.0"),
 		},
 		{
@@ -68,7 +68,7 @@ func TestFindExceptionElements(t *testing.T) {
 					Type: "nested",
 				},
 			},
-			expected:    []string{"ip_port_info", "ip_port_info"},
+			expected:    []string{"ip_port_info"},
 			specVersion: *semver.MustParse("1.5.0"),
 		},
 		{
@@ -118,7 +118,7 @@ func TestFindExceptionElements(t *testing.T) {
 					Type: "group",
 				},
 			},
-			expected:    []string{"answers", "answers"},
+			expected:    []string{"answers"},
 			specVersion: *semver.MustParse("1.5.0"),
 		},
 		{

@@ -437,7 +437,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	if slices.Contains(v.exceptionFields, path) {
-		logger.Warnf("Found exception field, skip its validation: %q", path)
+		logger.Tracef("Found exception field, skip its validation: %q", path)
 		return nil
 	}
 
@@ -457,7 +457,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 			}
 			return nil
 		} else if !isObject(preview) {
-			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %q", path))
+			errs = append(errs, fmt.Errorf("undefined field mappings found in path: %q", path))
 			return errs.Unique()
 		}
 		previewProperties, err := getMappingDefinitionsField("properties", preview)
@@ -561,7 +561,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 
 	for fieldPath, object := range flattenFields {
 		if slices.Contains(v.exceptionFields, fieldPath) {
-			logger.Warnf("Found exception field, skip its validation (not present in preview): %q", fieldPath)
+			logger.Tracef("Found exception field, skip its validation (not present in preview): %q", fieldPath)
 			return nil
 		}
 
@@ -572,7 +572,7 @@ func (v *MappingValidator) validateMappingsNotInPreview(currentPath string, chil
 		}
 
 		if isEmptyObject(def) {
-			logger.Debugf("Skip field which value is an empty object: %q", fieldPath)
+			logger.Tracef("Skip field which value is an empty object: %q", fieldPath)
 			continue
 		}
 
