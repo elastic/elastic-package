@@ -827,14 +827,14 @@ func Test_parseElementValue(t *testing.T) {
 				specVersion:                  test.specVersion,
 			}
 
-			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
+			errs := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
-				require.Error(t, err)
+				assert.Greater(t, len(errs), 0)
 				if test.assertError != nil {
-					test.assertError(t, err)
+					test.assertError(t, errs)
 				}
 			} else {
-				require.NoError(t, err)
+				assert.Empty(t, errs)
 			}
 		})
 	}

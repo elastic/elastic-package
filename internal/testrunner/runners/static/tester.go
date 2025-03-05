@@ -182,7 +182,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	if len(multiErr) > 0 {
 		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  "one or more errors found in document",
-			Details: multiErr.Error(),
+			Details: multiErr.Unique().Error(),
 		})
 		return results
 	}

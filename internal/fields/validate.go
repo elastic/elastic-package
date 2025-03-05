@@ -550,9 +550,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	var c common.MapStr
 	err := json.Unmarshal(body, &c)
 	if err != nil {
-		var errs multierror.Error
-		errs = append(errs, fmt.Errorf("unmarshalling document body failed: %w", err))
-		return errs
+		return multierror.Error{fmt.Errorf("unmarshalling document body failed: %w", err)}
 	}
 
 	return v.ValidateDocumentMap(c)
@@ -565,7 +563,7 @@ func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	if len(errs) == 0 {
 		return nil
 	}
-	return errs
+	return errs.Unique()
 }
 
 var datasetFieldNames = []string{
@@ -672,14 +670,17 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 
 			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err...)
 			}
 		}
 	}
-	return errs
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+	return nil
 }
 
-func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) error {
+func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) multierror.Error {
 	if key == "" {
 		return nil // root key is always valid
 	}
@@ -692,26 +693,26 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		case isFlattenedSubfield(key, v.Schema):
 			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
 		case isArrayOfObjects(val):
-			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
+			return multierror.Error{fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)}
 		case couldBeMultifield(key, v.Schema):
-			return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
+			return multierror.Error{fmt.Errorf(`field %q is undefined, could be a multifield`, key)}
 		case !isParentEnabled(key, v.Schema):
 			return nil // parent mapping is disabled
 		default:
-			return fmt.Errorf(`field %q is undefined`, key)
+			return multierror.Error{fmt.Errorf(`field %q is undefined`, key)}
 		}
 	}
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
 		if err != nil {
-			return fmt.Errorf("field %q is not normalized as expected: %w", key, err)
+			return multierror.Error{fmt.Errorf("field %q is not normalized as expected: %w", key, err)}
 		}
 	}
 
-	err := v.parseElementValue(key, *definition, val, doc)
-	if err != nil {
-		return fmt.Errorf("parsing field value failed: %w", err)
+	errs := v.parseElementValue(key, *definition, val, doc)
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
@@ -1080,17 +1081,22 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
 	// Validate types first for each element, so other checks don't need to worry about types.
+	var errs multierror.Error
 	err := forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 	if err != nil {
-		return err
+		errs = append(errs, err...)
 	}
 
 	// Perform validations that need to be done on several fields at the same time.
-	err = v.parseAllElementValues(key, definition, val, doc)
-	if err != nil {
-		return err
+	allElementsErr := v.parseAllElementValues(key, definition, val, doc)
+	if allElementsErr != nil {
+		errs = append(errs, allElementsErr)
+	}
+
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 
 	return nil
@@ -1111,9 +1117,9 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 }
 
 // parseSingeElementValue performs validations on individual values of each element.
-func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
-	invalidTypeError := func() error {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+	invalidTypeError := func() multierror.Error {
+		return multierror.Error{fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)}
 	}
 
 	stringValue := func() (string, bool) {
@@ -1139,13 +1145,13 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
@@ -1156,10 +1162,10 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
 	// since epoch.
@@ -1168,12 +1174,12 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		switch val := val.(type) {
 		case string:
 			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
-				return err
+				return multierror.Error{err}
 			}
 		case float64:
 			// date as seconds or milliseconds since epoch
 			if definition.Pattern != "" {
-				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
+				return multierror.Error{fmt.Errorf("numeric date in field %q, but pattern defined", key)}
 			}
 		default:
 			return invalidTypeError()
@@ -1188,11 +1194,11 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+			return multierror.Error{fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)}
 		}
 	// Groups should only contain nested fields, not single values.
 	case "group", "nested", "object":
@@ -1207,7 +1213,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			if len(errs) == 0 {
 				return nil
 			}
-			return errs
+			return errs.Unique()
 		case []any:
 			// This can be an array of array of objects. Elasticsearh will probably
 			// flatten this. So even if this is quite unexpected, let's try to handle it.
@@ -1231,7 +1237,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 				return nil
 			}
 
-			return fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)
+			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
@@ -1309,16 +1315,20 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) error) error {
+func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) multierror.Error) multierror.Error {
 	arr, isArray := val.([]any)
 	if !isArray {
 		return fn(key, definition, val, doc)
 	}
+	var errs multierror.Error
 	for _, element := range arr {
 		err := fn(key, definition, element, doc)
 		if err != nil {
-			return err
+			errs = append(errs, err...)
 		}
+	}
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
