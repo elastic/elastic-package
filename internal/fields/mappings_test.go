@@ -749,7 +749,7 @@ func TestComparingMappings(t *testing.T) {
 			exceptionFields: []string{},
 			schema:          []FieldDefinition{},
 			expectedErrors: []string{
-				`not found properties in preview mappings for path: "foo"`,
+				`undefined field mappings found in path: "foo"`,
 			},
 		},
 		{

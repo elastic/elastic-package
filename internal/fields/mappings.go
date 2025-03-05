@@ -457,7 +457,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 			}
 			return nil
 		} else if !isObject(preview) {
-			errs = append(errs, fmt.Errorf("not found properties in preview mappings for path: %q", path))
+			errs = append(errs, fmt.Errorf("undefined field mappings found in path: %q", path))
 			return errs.Unique()
 		}
 		previewProperties, err := getMappingDefinitionsField("properties", preview)
