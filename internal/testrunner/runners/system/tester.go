@@ -2395,7 +2395,7 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 		}
 	}
 
-	logger.Debugf("Fields to be skipped validation: %s", strings.Join(allFields, ","))
+	logger.Tracef("Fields to be skipped validation: %s", strings.Join(allFields, ","))
 	return allFields
 }
 
