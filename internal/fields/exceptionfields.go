@@ -37,6 +37,8 @@ func (v *Validator) listExceptionFieldsMapElement(root string, elem common.MapSt
 			all = append(all, fields...)
 		default:
 			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
+				logger.Warnf("Skip validating leaf of object (key %q spec %q)", key, v.specVersion)
+				all = append(all, key)
 				// Till some versions we skip some validations on leaf of objects, check if it is the case.
 				break
 			}
