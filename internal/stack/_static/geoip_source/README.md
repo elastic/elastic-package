@@ -8,14 +8,14 @@ when the `geoip` processor is used in Ingest Pipelines.
 Because of that, `elastic-package` installs specific GeoIP databases in Elasticsearch when the Elastic stack is started (`elastic-package stack up`).
 These databases (`GeoLite2-*.mmdb`) must be located at `internal/stack/_static`.
 
-These databases must also include GeoIP data from documentation prefixes for both IPv4 and IPv6 (related issue [elastic-package#2414](https://github.com/elastic/elastic-package/issues/2414)).
-Including those documentation prefixes allows developers to set documentation IPs in their pipeline or
+These databases must also include GeoIP data for the address ranges for documentation for both IPv4 and IPv6 (related issue [elastic-package#2414](https://github.com/elastic/elastic-package/issues/2414)).
+Including those documentation ranges allows developers to set documentation IPs in their pipeline or
 system tests that could be enriched thanks to the geoip known data added by the `geoip` processor in the ingest pipeline.
-The documentation prefixes are defined in:
+The documentation ranges (address blocks) are defined in:
 - IPv4: https://datatracker.ietf.org/doc/rfc5737/
 - IPv6: https://datatracker.ietf.org/doc/rfc3849/
 
-The ASN to be used for those documentation prefixes are defined in [RFC5398](https://datatracker.ietf.org/doc/rfc5398/).
+The ASN to be used for those documentation purposes are defined in [RFC5398](https://datatracker.ietf.org/doc/rfc5398/).
 
 In the following sections, it is described how to build your own custom GeoIP databases.
 
@@ -36,7 +36,7 @@ These changes have been tested using the code from [this commit](https://github.
 
 Changes to be applied:
 - `pkg/writer/geoip2.go`:
-    - Include usage of reserved networks to allow adding documentation prefixes:
+    - Include usage of reserved networks to allow adding documentation ranges:
       ```diff
       --- pkg/writer/geoip2.go
       +++ pkg/writer/geoip2.go
@@ -162,7 +162,7 @@ As a note, `elastic-package` used to use the GeoIP databases from
 This ensures that tests performed by `elastic-package` will not be failing since no GeoIP data is modified, just new data is added.
 
 The latest JSON Files used to generate the `mmdb` databases are located in `internal/stack/_static/geoip_sources`.
-Those JSON files already contain the required entries for the documentation prefixes with some dummy GeoIP data. And they should be
+Those JSON files already contain the required entries for the documentation ranges with some dummy GeoIP data. And they should be
 used as a basis for new changes if required.
 
 As an example, the following example shows how to generate new GeoIP databases (`*.mmdb`) using the source JSON
@@ -179,7 +179,7 @@ cmd/write-test-data/write-test-data -source source-data -target my-target-data
 ```
 
 As mentioned above, `elastic-package` requires to add new entries to add data for the
-documentation prefixes.
+documentation ranges.
 
 If any other changes are required in the GeoIP databases used by elastic-package, those JSON files located at `internal/stack/_static/geoip_sources`
 can be updated and then new `mmdb` files be generated:
