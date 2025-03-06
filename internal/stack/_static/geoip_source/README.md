@@ -6,17 +6,16 @@
 when the `geoip` processor is used in Ingest Pipelines.
 
 Because of that, `elastic-package` installs specific GeoIP databases in Elasticsearch when the Elastic stack is started (`elastic-package stack up`).
-These databases (`GeoLite2-*.mmdb`) are defined here:
-- https://github.com/elastic/elastic-package/tree/6c54c5f4a6dcf8f02212d5ff3bc51654649bf8f9/internal/stack/_static
+These databases (`GeoLite2-*.mmdb`) must be located at `internal/stack/_static`.
 
-These databases must also include GeoIP data from documentation prefixes for both IPv4 and IPv6.
-This allows developers to set documentation IPs in their pipeline or system tests that could be enriched with geoip
-data using the `geoip` processor in the ingest pipeline.
+These databases must also include GeoIP data from documentation prefixes for both IPv4 and IPv6 (related issue [elastic-package#2414](https://github.com/elastic/elastic-package/issues/2414)).
+Including those documentation prefixes allows developers to set documentation IPs in their pipeline or
+system tests that could be enriched thanks to the geoip known data added by the `geoip` processor in the ingest pipeline.
 The documentation prefixes are defined in:
 - IPv4: https://datatracker.ietf.org/doc/rfc5737/
 - IPv6: https://datatracker.ietf.org/doc/rfc3849/
 
-And, the ASN to be used in documentation prefixes are defined in [RFC5398](https://datatracker.ietf.org/doc/rfc5398/)
+The ASN to be used for those documentation prefixes are defined in [RFC5398](https://datatracker.ietf.org/doc/rfc5398/).
 
 In the following sections, it is described how to build your own custom GeoIP databases.
 
@@ -147,9 +146,11 @@ git clone https://github.com/maxmind/MaxMind-DB
 cd MaxMind-DB
 cd cmd/write-test-data
 
-# Before building it, apply the changes mentioned in this section
+# Before building it, apply the changes mentioned in this section.
 
 go build
+
+# A new binary `write-test-data` should have been generated in the same directory.
 ```
 
 This tool is the one to be used in the following section.
@@ -183,7 +184,7 @@ documentation prefixes.
 If any other changes are required in the GeoIP databases used by elastic-package, those JSON files located at `internal/stack/_static/geoip_sources`
 can be updated and then new `mmdb` files be generated:
 ```shell
-cd path/to/elastic-package
+cd path/to/repo/elastic-package
 cd internal/stack/_static
 
 # 1. Add the required data into the JSON files in `geoip_sources`
@@ -194,6 +195,9 @@ path/to/cmd/write-test-data/write-test-data -source geoip_sources -target new_da
 mv new_databases/GeoLite2-ASN-Test.mmdb GeoLite2-ASN.mmdb
 mv new_databases/GeoLite2-Country-Test.mmdb GeoLite2-Country.mmdb
 mv new_databases/GeoLite2-City-Test.mmdb GeoLite2-City.mmdb
+
+# 4. Remove new_databases folder
+rm -rf new_databases
 ```
 
 Those databases generated can be tested to ensure that the expected data is returned using the `mmdbinspect` tool.
