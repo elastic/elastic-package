@@ -69,7 +69,7 @@ elastic-package stack up -v -d --provider environment
 
 After this command finishes succesfully, your environment will be ready to use
 with Fleet and it will have an enrolled Elastic Agent. `elastic-package` will be
-configured to tun any of its commands with it.
+configured to run any of its commands with it.
 
 To clean up everything, run:
 ```sh
@@ -107,7 +107,7 @@ export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
 export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
 ```
 
-And finally run elastic-package with the environment provider:
-```
+And finally run elastic-package with the `environment` provider:
+```sh
 elastic-package stack up -v -d --provider environment
 ```
