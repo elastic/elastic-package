@@ -38,7 +38,7 @@ variables:
 - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME` and
   `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD` for basic authentication.
 
-You can read more about the available environment variables in the [README](../../README.md#useful-environment-variables).
+You can read more about the available environment variables in the [README](https://github.com/elastic/elastic-package/blob/main/README.md#useful-environment-variables).
 
 
 ### The `environment` stack provider
@@ -77,7 +77,7 @@ elastic-package stack down
 ```
 
 You can have multiple stacks configured, with different providers, if you use
-profiles. You can read more about them in the [README](../../README.md#elastic-package-profiles-1).
+profiles. You can read more about them in the [README](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1).
 
 
 ### Example: Using elastic-package with Kibana development environment
