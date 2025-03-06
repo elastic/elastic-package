@@ -1,5 +1,29 @@
 [
    {
+      "192.0.2.0/24" : {
+         "autonomous_system_number" : 64500,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
+      "198.51.100.0/24" : {
+         "autonomous_system_number" : 64501,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
+      "203.0.113.0/24" : {
+         "autonomous_system_number" : 64502,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
+      "2001:db8::/32" : {
+         "autonomous_system_number" : 65551,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
       "1.128.0.0/11" : {
          "autonomous_system_number" : 1221,
          "autonomous_system_organization" : "Telstra Pty Ltd"

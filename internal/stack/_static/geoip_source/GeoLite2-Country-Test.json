@@ -1,5 +1,172 @@
 [
    {
+      "192.0.2.0/24" : {
+         "continent" : {
+            "code" : "NA",
+            "geoname_id" : 6255149,
+            "names" : {
+               "de" : "Nordamerika",
+               "en" : "North America",
+               "es" : "América del Norte",
+               "fr" : "Amérique du Nord",
+               "ja" : "北アメリカ",
+               "pt-BR" : "América do Norte",
+               "ru" : "Северная Америка",
+               "zh-CN" : "北美洲"
+            }
+         },
+         "country" : {
+            "geoname_id" : 6252001,
+            "iso_code" : "US",
+            "names" : {
+               "de" : "USA",
+               "en" : "United States",
+               "es" : "Estados Unidos",
+               "fr" : "États-Unis",
+               "ja" : "アメリカ合衆国",
+               "pt-BR" : "Estados Unidos",
+               "ru" : "США",
+               "zh-CN" : "美国"
+            }
+         },
+         "registered_country" : {
+            "geoname_id" : 2635167,
+            "iso_code" : "GB",
+            "names" : {
+               "de" : "Vereinigtes Königreich",
+               "en" : "United Kingdom",
+               "es" : "Reino Unido",
+               "fr" : "Royaume-Uni",
+               "ja" : "イギリス",
+               "pt-BR" : "Reino Unido",
+               "ru" : "Великобритания",
+               "zh-CN" : "英国"
+            }
+         }
+      }
+   },
+   {
+      "198.51.100.0/24" : {
+         "continent" : {
+            "code" : "EU",
+            "geoname_id" : 6255148,
+            "names" : {
+               "de" : "Europa",
+               "en" : "Europe",
+               "es" : "Europa",
+               "fr" : "Europe",
+               "ja" : "ヨーロッパ",
+               "pt-BR" : "Europa",
+               "ru" : "Европа",
+               "zh-CN" : "欧洲"
+            }
+         },
+         "country" : {
+            "geoname_id" : 2750405,
+            "is_in_european_union" : true,
+            "iso_code" : "NL",
+            "names" : {
+               "de" : "Niederlande",
+               "en" : "Netherlands",
+               "es" : "Holanda",
+               "fr" : "Pays-Bas",
+               "ja" : "オランダ王国",
+               "pt-BR" : "Países Baixos",
+               "ru" : "Нидерланды",
+               "zh-CN" : "荷兰"
+            }
+         },
+         "registered_country" : {
+            "geoname_id" : 2750405,
+            "is_in_european_union" : true,
+            "iso_code" : "NL",
+            "names" : {
+               "de" : "Niederlande",
+               "en" : "Netherlands",
+               "es" : "Holanda",
+               "fr" : "Pays-Bas",
+               "ja" : "オランダ王国",
+               "pt-BR" : "Países Baixos",
+               "ru" : "Нидерланды",
+               "zh-CN" : "荷兰"
+            }
+         }
+      }
+   },
+   {
+      "203.0.113.0/24" : {
+         "continent" : {
+            "code" : "EU",
+            "geoname_id" : 6255148,
+            "names" : {
+               "de" : "Europa",
+               "en" : "Europe",
+               "es" : "Europa",
+               "fr" : "Europe",
+               "ja" : "ヨーロッパ",
+               "pt-BR" : "Europa",
+               "ru" : "Европа",
+               "zh-CN" : "欧洲"
+            }
+         },
+         "country" : {
+            "geoname_id" : 2510769,
+            "is_in_european_union" : true,
+            "iso_code" : "ES",
+            "names" : {
+               "de" : "Spanien",
+               "en" : "Spain",
+               "es" : "España",
+               "fr" : "Espagne",
+               "ja" : "スペイン",
+               "pt-BR" : "Espanha",
+               "ru" : "Испания",
+               "zh-CN" : "西班牙"
+            }
+         },
+         "registered_country" : {
+            "geoname_id" : 2510769,
+            "is_in_european_union" : true,
+            "iso_code" : "ES",
+            "names" : {
+               "de" : "Spanien",
+               "en" : "Spain",
+               "es" : "España",
+               "fr" : "Espagne",
+               "ja" : "スペイン",
+               "pt-BR" : "Espanha",
+               "ru" : "Испания",
+               "zh-CN" : "西班牙"
+            }
+         }
+      }
+   },
+   {
+      "2001:db8::/32" : {
+         "continent" : {
+            "code" : "EU",
+            "geoname_id" : 6255148,
+            "names" : {
+               "en" : "Europe"
+            }
+         },
+         "country" : {
+            "geoname_id" : 2635167,
+            "iso_code" : "GB",
+            "names" : {
+               "en" : "United Kingdom"
+            }
+         },
+         "registered_country" : {
+            "geoname_id" : 2635167,
+            "iso_code" : "GB",
+            "names" : {
+               "en" : "United Kingdom"
+            }
+         }
+      }
+   },
+   {
       "2.125.160.216/29" : {
          "continent" : {
             "code" : "EU",
