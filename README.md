@@ -516,7 +516,7 @@ You can customize your stack using profile settings, see [Elastic Package profil
 
 There are different providers supported, that can be selected with the --provider flag.
 - compose: Starts a local stack using Docker Compose. This is the default.
-- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances.
+- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
 - serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key.
 
 ### `elastic-package stack update`
@@ -700,7 +700,7 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
     - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch and kibana (e.g. elastic)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD`: Password of that user.
-    - `ELASTIC_PACKAGE_ELASTICSEARCH_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
+    - `ELASTIC_PACKAGE_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure an external metricstore while running benchmarks (more info at [system benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_benchmarking.md#setting-up-an-external-metricstore) or [rally benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/rally_benchmarking.md#setting-up-an-external-metricstore)):

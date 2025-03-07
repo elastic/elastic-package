@@ -1179,6 +1179,18 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	scenario.agent = agentDeployed
 
+	if agentDeployed != nil {
+		// The Elastic Agent created in `r.setupAgent` needs to be retrieved just after starting it, to ensure
+		// it can be removed and unenrolled if the service fails to start.
+		// This function must also be called after setting the service (r.setupService), since there are other
+		// deployers like custom agents or kubernetes deployer that create new Elastic Agents too that needs to
+		// be retrieved too.
+		_, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
+		if err != nil {
+			return nil, fmt.Errorf("can't check enrolled agents: %w", err)
+		}
+	}
+
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("No service deployer defined for this test")
@@ -1238,33 +1250,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil
 	}
 
-	// FIXME: running per stages does not work when multiple agents are created
-	var origPolicy kibana.Policy
 	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
-	// this "checkEnrolledAgents" call to must be located after creating the service.
-	agents, err := checkEnrolledAgents(ctx, r.kibanaClient, agentInfo, svcInfo, r.runIndependentElasticAgent)
+	// this "checkEnrolledAgents" call must be duplicated here after creating the service too. This will
+	// ensure to get the right Enrolled Elastic Agent too.
+	agent, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
 	}
-	agent := agents[0]
-	logger.Debugf("Selected enrolled agent %q", agent.ID)
 
-	r.removeAgentHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
-			return nil
-		}
-		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
-		if !r.runIndependentElasticAgent && !svcInfo.Agent.Independent {
-			return nil
-		}
-		logger.Debug("removing agent...")
-		err := r.kibanaClient.RemoveAgent(ctx, agent)
-		if err != nil {
-			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
-		}
-		return nil
-	}
-
+	// FIXME: running per stages does not work when multiple agents are created
+	var origPolicy kibana.Policy
 	if r.runTearDown {
 		origPolicy = serviceStateData.OrigPolicy
 		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
@@ -1291,7 +1286,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		}
 
 		logger.Debug("reassigning original policy back to agent...")
-		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
+		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *agent, origPolicy); err != nil {
 			return fmt.Errorf("error reassigning original policy to agent: %w", err)
 		}
 		return nil
@@ -1339,7 +1334,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		}
 
 		logger.Debug("assigning package data stream to agent...")
-		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
+		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *agent, *policyWithDataStream); err != nil {
 			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
@@ -1406,7 +1401,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			enrollPolicy:  policyToEnroll,
 			currentPolicy: policyToTest,
 			config:        config,
-			agent:         origAgent,
+			agent:         *origAgent,
 			agentInfo:     agentInfo,
 			svcInfo:       svcInfo,
 		}
@@ -1851,16 +1846,16 @@ func dumpScenarioDocs(docs any) error {
 	return nil
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
+func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) (*kibana.Agent, error) {
 	var agents []kibana.Agent
 
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		allAgents, err := client.ListAgents(ctx)
+		allAgents, err := r.kibanaClient.ListAgents(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		if runIndependentElasticAgent {
+		if r.runIndependentElasticAgent {
 			agents = filterIndependentAgents(allAgents, agentInfo)
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
@@ -1877,7 +1872,27 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 	if !enrolled {
 		return nil, errors.New("no agent enrolled in time")
 	}
-	return agents, nil
+
+	agent := agents[0]
+	logger.Debugf("Selected enrolled agent %q", agent.ID)
+
+	r.removeAgentHandler = func(ctx context.Context) error {
+		if r.runTestsOnly {
+			return nil
+		}
+		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
+		if !r.runIndependentElasticAgent && !svcInfo.Agent.Independent {
+			return nil
+		}
+		logger.Debug("removing agent...")
+		err := r.kibanaClient.RemoveAgent(ctx, agent)
+		if err != nil {
+			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
+		}
+		return nil
+	}
+
+	return &agent, nil
 }
 
 func createPackageDatastream(
@@ -2380,6 +2395,7 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 		}
 	}
 
+	logger.Tracef("Fields to be skipped validation: %s", strings.Join(allFields, ","))
 	return allFields
 }
 

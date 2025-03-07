@@ -10,12 +10,21 @@ import (
 )
 
 var isDebugMode bool
+var isTraceMode bool
 
 // EnableDebugMode method enables verbose logging.
 func EnableDebugMode() {
 	isDebugMode = true
 
 	Debug("Enable verbose logging")
+}
+
+// EnableTraceMode method enables trace verbose logging.
+func EnableTraceMode() {
+	isDebugMode = true
+	isTraceMode = true
+
+	Debug("Enable trace verbose logging")
 }
 
 // Debug method logs message with "debug" level.
@@ -36,7 +45,28 @@ func Debugf(format string, a ...interface{}) {
 
 // IsDebugMode method checks if the debug mode is enabled.
 func IsDebugMode() bool {
-	return isDebugMode
+	return isDebugMode || isTraceMode
+}
+
+// Trace method logs message with "trace" level.
+func Trace(a ...interface{}) {
+	if !IsTraceMode() {
+		return
+	}
+	logMessage("TRACE", a...)
+}
+
+// Tracef method logs message with "trace" level and formats it.
+func Tracef(format string, a ...interface{}) {
+	if !IsTraceMode() {
+		return
+	}
+	logMessagef("TRACE", format, a...)
+}
+
+// IsTraceMode method checks if the trace mode is enabled.
+func IsTraceMode() bool {
+	return isTraceMode
 }
 
 // Info method logs message with "info" level.
