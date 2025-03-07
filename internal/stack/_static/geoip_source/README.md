@@ -44,7 +44,6 @@ cd path/to/repo/elastic-package
 # 1. Add the required data into the JSON files in `geoip_sources` (internal/stack/_static/geoip_sources)
 # 2. Generate mmdb databases
 go run ./tools/geoipdatabases -source internal/stack/_static/geoip_sources -target internal/stack/_static
-
 ```
 
 Those databases generated can be tested to ensure that the expected data is returned using the `mmdbinspect` tool.

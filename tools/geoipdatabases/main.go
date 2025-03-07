@@ -11,6 +11,7 @@ import (
 )
 
 // Tool based on the code at https://github.com/maxmind/MaxMind-DB
+// (commit: https://github.com/maxmind/MaxMind-DB/commit/0ec71808b19669e9e1bf5e63a8c83b202d9bd115)
 
 func main() {
 	source := flag.String("source", "", "Source data directory")
