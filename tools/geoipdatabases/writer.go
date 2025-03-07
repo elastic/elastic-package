@@ -14,15 +14,6 @@ import (
 	"github.com/maxmind/mmdbwriter"
 )
 
-var ipSample = []string{
-	"::1.1.1.0/120",
-	"::2.2.0.0/112",
-	"::3.0.0.0/104",
-	"::4.5.6.7/128",
-	"abcd::/64",
-	"1000::1234:0000/112",
-}
-
 // writer is responsible for writing test mmdb databases
 // based on the provided data sources.
 type writer struct {
