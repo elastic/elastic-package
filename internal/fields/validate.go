@@ -1262,10 +1262,10 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	return nil
 }
 
-// IsDocumentation reports whether ip is a reserved address for documentation,
+// isDocumentation reports whether ip is a reserved address for documentation,
 // according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation) and
 // RFC 3849 (IPv6 Address Prefix Reserved for Documentation).
-func IsDocumentation(ip net.IP) bool {
+func isDocumentation(ip net.IP) bool {
 	if ip4 := ip.To4(); ip4 != nil {
 		// Following RFC 5737, Section 3. Documentation Address Blocks which says:
 		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
@@ -1285,6 +1285,7 @@ func IsDocumentation(ip net.IP) bool {
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
 // - public IPs allowed by MaxMind for testing
+// - Reserved IPs for documentation RFC 5737 and RFC 3849
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
@@ -1301,7 +1302,7 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 	if ip.IsUnspecified() ||
 		ip.IsPrivate() ||
-		IsDocumentation(ip) ||
+		isDocumentation(ip) ||
 		ip.IsLoopback() ||
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||

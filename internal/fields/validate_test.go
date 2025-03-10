@@ -6,6 +6,7 @@ package fields
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1183,4 +1184,88 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return c
+}
+
+func Test_IsAllowedIPValue(t *testing.T) {
+	cases := []struct {
+		title      string
+		ip         string
+		allowedIps []string
+		expected   bool
+	}{
+		{
+			title:    "private ipv4",
+			ip:       "192.168.1.2",
+			expected: true,
+		},
+		{
+			title:    "private ipv4 other range",
+			ip:       "10.2.2.2",
+			expected: true,
+		},
+		{
+			title:    "documentation IPv4",
+			ip:       "192.0.2.10",
+			expected: true,
+		},
+		{
+			title:    "documentation IPv6",
+			ip:       "2001:0DB8:1000:1000:1000:1000:1000:1000",
+			expected: true,
+		},
+		{
+			title:    "unspecified ipv4",
+			ip:       "0.0.0.0",
+			expected: true,
+		},
+		{
+			title:    "unspecified ipv6",
+			ip:       "0:0:0:0:0:0:0:0",
+			expected: true,
+		},
+		{
+			title:    "ip allowed CIDR",
+			ip:       "89.160.20.115",
+			expected: true,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+		{
+			title:    "not valid ipv4",
+			ip:       "216.160.83.57",
+			expected: false,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+		{
+			title:    "not valid ipv6",
+			ip:       "2002:2002:1000:1000:1000:1000:1000:1000",
+			expected: false,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			allowedCIDRs := []*net.IPNet{}
+			for _, cidr := range c.allowedIps {
+				_, cidr, err := net.ParseCIDR(cidr)
+				require.NoError(t, err)
+				allowedCIDRs = append(allowedCIDRs, cidr)
+			}
+			v := Validator{
+				disabledDependencyManagement: true,
+				enabledAllowedIPCheck:        true,
+				allowedCIDRs:                 allowedCIDRs,
+			}
+
+			allowed := v.isAllowedIPValue(c.ip)
+			assert.Equal(t, c.expected, allowed)
+		})
+	}
+
 }
