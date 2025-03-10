@@ -32,18 +32,20 @@ As a note, `elastic-package` used to use the GeoIP databases from
 [this commit](https://github.com/maxmind/MaxMind-DB/blob/2bf1713b3b5adcb022cf4bb77eb0689beaadcfef/test-data).
 This ensures that tests performed by `elastic-package` will not be failing since no GeoIP data is modified, just new data is added.
 
-The latest JSON Files used to generate the `mmdb` databases are located in `internal/stack/_static/geoip_sources`.
+The latest JSON Files used to generate the `mmdb` databases are located in `internal/stack/_static/geoip_source`.
 Those JSON files already contain the required entries for the documentation ranges with some dummy GeoIP data. And they should be
 used as a basis for new changes if required.
 
-If any other changes are required in the GeoIP databases used by elastic-package, update the JSON files located at `internal/stack/_static/geoip_sources`
+If any other changes are required in the GeoIP databases used by elastic-package, update the JSON files located at `internal/stack/_static/geoip_source`
 and then generate new `mmdb` files:
 ```shell
 cd path/to/repo/elastic-package
 
-# 1. Add the required data into the JSON files in `geoip_sources` (internal/stack/_static/geoip_sources)
-# 2. Generate mmdb databases
-go run ./tools/geoipdatabases -source internal/stack/_static/geoip_sources -target internal/stack/_static
+# 1. Add the required data into the JSON files in `geoip_source` (internal/stack/_static/geoip_source)
+# 2. Generate mmdb databases (internal/stack/_static)
+go run ./tools/geoipdatabases
+
+# If it is needed another directories , it can be used `-source` and `-target` flags.
 ```
 
 Those databases generated can be tested to ensure that the expected data is returned using the `mmdbinspect` tool.

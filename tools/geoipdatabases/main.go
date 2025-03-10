@@ -14,10 +14,13 @@ import (
 // (commit: https://github.com/maxmind/MaxMind-DB/commit/0ec71808b19669e9e1bf5e63a8c83b202d9bd115)
 
 func main() {
-	source := flag.String("source", "", "Source data directory")
-	target := flag.String("target", "", "Destination directory for the generated mmdb files")
+	source := flag.String("source", "internal/stack/_static/geoip_source", "Source data directory")
+	target := flag.String("target", "internal/stack/_static", "Destination directory for the generated mmdb files")
 
 	flag.Parse()
+
+	fmt.Printf("Reading source files from: %q\n", *source)
+	fmt.Printf("Target directory: %q\n", *target)
 
 	w, err := newWriter(*source, *target)
 	if err != nil {
