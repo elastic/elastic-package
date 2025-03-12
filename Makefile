@@ -73,7 +73,7 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.0-d5d7364b-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.0-f69f92d6-SNAPSHOT
 
 test-stack-command-9x:
 	./scripts/test-stack-command.sh 9.1.0-50189b69-SNAPSHOT
