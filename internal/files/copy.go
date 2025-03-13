@@ -5,10 +5,10 @@
 package files
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
+	"regexp"
 
 	"github.com/magefile/mage/sh"
 )
@@ -20,11 +20,19 @@ func CopyAll(sourcePath, destinationPath string) error {
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git", ".DS_Store"}, []string{".swp"})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"}, []string{"\\.DS_Store", "\\..*\\.swp"})
 }
 
 // CopyWithSkipped method copies files from the source to the destination, but skips selected directories, empty folders and selected hidden files.
-func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedHiddenFiles []string) error {
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFiles []string) error {
+	regexesFiles := []*regexp.Regexp{}
+	for _, regexFile := range skippedFiles {
+		r, err := regexp.Compile(regexFile)
+		if err != nil {
+			return fmt.Errorf("failed to compile regex %q: %w", r, err)
+		}
+		regexesFiles = append(regexesFiles, r)
+	}
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -47,9 +55,11 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedHid
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
 		}
 
-		if strings.HasPrefix(filepath.Base(relativePath), ".") {
-			if slices.Contains(skippedHiddenFiles, filepath.Ext(relativePath)) {
-				return nil
+		if len(regexesFiles) > 0 {
+			for _, r := range regexesFiles {
+				if r.MatchString(filepath.Base(relativePath)) {
+					return nil
+				}
 			}
 		}
 
