@@ -7,22 +7,24 @@ package files
 import (
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/magefile/mage/sh"
 )
 
 // CopyAll method copies files from the source to the destination skipping empty directories.
 func CopyAll(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{}, []string{})
 }
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git", ".DS_Store"})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git", ".DS_Store"}, []string{".swp"})
 }
 
-// CopyWithSkipped method copies files from the source to the destination, but skips selected directories and empty folders.
-func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) error {
+// CopyWithSkipped method copies files from the source to the destination, but skips selected directories, empty folders and selected hidden files.
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedHiddenFiles []string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -43,6 +45,12 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) e
 
 		if info.IsDir() {
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
+		}
+
+		if strings.HasPrefix(filepath.Base(relativePath), ".") {
+			if slices.Contains(skippedHiddenFiles, filepath.Ext(relativePath)) {
+				return nil
+			}
 		}
 
 		err = os.MkdirAll(filepath.Join(destinationPath, filepath.Dir(relativePath)), 0755)
