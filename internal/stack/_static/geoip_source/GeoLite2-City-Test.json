@@ -145,7 +145,8 @@
          "city": {
             "geoname_id" : 3117735 ,
             "names" : {
-               "en" : "Madrid"
+               "en" : "Madrid",
+               "es" : "Madrid"
             }
          },
          "continent" : {
@@ -210,6 +211,66 @@
       }
    },
    {
+      "233.252.0.0/24": {
+         "city": {
+            "geoname_id" : 2964180,
+            "names" : {
+               "en" : "Galway"
+            }
+         },
+         "continent" : {
+            "code" : "EU",
+            "geoname_id" : 6255148,
+            "names" : {
+               "de" : "Europa",
+               "en" : "Europe",
+               "es" : "Europa",
+               "fr" : "Europe",
+               "ja" : "ヨーロッパ",
+               "pt-BR" : "Europa",
+               "ru" : "Европа",
+               "zh-CN" : "欧洲"
+            }
+         },
+         "country" : {
+            "geoname_id" : 2963597,
+            "is_in_european_union" : true,
+            "iso_code" : "IE",
+            "names" : {
+               "de" : "Irland",
+               "en" : "Ireland",
+               "es" : "República de Irlanda",
+               "fr" : "Irlande",
+               "ja" : "アイルランド",
+               "pt-BR" : "Irlanda",
+               "ru" : "Ирландия",
+               "zh-CN" : "爱尔兰"
+            }
+         },
+         "location" : {
+            "accuracy_radius" : 10,
+            "latitude" : 53.27245,
+            "longitude" : -9.05095,
+            "time_zone" : "Europe/Dublin"
+         },
+         "registered_country" : {
+            "geoname_id" : 2963597,
+            "is_in_european_union" : true,
+            "iso_code" : "IE",
+            "names" : {
+               "de" : "Irland",
+               "en" : "Ireland",
+               "es" : "República de Irlanda",
+               "fr" : "Irlande",
+               "ja" : "アイルランド",
+               "pt-BR" : "Irlanda",
+               "ru" : "Ирландия",
+               "zh-CN" : "爱尔兰"
+            }
+         }
+      }
+   },
+   {
       "2001:db8::/32" : {
          "city" : {
             "geoname_id" : 2647937,
@@ -256,6 +317,52 @@
                }
             }
          ]
+      }
+   },
+   {
+      "3fff::/20": {
+         "city" : {
+            "geoname_id" : 2267057,
+            "names" : {
+               "en" : "Lisbon",
+               "es" : "Lisboa"
+            }
+         },
+         "continent" : {
+            "code" : "EU",
+            "geoname_id" : 6255148,
+            "names" : {
+               "de" : "Europa",
+               "en" : "Europe",
+               "es" : "Europa",
+               "fr" : "Europe",
+               "ja" : "ヨーロッパ",
+               "pt-BR" : "Europa",
+               "ru" : "Европа",
+               "zh-CN" : "欧洲"
+            }
+         },
+         "country" : {
+            "geoname_id" : 2264397,
+            "iso_code" : "PT",
+            "names" : {
+               "en" : "Portugal",
+               "es" : "Portugal"
+            }
+         },
+         "location" : {
+            "accuracy_radius" : 0,
+            "latitude" : 38.71667,
+            "longitude" : -9.13333
+         },
+         "registered_country" : {
+            "geoname_id" : 2264397,
+            "iso_code" : "PT",
+            "names" : {
+               "en" : "Portugal",
+               "es" : "Portugal"
+            }
+         }
       }
    },
    {

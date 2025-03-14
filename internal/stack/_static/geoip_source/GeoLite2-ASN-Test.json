@@ -18,8 +18,20 @@
       }
    },
    {
+      "233.252.0.0/24" : {
+         "autonomous_system_number" : 64503,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
       "2001:db8::/32" : {
          "autonomous_system_number" : 65551,
+         "autonomous_system_organization" : "Documentation ASN"
+      }
+   },
+   {
+      "3fff::/20" : {
+         "autonomous_system_number" : 65552,
          "autonomous_system_organization" : "Documentation ASN"
       }
    },
