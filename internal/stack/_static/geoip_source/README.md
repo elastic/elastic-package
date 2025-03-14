@@ -12,8 +12,8 @@ These databases must also include GeoIP data for the address ranges for document
 Including those documentation ranges allows developers to set documentation IPs in their pipeline or
 system tests that could be enriched thanks to the geoip known data added by the `geoip` processor in the ingest pipeline.
 The documentation ranges (address blocks) are defined in:
-- IPv4: https://datatracker.ietf.org/doc/rfc5737/
-- IPv6: https://datatracker.ietf.org/doc/rfc3849/
+- IPv4: https://datatracker.ietf.org/doc/rfc5737/ and https://datatracker.ietf.org/doc/rfc6676/
+- IPv6: https://datatracker.ietf.org/doc/rfc3849/ and https://datatracker.ietf.org/doc/rfc9637/
 
 The ASN to be used for those documentation purposes are defined in [RFC5398](https://datatracker.ietf.org/doc/rfc5398/).
 
