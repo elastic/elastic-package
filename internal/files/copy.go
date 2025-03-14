@@ -20,7 +20,7 @@ func CopyAll(sourcePath, destinationPath string) error {
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"}, []string{"\\.DS_Store", "\\..*\\.swp"})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"}, []string{"^\\.DS_Store$", "^\\..*\\.swp$"})
 }
 
 // CopyWithSkipped method copies files from the source to the destination, but skips selected directories, empty folders and selected hidden files.
