@@ -55,11 +55,9 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFil
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
 		}
 
-		if len(regexesFiles) > 0 {
-			for _, r := range regexesFiles {
-				if r.MatchString(filepath.Base(relativePath)) {
-					return nil
-				}
+		for _, r := range regexesFiles {
+			if r.MatchString(filepath.Base(relativePath)) {
+				return nil
 			}
 		}
 
