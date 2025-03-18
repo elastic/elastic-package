@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -19,7 +20,6 @@ import (
 
 // IncludesFileEntry contains a file reference to include.
 type IncludesFileEntry struct {
-	Package  string `config:"package"`
 	From     string `config:"from"`
 	To       string `config:"to"`
 	UpToDate bool   `config:"-"`
@@ -27,66 +27,80 @@ type IncludesFileEntry struct {
 	Error    error  `config:"-"`
 }
 
-type IncludesFile []IncludesFileEntry
+type IncludesFile struct {
+	Include []IncludesFileEntry `config:"include"`
+}
 
 // IncludeSharedFiles function collects any necessary files to include in the package.
-func IncludeSharedFiles() (IncludesFile, error) {
+func IncludeSharedFiles() ([]IncludesFileEntry, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, fmt.Errorf("package root not found: %w", err)
 	}
 
-	includesFile, err := readIncludes(packageRoot)
+	// scope any possible operation in the packages/ folder
+	dirRoot, err := os.OpenRoot(filepath.Join(packageRoot, ".."))
+	if err != nil {
+		return nil, fmt.Errorf("could not open root: %w", err)
+	}
+
+	includes, err := readIncludes(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read includes.yml: %w", err)
 	}
 
-	for _, f := range includesFile {
-		b, err := collectFile(packageRoot, f)
+	for _, f := range includes {
+		b, err := collectFile(dirRoot.FS().(fs.ReadFileFS), f)
 		if err != nil {
-			return nil, fmt.Errorf("could not collect file %q: %w", filepath.Join(f.Package, f.From), err)
+			return nil, fmt.Errorf("could not collect file %q: %w", filepath.FromSlash(f.From), err)
 		}
 		if err := writeFile(packageRoot, f.To, b); err != nil {
-			return nil, fmt.Errorf("could not write destination file %q: %w", filepath.Join(packageRoot, f.To), err)
+			return nil, fmt.Errorf("could not write destination file %q: %w", filepath.Join(packageRoot, filepath.FromSlash(f.To)), err)
 		}
 	}
-	return includesFile, nil
+	return includes, nil
 }
 
 // AreFilesUpToDate function checks if all the included files are up-to-date.
-func AreFilesUpToDate() (IncludesFile, error) {
+func AreFilesUpToDate() ([]IncludesFileEntry, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, fmt.Errorf("package root not found: %w", err)
 	}
 
-	includesFile, err := readIncludes(packageRoot)
+	includes, err := readIncludes(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read includes.yml: %w", err)
 	}
 
 	var outdated bool
-	for i := 0; i < len(includesFile); i++ {
-		f := includesFile[i]
+	for i := 0; i < len(includes); i++ {
+		f := includes[i]
 		uptodate, diff, err := isFileUpToDate(packageRoot, f)
 		if !uptodate || err != nil {
-			includesFile[i].UpToDate = uptodate
-			includesFile[i].Diff = diff
-			includesFile[i].Error = err
+			includes[i].UpToDate = uptodate
+			includes[i].Diff = diff
+			includes[i].Error = err
 			outdated = true
 		}
 	}
 
 	if outdated {
-		return includesFile, fmt.Errorf("files do not match")
+		return includes, fmt.Errorf("files do not match")
 	}
-	return includesFile, nil
+	return includes, nil
 }
 
 func isFileUpToDate(packageRoot string, includedFile IncludesFileEntry) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", includedFile.To)
 
-	newFile, err := collectFile(packageRoot, includedFile)
+	// scope any possible operation in the packages/ folder
+	dirRoot, err := os.OpenRoot(filepath.Join(packageRoot, ".."))
+	if err != nil {
+		return false, "", fmt.Errorf("could not open root: %w", err)
+	}
+
+	newFile, err := collectFile(dirRoot.FS().(fs.ReadFileFS), includedFile)
 	if err != nil {
 		return false, "", err
 	}
@@ -112,14 +126,8 @@ func isFileUpToDate(packageRoot string, includedFile IncludesFileEntry) (bool, s
 	return false, buf.String(), err
 }
 
-func collectFile(packageRoot string, includedFile IncludesFileEntry) ([]byte, error) {
-	var filePath string
-	if includedFile.Package != "" {
-		filePath = filepath.Join("..", includedFile.Package, includedFile.From)
-	} else {
-		filePath = filepath.Join(packageRoot, includedFile.From)
-	}
-	b, err := os.ReadFile(filePath)
+func collectFile(root fs.ReadFileFS, includedFile IncludesFileEntry) ([]byte, error) {
+	b, err := root.ReadFile(filepath.FromSlash(includedFile.From))
 	if err != nil {
 		return nil, err
 	}
@@ -127,12 +135,12 @@ func collectFile(packageRoot string, includedFile IncludesFileEntry) ([]byte, er
 }
 
 func writeFile(packageRoot, to string, b []byte) error {
-	filePath := filepath.Join(packageRoot, to)
+	filePath := filepath.Join(packageRoot, filepath.FromSlash(to))
 	return os.WriteFile(filePath, b, 0644)
 }
 
-func readIncludes(packageRoot string) (IncludesFile, error) {
-	includesPath := filepath.Join(packageRoot, "_dev", "shared", "includes.yml")
+func readIncludes(packageRoot string) ([]IncludesFileEntry, error) {
+	includesPath := filepath.Join(packageRoot, "_dev", "build", "build.yml")
 
 	b, err := os.ReadFile(includesPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
@@ -148,7 +156,7 @@ func readIncludes(packageRoot string) (IncludesFile, error) {
 	if err := cfg.Unpack(&includesFile); err != nil {
 		return nil, fmt.Errorf("could not parse includes config: %w", err)
 	}
-	return includesFile, nil
+	return includesFile.Include, nil
 }
 
 func readFile(packageRoot, filePath string) ([]byte, bool, error) {

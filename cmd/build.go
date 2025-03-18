@@ -78,7 +78,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("updating included files failed: %w", err)
 	}
 	for _, i := range included {
-		cmd.Printf("%s file copied to: %s\n", filepath.Join(i.Package, i.From), i.To)
+		cmd.Printf("%s file copied to: %s\n", filepath.FromSlash(i.From), i.To)
 	}
 
 	targets, err := docs.UpdateReadmes(packageRoot)
