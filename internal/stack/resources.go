@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -168,6 +169,9 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+
+		"host_os":   runtime.GOOS,
+		"host_arch": runtime.GOARCH,
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {

@@ -19,6 +19,13 @@ services:
     environment:
       - "ES_JAVA_OPTS=-Xms1g -Xmx1g {{ if not (semverLessThan $version "8.15.0-SNAPSHOT") -}}-Des.failure_store_feature_flag_enabled=true{{- end -}}"
       - "ELASTIC_PASSWORD={{ $password }}"
+{{- $host_os := fact "host_os" -}}
+{{- $host_arch := fact "host_arch" -}}
+{{- if (and (eq $host_os "darwin") (eq $host_arch "arm64")) -}}
+      # Workaround, see https://github.com/elastic/elasticsearch/issues/118583#issuecomment-2644523205
+      - "discovery.type=single-node"
+      - "_JAVA_OPTS=-XX:UseSVE=0"
+{{- end }}
     volumes:
       - "./elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml"
       - "../certs/elasticsearch:/usr/share/elasticsearch/config/certs"
