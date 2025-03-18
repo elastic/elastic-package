@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/includes"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
@@ -45,7 +46,6 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
-
 	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
 		for _, f := range readmeFiles {
@@ -57,6 +57,18 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 			}
 		}
 		return fmt.Errorf("checking readme files are up-to-date failed: %w", err)
+	}
+	includedFiles, err := includes.AreFilesUpToDate()
+	if err != nil {
+		for _, f := range includedFiles {
+			if !f.UpToDate {
+				cmd.Printf("%s is outdated. Rebuild the package with 'elastic-package build'\n%s", f.To, f.Diff)
+			}
+			if f.Error != nil {
+				cmd.Printf("check if %s is up-to-date failed: %s\n", f.To, f.Error)
+			}
+		}
+		return fmt.Errorf("checking included files are up-to-date failed: %w", err)
 	}
 	return nil
 }

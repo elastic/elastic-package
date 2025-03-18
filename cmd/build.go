@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/includes"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -71,6 +72,14 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
+
+	included, err := includes.IncludeSharedFiles()
+	if err != nil {
+		return fmt.Errorf("updating included files failed: %w", err)
+	}
+	for _, i := range included {
+		cmd.Printf("%s file copied to: %s\n", filepath.Join(i.Package, i.From), i.To)
+	}
 
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {

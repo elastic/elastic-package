@@ -4,6 +4,8 @@ go 1.23.0
 
 toolchain go1.23.1
 
+replace github.com/elastic/package-spec/v3 => github.com/marc-gr/package-spec/v3 v3.0.0-20250318101845-919190f8ff28
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.3.1
@@ -73,7 +75,7 @@ require (
 	github.com/elastic/kbncontent v0.1.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.9.0+incompatible // indirect
-	github.com/evanphx/json-patch/v5 v5.9.0 // indirect
+	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
