@@ -4,7 +4,7 @@ go 1.24.0
 
 toolchain go1.24.1
 
-replace github.com/elastic/package-spec/v3 => github.com/marc-gr/package-spec/v3 v3.0.0-20250318133830-8c7c5b9aebde
+replace github.com/elastic/package-spec/v3 => github.com/marc-gr/package-spec/v3 v3.0.0-20250319094545-d89aaf66115e
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
