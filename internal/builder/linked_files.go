@@ -13,67 +13,58 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type link struct {
-	filePath         string
-	includedFilePath string
+type Link struct {
+	FilePath         string
+	IncludedFilePath string
 }
 
-func includeSharedFiles(packageRoot, destinationDir string) error {
-	links, err := getLinks(packageRoot)
+func IncludeSharedFiles(fromPath, destinationDir string) ([]Link, error) {
+	links, err := GetLinksFromPath(fromPath)
 	if err != nil {
-		return fmt.Errorf("could not list link files: %w", err)
+		return nil, fmt.Errorf("could not list link files: %w", err)
 	}
 
 	if len(links) == 0 {
-		return nil
+		return nil, nil
 	}
 
+	packageRootPath, found, err := packages.FindPackageRoot()
+	if !found {
+		return nil, fmt.Errorf("package root not found: %w", err)
+	}
 	logger.Debugf("Package has linked files defined")
-
 	// scope any possible operation in the packages/ folder
-	dirRoot, err := os.OpenRoot(filepath.Join(packageRoot, ".."))
+	dirRoot, err := os.OpenRoot(filepath.Join(packageRootPath, ".."))
 	if err != nil {
-		return fmt.Errorf("could not open root: %w", err)
+		return nil, fmt.Errorf("could not open root: %w", err)
 	}
 
 	for _, l := range links {
-		b, err := collectFile(dirRoot.FS().(fs.ReadFileFS), l.includedFilePath)
+		b, err := collectFile(dirRoot.FS().(fs.ReadFileFS), l.IncludedFilePath)
 		if err != nil {
-			return fmt.Errorf("could not collect file %v: %w", l.includedFilePath, err)
+			return nil, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
 		}
-		cleanPath := strings.TrimSuffix(l.filePath, ".link")
 		toFilePath := strings.Replace(
-			cleanPath,
-			packageRoot,
+			l.FilePath,
+			fromPath,
 			destinationDir,
 			1,
 		)
 		if err := writeFile(toFilePath, b); err != nil {
-			return fmt.Errorf("could not write file %v: %w", toFilePath, err)
+			return nil, fmt.Errorf("could not write file %v: %w", toFilePath, err)
 		}
-		logger.Debugf("%v included in package", cleanPath)
+		logger.Debugf("%v included in package", l.FilePath)
 	}
 
-	return nil
+	return links, nil
 }
 
-func collectFile(root fs.ReadFileFS, path string) ([]byte, error) {
-	b, err := root.ReadFile(filepath.FromSlash(path))
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
-}
-
-func writeFile(to string, b []byte) error {
-	return os.WriteFile(filepath.FromSlash(to), b, 0644)
-}
-
-func getLinks(packageRoot string) ([]link, error) {
+func GetLinksFromPath(dirPath string) ([]Link, error) {
 	var linkFiles []string
-	if err := filepath.Walk(packageRoot, func(path string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(dirPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -86,18 +77,30 @@ func getLinks(packageRoot string) ([]link, error) {
 		return nil, err
 	}
 
-	links := make([]link, len(linkFiles))
+	links := make([]Link, len(linkFiles))
 
 	for i, f := range linkFiles {
 		firstLine, err := readFirstLine(f)
 		if err != nil {
 			return nil, err
 		}
-		links[i].filePath = f
-		links[i].includedFilePath = firstLine
+		links[i].FilePath = strings.TrimSuffix(f, ".link")
+		links[i].IncludedFilePath = firstLine
 	}
 
 	return links, nil
+}
+
+func collectFile(root fs.ReadFileFS, path string) ([]byte, error) {
+	b, err := root.ReadFile(filepath.FromSlash(path))
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func writeFile(to string, b []byte) error {
+	return os.WriteFile(filepath.FromSlash(to), b, 0644)
 }
 
 func readFirstLine(filePath string) (string, error) {
