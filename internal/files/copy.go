@@ -13,16 +13,16 @@ import (
 
 // CopyAll method copies files from the source to the destination skipping empty directories.
 func CopyAll(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{})
+	return CopyWithSkipped(sourcePath, destinationPath, nil, nil)
 }
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"}, []string{"*.link"})
 }
 
 // CopyWithSkipped method copies files from the source to the destination, but skips selected directories and empty folders.
-func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) error {
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string, skippedFilesGlobs []string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -45,6 +45,10 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) e
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
 		}
 
+		if shouldFileBeSkipped(relativePath, skippedFilesGlobs) {
+			return nil
+		}
+
 		err = os.MkdirAll(filepath.Join(destinationPath, filepath.Dir(relativePath)), 0755)
 		if err != nil {
 			return err
@@ -60,6 +64,17 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) e
 func shouldDirectoryBeSkipped(path string, skippedDirs []string) bool {
 	for _, d := range skippedDirs {
 		if path == d || filepath.Base(path) == d {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldFileBeSkipped function checks if absolute path should be skipped.
+func shouldFileBeSkipped(path string, skippedFilesGlobs []string) bool {
+	for _, g := range skippedFilesGlobs {
+		m, _ := filepath.Match(g, filepath.Base(path))
+		if m {
 			return true
 		}
 	}

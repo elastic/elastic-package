@@ -18,7 +18,9 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -69,6 +71,20 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 
 func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
+
+	// Include shared pipelines before installing them
+	links, err := builder.IncludeSharedFiles(elasticsearchPath, elasticsearchPath)
+	if err != nil {
+		return nil, fmt.Errorf("including shared files failed: %w", err)
+	}
+	defer func() {
+		// Remove linked files after installing them
+		for _, link := range links {
+			if err := os.Remove(link.FilePath); err != nil {
+				logger.Errorf("Failed to remove linked file %s: %v\n", link.FilePath, err)
+			}
+		}
+	}()
 
 	var pipelineFiles []string
 	for _, pattern := range []string{"*.json", "*.yml"} {
