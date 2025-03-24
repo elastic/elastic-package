@@ -5,12 +5,15 @@
 package files
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 
 	"github.com/magefile/mage/sh"
+)
+
+var (
+	defaultFoldersToSkip   = []string{"_dev", "build", ".git"}
+	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp"}
 )
 
 // CopyAll method copies files from the source to the destination skipping empty directories.
@@ -20,19 +23,11 @@ func CopyAll(sourcePath, destinationPath string) error {
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"}, []string{"^\\.DS_Store$", "^\\..*\\.swp$"})
+	return CopyWithSkipped(sourcePath, destinationPath, defaultFoldersToSkip, defaultFileGlobsToSkip)
 }
 
 // CopyWithSkipped method copies files from the source to the destination, but skips selected directories, empty folders and selected hidden files.
-func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFiles []string) error {
-	regexesFiles := []*regexp.Regexp{}
-	for _, regexFile := range skippedFiles {
-		r, err := regexp.Compile(regexFile)
-		if err != nil {
-			return fmt.Errorf("failed to compile regex %q: %w", r, err)
-		}
-		regexesFiles = append(regexesFiles, r)
-	}
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFileGlobs []string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -55,8 +50,12 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFil
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
 		}
 
-		for _, r := range regexesFiles {
-			if r.MatchString(filepath.Base(relativePath)) {
+		for _, aGlob := range skippedFileGlobs {
+			matched, err := filepath.Match(aGlob, filepath.Base(relativePath))
+			if err != nil {
+				return err
+			}
+			if matched {
 				return nil
 			}
 		}
