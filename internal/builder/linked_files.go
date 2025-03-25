@@ -100,6 +100,11 @@ func collectFile(root fs.ReadFileFS, path string) ([]byte, error) {
 }
 
 func writeFile(to string, b []byte) error {
+	if _, err := os.Stat(filepath.Dir(to)); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(to), 0700); err != nil {
+			return err
+		}
+	}
 	return os.WriteFile(filepath.FromSlash(to), b, 0644)
 }
 
