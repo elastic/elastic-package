@@ -185,7 +185,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Include linked files")
-	_, err = IncludeSharedFiles(options.PackageRoot, destinationDir)
+	_, err = IncludeLinkedFiles(options.PackageRoot, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("including linked files failed: %w", err)
 	}

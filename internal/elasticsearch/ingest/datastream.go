@@ -73,15 +73,15 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
 	// Include shared pipelines before installing them
-	links, err := builder.IncludeSharedFiles(elasticsearchPath, elasticsearchPath)
+	links, err := builder.IncludeLinkedFiles(elasticsearchPath, elasticsearchPath)
 	if err != nil {
 		return nil, fmt.Errorf("including shared files failed: %w", err)
 	}
 	defer func() {
 		// Remove linked files after installing them
 		for _, link := range links {
-			if err := os.Remove(link.FilePath); err != nil {
-				logger.Errorf("Failed to remove linked file %s: %v\n", link.FilePath, err)
+			if err := os.Remove(link.TargetFilePath); err != nil {
+				logger.Errorf("failed to remove linked file %s: %v\n", link.TargetFilePath, err)
 			}
 		}
 	}()
