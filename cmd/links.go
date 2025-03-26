@@ -14,7 +14,12 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 )
 
-const linksLongDescription = ``
+const (
+	linksLongDescription       = `Use this command to manage linked files in the repository.`
+	linksCheckLongDescription  = `Use this command to check if linked files references inside the current directory are up to date.`
+	linksUpdateLongDescription = `Use this command to update all linked files references inside the current directory.`
+	linksListLongDescription   = `Use this command to list all packages that have linked file references that include the current directory.`
+)
 
 func setupLinksCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -37,6 +42,7 @@ func getLinksCheckCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "check",
 		Short: "Check for linked files changes",
+		Long:  linksCheckLongDescription,
 		Args:  cobra.NoArgs,
 		RunE:  linksCheckCommandAction,
 	}
@@ -56,7 +62,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	for _, f := range linkedFiles {
 		if !f.UpToDate {
-			cmd.Printf("%s is outdated.\n", f.Path)
+			cmd.Printf("%s is outdated.\n", f.LinkFilePath)
 		}
 	}
 	if len(linkedFiles) > 0 {
@@ -69,6 +75,7 @@ func getLinksUpdateCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update linked files checksums if needed.",
+		Long:  linksUpdateLongDescription,
 		Args:  cobra.NoArgs,
 		RunE:  linksUpdateCommandAction,
 	}
@@ -89,7 +96,7 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 
 	for _, f := range linkedFiles {
 		if !f.UpToDate {
-			cmd.Printf("%s is outdated.\n", f.Path)
+			cmd.Printf("%s is outdated.\n", f.LinkFilePath)
 		}
 	}
 
@@ -107,7 +114,6 @@ func getLinksListCommand() *cobra.Command {
 }
 
 func linksListCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Printf("List packages linking files from this path.\n")
 	pwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)

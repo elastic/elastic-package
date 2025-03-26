@@ -23,11 +23,15 @@ import (
 )
 
 type Link struct {
-	Path     string
-	Checksum string
+	LinkPackageName string
+	LinkPackagePath string
+	LinkFilePath    string
+	LinkChecksum    string
 
 	TargetFilePath string
 
+	IncludedPackageName          string
+	IncludedPackagePath          string
 	IncludedFilePath             string
 	IncludedFileContents         []byte
 	IncludedFileContentsChecksum string
@@ -44,7 +48,7 @@ func AreLinkedFilesUpToDate(fromDir string) ([]Link, error) {
 
 	var outdated []Link
 	for _, l := range links {
-		logger.Debugf("Check if %s is up-to-date", l.Path)
+		logger.Debugf("Check if %s is up-to-date", l.LinkFilePath)
 		if !l.UpToDate {
 			outdated = append(outdated, l)
 		}
@@ -65,9 +69,10 @@ func IncludeLinkedFiles(fromDir, toDir string) ([]Link, error) {
 		}
 		if !l.UpToDate {
 			newContent := fmt.Sprintf("%v %v", l.IncludedFilePath, l.IncludedFileContentsChecksum)
-			if err := writeFile(l.Path, []byte(newContent)); err != nil {
-				return nil, fmt.Errorf("could not update checksum for file %v: %w", l.Path, err)
+			if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
+				return nil, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
 			}
+			logger.Debugf("%v updated", l.LinkFilePath)
 		}
 		logger.Debugf("%v included in package", l.TargetFilePath)
 	}
@@ -84,19 +89,19 @@ func UpdateLinkedFilesChecksums(fromDir string) ([]Link, error) {
 	for _, l := range links {
 		if !l.UpToDate {
 			newContent := fmt.Sprintf("%v %v", l.IncludedFilePath, l.IncludedFileContentsChecksum)
-			if err := writeFile(l.Path, []byte(newContent)); err != nil {
-				return nil, fmt.Errorf("could not update checksum for file %v: %w", l.Path, err)
+			if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
+				return nil, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
 			}
-			logger.Debugf("%v updated", l.Path)
+			logger.Debugf("%v updated", l.LinkFilePath)
 		}
 	}
 
 	return links, nil
 }
 
-func ListPackagesWithLinkedFilesFrom(includedPath string) ([]string, error) {
+func ListPackagesWithLinkedFilesFrom(fromPath string) ([]string, error) {
 	defer func() {
-		if err := os.Chdir(filepath.Dir(includedPath)); err != nil {
+		if err := os.Chdir(filepath.Dir(fromPath)); err != nil {
 			logger.Errorf("could not change directory: %w", err)
 		}
 	}()
@@ -108,30 +113,18 @@ func ListPackagesWithLinkedFilesFrom(includedPath string) ([]string, error) {
 
 	links, err := collectLinkedFiles(rootPath, "")
 	if err != nil {
-		return nil, fmt.Errorf("updating linked files failed: %w", err)
+		return nil, fmt.Errorf("collect linked files failed: %w", err)
 	}
-
-	dirRoot, err := os.OpenRoot(rootPath)
-	if err != nil {
-		return nil, fmt.Errorf("could not open root: %w", err)
-	}
-
+	packagePath, _, _ := packages.FindPackageRoot()
+	packageName := filepath.Base(packagePath)
 	m := map[string]struct{}{}
 	for _, l := range links {
-		if _, err := dirRoot.Stat(l.IncludedFilePath); os.IsNotExist(err) {
+		if l.LinkPackageName == "" ||
+			l.LinkPackageName == l.IncludedPackageName ||
+			l.IncludedPackageName != packageName {
 			continue
 		}
-		if err := os.Chdir(filepath.Dir(l.Path)); err != nil {
-			return nil, fmt.Errorf("could not change directory: %w", err)
-		}
-		p, found, err := packages.FindPackageRoot()
-		if !found || err != nil {
-			if err != nil {
-				logger.Errorf("could not find package root directory: %w", err)
-			}
-			continue
-		}
-		m[filepath.Base(p)] = struct{}{}
+		m[l.LinkPackageName] = struct{}{}
 	}
 
 	packages := make([]string, 0, len(m))
@@ -154,7 +147,7 @@ func collectLinkedFiles(fromDir, toDir string) ([]Link, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
 		}
-		if l.Checksum == cs {
+		if l.LinkChecksum == cs {
 			links[i].UpToDate = true
 		}
 		links[i].IncludedFileContents = b
@@ -164,7 +157,17 @@ func collectLinkedFiles(fromDir, toDir string) ([]Link, error) {
 	return links, nil
 }
 
-func getLinksFrom(fromDir, toDir string) ([]Link, error) {
+func getLinksFrom(fromDir, toDir, rootPath string) ([]Link, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("reading current working directory failed: %w", err)
+	}
+	defer func() {
+		if err := os.Chdir(pwd); err != nil {
+			logger.Errorf("could not change directory: %w", err)
+		}
+	}()
+
 	var linkFiles []string
 	if err := filepath.Walk(fromDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -186,7 +189,7 @@ func getLinksFrom(fromDir, toDir string) ([]Link, error) {
 		if err != nil {
 			return nil, err
 		}
-		links[i].Path = f
+		links[i].LinkFilePath = f
 		links[i].TargetFilePath = strings.TrimSuffix(f, ".link")
 		// if a destination dir is set we replace the source dir with the destination dir
 		if toDir != "" {
@@ -200,15 +203,36 @@ func getLinksFrom(fromDir, toDir string) ([]Link, error) {
 		fields := strings.Fields(firstLine)
 		links[i].IncludedFilePath = fields[0]
 		if len(fields) == 2 {
-			links[i].Checksum = fields[1]
+			links[i].LinkChecksum = fields[1]
 		}
+
+		if err := os.Chdir(filepath.Dir(filepath.Join(rootPath, links[i].IncludedFilePath))); err != nil {
+			return nil, fmt.Errorf("could not change directory: %w", err)
+		}
+
+		p, _, _ := packages.FindPackageRoot()
+		links[i].IncludedPackageName = filepath.Base(p)
+		links[i].IncludedPackagePath = p
+
+		if err := os.Chdir(filepath.Dir(links[i].LinkFilePath)); err != nil {
+			return nil, fmt.Errorf("could not change directory: %w", err)
+		}
+
+		p, _, _ = packages.FindPackageRoot()
+		links[i].LinkPackageName = filepath.Base(p)
+		links[i].LinkPackagePath = p
 	}
 
 	return links, nil
 }
 
 func getLinksAndRoot(fromDir, toDir string) ([]Link, fs.ReadFileFS, error) {
-	links, err := getLinksFrom(fromDir, toDir)
+	rootPath, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, nil, fmt.Errorf("root not found: %w", err)
+	}
+
+	links, err := getLinksFrom(fromDir, toDir, rootPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not list link files: %w", err)
 	}
@@ -218,11 +242,6 @@ func getLinksAndRoot(fromDir, toDir string) ([]Link, fs.ReadFileFS, error) {
 	}
 
 	logger.Debugf("Package has linked files defined")
-
-	rootPath, err := files.FindRepositoryRootDirectory()
-	if err != nil {
-		return nil, nil, fmt.Errorf("root not found: %w", err)
-	}
 
 	// scope any possible operation to the repository folder
 	dirRoot, err := os.OpenRoot(rootPath)
