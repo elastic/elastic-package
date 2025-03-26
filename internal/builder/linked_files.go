@@ -119,8 +119,7 @@ func ListPackagesWithLinkedFilesFrom(fromPath string) ([]string, error) {
 	packageName := filepath.Base(packagePath)
 	m := map[string]struct{}{}
 	for _, l := range links {
-		if l.LinkPackageName == "" ||
-			l.LinkPackageName == l.IncludedPackageName ||
+		if l.LinkPackageName == l.IncludedPackageName ||
 			l.IncludedPackageName != packageName {
 			continue
 		}
