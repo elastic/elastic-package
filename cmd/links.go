@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/files"
 )
 
 const (
@@ -35,7 +35,7 @@ func setupLinksCommand() *cobraext.Command {
 	cmd.AddCommand(getLinksUpdateCommand())
 	cmd.AddCommand(getLinksListCommand())
 
-	return cobraext.NewCommand(cmd, cobraext.ContextBoth)
+	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
 }
 
 func getLinksCheckCommand() *cobra.Command {
@@ -56,7 +56,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linkedFiles, err := builder.AreLinkedFilesUpToDate(pwd)
+	linkedFiles, err := files.AreLinkedFilesUpToDate(pwd)
 	if err != nil {
 		return fmt.Errorf("checking linked files are up-to-date failed: %w", err)
 	}
@@ -89,15 +89,13 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linkedFiles, err := builder.UpdateLinkedFilesChecksums(pwd)
+	updatedLinks, err := files.UpdateLinkedFilesChecksums(pwd)
 	if err != nil {
 		return fmt.Errorf("updating linked files checksums failed: %w", err)
 	}
 
-	for _, f := range linkedFiles {
-		if !f.UpToDate {
-			cmd.Printf("%s is outdated.\n", f.LinkFilePath)
-		}
+	for _, l := range updatedLinks {
+		cmd.Printf("%s was updated.\n", l.LinkFilePath)
 	}
 
 	return nil
@@ -110,22 +108,36 @@ func getLinksListCommand() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE:  linksListCommandAction,
 	}
+	cmd.Flags().BoolP(cobraext.PackagesFlagName, "", false, cobraext.PackagesFlagDescription)
 	return cmd
 }
 
 func linksListCommandAction(cmd *cobra.Command, args []string) error {
+	onlyPackages, err := cmd.Flags().GetBool(cobraext.PackagesFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.PackagesFlagName)
+	}
+
 	pwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	packages, err := builder.ListPackagesWithLinkedFilesFrom(pwd)
+	byPackage, err := files.LinkedFilesByPackageFrom(pwd)
 	if err != nil {
 		return fmt.Errorf("listing linked packages failed: %w", err)
 	}
 
-	for _, p := range packages {
-		cmd.Printf("%s\n", p)
+	for i := range byPackage {
+		for p, links := range byPackage[i] {
+			if onlyPackages {
+				cmd.Println(p)
+				continue
+			}
+			for _, l := range links {
+				cmd.Println(l)
+			}
+		}
 	}
 
 	return nil

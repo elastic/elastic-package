@@ -20,9 +20,6 @@ const (
 
 	// ContextPackage means the command runs in the contexts of a specific package.
 	ContextPackage CommandContext = "package"
-
-	// ContextBoth means the command can run in global and package contexts.
-	ContextBoth CommandContext = "both"
 )
 
 // Command wraps a cobra.Command and adds some additional information relevant

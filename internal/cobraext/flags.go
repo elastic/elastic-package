@@ -138,6 +138,9 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	PackagesFlagName        = "packages"
+	PackagesFlagDescription = "whether to return packages names or complete paths for the linked files found"
+
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
