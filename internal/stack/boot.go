@@ -170,7 +170,7 @@ func copyUniquePackages(sourcePath, destinationPath string) error {
 		}
 		skippedDirs = append(skippedDirs, filepath.Join(name, version))
 	}
-	return files.CopyWithSkipped(sourcePath, destinationPath, skippedDirs, nil)
+	return files.CopyWithSkipped(sourcePath, destinationPath, skippedDirs, []string{})
 }
 
 // stringsCut has been imported from Go source code.
