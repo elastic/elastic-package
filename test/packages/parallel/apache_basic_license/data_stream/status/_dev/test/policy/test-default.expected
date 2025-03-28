@@ -4,7 +4,7 @@ inputs:
       meta:
         package:
             name: apache
-      name: test-default-apache
+      name: test-default-apache_basic_license
       streams:
         - data_stream:
             dataset: apache.status
