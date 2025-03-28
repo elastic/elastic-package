@@ -127,4 +127,16 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
     -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/metrics-system.*/_search?allow_no_indices=false&size=0"
 fi
 
+if [[ "${ELASTIC_LICENSE}" != true ]]; then
+  # Check that there is some data in the system indexes.
+  license=$(curl -s -S \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+    -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license") |jq -r '.license.type'
+  if [[ "${license}" != "${ELASTIC_LICENSE}" ]]; then
+      echo "Unexpected license found: ${license}"
+      exit 1
+  fi
+fi
+
 diff -q "${OUTPUT_PATH_STATUS}/running_no_spaces.txt" "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
