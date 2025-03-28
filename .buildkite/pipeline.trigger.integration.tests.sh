@@ -23,6 +23,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-9x
     test-stack-command-with-apm-server
     test-stack-command-with-basic-license
+    test-stack-command-with-self-monitor
 )
 
 for test in "${STACK_COMMAND_TESTS[@]}"; do
