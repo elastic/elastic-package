@@ -5,6 +5,7 @@ set -euxo pipefail
 VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
+ELASTIC_LICENSE=${ELASTIC_LICENSE=-""}
 
 cleanup() {
   r=$?
@@ -21,6 +22,10 @@ cleanup() {
 
   if [ "${SELF_MONITOR_ENABLED}" = true ]; then
     elastic-package profiles delete with-self-monitor
+  fi
+
+  if [[ "${ELASTIC_LICENSE}" != "" ]]; then
+    elastic-package profiles delete with-elastic-license
   fi
 
   exit $r
@@ -70,6 +75,17 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
 stack.self_monitor_enabled: true
 EOF
 fi
+
+if [[ "${ELASTIC_LICENSE}" != "" ]]; then
+  profile=with-elastic-license
+  elastic-package profiles create -v ${profile}
+  elastic-package profiles use ${profile}
+
+  cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
+stack.elastic_subscription: basic
+EOF
+fi
+
 
 mkdir -p "${OUTPUT_PATH_STATUS}"
 
@@ -127,12 +143,12 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
     -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/metrics-system.*/_search?allow_no_indices=false&size=0"
 fi
 
-if [[ "${ELASTIC_LICENSE}" != true ]]; then
+if [[ "${ELASTIC_LICENSE}" != "" ]]; then
   # Check that there is some data in the system indexes.
   license=$(curl -s -S \
     -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
     --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
-    -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license") |jq -r '.license.type'
+    -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license" |jq -r '.license.type')
   if [[ "${license}" != "${ELASTIC_LICENSE}" ]]; then
       echo "Unexpected license found: ${license}"
       exit 1
