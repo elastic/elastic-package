@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -136,6 +137,11 @@ var (
 			Content: staticSource.File("_static/Dockerfile.logstash"),
 		},
 	}
+
+	elasticSubscriptionsSupported = []string{
+		"basic",
+		"trial",
+	}
 )
 
 func applyResources(profile *profile.Profile, stackVersion string) error {
@@ -144,6 +150,11 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	var agentPorts []string
 	if err := profile.Decode("stack.agent.ports", &agentPorts); err != nil {
 		return fmt.Errorf("failed to unmarshal stack.agent.ports: %w", err)
+	}
+
+	elasticSubscriptionProfile := profile.Config(configElasticSubscription, "trial")
+	if !slices.Contains(elasticSubscriptionsSupported, elasticSubscriptionProfile) {
+		return fmt.Errorf("unsupported Elastic subscription %q: supported subscriptions: %s", elasticSubscriptionProfile, strings.Join(elasticSubscriptionsSupported, ", "))
 	}
 
 	resourceManager := resource.NewManager()
@@ -169,7 +180,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"elastic_subscription": profile.Config(configElasticSubscription, "trial"),
+		"elastic_subscription": elasticSubscriptionProfile,
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
