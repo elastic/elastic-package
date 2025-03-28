@@ -13,7 +13,7 @@ import (
 
 var (
 	defaultFoldersToSkip   = []string{"_dev", "build", ".git"}
-	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp"}
+	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp", "*.link"}
 )
 
 // CopyAll method copies files from the source to the destination skipping empty directories.
@@ -75,6 +75,17 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFil
 func shouldDirectoryBeSkipped(path string, skippedDirs []string) bool {
 	for _, d := range skippedDirs {
 		if path == d || filepath.Base(path) == d {
+			return true
+		}
+	}
+	return false
+}
+
+// shouldFileBeSkipped function checks if absolute path should be skipped.
+func shouldFileBeSkipped(path string, skippedFilesGlobs []string) bool {
+	for _, g := range skippedFilesGlobs {
+		m, _ := filepath.Match(g, filepath.Base(path))
+		if m {
 			return true
 		}
 	}

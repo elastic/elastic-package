@@ -239,18 +239,22 @@ func MustFindPackageRoot() (string, error) {
 	return root, nil
 }
 
-// FindPackageRoot finds and returns the path to the root folder of a package.
+// FindPackageRoot finds and returns the path to the root folder of a package from the working directory.
 func FindPackageRoot() (string, bool, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
 		return "", false, fmt.Errorf("locating working directory failed: %w", err)
 	}
+	return FindPackageRootFrom(workDir)
+}
 
+// FindPackageRootFrom finds and returns the path to the root folder of a package from a given directory.
+func FindPackageRootFrom(fromDir string) (string, bool, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
-	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)
+	rootDir := filepath.VolumeName(fromDir) + string(filepath.Separator)
 
-	dir := workDir
+	dir := fromDir
 	for dir != "." {
 		path := filepath.Join(dir, PackageManifestFile)
 		fileInfo, err := os.Stat(path)
