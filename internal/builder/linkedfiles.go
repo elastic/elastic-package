@@ -20,16 +20,15 @@ func IncludeLinkedFiles(fromDir, toDir string) ([]files.Link, error) {
 	for _, l := range links {
 		l.ReplaceTargetFilePathDirectory(fromDir, toDir)
 
-		if err := files.WriteFile(l.TargetFilePath, l.IncludedFileContents); err != nil {
-			return nil, fmt.Errorf("could not write file %v: %w", l.TargetFilePath, err)
-		}
-
 		updated, err := l.UpdateChecksum()
 		if err != nil {
 			return nil, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
 		}
 
 		if updated {
+			if err := files.CopyFile(l.IncludedFilePath, l.TargetFilePath); err != nil {
+				return nil, fmt.Errorf("could not write file %v: %w", l.TargetFilePath, err)
+			}
 			logger.Debugf("%v included in package", l.TargetFilePath)
 		}
 	}

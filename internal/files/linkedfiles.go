@@ -30,13 +30,12 @@ type Link struct {
 	TargetFilePath string
 
 	IncludedFilePath             string
-	IncludedFileContents         []byte
 	IncludedFileContentsChecksum string
 
 	UpToDate bool
 }
 
-func NewLinkedFile(linkFilePath string) (Link, error) {
+func newLinkedFile(linkFilePath string) (Link, error) {
 	var l Link
 	firstLine, err := readFirstLine(linkFilePath)
 	if err != nil {
@@ -52,6 +51,8 @@ func NewLinkedFile(linkFilePath string) (Link, error) {
 	return l, nil
 }
 
+// UpdateChecksum function updates the checksum of the linked file.
+// It returns true if the checksum was updated, false if it was already up-to-date.
 func (l *Link) UpdateChecksum() (bool, error) {
 	if l.UpToDate {
 		return false, nil
@@ -63,12 +64,13 @@ func (l *Link) UpdateChecksum() (bool, error) {
 		return false, fmt.Errorf("checksum is empty for file %v", l.IncludedFilePath)
 	}
 	newContent := fmt.Sprintf("%v %v", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
-	if err := WriteFile(l.LinkFilePath, []byte(newContent)); err != nil {
+	if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
 		return false, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
 	}
 	return true, nil
 }
 
+// ReplaceTargetFilePathDirectory function replaces the target file path directory.
 func (l *Link) ReplaceTargetFilePathDirectory(fromDir, toDir string) {
 	// if a destination dir is set we replace the source dir with the destination dir
 	if toDir == "" {
@@ -100,6 +102,9 @@ func AreLinkedFilesUpToDate(fromDir string) ([]Link, error) {
 	return outdated, nil
 }
 
+// UpdateLinkedFilesChecksums function updates the checksums of the linked files.
+// It returns a slice of updated links.
+// If no links were updated, it returns an empty slice.
 func UpdateLinkedFilesChecksums(fromDir string) ([]Link, error) {
 	links, err := ListLinkedFiles(fromDir)
 	if err != nil {
@@ -120,6 +125,8 @@ func UpdateLinkedFilesChecksums(fromDir string) ([]Link, error) {
 	return updatedLinks, nil
 }
 
+// LinkedFilesByPackageFrom function returns a slice of maps containing linked files grouped by package.
+// Each map contains the package name as the key and a slice of linked file paths as the value.
 func LinkedFilesByPackageFrom(fromDir string) ([]map[string][]string, error) {
 	rootPath, err := FindRepositoryRootDirectory()
 	if err != nil {
@@ -159,6 +166,7 @@ func LinkedFilesByPackageFrom(fromDir string) ([]map[string][]string, error) {
 	return byPackage, nil
 }
 
+// ListLinkedFiles function returns a slice of Link structs representing linked files.
 func ListLinkedFiles(fromDir string) ([]Link, error) {
 	links, err := getLinksFrom(fromDir)
 	if err != nil {
@@ -172,21 +180,44 @@ func ListLinkedFiles(fromDir string) ([]Link, error) {
 
 	for i := range links {
 		l := links[i]
-		b, cs, err := collectFile(root.FS().(fs.ReadFileFS), l.IncludedFilePath)
+		cs, err := getLinkedFileChecksum(root.FS().(fs.ReadFileFS), l.IncludedFilePath)
 		if err != nil {
 			return nil, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
 		}
 		if l.LinkChecksum == cs {
 			links[i].UpToDate = true
 		}
-		links[i].IncludedFileContents = b
 		links[i].IncludedFileContentsChecksum = cs
 	}
 
 	return links, nil
 }
 
-func WriteFile(to string, b []byte) error {
+func CopyFile(from, to string) error {
+	from = filepath.FromSlash(from)
+	source, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer source.Close()
+
+	to = filepath.FromSlash(to)
+	if _, err := os.Stat(filepath.Dir(to)); os.IsNotExist(err) {
+		if err := os.MkdirAll(filepath.Dir(to), 0700); err != nil {
+			return err
+		}
+	}
+	destination, err := os.Create(to)
+	if err != nil {
+		return err
+	}
+	defer destination.Close()
+
+	_, err = io.Copy(destination, source)
+	return err
+}
+
+func writeFile(to string, b []byte) error {
 	to = filepath.FromSlash(to)
 	if _, err := os.Stat(filepath.Dir(to)); os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(to), 0700); err != nil {
@@ -214,7 +245,7 @@ func getLinksFrom(fromDir string) ([]Link, error) {
 	links := make([]Link, len(linkFiles))
 
 	for i, f := range linkFiles {
-		l, err := NewLinkedFile(f)
+		l, err := newLinkedFile(f)
 		if err != nil {
 			return nil, fmt.Errorf("could not create linked file %v: %w", f, err)
 		}
@@ -224,16 +255,16 @@ func getLinksFrom(fromDir string) ([]Link, error) {
 	return links, nil
 }
 
-func collectFile(root fs.ReadFileFS, path string) ([]byte, string, error) {
+func getLinkedFileChecksum(root fs.ReadFileFS, path string) (string, error) {
 	b, err := root.ReadFile(filepath.FromSlash(path))
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 	cs, err := checksum(b)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
-	return b, cs, nil
+	return cs, nil
 }
 
 func readFirstLine(filePath string) (string, error) {
