@@ -57,12 +57,13 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled         = "stack.apm_enabled"
-	configGeoIPDir           = "stack.geoip_dir"
-	configKibanaHTTP2Enabled = "stack.kibana_http2_enabled"
-	configLogsDBEnabled      = "stack.logsdb_enabled"
-	configLogstashEnabled    = "stack.logstash_enabled"
-	configSelfMonitorEnabled = "stack.self_monitor_enabled"
+	configAPMEnabled          = "stack.apm_enabled"
+	configGeoIPDir            = "stack.geoip_dir"
+	configKibanaHTTP2Enabled  = "stack.kibana_http2_enabled"
+	configLogsDBEnabled       = "stack.logsdb_enabled"
+	configLogstashEnabled     = "stack.logstash_enabled"
+	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
+	configElasticSubscription = "stack.elastic_subscription"
 )
 
 var (
@@ -168,6 +169,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+		"elastic_subscription": profile.Config(configElasticSubscription, "trial"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
