@@ -50,7 +50,6 @@ if [ "${VERSION}" != "default" ]; then
 fi
 
 OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
-profile=default
 
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
@@ -86,12 +85,6 @@ if [[ "${ELASTIC_LICENSE}" != "" ]]; then
 stack.elastic_subscription: ${ELASTIC_LICENSE}
 EOF
 fi
-
-if [ -f ~/.elastic-package/profiles/${profile}/config.yml ]; then
-  echo "--- Show profile used"
-  cat ~/.elastic-package/profiles/${profile}/config.yml
-fi
-
 
 mkdir -p "${OUTPUT_PATH_STATUS}"
 
@@ -149,13 +142,19 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
     -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/metrics-system.*/_search?allow_no_indices=false&size=0"
 fi
 
+license=$(curl -s -S \
+  -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+  --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+  -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license" |jq -r '.license.type')
+
 if [[ "${ELASTIC_LICENSE}" != "" ]]; then
-  # Check that there is some data in the system indexes.
-  license=$(curl -s -S \
-    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
-    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
-    -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license" |jq -r '.license.type')
   if [[ "${license}" != "${ELASTIC_LICENSE}" ]]; then
+      echo "Unexpected license found: ${license}"
+      exit 1
+  fi
+else
+  # If not defined, elastic license/subscription must be trial
+  if [[ "${license}" != "trial" ]]; then
       echo "Unexpected license found: ${license}"
       exit 1
   fi
