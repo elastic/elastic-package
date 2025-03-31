@@ -5,7 +5,7 @@ set -euxo pipefail
 VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
-ELASTIC_LICENSE=${ELASTIC_LICENSE=-""}
+ELASTIC_LICENSE=${ELASTIC_LICENSE:-""}
 
 cleanup() {
   r=$?
@@ -50,6 +50,7 @@ if [ "${VERSION}" != "default" ]; then
 fi
 
 OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
+profile=default
 
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}_with_apm_server"
@@ -82,8 +83,13 @@ if [[ "${ELASTIC_LICENSE}" != "" ]]; then
   elastic-package profiles use ${profile}
 
   cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
-stack.elastic_subscription: basic
+stack.elastic_subscription: ${ELASTIC_LICENSE}
 EOF
+fi
+
+if [ -f ~/.elastic-package/profiles/${profile}/config.yml ]; then
+  echo "--- Show profile used"
+  cat ~/.elastic-package/profiles/${profile}/config.yml
 fi
 
 
