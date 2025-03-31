@@ -26,10 +26,11 @@ func IncludeLinkedFiles(fromDir, toDir string) ([]files.Link, error) {
 		}
 
 		if updated {
-			if err := files.CopyFile(l.IncludedFilePath, l.TargetFilePath); err != nil {
-				return nil, fmt.Errorf("could not write file %v: %w", l.TargetFilePath, err)
-			}
 			logger.Debugf("%v included in package", l.TargetFilePath)
+		}
+
+		if err := files.CopyFile(l.IncludedFilePath, l.TargetFilePath); err != nil {
+			return nil, fmt.Errorf("could not write file %v: %w", l.TargetFilePath, err)
 		}
 	}
 
