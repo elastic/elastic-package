@@ -35,11 +35,11 @@ type Link struct {
 	UpToDate bool
 }
 
-func newLinkedFile(linkFilePath string) (Link, error) {
+func newLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	var l Link
 	firstLine, err := readFirstLine(linkFilePath)
 	if err != nil {
-		return l, err
+		return Link{}, err
 	}
 	l.LinkFilePath = linkFilePath
 	l.TargetFilePath = strings.TrimSuffix(linkFilePath, linkExtension)
@@ -48,6 +48,16 @@ func newLinkedFile(linkFilePath string) (Link, error) {
 	if len(fields) == 2 {
 		l.LinkChecksum = fields[1]
 	}
+
+	cs, err := getLinkedFileChecksum(root.FS().(fs.ReadFileFS), l.IncludedFilePath)
+	if err != nil {
+		return Link{}, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
+	}
+	if l.LinkChecksum == cs {
+		l.UpToDate = true
+	}
+	l.IncludedFileContentsChecksum = cs
+
 	return l, nil
 }
 
@@ -67,6 +77,8 @@ func (l *Link) UpdateChecksum() (bool, error) {
 	if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
 		return false, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
 	}
+	l.LinkChecksum = l.IncludedFileContentsChecksum
+	l.UpToDate = true
 	return true, nil
 }
 
@@ -168,26 +180,14 @@ func LinkedFilesByPackageFrom(fromDir string) ([]map[string][]string, error) {
 
 // ListLinkedFiles function returns a slice of Link structs representing linked files.
 func ListLinkedFiles(fromDir string) ([]Link, error) {
-	links, err := getLinksFrom(fromDir)
-	if err != nil {
-		return nil, err
-	}
-
 	root, err := FindRepositoryRoot()
 	if err != nil {
 		return nil, fmt.Errorf("could not get root: %w", err)
 	}
 
-	for i := range links {
-		l := links[i]
-		cs, err := getLinkedFileChecksum(root.FS().(fs.ReadFileFS), l.IncludedFilePath)
-		if err != nil {
-			return nil, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
-		}
-		if l.LinkChecksum == cs {
-			links[i].UpToDate = true
-		}
-		links[i].IncludedFileContentsChecksum = cs
+	links, err := getLinksFrom(root, fromDir)
+	if err != nil {
+		return nil, err
 	}
 
 	return links, nil
@@ -227,7 +227,7 @@ func writeFile(to string, b []byte) error {
 	return os.WriteFile(to, b, 0644)
 }
 
-func getLinksFrom(fromDir string) ([]Link, error) {
+func getLinksFrom(root *os.Root, fromDir string) ([]Link, error) {
 	var linkFiles []string
 	if err := filepath.Walk(fromDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -245,7 +245,7 @@ func getLinksFrom(fromDir string) ([]Link, error) {
 	links := make([]Link, len(linkFiles))
 
 	for i, f := range linkFiles {
-		l, err := newLinkedFile(f)
+		l, err := newLinkedFile(root, f)
 		if err != nil {
 			return nil, fmt.Errorf("could not create linked file %v: %w", f, err)
 		}
