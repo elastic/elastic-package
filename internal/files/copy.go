@@ -80,14 +80,3 @@ func shouldDirectoryBeSkipped(path string, skippedDirs []string) bool {
 	}
 	return false
 }
-
-// shouldFileBeSkipped function checks if absolute path should be skipped.
-func shouldFileBeSkipped(path string, skippedFilesGlobs []string) bool {
-	for _, g := range skippedFilesGlobs {
-		m, _ := filepath.Match(g, filepath.Base(path))
-		if m {
-			return true
-		}
-	}
-	return false
-}
