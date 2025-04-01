@@ -21,7 +21,7 @@ In the following sections, it is described how to build your own custom GeoIP da
 
 ## Prerequisites
 
-1. Install GoLang 1.23 or later
+1. Install GoLang 1.24 or later
 2. Install `mmdbinspect` and add it your PATH (https://github.com/maxmind/mmdbinspect)
 
 The following section describes the procedure to generate new `mmdb` databases from the JSON source files.
