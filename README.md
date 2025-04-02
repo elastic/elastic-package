@@ -653,7 +653,8 @@ The following settings are available per profile:
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
 * `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
-  Currently, it is supported "basic" and "trial".  Defaults to "trial".
+  Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
+  which enables all subscription features for 30 days.  Defaults to "trial".
 
 ## Useful environment variables
 
