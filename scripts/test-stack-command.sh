@@ -5,7 +5,7 @@ set -euxo pipefail
 VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
-ELASTIC_LICENSE=${ELASTIC_LICENSE:-""}
+ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
 
 cleanup() {
   r=$?
@@ -24,8 +24,8 @@ cleanup() {
     elastic-package profiles delete with-self-monitor
   fi
 
-  if [[ "${ELASTIC_LICENSE}" != "" ]]; then
-    elastic-package profiles delete with-elastic-license
+  if [[ "${ELASTIC_SUBSCRIPTION}" != "" ]]; then
+    elastic-package profiles delete with-elastic-subscription
   fi
 
   exit $r
@@ -76,13 +76,13 @@ stack.self_monitor_enabled: true
 EOF
 fi
 
-if [[ "${ELASTIC_LICENSE}" != "" ]]; then
-  profile=with-elastic-license
+if [[ "${ELASTIC_SUBSCRIPTION}" != "" ]]; then
+  profile=with-elastic-subscription
   elastic-package profiles create -v ${profile}
   elastic-package profiles use ${profile}
 
   cat ~/.elastic-package/profiles/${profile}/config.yml.example - <<EOF > ~/.elastic-package/profiles/${profile}/config.yml
-stack.elastic_subscription: ${ELASTIC_LICENSE}
+stack.elastic_subscription: ${ELASTIC_SUBSCRIPTION}
 EOF
 fi
 
@@ -130,6 +130,8 @@ elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
 clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > "${OUTPUT_PATH_STATUS}/running_no_spaces.txt"
 
+diff -q "${OUTPUT_PATH_STATUS}/running_no_spaces.txt" "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
+
 if [ "${APM_SERVER_ENABLED}" = true ]; then
   curl http://localhost:8200/
 fi
@@ -142,22 +144,17 @@ if [ "${SELF_MONITOR_ENABLED}" = true ]; then
     -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/metrics-system.*/_search?allow_no_indices=false&size=0"
 fi
 
-license=$(curl -s -S \
+subscription=$(curl -s -S \
   -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
   --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
   -f "${ELASTIC_PACKAGE_ELASTICSEARCH_HOST}/_license" |jq -r '.license.type')
 
-if [[ "${ELASTIC_LICENSE}" != "" ]]; then
-  if [[ "${license}" != "${ELASTIC_LICENSE}" ]]; then
-      echo "Unexpected license found: ${license}"
-      exit 1
-  fi
-else
-  # If not defined, elastic license/subscription must be trial
-  if [[ "${license}" != "trial" ]]; then
-      echo "Unexpected license found: ${license}"
-      exit 1
-  fi
+expected_subscription="trial"
+if [[ "${ELASTIC_SUBSCRIPTION}" != "" ]]; then
+    expected_subscription="${ELASTIC_SUBSCRIPTION}"
 fi
 
-diff -q "${OUTPUT_PATH_STATUS}/running_no_spaces.txt" "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
+if [[ "${subscription}" != "${expected_subscription}" ]]; then
+    echo "Unexpected \"${subscription}\" subscription found, but expected \"${expected_subscription}\""
+    exit 1
+fi

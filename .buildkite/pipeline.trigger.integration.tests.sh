@@ -22,7 +22,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-8x
     test-stack-command-9x
     test-stack-command-with-apm-server
-    test-stack-command-with-basic-license
+    test-stack-command-with-basic-subscription
     test-stack-command-with-self-monitor
 )
 

@@ -84,8 +84,8 @@ test-stack-command-with-apm-server:
 test-stack-command-with-self-monitor:
 	SELF_MONITOR_ENABLED=true ./scripts/test-stack-command.sh
 
-test-stack-command-with-basic-license:
-	ELASTIC_LICENSE=basic ./scripts/test-stack-command.sh
+test-stack-command-with-basic-subscription:
+	ELASTIC_SUBSCRIPTION=basic ./scripts/test-stack-command.sh
 
 test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
 
