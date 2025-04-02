@@ -13,7 +13,7 @@ import (
 
 var (
 	defaultFoldersToSkip   = []string{"_dev", "build", ".git"}
-	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp"}
+	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp", "*.link"}
 )
 
 // CopyAll method copies files from the source to the destination skipping empty directories.
