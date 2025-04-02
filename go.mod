@@ -1,10 +1,8 @@
 module github.com/elastic/elastic-package
 
-go 1.24.0
+go 1.24.2
 
-toolchain go1.24.1
-
-replace github.com/elastic/package-spec/v3 => github.com/marc-gr/package-spec/v3 v3.0.0-20250319094545-d89aaf66115e
+replace github.com/elastic/package-spec/v3 => github.com/marc-gr/package-spec/v3 v3.0.0-20250402123950-e2d4cc314a62
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7

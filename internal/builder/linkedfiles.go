@@ -5,34 +5,25 @@
 package builder
 
 import (
-	"fmt"
+	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/files"
-	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/package-spec/v3/code/go/pkg/linkedfiles"
 )
 
-func IncludeLinkedFiles(fromDir, toDir string) ([]files.Link, error) {
-	links, err := files.ListLinkedFiles(fromDir)
+func IncludeLinkedFiles(fromDir, toDir string) ([]linkedfiles.Link, error) {
+	root, err := linkedfiles.FindRepositoryRoot()
 	if err != nil {
-		return nil, fmt.Errorf("including linked files failed: %w", err)
+		return nil, err
 	}
 
-	for _, l := range links {
-		l.ReplaceTargetFilePathDirectory(fromDir, toDir)
-
-		updated, err := l.UpdateChecksum()
-		if err != nil {
-			return nil, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
-		}
-
-		if updated {
-			logger.Debugf("%v included in package", l.TargetFilePath)
-		}
-
-		if err := files.CopyFile(l.IncludedFilePath, l.TargetFilePath); err != nil {
-			return nil, fmt.Errorf("could not write file %v: %w", l.TargetFilePath, err)
-		}
+	fromRel, err := filepath.Rel(root.Name(), fromDir)
+	if err != nil {
+		return nil, err
+	}
+	toRel, err := filepath.Rel(root.Name(), toDir)
+	if err != nil {
+		return nil, err
 	}
 
-	return links, nil
+	return linkedfiles.IncludeLinkedFiles(root, fromRel, toRel)
 }
