@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -64,21 +63,15 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, fmt.Errorf("failed to get kibana version: %w", err)
 	}
 
+	logger.Debugf("Subscription stack: %s", options.StackSubscription)
+	supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
 	if options.ZipPath != "" {
-		manifest, err := packages.ReadPackageManifestFromZipPackage(options.ZipPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read package manifest: %w", err)
-		}
-		logger.Debugf("Root Path: %s", options.ZipPath)
-		logger.Debugf("Subscription package: %s", manifest.Subscription())
-		logger.Debugf("Subscription stack: %s", options.StackSubscription)
-		supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
 		if !supportsUploadZip {
 			if version.LessThan(semver8_7_0) {
 				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
 			}
 			if version.LessThan(semver8_8_2) {
-				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s using subscription %s (%s required)", version, manifest.Subscription(), semver8_8_2)
+				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s using subscription %s (%s required)", version, options.StackSubscription, semver8_8_2)
 			}
 		}
 
@@ -96,16 +89,6 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	pkgManifestPath := filepath.Join(options.RootPath, packages.PackageManifestFile)
-	manifest, err := packages.ReadPackageManifest(pkgManifestPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read package manifest: %w", err)
-	}
-	logger.Debugf("Root Path: %s", options.RootPath)
-	logger.Debugf("Subscription package: %s", manifest.Subscription())
-	logger.Debugf("Subscription stack: %s", options.StackSubscription)
-	supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
-
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
 		CreateZip:      supportsUploadZip,
@@ -117,10 +100,8 @@ func NewForPackage(options Options) (Installer, error) {
 	}
 
 	if supportsUploadZip {
-		logger.Debugf("supported zip")
 		return CreateForZip(options.Kibana, target)
 	}
-	logger.Debugf("Not supported upload at all")
 	return CreateForManifest(options.Kibana, target)
 }
 
