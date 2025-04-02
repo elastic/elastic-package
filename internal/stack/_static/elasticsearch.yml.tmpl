@@ -4,7 +4,8 @@ http.host: "0.0.0.0"
 
 indices.id_field_data.enabled: true
 
-xpack.license.self_generated.type: "trial"
+{{ $elastic_subscription := fact "elastic_subscription" }}
+xpack.license.self_generated.type: "{{ $elastic_subscription }}"
 xpack.security.enabled: true
 xpack.security.authc.api_key.enabled: true
 xpack.security.http.ssl.enabled: true
