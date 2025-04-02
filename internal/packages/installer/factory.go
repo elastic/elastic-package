@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -18,7 +19,10 @@ import (
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
-var semver8_7_0 = semver.MustParse("8.7.0")
+var (
+	semver8_7_0 = semver.MustParse("8.7.0")
+	semver8_8_2 = semver.MustParse("8.8.2")
+)
 
 // Installer is responsible for installation/uninstallation of the package.
 type Installer interface {
@@ -30,7 +34,10 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana         *kibana.Client
+	Kibana *kibana.Client
+
+	StackSubscription string
+
 	RootPath       string
 	ZipPath        string
 	SkipValidation bool
@@ -48,17 +55,33 @@ func NewForPackage(options Options) (Installer, error) {
 	if options.RootPath == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
+	if options.StackSubscription == "" {
+		return nil, errors.New("missing stack subscription")
+	}
 
 	version, err := kibanaVersion(options.Kibana)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kibana version: %w", err)
 	}
 
-	supportsZip := !version.LessThan(semver8_7_0)
 	if options.ZipPath != "" {
-		if !supportsZip {
-			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
+		manifest, err := packages.ReadPackageManifestFromZipPackage(options.ZipPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read package manifest: %w", err)
 		}
+		logger.Debugf("Root Path: %s", options.ZipPath)
+		logger.Debugf("Subscription package: %s", manifest.Subscription())
+		logger.Debugf("Subscription stack: %s", options.StackSubscription)
+		supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
+		if !supportsUploadZip {
+			if version.LessThan(semver8_7_0) {
+				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
+			}
+			if version.LessThan(semver8_8_2) {
+				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s using subscription %s (%s required)", version, manifest.Subscription(), semver8_8_2)
+			}
+		}
+
 		if !options.SkipValidation {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
 			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
@@ -73,9 +96,19 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
+	pkgManifestPath := filepath.Join(options.RootPath, packages.PackageManifestFile)
+	manifest, err := packages.ReadPackageManifest(pkgManifestPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read package manifest: %w", err)
+	}
+	logger.Debugf("Root Path: %s", options.RootPath)
+	logger.Debugf("Subscription package: %s", manifest.Subscription())
+	logger.Debugf("Subscription stack: %s", options.StackSubscription)
+	supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
-		CreateZip:      supportsZip,
+		CreateZip:      supportsUploadZip,
 		SignPackage:    false,
 		SkipValidation: options.SkipValidation,
 	})
@@ -83,10 +116,24 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, fmt.Errorf("failed to build package: %v", err)
 	}
 
-	if supportsZip {
+	if supportsUploadZip {
+		logger.Debugf("supported zip")
 		return CreateForZip(options.Kibana, target)
 	}
+	logger.Debugf("Not supported upload at all")
 	return CreateForManifest(options.Kibana, target)
+}
+
+func supportedUploadZip(pkgSubscription string, kibanaVersion *semver.Version) bool {
+	if kibanaVersion.LessThan(semver8_7_0) {
+		return false
+	}
+
+	if kibanaVersion.LessThan(semver8_8_2) && pkgSubscription == "basic" {
+		return false
+	}
+
+	return true
 }
 
 func kibanaVersion(kibana *kibana.Client) (*semver.Version, error) {

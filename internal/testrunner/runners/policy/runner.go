@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -24,6 +25,8 @@ const (
 type runner struct {
 	packageRootPath string
 	kibanaClient    *kibana.Client
+
+	stackSubscription string
 
 	dataStreams        []string
 	failOnMissingTests bool
@@ -41,6 +44,7 @@ var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
 	KibanaClient       *kibana.Client
+	ESClient           *elasticsearch.Client
 	PackageRootPath    string
 	DataStreams        []string
 	FailOnMissingTests bool
@@ -50,7 +54,7 @@ type PolicyTestRunnerOptions struct {
 	CoverageType       string
 }
 
-func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
+func NewPolicyTestRunner(options PolicyTestRunnerOptions) (*runner, error) {
 	runner := runner{
 		packageRootPath:    options.PackageRootPath,
 		kibanaClient:       options.KibanaClient,
@@ -63,7 +67,12 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
-	return &runner
+	stackSubscription, err := options.ESClient.Subscription(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stack subscription: %w", err)
+	}
+	runner.stackSubscription = stackSubscription
+	return &runner, nil
 }
 
 // SetupRunner prepares global resources required by the test runner.
@@ -156,7 +165,8 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
+		RootPath:          r.packageRootPath,
+		StackSubscription: r.stackSubscription,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

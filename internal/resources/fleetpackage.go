@@ -24,6 +24,9 @@ type FleetPackage struct {
 	// RootPath is the root of the package source to install.
 	RootPath string
 
+	// StackSubscription is the subscription used in the Elastic stack.
+	StackSubscription string
+
 	// Absent is set to true to indicate that the package should not be installed.
 	Absent bool
 
@@ -56,9 +59,10 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 	}
 
 	return installer.NewForPackage(installer.Options{
-		Kibana:         provider.Client,
-		RootPath:       f.RootPath,
-		SkipValidation: true,
+		Kibana:            provider.Client,
+		RootPath:          f.RootPath,
+		SkipValidation:    true,
+		StackSubscription: f.StackSubscription,
 	})
 }
 

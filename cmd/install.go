@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -60,14 +61,27 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	var opts []kibana.ClientOption
+	var esOpts []elasticsearch.ClientOption
+
 	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
 	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
+		esOpts = append(esOpts, elasticsearch.OptionWithSkipTLSVerify())
 	}
 
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
+	}
+
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile, esOpts...)
+	if err != nil {
+		return fmt.Errorf("could not create kibana client: %w", err)
+	}
+
+	subscription, err := esClient.Subscription(cmd.Context())
+	if err != nil {
+		return fmt.Errorf("failed to get subscription from stack: %w", err)
 	}
 
 	if zipPathFile == "" && packageRootPath == "" {
@@ -83,10 +97,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kibanaClient,
-		RootPath:       packageRootPath,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
+		Kibana:            kibanaClient,
+		RootPath:          packageRootPath,
+		SkipValidation:    skipValidation,
+		ZipPath:           zipPathFile,
+		StackSubscription: subscription,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

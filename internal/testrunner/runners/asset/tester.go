@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -18,25 +19,27 @@ import (
 )
 
 type tester struct {
-	testFolder       testrunner.TestFolder
-	packageRootPath  string
-	kibanaClient     *kibana.Client
-	resourcesManager *resources.Manager
-	globalTestConfig testrunner.GlobalRunnerTestConfig
-	withCoverage     bool
-	coverageType     string
+	testFolder        testrunner.TestFolder
+	packageRootPath   string
+	kibanaClient      *kibana.Client
+	stackSubscription string
+	resourcesManager  *resources.Manager
+	globalTestConfig  testrunner.GlobalRunnerTestConfig
+	withCoverage      bool
+	coverageType      string
 }
 
 type AssetTesterOptions struct {
 	TestFolder       testrunner.TestFolder
 	PackageRootPath  string
 	KibanaClient     *kibana.Client
+	ESClient         *elasticsearch.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
 }
 
-func NewAssetTester(options AssetTesterOptions) *tester {
+func NewAssetTester(options AssetTesterOptions) (*tester, error) {
 	tester := tester{
 		testFolder:       options.TestFolder,
 		packageRootPath:  options.PackageRootPath,
@@ -49,8 +52,13 @@ func NewAssetTester(options AssetTesterOptions) *tester {
 	manager := resources.NewManager()
 	manager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: options.KibanaClient})
 	tester.resourcesManager = manager
+	stackSubscription, err := options.ESClient.Subscription(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get stack subscription: %w", err)
+	}
+	tester.stackSubscription = stackSubscription
 
-	return &tester
+	return &tester, nil
 }
 
 // Ensures that runner implements testrunner.Tester interface
@@ -80,9 +88,10 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath: r.packageRootPath,
-			Absent:   !installedPackage,
-			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RootPath:          r.packageRootPath,
+			StackSubscription: r.stackSubscription,
+			Absent:            !installedPackage,
+			Force:             installedPackage, // Force re-installation, in case there are code changes in the same package version.
 		},
 	}
 }

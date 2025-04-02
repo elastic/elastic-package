@@ -196,7 +196,7 @@ type Info struct {
 	Version     struct {
 		Number      string `json:"number"`
 		BuildFlavor string `json:"build_flavor"`
-	} `json:"version`
+	} `json:"version"`
 }
 
 // Info gets cluster information and metadata.
@@ -218,6 +218,33 @@ func (client *Client) Info(ctx context.Context) (*Info, error) {
 	}
 
 	return &info, nil
+}
+
+// Subscription gets cluster subscription.
+func (client *Client) Subscription(ctx context.Context) (string, error) {
+	resp, err := client.Client.License.Get(client.Client.License.Get.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("error getting subscription: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get subscription: %s", resp.String())
+	}
+
+	type licenseResponse struct {
+		License struct {
+			Type string `json:"Type"`
+		} `json:"license"`
+	}
+
+	var data licenseResponse
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return "", fmt.Errorf("error decoding subscription: %w", err)
+	}
+
+	return data.License.Type, nil
 }
 
 // IsFailureStoreAvailable checks if the failure store is available.

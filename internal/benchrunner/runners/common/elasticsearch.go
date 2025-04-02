@@ -59,3 +59,30 @@ func CountDocsInDataStream(ctx context.Context, esapi *elasticsearch.API, dataSt
 
 	return numHits, nil
 }
+
+func StackSubscription(ctx context.Context, esapi *elasticsearch.API) (string, error) {
+	resp, err := esapi.License.Get(esapi.License.Get.WithContext(ctx))
+	if err != nil {
+		return "", fmt.Errorf("error getting subscription: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get subscription: %s", resp.String())
+	}
+
+	type licenseResponse struct {
+		License struct {
+			Type string `json:"Type"`
+		} `json:"license"`
+	}
+
+	var data licenseResponse
+	err = json.NewDecoder(resp.Body).Decode(&data)
+	if err != nil {
+		return "", fmt.Errorf("error decoding subscription: %w", err)
+	}
+
+	return data.License.Type, nil
+
+}

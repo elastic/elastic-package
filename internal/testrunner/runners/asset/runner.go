@@ -6,7 +6,9 @@ package asset
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -19,6 +21,7 @@ const (
 type runner struct {
 	packageRootPath  string
 	kibanaClient     *kibana.Client
+	esClient         *elasticsearch.Client
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
@@ -27,6 +30,7 @@ type runner struct {
 type AssetTestRunnerOptions struct {
 	PackageRootPath  string
 	KibanaClient     *kibana.Client
+	ESClient         *elasticsearch.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
@@ -36,6 +40,7 @@ func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
 		packageRootPath:  options.PackageRootPath,
 		kibanaClient:     options.KibanaClient,
+		esClient:         options.ESClient,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
@@ -60,15 +65,18 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
-	testers := []testrunner.Tester{
-		NewAssetTester(AssetTesterOptions{
-			PackageRootPath:  r.packageRootPath,
-			KibanaClient:     r.kibanaClient,
-			TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
-			GlobalTestConfig: r.globalTestConfig,
-			WithCoverage:     r.withCoverage,
-			CoverageType:     r.coverageType,
-		}),
+	assetTester, err := NewAssetTester(AssetTesterOptions{
+		PackageRootPath:  r.packageRootPath,
+		KibanaClient:     r.kibanaClient,
+		ESClient:         r.esClient,
+		TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
+		GlobalTestConfig: r.globalTestConfig,
+		WithCoverage:     r.withCoverage,
+		CoverageType:     r.coverageType,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create asset tester: %w", err)
 	}
+	testers := []testrunner.Tester{assetTester}
 	return testers, nil
 }
