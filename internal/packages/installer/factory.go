@@ -33,10 +33,7 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana *kibana.Client
-
-	StackSubscription string
-
+	Kibana         *kibana.Client
 	RootPath       string
 	ZipPath        string
 	SkipValidation bool
@@ -54,24 +51,23 @@ func NewForPackage(options Options) (Installer, error) {
 	if options.RootPath == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
-	if options.StackSubscription == "" {
-		return nil, errors.New("missing stack subscription")
-	}
 
 	version, err := kibanaVersion(options.Kibana)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kibana version: %w", err)
 	}
 
-	logger.Debugf("Subscription stack: %s", options.StackSubscription)
-	supportsUploadZip := supportedUploadZip(options.StackSubscription, version)
+	supportsUploadZip, err := isAllowedInstallationViaApi(context.TODO(), options.Kibana, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate whether or not it can be used upload API: %w", err)
+	}
 	if options.ZipPath != "" {
 		if !supportsUploadZip {
 			if version.LessThan(semver8_7_0) {
 				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
 			}
 			if version.LessThan(semver8_8_2) {
-				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s using subscription %s (%s required)", version, options.StackSubscription, semver8_8_2)
+				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required or Enteprise license)", version, semver8_8_2)
 			}
 		}
 
@@ -105,16 +101,24 @@ func NewForPackage(options Options) (Installer, error) {
 	return CreateForManifest(options.Kibana, target)
 }
 
-func supportedUploadZip(pkgSubscription string, kibanaVersion *semver.Version) bool {
+func isAllowedInstallationViaApi(ctx context.Context, kbnClient *kibana.Client, kibanaVersion *semver.Version) (bool, error) {
 	if kibanaVersion.LessThan(semver8_7_0) {
-		return false
+		return false, nil
 	}
 
-	if kibanaVersion.LessThan(semver8_8_2) && pkgSubscription == "basic" {
-		return false
+	if !kibanaVersion.LessThan(semver8_8_2) {
+		return true, nil
 	}
 
-	return true
+	err := kbnClient.EnsureZipPackageCanBeInstalled(ctx)
+	if errors.Is(err, kibana.ErrNotSupported) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func kibanaVersion(kibana *kibana.Client) (*semver.Version, error) {

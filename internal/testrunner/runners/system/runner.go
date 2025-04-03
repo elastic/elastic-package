@@ -83,7 +83,7 @@ type SystemTestRunnerOptions struct {
 	CoverageType       string
 }
 
-func NewSystemTestRunner(options SystemTestRunnerOptions) (*runner, error) {
+func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
 		packageRootPath:    options.PackageRootPath,
 		kibanaClient:       options.KibanaClient,
@@ -109,13 +109,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) (*runner, error) {
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
 
 	r.serviceStateFilePath = filepath.Join(stateFolderPath(r.profile.ProfilePath), serviceStateFileName)
-
-	stackSubscription, err := options.ESClient.Subscription(context.TODO())
-	if err != nil {
-		return nil, fmt.Errorf("failed to get stack subscription: %w", err)
-	}
-	r.stackSubscription = stackSubscription
-	return &r, nil
+	return &r
 }
 
 // SetupRunner prepares global resources required by the test runner.
@@ -132,7 +126,6 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		// Install it unless we are running the tear down only.
 		installedPackage: !r.runTearDown,
 	}
-
 	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 	if err != nil {
 		return fmt.Errorf("can't install the package: %w", err)
@@ -325,10 +318,9 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath:          r.packageRootPath,
-			StackSubscription: r.stackSubscription,
-			Absent:            !opts.installedPackage,
-			Force:             opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RootPath: r.packageRootPath,
+			Absent:   !opts.installedPackage,
+			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 		},
 	}
 }

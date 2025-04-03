@@ -484,16 +484,11 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 }
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
-	subscription, err := common.StackSubscription(ctx, r.options.ESAPI)
-	if err != nil {
-		return fmt.Errorf("failed to get stack subscription: %w", err)
-	}
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:            r.options.KibanaClient,
-		RootPath:          r.options.PackageRootPath,
-		SkipValidation:    true,
-		StackSubscription: subscription,
+		Kibana:         r.options.KibanaClient,
+		RootPath:       r.options.PackageRootPath,
+		SkipValidation: true,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)

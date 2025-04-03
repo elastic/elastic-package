@@ -166,15 +166,6 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
-	if err != nil {
-		return fmt.Errorf("can't create Elasticsearch client: %w", err)
-	}
-	err = esClient.CheckHealth(ctx)
-	if err != nil {
-		return err
-	}
-
 	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
@@ -183,7 +174,6 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
 		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
-		ESClient:         esClient,
 		GlobalTestConfig: globalTestConfig.Asset,
 		WithCoverage:     testCoverage,
 		CoverageType:     testCoverageFormat,
@@ -574,7 +564,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
-	runner, err := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
+	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:            profile,
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
@@ -594,9 +584,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:       testCoverageFormat,
 		CheckFailureStore:  checkFailureStore,
 	})
-	if err != nil {
-		return fmt.Errorf("failed to create system test runner: %w", err)
-	}
 
 	logger.Debugf("Running suite...")
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -690,15 +677,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
-	if err != nil {
-		return fmt.Errorf("can't create Elasticsearch client: %w", err)
-	}
-	err = esClient.CheckHealth(ctx)
-	if err != nil {
-		return err
-	}
-
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
@@ -709,10 +687,9 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
-	runner, err := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
+	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
-		ESClient:           esClient,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GenerateTestResult: generateTestResult,
@@ -720,9 +697,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
 	})
-	if err != nil {
-		return fmt.Errorf("failed to create policy test runner: %w", err)
-	}
 
 	results, err := testrunner.RunSuite(ctx, runner)
 	if err != nil {

@@ -32,8 +32,6 @@ const (
 	dataStreamTypeMetrics    = "metrics"
 	dataStreamTypeSynthetics = "synthetics"
 	dataStreamTypeTraces     = "traces"
-
-	defaultSubscription = "basic"
 )
 
 // VarValue represents a variable value as defined in a package or data stream
@@ -153,17 +151,6 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-}
-
-func (p PackageManifest) Subscription() string {
-	if p.Conditions.Elastic.Subscription != "" {
-		return p.Conditions.Elastic.Subscription
-	}
-	if p.License != "" {
-		return p.License
-	}
-
-	return defaultSubscription
 }
 
 type ManifestIndexTemplate struct {
