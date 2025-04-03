@@ -110,8 +110,9 @@ func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			RootPath: policy.RootPath,
-			Absent:   agentPolicy.Absent,
+			RootPath:          policy.RootPath,
+			Absent:            agentPolicy.Absent,
+			StackSubscription: "trial",
 		})
 	}
 	return append(resources, agentPolicy)

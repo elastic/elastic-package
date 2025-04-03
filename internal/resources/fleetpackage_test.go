@@ -48,7 +48,8 @@ func TestPackageLifecycle(t *testing.T) {
 			}
 
 			fleetPackage := FleetPackage{
-				RootPath: filepath.Join("..", "..", "test", "packages", "parallel", c.name),
+				RootPath:          filepath.Join("..", "..", "test", "packages", "parallel", c.name),
+				StackSubscription: "trial",
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
@@ -71,8 +72,9 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 	}
 
 	fleetPackage := FleetPackage{
-		RootPath: "../../test/packages/parallel/system",
-		Absent:   true,
+		RootPath:          "../../test/packages/parallel/system",
+		Absent:            true,
+		StackSubscription: "trial",
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
