@@ -31,8 +31,6 @@ type runner struct {
 	esAPI           *elasticsearch.API
 	esClient        *elasticsearch.Client
 
-	stackSubscription string
-
 	dataStreams    []string
 	serviceVariant string
 
