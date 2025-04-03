@@ -60,16 +60,16 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	var opts []kibana.ClientOption
+	var kbnOpts []kibana.ClientOption
 	var esOpts []elasticsearch.ClientOption
 
 	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
 	if tlsSkipVerify {
-		opts = append(opts, kibana.TLSSkipVerify())
+		kbnOpts = append(kbnOpts, kibana.TLSSkipVerify())
 		esOpts = append(esOpts, elasticsearch.OptionWithSkipTLSVerify())
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, kbnOpts...)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
