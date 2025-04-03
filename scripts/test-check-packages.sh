@@ -90,7 +90,7 @@ fi
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
-  kind create cluster --config "$PWD/scripts/kind-config.yaml"
+  kind create cluster --config "$PWD/scripts/kind-config.yaml" --image "kindest/node:${K8S_VERSION}"
 fi
 
 # Run package tests
