@@ -891,6 +891,16 @@ type deprecationWarning struct {
 }
 
 func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) ([]deprecationWarning, error) {
+	config, err := stack.LoadConfig(r.profile)
+	if err != nil {
+		return []deprecationWarning{}, fmt.Errorf("failed to load config from profile: %w", err)
+	}
+	if config.Provider == stack.ProviderServerless {
+		logger.Tracef("Skip deprecation warnings validation in Serverless projects")
+		// In serverless, there is no handler for this request. Ignore this validation.
+		// Example of response: [400 Bad Request] {"error":"no handler found for uri [/metrics-elastic_package_registry.metrics-62481/_migration/deprecations] and method [GET]"}
+		return []deprecationWarning{}, nil
+	}
 	resp, err := r.esAPI.Migration.Deprecations(
 		r.esAPI.Migration.Deprecations.WithContext(ctx),
 		r.esAPI.Migration.Deprecations.WithIndex(dataStream),
@@ -899,6 +909,14 @@ func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) 
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusBadRequest {
+		if config.Provider == stack.ProviderEnvironment {
+			// Ignore errors in provider environment too, in this case it could also be a Serverless project.
+			logger.Tracef("Ignored deprecation warnings bad request code error in provider environment, response: %s", resp.String())
+			return []deprecationWarning{}, nil
+		}
+	}
 
 	if resp.IsError() {
 		return nil, fmt.Errorf("unexpected status code in response: %s", resp.String())
