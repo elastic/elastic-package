@@ -146,7 +146,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    installedPackage.Name,
+			Package:    r.testFolder.Package,
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})
