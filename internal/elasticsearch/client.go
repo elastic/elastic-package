@@ -196,7 +196,7 @@ type Info struct {
 	Version     struct {
 		Number      string `json:"number"`
 		BuildFlavor string `json:"build_flavor"`
-	} `json:"version`
+	} `json:"version"`
 }
 
 // Info gets cluster information and metadata.
