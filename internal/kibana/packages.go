@@ -47,30 +47,28 @@ func (c *Client) EnsureZipPackageCanBeInstalled(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("could not install zip package: %w", err)
 	}
-	if statusCode == http.StatusOK {
+	switch statusCode {
+	case http.StatusBadRequest:
+		// If the stack allows to use the upload API, the response is like this one:
+		// {
+		//   "statusCode":400,
+		//   "error":"Bad Request",
+		//   "message":"Error during extraction of package: Error: end of central directory record signature not found. Assumed content type was application/zip, check if this matches the archive type."
+		// }
 		return nil
+	case http.StatusForbidden:
+		var resp struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return fmt.Errorf("could not unmarhsall response to JSON: %w", err)
+		}
+		if resp.Message == "Requires Enterprise license" {
+			return ErrNotSupported
+		}
 	}
 
-	var resp struct {
-		StatusCode int    `json:"statusCode"`
-		Error      string `json:"error"`
-		Message    string `json:"message"`
-	}
-
-	if err := json.Unmarshal(respBody, &resp); err != nil {
-		return fmt.Errorf("could not unmarhsall response to JSON: %w", err)
-	}
-
-	// If the stack allows to use the upload API, the response is like this one:
-	// {
-	//   "statusCode":400,
-	//   "error":"Bad Request",
-	//   "message":"Error during extraction of package: Error: end of central directory record signature not found. Assumed content type was application/zip, check if this matches the archive type."
-	// }
-	if resp.Error == "Forbidden" && resp.Message == "Requires Enterprise license" {
-		return ErrNotSupported
-	}
-	return nil
+	return fmt.Errorf("unexpected response (status code %d): %s", statusCode, string(respBody))
 }
 
 // InstallZipPackage installs the local zip package in Fleet.
