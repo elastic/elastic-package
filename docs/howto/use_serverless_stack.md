@@ -35,8 +35,8 @@ After completing these steps, create a new Elastic Serverless project by running
 elastic-package stack up -v -d --provider serverless
 ```
 
-Once this command finishes succesfully, your environment will be ready to use
-any `elastic-package` subcommand (`install`, `dump`, `test`, ...) targetting the Serverless project created with the above command.
+Once this command finishes successfully, your environment will be ready to use
+any `elastic-package` subcommand (`install`, `dump`, `test`, ...) targeting the Serverless project created with the above command.
 
 To clean up everything, run:
 ```sh
@@ -45,7 +45,7 @@ elastic-package stack down -v
 
 **Recommendation:** Ensure that Serverless projects are properly deleted upon completion of testing to avoid any unexpected charges.
 
-Even if the Serverless projects are available via the manegement UI [Elastic Cloud Projects](https://cloud.elastic.co/projects), please
+Even if the Serverless projects are available via the management UI [Elastic Cloud Projects](https://cloud.elastic.co/projects), please
 delete those projects using the `stack down` command mentioned above. This ensures that everything is cleaned up locally, and `elastic-package`
 can continue working as expected.
 
@@ -54,7 +54,7 @@ If you need to switch back to a local stack, remember to change to the previous 
 elastic-package profiles use default
 ```
 
-### Considerationg about testing with the `serverless` provider
+### Considerations about testing with the `serverless` provider
 
 There are some known issues when running pipeline tests with the `serverless` provider.
 
@@ -72,4 +72,4 @@ the `environment` provider instead.
 You can learn more about this in [this document](https://github.com/elastic/elastic-package/blob/main/docs/howto/use_existing_stack.md).
 
 **IMPORTANT**: This provider modifies the Fleet configuration of the target stack.
-Avoid using it in environments that you use for other purpouses, specially in production environments
+Avoid using it in environments that you use for other purposes, specially in production environments
