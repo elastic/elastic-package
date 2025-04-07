@@ -106,16 +106,14 @@ func isAllowedInstallationViaApi(ctx context.Context, kbnClient *kibana.Client, 
 		return false, nil
 	}
 
-	if !kibanaVersion.LessThan(semver8_8_2) {
-		return true, nil
-	}
-
-	err := kbnClient.EnsureZipPackageCanBeInstalled(ctx)
-	if errors.Is(err, kibana.ErrNotSupported) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
+	if kibanaVersion.LessThan(semver8_8_2) {
+		err := kbnClient.EnsureZipPackageCanBeInstalled(ctx)
+		if errors.Is(err, kibana.ErrNotSupported) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return true, nil
