@@ -57,18 +57,13 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, fmt.Errorf("failed to get kibana version: %w", err)
 	}
 
-	supportsUploadZip, err := isAllowedInstallationViaApi(context.TODO(), options.Kibana, version)
+	supportsUploadZip, reason, err := isAllowedInstallationViaApi(context.TODO(), options.Kibana, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate whether or not it can be used upload API: %w", err)
 	}
 	if options.ZipPath != "" {
 		if !supportsUploadZip {
-			if version.LessThan(semver8_7_0) {
-				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
-			}
-			if version.LessThan(semver8_8_2) {
-				return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required or Enteprise license)", version, semver8_8_2)
-			}
+			return nil, errors.New(reason)
 		}
 
 		if !options.SkipValidation {
@@ -101,22 +96,25 @@ func NewForPackage(options Options) (Installer, error) {
 	return CreateForManifest(options.Kibana, target)
 }
 
-func isAllowedInstallationViaApi(ctx context.Context, kbnClient *kibana.Client, kibanaVersion *semver.Version) (bool, error) {
+func isAllowedInstallationViaApi(ctx context.Context, kbnClient *kibana.Client, kibanaVersion *semver.Version) (bool, string, error) {
+	reason := ""
 	if kibanaVersion.LessThan(semver8_7_0) {
-		return false, nil
+		reason = fmt.Sprintf("not supported uploading zip packages in Kibana %s (%s required)", kibanaVersion, semver8_7_0)
+		return false, reason, nil
 	}
 
 	if kibanaVersion.LessThan(semver8_8_2) {
 		err := kbnClient.EnsureZipPackageCanBeInstalled(ctx)
 		if errors.Is(err, kibana.ErrNotSupported) {
-			return false, nil
+			reason = fmt.Sprintf("not supported uploading zip packages in Kibana %s (%s required or Enteprise license)", kibanaVersion, semver8_8_2)
+			return false, reason, nil
 		}
 		if err != nil {
-			return false, err
+			return false, "", err
 		}
 	}
 
-	return true, nil
+	return true, "", nil
 }
 
 func kibanaVersion(kibana *kibana.Client) (*semver.Version, error) {
