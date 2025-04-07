@@ -31,6 +31,8 @@ func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]pa
 }
 
 // EnsureZipPackageCanBeInstalled checks whether or not it can be installed a package using the upload API.
+// This is intened to be used between 8.7.0 and 8.8.2 stack versions, and it is only safe to be run in those
+// stack versions.
 func (c *Client) EnsureZipPackageCanBeInstalled(ctx context.Context) error {
 	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
 
