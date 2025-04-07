@@ -45,9 +45,10 @@ elastic-package stack down -v
 
 **Recommendation:** Ensure that Serverless projects are properly deleted upon completion of testing to avoid any unexpected charges.
 
-Even if the Serverless projects are available via the management UI [Elastic Cloud Projects](https://cloud.elastic.co/projects), please
-delete those projects using the `stack down` command mentioned above. This ensures that everything is cleaned up locally, and `elastic-package`
-can continue working as expected.
+Although Serverless projects are accessible through the management UI at [Elastic Cloud Projects](https://cloud.elastic.co/projects),
+those projects created by `elastic-package` must be deleted using the `stack down` command as previously mentioned.
+This procedure ensures that all resources and local configurations are cleaned up correctly, thereby allowing `elastic-package` to function
+correctly in subsequent commands.
 
 If you need to switch back to a local stack, remember to change to the previous profile. If the previous profile was `default`, run:
 ```shell
