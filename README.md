@@ -517,7 +517,7 @@ You can customize your stack using profile settings, see [Elastic Package profil
 There are different providers supported, that can be selected with the --provider flag.
 - compose: Starts a local stack using Docker Compose. This is the default.
 - environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
-- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key.
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key. You can learn more about this in [this document](./docs/howto/use_serverless_stack.md).
 
 ### `elastic-package stack update`
 
