@@ -2,14 +2,14 @@
 
 Elasticsearch provides default GeoIP databases that can be downloaded in runtime and which weights ~70 MB. This can be
 a root cause of flakiness of package tests, so elastic-package embeds small samples of GeoIP databases, that can identify
-accurately only few ranges of IP addresses included [here](../../internal/fields/_static/allowed_geo_ips.txt).
+accurately only few ranges of IP addresses.
 
-A part from those ranges, documentation ranges of IP addresses are also allowed:
+Specifically, the following documentation ranges of IP addresses are included in those GeoIP databases:
 - [RFC5737](https://datatracker.ietf.org/doc/rfc5737/)
     - 192.0.2.0/24
     - 198.51.100.0/24
     - 203.0.113.0/24
-- [RFC6676](https://datatracker.ietf.org/doc/rfc6676/)
+- [RFC6676](https://datatracker.ietf.org/doc/rfc6676/) (multicast addresses allocated for documentation purposes):
     - 233.252.0.0/24
 - [RFC3849](https://datatracker.ietf.org/doc/rfc3849/)
     - "2001:DB8::/32"
