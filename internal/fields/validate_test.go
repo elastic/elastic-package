@@ -1247,6 +1247,24 @@ func Test_IsAllowedIPValue(t *testing.T) {
 				"89.160.20.112/28",
 			},
 		},
+		{
+			title:      "valid ipv4 multicast address",
+			ip:         "233.252.0.57",
+			expected:   true,
+			allowedIps: []string{},
+		},
+		{
+			title:      "second range documentation ipv6",
+			ip:         "3fff:0000:0000:0000:0000:1000:1000:1000",
+			expected:   true,
+			allowedIps: []string{},
+		},
+		{
+			title:      "other invalid ipv6",
+			ip:         "3fff:1fff:ffff:ffff:ffff:ffff:ffff:ffff",
+			expected:   false,
+			allowedIps: []string{},
+		},
 	}
 
 	for _, c := range cases {
