@@ -1284,7 +1284,7 @@ func isDocumentation(ip net.IP) bool {
 	// Following RFC 9637, a new address block 3fff::/20 is registered for documentation purposes
 	return len(ip) == net.IPv6len &&
 		(ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184) ||
-		(ip[0] == 63 && ip[1] == 255 && ip[2] >= 0 && ip[2] <= 15)
+		(ip[0] == 63 && ip[1] == 255 && ip[2] <= 15)
 }
 
 // isAllowedIPValue checks if the provided IP is allowed for testing
