@@ -386,7 +386,7 @@ Use this command to check if linked files references inside the current director
 
 _Context: global_
 
-List packages linking files from this path.
+Use this command to list all packages that have linked file references that include the current directory.
 
 ### `elastic-package links update`
 

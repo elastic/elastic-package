@@ -106,6 +106,7 @@ func getLinksListCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List packages linking files from this path",
+		Long:  linksListLongDescription,
 		Args:  cobra.NoArgs,
 		RunE:  linksListCommandAction,
 	}
