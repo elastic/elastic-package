@@ -9,15 +9,20 @@ package compose
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/creack/pty"
 
 	"github.com/elastic/elastic-package/internal/logger"
 )
+
+const defaultNumRetries = 5
 
 func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOptions) error {
 	name, args := p.dockerComposeBaseCommand()
@@ -40,7 +45,24 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		cmd.Stdout = opts.stdout
 	}
 
-	ptty, err := pty.Start(cmd)
+	// FIXME: Added retries to avoid errors like
+	// failed to start command with pseudo-tty: fork/exec /usr/bin/docker: operation not permitted
+	var ptty *os.File
+	var err error
+	for i := 0; i < defaultNumRetries; i++ {
+		ptty, err = pty.Start(cmd)
+		if err == nil {
+			break
+		}
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
+			logger.Debugf("Repeating docker command (failure fork/exec)")
+			time.Sleep(1 * time.Second)
+		}
+
+		// Other error
+		break
+	}
 	if err != nil {
 		return fmt.Errorf("failed to start command with pseudo-tty: %w", err)
 	}
