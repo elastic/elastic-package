@@ -135,6 +135,59 @@
             }
         },
         {
+            "@timestamp": "2016-12-26T14:16:48.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.950497950Z",
+                "kind": "event",
+                "original": "3fff::1 - - [26/Dec/2016:16:16:48 +0200] \"-\" 408 -",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "response": {
+                    "status_code": 408
+                }
+            },
+            "source": {
+                "address": "3fff::1",
+                "as": {
+                    "number": 65552,
+                    "organization": {
+                        "name": "Documentation ASN"
+                    }
+                },
+                "geo": {
+                    "city_name": "Lisbon",
+                    "continent_name": "Europe",
+                    "country_iso_code": "PT",
+                    "country_name": "Portugal",
+                    "location": {
+                        "lat": 38.71667,
+                        "lon": -9.13333
+                    }
+                },
+                "ip": "3fff::1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "user": {
+                "name": "-"
+            }
+        },
+        {
             "@timestamp": "2016-12-26T16:23:35.000Z",
             "apache": {
                 "access": {}
