@@ -7,12 +7,15 @@ package kibana
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
+
+var ErrNotSupported error = errors.New("not supported")
 
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
@@ -25,6 +28,47 @@ func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]pa
 	}
 
 	return processResults("install", statusCode, respBody)
+}
+
+// EnsureZipPackageCanBeInstalled checks whether or not it can be installed a package using the upload API.
+// This is intened to be used between 8.7.0 and 8.8.2 stack versions, and it is only safe to be run in those
+// stack versions.
+func (c *Client) EnsureZipPackageCanBeInstalled(ctx context.Context) error {
+	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/zip")
+	req.Header.Add("elastic-api-version", "2023-10-31")
+
+	statusCode, respBody, err := c.doRequest(req)
+	if err != nil {
+		return fmt.Errorf("could not install zip package: %w", err)
+	}
+	switch statusCode {
+	case http.StatusBadRequest:
+		// If the stack allows to use the upload API, the response is like this one:
+		// {
+		//   "statusCode":400,
+		//   "error":"Bad Request",
+		//   "message":"Error during extraction of package: Error: end of central directory record signature not found. Assumed content type was application/zip, check if this matches the archive type."
+		// }
+		return nil
+	case http.StatusForbidden:
+		var resp struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return fmt.Errorf("could not unmarhsall response to JSON: %w", err)
+		}
+		if resp.Message == "Requires Enterprise license" {
+			return ErrNotSupported
+		}
+	}
+
+	return fmt.Errorf("unexpected response (status code %d): %s", statusCode, string(respBody))
 }
 
 // InstallZipPackage installs the local zip package in Fleet.

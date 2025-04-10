@@ -226,7 +226,7 @@ Run system benchmarks for the package.
 
 _Context: package_
 
-Use this command to build a package. Currently it supports only the "integration" package type.
+Use this command to build a package.
 
 Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
@@ -541,7 +541,7 @@ You can customize your stack using profile settings, see [Elastic Package profil
 There are different providers supported, that can be selected with the --provider flag.
 - compose: Starts a local stack using Docker Compose. This is the default.
 - environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
-- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key.
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key. You can learn more about this in [this document](./docs/howto/use_serverless_stack.md).
 
 ### `elastic-package stack update`
 
@@ -676,6 +676,9 @@ The following settings are available per profile:
   the serverless stack provider.
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
+* `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
+  Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
+  which enables all subscription features for 30 days.  Defaults to "trial".
 
 ## Useful environment variables
 

@@ -18,7 +18,10 @@ import (
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
-var semver8_7_0 = semver.MustParse("8.7.0")
+var (
+	semver8_7_0 = semver.MustParse("8.7.0")
+	semver8_8_2 = semver.MustParse("8.8.2")
+)
 
 // Installer is responsible for installation/uninstallation of the package.
 type Installer interface {
@@ -54,11 +57,15 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, fmt.Errorf("failed to get kibana version: %w", err)
 	}
 
-	supportsZip := !version.LessThan(semver8_7_0)
+	supportsUploadZip, reason, err := isAllowedInstallationViaApi(context.TODO(), options.Kibana, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate whether or not it can be used upload API: %w", err)
+	}
 	if options.ZipPath != "" {
-		if !supportsZip {
-			return nil, fmt.Errorf("not supported uploading zip packages in Kibana %s (%s required)", version, semver8_7_0)
+		if !supportsUploadZip {
+			return nil, errors.New(reason)
 		}
+
 		if !options.SkipValidation {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
 			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
@@ -75,7 +82,7 @@ func NewForPackage(options Options) (Installer, error) {
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    options.RootPath,
-		CreateZip:      supportsZip,
+		CreateZip:      supportsUploadZip,
 		SignPackage:    false,
 		SkipValidation: options.SkipValidation,
 	})
@@ -83,10 +90,31 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, fmt.Errorf("failed to build package: %v", err)
 	}
 
-	if supportsZip {
+	if supportsUploadZip {
 		return CreateForZip(options.Kibana, target)
 	}
 	return CreateForManifest(options.Kibana, target)
+}
+
+func isAllowedInstallationViaApi(ctx context.Context, kbnClient *kibana.Client, kibanaVersion *semver.Version) (bool, string, error) {
+	reason := ""
+	if kibanaVersion.LessThan(semver8_7_0) {
+		reason = fmt.Sprintf("not supported uploading zip packages in Kibana %s (%s required)", kibanaVersion, semver8_7_0)
+		return false, reason, nil
+	}
+
+	if kibanaVersion.LessThan(semver8_8_2) {
+		err := kbnClient.EnsureZipPackageCanBeInstalled(ctx)
+		if errors.Is(err, kibana.ErrNotSupported) {
+			reason = fmt.Sprintf("not supported uploading zip packages in Kibana %s (%s required or Enteprise license)", kibanaVersion, semver8_8_2)
+			return false, reason, nil
+		}
+		if err != nil {
+			return false, "", err
+		}
+	}
+
+	return true, "", nil
 }
 
 func kibanaVersion(kibana *kibana.Client) (*semver.Version, error) {
