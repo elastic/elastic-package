@@ -2,6 +2,8 @@ module github.com/elastic/elastic-package
 
 go 1.24.2
 
+replace github.com/elastic/package-spec/v3 => github.com/elastic/package-spec/v3 v3.0.0-20250409140721-851b65d4339d
+
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/Masterminds/semver/v3 v3.3.1
