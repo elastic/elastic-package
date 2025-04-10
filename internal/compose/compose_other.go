@@ -73,7 +73,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	logger.Debugf("running command: %s", cmd)
 
 	if retried {
-		return fmt.Errorf("Failed command but successfully retried: %s", cmd)
+		return fmt.Errorf("failed command but successfully retried: %s", cmd)
 	}
 
 	io.Copy(stderr, ptty)
