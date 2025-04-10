@@ -57,12 +57,13 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		}
 		var pathErr *fs.PathError
 		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
-			logger.Debugf("Repeating docker command (failure fork/exec): %s", cmd)
+			logger.Debugf("Repeating docker command (failure fork/exec): %s (Error: %s)", cmd, err.Error())
 			time.Sleep(1 * time.Second)
 			retried = true
 			continue
 		}
 
+		logger.Debugf("Other error: %s", err)
 		// Other error
 		break
 	}
