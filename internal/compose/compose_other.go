@@ -49,6 +49,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	// failed to start command with pseudo-tty: fork/exec /usr/bin/docker: operation not permitted
 	var ptty *os.File
 	var err error
+	retried := false
 	for i := 0; i < defaultNumRetries; i++ {
 		ptty, err = pty.Start(cmd)
 		if err == nil {
@@ -56,8 +57,9 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		}
 		var pathErr *fs.PathError
 		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
-			logger.Debugf("Repeating docker command (failure fork/exec)")
+			logger.Debugf("Repeating docker command (failure fork/exec): %s", cmd)
 			time.Sleep(1 * time.Second)
+			retried = true
 			continue
 		}
 
@@ -69,6 +71,10 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	}
 	defer ptty.Close()
 	logger.Debugf("running command: %s", cmd)
+
+	if retried {
+		return fmt.Errorf("Failed command but successfully retried: %s", cmd)
+	}
 
 	io.Copy(stderr, ptty)
 
