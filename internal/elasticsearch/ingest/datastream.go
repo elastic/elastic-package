@@ -18,16 +18,17 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 var (
-	ingestPipelineTag   = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
-	defaultPipelineJSON = "default.json"
-	defaultPipelineYML  = "default.yml"
+	ingestPipelineTag       = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
+	defaultPipelineJSON     = "default.json"
+	defaultPipelineJSONLink = "default.json"
+	defaultPipelineYML      = "default.yml.link"
+	defaultPipelineYMLLink  = "default.yml.link"
 )
 
 type Rule struct {
@@ -72,22 +73,8 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
-	// Include shared pipelines before installing them
-	links, err := builder.IncludeLinkedFiles(elasticsearchPath, elasticsearchPath)
-	if err != nil {
-		return nil, fmt.Errorf("including shared files failed: %w", err)
-	}
-	defer func() {
-		// Remove linked files after installing them
-		for _, link := range links {
-			if err := os.Remove(link.TargetFilePath); err != nil {
-				logger.Errorf("failed to remove linked file %s: %v\n", link.TargetFilePath, err)
-			}
-		}
-	}()
-
 	var pipelineFiles []string
-	for _, pattern := range []string{"*.json", "*.yml"} {
+	for _, pattern := range []string{"*.json", "*.yml", "*.link"} {
 		files, err := filepath.Glob(filepath.Join(elasticsearchPath, pattern))
 		if err != nil {
 			return nil, fmt.Errorf("listing '%s' in '%s': %w", pattern, elasticsearchPath, err)
@@ -95,9 +82,10 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
+	linksFS := files.NewLinksFS(elasticsearchPath)
 	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
-		c, err := os.ReadFile(path)
+		c, err := linksFS.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading ingest pipeline failed (path: %s): %w", path, err)
 		}
@@ -124,7 +112,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelines = append(pipelines, Pipeline{
 			Path:            path,
 			Name:            getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
-			Format:          filepath.Ext(path)[1:],
+			Format:          filepath.Ext(strings.TrimSuffix(path, ".link"))[1:],
 			Content:         cWithRerouteProcessors,
 			ContentOriginal: c,
 		})
@@ -135,7 +123,8 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 func addRerouteProcessors(pipeline []byte, dataStreamPath, path string) ([]byte, error) {
 	// Only attach routing_rules.yml reroute processors after the default pipeline
 	filename := filepath.Base(path)
-	if filename != defaultPipelineJSON && filename != defaultPipelineYML {
+	if filename != defaultPipelineJSON && filename != defaultPipelineYML &&
+		filename != defaultPipelineJSONLink && filename != defaultPipelineYMLLink {
 		return pipeline, nil
 	}
 

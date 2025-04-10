@@ -1,8 +1,8 @@
 format_version: 2.3.0
-name: with_includes
-title: "With Includes Tests"
+name: with_links
+title: "With Links Tests"
 version: 0.0.1
-description: "These are tests of field validation with includes."
+description: "These are tests of field validation with links."
 type: integration
 categories:
   - custom

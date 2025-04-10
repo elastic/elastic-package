@@ -185,8 +185,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Include linked files")
-	if _, err := IncludeLinkedFiles(options.PackageRoot, destinationDir); err != nil {
+	links, err := files.IncludeLinkedFiles(options.PackageRoot, destinationDir)
+	if err != nil {
 		return "", fmt.Errorf("including linked files failed: %w", err)
+	}
+	for _, l := range links {
+		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
 	}
 
 	if options.CreateZip {
