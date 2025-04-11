@@ -437,7 +437,6 @@ for system tests.
 | assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
 | assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
 | assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
-| assert.ingestion_idle_time | duration |  | Minimum time elapsed since the last document was ingested. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
