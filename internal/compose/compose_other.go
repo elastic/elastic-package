@@ -47,6 +47,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 
 	// FIXME: Added retries to avoid errors like
 	// failed to start command with pseudo-tty: fork/exec /usr/bin/docker: operation not permitted
+	// Related to: https://github.com/creack/pty/issues/196
 	var ptty *os.File
 	var err error
 	retried := false
