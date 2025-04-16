@@ -49,7 +49,6 @@ func EnableFailureStore(ctx context.Context, api *elasticsearch.API, indexTempla
 	}
 
 	updated := make(common.MapStr)
-	//updated.Put("data_stream.failure_store", enabled)
 	updated.Put("template.data_stream_options.failure_store.enabled", enabled)
 	if err := mapstructure.Decode(updated, &template); err != nil {
 		return fmt.Errorf("failed to update template: %w", err)
@@ -76,21 +75,7 @@ func EnableFailureStore(ctx context.Context, api *elasticsearch.API, indexTempla
 }
 
 func failureStoreEnabled(template map[string]any) bool {
-	t := common.MapStr(template)
-	if v, _ := t.GetValue("template.data_stream_options.failure_store.enabled"); v != nil {
-		enabled, found := v.(bool)
-		if found && enabled {
-			return true
-		}
-	}
-
-	// Legacy
-	if v, _ := t.GetValue("data_stream.failure_store"); v != nil {
-		enabled, found := v.(bool)
-		if found && enabled {
-			return true
-		}
-	}
-
-	return false
+	v, _ := common.MapStr(template).GetValue("template.data_stream_options.failure_store.enabled")
+	enabled, found := v.(bool)
+	return found && enabled
 }

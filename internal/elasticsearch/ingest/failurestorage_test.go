@@ -18,71 +18,33 @@ import (
 )
 
 func TestEnableFailureStore(t *testing.T) {
-	cases := []struct {
-		title  string
-		record string
-	}{
-		{
-			title:  "before 8.18",
-			record: "testdata/elasticsearch-8-enable-failure-store",
-		},
-		{
-			title:  "8.18",
-			record: "testdata/elasticsearch-8-18-enable-failure-store",
-		},
-	}
+	client := estest.NewClient(t, "testdata/elasticsearch-8-enable-failure-store")
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			client := estest.NewClient(t, c.record)
+	templateName := "ep-test-index-template"
+	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {}}`)
+	createTempIndexTemplate(t, client.API, templateName, templateBody)
+	assertFailureStore(t, client.API, templateName, false)
 
-			templateName := "ep-test-index-template"
-			templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {}}`)
-			createTempIndexTemplate(t, client.API, templateName, templateBody)
-			assertFailureStore(t, client.API, templateName, false)
+	err := EnableFailureStore(context.Background(), client.API, templateName, true)
+	require.NoError(t, err)
+	assertFailureStore(t, client.API, templateName, true)
 
-			err := EnableFailureStore(context.Background(), client.API, templateName, true)
-			require.NoError(t, err)
-			assertFailureStore(t, client.API, templateName, true)
-
-			err = EnableFailureStore(context.Background(), client.API, templateName, false)
-			require.NoError(t, err)
-			assertFailureStore(t, client.API, templateName, false)
-		})
-	}
+	err = EnableFailureStore(context.Background(), client.API, templateName, false)
+	require.NoError(t, err)
+	assertFailureStore(t, client.API, templateName, false)
 }
 
 func TestEnableFailureStoreNothingToDo(t *testing.T) {
-	cases := []struct {
-		title        string
-		record       string
-		templateBody []byte
-	}{
-		{
-			title:        "before 8.18",
-			record:       "testdata/elasticsearch-8-enable-failure-store-noop",
-			templateBody: []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {"failure_store":true}}`),
-		},
-		{
-			title:        "8.18",
-			record:       "testdata/elasticsearch-8-18-enable-failure-store-noop",
-			templateBody: []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream":{},"template":{"data_stream_options":{"failure_store":{"enabled":true}}}}`),
-		},
-	}
+	client := estest.NewClient(t, "testdata/elasticsearch-8-enable-failure-store-noop")
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			client := estest.NewClient(t, c.record)
+	templateName := "ep-test-index-template"
+	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream":{},"template":{"data_stream_options":{"failure_store":{"enabled":true}}}}`)
+	createTempIndexTemplate(t, client.API, templateName, templateBody)
+	assertFailureStore(t, client.API, templateName, true)
 
-			templateName := "ep-test-index-template"
-			createTempIndexTemplate(t, client.API, templateName, c.templateBody)
-			assertFailureStore(t, client.API, templateName, true)
-
-			err := EnableFailureStore(context.Background(), client.API, templateName, true)
-			assert.NoError(t, err)
-			assertFailureStore(t, client.API, templateName, true)
-		})
-	}
+	err := EnableFailureStore(context.Background(), client.API, templateName, true)
+	assert.NoError(t, err)
+	assertFailureStore(t, client.API, templateName, true)
 }
 
 func createTempIndexTemplate(t *testing.T, api *elasticsearch.API, name string, body []byte) {
