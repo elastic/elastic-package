@@ -1,0 +1,436 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 540
+        uncompressed: false
+        body: |
+            {
+              "name" : "f2936c5d8ff4",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "PRhyohZ3S_61-2LjfKEahA",
+              "version" : {
+                "number" : "8.18.0",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "04e979aa50b657bebd4a0937389308de82c2bdad",
+                "build_date" : "2025-04-10T10:09:16.444104780Z",
+                "build_snapshot" : false,
+                "lucene_version" : "9.12.1",
+                "minimum_wire_compatibility_version" : "7.17.0",
+                "minimum_index_compatibility_version" : "7.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "540"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 4.001917ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 71
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: '{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {}}'
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template?create=true
+        method: PUT
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 21
+        uncompressed: false
+        body: '{"acknowledged":true}'
+        headers:
+            Content-Length:
+                - "21"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 81.628544ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 202
+        uncompressed: false
+        body: '{"index_templates":[{"name":"ep-test-index-template","index_template":{"index_patterns":["metrics-eptest.failurestore-*"],"composed_of":[],"data_stream":{"hidden":false,"allow_custom_routing":false}}}]}'
+        headers:
+            Content-Length:
+                - "202"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 699.427µs
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 202
+        uncompressed: false
+        body: '{"index_templates":[{"name":"ep-test-index-template","index_template":{"index_patterns":["metrics-eptest.failurestore-*"],"composed_of":[],"data_stream":{"hidden":false,"allow_custom_routing":false}}}]}'
+        headers:
+            Content-Length:
+                - "202"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 392.664µs
+    - id: 4
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 199
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: '{"composed_of":[],"data_stream":{"allow_custom_routing":false,"hidden":false},"index_patterns":["metrics-eptest.failurestore-*"],"template":{"data_stream_options":{"failure_store":{"enabled":true}}}}'
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template?create=false
+        method: PUT
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 21
+        uncompressed: false
+        body: '{"acknowledged":true}'
+        headers:
+            Content-Length:
+                - "21"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 62.497734ms
+    - id: 5
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 272
+        uncompressed: false
+        body: '{"index_templates":[{"name":"ep-test-index-template","index_template":{"index_patterns":["metrics-eptest.failurestore-*"],"template":{"data_stream_options":{"failure_store":{"enabled":true}}},"composed_of":[],"data_stream":{"hidden":false,"allow_custom_routing":false}}}]}'
+        headers:
+            Content-Length:
+                - "272"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 660.681µs
+    - id: 6
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 272
+        uncompressed: false
+        body: '{"index_templates":[{"name":"ep-test-index-template","index_template":{"index_patterns":["metrics-eptest.failurestore-*"],"template":{"data_stream_options":{"failure_store":{"enabled":true}}},"composed_of":[],"data_stream":{"hidden":false,"allow_custom_routing":false}}}]}'
+        headers:
+            Content-Length:
+                - "272"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 405.979µs
+    - id: 7
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 200
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: '{"composed_of":[],"data_stream":{"allow_custom_routing":false,"hidden":false},"index_patterns":["metrics-eptest.failurestore-*"],"template":{"data_stream_options":{"failure_store":{"enabled":false}}}}'
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template?create=false
+        method: PUT
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 21
+        uncompressed: false
+        body: '{"acknowledged":true}'
+        headers:
+            Content-Length:
+                - "21"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 62.227261ms
+    - id: 8
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 273
+        uncompressed: false
+        body: '{"index_templates":[{"name":"ep-test-index-template","index_template":{"index_patterns":["metrics-eptest.failurestore-*"],"template":{"data_stream_options":{"failure_store":{"enabled":false}}},"composed_of":[],"data_stream":{"hidden":false,"allow_custom_routing":false}}}]}'
+        headers:
+            Content-Length:
+                - "273"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 630.109µs
+    - id: 9
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_index_template/ep-test-index-template
+        method: DELETE
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 21
+        uncompressed: false
+        body: '{"acknowledged":true}'
+        headers:
+            Content-Length:
+                - "21"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 56.041805ms

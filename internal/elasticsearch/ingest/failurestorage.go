@@ -10,6 +10,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/mitchellh/mapstructure"
+
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 )
 
@@ -40,22 +43,16 @@ func EnableFailureStore(ctx context.Context, api *elasticsearch.API, indexTempla
 	}
 
 	template := templateResponse.IndexTemplates[0].IndexTemplate
-	dsSettings, found := template["data_stream"]
-	if found {
-		dsMap, ok := dsSettings.(map[string]any)
-		if !ok {
-			return fmt.Errorf("unexpected type for data stream settings in index template %s, expected map, found %T", indexTemplateName, dsMap)
-		}
-		if current, found := dsMap["failure_store"].(bool); found && current == enabled {
-			// Nothing to do, it already has the expected value.
-			return nil
-		}
-		dsMap["failure_store"] = enabled
-		template["data_stream"] = dsMap
-	} else {
-		template["data_stream"] = map[string]any{
-			"failure_store": enabled,
-		}
+	if failureStoreEnabled(template) == enabled {
+		// Nothing to do, it already has the expected value.
+		return nil
+	}
+
+	updated := make(common.MapStr)
+	//updated.Put("data_stream.failure_store", enabled)
+	updated.Put("template.data_stream_options.failure_store.enabled", enabled)
+	if err := mapstructure.Decode(updated, &template); err != nil {
+		return fmt.Errorf("failed to update template: %w", err)
 	}
 
 	d, err := json.Marshal(template)
@@ -72,8 +69,28 @@ func EnableFailureStore(ctx context.Context, api *elasticsearch.API, indexTempla
 	}
 	defer updateResp.Body.Close()
 	if updateResp.IsError() {
-		return fmt.Errorf("failed to update index template %s: %s", indexTemplateName, resp.String())
+		return fmt.Errorf("failed to update index template %s: %s", indexTemplateName, updateResp.String())
 	}
 
 	return nil
+}
+
+func failureStoreEnabled(template map[string]any) bool {
+	t := common.MapStr(template)
+	if v, _ := t.GetValue("template.data_stream_options.failure_store.enabled"); v != nil {
+		enabled, found := v.(bool)
+		if found && enabled {
+			return true
+		}
+	}
+
+	// Legacy
+	if v, _ := t.GetValue("data_stream.failure_store"); v != nil {
+		enabled, found := v.(bool)
+		if found && enabled {
+			return true
+		}
+	}
+
+	return false
 }
