@@ -184,6 +184,15 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
+	logger.Debug("Include linked files")
+	links, err := files.IncludeLinkedFiles(options.PackageRoot, destinationDir)
+	if err != nil {
+		return "", fmt.Errorf("including linked files failed: %w", err)
+	}
+	for _, l := range links {
+		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
+	}
+
 	if options.CreateZip {
 		return buildZippedPackage(options, destinationDir)
 	}

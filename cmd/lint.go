@@ -45,7 +45,6 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
-
 	readmeFiles, err := docs.AreReadmesUpToDate()
 	if err != nil {
 		for _, f := range readmeFiles {
