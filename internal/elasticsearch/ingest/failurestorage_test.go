@@ -26,11 +26,11 @@ func TestEnableFailureStore(t *testing.T) {
 	assertFailureStore(t, client.API, templateName, false)
 
 	err := EnableFailureStore(context.Background(), client.API, templateName, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assertFailureStore(t, client.API, templateName, true)
 
 	err = EnableFailureStore(context.Background(), client.API, templateName, false)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assertFailureStore(t, client.API, templateName, false)
 }
 
@@ -38,7 +38,7 @@ func TestEnableFailureStoreNothingToDo(t *testing.T) {
 	client := estest.NewClient(t, "testdata/elasticsearch-8-enable-failure-store-noop")
 
 	templateName := "ep-test-index-template"
-	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream": {"failure_store":true}}`)
+	templateBody := []byte(`{"index_patterns": ["metrics-eptest.failurestore-*"],"data_stream":{},"template":{"data_stream_options":{"failure_store":{"enabled":true}}}}`)
 	createTempIndexTemplate(t, client.API, templateName, templateBody)
 	assertFailureStore(t, client.API, templateName, true)
 
@@ -70,19 +70,13 @@ func assertFailureStore(t *testing.T, api *elasticsearch.API, name string, expec
 
 	var templateResponse struct {
 		IndexTemplates []struct {
-			IndexTemplate struct {
-				DataStream struct {
-					FailureStore *bool `json:"failure_store"`
-				} `json:"data_stream"`
-			} `json:"index_template"`
+			IndexTemplate map[string]any `json:"index_template"`
 		} `json:"index_templates"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&templateResponse)
 	require.NoError(t, err)
 	require.Len(t, templateResponse.IndexTemplates, 1)
-	found := templateResponse.IndexTemplates[0].IndexTemplate.DataStream.FailureStore
 
-	if assert.NotNil(t, found) {
-		assert.Equal(t, expected, *found)
-	}
+	found := failureStoreEnabled(templateResponse.IndexTemplates[0].IndexTemplate)
+	assert.Equal(t, expected, found)
 }
