@@ -945,27 +945,6 @@ type scenarioTest struct {
 	startTestTime       time.Time
 }
 
-type pipelineTrace []string
-
-func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
-	var alias interface{}
-	if err := json.Unmarshal(d, &alias); err != nil {
-		return err
-	}
-	switch v := alias.(type) {
-	case string:
-		*p = append(*p, v)
-	case []any:
-		// assume it is going to be an array of strings
-		for _, value := range v {
-			*p = append(*p, fmt.Sprint(value))
-		}
-	default:
-		return fmt.Errorf("unexpected type found for pipeline_trace: %T", v)
-	}
-	return nil
-}
-
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
