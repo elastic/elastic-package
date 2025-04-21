@@ -5,7 +5,6 @@
 package system
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -182,7 +181,6 @@ type tester struct {
 	dataStreamManifest *packages.DataStreamManifest
 	withCoverage       bool
 	coverageType       string
-	checkFailureStore  bool
 
 	serviceStateFilePath string
 
@@ -209,13 +207,12 @@ type SystemTesterOptions struct {
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
 
-	DeferCleanup      time.Duration
-	ServiceVariant    string
-	ConfigFileName    string
-	GlobalTestConfig  testrunner.GlobalRunnerTestConfig
-	WithCoverage      bool
-	CoverageType      string
-	CheckFailureStore bool
+	DeferCleanup     time.Duration
+	ServiceVariant   string
+	ConfigFileName   string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -240,7 +237,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		globalTestConfig:           options.GlobalTestConfig,
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
-		checkFailureStore:          options.CheckFailureStore,
 		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
@@ -815,70 +811,6 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	return &hits, nil
 }
 
-func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]failureStoreDocument, error) {
-	query := map[string]any{
-		"query": map[string]any{
-			"bool": map[string]any{
-				// Ignoring failures with error.type version_conflict_engine_exception because there are packages which
-				// explicitly set the _id with the fingerprint processor to avoid duplicates.
-				"must_not": map[string]any{
-					"term": map[string]any{
-						"error.type": "version_conflict_engine_exception",
-					},
-				},
-			},
-		},
-	}
-	body, err := json.Marshal(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode search query: %w", err)
-	}
-	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create search request: %w", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
-
-	resp, err := r.esClient.Transport.Perform(request)
-	if err != nil {
-		return nil, fmt.Errorf("failed to perform search request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		// Can happen if the data stream hasn't been created yet.
-		return nil, nil
-	case resp.StatusCode == http.StatusServiceUnavailable:
-		// Index is being created, but no shards are available yet.
-		// See https://github.com/elastic/elasticsearch/issues/65846
-		return nil, nil
-	case resp.StatusCode >= 400:
-		return nil, fmt.Errorf("search request returned status code %d", resp.StatusCode)
-	}
-
-	var results struct {
-		Hits struct {
-			Hits []struct {
-				Source failureStoreDocument `json:"_source"`
-				Fields common.MapStr        `json:"fields"`
-			} `json:"hits"`
-		} `json:"hits"`
-	}
-	err = json.NewDecoder(resp.Body).Decode(&results)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %w", err)
-	}
-
-	var docs []failureStoreDocument
-	for _, hit := range results.Hits.Hits {
-		docs = append(docs, hit.Source)
-	}
-
-	return docs, nil
-}
-
 type deprecationWarning struct {
 	Level   string `json:"level"`
 	Message string `json:"message"`
@@ -1006,7 +938,6 @@ type scenarioTest struct {
 	kibanaDataStream    kibana.PackageDataStream
 	syntheticEnabled    bool
 	docs                []common.MapStr
-	failureStore        []failureStoreDocument
 	deprecationWarnings []deprecationWarning
 	ignoredFields       []string
 	degradedDocs        []common.MapStr
@@ -1033,17 +964,6 @@ func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
 		return fmt.Errorf("unexpected type found for pipeline_trace: %T", v)
 	}
 	return nil
-}
-
-type failureStoreDocument struct {
-	Error struct {
-		Type          string        `json:"type"`
-		Message       string        `json:"message"`
-		StackTrace    string        `json:"stack_trace"`
-		PipelineTrace pipelineTrace `json:"pipeline_trace"`
-		Pipeline      string        `json:"pipeline"`
-		ProcessorType string        `json:"processor_type"`
-	} `json:"error"`
 }
 
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
@@ -1404,14 +1324,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
 	scenario.ignoredFields = hits.IgnoredFields
 	scenario.degradedDocs = hits.DegradedDocs
-	if r.checkFailureStore {
-		logger.Debugf("Checking failure store for data stream %s", scenario.dataStream)
-		scenario.failureStore, err = r.getFailureStoreDocs(ctx, scenario.dataStream)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get documents from the failure store for data stream %s: %w", scenario.dataStream, err)
-		}
-		logger.Debugf("Found %d docs in failure store for data stream %s", len(scenario.failureStore), scenario.dataStream)
-	}
 
 	if r.runSetup {
 		opts := scenarioStateOpts{
@@ -1579,18 +1491,6 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 			oldHits = hits.size()
 		}()
 
-		if r.checkFailureStore {
-			failureStore, err := r.getFailureStoreDocs(ctx, dataStream)
-			if err != nil {
-				return false, fmt.Errorf("failed to check failure store: %w", err)
-			}
-			if n := len(failureStore); n > 0 {
-				// Interrupt loop earlier if there are failures in the document store.
-				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), dataStream)
-				return true, nil
-			}
-		}
-
 		assertHitCount := func() bool {
 			if config.Assert.HitCount == 0 {
 				// not enabled
@@ -1660,10 +1560,6 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
-	if err := validateFailureStore(scenario.failureStore); err != nil {
-		return result.WithError(err)
-	}
-
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
@@ -2350,30 +2246,6 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
-	}
-
-	return nil
-}
-
-func validateFailureStore(failureStore []failureStoreDocument) error {
-	var multiErr multierror.Error
-	for _, doc := range failureStore {
-		// TODO: Move this to the trace log level when available.
-		logger.Debug("Error found in failure store: ", doc.Error.StackTrace)
-		multiErr = append(multiErr,
-			fmt.Errorf("%s: %s (processor: %s, pipelines: %s)",
-				doc.Error.Type,
-				doc.Error.Message,
-				doc.Error.ProcessorType,
-				strings.Join(doc.Error.PipelineTrace, ",")))
-	}
-
-	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
-		return testrunner.ErrTestCaseFailed{
-			Reason:  "one or more documents found in the failure store",
-			Details: multiErr.Error(),
-		}
 	}
 
 	return nil
