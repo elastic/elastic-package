@@ -543,10 +543,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	checkFailureStore, err := esClient.IsFailureStoreAvailable(ctx)
-	if err != nil {
-		return fmt.Errorf("can't check if failure store is available: %w", err)
-	}
 
 	if runTearDown || runTestsOnly {
 		if variantFlag != "" {
@@ -582,7 +578,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.System,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
-		CheckFailureStore:  checkFailureStore,
 	})
 
 	logger.Debugf("Running suite...")

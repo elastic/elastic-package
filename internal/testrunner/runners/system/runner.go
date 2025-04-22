@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -36,7 +35,6 @@ type runner struct {
 
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	failOnMissingTests bool
-	checkFailureStore  bool
 	deferCleanup       time.Duration
 	generateTestResult bool
 	withCoverage       bool
@@ -74,7 +72,6 @@ type SystemTestRunnerOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
 	FailOnMissingTests bool
-	CheckFailureStore  bool
 	GenerateTestResult bool
 	DeferCleanup       time.Duration
 	WithCoverage       bool
@@ -95,7 +92,6 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		runTestsOnly:       options.RunTestsOnly,
 		runTearDown:        options.RunTearDown,
 		failOnMissingTests: options.FailOnMissingTests,
-		checkFailureStore:  options.CheckFailureStore,
 		generateTestResult: options.GenerateTestResult,
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
@@ -127,34 +123,6 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 	_, err := r.resourcesManager.ApplyCtx(ctx, r.resources(resourcesOptions))
 	if err != nil {
 		return fmt.Errorf("can't install the package: %w", err)
-	}
-
-	if r.checkFailureStore {
-		err := r.setupFailureStore(ctx)
-		if err != nil {
-			return fmt.Errorf("can't enable the failure store: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (r *runner) setupFailureStore(ctx context.Context) error {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
-	if err != nil {
-		return fmt.Errorf("failed to read package manifest: %w", err)
-	}
-
-	indexTemplates, err := ingest.GetIndexTemplatesForPackage(ctx, r.esAPI, manifest.Name)
-	if err != nil {
-		return fmt.Errorf("failed to get index templates for package %s: %w", manifest.Name, err)
-	}
-
-	for _, template := range indexTemplates {
-		err := ingest.EnableFailureStore(ctx, r.esAPI, template.Name(), true)
-		if err != nil {
-			return fmt.Errorf("failed to enable failure store for index template %s: %w", template.Name(), err)
-		}
 	}
 
 	return nil
@@ -294,7 +262,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					GlobalTestConfig:   r.globalTestConfig,
 					WithCoverage:       r.withCoverage,
 					CoverageType:       r.coverageType,
-					CheckFailureStore:  r.checkFailureStore,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(

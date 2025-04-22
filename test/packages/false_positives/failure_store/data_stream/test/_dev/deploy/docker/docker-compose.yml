@@ -1,8 +1,0 @@
-version: '2.3'
-services:
-  logs:
-    image: alpine
-    volumes:
-      - ./logs:/logs:ro
-      - ${SERVICE_LOGS_DIR}:/var/log
-    command: /bin/sh -c "echo \"Copying files...\"; cp /logs/* /var/log/; echo \"Done.\"; sleep 500"
