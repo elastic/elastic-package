@@ -23,6 +23,7 @@ This is controlled in two places now:
 At the moment of writing this document, the following rules can be assumed:
 - Stacks older than 8.16 support all versions of the spec till 3.0.x.
 - Stacks from 8.16 support all versions of the spec till 3.3.x.
+- Stacks from 9.0 support versions of the stack from 2.3.0 to 3.3.x.
 - Serverless projects support versions of the stack from 3.0.0 to 3.3.x.
 
 In case of doubt, you can check the Fleet default configuration, and the
