@@ -55,7 +55,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		return nil, err
 	}
 
-	return installer.NewForPackage(installer.Options{
+	return installer.NewForPackage(ctx, installer.Options{
 		Kibana:         provider.Client,
 		RootPath:       f.RootPath,
 		SkipValidation: true,

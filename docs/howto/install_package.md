@@ -66,7 +66,7 @@ Example of using `elastic-package install`
 2023/02/28 12:34:44 DEBUG data_stream/metrics/fields/fields.yml: source file hasn't been changed
 2023/02/28 12:34:44 DEBUG Package doesn't have to import ECS mappings
 2023/02/28 12:34:44 DEBUG Build zipped package
-2023/02/28 12:34:44 DEBUG Compress using archiver.Zip (destination: /home/user/Coding/work/integrations/build/packages/elastic_package_registry-0.0.6.zip)
+2023/02/28 12:34:44 DEBUG Compress using archives.Zip (destination: /home/user/Coding/work/integrations/build/packages/elastic_package_registry-0.0.6.zip)
 2023/02/28 12:34:44 DEBUG Create work directory for archiving: /tmp/elastic-package-2222223038/elastic_package_registry-0.0.6
 2023/02/28 12:34:44 DEBUG Validating built .zip package (path: /home/user/Coding/work/integrations/build/packages/elastic_package_registry-0.0.6.zip)
 2023/02/28 12:34:44  INFO Built package path: /home/user/Coding/work/integrations/build/packages/elastic_package_registry-0.0.6.zip
