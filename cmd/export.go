@@ -27,12 +27,25 @@ func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	exportDashboardCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
+	exportIngestPipelinesCmd := &cobra.Command{
+		Use: "ingest-pipelines",
+		Short: "Export ingest pipelines from Elasticsearch",
+		Long: exportIngestPipelinesLongDescription,
+		Args: cobra.NoArgs,
+		RunE: exportIngestPipelinesCmd,
+	}
+
+	exportIngestPipelinesCmd.Flags().StringSliceP(cobraext.IngestPipelineIDsFlagName, "d", nil, cobraext.IngestPipelineIDsFlagDescription)
+	exportIngestPipelinesCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
+	exportIngestPipelinesCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
+
 	cmd := &cobra.Command{
 		Use:   "export",
 		Short: "Export package assets",
 		Long:  exportLongDescription,
 	}
 	cmd.AddCommand(exportDashboardCmd)
+	cmd.AddCommand(exportIngestPipelinesCmd)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
