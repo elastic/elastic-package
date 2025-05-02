@@ -5,7 +5,10 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+
+	"github.com/AlecAivazis/survey/v2"
 
 	"github.com/spf13/cobra"
 
@@ -46,12 +49,41 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
 
-	_, err = elasticsearchClient.Ping()
-	if err != nil {
-		return fmt.Errorf("can't ping Elasticsearch: %w", err)
+	if len(pipelineIDs) == 0 {
+		pipelineIDs, err = promptIngestPipelineIDs(cmd.Context(), elasticsearchClient)
+
+		if err != nil {
+			return fmt.Errorf("prompt for ingest pipeline selection failed: %w", err)
+		}
+
+		if len(pipelineIDs) == 0 {
+			fmt.Println("No ingest pipelines were found in Elasticsearch.")
+			return nil
+		}
 	}
 
-	cmd.Println("Pinged Elasticsearch successfully")
+	fmt.Println("Selected Ingest Pipelines:", pipelineIDs)
 
 	return nil
+}
+
+func promptIngestPipelineIDs(ctx context.Context, elasticsearchClient *elasticsearch.Client) ([]string, error) {
+	ingestPipelineNames, err := elasticsearchClient.IngestPipelineNames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("finding ingest pipelines failed: %w", err)
+	}
+
+	ingestPipelinesPrompt := &survey.MultiSelect{
+		Message:  "Which ingest pipelines would you like to export?",
+		Options:  ingestPipelineNames,
+		PageSize: 200,
+	}
+
+	var selectedOptions []string
+	err = survey.AskOne(ingestPipelinesPrompt, &selectedOptions, survey.WithValidator(survey.Required))
+	if err != nil {
+		return nil, err
+	}
+
+	return selectedOptions, nil
 }

@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/elastic/go-elasticsearch/v7"
@@ -393,4 +394,43 @@ func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) 
 	}
 
 	return &mappingsDefinition, nil
+}
+
+func (c *Client) IngestPipelineNames(ctx context.Context) ([]string, error) {
+	resp, err := c.Ingest.GetPipeline(
+		c.Ingest.GetPipeline.WithContext(ctx),
+		c.Ingest.GetPipeline.WithSummary(true),
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ingest pipeline names: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("error getting ingest pipeline names: %s", resp)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading ingest pipeline names body: %w", err)
+	}
+
+	pipelineMap := map[string]struct {Description string `json:"description"`}{}
+
+	if err := json.Unmarshal(body, &pipelineMap); err != nil {
+		return nil, fmt.Errorf("error unmarshaling ingest pipeline names: %w", err)
+	}
+
+	pipelineNames := []string{}
+
+	for name := range pipelineMap {
+		pipelineNames = append(pipelineNames, name)
+	}
+
+	sort.Slice(pipelineNames, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(pipelineNames[i]), strings.ToLower(pipelineNames[j])})
+	})
+
+	return pipelineNames, nil
 }
