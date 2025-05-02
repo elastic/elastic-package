@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -57,13 +58,18 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		}
 
 		if len(pipelineIDs) == 0 {
-			fmt.Println("No ingest pipelines were found in Elasticsearch.")
+			cmd.Println("No ingest pipelines were found in Elasticsearch.")
 			return nil
 		}
 	}
 
-	fmt.Println("Selected Ingest Pipelines:", pipelineIDs)
+	err = export.IngestPipelines(cmd.Context(), elasticsearchClient, pipelineIDs)
 
+	if err != nil {
+		return err
+	}
+
+	cmd.Println("Done")
 	return nil
 }
 
@@ -76,7 +82,7 @@ func promptIngestPipelineIDs(ctx context.Context, elasticsearchClient *elasticse
 	ingestPipelinesPrompt := &survey.MultiSelect{
 		Message:  "Which ingest pipelines would you like to export?",
 		Options:  ingestPipelineNames,
-		PageSize: 200,
+		PageSize: 20,
 	}
 
 	var selectedOptions []string

@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/go-elasticsearch/v7/esapi"
 
 	"github.com/elastic/elastic-package/internal/certs"
+	"github.com/elastic/elastic-package/internal/common"
 )
 
 // API contains the elasticsearch APIs
@@ -433,4 +434,37 @@ func (c *Client) IngestPipelineNames(ctx context.Context) ([]string, error) {
 	})
 
 	return pipelineNames, nil
+}
+
+type IngestPipelinesMap map[string]common.MapStr
+
+func (c *Client) IngestPipelines(ctx context.Context, ids []string) (IngestPipelinesMap, error) {
+	
+	commaSepIDs := strings.Join(ids, ",")
+	
+	resp, err := c.Ingest.GetPipeline(
+		c.Ingest.GetPipeline.WithContext(ctx),
+		c.Ingest.GetPipeline.WithPipelineID(commaSepIDs),
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("error getting ingest pipelines: %s", resp)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading ingest pipelines body: %w", err)
+	}
+
+	pipelineMap := map[string]common.MapStr{}
+	if err := json.Unmarshal(body, &pipelineMap); err != nil {
+		return nil, fmt.Errorf("error unmarshaling ingest pipeline names: %w", err)
+	}
+
+	return pipelineMap, nil
 }
