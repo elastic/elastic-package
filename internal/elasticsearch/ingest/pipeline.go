@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"sort"
 	"strings"
 
@@ -141,9 +142,9 @@ func NewRemotePipeline(id string, raw[]byte) *RemotePipeline {
 	}
 }
 
+func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
 
-func GetRemotePipelines(ctx context.Context, api *elasticsearch.API,  ids ...string) ([]RemotePipeline, error) {
-	
+
 	commaSepIDs := strings.Join(ids, ",")
 	
 	resp, err := api.Ingest.GetPipeline(
@@ -188,6 +189,45 @@ func GetRemotePipelines(ctx context.Context, api *elasticsearch.API,  ids ...str
 
 	return pipelines, nil
 }
+
+ func GetRemotePipelinesWithNested(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
+	var pipelines []RemotePipeline
+	var collected []string
+	pending := ids
+	for len(pending) > 0 {
+		resultPipelines, err := GetRemotePipelines(ctx, api, pending...)
+		if err != nil {
+			return nil, err
+		}
+		pipelines = append(pipelines, resultPipelines...)
+		collected = append(collected, pending...)
+		pending = pendingNestedPipelines(pipelines, collected)
+	}
+
+	return pipelines, nil
+}
+
+func pendingNestedPipelines(pipelines []RemotePipeline, collected []string) []string {
+	var names []string
+	for _, p := range pipelines {
+		for _, processor := range p.Processors {
+			if processor.Pipeline == nil {
+				continue
+			}
+			name := processor.Pipeline.Name
+
+			if slices.Contains(collected, name) {
+				continue
+			}
+			if slices.Contains(names, name) {
+				continue
+			}
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
 
 func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
 	var request simulatePipelineRequest

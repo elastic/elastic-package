@@ -14,7 +14,7 @@ import (
 )
 
 func IngestPipelines(ctx  context.Context, api *elasticsearch.API, ingestPipelineIDs ...string) error {
-	pipelines, err := ingest.GetRemotePipelines(ctx, api, ingestPipelineIDs...)
+	pipelines, err := ingest.GetRemotePipelinesWithNested(ctx, api, ingestPipelineIDs...)
 
 	if err != nil {
 		return fmt.Errorf("exporting ingest pipelines using Elasticsearch failed: %w", err)
