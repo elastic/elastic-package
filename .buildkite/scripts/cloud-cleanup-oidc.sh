@@ -62,6 +62,7 @@ cloud_reaper_aws() {
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
+          --debug \
           --config /etc/cloud-reaper/config.yml \
           validate
 
@@ -74,6 +75,7 @@ cloud_reaper_aws() {
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
+          --debug \
           --config /etc/cloud-reaper/config.yml \
           ${COMMAND} | tee "${AWS_RESOURCES_FILE}"
 }
