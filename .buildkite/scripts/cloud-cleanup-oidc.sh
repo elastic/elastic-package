@@ -58,7 +58,7 @@ create_aws_ephemeral_user() {
     EPHEMERAL_USER="ephemeral-admin-$(date +%s)"
     echo "Creating IAM user: ${EPHEMERAL_USER}"
     aws iam create-user --user-name "${EPHEMERAL_USER}" \
-        --tags Key=ephemeral,Value=true Key=division,Value=engineering Key=org,Value=obs Key=creation-date,Value="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+        --tags Key=ephemeral,Value=true Key=division,Value=engineering Key=org,Value=obs Key=environment,Value=ci Key=repo,Value=elastic-package Key=created_at,Value="$(date -Is)"
 
     echo "Attaching AdministratorAccess policy to ${EPHEMERAL_USER}..."
     aws iam attach-user-policy --user-name "${EPHEMERAL_USER}" --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
