@@ -55,9 +55,10 @@ any_resources_to_delete() {
 cloud_reaper_aws() {
     echo "Validating configuration"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
-      -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
-      -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
-      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
+      -e AWS_ACCESS_KEY_ID \
+      -e AWS_SECRET_ACCESS_KEY \
+      -e AWS_SESSION_TOKEN \
+      -e ACCOUNT_PROJECT="observability-ci" \
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
@@ -66,9 +67,10 @@ cloud_reaper_aws() {
 
     echo "Scanning resources"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
-      -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
-      -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
-      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
+      -e AWS_ACCESS_KEY_ID \
+      -e AWS_SECRET_ACCESS_KEY \
+      -e AWS_SESSION_TOKEN \
+      -e ACCOUNT_PROJECT="observability-ci" \
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
@@ -99,8 +101,6 @@ echo "--- Cleaning up other AWS resources older than ${DELETE_RESOURCES_BEFORE_D
 echo "--- Installing awscli"
 with_aws_cli
 
-export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
-export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 # Avoid to send the output of the CLI to a pager
 export AWS_PAGER=""
