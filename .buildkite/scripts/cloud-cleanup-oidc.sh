@@ -109,6 +109,9 @@ cloud_reaper_aws() {
           ${COMMAND} | tee "${AWS_RESOURCES_FILE}"
 }
 
+echo "--- Installing awscli"
+with_aws_cli
+
 echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..."
 cloud_reaper_aws
 
@@ -129,8 +132,6 @@ if [ "${resources_to_delete}" -eq 1 ]; then
 fi
 
 echo "--- Cleaning up other AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}"
-echo "--- Installing awscli"
-with_aws_cli
 
 export AWS_DEFAULT_REGION=us-east-1
 # Avoid to send the output of the CLI to a pager
