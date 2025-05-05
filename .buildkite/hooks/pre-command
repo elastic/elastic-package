@@ -92,7 +92,7 @@ fi
 
 # NOTE: this approach is deprecated and will be removed in the near future.
 #       see https://github.com/elastic/observability-robots/issues/2771 (only accessible by Elastic employees)
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup-deprecated" ]]; then
+if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
     AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
