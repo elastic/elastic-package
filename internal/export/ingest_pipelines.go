@@ -6,19 +6,23 @@ package export
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
-func IngestPipelines(ctx  context.Context, elasticsearchClient *elasticsearch.Client, ingestPipelineIDs []string) error {
-	pipelinesMap, err := elasticsearchClient.IngestPipelines(ctx, ingestPipelineIDs)
+func IngestPipelines(ctx  context.Context, api *elasticsearch.API, ingestPipelineIDs ...string) error {
+	pipelines, err := ingest.GetRemotePipelines(ctx, api, ingestPipelineIDs...)
 
 	if err != nil {
 		return fmt.Errorf("exporting ingest pipelines using Elasticsearch failed: %w", err)
 	}
 
-	fmt.Printf("Exported %v ingest pipelines\n", pipelinesMap)
+	pipelineJSON, _ := json.MarshalIndent(pipelines, "", "  ")
+
+	fmt.Printf("Exported ingest pipelines %v\n", string(pipelineJSON))
 
 	return nil
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/stack"
 )
@@ -45,13 +46,13 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	elasticsearchClient, err := stack.NewElasticsearchClientFromProfile(profile, opts...)
+	esClient, err := stack.NewElasticsearchClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
 	}
 
 	if len(pipelineIDs) == 0 {
-		pipelineIDs, err = promptIngestPipelineIDs(cmd.Context(), elasticsearchClient)
+		pipelineIDs, err = promptIngestPipelineIDs(cmd.Context(), esClient.API)
 
 		if err != nil {
 			return fmt.Errorf("prompt for ingest pipeline selection failed: %w", err)
@@ -63,7 +64,7 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.IngestPipelines(cmd.Context(), elasticsearchClient, pipelineIDs)
+	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineIDs...)
 
 	if err != nil {
 		return err
@@ -73,8 +74,8 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptIngestPipelineIDs(ctx context.Context, elasticsearchClient *elasticsearch.Client) ([]string, error) {
-	ingestPipelineNames, err := elasticsearchClient.IngestPipelineNames(ctx)
+func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]string, error) {
+	ingestPipelineNames, err := ingest.GetRemotePipelineNames(ctx, api)
 	if err != nil {
 		return nil, fmt.Errorf("finding ingest pipelines failed: %w", err)
 	}

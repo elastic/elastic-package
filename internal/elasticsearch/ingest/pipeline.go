@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -71,6 +72,121 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 		return nil, fmt.Errorf("unsupported pipeline format '%s' (pipeline: %s)", p.Format, p.Name)
 	}
 	return asJSON, nil
+}
+
+func GetRemotePipelineNames(ctx context.Context, api *elasticsearch.API) ([]string, error) {
+	resp, err := api.Ingest.GetPipeline(
+		api.Ingest.GetPipeline.WithContext(ctx),
+		api.Ingest.GetPipeline.WithSummary(true),
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ingest pipeline names: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("error getting ingest pipeline names: %s", resp)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading ingest pipeline names body: %w", err)
+	}
+
+	pipelineMap := map[string]struct {Description string `json:"description"`}{}
+
+	if err := json.Unmarshal(body, &pipelineMap); err != nil {
+		return nil, fmt.Errorf("error unmarshaling ingest pipeline names: %w", err)
+	}
+
+	pipelineNames := []string{}
+
+	for name := range pipelineMap {
+		pipelineNames = append(pipelineNames, name)
+	}
+
+	sort.Slice(pipelineNames, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(pipelineNames[i]), strings.ToLower(pipelineNames[j])})
+	})
+
+	return pipelineNames, nil
+}
+
+// RemotePipeline contains the information needed to export an ingest pipeline.
+type RemotePipeline struct {
+	Processors []struct {
+		Pipeline *struct {
+			Name string `json:"name"`
+		} `json:"pipeline,omitempty"`
+	} `json:"processors"`
+	id string
+	raw []byte
+}
+
+// Name returns the name of the ingest pipeline.
+func (p RemotePipeline) Name() string {
+	return p.id
+}
+
+// JSON returns the JSON representation of the ingest pipeline.
+func (p RemotePipeline) JSON() []byte {
+	return p.raw
+}
+
+func NewRemotePipeline(id string, raw[]byte) *RemotePipeline {
+	return &RemotePipeline{
+		id: id,
+		raw: raw,
+	}
+}
+
+
+func GetRemotePipelines(ctx context.Context, api *elasticsearch.API,  ids ...string) ([]RemotePipeline, error) {
+	
+	commaSepIDs := strings.Join(ids, ",")
+	
+	resp, err := api.Ingest.GetPipeline(
+		api.Ingest.GetPipeline.WithContext(ctx),
+		api.Ingest.GetPipeline.WithPipelineID(commaSepIDs),
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Ingest templates referenced by other templates may not exist.
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+
+	if resp.IsError() {
+		return nil, fmt.Errorf("failed to get ingest pipelines %s: %s", ids, resp.String())
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	pipelinesResponse := map[string]json.RawMessage{}
+	if err := json.Unmarshal(body, &pipelinesResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	var pipelines []RemotePipeline
+	for id, raw := range pipelinesResponse {
+		var pipeline RemotePipeline
+		err := json.Unmarshal(raw, &pipeline)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode pipeline %s: %w", id, err)
+		}
+		NewRemotePipeline(id, raw)
+		pipelines = append(pipelines, pipeline)
+	}
+
+	return pipelines, nil
 }
 
 func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
