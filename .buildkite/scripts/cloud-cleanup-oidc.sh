@@ -78,6 +78,7 @@ cleanup_ephemeral_user() {
     aws iam delete-access-key --user-name "${EPHEMERAL_USER}" --access-key-id "${key_id}"
     aws iam delete-user --user-name "${EPHEMERAL_USER}"
     echo "Ephemeral IAM user ${EPHEMERAL_USER} deleted."
+    unset EPHEMERAL_USER AWS_ACCESS_KEY_ID_EPHEMERAL AWS_SECRET_ACCESS_KEY_EPHEMERAL
 }
 trap cleanup_ephemeral_user EXIT
 
