@@ -10,7 +10,6 @@ export SERVERLESS=${SERVERLESS:-"false"}
 WORKSPACE=$(pwd)
 export WORKSPACE
 
-AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
 PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
 
 EC_TOKEN_PATH=kv/ci-shared/platform-ingest/platform-ingest-ec-qa
@@ -91,7 +90,10 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && 
     export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
 fi
 
+# NOTE: this approach is deprecated and will be removed in the near future.
+#       see https://github.com/elastic/observability-robots/issues/2771 (only accessible by Elastic employees)
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
+    AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
     ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
     export ELASTIC_PACKAGE_AWS_SECRET_KEY
     ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
