@@ -122,17 +122,6 @@ prepare_serverless_stack() {
     echo ""
 }
 
-google_cloud_auth_safe_logs() {
-    local gsUtilLocation=""
-    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
-
-    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-
-    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
-
-    google_cloud_auth "${secretFileLocation}"
-}
-
 upload_safe_logs() {
     local bucket="$1"
     local source="$2"
@@ -142,8 +131,6 @@ upload_safe_logs() {
         echo "upload_safe_logs: artifacts files not found, nothing will be archived"
         return
     fi
-
-    google_cloud_auth_safe_logs
 
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 

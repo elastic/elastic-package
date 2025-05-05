@@ -11,7 +11,6 @@ WORKSPACE=$(pwd)
 export WORKSPACE
 
 AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
-PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/gcp-platform-ingest-ci-service-account
 
 EC_TOKEN_PATH=kv/ci-shared/platform-ingest/platform-ingest-ec-qa
 EC_DATA_PATH=secret/ci/elastic-elastic-package/ec_data
@@ -72,8 +71,6 @@ is_step_required_to_upload_safe_logs() {
 }
 
 if is_step_required_to_upload_safe_logs; then
-    PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext -format=json ${PRIVATE_CI_GCS_CREDENTIALS_PATH} | jq -c)
-    export PRIVATE_CI_GCS_CREDENTIALS_SECRET
     export JOB_GCS_BUCKET_INTERNAL="ingest-buildkite-ci"
 fi
 
