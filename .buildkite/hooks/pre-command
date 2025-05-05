@@ -71,7 +71,7 @@ is_step_required_to_upload_safe_logs() {
 }
 
 if is_step_required_to_upload_safe_logs; then
-    export JOB_GCS_BUCKET_INTERNAL="ingest-buildkite-ci"
+    export JOB_GCS_BUCKET_INTERNAL="elastic-package-ci-internal"
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
