@@ -90,19 +90,6 @@ if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && 
     export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
 fi
 
-# NOTE: this approach is deprecated and will be removed in the near future.
-#       see https://github.com/elastic/observability-robots/issues/2771 (only accessible by Elastic employees)
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-cloud-cleanup" && "$BUILDKITE_STEP_KEY" == "cloud-cleanup" ]]; then
-    AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_ingest_ci
-    ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_SECRET_KEY
-    ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_ACCESS_KEY
-    ELASTIC_PACKAGE_AWS_USER_SECRET=$(retry 5 vault kv get -field user ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_USER_SECRET
-fi
-
-
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
     if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
         EC_API_KEY_SECRET=$(retry 5 vault kv get -field apiKey "${EC_TOKEN_PATH}")
