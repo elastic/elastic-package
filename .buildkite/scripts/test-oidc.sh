@@ -13,9 +13,10 @@ export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
 mkdir -p build/elastic-stack-dump
-touch build/elastic-stack-dump/elastic-agent-internal0
-touch build/elastic-stack-dump/elastic-agent-internal1
+touch build/elastic-stack-dump/elastic-agent-internal0.txt
+touch build/elastic-stack-dump/elastic-agent-internal1.txt
 
+ls -l build/elastic-stack-dump/*.*
 upload_safe_logs \
     "${JOB_GCS_BUCKET_INTERNAL}" \
     "build/elastic-stack-dump/*.*" \
