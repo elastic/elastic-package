@@ -59,21 +59,6 @@ retry() {
     return 0
 }
 
-google_cloud_logout_active_account() {
-  local active_account
-  active_account=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || true)
-  if [[ -n "$active_account" && -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]]; then
-    echo "Logging out from GCP for active account"
-    gcloud auth revoke "$active_account" > /dev/null 2>&1
-  else
-    echo "No active GCP accounts found."
-  fi
-  if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
-    rm -rf "${GOOGLE_APPLICATION_CREDENTIALS}"
-    unset GOOGLE_APPLICATION_CREDENTIALS
-  fi
-}
-
 running_on_buildkite() {
     if [[ "${BUILDKITE:-"false"}" == "true" ]]; then
         return 0
@@ -136,7 +121,7 @@ upload_safe_logs() {
 
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
-    google_cloud_logout_active_account
+    echo "GCP logout is not required, the BK plugin will do it for us"
 }
 
 clean_safe_logs() {
