@@ -31,12 +31,6 @@ buildkite_pr_branch_build_id() {
     echo "${BUILDKITE_BRANCH}-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
 }
 
-google_cloud_auth() {
-    local keyFile=$1
-
-    gcloud auth application-default login --quiet --no-launch-browser --credential-file-override="${keyFile}"
-}
-
 retry() {
     local retries=$1
     shift
@@ -117,9 +111,7 @@ upload_safe_logs() {
         return
     fi
 
-    google_cloud_auth "${GOOGLE_APPLICATION_CREDENTIALS}"
-
-    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
+    gcloud storage cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
     echo "GCP logout is not required, the BK plugin will do it for us"
 }
