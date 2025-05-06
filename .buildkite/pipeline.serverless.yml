@@ -51,7 +51,7 @@ steps:
       # This plugin authenticates to Google Cloud using the OIDC token.
     plugins:
       - elastic/oblt-google-auth#v1.2.0:
-          lifetime: 3600 # seconds
+          lifetime: 10800 # seconds
           project-id: "elastic-observability-ci"
           project-number: "911195782929"
     artifact_paths:
