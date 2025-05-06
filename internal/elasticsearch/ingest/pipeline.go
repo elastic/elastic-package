@@ -135,6 +135,21 @@ func (p RemotePipeline) JSON() []byte {
 	return p.raw
 }
 
+func (p RemotePipeline) GetProcessorPipelineNames() []string {
+	var names []string
+	for _, processor := range p.Processors {
+		if processor.Pipeline == nil {
+			continue
+		}
+		name := processor.Pipeline.Name
+		if slices.Contains(names, name) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
 func NewRemotePipeline(id string, raw[]byte) *RemotePipeline {
 	return &RemotePipeline{
 		id: id,
