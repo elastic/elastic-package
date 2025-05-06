@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	testRunMaxID = 99999
-	testRunMinID = 10000
+	testRunMaxID = 999999
+	testRunMinID = 100000
 )
 
 // TrimStringSlice removes whitespace from the beginning and end of the contents of a []string.
