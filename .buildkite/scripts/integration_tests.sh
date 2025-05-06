@@ -7,14 +7,7 @@ set -euo pipefail
 
 ensure_logout() {
     local error_code=$?
-
-    if [ $error_code != 0 ] ; then
-        # if variable is defined run the logout
-        if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
-             google_cloud_logout_active_account
-        fi
-    fi
-
+    echo "GCP logout is not required, the BK plugin will do it for us"
     exit $error_code
 }
 trap ensure_logout EXIT
@@ -32,8 +25,6 @@ FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TEST_BUILD_ZIP_TARGET="test-build-zip"
-
-GOOGLE_CREDENTIALS_FILENAME="google-cloud-credentials.json"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
