@@ -23,8 +23,9 @@ func ComposeCommandActions(cmd *cobra.Command, args []string, actions ...Command
 }
 
 // ComposeCommands runs given commands in order
-func ComposeCommands(args []string, composed ...*Command) error {
+func ComposeCommands(parent *cobra.Command, args []string, composed ...*Command) error {
 	for _, cmd := range composed {
+		cmd.SetContext(parent.Context())
 		err := cmd.RunE(cmd.Command, args)
 		if err != nil {
 			return err

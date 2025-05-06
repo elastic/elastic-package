@@ -23,7 +23,7 @@ func setupCheckCommand() *cobraext.Command {
 		Long:  checkLongDescription,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cobraext.ComposeCommands(args,
+			err := cobraext.ComposeCommands(cmd, args,
 				setupLintCommand(),
 				setupBuildCommand(),
 			)

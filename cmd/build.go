@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -83,12 +82,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
-	ctx := cmd.Context()
-	if ctx == nil {
-		// FIXME: when executging elastic-package check , context returned is nil
-		ctx = context.Background()
-	}
-	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		CreateZip:      createZip,
 		SignPackage:    signPackage,
