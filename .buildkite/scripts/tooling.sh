@@ -34,7 +34,7 @@ buildkite_pr_branch_build_id() {
 google_cloud_auth() {
     local keyFile=$1
 
-    gcloud auth activate-service-account --key-file "${keyFile}"
+    gcloud auth application-default login --credential-file-override="${keyFile}"
 }
 
 retry() {
