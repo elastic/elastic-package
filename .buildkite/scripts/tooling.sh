@@ -34,7 +34,7 @@ buildkite_pr_branch_build_id() {
 google_cloud_auth() {
     local keyFile=$1
 
-    gcloud auth activate-service-account --key-file "${keyFile}" 2> /dev/null
+    gcloud auth activate-service-account --key-file "${keyFile}"
 }
 
 retry() {
@@ -110,7 +110,7 @@ upload_safe_logs() {
     local source="$2"
     local target="$3"
 
-    echo "Uploading safe logs to GCP bucket ${bucket}"
+    echo "--- Uploading safe logs to GCP bucket ${bucket}"
 
     if ! ls ${source} 2>&1 > /dev/null ; then
         echo "upload_safe_logs: artifacts files not found, nothing will be archived"
