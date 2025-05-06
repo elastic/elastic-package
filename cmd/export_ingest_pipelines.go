@@ -7,6 +7,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
 
@@ -79,6 +81,11 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 	if err != nil {
 		return nil, fmt.Errorf("finding ingest pipelines failed: %w", err)
 	}
+
+	ingestPipelineNames = slices.DeleteFunc(ingestPipelineNames, func(name string) bool {
+		// Filter out system pipelines that start with dot "."
+		return strings.HasPrefix(name, ".")
+	})
 
 	ingestPipelinesPrompt := &survey.MultiSelect{
 		Message:  "Which ingest pipelines would you like to export?",
