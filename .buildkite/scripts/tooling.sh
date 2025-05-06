@@ -132,6 +132,8 @@ upload_safe_logs() {
         return
     fi
 
+    google_cloud_auth "${GOOGLE_APPLICATION_CREDENTIALS}"
+
     gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
     google_cloud_logout_active_account
