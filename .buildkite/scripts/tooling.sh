@@ -34,7 +34,8 @@ buildkite_pr_branch_build_id() {
 google_cloud_auth() {
     local keyFile=$1
 
-    gcloud auth application-default login --credential-file-override="${keyFile}"
+    export GOOGLE_EXTERNAL_ACCOUNT_FILE="${keyFile}"
+    gcloud auth application-default print-access-token
 }
 
 retry() {
