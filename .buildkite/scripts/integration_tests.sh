@@ -5,14 +5,6 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
-ensure_logout() {
-    local error_code=$?
-    echo "GCP logout is not required, the BK plugin will do it for us"
-    echo "Error code: ${error_code}"
-    exit $error_code
-}
-trap ensure_logout EXIT
-
 usage() {
     echo "$0 [-t <target>] [-h]"
     echo "Trigger integration tests related to a target in Makefile"
