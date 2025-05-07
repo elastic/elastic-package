@@ -99,7 +99,7 @@ cloud_reaper_aws() {
     echo "--- Configuring ephemeral user"
     create_aws_ephemeral_user
 
-    echo "Validating configuration"
+    echo "--- Validating configuration"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
@@ -111,7 +111,7 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    echo "Scanning resources"
+    echo "--- Scanning resources"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \

@@ -66,7 +66,7 @@ any_resources_to_delete() {
 }
 
 cloud_reaper_aws() {
-    echo "Validating configuration"
+    echo "--- Validating configuration"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
@@ -77,7 +77,7 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    echo "Scanning resources"
+    echo "--- Scanning resources"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
       -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
