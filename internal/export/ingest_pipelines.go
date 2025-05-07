@@ -8,7 +8,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
@@ -46,9 +49,56 @@ func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignme
 		return fmt.Errorf("exporting ingest pipelines using Elasticsearch failed: %w", err)
 	}
 
-	pipelineJSON, _ := json.MarshalIndent(pipelines, "", "  ")
+	err = writePipelinesToFiles(pipelines, writeAssignments)
 
-	fmt.Printf("Exported ingest pipelines %v\n", string(pipelineJSON))
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
+func writePipelinesToFiles(pipelines []ingest.RemotePipeline, writeAssignments PipelineWriteAssignments) error {
+	pipelineLookup := make(map[string]ingest.RemotePipeline)
+	for _, pipeline := range pipelines {
+		pipelineLookup[pipeline.Name()] = pipeline
+	}
+
+	for name, writeLocation := range writeAssignments {
+		pipeline := pipelineLookup[name]
+		err := writePipelineToFile(pipeline, writeLocation)
+		if (err != nil) {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineWriteLocation) error {
+	var jsonPipeline map[string]any
+	fmt.Printf("Pipeline JSON: %s", string(pipeline.JSON()))
+	err := json.Unmarshal(pipeline.JSON(), &jsonPipeline)
+	if err != nil {
+		return fmt.Errorf("unmarshalling ingest pipeline failed (ID: %s): %w", pipeline.Name(), err)
+	}
+
+	yamlBytes, err := yaml.Marshal(jsonPipeline)
+	if err != nil {
+		return fmt.Errorf("marshalling ingest pipeline json to yaml failed (ID: %s): %w", pipeline.Name(), err)
+	}
+
+	err = os.MkdirAll(writeLocation.WritePath(), 0755)
+	if err != nil {
+		return fmt.Errorf("creating target directory failed (path: %s): %w", writeLocation.WritePath(), err)
+	}
+
+	pipelineFilePath := filepath.Join(writeLocation.WritePath(), pipeline.Name()+".yml")
+	err = os.WriteFile(pipelineFilePath, yamlBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("writing to file failed: %w", err)
+	}
 
 	return nil
 }

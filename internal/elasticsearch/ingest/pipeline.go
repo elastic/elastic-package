@@ -150,13 +150,6 @@ func (p RemotePipeline) GetProcessorPipelineNames() []string {
 	return names
 }
 
-func NewRemotePipeline(id string, raw[]byte) *RemotePipeline {
-	return &RemotePipeline{
-		id: id,
-		raw: raw,
-	}
-}
-
 func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
 
 
@@ -198,7 +191,8 @@ func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode pipeline %s: %w", id, err)
 		}
-		NewRemotePipeline(id, raw)
+		pipeline.id = id
+		pipeline.raw = raw
 		pipelines = append(pipelines, pipeline)
 	}
 
