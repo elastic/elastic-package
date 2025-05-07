@@ -48,6 +48,16 @@ any_resources_to_delete() {
     # ⇒ Loading configuration...
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+
+    # FIXME:: When running with DRY_RUN: false there could be more lines.
+    # In the case, there is nothing to delete, there is one more line:
+    # ⇒ Nothing to destroy !
+    # but there are no examples when resources are deleted to add the required logic
+    if [[ "${DRY_RUN}" == false ]] ; then
+        if tail -n 1 ${file} | grep "Nothing to destroy" 2> /dev/null ; then
+            return 1
+        fi
+    fi
     number=$(tail -n +4 "${file}" | wc -l)
     if [ "${number}" -eq 0 ]; then
         return 1
