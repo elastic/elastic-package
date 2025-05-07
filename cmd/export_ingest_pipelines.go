@@ -7,6 +7,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -19,6 +21,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/export"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -66,7 +69,33 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineIDs...)
+	packageRoot, err := packages.MustFindPackageRoot()
+	
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	dataStreamDirs, err := getDataStreamDirs(packageRoot)
+
+	if err != nil {
+		return fmt.Errorf("getting data stream directories failed: %w", err)
+	}
+
+	rootWriteLocation := export.PipelineWriteLocation{
+		Type: export.PipelineWriteLocationTypeRoot,
+		Name: "Package root",	
+		ParentPath: packageRoot,
+	}
+	
+	pipelineWriteLocations := append(dataStreamDirs, rootWriteLocation)
+
+	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
+
+	if err != nil {
+		return fmt.Errorf("prompt fo ingest pipeline export locations failed: %w", err)
+	}
+
+	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineWriteAssignments)
 
 	if err != nil {
 		return err
@@ -74,6 +103,37 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Done")
 	return nil
+}
+
+func getDataStreamDirs(packageRoot string) ([]export.PipelineWriteLocation, error) {
+	dataStreamDir := filepath.Join(packageRoot, "data_stream")
+
+	_, err := os.Stat(dataStreamDir)
+
+	if err != nil {
+		return nil, fmt.Errorf("data_stream directory does not exist: %w", err)
+	}
+
+	dataStreamEntries, err := os.ReadDir(dataStreamDir)
+
+	if err != nil {
+		return nil, fmt.Errorf("could not read data_stream directory: %w", err)
+	}
+
+	var dataStreamDirs []export.PipelineWriteLocation
+
+	for _, dirEntry := range dataStreamEntries {
+		if dirEntry.IsDir() {
+			pipelineWriteLocation := export.PipelineWriteLocation{
+				Type: export.PipelineWriteLocationTypeDataStream,
+				Name: dirEntry.Name(),
+				ParentPath: filepath.Join(dataStreamDir, dirEntry.Name()),
+			}
+			dataStreamDirs = append(dataStreamDirs, pipelineWriteLocation)
+		}
+	} 
+
+	return dataStreamDirs, nil
 }
 
 func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]string, error) {
@@ -100,4 +160,55 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 	}
 
 	return selectedOptions, nil
+}
+
+func promptWriteLocations(pipelineNames []string, writeLocations []export.PipelineWriteLocation) (export.PipelineWriteAssignments, error) {
+
+	var options []string
+
+	for _, writeLocation := range writeLocations {
+		options = append(options, writeLocation.Name)
+	}
+
+	var questions []*survey.Question
+
+	for _, pipelineName := range pipelineNames {
+		question := &survey.Question{
+			Name: pipelineName,
+			Prompt: &survey.Select{
+				Message: fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName),
+				Options: options,
+				Description: func(value string, index int) string {
+					idx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == value})
+					
+					if writeLocations[idx].Type == export.PipelineWriteLocationTypeDataStream {
+						return "data stream"
+					}
+
+					return ""
+				},
+			},
+			Validate: survey.Required,
+		}
+
+		questions = append(questions, question)
+	}
+
+    answers := make(map[string]string)
+
+	err := survey.Ask(questions, &answers)
+
+	if err != nil {
+		return nil, err
+	}
+
+	pipelinesToWriteLocations := make(export.PipelineWriteAssignments)
+
+	for pipeline, writeLocationName := range answers {
+		writeLocationIdx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == writeLocationName})
+		
+		pipelinesToWriteLocations[pipeline] = writeLocations[writeLocationIdx]
+	}
+
+	return pipelinesToWriteLocations, nil
 }
