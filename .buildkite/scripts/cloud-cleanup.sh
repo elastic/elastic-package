@@ -38,7 +38,7 @@ fi
 
 buildkite-agent annotate \
   "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"" \
-  --context "ctx-cloud-reaper-info" \
+  --context "ctx-cloud-reaper-info-deprecated" \
   --style "info"
 
 any_resources_to_delete() {
