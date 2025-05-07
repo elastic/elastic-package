@@ -54,7 +54,7 @@ any_resources_to_delete() {
     # ⇒ Nothing to destroy !
     # but there are no examples when resources are deleted to add the required logic
     if [[ "${DRY_RUN}" == false ]] ; then
-        if tail -n 1 ${file} | grep "Nothing to destroy" 2> /dev/null ; then
+        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
             return 1
         fi
     fi
