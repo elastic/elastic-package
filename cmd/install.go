@@ -82,7 +82,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	installer, err := installer.NewForPackage(installer.Options{
+	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
 		Kibana:         kibanaClient,
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
