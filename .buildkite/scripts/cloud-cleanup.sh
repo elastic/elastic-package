@@ -30,16 +30,18 @@ DRY_RUN="$(buildkite-agent meta-data get DRY_RUN_DEPRECATED --default "${DRY_RUN
 resources_to_delete=0
 
 COMMAND="validate"
+redshift_message=""
 if [[ "${DRY_RUN}" != "true" ]]; then
     # TODO: to be changed to "destroy --confirm" once it can be tested
     # that filters work as expected
     COMMAND="plan"
+    redshift_message=" - stale redshift clusters will be deleted"
 else
     COMMAND="plan"
 fi
 
 buildkite-agent annotate \
-  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"" \
+  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"${redshift_message}" \
   --context "ctx-cloud-reaper-info-deprecated" \
   --style "info"
 
