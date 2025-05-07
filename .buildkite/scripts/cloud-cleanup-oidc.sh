@@ -31,7 +31,9 @@ resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
-    COMMAND="destroy --confirm"
+    # TODO: to be changed to "destroy --confirm" once it can be tested
+    # that filters work as expected
+    COMMAND="plan"
 else
     COMMAND="plan"
 fi
@@ -49,7 +51,7 @@ any_resources_to_delete() {
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     
-    # FIXME:: When running with DRY_RUN: false there could be more lines.
+    # FIXME:: When running with "destroy --confirm" there could be more lines.
     # In the case, there is nothing to delete, there is one more line:
     # ⇒ Nothing to destroy !
     # but there are no examples when resources are deleted to add the required logic
