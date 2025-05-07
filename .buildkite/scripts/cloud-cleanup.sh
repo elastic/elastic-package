@@ -25,15 +25,13 @@ export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN_DEPRECATED --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
-    # TODO: to be changed to "destroy --confirm" once it can be tested
-    # that filters work as expected
-    COMMAND="plan"
+    COMMAND="destroy --confirm"
 else
     COMMAND="plan"
 fi

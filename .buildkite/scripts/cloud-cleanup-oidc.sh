@@ -31,9 +31,7 @@ resources_to_delete=0
 
 COMMAND="validate"
 if [[ "${DRY_RUN}" != "true" ]]; then
-    # TODO: to be changed to "destroy --confirm" once it can be tested
-    # that filters work as expected
-    COMMAND="plan"
+    COMMAND="destroy --confirm"
 else
     COMMAND="plan"
 fi
