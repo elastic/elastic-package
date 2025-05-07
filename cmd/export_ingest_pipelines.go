@@ -28,7 +28,7 @@ import (
 
 const exportIngestPipelinesLongDescription = `Use this command to export ingest pipelines with referenced objects from the Elasticsearch instance.
 
-Use this command to download selected ingest pipelines and other associated saved objects from Elasticsearch. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (pipelines, etc.).`
+Use this command to download selected ingest pipelines and its dependent processor pipelines from Elasticsearch to the selected data stream or the package root directories. Pipelines are downloaded as is, and will need adjustment to meet your package needs.`
 
 func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Elasticsearch ingest pipelines")
@@ -92,7 +92,7 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
 
 	if err != nil {
-		return fmt.Errorf("prompt fo ingest pipeline export locations failed: %w", err)
+		return fmt.Errorf("prompt for ingest pipeline export locations failed: %w", err)
 	}
 
 	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineWriteAssignments)
@@ -143,8 +143,8 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 	}
 
 	ingestPipelineNames = slices.DeleteFunc(ingestPipelineNames, func(name string) bool {
-		// Filter out system pipelines that start with dot "."
-		return strings.HasPrefix(name, ".")
+		// Filter out system pipelines that start with dot "." or global@
+		return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "global@")
 	})
 
 	ingestPipelinesPrompt := &survey.MultiSelect{

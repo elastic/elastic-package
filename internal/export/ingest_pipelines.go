@@ -71,7 +71,6 @@ func writePipelinesToFiles(writeAssignments PipelineWriteAssignments, pipelineLo
 
 	for name, writeLocation := range writeAssignments {
 		pipeline, ok := pipelineLookup[name]; if !ok {
-			fmt.Printf("Could not find pipeline %s", name)
 			continue;
 		}
 		err := writePipelineToFile(pipeline, writeLocation)
@@ -118,7 +117,6 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 }
 
 func createWriteAssignments(writeLocation PipelineWriteLocation, pipelineNames []string) PipelineWriteAssignments {
-	fmt.Printf("pipeline deps: %v\n", pipelineNames)
 	writeAssignments := make(PipelineWriteAssignments)
 	for _, pipelineName := range pipelineNames {
 		writeAssignments[pipelineName] = writeLocation
