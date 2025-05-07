@@ -39,7 +39,7 @@ type PipelineWriteAssignments map[string]PipelineWriteLocation
 func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignments PipelineWriteAssignments) error {
 	var pipelineIDs []string
 
-	for pipelineID, _ := range writeAssignments {
+	for pipelineID := range writeAssignments {
 		pipelineIDs = append(pipelineIDs, pipelineID)
 	}
 	
@@ -49,7 +49,12 @@ func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignme
 		return fmt.Errorf("exporting ingest pipelines using Elasticsearch failed: %w", err)
 	}
 
-	err = writePipelinesToFiles(pipelines, writeAssignments)
+	pipelineLookup := make(map[string]ingest.RemotePipeline)
+	for _, pipeline := range pipelines {
+		pipelineLookup[pipeline.Name()] = pipeline
+	}
+
+	err = writePipelinesToFiles(writeAssignments, pipelineLookup)
 
 	if err != nil {
 		return err
@@ -59,15 +64,23 @@ func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignme
 }
 
 
-func writePipelinesToFiles(pipelines []ingest.RemotePipeline, writeAssignments PipelineWriteAssignments) error {
-	pipelineLookup := make(map[string]ingest.RemotePipeline)
-	for _, pipeline := range pipelines {
-		pipelineLookup[pipeline.Name()] = pipeline
+func writePipelinesToFiles(writeAssignments PipelineWriteAssignments, pipelineLookup map[string]ingest.RemotePipeline) error {
+	if len(writeAssignments) == 0 {
+		return nil
 	}
 
 	for name, writeLocation := range writeAssignments {
-		pipeline := pipelineLookup[name]
+		pipeline, ok := pipelineLookup[name]; if !ok {
+			fmt.Printf("Could not find pipeline %s", name)
+			continue;
+		}
 		err := writePipelineToFile(pipeline, writeLocation)
+		if (err != nil) {
+			return err
+		}
+
+		depPipelineWriteAssignments := createWriteAssignments(writeLocation, pipeline.GetProcessorPipelineNames())
+		err = writePipelinesToFiles(depPipelineWriteAssignments, pipelineLookup)
 		if (err != nil) {
 			return err
 		}
@@ -78,7 +91,6 @@ func writePipelinesToFiles(pipelines []ingest.RemotePipeline, writeAssignments P
 
 func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineWriteLocation) error {
 	var jsonPipeline map[string]any
-	fmt.Printf("Pipeline JSON: %s", string(pipeline.JSON()))
 	err := json.Unmarshal(pipeline.JSON(), &jsonPipeline)
 	if err != nil {
 		return fmt.Errorf("unmarshalling ingest pipeline failed (ID: %s): %w", pipeline.Name(), err)
@@ -95,10 +107,22 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 	}
 
 	pipelineFilePath := filepath.Join(writeLocation.WritePath(), pipeline.Name()+".yml")
+
 	err = os.WriteFile(pipelineFilePath, yamlBytes, 0644)
+
 	if err != nil {
-		return fmt.Errorf("writing to file failed: %w", err)
+		return fmt.Errorf("writing to file '%s' failed: %w", pipelineFilePath, err)
 	}
 
 	return nil
+}
+
+func createWriteAssignments(writeLocation PipelineWriteLocation, pipelineNames []string) PipelineWriteAssignments {
+	fmt.Printf("pipeline deps: %v\n", pipelineNames)
+	writeAssignments := make(PipelineWriteAssignments)
+	for _, pipelineName := range pipelineNames {
+		writeAssignments[pipelineName] = writeLocation
+	}
+
+	return writeAssignments
 }
