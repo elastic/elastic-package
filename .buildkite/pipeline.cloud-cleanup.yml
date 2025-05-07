@@ -25,7 +25,19 @@ steps:
     if: "build.source == 'ui'"
     allow_dependency_failure: false
 
-  - label: "Cloud Cleanup"
+  - label: "Cloud Cleanup OIDC"
+    key: "cloud-cleanup-oidc"
+    command: ".buildkite/scripts/cloud-cleanup-oidc.sh"
+    env:
+      RESOURCE_RETENTION_PERIOD: "24 hours"
+      DRY_RUN: "${DRY_RUN:-true}"
+    agents:
+      provider: "gcp" # this step requires docker
+    plugins:
+      - elastic/oblt-aws-auth#v0.1.0:
+          duration: 3600 # seconds
+
+  - label: "Cloud Cleanup (deprecated)"
     key: "cloud-cleanup"
     command: ".buildkite/scripts/cloud-cleanup.sh"
     env:
