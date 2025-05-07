@@ -37,7 +37,7 @@ else
 fi
 
 buildkite-agent annotate \
-  "Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"" \
+  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"" \
   --context "ctx-cloud-reaper-info" \
   --style "info"
 
