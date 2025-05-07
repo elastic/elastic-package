@@ -31,7 +31,7 @@ type PipelineWriteLocation struct {
 }
 
 func (p PipelineWriteLocation) WritePath() string {
-	return filepath.Join(p.ParentPath, "elasticsearch", "ingest-pipeline")
+	return filepath.Join(p.ParentPath, "elasticsearch", "ingest_pipeline")
 }
 
 type PipelineWriteAssignments map[string]PipelineWriteLocation
