@@ -36,6 +36,11 @@ else
     COMMAND="plan"
 fi
 
+buildkite-agent annotate \
+  "Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"" \
+  --context "ctx-cloud-reaper-info" \
+  --style "info"
+
 any_resources_to_delete() {
     local file=$1
     local number=0
