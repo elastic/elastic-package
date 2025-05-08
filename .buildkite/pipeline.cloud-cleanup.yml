@@ -19,6 +19,14 @@ steps:
         - label: "False"
           value: "false"
       default: "true"
+    - select: "DRY_RUN (Deprecated step)"
+      key: "DRY_RUN_DEPRECATED"
+      options:
+        - label: "True"
+          value: "true"
+        - label: "False"
+          value: "false"
+      default: "true"
     if: "build.source == 'ui'"
 
   - wait: ~
@@ -42,7 +50,7 @@ steps:
     command: ".buildkite/scripts/cloud-cleanup.sh"
     env:
       RESOURCE_RETENTION_PERIOD: "24 hours"
-      DRY_RUN: "${DRY_RUN:-true}"
+      DRY_RUN: "${DRY_RUN_DEPRECATED:-true}"
     agents:
       provider: "gcp" # this step requires docker
 

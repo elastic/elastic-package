@@ -30,13 +30,20 @@ DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")
 resources_to_delete=0
 
 COMMAND="validate"
+redshift_message=""
 if [[ "${DRY_RUN}" != "true" ]]; then
     # TODO: to be changed to "destroy --confirm" once it can be tested
     # that filters work as expected
     COMMAND="plan"
+    redshift_message=" - stale redshift clusters will be deleted"
 else
     COMMAND="plan"
 fi
+
+buildkite-agent annotate \
+  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"${redshift_message}" \
+  --context "ctx-cloud-reaper-info" \
+  --style "info"
 
 any_resources_to_delete() {
     local file=$1
@@ -45,6 +52,16 @@ any_resources_to_delete() {
     # ⇒ Loading configuration...
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+    
+    # FIXME:: When running with "destroy --confirm" there could be more lines.
+    # In the case, there is nothing to delete, there is one more line:
+    # ⇒ Nothing to destroy !
+    # but there are no examples when resources are deleted to add the required logic
+    if [[ "${DRY_RUN}" == false ]] ; then
+        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
+            return 1
+        fi
+    fi
     number=$(tail -n +4 "${file}" | wc -l)
     if [ "${number}" -eq 0 ]; then
         return 1
@@ -86,7 +103,7 @@ cloud_reaper_aws() {
     echo "--- Configuring ephemeral user"
     create_aws_ephemeral_user
 
-    echo "Validating configuration"
+    echo "--- Validating configuration"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
@@ -98,7 +115,7 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    echo "Scanning resources"
+    echo "--- Scanning resources"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
