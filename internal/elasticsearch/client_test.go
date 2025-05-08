@@ -79,7 +79,7 @@ func TestClusterHealth(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Record, func(t *testing.T) {
-			client := test.NewClient(t, c.Record)
+			client := test.NewClient(t, c.Record, nil)
 
 			err := client.CheckHealth(context.Background())
 			if c.Expected != "" {
@@ -94,7 +94,7 @@ func TestClusterHealth(t *testing.T) {
 }
 
 func TestClusterInfo(t *testing.T) {
-	client := test.NewClient(t, "./testdata/elasticsearch-9-info")
+	client := test.NewClient(t, "./testdata/elasticsearch-9-info", nil)
 	info, err := client.Info(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "9.0.0-SNAPSHOT", info.Version.Number)

@@ -207,7 +207,7 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 	for i, t := range ingestPipelines {
 		err := dumpJSONResource(dir, t)
 		if err != nil {
-			return i, fmt.Errorf("failed to dump ingest pipeline %s: %w", t.Name, err)
+			return i, fmt.Errorf("failed to dump ingest pipeline %s: %w", t.Name(), err)
 		}
 	}
 	return len(ingestPipelines), nil

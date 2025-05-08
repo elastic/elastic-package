@@ -154,6 +154,8 @@ func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 
 
 	commaSepIDs := strings.Join(ids, ",")
+
+	fmt.Printf("Comma sep pipelines: %s", commaSepIDs)
 	
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
