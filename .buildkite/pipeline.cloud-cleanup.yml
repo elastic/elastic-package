@@ -19,6 +19,14 @@ steps:
         - label: "False"
           value: "false"
       default: "true"
+    - select: "DRY_RUN (Deprecated step)"
+      key: "DRY_RUN_DEPRECATED"
+      options:
+        - label: "True"
+          value: "true"
+        - label: "False"
+          value: "false"
+      default: "true"
     if: "build.source == 'ui'"
 
   - wait: ~

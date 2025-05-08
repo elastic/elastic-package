@@ -44,7 +44,7 @@ type Options struct {
 // of Kibana lower than 8.7.0.
 // When no zip is given, package is built as zip and installed if version is at least 8.7.0,
 // or from the package registry otherwise.
-func NewForPackage(options Options) (Installer, error) {
+func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 	if options.Kibana == nil {
 		return nil, errors.New("missing kibana client")
 	}
@@ -80,7 +80,7 @@ func NewForPackage(options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
 		PackageRoot:    options.RootPath,
 		CreateZip:      supportsUploadZip,
 		SignPackage:    false,

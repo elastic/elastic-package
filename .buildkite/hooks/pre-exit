@@ -16,10 +16,6 @@ echo "--- Cleanup"
 cleanup
 unset_secrets
 
-# integrations-parallel-gcp
-unset GOOGLE_CREDENTIALS
-unset GCP_PROJECT_ID
-
 # integrations-parallel-aws and intregrations-parallel-aws_logs
 unset AWS_ACCESS_KEY_ID
 unset AWS_SECRET_ACCESS_KEY

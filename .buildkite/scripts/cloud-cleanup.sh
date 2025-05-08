@@ -25,7 +25,7 @@ export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN_DEPRECATED --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
 
@@ -42,7 +42,7 @@ fi
 
 buildkite-agent annotate \
   "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"${redshift_message}" \
-  --context "ctx-cloud-reaper-info" \
+  --context "ctx-cloud-reaper-info-deprecated" \
   --style "info"
 
 any_resources_to_delete() {
@@ -52,8 +52,8 @@ any_resources_to_delete() {
     # ⇒ Loading configuration...
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
-    
-    # FIXME:: When running with "destroy --confirm" there could be more lines.
+
+    # FIXME:: When running with "destroy --confirm" command there could be more lines.
     # In the case, there is nothing to delete, there is one more line:
     # ⇒ Nothing to destroy !
     # but there are no examples when resources are deleted to add the required logic
@@ -69,66 +69,29 @@ any_resources_to_delete() {
     return 0
 }
 
-# As long as cloud reaper does not support OIDC authentication.
-create_aws_ephemeral_user() {
-    # Generate a unique name for the ephemeral IAM user.
-    EPHEMERAL_USER="ephemeral-admin-$(date +%s)"
-    echo "Creating IAM user: ${EPHEMERAL_USER}"
-    aws iam create-user --user-name "${EPHEMERAL_USER}" \
-        --tags Key=ephemeral,Value=true Key=division,Value=engineering Key=org,Value=obs Key=environment,Value=ci Key=repo,Value=elastic-package Key=created_at,Value="$(date -Is)"
-
-    echo "Attaching AdministratorAccess policy to ${EPHEMERAL_USER}..."
-    aws iam attach-user-policy --user-name "${EPHEMERAL_USER}" --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-
-    echo "Creating access keys for ${EPHEMERAL_USER}..."
-    creds_json=$(aws iam create-access-key --user-name "${EPHEMERAL_USER}")
-    AWS_ACCESS_KEY_ID_EPHEMERAL=$(echo "$creds_json" | jq -r '.AccessKey.AccessKeyId')
-    AWS_SECRET_ACCESS_KEY_EPHEMERAL=$(echo "$creds_json" | jq -r '.AccessKey.SecretAccessKey')
-    export EPHEMERAL_USER AWS_ACCESS_KEY_ID_EPHEMERAL AWS_SECRET_ACCESS_KEY_EPHEMERAL
-}
-
-# Define cleanup function to delete the ephemeral IAM user regardless of script outcome.
-cleanup_ephemeral_user() {
-    echo "Cleaning up ephemeral IAM user: ${EPHEMERAL_USER}"
-    aws iam detach-user-policy --user-name "${EPHEMERAL_USER}" --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-    key_id=$(echo "$creds_json" | jq -r '.AccessKey.AccessKeyId')
-    aws iam delete-access-key --user-name "${EPHEMERAL_USER}" --access-key-id "${key_id}"
-    aws iam delete-user --user-name "${EPHEMERAL_USER}"
-    echo "Ephemeral IAM user ${EPHEMERAL_USER} deleted."
-    unset EPHEMERAL_USER AWS_ACCESS_KEY_ID_EPHEMERAL AWS_SECRET_ACCESS_KEY_EPHEMERAL
-}
-trap cleanup_ephemeral_user EXIT
-
 cloud_reaper_aws() {
-    echo "--- Configuring ephemeral user"
-    create_aws_ephemeral_user
-
     echo "--- Validating configuration"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
-      -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
-      -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
-      -e ACCOUNT_PROJECT="observability-ci" \
+      -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
+      -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
+      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
-          --debug \
           --config /etc/cloud-reaper/config.yml \
           validate
 
     echo "--- Scanning resources"
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
-      -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
-      -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
-      -e ACCOUNT_PROJECT="observability-ci" \
+      -e AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}" \
+      -e AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}" \
+      -e ACCOUNT_PROJECT="${ELASTIC_PACKAGE_AWS_USER_SECRET}" \
       -e CREATION_DATE="${DELETE_RESOURCES_BEFORE_DATE}" \
       "${CLOUD_REAPER_IMAGE}" \
         cloud-reaper \
           --config /etc/cloud-reaper/config.yml \
           ${COMMAND} | tee "${AWS_RESOURCES_FILE}"
 }
-
-echo "--- Installing awscli"
-with_aws_cli
 
 echo "--- Cleaning up AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}..."
 cloud_reaper_aws
@@ -150,7 +113,11 @@ if [ "${resources_to_delete}" -eq 1 ]; then
 fi
 
 echo "--- Cleaning up other AWS resources older than ${DELETE_RESOURCES_BEFORE_DATE}"
+echo "--- Installing awscli"
+with_aws_cli
 
+export AWS_ACCESS_KEY_ID="${ELASTIC_PACKAGE_AWS_ACCESS_KEY}"
+export AWS_SECRET_ACCESS_KEY="${ELASTIC_PACKAGE_AWS_SECRET_KEY}"
 export AWS_DEFAULT_REGION=us-east-1
 # Avoid to send the output of the CLI to a pager
 export AWS_PAGER=""
