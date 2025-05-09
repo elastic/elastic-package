@@ -16,8 +16,3 @@ echo "--- Cleanup"
 cleanup
 unset_secrets
 
-# integrations-parallel-aws and intregrations-parallel-aws_logs
-unset ELASTIC_PACKAGE_AWS_ACCESS_KEY
-unset ELASTIC_PACKAGE_AWS_SECRET_KEY
-unset AWS_ACCESS_KEY_ID
-unset AWS_SECRET_ACCESS_KEY
