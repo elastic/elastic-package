@@ -11,7 +11,6 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 )
 
-
 func getIngestPipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemoteIngestPipeline, error) {
 	if len(ids) == 0 {
 		return nil, nil
@@ -19,4 +18,3 @@ func getIngestPipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 
 	return ingest.GetRemotePipelinesWithNested(ctx, api, ids...)
 }
-

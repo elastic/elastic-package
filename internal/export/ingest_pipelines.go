@@ -18,15 +18,16 @@ import (
 )
 
 type PipelineWriteLocationType string
+
 const (
 	PipelineWriteLocationTypeDataStream PipelineWriteLocationType = "data_stream"
-	PipelineWriteLocationTypeRoot	   PipelineWriteLocationType = "root"
+	PipelineWriteLocationTypeRoot       PipelineWriteLocationType = "root"
 )
 
 // Represents a target write location for exporting an ingest pipeline
 type PipelineWriteLocation struct {
-	Type PipelineWriteLocationType 
-	Name string
+	Type       PipelineWriteLocationType
+	Name       string
 	ParentPath string
 }
 
@@ -36,13 +37,13 @@ func (p PipelineWriteLocation) WritePath() string {
 
 type PipelineWriteAssignments map[string]PipelineWriteLocation
 
-func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignments PipelineWriteAssignments) error {
+func IngestPipelines(ctx context.Context, api *elasticsearch.API, writeAssignments PipelineWriteAssignments) error {
 	var pipelineIDs []string
 
 	for pipelineID := range writeAssignments {
 		pipelineIDs = append(pipelineIDs, pipelineID)
 	}
-	
+
 	pipelines, err := ingest.GetRemotePipelinesWithNested(ctx, api, pipelineIDs...)
 
 	if err != nil {
@@ -63,24 +64,24 @@ func IngestPipelines(ctx  context.Context, api *elasticsearch.API, writeAssignme
 	return nil
 }
 
-
 func writePipelinesToFiles(writeAssignments PipelineWriteAssignments, pipelineLookup map[string]ingest.RemotePipeline) error {
 	if len(writeAssignments) == 0 {
 		return nil
 	}
 
 	for name, writeLocation := range writeAssignments {
-		pipeline, ok := pipelineLookup[name]; if !ok {
-			continue;
+		pipeline, ok := pipelineLookup[name]
+		if !ok {
+			continue
 		}
 		err := writePipelineToFile(pipeline, writeLocation)
-		if (err != nil) {
+		if err != nil {
 			return err
 		}
 
 		depPipelineWriteAssignments := createWriteAssignments(writeLocation, pipeline.GetProcessorPipelineNames())
 		err = writePipelinesToFiles(depPipelineWriteAssignments, pipelineLookup)
-		if (err != nil) {
+		if err != nil {
 			return err
 		}
 	}

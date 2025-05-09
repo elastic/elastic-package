@@ -28,11 +28,11 @@ func setupExportCommand() *cobraext.Command {
 	exportDashboardCmd.Flags().Bool(cobraext.AllowSnapshotFlagName, false, cobraext.AllowSnapshotDescription)
 
 	exportIngestPipelinesCmd := &cobra.Command{
-		Use: "ingest-pipelines",
+		Use:   "ingest-pipelines",
 		Short: "Export ingest pipelines from Elasticsearch",
-		Long: exportIngestPipelinesLongDescription,
-		Args: cobra.NoArgs,
-		RunE: exportIngestPipelinesCmd,
+		Long:  exportIngestPipelinesLongDescription,
+		Args:  cobra.NoArgs,
+		RunE:  exportIngestPipelinesCmd,
 	}
 
 	exportIngestPipelinesCmd.Flags().StringSliceP(cobraext.IngestPipelineIDsFlagName, "d", nil, cobraext.IngestPipelineIDsFlagDescription)

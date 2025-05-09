@@ -47,7 +47,7 @@ func TestDumpInstalledObjects(t *testing.T) {
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
-			Matcher: ingestPipelineRequestMatcher,
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 		&installedObjectsDumpSuite{
 			// To reproduce the scenario:
@@ -56,7 +56,7 @@ func TestDumpInstalledObjects(t *testing.T) {
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
-			Matcher: ingestPipelineRequestMatcher,
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 		&installedObjectsDumpSuite{
 			// To reproduce the scenario:
@@ -66,7 +66,7 @@ func TestDumpInstalledObjects(t *testing.T) {
 			PackageName: "dga",
 			Record:      "./testdata/elasticsearch-8-mock-dump-dga",
 			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
-			Matcher: ingestPipelineRequestMatcher,
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 	}
 
@@ -228,8 +228,8 @@ func subDir(t *testing.T, dir, name string) string {
 	return tmpDir
 }
 
-// Ingest Pipelines are requested in bulk and the param values are non-deterministic, 
-// which makes matching to recorded requests flaky. 
+// Ingest Pipelines are requested in bulk and the param values are non-deterministic,
+// which makes matching to recorded requests flaky.
 // This custom cassette matcher helps match pipeline requests, and sends all others to the default matcher.
 func ingestPipelineRequestMatcher(r *http.Request, cr cassette.Request) bool {
 	urlStartPattern := "https://127.0.0.1:9200/_ingest/pipeline/"
@@ -242,8 +242,8 @@ func ingestPipelineRequestMatcher(r *http.Request, cr cassette.Request) bool {
 		return cassette.DefaultMatcher(r, cr)
 	}
 
-	rPipelineValues := strings.Split(rSplitUrl[1],",")
-	crPipelineValues := strings.Split(crSplitUrl[1],",")
+	rPipelineValues := strings.Split(rSplitUrl[1], ",")
+	crPipelineValues := strings.Split(crSplitUrl[1], ",")
 
 	slices.Sort(rPipelineValues)
 	slices.Sort(crPipelineValues)

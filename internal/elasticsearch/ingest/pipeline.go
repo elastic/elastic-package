@@ -80,7 +80,7 @@ func GetRemotePipelineNames(ctx context.Context, api *elasticsearch.API) ([]stri
 		api.Ingest.GetPipeline.WithContext(ctx),
 		api.Ingest.GetPipeline.WithSummary(true),
 	)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ingest pipeline names: %w", err)
 	}
@@ -95,7 +95,9 @@ func GetRemotePipelineNames(ctx context.Context, api *elasticsearch.API) ([]stri
 		return nil, fmt.Errorf("error reading ingest pipeline names body: %w", err)
 	}
 
-	pipelineMap := map[string]struct {Description string `json:"description"`}{}
+	pipelineMap := map[string]struct {
+		Description string `json:"description"`
+	}{}
 
 	if err := json.Unmarshal(body, &pipelineMap); err != nil {
 		return nil, fmt.Errorf("error unmarshaling ingest pipeline names: %w", err)
@@ -121,7 +123,7 @@ type RemotePipeline struct {
 			Name string `json:"name"`
 		} `json:"pipeline,omitempty"`
 	} `json:"processors"`
-	id string
+	id  string
 	raw []byte
 }
 
@@ -152,16 +154,15 @@ func (p RemotePipeline) GetProcessorPipelineNames() []string {
 
 func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
 
-
 	commaSepIDs := strings.Join(ids, ",")
 
 	fmt.Printf("Comma sep pipelines: %s", commaSepIDs)
-	
+
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
 		api.Ingest.GetPipeline.WithPipelineID(commaSepIDs),
 	)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
 	}
@@ -201,7 +202,7 @@ func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...stri
 	return pipelines, nil
 }
 
- func GetRemotePipelinesWithNested(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
+func GetRemotePipelinesWithNested(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {
 	var pipelines []RemotePipeline
 	var collected []string
 	pending := ids
@@ -238,7 +239,6 @@ func pendingNestedPipelines(pipelines []RemotePipeline, collected []string) []st
 	}
 	return names
 }
-
 
 func SimulatePipeline(ctx context.Context, api *elasticsearch.API, pipelineName string, events []json.RawMessage, simulateDataStream string) ([]json.RawMessage, error) {
 	var request simulatePipelineRequest

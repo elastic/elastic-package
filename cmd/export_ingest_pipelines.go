@@ -25,7 +25,6 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-
 const exportIngestPipelinesLongDescription = `Use this command to export ingest pipelines with referenced objects from the Elasticsearch instance.
 
 Use this command to download selected ingest pipelines and its dependent processor pipelines from Elasticsearch to the selected data stream or the package root directories. Pipelines are downloaded as is, and will need adjustment to meet your package needs.`
@@ -70,7 +69,7 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
-	
+
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -82,11 +81,11 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	rootWriteLocation := export.PipelineWriteLocation{
-		Type: export.PipelineWriteLocationTypeRoot,
-		Name: "Package root",	
+		Type:       export.PipelineWriteLocationTypeRoot,
+		Name:       "Package root",
 		ParentPath: packageRoot,
 	}
-	
+
 	pipelineWriteLocations := append(dataStreamDirs, rootWriteLocation)
 
 	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
@@ -125,13 +124,13 @@ func getDataStreamDirs(packageRoot string) ([]export.PipelineWriteLocation, erro
 	for _, dirEntry := range dataStreamEntries {
 		if dirEntry.IsDir() {
 			pipelineWriteLocation := export.PipelineWriteLocation{
-				Type: export.PipelineWriteLocationTypeDataStream,
-				Name: dirEntry.Name(),
+				Type:       export.PipelineWriteLocationTypeDataStream,
+				Name:       dirEntry.Name(),
 				ParentPath: filepath.Join(dataStreamDir, dirEntry.Name()),
 			}
 			dataStreamDirs = append(dataStreamDirs, pipelineWriteLocation)
 		}
-	} 
+	}
 
 	return dataStreamDirs, nil
 }
@@ -179,8 +178,8 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 				Message: fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName),
 				Options: options,
 				Description: func(value string, index int) string {
-					idx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == value})
-					
+					idx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == value })
+
 					if writeLocations[idx].Type == export.PipelineWriteLocationTypeDataStream {
 						return "data stream"
 					}
@@ -194,7 +193,7 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 		questions = append(questions, question)
 	}
 
-    answers := make(map[string]string)
+	answers := make(map[string]string)
 
 	err := survey.Ask(questions, &answers)
 
@@ -205,8 +204,8 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 	pipelinesToWriteLocations := make(export.PipelineWriteAssignments)
 
 	for pipeline, writeLocationName := range answers {
-		writeLocationIdx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == writeLocationName})
-		
+		writeLocationIdx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == writeLocationName })
+
 		pipelinesToWriteLocations[pipeline] = writeLocations[writeLocationIdx]
 	}
 
