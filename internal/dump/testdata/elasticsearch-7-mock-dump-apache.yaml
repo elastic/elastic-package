@@ -1,717 +1,594 @@
 ---
 version: 2
 interactions:
-    - id: 0
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 545
-        uncompressed: false
-        body: |
-            {
-              "name" : "8342dac6ee38",
-              "cluster_name" : "elasticsearch",
-              "cluster_uuid" : "SU93KHrmS8OHbarblnhy-g",
-              "version" : {
-                "number" : "7.16.2",
-                "build_flavor" : "default",
-                "build_type" : "docker",
-                "build_hash" : "2b937c44140b6559905130a8650c64dbd0879cfb",
-                "build_date" : "2021-12-18T19:42:46.604893745Z",
-                "build_snapshot" : false,
-                "lucene_version" : "8.10.1",
-                "minimum_wire_compatibility_version" : "6.8.0",
-                "minimum_index_compatibility_version" : "6.0.0-beta1"
-              },
-              "tagline" : "You Know, for Search"
-            }
-        headers:
-            Content-Length:
-                - "545"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 3.640457ms
-    - id: 1
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_index_template/*-apache.*
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 15969
-        uncompressed: false
-        body: '{"index_templates":[{"name":"logs-apache.error","index_template":{"index_patterns":["logs-apache.error-*"],"template":{"settings":{"index":{"default_pipeline":"logs-apache.error-1.3.4"}},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"process":{"properties":{"pid":{"type":"long"},"thread":{"properties":{"id":{"type":"long"}}}}},"log":{"properties":{"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"offset":{"type":"long"},"level":{"ignore_above":1024,"type":"keyword"}}},"source":{"properties":{"geo":{"properties":{"continent_name":{"ignore_above":1024,"type":"keyword"},"region_iso_code":{"ignore_above":1024,"type":"keyword"},"city_name":{"ignore_above":1024,"type":"keyword"},"country_iso_code":{"ignore_above":1024,"type":"keyword"},"country_name":{"ignore_above":1024,"type":"keyword"},"location":{"type":"geo_point"},"region_name":{"ignore_above":1024,"type":"keyword"}}},"as":{"properties":{"number":{"type":"long"},"organization":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}}}}}},"address":{"ignore_above":1024,"type":"keyword"},"port":{"type":"long"},"ip":{"type":"ip"}}},"error":{"properties":{"message":{"type":"match_only_text"}}},"message":{"type":"match_only_text"},"url":{"properties":{"path":{"type":"wildcard"},"extension":{"ignore_above":1024,"type":"keyword"},"original":{"type":"wildcard"},"domain":{"ignore_above":1024,"type":"keyword"},"query":{"ignore_above":1024,"type":"keyword"}}},"tags":{"ignore_above":1024,"type":"keyword"},"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"input":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"@timestamp":{"type":"date"},"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword","fields":{}}}},"apache":{"properties":{"error":{"properties":{"module":{"ignore_above":1024,"type":"keyword"}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"http":{"properties":{"request":{"properties":{"referrer":{"ignore_above":1024,"type":"keyword"},"method":{"ignore_above":1024,"type":"keyword"}}},"response":{"properties":{"status_code":{"type":"long"},"body":{"properties":{"bytes":{"type":"long"}}}}},"version":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"kind":{"ignore_above":1024,"type":"keyword"},"timezone":{"ignore_above":1024,"type":"keyword"},"module":{"type":"constant_keyword","value":"apache"},"category":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"dataset":{"type":"constant_keyword","value":"apache.error"}}},"user":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}}}},"user_agent":{"properties":{"original":{"ignore_above":1024,"type":"keyword","fields":{}},"os":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}}}},"name":{"ignore_above":1024,"type":"keyword"},"device":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}}}}}}},"composed_of":["logs-apache.error@settings","logs-apache.error@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}},{"name":"logs-apache.access","index_template":{"index_patterns":["logs-apache.access-*"],"template":{"settings":{"index":{"default_pipeline":"logs-apache.access-1.3.4"}},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"process":{"properties":{"pid":{"type":"long"},"thread":{"properties":{"id":{"type":"long"}}}}},"log":{"properties":{"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"offset":{"type":"long"},"level":{"ignore_above":1024,"type":"keyword"}}},"destination":{"properties":{"domain":{"ignore_above":1024,"type":"keyword"}}},"source":{"properties":{"geo":{"properties":{"continent_name":{"ignore_above":1024,"type":"keyword"},"region_iso_code":{"ignore_above":1024,"type":"keyword"},"city_name":{"ignore_above":1024,"type":"keyword"},"country_iso_code":{"ignore_above":1024,"type":"keyword"},"country_name":{"ignore_above":1024,"type":"keyword"},"location":{"type":"geo_point"},"region_name":{"ignore_above":1024,"type":"keyword"}}},"as":{"properties":{"number":{"type":"long"},"organization":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}}}}}},"address":{"ignore_above":1024,"type":"keyword"},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"}}},"error":{"properties":{"message":{"type":"match_only_text"}}},"message":{"type":"match_only_text"},"url":{"properties":{"path":{"type":"wildcard"},"extension":{"ignore_above":1024,"type":"keyword"},"original":{"type":"wildcard"},"domain":{"ignore_above":1024,"type":"keyword"},"query":{"ignore_above":1024,"type":"keyword"}}},"tags":{"ignore_above":1024,"type":"keyword"},"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"input":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"@timestamp":{"type":"date"},"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword","fields":{}}}},"apache":{"properties":{"access":{"properties":{"ssl":{"properties":{"cipher":{"ignore_above":1024,"type":"keyword"},"protocol":{"ignore_above":1024,"type":"keyword"}}}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"http":{"properties":{"request":{"properties":{"referrer":{"ignore_above":1024,"type":"keyword"},"method":{"ignore_above":1024,"type":"keyword"}}},"response":{"properties":{"status_code":{"type":"long"},"body":{"properties":{"bytes":{"type":"long"}}}}},"version":{"ignore_above":1024,"type":"keyword"}}},"tls":{"properties":{"cipher":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"version_protocol":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"created":{"type":"date"},"kind":{"ignore_above":1024,"type":"keyword"},"module":{"type":"constant_keyword","value":"apache"},"category":{"ignore_above":1024,"type":"keyword"},"dataset":{"type":"constant_keyword","value":"apache.access"},"outcome":{"ignore_above":1024,"type":"keyword"}}},"user":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}}}},"user_agent":{"properties":{"original":{"ignore_above":1024,"type":"keyword","fields":{}},"os":{"properties":{"name":{"ignore_above":1024,"type":"keyword","fields":{}},"version":{"ignore_above":1024,"type":"keyword"},"full":{"ignore_above":1024,"type":"keyword","fields":{}}}},"name":{"ignore_above":1024,"type":"keyword"},"device":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"version":{"ignore_above":1024,"type":"keyword"}}}}}},"composed_of":["logs-apache.access@settings","logs-apache.access@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}},{"name":"metrics-apache.status","index_template":{"index_patterns":["metrics-apache.status-*"],"template":{"settings":{},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"@timestamp":{"type":"date"},"apache":{"properties":{"status":{"properties":{"bytes_per_request":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"load":{"properties":{"1":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"15":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"5":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"}}},"bytes_per_sec":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"total_bytes":{"meta":{"unit":"byte","metric_type":"counter"},"type":"long"},"cpu":{"properties":{"system":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"load":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"children_system":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"children_user":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"user":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"}}},"total_accesses":{"meta":{"metric_type":"counter"},"type":"long"},"scoreboard":{"properties":{"total":{"meta":{"metric_type":"gauge"},"type":"long"},"keepalive":{"meta":{"metric_type":"gauge"},"type":"long"},"idle_cleanup":{"meta":{"metric_type":"gauge"},"type":"long"},"waiting_for_connection":{"meta":{"metric_type":"gauge"},"type":"long"},"logging":{"meta":{"metric_type":"gauge"},"type":"long"},"gracefully_finishing":{"meta":{"metric_type":"gauge"},"type":"long"},"open_slot":{"meta":{"metric_type":"gauge"},"type":"long"},"dns_lookup":{"meta":{"metric_type":"gauge"},"type":"long"},"sending_reply":{"meta":{"metric_type":"gauge"},"type":"long"},"closing_connection":{"meta":{"metric_type":"gauge"},"type":"long"},"starting_up":{"meta":{"metric_type":"gauge"},"type":"long"},"reading_request":{"meta":{"metric_type":"gauge"},"type":"long"}}},"workers":{"properties":{"idle":{"meta":{"metric_type":"gauge"},"type":"long"},"busy":{"meta":{"metric_type":"gauge"},"type":"long"}}},"connections":{"properties":{"async":{"properties":{"closing":{"meta":{"metric_type":"gauge"},"type":"long"},"writing":{"meta":{"metric_type":"gauge"},"type":"long"},"keep_alive":{"meta":{"metric_type":"gauge"},"type":"long"}}},"total":{"meta":{"metric_type":"counter"},"type":"long"}}},"requests_per_sec":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"uptime":{"properties":{"server_uptime":{"meta":{"metric_type":"counter"},"type":"long"},"uptime":{"meta":{"metric_type":"counter"},"type":"long"}}}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"service":{"properties":{"address":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"module":{"type":"constant_keyword","value":"apache"},"dataset":{"type":"constant_keyword","value":"apache.status"}}},"error":{"properties":{"message":{"type":"match_only_text"}}}}}},"composed_of":["metrics-apache.status@settings","metrics-apache.status@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}}]}'
-        headers:
-            Content-Length:
-                - "15969"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 803.374µs
-    - id: 2
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/logs-apache.error@settings
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 1306
-        uncompressed: false
-        body: '{"component_templates":[{"name":"logs-apache.error@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","input.type","tags","ecs.version","event.category","event.kind","event.timezone","event.type","file.path","http.request.method","http.request.referrer","http.version","log.file.path","log.level","source.address","source.as.organization.name","source.geo.city_name","source.geo.continent_name","source.geo.country_iso_code","source.geo.country_name","source.geo.region_iso_code","source.geo.region_name","tags","url.domain","url.extension","url.query","user.name","user_agent.device.name","user_agent.name","user_agent.original","user_agent.os.name","apache.error.module"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "1306"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 325.514µs
-    - id: 3
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/logs-apache.error@custom
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 149
-        uncompressed: false
-        body: '{"component_templates":[{"name":"logs-apache.error@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "149"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 259.991µs
-    - id: 4
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/.fleet_component_template-1
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 393
-        uncompressed: false
-        body: '{"component_templates":[{"name":".fleet_component_template-1","component_template":{"template":{"settings":{"index":{"final_pipeline":".fleet_final_pipeline-1"}},"mappings":{"properties":{"event":{"properties":{"agent_id_status":{"ignore_above":1024,"type":"keyword"},"ingested":{"format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis","type":"date"}}}}}},"_meta":{}}}]}'
-        headers:
-            Content-Length:
-                - "393"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 347.417µs
-    - id: 5
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/logs-apache.access@settings
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 1559
-        uncompressed: false
-        body: '{"component_templates":[{"name":"logs-apache.access@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","input.type","destination.domain","ecs.version","event.category","event.kind","event.outcome","file.path","http.request.method","http.request.referrer","http.version","log.file.path","log.level","source.address","source.as.organization.name","source.domain","source.geo.city_name","source.geo.continent_name","source.geo.country_iso_code","source.geo.country_name","source.geo.region_iso_code","source.geo.region_name","tags","tls.cipher","tls.version","tls.version_protocol","url.domain","url.extension","url.query","user.name","user_agent.device.name","user_agent.device.name","user_agent.name","user_agent.name","user_agent.original","user_agent.original","user_agent.os.full","user_agent.os.name","user_agent.os.name","user_agent.os.version","user_agent.version","apache.access.ssl.protocol","apache.access.ssl.cipher"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "1559"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 257.04µs
-    - id: 6
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/logs-apache.access@custom
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 150
-        uncompressed: false
-        body: '{"component_templates":[{"name":"logs-apache.access@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "150"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 241.005µs
-    - id: 7
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/metrics-apache.status@settings
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 789
-        uncompressed: false
-        body: '{"component_templates":[{"name":"metrics-apache.status@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"metrics"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","ecs.version","service.address","service.type"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "789"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 264.377µs
-    - id: 8
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_component_template/metrics-apache.status@custom
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 153
-        uncompressed: false
-        body: '{"component_templates":[{"name":"metrics-apache.status@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
-        headers:
-            Content-Length:
-                - "153"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 315.098µs
-    - id: 9
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ilm/policy/logs
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 1316
-        uncompressed: false
-        body: '{"logs":{"version":1,"modified_date":"2023-11-27T13:55:33.162Z","policy":{"phases":{"hot":{"min_age":"0ms","actions":{"rollover":{"max_primary_shard_size":"50gb","max_age":"30d"}}}},"_meta":{"managed":true,"description":"default policy for the logs index template installed by x-pack"}},"in_use_by":{"indices":[".ds-logs-elastic_agent.metricbeat-default-2023.11.27-000001",".ds-logs-elastic_agent.fleet_server-default-2023.11.27-000001",".ds-logs-elastic_agent.filebeat-default-2023.11.27-000001",".ds-logs-elastic_agent-default-2023.11.27-000001"],"data_streams":["logs-elastic_agent-default","logs-elastic_agent.metricbeat-default","logs-elastic_agent.filebeat-default","logs-elastic_agent.fleet_server-default"],"composable_templates":["logs-apache.access","logs-elastic_agent.cloudbeat","logs-elastic_agent.apm_server","logs-elastic_agent.cloud_defend","logs-system.security","logs-system.auth","logs-elastic_agent.metricbeat","logs-elastic_agent.filebeat","logs-elastic_agent.packetbeat","logs-elastic_agent.filebeat_input","logs-elastic_agent.endpoint_security","logs-elastic_agent.fleet_server","logs-apache.error","logs-system.system","logs-system.application","logs-elastic_agent.osquerybeat","logs-elastic_agent.heartbeat","logs-system.syslog","logs-elastic_agent.auditbeat","logs","logs-elastic_agent"]}}}'
-        headers:
-            Content-Length:
-                - "1316"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 1.292625ms
-    - id: 10
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ilm/policy/metrics
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 2552
-        uncompressed: false
-        body: '{"metrics":{"version":1,"modified_date":"2023-11-27T13:55:33.210Z","policy":{"phases":{"hot":{"min_age":"0ms","actions":{"rollover":{"max_primary_shard_size":"50gb","max_age":"30d"}}}},"_meta":{"managed":true,"description":"default policy for the metrics index template installed by x-pack"}},"in_use_by":{"indices":[".ds-metrics-system.process.summary-default-2023.11.27-000001",".ds-metrics-system.fsstat-default-2023.11.27-000001",".ds-metrics-system.uptime-default-2023.11.27-000001",".ds-metrics-system.network-default-2023.11.27-000001",".ds-metrics-system.filesystem-default-2023.11.27-000001",".ds-metrics-elastic_agent.elastic_agent-default-2023.11.27-000001",".ds-metrics-system.socket_summary-default-2023.11.27-000001",".ds-metrics-system.diskio-default-2023.11.27-000001",".ds-metrics-elastic_agent.filebeat-default-2023.11.27-000001",".ds-metrics-system.process-default-2023.11.27-000001",".ds-metrics-system.cpu-default-2023.11.27-000001",".ds-metrics-elastic_agent.fleet_server-default-2023.11.27-000001",".ds-metrics-elastic_agent.metricbeat-default-2023.11.27-000001",".ds-metrics-system.memory-default-2023.11.27-000001",".ds-metrics-system.load-default-2023.11.27-000001"],"data_streams":["metrics-system.filesystem-default","metrics-system.cpu-default","metrics-system.process.summary-default","metrics-system.memory-default","metrics-elastic_agent.fleet_server-default","metrics-system.uptime-default","metrics-elastic_agent.elastic_agent-default","metrics-elastic_agent.metricbeat-default","metrics-system.fsstat-default","metrics-system.process-default","metrics-elastic_agent.filebeat-default","metrics-system.network-default","metrics-system.diskio-default","metrics-system.load-default","metrics-system.socket_summary-default"],"composable_templates":["metrics-system.process","metrics-elastic_agent.packetbeat","metrics-system.fsstat","metrics-elastic_agent.osquerybeat","metrics-elastic_agent.endpoint_security","metrics-elastic_agent.apm_server","metrics-system.memory","metrics-system.socket_summary","metrics-apache.status","metrics-elastic_agent.elastic_agent","metrics-elastic_agent.fleet_server","metrics-system.load","metrics-system.core","metrics-elastic_agent.filebeat","metrics-elastic_agent.filebeat_input","metrics-system.uptime","metrics-system.process.summary","metrics-system.cpu","metrics-elastic_agent.heartbeat","metrics-system.diskio","metrics-elastic_agent.cloudbeat","metrics-elastic_agent.metricbeat","metrics-elastic_agent.auditbeat","metrics-system.network","metrics-system.filesystem","metrics"]}}}'
-        headers:
-            Content-Length:
-                - "2552"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 1.250469ms
-    - id: 11
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.error-1.3.4
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 3693
-        uncompressed: false
-        body: '{"logs-apache.error-1.3.4":{"description":"Pipeline for parsing apache error logs","processors":[{"pipeline":{"if":"ctx.message.startsWith(''{'')","name":"logs-apache.error-1.3.4-third-party"}},{"set":{"field":"event.ingested","value":"{{_ingest.timestamp}}"}},{"set":{"field":"ecs.version","value":"1.12.0"}},{"rename":{"field":"message","target_field":"event.original"}},{"grok":{"field":"event.original","patterns":["\\[%{APACHE_TIME:apache.error.timestamp}\\] \\[%{LOGLEVEL:log.level}\\]( \\[client %{IPORHOST:source.address}(:%{POSINT:source.port})?\\])? %{GREEDYDATA:message}","\\[%{APACHE_TIME:apache.error.timestamp}\\] \\[%{DATA:apache.error.module}:%{APACHE_LOGLEVEL:log.level}\\] \\[pid %{NUMBER:process.pid:long}(:tid %{NUMBER:process.thread.id:long})?\\]( \\[client %{IPORHOST:source.address}(:%{POSINT:source.port})?\\])? %{GREEDYDATA:message}"],"pattern_definitions":{"APACHE_LOGLEVEL":"%{LOGLEVEL}[0-9]*","APACHE_TIME":"%{DAY} %{MONTH} %{MONTHDAY} %{TIME} %{YEAR}"},"ignore_missing":true}},{"grok":{"field":"message","patterns":["File does not exist: %{URIPATH:file.path}, referer: %{URI:http.request.referrer}","File does not exist: %{URIPATH:file.path}"],"ignore_missing":true,"ignore_failure":true}},{"date":{"if":"ctx.event.timezone == null","field":"apache.error.timestamp","target_field":"@timestamp","formats":["EEE MMM dd H:m:s yyyy","EEE MMM dd H:m:s.SSSSSS yyyy"],"on_failure":[{"append":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}},{"date":{"if":"ctx.event.timezone != null","field":"apache.error.timestamp","target_field":"@timestamp","formats":["EEE MMM dd H:m:s yyyy","EEE MMM dd H:m:s.SSSSSS yyyy"],"timezone":"{{ event.timezone }}","on_failure":[{"append":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}},{"remove":{"field":"apache.error.timestamp","ignore_failure":true}},{"set":{"field":"event.kind","value":"event"}},{"set":{"field":"event.category","value":"web"}},{"script":{"if":"ctx?.log?.level != null","lang":"painless","source":"def err_levels = [\"emerg\", \"alert\", \"crit\", \"error\", \"warn\"]; if (err_levels.contains(ctx.log.level)) {\n  ctx.event.type = \"error\";\n} else {\n  ctx.event.type = \"info\";\n}"}},{"grok":{"field":"source.address","ignore_missing":true,"patterns":["^(%{IP:source.ip}|%{HOSTNAME:source.domain})$"]}},{"geoip":{"field":"source.ip","target_field":"source.geo","ignore_missing":true}},{"geoip":{"database_file":"GeoLite2-ASN.mmdb","field":"source.ip","target_field":"source.as","properties":["asn","organization_name"],"ignore_missing":true}},{"rename":{"field":"source.as.asn","target_field":"source.as.number","ignore_missing":true}},{"rename":{"field":"source.as.organization_name","target_field":"source.as.organization.name","ignore_missing":true}},{"convert":{"field":"source.port","type":"long","ignore_missing":true}},{"script":{"lang":"painless","description":"This script processor iterates over the whole document to remove fields with null values.","source":"void handleMap(Map map) {\n  for (def x : map.values()) {\n    if (x instanceof Map) {\n        handleMap(x);\n    } else if (x instanceof List) {\n        handleList(x);\n    }\n  }\n  map.values().removeIf(v -> v == null);\n}\nvoid handleList(List list) {\n  for (def x : list) {\n      if (x instanceof Map) {\n          handleMap(x);\n      } else if (x instanceof List) {\n          handleList(x);\n      }\n  }\n}\nhandleMap(ctx);\n"}},{"remove":{"field":"event.original","if":"ctx?.tags == null || !(ctx.tags.contains(''preserve_original_event''))","ignore_failure":true,"ignore_missing":true}}],"on_failure":[{"set":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}}'
-        headers:
-            Content-Length:
-                - "3693"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 754.413µs
-    - id: 12
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.access-1.3.4
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 4500
-        uncompressed: false
-        body: '{"logs-apache.access-1.3.4":{"description":"Pipeline for parsing Apache HTTP Server access logs. Requires the geoip and user_agent plugins.","processors":[{"pipeline":{"if":"ctx.message.startsWith(''{'')","name":"logs-apache.access-1.3.4-third-party"}},{"set":{"field":"event.ingested","value":"{{_ingest.timestamp}}"}},{"set":{"field":"ecs.version","value":"1.12.0"}},{"rename":{"field":"message","target_field":"event.original"}},{"grok":{"field":"event.original","patterns":["%{IPORHOST:destination.domain} %{IPORHOST:source.ip} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"(?:%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}|-)?\" %{NUMBER:http.response.status_code:long} (?:%{NUMBER:http.response.body.bytes:long}|-)( \"%{DATA:http.request.referrer}\")?( \"%{DATA:user_agent.original}\")?","%{IPORHOST:source.address} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"(?:%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}|-)?\" %{NUMBER:http.response.status_code:long} (?:%{NUMBER:http.response.body.bytes:long}|-)( \"%{DATA:http.request.referrer}\")?( \"%{DATA:user_agent.original}\")?","%{IPORHOST:source.address} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"-\" %{NUMBER:http.response.status_code:long} -","\\[%{HTTPDATE:apache.access.time}\\] %{IPORHOST:source.address} %{DATA:apache.access.ssl.protocol} %{DATA:apache.access.ssl.cipher} \"%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}\" (-|%{NUMBER:http.response.body.bytes:long})"],"ignore_missing":true}},{"uri_parts":{"field":"_tmp.url_orig","ignore_failure":true}},{"remove":{"field":["_tmp"],"ignore_missing":true}},{"set":{"field":"url.domain","value":"{{destination.domain}}","if":"ctx.url?.domain == null && ctx.destination?.domain != null"}},{"set":{"field":"event.kind","value":"event"}},{"set":{"field":"event.category","value":"web"}},{"set":{"field":"event.outcome","value":"success","if":"ctx?.http?.response?.status_code != null && ctx.http.response.status_code < 400"}},{"set":{"field":"event.outcome","value":"failure","if":"ctx?.http?.response?.status_code != null && ctx.http.response.status_code > 399"}},{"grok":{"field":"source.address","ignore_missing":true,"patterns":["^(%{IP:source.ip}|%{HOSTNAME:source.domain})$"]}},{"remove":{"field":"event.created","ignore_missing":true,"ignore_failure":true}},{"rename":{"field":"@timestamp","target_field":"event.created"}},{"date":{"field":"apache.access.time","target_field":"@timestamp","formats":["dd/MMM/yyyy:H:m:s Z"],"ignore_failure":true}},{"remove":{"field":"apache.access.time","ignore_failure":true}},{"user_agent":{"field":"user_agent.original","ignore_failure":true}},{"geoip":{"field":"source.ip","target_field":"source.geo","ignore_missing":true}},{"geoip":{"database_file":"GeoLite2-ASN.mmdb","field":"source.ip","target_field":"source.as","properties":["asn","organization_name"],"ignore_missing":true}},{"rename":{"field":"source.as.asn","target_field":"source.as.number","ignore_missing":true}},{"rename":{"field":"source.as.organization_name","target_field":"source.as.organization.name","ignore_missing":true}},{"set":{"field":"tls.cipher","value":"{{apache.access.ssl.cipher}}","if":"ctx?.apache?.access?.ssl?.cipher != null"}},{"script":{"lang":"painless","if":"ctx?.apache?.access?.ssl?.protocol != null","source":"def parts = ctx.apache.access.ssl.protocol.toLowerCase().splitOnToken(\"v\"); if (parts.length != 2) {\n  return;\n} if (parts[1].contains(\".\")) {\n  ctx.tls.version = parts[1];\n} else {\n  ctx.tls.version = parts[1] + \".0\";\n} ctx.tls.version_protocol = parts[0];"}},{"script":{"lang":"painless","description":"This script processor iterates over the whole document to remove fields with null values.","source":"void handleMap(Map map) {\n  for (def x : map.values()) {\n    if (x instanceof Map) {\n        handleMap(x);\n    } else if (x instanceof List) {\n        handleList(x);\n    }\n  }\n  map.values().removeIf(v -> v == null);\n}\nvoid handleList(List list) {\n  for (def x : list) {\n      if (x instanceof Map) {\n          handleMap(x);\n      } else if (x instanceof List) {\n          handleList(x);\n      }\n  }\n}\nhandleMap(ctx);\n"}},{"remove":{"field":"event.original","if":"ctx?.tags == null || !(ctx.tags.contains(''preserve_original_event''))","ignore_failure":true,"ignore_missing":true}}],"on_failure":[{"set":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}}'
-        headers:
-            Content-Length:
-                - "4500"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 521.734µs
-    - id: 13
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ingest/pipeline/.fleet_final_pipeline-1
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 2865
-        uncompressed: false
-        body: '{".fleet_final_pipeline-1":{"version":1,"description":"Final pipeline for processing all incoming Fleet Agent documents.\n","processors":[{"set":{"description":"Add time when event was ingested.","field":"event.ingested","copy_from":"_ingest.timestamp"}},{"script":{"description":"Remove sub-seconds from event.ingested to improve storage efficiency.","tag":"truncate-subseconds-event-ingested","source":"ctx.event.ingested = ctx.event.ingested.withNano(0).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);","ignore_failure":true}},{"remove":{"description":"Remove any pre-existing untrusted values.","field":["event.agent_id_status","_security"],"ignore_missing":true}},{"set_security_user":{"field":"_security","properties":["authentication_type","username","realm","api_key"]}},{"script":{"description":"Add event.agent_id_status based on the API key metadata and the agent.id contained in the event.\n","tag":"agent-id-status","source":"boolean is_user_trusted(def ctx, def users) {\n  if (ctx?._security?.username == null) {\n    return false;\n  }\n\n  def user = null;\n  for (def item : users) {\n    if (item?.username == ctx._security.username) {\n      user = item;\n      break;\n    }\n  }\n\n  if (user == null || user?.realm == null || ctx?._security?.realm?.name == null) {\n    return false;\n  }\n\n  if (ctx._security.realm.name != user.realm) {\n    return false;\n  }\n\n  return true;\n}\n\nString verified(def ctx, def params) {\n  // No agent.id field to validate.\n  if (ctx?.agent?.id == null) {\n    return \"missing\";\n  }\n\n  // Check auth metadata from API key.\n  if (ctx?._security?.authentication_type == null\n      // Agents only use API keys.\n      || ctx._security.authentication_type != ''API_KEY''\n      // Verify the API key owner before trusting any metadata it contains.\n      || !is_user_trusted(ctx, params.trusted_users)\n      // Verify the API key has metadata indicating the assigned agent ID.\n      || ctx?._security?.api_key?.metadata?.agent_id == null) {\n    return \"auth_metadata_missing\";\n  }\n\n  // The API key can only be used represent the agent.id it was issued to.\n  if (ctx._security.api_key.metadata.agent_id != ctx.agent.id) {\n    // Potential masquerade attempt.\n    return \"mismatch\";\n  }\n\n  return \"verified\";\n}\n\nif (ctx?.event == null) {\n  ctx.event = [:];\n}\n\nctx.event.agent_id_status = verified(ctx, params);","params":{"trusted_users":[{"username":"elastic/fleet-server","realm":"_service_account"},{"username":"cloud-internal-agent-server","realm":"found"},{"username":"elastic","realm":"reserved"}]}}},{"remove":{"field":"_security","ignore_missing":true}}],"on_failure":[{"remove":{"field":"_security","ignore_missing":true,"ignore_failure":true}},{"append":{"field":"error.message","value":["failed in Fleet agent final_pipeline: {{ _ingest.on_failure_message }}"]}}]}}'
-        headers:
-            Content-Length:
-                - "2865"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 394.152µs
-    - id: 14
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.error-1.3.4-third-party
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 1047
-        uncompressed: false
-        body: '{"logs-apache.error-1.3.4-third-party":{"description":"Pipeline for parsing Apache HTTP Server logs from third party api","processors":[{"json":{"field":"message","target_field":"json"}},{"drop":{"if":"ctx.json?.result == null"}},{"fingerprint":{"fields":["json.result._cd","json.result._indextime","json.result._raw","json.result._time","json.result.host","json.result.source"],"target_field":"_id","ignore_missing":true}},{"set":{"copy_from":"json.result._raw","field":"message","ignore_empty_value":true}},{"set":{"copy_from":"json.result.host","field":"host.name","ignore_empty_value":true}},{"set":{"copy_from":"json.result.source","field":"file.path","ignore_empty_value":true}},{"remove":{"field":["json"],"ignore_missing":true}}],"on_failure":[{"append":{"field":"error.message","value":"error in third-party pipeline: error in [{{_ingest.on_failure_processor_type}}] processor{{#_ingest.on_failure_processor_tag}} with tag [{{_ingest.on_failure_processor_tag }}]{{/_ingest.on_failure_processor_tag}} {{ _ingest.on_failure_message }}"}}]}}'
-        headers:
-            Content-Length:
-                - "1047"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 314.524µs
-    - id: 15
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.access-1.3.4-third-party
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 1048
-        uncompressed: false
-        body: '{"logs-apache.access-1.3.4-third-party":{"description":"Pipeline for parsing Apache HTTP Server logs from third party api","processors":[{"json":{"field":"message","target_field":"json"}},{"drop":{"if":"ctx.json?.result == null"}},{"fingerprint":{"fields":["json.result._cd","json.result._indextime","json.result._raw","json.result._time","json.result.host","json.result.source"],"target_field":"_id","ignore_missing":true}},{"set":{"copy_from":"json.result._raw","field":"message","ignore_empty_value":true}},{"set":{"copy_from":"json.result.host","field":"host.name","ignore_empty_value":true}},{"set":{"copy_from":"json.result.source","field":"file.path","ignore_empty_value":true}},{"remove":{"field":["json"],"ignore_missing":true}}],"on_failure":[{"append":{"field":"error.message","value":"error in third-party pipeline: error in [{{_ingest.on_failure_processor_type}}] processor{{#_ingest.on_failure_processor_tag}} with tag [{{_ingest.on_failure_processor_tag }}]{{/_ingest.on_failure_processor_tag}} {{ _ingest.on_failure_message }}"}}]}}'
-        headers:
-            Content-Length:
-                - "1048"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 364.107µs
-    - id: 16
-      request:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        content_length: 0
-        transfer_encoding: []
-        trailer: {}
-        host: ""
-        remote_addr: ""
-        request_uri: ""
-        body: ""
-        form: {}
-        headers:
-            Authorization:
-                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
-            User-Agent:
-                - go-elasticsearch/7.17.10 (linux amd64; Go 1.21.3)
-            X-Elastic-Client-Meta:
-                - es=7.17.10,go=1.21.3,t=7.17.10,hc=1.21.3
-        url: https://127.0.0.1:9200/_ml/trained_models/apache_*?decompress_definition=false&include=definition%2Cfeature_importance_baseline%2Chyperparameters%2Ctotal_feature_importance
-        method: GET
-      response:
-        proto: HTTP/1.1
-        proto_major: 1
-        proto_minor: 1
-        transfer_encoding: []
-        trailer: {}
-        content_length: 38
-        uncompressed: false
-        body: '{"count":0,"trained_model_configs":[]}'
-        headers:
-            Content-Length:
-                - "38"
-            Content-Type:
-                - application/json; charset=UTF-8
-            X-Elastic-Product:
-                - Elasticsearch
-        status: 200 OK
-        code: 200
-        duration: 1.04779ms
+  - id: 0
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 545
+      uncompressed: false
+      body: |
+        {
+          "name" : "2bb69ec8be53",
+          "cluster_name" : "elasticsearch",
+          "cluster_uuid" : "8aSsUHKoSw23B8HgcUiiXg",
+          "version" : {
+            "number" : "7.16.2",
+            "build_flavor" : "default",
+            "build_type" : "docker",
+            "build_hash" : "2b937c44140b6559905130a8650c64dbd0879cfb",
+            "build_date" : "2021-12-18T19:42:46.604893745Z",
+            "build_snapshot" : false,
+            "lucene_version" : "8.10.1",
+            "minimum_wire_compatibility_version" : "6.8.0",
+            "minimum_index_compatibility_version" : "6.0.0-beta1"
+          },
+          "tagline" : "You Know, for Search"
+        }
+      headers:
+        Content-Length:
+          - "545"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 3.737541ms
+  - id: 1
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_index_template/*-apache.*
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 15837
+      uncompressed: false
+      body: '{"index_templates":[{"name":"logs-apache.error","index_template":{"index_patterns":["logs-apache.error-*"],"template":{"settings":{"index":{"default_pipeline":"logs-apache.error-1.3.5"}},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"process":{"properties":{"pid":{"type":"long"},"thread":{"properties":{"id":{"type":"long"}}}}},"log":{"properties":{"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"offset":{"type":"long"},"level":{"ignore_above":1024,"type":"keyword"}}},"source":{"properties":{"geo":{"properties":{"continent_name":{"ignore_above":1024,"type":"keyword"},"region_iso_code":{"ignore_above":1024,"type":"keyword"},"city_name":{"ignore_above":1024,"type":"keyword"},"country_iso_code":{"ignore_above":1024,"type":"keyword"},"country_name":{"ignore_above":1024,"type":"keyword"},"location":{"type":"geo_point"},"region_name":{"ignore_above":1024,"type":"keyword"}}},"as":{"properties":{"number":{"type":"long"},"organization":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}}}},"address":{"ignore_above":1024,"type":"keyword"},"port":{"type":"long"},"ip":{"type":"ip"}}},"error":{"properties":{"message":{"type":"match_only_text"}}},"message":{"type":"match_only_text"},"url":{"properties":{"path":{"type":"wildcard"},"extension":{"ignore_above":1024,"type":"keyword"},"original":{"type":"wildcard"},"domain":{"ignore_above":1024,"type":"keyword"},"query":{"ignore_above":1024,"type":"keyword"}}},"tags":{"ignore_above":1024,"type":"keyword"},"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"input":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"@timestamp":{"type":"date"},"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"apache":{"properties":{"error":{"properties":{"module":{"ignore_above":1024,"type":"keyword"}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"http":{"properties":{"request":{"properties":{"referrer":{"ignore_above":1024,"type":"keyword"},"method":{"ignore_above":1024,"type":"keyword"}}},"response":{"properties":{"status_code":{"type":"long"},"body":{"properties":{"bytes":{"type":"long"}}}}},"version":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"kind":{"ignore_above":1024,"type":"keyword"},"timezone":{"ignore_above":1024,"type":"keyword"},"module":{"type":"constant_keyword","value":"apache"},"category":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"dataset":{"type":"constant_keyword","value":"apache.error"}}},"user":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"user_agent":{"properties":{"original":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"device":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}}}}}}},"composed_of":["logs-apache.error@settings","logs-apache.error@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}},{"name":"logs-apache.access","index_template":{"index_patterns":["logs-apache.access-*"],"template":{"settings":{"index":{"default_pipeline":"logs-apache.access-1.3.5"}},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"process":{"properties":{"pid":{"type":"long"},"thread":{"properties":{"id":{"type":"long"}}}}},"log":{"properties":{"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"offset":{"type":"long"},"level":{"ignore_above":1024,"type":"keyword"}}},"destination":{"properties":{"domain":{"ignore_above":1024,"type":"keyword"}}},"source":{"properties":{"geo":{"properties":{"continent_name":{"ignore_above":1024,"type":"keyword"},"region_iso_code":{"ignore_above":1024,"type":"keyword"},"city_name":{"ignore_above":1024,"type":"keyword"},"country_iso_code":{"ignore_above":1024,"type":"keyword"},"country_name":{"ignore_above":1024,"type":"keyword"},"location":{"type":"geo_point"},"region_name":{"ignore_above":1024,"type":"keyword"}}},"as":{"properties":{"number":{"type":"long"},"organization":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}}}},"address":{"ignore_above":1024,"type":"keyword"},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"}}},"error":{"properties":{"message":{"type":"match_only_text"}}},"message":{"type":"match_only_text"},"url":{"properties":{"path":{"type":"wildcard"},"extension":{"ignore_above":1024,"type":"keyword"},"original":{"type":"wildcard"},"domain":{"ignore_above":1024,"type":"keyword"},"query":{"ignore_above":1024,"type":"keyword"}}},"tags":{"ignore_above":1024,"type":"keyword"},"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"input":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"@timestamp":{"type":"date"},"file":{"properties":{"path":{"ignore_above":1024,"type":"keyword"}}},"apache":{"properties":{"access":{"properties":{"ssl":{"properties":{"cipher":{"ignore_above":1024,"type":"keyword"},"protocol":{"ignore_above":1024,"type":"keyword"}}}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"http":{"properties":{"request":{"properties":{"referrer":{"ignore_above":1024,"type":"keyword"},"method":{"ignore_above":1024,"type":"keyword"}}},"response":{"properties":{"status_code":{"type":"long"},"body":{"properties":{"bytes":{"type":"long"}}}}},"version":{"ignore_above":1024,"type":"keyword"}}},"tls":{"properties":{"cipher":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"version_protocol":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"created":{"type":"date"},"kind":{"ignore_above":1024,"type":"keyword"},"module":{"type":"constant_keyword","value":"apache"},"category":{"ignore_above":1024,"type":"keyword"},"dataset":{"type":"constant_keyword","value":"apache.access"},"outcome":{"ignore_above":1024,"type":"keyword"}}},"user":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"user_agent":{"properties":{"original":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"full":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"device":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"version":{"ignore_above":1024,"type":"keyword"}}}}}},"composed_of":["logs-apache.access@settings","logs-apache.access@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}},{"name":"metrics-apache.status","index_template":{"index_patterns":["metrics-apache.status-*"],"template":{"settings":{},"mappings":{"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"dynamic_templates":[{"strings_as_keyword":{"mapping":{"ignore_above":1024,"type":"keyword"},"match_mapping_type":"string"}}],"date_detection":false,"properties":{"cloud":{"properties":{"availability_zone":{"ignore_above":1024,"type":"keyword"},"image":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"instance":{"properties":{"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"}}},"provider":{"ignore_above":1024,"type":"keyword"},"machine":{"properties":{"type":{"ignore_above":1024,"type":"keyword"}}},"project":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}},"region":{"ignore_above":1024,"type":"keyword"},"account":{"properties":{"id":{"ignore_above":1024,"type":"keyword"}}}}},"container":{"properties":{"image":{"properties":{"name":{"ignore_above":1024,"type":"keyword"}}},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"labels":{"type":"object"}}},"@timestamp":{"type":"date"},"apache":{"properties":{"status":{"properties":{"bytes_per_request":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"load":{"properties":{"1":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"15":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"5":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"}}},"bytes_per_sec":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"total_bytes":{"meta":{"unit":"byte","metric_type":"counter"},"type":"long"},"cpu":{"properties":{"system":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"load":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"children_system":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"children_user":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"user":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"}}},"total_accesses":{"meta":{"metric_type":"counter"},"type":"long"},"scoreboard":{"properties":{"total":{"meta":{"metric_type":"gauge"},"type":"long"},"keepalive":{"meta":{"metric_type":"gauge"},"type":"long"},"idle_cleanup":{"meta":{"metric_type":"gauge"},"type":"long"},"waiting_for_connection":{"meta":{"metric_type":"gauge"},"type":"long"},"logging":{"meta":{"metric_type":"gauge"},"type":"long"},"gracefully_finishing":{"meta":{"metric_type":"gauge"},"type":"long"},"open_slot":{"meta":{"metric_type":"gauge"},"type":"long"},"dns_lookup":{"meta":{"metric_type":"gauge"},"type":"long"},"sending_reply":{"meta":{"metric_type":"gauge"},"type":"long"},"closing_connection":{"meta":{"metric_type":"gauge"},"type":"long"},"starting_up":{"meta":{"metric_type":"gauge"},"type":"long"},"reading_request":{"meta":{"metric_type":"gauge"},"type":"long"}}},"workers":{"properties":{"idle":{"meta":{"metric_type":"gauge"},"type":"long"},"busy":{"meta":{"metric_type":"gauge"},"type":"long"}}},"connections":{"properties":{"async":{"properties":{"closing":{"meta":{"metric_type":"gauge"},"type":"long"},"writing":{"meta":{"metric_type":"gauge"},"type":"long"},"keep_alive":{"meta":{"metric_type":"gauge"},"type":"long"}}},"total":{"meta":{"metric_type":"counter"},"type":"long"}}},"requests_per_sec":{"meta":{"metric_type":"gauge"},"scaling_factor":1000,"type":"scaled_float"},"uptime":{"properties":{"server_uptime":{"meta":{"metric_type":"counter"},"type":"long"},"uptime":{"meta":{"metric_type":"counter"},"type":"long"}}}}}}},"ecs":{"properties":{"version":{"ignore_above":1024,"type":"keyword"}}},"data_stream":{"properties":{"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"},"dataset":{"type":"constant_keyword"}}},"service":{"properties":{"address":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"}}},"host":{"properties":{"hostname":{"ignore_above":1024,"type":"keyword"},"os":{"properties":{"build":{"ignore_above":1024,"type":"keyword"},"kernel":{"ignore_above":1024,"type":"keyword"},"codename":{"ignore_above":1024,"type":"keyword"},"name":{"ignore_above":1024,"type":"keyword","fields":{"text":{"type":"text"}}},"family":{"ignore_above":1024,"type":"keyword"},"version":{"ignore_above":1024,"type":"keyword"},"platform":{"ignore_above":1024,"type":"keyword"}}},"domain":{"ignore_above":1024,"type":"keyword"},"ip":{"type":"ip"},"containerized":{"type":"boolean"},"name":{"ignore_above":1024,"type":"keyword"},"id":{"ignore_above":1024,"type":"keyword"},"type":{"ignore_above":1024,"type":"keyword"},"mac":{"ignore_above":1024,"type":"keyword"},"architecture":{"ignore_above":1024,"type":"keyword"}}},"event":{"properties":{"module":{"type":"constant_keyword","value":"apache"},"dataset":{"type":"constant_keyword","value":"apache.status"}}},"error":{"properties":{"message":{"type":"match_only_text"}}}}}},"composed_of":["metrics-apache.status@settings","metrics-apache.status@custom",".fleet_component_template-1"],"priority":200,"_meta":{"package":{"name":"apache"},"managed_by":"ingest-manager","managed":true},"data_stream":{"hidden":false}}}]}'
+      headers:
+        Content-Length:
+          - "15837"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 859.625µs
+  - id: 2
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/logs-apache.error@settings
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 1306
+      uncompressed: false
+      body: '{"component_templates":[{"name":"logs-apache.error@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","input.type","tags","ecs.version","event.category","event.kind","event.timezone","event.type","file.path","http.request.method","http.request.referrer","http.version","log.file.path","log.level","source.address","source.as.organization.name","source.geo.city_name","source.geo.continent_name","source.geo.country_iso_code","source.geo.country_name","source.geo.region_iso_code","source.geo.region_name","tags","url.domain","url.extension","url.query","user.name","user_agent.device.name","user_agent.name","user_agent.original","user_agent.os.name","apache.error.module"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "1306"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 668.958µs
+  - id: 3
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/logs-apache.error@custom
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 149
+      uncompressed: false
+      body: '{"component_templates":[{"name":"logs-apache.error@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "149"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 420.667µs
+  - id: 4
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/.fleet_component_template-1
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 393
+      uncompressed: false
+      body: '{"component_templates":[{"name":".fleet_component_template-1","component_template":{"template":{"settings":{"index":{"final_pipeline":".fleet_final_pipeline-1"}},"mappings":{"properties":{"event":{"properties":{"agent_id_status":{"ignore_above":1024,"type":"keyword"},"ingested":{"format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis","type":"date"}}}}}},"_meta":{}}}]}'
+      headers:
+        Content-Length:
+          - "393"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 507.167µs
+  - id: 5
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/logs-apache.access@settings
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 1559
+      uncompressed: false
+      body: '{"component_templates":[{"name":"logs-apache.access@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"logs"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","input.type","destination.domain","ecs.version","event.category","event.kind","event.outcome","file.path","http.request.method","http.request.referrer","http.version","log.file.path","log.level","source.address","source.as.organization.name","source.domain","source.geo.city_name","source.geo.continent_name","source.geo.country_iso_code","source.geo.country_name","source.geo.region_iso_code","source.geo.region_name","tags","tls.cipher","tls.version","tls.version_protocol","url.domain","url.extension","url.query","user.name","user_agent.device.name","user_agent.device.name","user_agent.name","user_agent.name","user_agent.original","user_agent.original","user_agent.os.full","user_agent.os.name","user_agent.os.name","user_agent.os.version","user_agent.version","apache.access.ssl.protocol","apache.access.ssl.cipher"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "1559"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 399.833µs
+  - id: 6
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/logs-apache.access@custom
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 150
+      uncompressed: false
+      body: '{"component_templates":[{"name":"logs-apache.access@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "150"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 679.042µs
+  - id: 7
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/metrics-apache.status@settings
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 789
+      uncompressed: false
+      body: '{"component_templates":[{"name":"metrics-apache.status@settings","component_template":{"template":{"settings":{"index":{"lifecycle":{"name":"metrics"},"codec":"best_compression","mapping":{"total_fields":{"limit":"10000"}},"query":{"default_field":["cloud.account.id","cloud.availability_zone","cloud.instance.id","cloud.instance.name","cloud.machine.type","cloud.provider","cloud.region","cloud.project.id","cloud.image.id","container.id","container.image.name","container.name","host.architecture","host.domain","host.hostname","host.id","host.mac","host.name","host.os.family","host.os.kernel","host.os.name","host.os.platform","host.os.version","host.type","host.os.build","host.os.codename","ecs.version","service.address","service.type"]}}}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "789"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 442µs
+  - id: 8
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_component_template/metrics-apache.status@custom
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 153
+      uncompressed: false
+      body: '{"component_templates":[{"name":"metrics-apache.status@custom","component_template":{"template":{"settings":{}},"_meta":{"package":{"name":"apache"}}}}]}'
+      headers:
+        Content-Length:
+          - "153"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 416.708µs
+  - id: 9
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_ilm/policy/logs
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 1316
+      uncompressed: false
+      body: '{"logs":{"version":1,"modified_date":"2025-05-08T16:05:52.238Z","policy":{"phases":{"hot":{"min_age":"0ms","actions":{"rollover":{"max_primary_shard_size":"50gb","max_age":"30d"}}}},"_meta":{"managed":true,"description":"default policy for the logs index template installed by x-pack"}},"in_use_by":{"indices":[".ds-logs-elastic_agent.filebeat-default-2025.05.08-000001",".ds-logs-elastic_agent.metricbeat-default-2025.05.08-000001",".ds-logs-elastic_agent-default-2025.05.08-000001",".ds-logs-elastic_agent.fleet_server-default-2025.05.08-000001"],"data_streams":["logs-elastic_agent-default","logs-elastic_agent.metricbeat-default","logs-elastic_agent.filebeat-default","logs-elastic_agent.fleet_server-default"],"composable_templates":["logs-apache.access","logs-elastic_agent.cloudbeat","logs-elastic_agent.apm_server","logs-elastic_agent.cloud_defend","logs-system.security","logs-system.auth","logs-elastic_agent.metricbeat","logs-elastic_agent.filebeat","logs-elastic_agent.packetbeat","logs-elastic_agent.filebeat_input","logs-elastic_agent.endpoint_security","logs-elastic_agent.fleet_server","logs-apache.error","logs-system.system","logs-system.application","logs-elastic_agent.osquerybeat","logs-elastic_agent.heartbeat","logs-system.syslog","logs-elastic_agent.auditbeat","logs","logs-elastic_agent"]}}}'
+      headers:
+        Content-Length:
+          - "1316"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 965.208µs
+  - id: 10
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_ilm/policy/metrics
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 3372
+      uncompressed: false
+      body: '{"metrics":{"version":1,"modified_date":"2025-05-08T16:05:52.220Z","policy":{"phases":{"hot":{"min_age":"0ms","actions":{"rollover":{"max_primary_shard_size":"50gb","max_age":"30d"}}}},"_meta":{"managed":true,"description":"default policy for the metrics index template installed by x-pack"}},"in_use_by":{"indices":[".ds-metrics-system.process-default-2025.05.08-000001",".ds-metrics-docker.healthcheck-default-2025.05.08-000001",".ds-metrics-elastic_agent.elastic_agent-default-2025.05.08-000001",".ds-metrics-docker.network-default-2025.05.08-000001",".ds-metrics-system.load-default-2025.05.08-000001",".ds-metrics-docker.cpu-default-2025.05.08-000001",".ds-metrics-system.memory-default-2025.05.08-000001",".ds-metrics-system.socket_summary-default-2025.05.08-000001",".ds-metrics-system.cpu-default-2025.05.08-000001",".ds-metrics-system.diskio-default-2025.05.08-000001",".ds-metrics-elastic_agent.fleet_server-default-2025.05.08-000001",".ds-metrics-elastic_agent.filebeat-default-2025.05.08-000001",".ds-metrics-system.uptime-default-2025.05.08-000001",".ds-metrics-apache.status-default-2025.05.08-000001",".ds-metrics-elastic_agent.metricbeat-default-2025.05.08-000001",".ds-metrics-docker.container-default-2025.05.08-000001",".ds-metrics-docker.memory-default-2025.05.08-000001",".ds-metrics-system.process.summary-default-2025.05.08-000001",".ds-metrics-system.fsstat-default-2025.05.08-000001",".ds-metrics-system.network-default-2025.05.08-000001",".ds-metrics-docker.info-default-2025.05.08-000001",".ds-metrics-docker.diskio-default-2025.05.08-000001"],"data_streams":["metrics-system.cpu-default","metrics-docker.diskio-default","metrics-docker.container-default","metrics-docker.network-default","metrics-docker.cpu-default","metrics-docker.healthcheck-default","metrics-system.process.summary-default","metrics-apache.status-default","metrics-system.memory-default","metrics-elastic_agent.fleet_server-default","metrics-system.uptime-default","metrics-elastic_agent.elastic_agent-default","metrics-elastic_agent.metricbeat-default","metrics-system.fsstat-default","metrics-system.process-default","metrics-docker.info-default","metrics-elastic_agent.filebeat-default","metrics-system.network-default","metrics-system.diskio-default","metrics-docker.memory-default","metrics-system.load-default","metrics-system.socket_summary-default"],"composable_templates":["metrics-system.process","metrics-elastic_agent.packetbeat","metrics-docker.memory","metrics-system.fsstat","metrics-elastic_agent.osquerybeat","metrics-elastic_agent.endpoint_security","metrics-elastic_agent.apm_server","metrics-docker.info","metrics-system.memory","metrics-docker.network","metrics-system.socket_summary","metrics-docker.image","metrics-apache.status","metrics-elastic_agent.elastic_agent","metrics-elastic_agent.fleet_server","metrics-system.load","metrics-docker.cpu","metrics-system.core","metrics-elastic_agent.filebeat","metrics-elastic_agent.filebeat_input","metrics-system.uptime","metrics-docker.container","metrics-system.process.summary","metrics-system.cpu","metrics-docker.diskio","metrics-elastic_agent.heartbeat","metrics-docker.healthcheck","metrics-system.diskio","metrics-elastic_agent.cloudbeat","metrics-elastic_agent.metricbeat","metrics-elastic_agent.auditbeat","metrics-system.network","metrics-system.filesystem","metrics","metrics-docker.event"]}}}'
+      headers:
+        Content-Length:
+          - "3372"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 779.459µs
+  - id: 11
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.error-1.3.5,logs-apache.access-1.3.5,.fleet_final_pipeline-1
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 11056
+      uncompressed: false
+      body: '{"logs-apache.error-1.3.5":{"description":"Pipeline for parsing apache error logs","processors":[{"pipeline":{"if":"ctx.message.startsWith(''{'')","name":"logs-apache.error-1.3.5-third-party"}},{"set":{"field":"event.ingested","value":"{{_ingest.timestamp}}"}},{"set":{"field":"ecs.version","value":"1.12.0"}},{"rename":{"field":"message","target_field":"event.original"}},{"grok":{"field":"event.original","patterns":["\\[%{APACHE_TIME:apache.error.timestamp}\\] \\[%{LOGLEVEL:log.level}\\]( \\[client %{IPORHOST:source.address}(:%{POSINT:source.port})?\\])? %{GREEDYDATA:message}","\\[%{APACHE_TIME:apache.error.timestamp}\\] \\[%{DATA:apache.error.module}:%{APACHE_LOGLEVEL:log.level}\\] \\[pid %{NUMBER:process.pid:long}(:tid %{NUMBER:process.thread.id:long})?\\]( \\[client %{IPORHOST:source.address}(:%{POSINT:source.port})?\\])? %{GREEDYDATA:message}"],"pattern_definitions":{"APACHE_LOGLEVEL":"%{LOGLEVEL}[0-9]*","APACHE_TIME":"%{DAY} %{MONTH} %{MONTHDAY} %{TIME} %{YEAR}"},"ignore_missing":true}},{"grok":{"field":"message","patterns":["File does not exist: %{URIPATH:file.path}, referer: %{URI:http.request.referrer}","File does not exist: %{URIPATH:file.path}"],"ignore_missing":true,"ignore_failure":true}},{"date":{"if":"ctx.event.timezone == null","field":"apache.error.timestamp","target_field":"@timestamp","formats":["EEE MMM dd H:m:s yyyy","EEE MMM dd H:m:s.SSSSSS yyyy"],"on_failure":[{"append":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}},{"date":{"if":"ctx.event.timezone != null","field":"apache.error.timestamp","target_field":"@timestamp","formats":["EEE MMM dd H:m:s yyyy","EEE MMM dd H:m:s.SSSSSS yyyy"],"timezone":"{{ event.timezone }}","on_failure":[{"append":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]}},{"remove":{"field":"apache.error.timestamp","ignore_failure":true}},{"set":{"field":"event.kind","value":"event"}},{"set":{"field":"event.category","value":"web"}},{"script":{"if":"ctx?.log?.level != null","lang":"painless","source":"def err_levels = [\"emerg\", \"alert\", \"crit\", \"error\", \"warn\"]; if (err_levels.contains(ctx.log.level)) {\n  ctx.event.type = \"error\";\n} else {\n  ctx.event.type = \"info\";\n}"}},{"grok":{"field":"source.address","ignore_missing":true,"patterns":["^(%{IP:source.ip}|%{HOSTNAME:source.domain})$"]}},{"geoip":{"field":"source.ip","target_field":"source.geo","ignore_missing":true}},{"geoip":{"database_file":"GeoLite2-ASN.mmdb","field":"source.ip","target_field":"source.as","properties":["asn","organization_name"],"ignore_missing":true}},{"rename":{"field":"source.as.asn","target_field":"source.as.number","ignore_missing":true}},{"rename":{"field":"source.as.organization_name","target_field":"source.as.organization.name","ignore_missing":true}},{"convert":{"field":"source.port","type":"long","ignore_missing":true}},{"script":{"lang":"painless","description":"This script processor iterates over the whole document to remove fields with null values.","source":"void handleMap(Map map) {\n  for (def x : map.values()) {\n    if (x instanceof Map) {\n        handleMap(x);\n    } else if (x instanceof List) {\n        handleList(x);\n    }\n  }\n  map.values().removeIf(v -> v == null);\n}\nvoid handleList(List list) {\n  for (def x : list) {\n      if (x instanceof Map) {\n          handleMap(x);\n      } else if (x instanceof List) {\n          handleList(x);\n      }\n  }\n}\nhandleMap(ctx);\n"}},{"remove":{"field":"event.original","if":"ctx?.tags == null || !(ctx.tags.contains(''preserve_original_event''))","ignore_failure":true,"ignore_missing":true}}],"on_failure":[{"set":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]},"logs-apache.access-1.3.5":{"description":"Pipeline for parsing Apache HTTP Server access logs. Requires the geoip and user_agent plugins.","processors":[{"pipeline":{"if":"ctx.message.startsWith(''{'')","name":"logs-apache.access-1.3.5-third-party"}},{"set":{"field":"event.ingested","value":"{{_ingest.timestamp}}"}},{"set":{"field":"ecs.version","value":"1.12.0"}},{"rename":{"field":"message","target_field":"event.original"}},{"grok":{"field":"event.original","patterns":["%{IPORHOST:destination.domain} %{IPORHOST:source.ip} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"(?:%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}|-)?\" %{NUMBER:http.response.status_code:long} (?:%{NUMBER:http.response.body.bytes:long}|-)( \"%{DATA:http.request.referrer}\")?( \"%{DATA:user_agent.original}\")?","%{IPORHOST:source.address} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"(?:%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}|-)?\" %{NUMBER:http.response.status_code:long} (?:%{NUMBER:http.response.body.bytes:long}|-)( \"%{DATA:http.request.referrer}\")?( \"%{DATA:user_agent.original}\")?","%{IPORHOST:source.address} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"-\" %{NUMBER:http.response.status_code:long} -","\\[%{HTTPDATE:apache.access.time}\\] %{IPORHOST:source.address} %{DATA:apache.access.ssl.protocol} %{DATA:apache.access.ssl.cipher} \"%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}\" (-|%{NUMBER:http.response.body.bytes:long})"],"ignore_missing":true}},{"uri_parts":{"field":"_tmp.url_orig","ignore_failure":true}},{"remove":{"field":["_tmp"],"ignore_missing":true}},{"set":{"field":"url.domain","value":"{{destination.domain}}","if":"ctx.url?.domain == null && ctx.destination?.domain != null"}},{"set":{"field":"event.kind","value":"event"}},{"set":{"field":"event.category","value":"web"}},{"set":{"field":"event.outcome","value":"success","if":"ctx?.http?.response?.status_code != null && ctx.http.response.status_code < 400"}},{"set":{"field":"event.outcome","value":"failure","if":"ctx?.http?.response?.status_code != null && ctx.http.response.status_code > 399"}},{"grok":{"field":"source.address","ignore_missing":true,"patterns":["^(%{IP:source.ip}|%{HOSTNAME:source.domain})$"]}},{"remove":{"field":"event.created","ignore_missing":true,"ignore_failure":true}},{"rename":{"field":"@timestamp","target_field":"event.created"}},{"date":{"field":"apache.access.time","target_field":"@timestamp","formats":["dd/MMM/yyyy:H:m:s Z"],"ignore_failure":true}},{"remove":{"field":"apache.access.time","ignore_failure":true}},{"user_agent":{"field":"user_agent.original","ignore_failure":true}},{"geoip":{"field":"source.ip","target_field":"source.geo","ignore_missing":true}},{"geoip":{"database_file":"GeoLite2-ASN.mmdb","field":"source.ip","target_field":"source.as","properties":["asn","organization_name"],"ignore_missing":true}},{"rename":{"field":"source.as.asn","target_field":"source.as.number","ignore_missing":true}},{"rename":{"field":"source.as.organization_name","target_field":"source.as.organization.name","ignore_missing":true}},{"set":{"field":"tls.cipher","value":"{{apache.access.ssl.cipher}}","if":"ctx?.apache?.access?.ssl?.cipher != null"}},{"script":{"lang":"painless","if":"ctx?.apache?.access?.ssl?.protocol != null","source":"def parts = ctx.apache.access.ssl.protocol.toLowerCase().splitOnToken(\"v\"); if (parts.length != 2) {\n  return;\n} if (parts[1].contains(\".\")) {\n  ctx.tls.version = parts[1];\n} else {\n  ctx.tls.version = parts[1] + \".0\";\n} ctx.tls.version_protocol = parts[0];"}},{"script":{"lang":"painless","description":"This script processor iterates over the whole document to remove fields with null values.","source":"void handleMap(Map map) {\n  for (def x : map.values()) {\n    if (x instanceof Map) {\n        handleMap(x);\n    } else if (x instanceof List) {\n        handleList(x);\n    }\n  }\n  map.values().removeIf(v -> v == null);\n}\nvoid handleList(List list) {\n  for (def x : list) {\n      if (x instanceof Map) {\n          handleMap(x);\n      } else if (x instanceof List) {\n          handleList(x);\n      }\n  }\n}\nhandleMap(ctx);\n"}},{"remove":{"field":"event.original","if":"ctx?.tags == null || !(ctx.tags.contains(''preserve_original_event''))","ignore_failure":true,"ignore_missing":true}}],"on_failure":[{"set":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}]},".fleet_final_pipeline-1":{"version":1,"description":"Final pipeline for processing all incoming Fleet Agent documents.\n","processors":[{"set":{"description":"Add time when event was ingested.","field":"event.ingested","copy_from":"_ingest.timestamp"}},{"script":{"description":"Remove sub-seconds from event.ingested to improve storage efficiency.","tag":"truncate-subseconds-event-ingested","source":"ctx.event.ingested = ctx.event.ingested.withNano(0).format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);","ignore_failure":true}},{"remove":{"description":"Remove any pre-existing untrusted values.","field":["event.agent_id_status","_security"],"ignore_missing":true}},{"set_security_user":{"field":"_security","properties":["authentication_type","username","realm","api_key"]}},{"script":{"description":"Add event.agent_id_status based on the API key metadata and the agent.id contained in the event.\n","tag":"agent-id-status","source":"boolean is_user_trusted(def ctx, def users) {\n  if (ctx?._security?.username == null) {\n    return false;\n  }\n\n  def user = null;\n  for (def item : users) {\n    if (item?.username == ctx._security.username) {\n      user = item;\n      break;\n    }\n  }\n\n  if (user == null || user?.realm == null || ctx?._security?.realm?.name == null) {\n    return false;\n  }\n\n  if (ctx._security.realm.name != user.realm) {\n    return false;\n  }\n\n  return true;\n}\n\nString verified(def ctx, def params) {\n  // No agent.id field to validate.\n  if (ctx?.agent?.id == null) {\n    return \"missing\";\n  }\n\n  // Check auth metadata from API key.\n  if (ctx?._security?.authentication_type == null\n      // Agents only use API keys.\n      || ctx._security.authentication_type != ''API_KEY''\n      // Verify the API key owner before trusting any metadata it contains.\n      || !is_user_trusted(ctx, params.trusted_users)\n      // Verify the API key has metadata indicating the assigned agent ID.\n      || ctx?._security?.api_key?.metadata?.agent_id == null) {\n    return \"auth_metadata_missing\";\n  }\n\n  // The API key can only be used represent the agent.id it was issued to.\n  if (ctx._security.api_key.metadata.agent_id != ctx.agent.id) {\n    // Potential masquerade attempt.\n    return \"mismatch\";\n  }\n\n  return \"verified\";\n}\n\nif (ctx?.event == null) {\n  ctx.event = [:];\n}\n\nctx.event.agent_id_status = verified(ctx, params);","params":{"trusted_users":[{"username":"elastic/fleet-server","realm":"_service_account"},{"username":"cloud-internal-agent-server","realm":"found"},{"username":"elastic","realm":"reserved"}]}}},{"remove":{"field":"_security","ignore_missing":true}}],"on_failure":[{"remove":{"field":"_security","ignore_missing":true,"ignore_failure":true}},{"append":{"field":"error.message","value":["failed in Fleet agent final_pipeline: {{ _ingest.on_failure_message }}"]}}]}}'
+      headers:
+        Content-Length:
+          - "11056"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 1.020458ms
+  - id: 12
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.access-1.3.5-third-party,logs-apache.error-1.3.5-third-party
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 2094
+      uncompressed: false
+      body: '{"logs-apache.access-1.3.5-third-party":{"description":"Pipeline for parsing Apache HTTP Server logs from third party api","processors":[{"json":{"field":"message","target_field":"json"}},{"drop":{"if":"ctx.json?.result == null"}},{"fingerprint":{"fields":["json.result._cd","json.result._indextime","json.result._raw","json.result._time","json.result.host","json.result.source"],"target_field":"_id","ignore_missing":true}},{"set":{"copy_from":"json.result._raw","field":"message","ignore_empty_value":true}},{"set":{"copy_from":"json.result.host","field":"host.name","ignore_empty_value":true}},{"set":{"copy_from":"json.result.source","field":"file.path","ignore_empty_value":true}},{"remove":{"field":["json"],"ignore_missing":true}}],"on_failure":[{"append":{"field":"error.message","value":"error in third-party pipeline: error in [{{_ingest.on_failure_processor_type}}] processor{{#_ingest.on_failure_processor_tag}} with tag [{{_ingest.on_failure_processor_tag }}]{{/_ingest.on_failure_processor_tag}} {{ _ingest.on_failure_message }}"}}]},"logs-apache.error-1.3.5-third-party":{"description":"Pipeline for parsing Apache HTTP Server logs from third party api","processors":[{"json":{"field":"message","target_field":"json"}},{"drop":{"if":"ctx.json?.result == null"}},{"fingerprint":{"fields":["json.result._cd","json.result._indextime","json.result._raw","json.result._time","json.result.host","json.result.source"],"target_field":"_id","ignore_missing":true}},{"set":{"copy_from":"json.result._raw","field":"message","ignore_empty_value":true}},{"set":{"copy_from":"json.result.host","field":"host.name","ignore_empty_value":true}},{"set":{"copy_from":"json.result.source","field":"file.path","ignore_empty_value":true}},{"remove":{"field":["json"],"ignore_missing":true}}],"on_failure":[{"append":{"field":"error.message","value":"error in third-party pipeline: error in [{{_ingest.on_failure_processor_type}}] processor{{#_ingest.on_failure_processor_tag}} with tag [{{_ingest.on_failure_processor_tag }}]{{/_ingest.on_failure_processor_tag}} {{ _ingest.on_failure_message }}"}}]}}'
+      headers:
+        Content-Length:
+          - "2094"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 687.959µs
+  - id: 13
+    request:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      content_length: 0
+      transfer_encoding: []
+      trailer: {}
+      host: ""
+      remote_addr: ""
+      request_uri: ""
+      body: ""
+      form: {}
+      headers:
+        Authorization:
+          - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+        User-Agent:
+          - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+        X-Elastic-Client-Meta:
+          - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+      url: https://127.0.0.1:9200/_ml/trained_models/apache_*?decompress_definition=false&include=definition%2Cfeature_importance_baseline%2Chyperparameters%2Ctotal_feature_importance
+      method: GET
+    response:
+      proto: HTTP/1.1
+      proto_major: 1
+      proto_minor: 1
+      transfer_encoding: []
+      trailer: {}
+      content_length: 38
+      uncompressed: false
+      body: '{"count":0,"trained_model_configs":[]}'
+      headers:
+        Content-Length:
+          - "38"
+        Content-Type:
+          - application/json; charset=UTF-8
+        X-Elastic-Product:
+          - Elasticsearch
+      status: 200 OK
+      code: 200
+      duration: 790.583µs

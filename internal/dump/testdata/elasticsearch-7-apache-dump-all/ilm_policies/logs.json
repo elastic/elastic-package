@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "modified_date": "2023-11-27T13:55:33.162Z",
+  "modified_date": "2025-05-08T16:05:52.238Z",
   "policy": {
     "phases": {
       "hot": {
@@ -20,10 +20,10 @@
   },
   "in_use_by": {
     "indices": [
-      ".ds-logs-elastic_agent.metricbeat-default-2023.11.27-000001",
-      ".ds-logs-elastic_agent.fleet_server-default-2023.11.27-000001",
-      ".ds-logs-elastic_agent.filebeat-default-2023.11.27-000001",
-      ".ds-logs-elastic_agent-default-2023.11.27-000001"
+      ".ds-logs-elastic_agent.filebeat-default-2025.05.08-000001",
+      ".ds-logs-elastic_agent.metricbeat-default-2025.05.08-000001",
+      ".ds-logs-elastic_agent-default-2025.05.08-000001",
+      ".ds-logs-elastic_agent.fleet_server-default-2025.05.08-000001"
     ],
     "data_streams": [
       "logs-elastic_agent-default",

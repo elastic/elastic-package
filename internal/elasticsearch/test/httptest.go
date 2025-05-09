@@ -22,7 +22,7 @@ import (
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func NewClient(t *testing.T, recordFileName string) *elasticsearch.Client {
+func NewClient(t *testing.T, recordFileName string, matcher cassette.MatcherFunc) *elasticsearch.Client {
 	options, err := clientOptionsForRecord(recordFileName)
 	require.NoError(t, err)
 
@@ -35,6 +35,11 @@ func NewClient(t *testing.T, recordFileName string) *elasticsearch.Client {
 		SkipRequestLatency: true,
 		RealTransport:      config.Transport,
 	})
+
+	if matcher != nil {
+		rec.SetMatcher(matcher)
+	}
+
 	require.NoError(t, err)
 	config.Transport = rec
 
