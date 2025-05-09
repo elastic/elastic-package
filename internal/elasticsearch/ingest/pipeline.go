@@ -75,6 +75,42 @@ func (p *Pipeline) MarshalJSON() (asJSON []byte, err error) {
 	return asJSON, nil
 }
 
+// RemotePipeline represents resource retrieved from Elasticsearch
+type RemotePipeline struct {
+	Processors []struct {
+		Pipeline *struct {
+			Name string `json:"name"`
+		} `json:"pipeline,omitempty"`
+	} `json:"processors"`
+	id  string
+	raw []byte
+}
+
+// Name returns the name of the ingest pipeline.
+func (p RemotePipeline) Name() string {
+	return p.id
+}
+
+// JSON returns the JSON representation of the ingest pipeline.
+func (p RemotePipeline) JSON() []byte {
+	return p.raw
+}
+
+func (p RemotePipeline) GetProcessorPipelineNames() []string {
+	var names []string
+	for _, processor := range p.Processors {
+		if processor.Pipeline == nil {
+			continue
+		}
+		name := processor.Pipeline.Name
+		if slices.Contains(names, name) {
+			continue
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
 func GetRemotePipelineNames(ctx context.Context, api *elasticsearch.API) ([]string, error) {
 	resp, err := api.Ingest.GetPipeline(
 		api.Ingest.GetPipeline.WithContext(ctx),
@@ -114,42 +150,6 @@ func GetRemotePipelineNames(ctx context.Context, api *elasticsearch.API) ([]stri
 	})
 
 	return pipelineNames, nil
-}
-
-// RemotePipeline contains the information needed to export an ingest pipeline.
-type RemotePipeline struct {
-	Processors []struct {
-		Pipeline *struct {
-			Name string `json:"name"`
-		} `json:"pipeline,omitempty"`
-	} `json:"processors"`
-	id  string
-	raw []byte
-}
-
-// Name returns the name of the ingest pipeline.
-func (p RemotePipeline) Name() string {
-	return p.id
-}
-
-// JSON returns the JSON representation of the ingest pipeline.
-func (p RemotePipeline) JSON() []byte {
-	return p.raw
-}
-
-func (p RemotePipeline) GetProcessorPipelineNames() []string {
-	var names []string
-	for _, processor := range p.Processors {
-		if processor.Pipeline == nil {
-			continue
-		}
-		name := processor.Pipeline.Name
-		if slices.Contains(names, name) {
-			continue
-		}
-		names = append(names, name)
-	}
-	return names
 }
 
 func GetRemotePipelines(ctx context.Context, api *elasticsearch.API, ids ...string) ([]RemotePipeline, error) {

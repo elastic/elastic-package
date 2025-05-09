@@ -25,9 +25,9 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const exportIngestPipelinesLongDescription = `Use this command to export ingest pipelines with referenced objects from the Elasticsearch instance.
+const exportIngestPipelinesLongDescription = `Use this command to export ingest pipelines with referenced pipelines from the Elasticsearch instance.
 
-Use this command to download selected ingest pipelines and its dependent processor pipelines from Elasticsearch to the selected data stream or the package root directories. Pipelines are downloaded as is, and will need adjustment to meet your package needs.`
+Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.`
 
 func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Elasticsearch ingest pipelines")
