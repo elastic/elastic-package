@@ -101,6 +101,10 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 		return fmt.Errorf("marshalling ingest pipeline json to yaml failed (ID: %s): %w", pipeline.Name(), err)
 	}
 
+	// requirement: https://github.com/elastic/package-spec/pull/54
+	documentStartDashes := []byte("---\n")
+	documentBytes := append(documentStartDashes, yamlBytes...)
+
 	err = os.MkdirAll(writeLocation.WritePath(), 0755)
 	if err != nil {
 		return fmt.Errorf("creating target directory failed (path: %s): %w", writeLocation.WritePath(), err)
@@ -108,7 +112,7 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 
 	pipelineFilePath := filepath.Join(writeLocation.WritePath(), pipeline.Name()+".yml")
 
-	err = os.WriteFile(pipelineFilePath, yamlBytes, 0644)
+	err = os.WriteFile(pipelineFilePath, documentBytes, 0644)
 
 	if err != nil {
 		return fmt.Errorf("writing to file '%s' failed: %w", pipelineFilePath, err)
