@@ -12,18 +12,6 @@ import (
 )
 
 var (
-	// defaultTableSymbols mimicks the table symbols of tablewriter v0,
-	// we could consider using v1 defaults.
-	defaultTableSymbols tw.Symbols = tw.NewSymbolCustom("Default").
-				WithTopLeft("+").
-				WithTopMid("+").
-				WithTopRight("+").
-				WithBottomLeft("+").
-				WithBottomMid("+").
-				WithBottomRight("+").
-				WithMidLeft("+").
-				WithMidRight("+")
-
 	// defaultTableConfig enables lines wrapping and limits cell width.
 	defaultTableConfig = tablewriter.Config{
 		Row: tw.CellConfig{
@@ -57,7 +45,7 @@ func defaultColorizedConfig() renderer.ColorizedConfig {
 			FG: renderer.Colors{color.Bold},
 		},
 		Settings:  defaultTableRendererSettings,
-		Symbols:   defaultTableSymbols,
+		Symbols:   tw.NewSymbols(tw.StyleASCII),
 		Border:    defaultTableLinesTint,
 		Separator: defaultTableLinesTint,
 	}
