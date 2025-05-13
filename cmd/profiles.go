@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
 
@@ -206,14 +205,6 @@ func formatJSON(profileList []profile.Metadata) error {
 
 func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
 	colorCfg := defaultColorizedConfig()
-	colorCfg.Column = renderer.Tint{
-		Columns: []renderer.Tint{
-			{FG: renderer.Colors{color.Bold, color.FgCyan}},
-			{},
-			{},
-			{},
-		},
-	}
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
 		tablewriter.WithConfig(defaultTableConfig),

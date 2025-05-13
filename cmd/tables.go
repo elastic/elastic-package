@@ -38,11 +38,16 @@ var (
 )
 
 // defaultColorizedConfig returns config for the colorized renderer that mimics
-// behaviour of tablewriter v0.
+// behaviour of tablewriter v0 and sets some defaults for headers and first column.
 func defaultColorizedConfig() renderer.ColorizedConfig {
 	return renderer.ColorizedConfig{
 		Header: renderer.Tint{
 			FG: renderer.Colors{color.Bold},
+		},
+		Column: renderer.Tint{
+			Columns: []renderer.Tint{
+				{FG: renderer.Colors{color.Bold, color.FgCyan}},
+			},
 		},
 		Settings:  defaultTableRendererSettings,
 		Symbols:   tw.NewSymbols(tw.StyleASCII),

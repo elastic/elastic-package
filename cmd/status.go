@@ -227,13 +227,6 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 		changelogTable = append(changelogTable, formatChangelogEntry(change))
 	}
 	colorCfg := defaultColorizedConfig()
-	colorCfg.Column = renderer.Tint{
-		Columns: []renderer.Tint{
-			{FG: renderer.Colors{color.Bold, color.FgCyan}},
-			{},
-			{},
-		},
-	}
 	table := tablewriter.NewTable(w,
 		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
 		tablewriter.WithConfig(defaultTableConfig),
@@ -265,13 +258,7 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 		Columns: []renderer.Tint{
 			{FG: renderer.Colors{color.Bold, color.FgCyan}},
 			{FG: renderer.Colors{color.Bold, color.FgRed}},
-			{},
-			{},
-			{},
 		},
-	}
-	for i := 0; i < len(extraParameters); i++ {
-		colorCfg.Column.Columns = append(colorCfg.Column.Columns, renderer.Tint{})
 	}
 
 	table := tablewriter.NewTable(w,
