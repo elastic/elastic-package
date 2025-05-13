@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
 
 	"github.com/spf13/cobra"
 
@@ -203,26 +205,23 @@ func formatJSON(profileList []profile.Metadata) error {
 }
 
 func formatTable(profilesDir string, profileList []profile.Metadata, currentProfile string) error {
-	table := tablewriter.NewWriter(os.Stdout)
+	colorCfg := defaultColorizedConfig()
+	colorCfg.Column = renderer.Tint{
+		Columns: []renderer.Tint{
+			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
+			{},
+			{},
+			{},
+		},
+	}
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
+		tablewriter.WithConfig(defaultTableConfig),
+	)
 	var profilesTable = profileToList(profilesDir, profileList, currentProfile)
 
-	table.SetHeader([]string{"Name", "Date Created", "Version", "Path"})
-	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-	)
-	table.SetColumnColor(
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-	)
-
-	table.SetAutoMergeCells(false)
-	table.SetRowLine(true)
-	table.AppendBulk(profilesTable)
+	table.Header([]string{"Name", "Date Created", "Version", "Path"})
+	table.Bulk(profilesTable)
 	table.Render()
 
 	return nil

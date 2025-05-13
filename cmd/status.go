@@ -17,6 +17,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
 
 	"github.com/spf13/cobra"
 
@@ -225,20 +226,20 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 	for _, change := range p.PendingChanges.Changes {
 		changelogTable = append(changelogTable, formatChangelogEntry(change))
 	}
-	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Type", "Description", "Link"})
-	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
+	colorCfg := defaultColorizedConfig()
+	colorCfg.Column = renderer.Tint{
+		Columns: []renderer.Tint{
+			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
+			{},
+			{},
+		},
+	}
+	table := tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
+		tablewriter.WithConfig(defaultTableConfig),
 	)
-	table.SetColumnColor(
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-	)
-	table.SetRowLine(true)
-	table.AppendBulk(changelogTable)
+	table.Header([]string{"Type", "Description", "Link"})
+	table.Bulk(changelogTable)
 	table.Render()
 }
 
@@ -255,37 +256,41 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 		data := formatManifests("Production", projectType.Name, projectType.Manifests, extraParameters)
 		environmentTable = append(environmentTable, data)
 	}
+	headers := []string{"Environment", "Version", "Release", "Title", "Description"}
+	headers = append(headers, formatHeaders(extraParameters)...)
 
 	bold.Fprintln(w, "Package Versions:")
-	table := tablewriter.NewWriter(w)
-	headers := []string{"Environment", "Version", "Release", "Title", "Description"}
-	headers = append(headers, extraParameters...)
-
-	table.SetHeader(headers)
-
-	headerColors := []tablewriter.Colors{}
-	for i := 0; i < len(headers); i++ {
-		headerColors = append(headerColors, twColor(tablewriter.Colors{tablewriter.Bold}))
-	}
-
-	table.SetHeaderColor(headerColors...)
-
-	columnColors := []tablewriter.Colors{
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-		tablewriter.Colors{},
+	colorCfg := defaultColorizedConfig()
+	colorCfg.Column = renderer.Tint{
+		Columns: []renderer.Tint{
+			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
+			{FG: twColor(renderer.Colors{color.Bold, color.FgRed})},
+			{},
+			{},
+			{},
+		},
 	}
 	for i := 0; i < len(extraParameters); i++ {
-		columnColors = append(columnColors, tablewriter.Colors{})
+		colorCfg.Column.Columns = append(colorCfg.Column.Columns, renderer.Tint{})
 	}
 
-	table.SetColumnColor(columnColors...)
-
-	table.SetRowLine(true)
-	table.AppendBulk(environmentTable)
+	table := tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
+		tablewriter.WithConfig(defaultTableConfig),
+	)
+	table.Header(headers)
+	table.Bulk(environmentTable)
 	table.Render()
+}
+
+var formatHeadersReplacer = strings.NewReplacer("_", " ", ".", " ")
+
+func formatHeaders(headers []string) []string {
+	result := make([]string, len(headers))
+	for i := range headers {
+		result[i] = formatHeadersReplacer.Replace(headers[i])
+	}
+	return result
 }
 
 // formatOwner returns the name of the package owner
@@ -337,14 +342,6 @@ func formatManifest(environment string, serverless string, manifest packages.Pac
 		}
 	}
 	return data
-}
-
-// twColor no-ops the color setting if we don't want to colorize the output
-func twColor(colors tablewriter.Colors) tablewriter.Colors {
-	if color.NoColor {
-		return tablewriter.Colors{}
-	}
-	return colors
 }
 
 // releaseFromVersion returns the human-friendly release level based on semantic versioning conventions.
