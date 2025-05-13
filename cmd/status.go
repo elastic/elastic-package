@@ -229,7 +229,7 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 	colorCfg := defaultColorizedConfig()
 	colorCfg.Column = renderer.Tint{
 		Columns: []renderer.Tint{
-			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
+			{FG: renderer.Colors{color.Bold, color.FgCyan}},
 			{},
 			{},
 		},
@@ -263,8 +263,8 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	colorCfg := defaultColorizedConfig()
 	colorCfg.Column = renderer.Tint{
 		Columns: []renderer.Tint{
-			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
-			{FG: twColor(renderer.Colors{color.Bold, color.FgRed})},
+			{FG: renderer.Colors{color.Bold, color.FgCyan}},
+			{FG: renderer.Colors{color.Bold, color.FgRed}},
 			{},
 			{},
 			{},

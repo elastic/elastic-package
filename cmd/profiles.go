@@ -208,7 +208,7 @@ func formatTable(profilesDir string, profileList []profile.Metadata, currentProf
 	colorCfg := defaultColorizedConfig()
 	colorCfg.Column = renderer.Tint{
 		Columns: []renderer.Tint{
-			{FG: twColor(renderer.Colors{color.Bold, color.FgCyan})},
+			{FG: renderer.Colors{color.Bold, color.FgCyan}},
 			{},
 			{},
 			{},

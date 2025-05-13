@@ -54,19 +54,11 @@ var (
 func defaultColorizedConfig() renderer.ColorizedConfig {
 	return renderer.ColorizedConfig{
 		Header: renderer.Tint{
-			FG: twColor(renderer.Colors{color.Bold}),
+			FG: renderer.Colors{color.Bold},
 		},
 		Settings:  defaultTableRendererSettings,
 		Symbols:   defaultTableSymbols,
 		Border:    defaultTableLinesTint,
 		Separator: defaultTableLinesTint,
 	}
-}
-
-// twColor no-ops the color setting if we don't want to colorize the output
-func twColor(colors renderer.Colors) renderer.Colors {
-	if color.NoColor {
-		return renderer.Colors{}
-	}
-	return colors
 }
