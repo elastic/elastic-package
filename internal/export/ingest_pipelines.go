@@ -97,7 +97,9 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 		return fmt.Errorf("unmarshalling ingest pipeline failed (ID: %s): %w", pipeline.Name(), err)
 	}
 
-	
+	delete(jsonPipeline, "_meta")
+	delete(jsonPipeline, "version")
+
 	var documentBytes bytes.Buffer
 	// requirement: https://github.com/elastic/package-spec/pull/54
 	documentBytes.WriteString("---\n")
