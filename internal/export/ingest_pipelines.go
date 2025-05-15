@@ -5,6 +5,7 @@
 package export
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -96,14 +97,14 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 		return fmt.Errorf("unmarshalling ingest pipeline failed (ID: %s): %w", pipeline.Name(), err)
 	}
 
-	yamlBytes, err := yaml.Marshal(jsonPipeline)
+	
+	var documentBytes bytes.Buffer
+	// requirement: https://github.com/elastic/package-spec/pull/54
+	documentBytes.WriteString("---\n")
+	err = yaml.NewEncoder(&documentBytes).Encode(jsonPipeline)
 	if err != nil {
 		return fmt.Errorf("marshalling ingest pipeline json to yaml failed (ID: %s): %w", pipeline.Name(), err)
 	}
-
-	// requirement: https://github.com/elastic/package-spec/pull/54
-	documentStartDashes := []byte("---\n")
-	documentBytes := append(documentStartDashes, yamlBytes...)
 
 	err = os.MkdirAll(writeLocation.WritePath(), 0755)
 	if err != nil {
@@ -112,7 +113,7 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 
 	pipelineFilePath := filepath.Join(writeLocation.WritePath(), pipeline.Name()+".yml")
 
-	err = os.WriteFile(pipelineFilePath, documentBytes, 0644)
+	err = os.WriteFile(pipelineFilePath, documentBytes.Bytes(), 0644)
 
 	if err != nil {
 		return fmt.Errorf("writing to file '%s' failed: %w", pipelineFilePath, err)

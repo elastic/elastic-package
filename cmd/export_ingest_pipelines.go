@@ -162,7 +162,6 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 }
 
 func promptWriteLocations(pipelineNames []string, writeLocations []export.PipelineWriteLocation) (export.PipelineWriteAssignments, error) {
-
 	var options []string
 
 	for _, writeLocation := range writeLocations {
@@ -178,9 +177,7 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 				Message: fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName),
 				Options: options,
 				Description: func(value string, index int) string {
-					idx := slices.IndexFunc(writeLocations, func(p export.PipelineWriteLocation) bool { return p.Name == value })
-
-					if writeLocations[idx].Type == export.PipelineWriteLocationTypeDataStream {
+					if writeLocations[index].Type == export.PipelineWriteLocationTypeDataStream {
 						return "data stream"
 					}
 
