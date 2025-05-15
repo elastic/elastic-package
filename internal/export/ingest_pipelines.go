@@ -103,7 +103,9 @@ func writePipelineToFile(pipeline ingest.RemotePipeline, writeLocation PipelineW
 	var documentBytes bytes.Buffer
 	// requirement: https://github.com/elastic/package-spec/pull/54
 	documentBytes.WriteString("---\n")
-	err = yaml.NewEncoder(&documentBytes).Encode(jsonPipeline)
+	yamlEncoder := yaml.NewEncoder(&documentBytes)
+	yamlEncoder.SetIndent(2)
+	err = yamlEncoder.Encode(jsonPipeline)
 	if err != nil {
 		return fmt.Errorf("marshalling ingest pipeline json to yaml failed (ID: %s): %w", pipeline.Name(), err)
 	}
