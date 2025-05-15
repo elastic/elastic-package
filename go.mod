@@ -27,7 +27,7 @@ require (
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
 	github.com/magefile/mage v1.15.0
 	github.com/maxmind/mmdbwriter v1.0.0
-	github.com/mholt/archives v0.1.1
+	github.com/mholt/archives v0.1.2
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/shirou/gopsutil/v3 v3.24.5
@@ -58,7 +58,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/STARRY-S/zip v0.2.1 // indirect
-	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/andybalholm/brotli v1.1.2-0.20250424173009-453214e765f3 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/bitfield/gotestdox v0.2.2 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
