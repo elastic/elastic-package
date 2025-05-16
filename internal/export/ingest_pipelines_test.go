@@ -8,8 +8,11 @@ import (
 	"context"
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -48,6 +51,7 @@ func TestExportIngestPipelines(t *testing.T) {
 			},
 			ExportDir: "./testdata/elasticsearch-8-export-pipelines",
 			RecordDir: "./testdata/elasticsearch-8-mock-export-pipelines",
+			Matcher:   ingestPipelineRequestMatcher,
 		},
 	}
 
@@ -82,7 +86,7 @@ func (s *ingestPipelineExportSuite) SetupTest() {
 }
 
 func (s *ingestPipelineExportSuite) TestExportPipelines() {
-	client := estest.NewClient(s.T(), s.RecordDir, nil)
+	client := estest.NewClient(s.T(), s.RecordDir, s.Matcher)
 
 	outputDir := s.T().TempDir()
 	writeAssignments := createTestWriteAssignments(s.PipelineIds, outputDir)
@@ -164,4 +168,27 @@ func assertEquivalentYAML(t *testing.T, expectedPath, foundPath string) {
 	expected := readYAML(expectedPath)
 	found := readYAML(foundPath)
 	assert.EqualValues(t, expected, found)
+}
+
+// Ingest Pipelines are requested in bulk and the param values are non-deterministic,
+// which makes matching to recorded requests flaky.
+// This custom cassette matcher helps match pipeline requests, and sends all others to the default matcher.
+func ingestPipelineRequestMatcher(r *http.Request, cr cassette.Request) bool {
+	urlStartPattern := "https://127.0.0.1:9200/_ingest/pipeline/"
+	rSplitUrl := strings.Split(r.URL.String(), urlStartPattern)
+	crSplitUrl := strings.Split(cr.URL, urlStartPattern)
+
+	isURLsPattern := len(rSplitUrl) == 2 && len(crSplitUrl) == 2
+
+	if !isURLsPattern {
+		return cassette.DefaultMatcher(r, cr)
+	}
+
+	rPipelineValues := strings.Split(rSplitUrl[1], ",")
+	crPipelineValues := strings.Split(crSplitUrl[1], ",")
+
+	slices.Sort(rPipelineValues)
+	slices.Sort(crPipelineValues)
+
+	return slices.Equal(rPipelineValues, crPipelineValues)
 }
