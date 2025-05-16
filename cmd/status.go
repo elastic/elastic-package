@@ -250,7 +250,7 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 		environmentTable = append(environmentTable, data)
 	}
 	headers := []string{"Environment", "Version", "Release", "Title", "Description"}
-	headers = append(headers, formatHeaders(extraParameters)...)
+	headers = append(headers, extraParameters...)
 
 	bold.Fprintln(w, "Package Versions:")
 	colorCfg := defaultColorizedConfig()
@@ -268,16 +268,6 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	table.Header(headers)
 	table.Bulk(environmentTable)
 	table.Render()
-}
-
-var formatHeadersReplacer = strings.NewReplacer("_", " ", ".", " ")
-
-func formatHeaders(headers []string) []string {
-	result := make([]string, len(headers))
-	for i := range headers {
-		result[i] = formatHeadersReplacer.Replace(headers[i])
-	}
-	return result
 }
 
 // formatOwner returns the name of the package owner

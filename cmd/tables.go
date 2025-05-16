@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
@@ -14,6 +16,11 @@ import (
 var (
 	// defaultTableConfig enables lines wrapping and limits cell width.
 	defaultTableConfig = tablewriter.Config{
+		Header: tw.CellConfig{
+			Filter: tw.CellFilter{
+				Global: headerCellFilter,
+			},
+		},
 		Row: tw.CellConfig{
 			Formatting: tw.CellFormatting{
 				AutoWrap: tw.WrapNormal,
@@ -36,6 +43,18 @@ var (
 		},
 	}
 )
+
+var headerCellFilterReplacer = strings.NewReplacer("_", " ", ".", " ")
+
+// headerCellFilter mimics behaviour of tablewriter v0, where some symbols where replaced
+// with spaces.
+func headerCellFilter(headers []string) []string {
+	result := make([]string, len(headers))
+	for i := range headers {
+		result[i] = headerCellFilterReplacer.Replace(headers[i])
+	}
+	return result
+}
 
 // defaultColorizedConfig returns config for the colorized renderer that mimics
 // behaviour of tablewriter v0 and sets some defaults for headers and first column.
