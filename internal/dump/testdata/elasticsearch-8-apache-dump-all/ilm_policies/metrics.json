@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "modified_date": "2023-11-27T16:35:54.011Z",
+  "modified_date": "2025-05-08T17:28:20.341Z",
   "policy": {
     "phases": {
       "hot": {
@@ -20,38 +20,12 @@
   },
   "in_use_by": {
     "indices": [
-      ".ds-metrics-system.process.summary-default-2023.11.27-000001",
-      ".ds-metrics-system.fsstat-default-2023.11.27-000001",
-      ".ds-metrics-system.uptime-default-2023.11.27-000001",
-      ".ds-metrics-system.network-default-2023.11.27-000001",
-      ".ds-metrics-system.filesystem-default-2023.11.27-000001",
-      ".ds-metrics-elastic_agent.elastic_agent-default-2023.11.27-000001",
-      ".ds-metrics-system.socket_summary-default-2023.11.27-000001",
-      ".ds-metrics-system.diskio-default-2023.11.27-000001",
-      ".ds-metrics-elastic_agent.filebeat-default-2023.11.27-000001",
-      ".ds-metrics-system.process-default-2023.11.27-000001",
-      ".ds-metrics-system.cpu-default-2023.11.27-000001",
-      ".ds-metrics-elastic_agent.metricbeat-default-2023.11.27-000001",
-      ".ds-metrics-elastic_agent.fleet_server-default-2023.11.27-000001",
-      ".ds-metrics-system.load-default-2023.11.27-000001",
-      ".ds-metrics-system.memory-default-2023.11.27-000001"
+      ".ds-metrics-elastic_agent.elastic_agent-default-2025.05.08-000001",
+      ".ds-metrics-elastic_agent.fleet_server-default-2025.05.08-000001"
     ],
     "data_streams": [
-      "metrics-system.filesystem-default",
-      "metrics-system.cpu-default",
-      "metrics-system.process.summary-default",
-      "metrics-system.memory-default",
       "metrics-elastic_agent.fleet_server-default",
-      "metrics-system.uptime-default",
-      "metrics-elastic_agent.elastic_agent-default",
-      "metrics-elastic_agent.metricbeat-default",
-      "metrics-system.fsstat-default",
-      "metrics-system.process-default",
-      "metrics-elastic_agent.filebeat-default",
-      "metrics-system.network-default",
-      "metrics-system.diskio-default",
-      "metrics-system.load-default",
-      "metrics-system.socket_summary-default"
+      "metrics-elastic_agent.elastic_agent-default"
     ],
     "composable_templates": [
       "metrics-system.process",

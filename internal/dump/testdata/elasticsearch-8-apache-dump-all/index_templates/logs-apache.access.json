@@ -7,7 +7,7 @@
     "template": {
       "settings": {
         "index": {
-          "default_pipeline": "logs-apache.access-1.3.6"
+          "default_pipeline": "logs-apache.access-1.8.2"
         }
       },
       "mappings": {
@@ -192,6 +192,13 @@
               }
             }
           },
+          "network": {
+            "properties": {
+              "forwarded_ip": {
+                "type": "ip"
+              }
+            }
+          },
           "tags": {
             "ignore_above": 1024,
             "type": "keyword"
@@ -280,6 +287,10 @@
             "properties": {
               "access": {
                 "properties": {
+                  "remote_addresses": {
+                    "ignore_above": 1024,
+                    "type": "keyword"
+                  },
                   "ssl": {
                     "properties": {
                       "cipher": {
@@ -389,6 +400,13 @@
               "architecture": {
                 "ignore_above": 1024,
                 "type": "keyword"
+              }
+            }
+          },
+          "client": {
+            "properties": {
+              "ip": {
+                "type": "ip"
               }
             }
           },

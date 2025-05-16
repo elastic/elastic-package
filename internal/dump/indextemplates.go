@@ -13,6 +13,7 @@ import (
 
 type IndexTemplate = ingest.IndexTemplate
 type TemplateSettings = ingest.TemplateSettings
+type RemoteIngestPipeline = ingest.RemotePipeline
 
 func getIndexTemplatesForPackage(ctx context.Context, api *elasticsearch.API, packageName string) ([]ingest.IndexTemplate, error) {
 	return ingest.GetIndexTemplatesForPackage(ctx, api, packageName)

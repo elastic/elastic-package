@@ -138,6 +138,9 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	IngestPipelineIDsFlagName        = "id"
+	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
+
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
