@@ -69,6 +69,7 @@ func defaultColorizedConfig() renderer.ColorizedConfig {
 			},
 		},
 		Settings:  defaultTableRendererSettings,
+		Symbols:   tw.NewSymbols(tw.StyleRounded),
 		Border:    defaultTableLinesTint,
 		Separator: defaultTableLinesTint,
 	}
