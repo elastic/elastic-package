@@ -11,6 +11,7 @@ import (
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/spf13/cobra"
 
@@ -357,8 +358,10 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		cmd.Printf(" - No service running\n")
 		return
 	}
+	config := defaultColorizedConfig()
+	config.Settings.Separators.BetweenRows = tw.Off
 	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRenderer(renderer.NewColorized(defaultColorizedConfig())),
+		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
 	table.Header("Service", "Version", "Status")
