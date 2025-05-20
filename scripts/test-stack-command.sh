@@ -116,10 +116,10 @@ Status of Elastic stack services:
 ╭──────────────────┬─────────┬───────────────────╮
 │     SERVICE      │ VERSION │      STATUS       │
 ├──────────────────┼─────────┼───────────────────┤
-│ elastic-agent    │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
-│ elasticsearch    │ ${EXPECTED_VERSION}   │ running (healthy) │
-│ fleet-server     │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
-│ kibana           │ ${EXPECTED_VERSION}   │ running (healthy) │
+│ elastic-agent    │ ${EXPECTED_AGENT_VERSION}  │ running (healthy) │
+│ elasticsearch    │ ${EXPECTED_VERSION}  │ running (healthy) │
+│ fleet-server     │ ${EXPECTED_AGENT_VERSION}  │ running (healthy) │
+│ kibana           │ ${EXPECTED_VERSION}  │ running (healthy) │
 │ package-registry │ latest  │ running (healthy) │
 ╰──────────────────┴─────────┴───────────────────╯
 EOF
