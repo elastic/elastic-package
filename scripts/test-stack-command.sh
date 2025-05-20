@@ -114,7 +114,7 @@ curl --cacert "${ELASTIC_PACKAGE_CA_CERT}" -f "${ELASTIC_PACKAGE_KIBANA_HOST}/lo
 cat <<EOF > "${OUTPUT_PATH_STATUS}/expected_running.txt"
 Status of Elastic stack services:
 ╭──────────────────┬─────────┬───────────────────╮
-│ SERVICE          │ VERSION │ STATUS            │
+│     SERVICE      │ VERSION │      STATUS       │
 ├──────────────────┼─────────┼───────────────────┤
 │ elastic-agent    │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
 │ elasticsearch    │ ${EXPECTED_VERSION}   │ running (healthy) │
@@ -124,7 +124,7 @@ Status of Elastic stack services:
 ╰──────────────────┴─────────┴───────────────────╯
 EOF
 
-elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
+NO_COLOR=true elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
 
 # Remove spaces to avoid issues with spaces between columns
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
