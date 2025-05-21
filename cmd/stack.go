@@ -360,7 +360,7 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	}
 	config := defaultColorizedConfig()
 	config.Settings.Separators.BetweenRows = tw.Off
-	table := tablewriter.NewTable(os.Stdout,
+	table := tablewriter.NewTable(os.Stderr,
 		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
