@@ -1,0 +1,293 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: elastic-package-certs
+  namespace: kube-system
+data:
+  ca-cert.pem: {{ .caCertPem }}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .agentName }}
+  namespace: kube-system
+  labels:
+    app:  {{ .agentName }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .agentName }}
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .agentName }}
+    spec:
+      tolerations:
+        - key: node-role.kubernetes.io/master
+          effect: NoSchedule
+      serviceAccountName: {{ .agentName }}
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: elastic-agent
+          image: {{ .elasticAgentImage }}
+          env:
+            - name: FLEET_ENROLL
+              value: "1"
+            # The ip:port pair of fleet server
+            - name: FLEET_URL
+              value: {{ .fleetURL }}
+            # If left empty KIBANA_HOST, KIBANA_FLEET_USERNAME, KIBANA_FLEET_PASSWORD are needed
+            - name: FLEET_ENROLLMENT_TOKEN
+              value: "{{ .enrollmentToken }}"
+            - name: FLEET_TOKEN_POLICY_NAME
+              value: "{{ .elasticAgentTokenPolicyName }}"
+            - name: KIBANA_HOST
+              value: {{ .kibanaURL }}
+            - name: KIBANA_FLEET_USERNAME
+              value: {{ .username }}
+            - name: KIBANA_FLEET_PASSWORD
+              value: {{ .password }}
+            - name: SSL_CERT_DIR
+              value: "/etc/ssl/certs:/etc/ssl/elastic-package"
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          securityContext:
+            runAsUser: 0
+          resources:
+            limits:
+              memory: 500Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
+          livenessProbe:
+            exec:
+              command:
+                - elastic-agent
+                - status
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+            - name: elastic-package-ca
+              mountPath: /etc/ssl/elastic-package
+              readOnly: true
+            - name: proc
+              mountPath: /hostfs/proc
+              readOnly: true
+            - name: etc-kubernetes
+              mountPath: /hostfs/etc/kubernetes
+            - name: var-lib
+              mountPath: /hostfs/var/lib
+              readOnly: true
+            - name: cgroup
+              mountPath: /hostfs/sys/fs/cgroup
+              readOnly: true
+            - name: varlibdockercontainers
+              mountPath: /var/lib/docker/containers
+              readOnly: true
+            - name: varlog
+              mountPath: /var/log
+              readOnly: true
+            - name: passwd
+              mountPath: /hostfs/etc/passwd
+              readOnly: true
+            - name: group
+              mountPath: /hostfs/etc/group
+              readOnly: true
+            - name: etcsysmd
+              mountPath: /hostfs/etc/systemd
+              readOnly: true
+      volumes:
+        - name: elastic-package-ca
+          secret:
+            secretName: elastic-package-certs
+        - name: proc
+          hostPath:
+            path: /proc
+        - name: etc-kubernetes
+          hostPath:
+            path: /etc/kubernetes
+        - name: var-lib
+          hostPath:
+            path: /var/lib
+        - name: passwd
+          hostPath:
+            path: /etc/passwd
+        - name: group
+          hostPath:
+            path: /etc/group
+        - name: cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: varlibdockercontainers
+          hostPath:
+            path: /var/lib/docker/containers
+        - name: varlog
+          hostPath:
+            path: /var/log
+        - name: etcsysmd
+          hostPath:
+            path: /etc/systemd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .agentName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .agentName }}
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: {{ .agentName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  namespace: kube-system
+  name: {{ .agentName }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ .agentName }}
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: {{ .agentName }}
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ .agentName }}-kubeadm-config
+  namespace: kube-system
+subjects:
+  - kind: ServiceAccount
+    name: {{ .agentName }}
+    namespace: kube-system
+roleRef:
+  kind: Role
+  name: {{ .agentName }}-kubeadm-config
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .agentName }}
+  labels:
+    k8s-app: {{ .agentName }}
+rules:
+  - apiGroups: [""]
+    resources:
+      - nodes
+      - namespaces
+      - events
+      - pods
+      - services
+      - configmaps
+      - serviceaccounts
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs: ["get", "list", "watch"]
+  # Enable this rule only if planing to use kubernetes_secrets provider
+  #- apiGroups: [""]
+  #  resources:
+  #  - secrets
+  #  verbs: ["get"]
+  - apiGroups: ["extensions"]
+    resources:
+      - replicasets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources:
+      - statefulsets
+      - deployments
+      - replicasets
+      - daemonsets
+    verbs: ["get", "list", "watch"]
+  - apiGroups:
+      - ""
+    resources:
+      - nodes/stats
+    verbs:
+      - get
+  - apiGroups: [ "batch" ]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: [ "get", "list", "watch" ]
+  # required for apiserver
+  - nonResourceURLs:
+      - "/metrics"
+    verbs:
+      - get
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterrolebindings
+      - clusterroles
+      - rolebindings
+      - roles
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingressclasses
+      - ingresses
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["policy"]
+    resources:
+      - podsecuritypolicies
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources:
+      - storageclasses
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .agentName }}
+  # should be the namespace where elastic-agent is running
+  namespace: kube-system
+  labels:
+    k8s-app: {{ .agentName }}
+rules:
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ .agentName }}-kubeadm-config
+  namespace: kube-system
+  labels:
+    k8s-app: {{ .agentName }}
+rules:
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    resourceNames:
+      - kubeadm-config
+    verbs: ["get"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .agentName }}
+  namespace: kube-system
+  labels:
+    k8s-app: {{ .agentName }}
+---

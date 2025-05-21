@@ -16,6 +16,10 @@ conditions:
     version: "{{.Manifest.Conditions.Kibana.Version}}"
   elastic:
     subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
+{{- if eq .Manifest.Type "content" }}
+discovery:
+  fields: []
+{{- end }}
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot
@@ -26,6 +30,7 @@ icons:
     title: Sample logo
     size: 32x32
     type: image/svg+xml
+{{- if (or (eq .Manifest.Type "integration") (eq .Manifest.Type "input")) }}
 policy_templates:
 {{- if eq .Manifest.Type "integration" }}
   - name: sample
@@ -72,6 +77,23 @@ policy_templates:
           - localhost
 {{ end }}
 {{ end -}}
+{{ end -}}
+{{ if .Manifest.Elasticsearch }}
+elasticsearch:
+{{ if .Manifest.Elasticsearch.SourceMode }}
+  source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
+{{- end}}
+{{ if .Manifest.Elasticsearch.IndexMode }}
+  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
+{{- end }}
+{{ if .Manifest.Elasticsearch.IndexTemplate }}
+  index_template:
+{{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
+    mappings:
+      subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
+{{- end }}
+{{- end }}
+{{- end }}
 owner:
   github: {{.Manifest.Owner.Github}}
   type: {{.Manifest.Owner.Type}}

@@ -5,11 +5,14 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 
@@ -32,16 +35,21 @@ type Options struct {
 }
 
 // BootUp function boots up the service stack.
-func BootUp(options Options) error {
+func BootUp(ctx context.Context, options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
-		Profile:            options.Profile,
-		PackageRootPath:    options.DataStreamRootPath,
-		DataStreamRootPath: options.DataStreamRootPath,
-		DevDeployDir:       options.DevDeployDir,
-		Variant:            options.Variant,
-		StackVersion:       options.StackVersion,
+		Profile:                options.Profile,
+		PackageRootPath:        options.DataStreamRootPath,
+		DataStreamRootPath:     options.DataStreamRootPath,
+		DevDeployDir:           options.DevDeployDir,
+		Variant:                options.Variant,
+		StackVersion:           options.StackVersion,
+		DeployIndependentAgent: false,
 	})
+	if errors.Is(err, os.ErrNotExist) {
+		fmt.Println("No service defined.")
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("can't create the service deployer instance: %w", err)
 	}
@@ -53,11 +61,12 @@ func BootUp(options Options) error {
 		return fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	var serviceCtxt servicedeployer.ServiceContext
-	serviceCtxt.Name = options.ServiceName
-	serviceCtxt.Logs.Folder.Agent = system.ServiceLogsAgentDir
-	serviceCtxt.Logs.Folder.Local = locationManager.ServiceLogDir()
-	deployed, err := serviceDeployer.SetUp(serviceCtxt)
+	var svcInfo servicedeployer.ServiceInfo
+	svcInfo.Name = options.ServiceName
+	svcInfo.Logs.Folder.Agent = system.ServiceLogsAgentDir
+	svcInfo.Logs.Folder.Local = locationManager.ServiceLogDir()
+	svcInfo.Test.RunID = common.CreateTestRunID()
+	deployed, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
 		return fmt.Errorf("can't set up the service deployer: %w", err)
 	}
@@ -65,11 +74,12 @@ func BootUp(options Options) error {
 	fmt.Println("Service is up, please use ctrl+c to take it down")
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(ch)
 	<-ch
 
 	// Tear down the service
 	fmt.Println("Take down the service")
-	err = deployed.TearDown()
+	err = deployed.TearDown(ctx)
 	if err != nil {
 		return fmt.Errorf("can't tear down the service: %w", err)
 	}

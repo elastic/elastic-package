@@ -5,175 +5,109 @@
 package static
 
 import (
-	"errors"
+	"context"
 	"fmt"
-	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/elastic/elastic-package/internal/fields"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-const sampleEventJSON = "sample_event.json"
-
-type runner struct {
-	options testrunner.TestOptions
-}
-
-var _ testrunner.TestRunner = new(runner)
-
-func init() {
-	testrunner.RegisterRunner(&runner{})
-}
-
 const (
 	// TestType defining asset loading tests
 	TestType testrunner.TestType = "static"
+
+	sampleEventJSON = "sample_event.json"
 )
 
-func (r runner) Type() testrunner.TestType {
-	return TestType
+type runner struct {
+	packageRootPath    string
+	failOnMissingTests bool
+	dataStreams        []string
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	withCoverage       bool
+	coverageType       string
 }
 
-func (r runner) String() string {
-	return "static files"
+type StaticTestRunnerOptions struct {
+	PackageRootPath    string
+	FailOnMissingTests bool
+	DataStreams        []string
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	WithCoverage       bool
+	CoverageType       string
 }
 
-func (r runner) Run(options testrunner.TestOptions) ([]testrunner.TestResult, error) {
-	r.options = options
-	return r.run()
+func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
+	runner := runner{
+		packageRootPath:    options.PackageRootPath,
+		failOnMissingTests: options.FailOnMissingTests,
+		dataStreams:        options.DataStreams,
+		globalTestConfig:   options.GlobalTestConfig,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
+	}
+	return &runner
 }
 
-func (r runner) run() ([]testrunner.TestResult, error) {
-	result := testrunner.NewResultComposer(testrunner.TestResult{
-		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
-	})
+// Ensures that runner implements testrunner.TestRunner interface
+var _ testrunner.TestRunner = new(runner)
 
-	testConfig, err := newConfig(r.options.TestFolder.Path)
-	if err != nil {
-		return result.WithError(fmt.Errorf("unable to load asset loading test config file: %w", err))
-	}
-
-	if testConfig != nil && testConfig.Skip != nil {
-		logger.Warnf("skipping %s test for %s: %s (details: %s)",
-			TestType, r.options.TestFolder.Package,
-			testConfig.Skip.Reason, testConfig.Skip.Link.String())
-		return result.WithSkip(testConfig.Skip)
-	}
-
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
-	if err != nil {
-		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
-	}
-
-	return r.verifySampleEvent(pkgManifest), nil
+func (r *runner) SetupRunner(ctx context.Context) error {
+	return nil
 }
 
-func (r runner) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
-	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-		Name:       "Verify " + sampleEventJSON,
-		TestType:   TestType,
-		Package:    r.options.TestFolder.Package,
-		DataStream: r.options.TestFolder.DataStream,
-	})
-
-	sampleEventPath, found, err := r.getSampleEventPath()
-	if err != nil {
-		results, _ := resultComposer.WithError(err)
-		return results
-	}
-	if !found {
-		// Nothing to do.
-		return []testrunner.TestResult{}
-	}
-
-	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
-	if err != nil {
-		results, _ := resultComposer.WithError(err)
-		return results
-	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
-		fields.WithSpecVersion(pkgManifest.SpecVersion),
-		fields.WithDefaultNumericConversion(),
-		fields.WithExpectedDatasets(expectedDatasets),
-		fields.WithEnabledImportAllECSSChema(true),
-	)
-	if err != nil {
-		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
-		return results
-	}
-
-	content, err := os.ReadFile(sampleEventPath)
-	if err != nil {
-		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
-		return results
-	}
-
-	multiErr := fieldsValidator.ValidateDocumentBody(content)
-	if len(multiErr) > 0 {
-		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  "one or more errors found in document",
-			Details: multiErr.Error(),
-		})
-		return results
-	}
-
-	results, _ := resultComposer.WithSuccess()
-	return results
+func (r *runner) TearDownRunner(ctx context.Context) error {
+	return nil
 }
 
-func (r runner) getSampleEventPath() (string, bool, error) {
-	var sampleEventPath string
-	if r.options.TestFolder.DataStream != "" {
-		sampleEventPath = filepath.Join(
-			r.options.PackageRootPath,
-			"data_stream",
-			r.options.TestFolder.DataStream,
-			sampleEventJSON)
+func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	var tests []testrunner.TestFolder
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+	}
+
+	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
+	if err != nil {
+		return nil, fmt.Errorf("cannot determine if package has data streams: %w", err)
+	}
+
+	if hasDataStreams {
+		tests, err = testrunner.AssumeTestFolders(r.packageRootPath, r.dataStreams, r.Type())
+		if err != nil {
+			return nil, fmt.Errorf("unable to assume test folder paths: %w", err)
+		}
+
+		if r.failOnMissingTests && len(tests) == 0 {
+			if len(r.dataStreams) > 0 {
+				return nil, fmt.Errorf("no %s tests found for %s data stream(s)", r.Type(), strings.Join(r.dataStreams, ","))
+			}
+			return nil, fmt.Errorf("no %s tests found", r.Type())
+		}
 	} else {
-		sampleEventPath = filepath.Join(r.options.PackageRootPath, sampleEventJSON)
+		_, pkg := filepath.Split(r.packageRootPath)
+		tests = []testrunner.TestFolder{
+			{
+				Package: pkg,
+			},
+		}
 	}
-	_, err := os.Stat(sampleEventPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
+
+	var testers []testrunner.Tester
+	for _, t := range tests {
+		testers = append(testers, NewStaticTester(StaticTesterOptions{
+			PackageRootPath:  r.packageRootPath,
+			TestFolder:       t,
+			GlobalTestConfig: r.globalTestConfig,
+			WithCoverage:     r.withCoverage,
+			CoverageType:     r.coverageType,
+		}))
 	}
-	if err != nil {
-		return "", false, fmt.Errorf("stat file failed: %w", err)
-	}
-	return sampleEventPath, true, nil
+	return testers, nil
 }
 
-func (r runner) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
-	dsName := r.options.TestFolder.DataStream
-	if dsName == "" {
-		// TODO: This should return the package name plus the policy name, but we don't know
-		// what policy created this event, so we cannot reliably know it here. Skip the check
-		// by now.
-		return nil, nil
-	}
-
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.options.PackageRootPath, dsName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
-	}
-	if ds := dataStreamManifest.Dataset; ds != "" {
-		return []string{ds}, nil
-	}
-	return []string{pkgManifest.Name + "." + dsName}, nil
-}
-
-func (r runner) TearDown() error {
-	return nil // it's a static test runner, no state is stored
-}
-
-func (r runner) CanRunPerDataStream() bool {
-	return true
-}
-
-func (r *runner) TestFolderRequired() bool {
-	return false
+func (r *runner) Type() testrunner.TestType {
+	return TestType
 }

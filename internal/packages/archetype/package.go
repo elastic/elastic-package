@@ -20,6 +20,8 @@ type PackageDescriptor struct {
 	Manifest packages.PackageManifest
 
 	InputDataStreamType string
+
+	ExcludeChecks []string
 }
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
@@ -90,6 +92,14 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 			return fmt.Errorf("can't render agent stream: %w", err)
 		}
 
+	}
+
+	if len(packageDescriptor.ExcludeChecks) > 0 {
+		logger.Debugf("Write validation file")
+		err = renderResourceFile(validationBaseTemplate, &packageDescriptor, filepath.Join(baseDir, "validation.yml"))
+		if err != nil {
+			return fmt.Errorf("can't render validation file")
+		}
 	}
 
 	logger.Debugf("Format the entire package")

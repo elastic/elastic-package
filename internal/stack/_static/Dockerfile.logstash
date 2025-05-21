@@ -1,0 +1,15 @@
+ARG IMAGE
+FROM ${IMAGE}
+
+ENV XPACK_MONITORING_ENABLED=$XPACK_MONITORING_ENABLED
+
+RUN if [ ! "$(bin/logstash-plugin list)" = *logstash-filter-elastic_integration* ]; then \
+        echo "Missing plugin logstash-filter-elastic_integration, installing now."; \
+        bin/logstash-plugin install logstash-filter-elastic_integration; \
+    fi
+
+# Copying the file here instead of using a volume so it can be modified and reload
+# automatically.
+COPY --chown=logstash:root ./logstash.conf /usr/share/logstash/pipeline/logstash.conf
+
+CMD bin/logstash -f /usr/share/logstash/pipeline/logstash.conf --config.reload.automatic

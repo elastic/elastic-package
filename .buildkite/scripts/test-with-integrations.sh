@@ -1,21 +1,7 @@
 #!/bin/bash
+source .buildkite/scripts/install_deps.sh
 
 set -euo pipefail
-
-WORKSPACE="$(pwd)"
-
-TMP_FOLDER_TEMPLATE_BASE="tmp.${GITHUB_PR_BASE_REPO}"
-TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
-
-cleanup() {
-    echo "Deleting temporal files..."
-    cd ${WORKSPACE}
-    rm -rf "${TMP_FOLDER_TEMPLATE_BASE}.*"
-    echo "Done."
-}
-
-trap cleanup EXIT
-source .buildkite/scripts/install_deps.sh
 
 add_bin_path
 
@@ -57,33 +43,32 @@ set_git_config() {
     git config user.email "${GITHUB_EMAIL_SECRET}"
 }
 
-git_push_with_auth() {
-    local owner="$1"
-    local repository="$2"
-    local branch="$3"
+git_push() {
+    local branch="$1"
 
-    retry 3 git push https://${GITHUB_USERNAME_SECRET}:${GITHUB_TOKEN}@github.com/${owner}/${repository}.git "${branch}"
+    retry 3 git push origin "${branch}"
 }
 
 clone_repository() {
     local target="$1"
-    retry 5 git clone https://github.com/elastic/integrations ${target}
+    retry 5 git clone https://github.com/elastic/integrations "${target}"
 }
 
 create_integrations_pull_request() {
     # requires GITHUB_TOKEN
-    local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
+    local temp_path
+    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
     echo "Creating Pull Request"
     message="Update ${GITHUB_PR_BASE_REPO} reference to $(get_source_commit_link).\nAutomated by [Buildkite build](${BUILDKITE_BUILD_URL})\n\nRelates: $(get_source_pr_link)"
-    echo -e $message > ${temp_path}/body-pr.txt
+    echo -e "$message" > "${temp_path}/body-pr.txt"
     retry 3 \
         gh pr create \
         --title "${INTEGRATIONS_PR_TITLE}" \
-        --body-file ${temp_path}/body-pr.txt \
+        --body-file "${temp_path}/body-pr.txt" \
         --draft \
-        --base ${INTEGRATIONS_SOURCE_BRANCH} \
-        --head ${INTEGRATIONS_PR_BRANCH} \
-        --assignee ${GITHUB_PR_HEAD_USER}
+        --base "${INTEGRATIONS_SOURCE_BRANCH}" \
+        --head "${INTEGRATIONS_PR_BRANCH}" \
+        --assignee "${GITHUB_PR_HEAD_USER}"
 }
 
 update_dependency() {
@@ -118,11 +103,12 @@ exists_branch() {
     local repository="$2"
     local branch="$3"
 
-    git ls-remote --exit-code --heads https://github.com/${owner}/${repository}.git ${branch}
+    git ls-remote --exit-code --heads "https://github.com/${owner}/${repository}.git" "${branch}"
 }
 
 create_or_update_pull_request() {
-    local temp_path=$(mktemp -d -p ${WORKSPACE} -t ${TMP_FOLDER_TEMPLATE})
+    local temp_path
+    temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
     local repo_path="${temp_path}/elastic-integrations"
     local checkout_options=""
     local integrations_pr_number=""
@@ -135,7 +121,7 @@ create_or_update_pull_request() {
     set_git_config
 
     echo "Checking branch ${INTEGRATIONS_PR_BRANCH} in remote ${INTEGRATIONS_GITHUB_OWNER}/${INTEGRATIONS_GITHUB_REPO_NAME}"
-    if ! exists_branch ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH} ; then
+    if ! exists_branch "${INTEGRATIONS_GITHUB_OWNER}" "${INTEGRATIONS_GITHUB_REPO_NAME}" "${INTEGRATIONS_PR_BRANCH}" ; then
         checkout_options=" -b "
         echo "Creating a new branch..."
     else
@@ -147,13 +133,13 @@ create_or_update_pull_request() {
         echo "Exists PR in integrations repository: ${integrations_pr_number}"
     fi
 
-    git checkout ${checkout_options} ${INTEGRATIONS_PR_BRANCH}
+    git checkout ${checkout_options} "${INTEGRATIONS_PR_BRANCH}"
 
     echo "--- Updating dependency :pushpin:"
     update_dependency
 
     echo "--- Pushing branch ${INTEGRATIONS_PR_BRANCH} to integrations repository..."
-    git_push_with_auth ${INTEGRATIONS_GITHUB_OWNER} ${INTEGRATIONS_GITHUB_REPO_NAME} ${INTEGRATIONS_PR_BRANCH}
+    git_push "${INTEGRATIONS_PR_BRANCH}"
 
     if [ -z "${integrations_pr_number}" ]; then
         echo "--- Creating pull request :github:"
@@ -169,7 +155,7 @@ create_or_update_pull_request() {
     rm -rf "${temp_path}"
 
     echo "--- adding comment into ${GITHUB_PR_BASE_REPO} pull request :memo:"
-    add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link ${integrations_pr_number})"
+    add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link "${integrations_pr_number}")"
 }
 
 
@@ -177,10 +163,10 @@ add_pr_comment() {
     local source_pr_number="$1"
     local integrations_pr_link="$2"
 
-    retry 3 \
-        gh pr comment ${source_pr_number} \
-        --body "Created or updated PR in integrations repository to test this version. Check ${integrations_pr_link}" \
-        --repo ${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}
+    add_github_comment \
+        "${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}" \
+        "${source_pr_number}" \
+        "Created or updated PR in integrations repository to test this version. Check ${integrations_pr_link}"
 }
 
 

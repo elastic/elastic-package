@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -22,8 +23,6 @@ type ServiceStatus struct {
 const readyServicesSuffix = "is_ready"
 
 const (
-	// serviceLabelDockerCompose is the label with the service name created by docker-compose
-	serviceLabelDockerCompose = "com.docker.compose.service"
 	// projectLabelDockerCompose is the label with the project name created by docker-compose
 	projectLabelDockerCompose = "com.docker.compose.project"
 )
@@ -51,60 +50,60 @@ func (eb *envBuilder) build() []string {
 	return eb.vars
 }
 
-func dockerComposeBuild(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+func dockerComposeBuild(ctx context.Context, options Options) error {
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Build(opts); err != nil {
+	if err := c.Build(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposePull(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+func dockerComposePull(ctx context.Context, options Options) error {
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		Services: withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Pull(opts); err != nil {
+	if err := c.Pull(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposeUp(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+func dockerComposeUp(ctx context.Context, options Options) error {
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
@@ -114,14 +113,14 @@ func dockerComposeUp(options Options) error {
 		args = append(args, "-d")
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
@@ -129,33 +128,33 @@ func dockerComposeUp(options Options) error {
 		Services:  withIsReadyServices(withDependentServices(options.Services)),
 	}
 
-	if err := c.Up(opts); err != nil {
+	if err := c.Up(ctx, opts); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
 }
 
-func dockerComposeDown(options Options) error {
-	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(profileStackPath, SnapshotFile))
+func dockerComposeDown(ctx context.Context, options Options) error {
+	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration()
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
 
 	downOptions := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(options.StackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(options.StackVersion)).
 			withEnvs(options.Profile.ComposeEnvVars()).
 			build(),
 		// Remove associated volumes.
 		ExtraArgs: []string{"--volumes", "--remove-orphans"},
 	}
-	if err := c.Down(downOptions); err != nil {
+	if err := c.Down(ctx, downOptions); err != nil {
 		return fmt.Errorf("running command failed: %w", err)
 	}
 	return nil
@@ -182,7 +181,7 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus(options Options) ([]ServiceStatus, error) {
+func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
@@ -212,7 +211,7 @@ func dockerComposeStatus(options Options) ([]ServiceStatus, error) {
 
 func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
 	service := ServiceStatus{
-		Name:    description.Config.Labels[serviceLabelDockerCompose],
+		Name:    description.Config.Labels.ComposeService,
 		Status:  description.State.Status,
 		Version: getVersionFromDockerImage(description.Config.Image),
 	}
@@ -231,9 +230,9 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 }
 
 func getVersionFromDockerImage(dockerImage string) string {
-	fields := strings.Split(dockerImage, ":")
-	if len(fields) == 2 {
-		return fields[1]
+	_, version, found := strings.Cut(dockerImage, ":")
+	if found {
+		return version
 	}
 	return "latest"
 }

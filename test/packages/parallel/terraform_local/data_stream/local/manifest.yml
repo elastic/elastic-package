@@ -1,0 +1,17 @@
+title: "Local"
+type: logs
+streams:
+  - input: logfile
+    title: Sample logs
+    description: Collect sample logs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /tmp/service_logs/*.log
+elasticsearch:
+  index_template:
+    mappings:
+      subobjects: false

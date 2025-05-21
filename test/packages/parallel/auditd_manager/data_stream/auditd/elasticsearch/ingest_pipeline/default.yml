@@ -1,0 +1,333 @@
+---
+description: Pipeline for parsing Linux auditd logs
+processors:
+  - set:
+      field: ecs.version
+      value: '8.2.0'
+  - rename:
+      field: event.original
+      target_field: auditd.messages
+      ignore_missing: true
+  - join:
+      field: auditd.messages
+      separator: "\n"
+      target_field: event.original
+      if: ctx?.auditd?.messages != null && ctx.auditd.messages instanceof List
+  - rename:
+      field: error.message
+      target_field: auditd.warnings
+      ignore_missing: true
+  - join:
+      field: auditd.warnings
+      separator: "\n"
+      target_field: error.message
+      if: ctx?.auditd?.warnings != null && ctx.auditd.warnings instanceof List
+  # if it is not a list, rename it back to error.message
+  - set:
+      field: error.message
+      copy_from: auditd.warnings
+      ignore_empty_value: true
+      if: ctx?.auditd?.warnings != null && !(ctx.auditd.warnings instanceof List)
+  - rename:
+      field: source.path
+      target_field: source.address
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: destination.path
+      target_field: destination.address
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.audit
+      target_field: auditd.user.audit
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: file.selinux
+      target_field: auditd.file.selinux
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.selinux
+      target_field: auditd.user.selinux
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.saved
+      target_field: auditd.user.saved
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.filesystem
+      target_field: auditd.user.filesystem
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.new_auid
+      target_field: auditd.user.new_auid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.new-auid
+      target_field: auditd.user.new_auid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.old_auid
+      target_field: auditd.user.old_auid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: user.old-auid
+      target_field: auditd.user.old_auid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-ses
+      target_field: auditd.data.new_ses
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-ses
+      target_field: auditd.data.old_ses
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-enabled
+      target_field: auditd.data.new_enabled
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-enabled
+      target_field: auditd.data.old_enabled
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.vm-ctx
+      target_field: auditd.data.vm_ctx
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-rng
+      target_field: auditd.data.new_rng
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-net
+      target_field: auditd.data.new_net
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-seuser
+      target_field: auditd.data.new_seuser
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-net
+      target_field: auditd.data.old_net
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.nlnk-pid
+      target_field: auditd.data.nlnk_pid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.ipx-net
+      target_field: auditd.data.ipx_net
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-vpcu
+      target_field: auditd.data.old_vpcu
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-fs
+      target_field: auditd.data.new_fs
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.vm-pid
+      target_field: auditd.data.vm_pid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-auid
+      target_field: auditd.data.old_auid
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-disk
+      target_field: auditd.data.new_disk
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.nlnk-grp
+      target_field: auditd.data.nlnk_grp
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-mem
+      target_field: auditd.data.new_mem
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-chardev
+      target_field: auditd.data.new_chardev
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-rng
+      target_field: auditd.data.old_rng
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-level
+      target_field: auditd.data.new_level
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-mem
+      target_field: auditd.data.old_mem
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.default-context
+      target_field: auditd.data.default_context
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-log_passwd
+      target_field: auditd.data.new_log_passwd
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.selected-context
+      target_field: auditd.data.selected_context
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-range
+      target_field: auditd.data.old_range
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-range
+      target_field: auditd.data.new_range
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-disk
+      target_field: auditd.data.old_disk
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.nlnk-fam
+      target_field: auditd.data.nlnk_fam
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-fs
+      target_field: auditd.data.old_fs
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-ses
+      target_field: auditd.data.old_ses
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-vcpu
+      target_field: auditd.data.new_vcpu
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-level
+      target_field: auditd.data.old_level
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-role
+      target_field: auditd.data.old_role
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.new-role
+      target_field: auditd.data.new_role
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-log_passwd
+      target_field: auditd.data.old_log_passwd
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-seuser
+      target_field: auditd.data.old_seuser
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.img-ctx
+      target_field: auditd.data.img_ctx
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.old-chardev
+      target_field: auditd.data.old_chardev
+      ignore_missing: true
+      ignore_failure: true
+  - set:
+      field: event.outcome
+      value: failure
+      if: ctx?.event?.outcome == "fail"
+  - rename:
+      field: auditd.sequence
+      target_field: event.sequence
+      ignore_missing: true
+      ignore_failure: true
+  - rename:
+      field: auditd.data.id
+      target_field: event.id
+      ignore_missing: true
+      ignore_failure: true
+  - remove:
+      field: event.original
+      if: "ctx?.tags == null || !(ctx.tags.contains('preserve_original_event'))"
+      ignore_failure: true
+      ignore_missing: true
+  - remove:
+      field: auditd.messages
+      if: "ctx?.tags == null || !(ctx.tags.contains('preserve_original_event'))"
+      ignore_failure: true
+      ignore_missing: true
+  - script:
+      lang: painless
+      description: This script processor iterates over the whole document to remove fields with null values.
+      source: |
+        void handleMap(Map map) {
+          for (def x : map.values()) {
+            if (x instanceof Map) {
+                handleMap(x);
+            } else if (x instanceof List) {
+                handleList(x);
+            }
+          }
+          map.values().removeIf(v -> v == null || v == '' || (v instanceof Map && v.size() == 0) || (v instanceof List && v.size() == 0));
+        }
+        void handleList(List list) {
+          for (def x : list) {
+              if (x instanceof Map) {
+                  handleMap(x);
+              } else if (x instanceof List) {
+                  handleList(x);
+              }
+          }
+          list.removeIf(v -> v == null || v == '' || (v instanceof Map && v.size() == 0) || (v instanceof List && v.size() == 0));
+        }
+        handleMap(ctx);
+on_failure:
+  - set:
+      field: error.message
+      value: "{{ _ingest.on_failure_message }}"

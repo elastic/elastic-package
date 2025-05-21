@@ -47,7 +47,12 @@ To expose local packages in the Package Registry, build them first and boot up t
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
-You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
+You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.
+
+There are different providers supported, that can be selected with the --provider flag.
+- compose: Starts a local stack using Docker Compose. This is the default.
+- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key. You can learn more about this in [this document](./docs/howto/use_serverless_stack.md).`
 
 const stackShellinitLongDescription = `Use this command to export to the current shell the configuration of the stack managed by elastic-package.
 
@@ -55,6 +60,7 @@ The output of this command is intended to be evaluated by the current shell. For
 
 Relevant environment variables are:
 
+- ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY
 - ELASTIC_PACKAGE_ELASTICSEARCH_HOST
 - ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 - ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
@@ -115,7 +121,7 @@ func setupStackCommand() *cobraext.Command {
 			profile.RuntimeOverrides(userParameters)
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
-			err = provider.BootUp(stack.Options{
+			err = provider.BootUp(cmd.Context(), stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
 				Services:     services,
@@ -154,7 +160,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			err = provider.TearDown(stack.Options{
+			err = provider.TearDown(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
 			})
@@ -189,7 +195,7 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
-			err = provider.Update(stack.Options{
+			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
 				Profile:      profile,
 				Printer:      cmd,
@@ -255,7 +261,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			target, err := provider.Dump(stack.DumpOptions{
+			target, err := provider.Dump(cmd.Context(), stack.DumpOptions{
 				Output:  output,
 				Profile: profile,
 			})
@@ -286,7 +292,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			servicesStatus, err := provider.Status(stack.Options{
+			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
 				Profile: profile,
 				Printer: cmd,
 			})

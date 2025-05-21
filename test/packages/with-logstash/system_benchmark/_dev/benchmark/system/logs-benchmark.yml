@@ -1,0 +1,20 @@
+---
+description: Benchmark 20000 events ingested
+input: filestream
+vars: ~
+data_stream:
+  name: testds
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/corpus-*"
+warmup_time_period: 10s
+wait_for_data_timeout: 10m
+corpora:
+  generator:
+    total_events: 20000
+    template:
+      path: ./logs-benchmark/template.log
+    config:
+      path: ./logs-benchmark/config.yml
+    fields:
+      path: ./logs-benchmark/fields.yml

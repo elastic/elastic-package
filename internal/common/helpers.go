@@ -6,8 +6,16 @@ package common
 
 import (
 	"fmt"
+	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/elastic/go-resource"
+)
+
+const (
+	testRunMaxID = 99999
+	testRunMinID = 10000
 )
 
 // TrimStringSlice removes whitespace from the beginning and end of the contents of a []string.
@@ -47,4 +55,18 @@ func ToStringSlice(val interface{}) ([]string, error) {
 		s = append(s, str)
 	}
 	return s, nil
+}
+
+func CreateTestRunID() string {
+	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
+}
+
+func ProcessResourceApplyResults(results resource.ApplyResults) string {
+	var errors []string
+	for _, result := range results {
+		if err := result.Err(); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	return strings.Join(errors, ", ")
 }

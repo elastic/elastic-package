@@ -1,6 +1,10 @@
-{{ $version := fact "kibana_version" }}
+{{- $version := fact "kibana_version" }}
 server.name: kibana
 server.host: "0.0.0.0"
+{{- $kibana_http2_enabled := fact "kibana_http2_enabled" -}}
+{{- if (and (eq $kibana_http2_enabled "true") (not (semverLessThan $version "8.15.0-SNAPSHOT"))) }}
+server.protocol: http2
+{{ end -}}
 server.ssl.enabled: true
 server.ssl.certificate: "/usr/share/kibana/config/certs/cert.pem"
 server.ssl.key: "/usr/share/kibana/config/certs/key.pem"
@@ -8,6 +12,13 @@ server.ssl.certificateAuthorities: ["/usr/share/kibana/config/certs/ca-cert.pem"
 
 elasticsearch.hosts: [ "https://elasticsearch:9200" ]
 elasticsearch.ssl.certificateAuthorities: "/usr/share/kibana/config/certs/ca-cert.pem"
+
+{{ $apm_enabled := fact "apm_enabled" }}
+{{ if eq $apm_enabled "true" }}
+elastic.apm.active: true
+elastic.apm.serverUrl: "http://fleet-server:8200"
+elastic.apm.environment: "dev"
+{{ end }}
 
 {{ if semverLessThan $version "8.0.0" }}
 elasticsearch.username: {{ fact "username" }}
@@ -40,20 +51,28 @@ xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 xpack.cloudSecurityPosture.enabled: true
 {{ end }}
 
+{{ $self_monitor_enabled := fact "self_monitor_enabled" }}
 {{ if not (semverLessThan $version "8.0.0") }}
 xpack.fleet.packages:
+  {{ if eq $self_monitor_enabled "true" }}
   - name: system
     version: latest
+  {{ end }}
   - name: elastic_agent
     version: latest
   - name: fleet_server
     version: latest
+  {{ if eq $apm_enabled "true" }}
+  - name: apm
+    version: latest
+  {{ end }}
 xpack.fleet.agentPolicies:
   - name: Elastic-Agent (elastic-package)
     id: elastic-agent-managed-ep
     is_default: true
     is_managed: false
     namespace: default
+  {{ if eq $self_monitor_enabled "true" }}
     monitoring_enabled:
       - logs
       - metrics
@@ -62,6 +81,10 @@ xpack.fleet.agentPolicies:
         id: default-system
         package:
           name: system
+  {{ else }}
+    monitoring_enabled: []
+    package_policies: []
+  {{ end }}
   - name: Fleet Server (elastic-package)
     id: fleet-server-policy
     is_default_fleet_server: true
@@ -72,6 +95,30 @@ xpack.fleet.agentPolicies:
         id: default-fleet-server
         package:
           name: fleet_server
+      {{ if eq $apm_enabled "true" }}
+        inputs:
+          - type: fleet-server
+            vars:
+              - name: custom
+                value: |
+      {{ if not (semverLessThan $version "8.8.0") }}
+                  server:
+      {{ end }}
+                    instrumentation:
+                      enabled: true
+                      hosts: ["http://fleet-server:8200"]
+                      environment: "dev"
+      - name: apm-1
+        package:
+          name: apm
+        inputs:
+          - type: apm
+            vars:
+              - name: host
+                value: "0.0.0.0:8200"
+              - name: secret_token
+                value: ""
+      {{ end }}
 xpack.fleet.outputs:
   - id: fleet-default-output
     name: default
@@ -80,12 +127,41 @@ xpack.fleet.outputs:
     ca_trusted_fingerprint: "${ELASTIC_PACKAGE_CA_TRUSTED_FINGERPRINT}"
     is_default: true
     is_default_monitoring: true
+    {{- if semverLessThan $version "8.12.0" }}
+    # performance tuning preset values optimized for latency
+    # values retrieved from https://www.elastic.co/guide/en/fleet/8.14/es-output-settings.html#es-output-settings-performance-tuning-settings
+    config:
+      bulk_max_size: 50
+      worker: 1
+      queue.mem.events: 4100
+      queue.mem.flush.min_events: 2050
+      queue.mem.flush.timeout: 1s
+      compression_level: 1
+      connection_idle_timeout: 60
+    {{ else }}
+    preset: latency
+    {{ end }}
 
   {{ $logstash_enabled := fact "logstash_enabled" }}
   {{ if eq $logstash_enabled "true" }}
+  {{ $agent_certificate := fact "agent_certificate" }}
+  {{ $agent_key := fact "agent_key" }}
   - id: fleet-logstash-output
     name: logstash-output
     type: logstash
     hosts: [ logstash:5044 ]
+    ssl:
+      certificate: |
+        {{ indent $agent_certificate "        " }}
+      key: |
+        {{ indent $agent_key "        " }}
   {{ end }}
 {{ end }}
+
+{{- if eq $version "9.0.0-SNAPSHOT" }}
+xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
+{{- end }}
+
+logging.loggers:
+  - name: plugins.fleet
+    level: debug

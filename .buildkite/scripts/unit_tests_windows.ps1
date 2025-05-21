@@ -10,6 +10,9 @@ function fixCRLF {
 }
 
 function withGolang($version) {
+    # Avoid conflicts with previous installations.
+    Remove-Item env:GOROOT
+
     Write-Host "-- Install golang $version --"
     choco install -y golang --version $version
     $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
@@ -36,13 +39,11 @@ withGolang $env:GO_VERSION
 
 
 echo "--- Downloading Go modules"
-go version
 go mod download -x
 
 echo "--- Running unit tests"
-go version
 $ErrorActionPreference = "Continue" # set +e
-go run gotest.tools/gotestsum --junitfile "$(PWD)/TEST-unit.xml" -- -count=1 ./...
+go run gotest.tools/gotestsum --junitfile "$(PWD)/TEST-unit-windows.xml" -- -count=1 ./...
 $EXITCODE=$LASTEXITCODE
 $ErrorActionPreference = "Stop"
 

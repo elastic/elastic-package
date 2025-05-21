@@ -6,6 +6,7 @@
         "userName": "Bob",
         "groupName": "admin"
       }
-    }
+    },
+    "flattened.request_parameters.userID": 1000
   }
 }

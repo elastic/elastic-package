@@ -1,0 +1,11 @@
+data_stream:
+  vars:
+    audit_rules:
+      - "-a always,exit -F arch=b64 -S execve,execveat -k exec"
+    preserve_original_event: true
+agent:
+  runtime: docker
+  pid_mode: "host"
+  linux_capabilities:
+    - AUDIT_CONTROL
+    - AUDIT_READ

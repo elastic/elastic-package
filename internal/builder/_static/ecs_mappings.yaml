@@ -23,6 +23,12 @@ mappings:
                 type: ip
             match: ip
             match_mapping_type: string
+        - x509_public_key_exponent_non_indexed_long:
+            mapping:
+                type: long
+                index: false
+                doc_values: false
+            path_match: '*.x509.public_key_exponent'
         - port_to_long:
             mapping:
                 type: long
@@ -175,14 +181,14 @@ mappings:
                     text:
                         type: match_only_text
                 type: wildcard
-            path_match: '*.url.full'
+            path_match: '*url.full'
         - url_original_to_multifield:
             mapping:
                 fields:
                     text:
                         type: match_only_text
                 type: wildcard
-            path_match: '*.url.original'
+            path_match: '*url.original'
         - user_agent_original_to_multifield:
             mapping:
                 fields:
@@ -198,6 +204,12 @@ mappings:
             mapping:
                 type: match_only_text
             path_match: message
+        - event_original_non_indexed_keyword:
+            mapping:
+                type: keyword
+                index: false
+                doc_values: false
+            path_match: 'event.original'
         - agent_name_to_keyword:
             mapping:
                 type: keyword

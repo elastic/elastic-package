@@ -5,15 +5,17 @@
 package servicedeployer
 
 import (
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"time"
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
@@ -26,7 +28,7 @@ const (
 	terraformDeployerDockerfile = "Dockerfile"
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
-	terraformOutputJsonFile     = "tfOutputValues.json"
+	terraformOutputJSONFile     = "tfOutputValues.json"
 )
 
 //go:embed _static/terraform_deployer.yml
@@ -43,12 +45,16 @@ type TerraformServiceDeployer struct {
 	definitionsDir string
 }
 
+type TerraformServiceDeployerOptions struct {
+	DefinitionsDir string
+}
+
 // addTerraformOutputs method reads the terraform outputs generated in the json format and
-// adds them to the custom properties of ServiceContext and can be used in the handlebars template
+// adds them to the custom properties of ServiceInfo and can be used in the handlebars template
 // like `{{TF_OUTPUT_queue_url}}` where `queue_url` is the output configured
-func addTerraformOutputs(outCtxt ServiceContext) error {
+func addTerraformOutputs(svcInfo *ServiceInfo) error {
 	// Read the `output.json` file where terraform outputs are generated
-	outputFile := filepath.Join(outCtxt.OutputDir, terraformOutputJsonFile)
+	outputFile := filepath.Join(svcInfo.OutputDir, terraformOutputJSONFile)
 	content, err := os.ReadFile(outputFile)
 	if err != nil {
 		return fmt.Errorf("failed to read terraform output file: %w", err)
@@ -70,28 +76,28 @@ func addTerraformOutputs(outCtxt ServiceContext) error {
 		return nil
 	}
 
-	if outCtxt.CustomProperties == nil {
-		outCtxt.CustomProperties = make(map[string]any, len(terraformOutputs))
+	if svcInfo.CustomProperties == nil {
+		svcInfo.CustomProperties = make(map[string]any, len(terraformOutputs))
 	}
 	// Prefix variables names with TF_OUTPUT_
 	for k, outputs := range terraformOutputs {
-		outCtxt.CustomProperties[terraformOutputPrefix+k] = outputs.Value
+		svcInfo.CustomProperties[terraformOutputPrefix+k] = outputs.Value
 	}
 	return nil
 }
 
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
-func NewTerraformServiceDeployer(definitionsDir string) (*TerraformServiceDeployer, error) {
+func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
-		definitionsDir: definitionsDir,
+		definitionsDir: opts.DefinitionsDir,
 	}, nil
 }
 
 // SetUp method boots up the Docker Compose with Terraform executor and mounted .tf definitions.
-func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedService, error) {
+func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Terraform deployer")
 
-	configDir, err := tsd.installDockerfile()
+	configDir, err := tsd.installDockerfile(deployerFolderName(svcInfo))
 	if err != nil {
 		return nil, fmt.Errorf("can't install Docker Compose definitions: %w", err)
 	}
@@ -103,14 +109,15 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		ymlPaths = append(ymlPaths, envYmlPath)
 	}
 
-	tfEnvironment := tsd.buildTerraformExecutorEnvironment(inCtxt)
+	tfEnvironment := tsd.buildTerraformExecutorEnvironment(svcInfo)
 
 	service := dockerComposeDeployedService{
-		ymlPaths: ymlPaths,
-		project:  "elastic-package-service",
-		env:      tfEnvironment,
+		ymlPaths:        ymlPaths,
+		project:         fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
+		env:             tfEnvironment,
+		shutdownTimeout: 300 * time.Second,
+		configDir:       configDir,
 	}
-	outCtxt := inCtxt
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
 	if err != nil {
@@ -118,7 +125,7 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 	}
 
 	// Clean service logs
-	err = files.RemoveContent(outCtxt.Logs.Folder.Local)
+	err = files.RemoveContent(svcInfo.Logs.Folder.Local)
 	if err != nil {
 		return nil, fmt.Errorf("removing service logs failed: %w", err)
 	}
@@ -127,11 +134,11 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		Env: service.env,
 	}
 	// Set custom aliases, which may be used in agent policies.
-	serviceComposeConfig, err := p.Config(opts)
+	serviceComposeConfig, err := p.Config(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not get Docker Compose configuration for service: %w", err)
 	}
-	outCtxt.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
+	svcInfo.CustomProperties, err = buildTerraformAliases(serviceComposeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
@@ -141,37 +148,37 @@ func (tsd TerraformServiceDeployer) SetUp(inCtxt ServiceContext) (DeployedServic
 		Env:       service.env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
-	err = p.Up(opts)
+	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
 	}
 
-	err = p.WaitForHealthy(opts)
+	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(p, compose.CommandOptions{
+		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, outCtxt.Name)
+		}, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
 
-	outCtxt.Agent.Host.NamePrefix = "docker-fleet-agent"
+	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
 
-	err = addTerraformOutputs(outCtxt)
+	err = addTerraformOutputs(&svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not handle terraform output: %w", err)
 	}
-	service.ctxt = outCtxt
+	service.svcInfo = svcInfo
 	return &service, nil
 }
 
-func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
+func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, error) {
 	locationManager, err := locations.NewLocationManager()
 	if err != nil {
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir)
+	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir, folder)
 
 	resources := []resource.Resource{
 		&resource.File{
@@ -198,20 +205,14 @@ func (tsd TerraformServiceDeployer) installDockerfile() (string, error) {
 
 	results, err := resourceManager.Apply(resources)
 	if err != nil {
-		var errors []string
-		for _, result := range results {
-			if err := result.Err(); err != nil {
-				errors = append(errors, err.Error())
-			}
-		}
-		return "", fmt.Errorf("%w: %s", err, strings.Join(errors, ", "))
+		return "", fmt.Errorf("%w: %s", err, common.ProcessResourceApplyResults(results))
 	}
 
 	return tfDir, nil
 }
 
-func CreateOutputDir(locationManager *locations.LocationManager, runId string) (string, error) {
-	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runId)
+func CreateOutputDir(locationManager *locations.LocationManager, runID string) (string, error) {
+	outputDir := filepath.Join(locationManager.ServiceOutputDir(), runID)
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return "", fmt.Errorf("failed to create output directory: %w", err)
 	}
@@ -219,3 +220,7 @@ func CreateOutputDir(locationManager *locations.LocationManager, runId string) (
 }
 
 var _ ServiceDeployer = new(TerraformServiceDeployer)
+
+func deployerFolderName(svcInfo ServiceInfo) string {
+	return fmt.Sprintf("%s-%s", svcInfo.Name, svcInfo.Test.RunID)
+}

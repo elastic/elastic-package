@@ -22,13 +22,20 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath    string
-	DataStreamRootPath string
-	DevDeployDir       string
-	Type               string
-	StackVersion       string
+	PackageRootPath        string
+	DataStreamRootPath     string
+	DevDeployDir           string
+	Type                   string
+	StackVersion           string
+	DeployIndependentAgent bool
+
+	PolicyName string
 
 	Variant string
+
+	RunTearDown  bool
+	RunTestsOnly bool
+	RunSetup     bool
 }
 
 // Factory chooses the appropriate service runner for the given data stream, depending
@@ -49,7 +56,17 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	switch serviceDeployerName {
 	case "k8s":
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewKubernetesServiceDeployer(options.Profile, serviceDeployerPath, options.StackVersion)
+			opts := KubernetesServiceDeployerOptions{
+				Profile:                options.Profile,
+				DefinitionsDir:         serviceDeployerPath,
+				StackVersion:           options.StackVersion,
+				PolicyName:             options.PolicyName,
+				RunSetup:               options.RunSetup,
+				RunTestsOnly:           options.RunTestsOnly,
+				RunTearDown:            options.RunTearDown,
+				DeployIndependentAgent: options.DeployIndependentAgent,
+			}
+			return NewKubernetesServiceDeployer(opts)
 		}
 	case "docker":
 		dockerComposeYMLPath := filepath.Join(serviceDeployerPath, "docker-compose.yml")
@@ -58,9 +75,18 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 			if err != nil {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
-			return NewDockerComposeServiceDeployer(options.Profile, []string{dockerComposeYMLPath}, sv)
+			opts := DockerComposeServiceDeployerOptions{
+				Profile:                options.Profile,
+				YmlPaths:               []string{dockerComposeYMLPath},
+				Variant:                sv,
+				RunTearDown:            options.RunTearDown,
+				RunTestsOnly:           options.RunTestsOnly,
+				DeployIndependentAgent: options.DeployIndependentAgent,
+			}
+			return NewDockerComposeServiceDeployer(opts)
 		}
 	case "agent":
+		// FIXME: This docker-compose scenario contains also the definition of the elastic-agent container
 		if options.Type != TypeTest {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
@@ -68,10 +94,27 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		if _, err := os.Stat(customAgentCfgYMLPath); err != nil {
 			return nil, fmt.Errorf("can't find expected file custom-agent.yml: %w", err)
 		}
-		return NewCustomAgentDeployer(options.Profile, customAgentCfgYMLPath, options.StackVersion)
+		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
+
+		opts := CustomAgentDeployerOptions{
+			Profile:           options.Profile,
+			DockerComposeFile: customAgentCfgYMLPath,
+			StackVersion:      options.StackVersion,
+			PolicyName:        policyName,
+
+			RunTearDown:  options.RunTearDown,
+			RunTestsOnly: options.RunTestsOnly,
+		}
+		return NewCustomAgentDeployer(opts)
 	case "tf":
+		if options.RunSetup || options.RunTearDown || options.RunTestsOnly {
+			return nil, errors.New("terraform service deployer not supported to run by steps")
+		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
-			return NewTerraformServiceDeployer(serviceDeployerPath)
+			opts := TerraformServiceDeployerOptions{
+				DefinitionsDir: serviceDeployerPath,
+			}
+			return NewTerraformServiceDeployer(opts)
 		}
 	}
 	return nil, fmt.Errorf("unsupported service deployer (name: %s)", serviceDeployerName)
@@ -93,7 +136,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
-	return "", fmt.Errorf("\"%s\" directory doesn't exist", options.DevDeployDir)
+	return "", fmt.Errorf("\"%s\" %w", options.DevDeployDir, os.ErrNotExist)
 }
 
 func findServiceDeployer(devDeployPath string) (string, error) {

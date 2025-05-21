@@ -1,12 +1,17 @@
 #!/bin/bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+source "${SCRIPT_DIR}/stack_parameters.sh"
+
 set -euxo pipefail
 
 cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+  elastic-package stack dump -v \
+      --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
@@ -19,8 +24,14 @@ cleanup() {
     kind delete cluster || true
   fi
 
-  # Take down the stack
-  elastic-package stack down -v
+  # In case it is tested with Elastic serverless, there should be just one Elastic stack
+  # started to test all packages. In our CI, this Elastic serverless stack is started 
+  # at the beginning of the pipeline and must be running for all packages without stopping it between
+  # packages.
+  if [[ "$SERVERLESS" != "true" ]]; then
+      # Take down the stack
+      elastic-package stack down -v
+  fi
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
     # Delete the logstash profile
@@ -29,10 +40,7 @@ cleanup() {
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-    (
-      cd $d
-      elastic-package clean -v
-    )
+    elastic-package clean -C "$d" -v
   done
 
   exit $r
@@ -40,17 +48,14 @@ cleanup() {
 
 trap cleanup EXIT
 
-export ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
+export ELASTIC_PACKAGE_LINKS_FILE_PATH
+export SERVERLESS=${SERVERLESS:-"false"}
 
-OLDPWD=$PWD
 # Build/check packages
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-  (
-    cd $d
-    elastic-package check -v
-  )
+  elastic-package check -C "$d" -v
 done
-cd -
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   # Create a logstash profile and use it
@@ -64,48 +69,68 @@ if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
   echo "stack.logstash_enabled: true" >> ~/.elastic-package/profiles/logstash/config.yml
 fi
 
-# Update the stack
-elastic-package stack update -v
+# In case it is tested with Elastic serverless, there should be just one Elastic stack
+# started to test all packages. In our CI, this Elastic serverless stack is started 
+# at the beginning of the pipeline and must be running for all packages.
+if [[ "${SERVERLESS}" != "true" ]]; then
+  stack_args=$(stack_version_args) # --version <version>
 
-# Boot up the stack
-elastic-package stack up -d -v
+  # Update the stack
+  elastic-package stack update -v ${stack_args}
 
-elastic-package stack status
+  # NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
+  # that all parameters are taken into account by the services
+  stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
+
+  # Boot up the stack
+  elastic-package stack up -d -v ${stack_args}
+
+  elastic-package stack status
+fi
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
-  kind create cluster --config $PWD/scripts/kind-config.yaml
+  kind create cluster --config "$PWD/scripts/kind-config.yaml" --image "kindest/node:${K8S_VERSION}"
 fi
 
 # Run package tests
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
-  (
-    cd $d
+  package_to_test=$(basename "${d}")
 
-    if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
-      # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-      package_to_test=$(basename ${d})
-      if [ "${package_to_test}" == "pipeline_benchmark" ]; then
-        rm -rf "${OLDPWD}/build/benchmark-results"
-        elastic-package benchmark pipeline -v --report-format xUnit --report-output file --fail-on-missing
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
+    # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
+    if [ "${package_to_test}" == "pipeline_benchmark" ]; then
+      rm -rf "${PWD}/build/benchmark-results"
+      elastic-package benchmark pipeline -C "$d" -v --report-format xUnit --report-output file --fail-on-missing
 
-        rm -rf "${OLDPWD}/build/benchmark-results-old"
-        mv "${OLDPWD}/build/benchmark-results" "${OLDPWD}/build/benchmark-results-old"
+      rm -rf "${PWD}/build/benchmark-results-old"
+      mv "${PWD}/build/benchmark-results" "${PWD}/build/benchmark-results-old"
 
-        elastic-package benchmark pipeline -v --report-format json --report-output file --fail-on-missing
+      elastic-package benchmark pipeline -C "$d" -v --report-format json --report-output file --fail-on-missing
 
-        elastic-package report --fail-on-missing benchmark \
-          --new ${OLDPWD}/build/benchmark-results \
-          --old ${OLDPWD}/build/benchmark-results-old \
-          --threshold 1 --report-output-path="${OLDPWD}/build/benchreport"
-      fi
-      if [ "${package_to_test}" == "system_benchmark" ]; then
-        elastic-package benchmark system --benchmark logs-benchmark -v --defer-cleanup 1s
-      fi
-    else
-      # defer-cleanup is set to a short period to verify that the option is available
-      elastic-package test -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage
+      elastic-package report -C "$d" --fail-on-missing benchmark \
+        --new "${PWD}/build/benchmark-results" \
+        --old "${PWD}/build/benchmark-results-old" \
+        --threshold 1 --report-output-path="${PWD}/build/benchreport"
     fi
-  )
-cd -
+    if [ "${package_to_test}" == "system_benchmark" ]; then
+      elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
+    fi
+  elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
+      elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
+  else
+    if [[ "${SERVERLESS}" == "true" ]]; then
+        # skip system tests
+        elastic-package test asset -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+        elastic-package test static -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
+        # FIXME: adding test-coverage for serverless results in errors like this:
+        # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
+        elastic-package test pipeline -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s
+
+        continue
+    fi
+    # Run all tests
+    # defer-cleanup is set to a short period to verify that the option is available
+    elastic-package test -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
+  fi
 done

@@ -1,0 +1,66 @@
+{{- $user := fact "user" -}}
+{{- $capabilities:= fact "capabilities" -}}
+{{- $pid_mode := fact "pid_mode" -}}
+{{- $ports := fact "ports" -}}
+{{- $dockerfile_hash := fact "dockerfile_hash" -}}
+{{- $stack_version := fact "stack_version" }}
+{{- $agent_image := fact "agent_image" }}
+{{- $enrollment_token := fact "enrollment_token" }}
+services:
+  elastic-agent:
+    hostname: ${AGENT_HOSTNAME}
+    {{ if ne $dockerfile_hash "" }}
+    image: "elastic-package-test-elastic-agent:{{ $stack_version }}-{{ $dockerfile_hash }}"
+    build:
+      context: .
+      args:
+        ES_AGENT_IMAGE: "{{ $agent_image }}"
+      dockerfile: "Dockerfile"
+    {{ else }}
+    image: "{{ $agent_image }}"
+    {{ end }}
+    healthcheck:
+      test: "elastic-agent status"
+      retries: 180
+      interval: 1s
+    {{ if ne $pid_mode "" }}
+    pid: {{ $pid_mode }}
+    {{ end }}
+    {{ if ne $user "" }}
+    user: {{ $user }}
+    {{ end }}
+    {{ if $capabilities }}
+    cap_add: [{{ $capabilities }}]
+    {{ end }}
+    cap_drop:
+      - ALL
+    {{ if ne $ports "" }}
+    ports: [{{ $ports }}]
+    {{ end }}
+    environment:
+      - FLEET_ENROLL=1
+      - FLEET_URL={{ fact "fleet_url" }}
+      - KIBANA_HOST={{ fact "kibana_host" }}
+      {{ if eq $enrollment_token "" }}
+      - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
+      - ELASTICSEARCH_USERNAME={{ fact "elasticsearch_username" }}
+      - ELASTICSEARCH_PASSWORD={{ fact "elasticsearch_password" }}
+      {{ else }}
+      - FLEET_ENROLLMENT_TOKEN={{ $enrollment_token }}
+      {{ end }}
+    volumes:
+      - type: bind
+        source: ${LOCAL_CA_CERT}
+        target: /etc/ssl/certs/elastic-package.pem
+        read_only: true
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /tmp/service_logs/
+        read_only: false
+      # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+      - type: bind
+        source: ${SERVICE_LOGS_DIR}
+        target: /run/service_logs/
+        read_only: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

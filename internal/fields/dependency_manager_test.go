@@ -785,3 +785,55 @@ func TestDependencyManagerWithECS(t *testing.T) {
 		})
 	}
 }
+
+func TestValidate_SetExternalECS(t *testing.T) {
+	finder := packageRootTestFinder{"../../test/packages/other/imported_mappings_tests"}
+
+	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
+		finder,
+		WithSpecVersion("2.3.0"),
+		WithEnabledImportAllECSSChema(true))
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	require.NotEmpty(t, validator.Schema)
+
+	cases := []struct {
+		title    string
+		field    string
+		external string
+		exists   bool
+	}{
+		{
+			title:    "field defined just in ECS",
+			field:    "ecs.version",
+			external: "ecs",
+			exists:   true,
+		},
+		{
+			title:    "field defined fields directory package",
+			field:    "service.status.duration.histogram",
+			external: "",
+			exists:   true,
+		},
+		{
+			title:    "undefined field",
+			field:    "foo",
+			external: "",
+			exists:   false,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			found := FindElementDefinition(c.field, validator.Schema)
+			if !c.exists {
+				assert.Nil(t, found)
+				return
+			}
+
+			require.NotNil(t, found)
+			assert.Equal(t, c.external, found.External)
+		})
+	}
+}

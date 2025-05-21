@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -23,10 +24,16 @@ import (
 const (
 	stackVersion715 = "7.15.0-SNAPSHOT"
 	stackVersion820 = "8.2.0-SNAPSHOT"
+	// Not setting here 8.16.0-SNAPSHOT to take also into account prerelease versions
+	// like 8.16.0-21bba6f5-SNAPSHOT
+	stackVersion8160 = "8.16.0-00000000-SNAPSHOT"
 
-	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentLegacyImageName         = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentImageName               = "docker.elastic.co/elastic-agent/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
+	elasticAgentCompleteWolfiImageName  = "docker.elastic.co/elastic-agent/elastic-agent-complete-wolfi"
+	elasticAgentWolfiImageName          = "docker.elastic.co/elastic-agent/elastic-agent-wolfi"
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
@@ -37,9 +44,12 @@ const (
 var (
 	elasticAgentCompleteFirstSupportedVersion = semver.MustParse(stackVersion715)
 	elasticAgentCompleteOwnNamespaceVersion   = semver.MustParse(stackVersion820)
+	elasticAgentWolfiVersion                  = semver.MustParse(stackVersion8160)
 
 	// ProfileNameEnvVar is the name of the environment variable to set the default profile
 	ProfileNameEnvVar = environment.WithElasticPackagePrefix("PROFILE")
+
+	disableElasticAgentWolfiEnvVar = environment.WithElasticPackagePrefix("DISABLE_ELASTIC_AGENT_WOLFI")
 )
 
 func DefaultConfiguration() *ApplicationConfiguration {
@@ -63,7 +73,9 @@ func DefaultConfiguration() *ApplicationConfiguration {
 
 // ApplicationConfiguration represents the configuration of the elastic-package.
 type ApplicationConfiguration struct {
-	c configFile
+	c              configFile
+	agentBaseImage string
+	stackVersion   string
 }
 
 type configFile struct {
@@ -111,12 +123,12 @@ func (ir ImageRefs) AsEnv() []string {
 }
 
 // StackImageRefs function selects the appropriate set of Docker image references for the given stack version.
-func (ac *ApplicationConfiguration) StackImageRefs(version string) ImageRefs {
-	refs := ac.c.Stack.ImageRefOverridesForVersion(version)
-	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(version), version))
-	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, version))
-	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, version))
-	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, version))
+func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
+	refs := ac.c.Stack.ImageRefOverridesForVersion(ac.stackVersion)
+	refs.ElasticAgent = stringOrDefault(refs.ElasticAgent, fmt.Sprintf("%s:%s", selectElasticAgentImageName(ac.stackVersion, ac.agentBaseImage), ac.stackVersion))
+	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
+	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
+	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
 	return refs
 }
 
@@ -140,27 +152,86 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
-func selectElasticAgentImageName(version string) string {
+func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if version == "" { // as version is optional and can be empty
-		return elasticAgentImageName
+		return elasticAgentWolfiImageName
 	}
 
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
+		logger.Errorf("stack version not in semver format (value: %s): %v", version, err)
+		return elasticAgentWolfiImageName
+	}
+
+	shouldUseWolfiImage := shouldUseWolfiImages(v)
+
+	switch agentBaseImage {
+	case "systemd":
+		return selectElasticAgentSystemDImageName(v)
+	case "complete":
+		if shouldUseWolfiImage {
+			return elasticAgentCompleteWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	default:
+		if shouldUseWolfiImage {
+			return elasticAgentWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	}
+}
+
+func shouldUseWolfiImages(version *semver.Version) bool {
+	disableWolfiImages := false
+	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
+	if ok && strings.ToLower(valueEnv) != "false" {
+		disableWolfiImages = true
+	}
+
+	return !disableWolfiImages && !version.LessThan(elasticAgentWolfiVersion)
+}
+
+func selectElasticAgentCompleteImageName(version *semver.Version) string {
+	switch {
+	case !version.LessThan(elasticAgentCompleteOwnNamespaceVersion):
+		return elasticAgentCompleteImageName
+	case !version.LessThan(elasticAgentCompleteFirstSupportedVersion):
+		return elasticAgentCompleteLegacyImageName
+	default:
+		return elasticAgentLegacyImageName
+	}
+}
+
+func selectElasticAgentSystemDImageName(version *semver.Version) string {
+	if !version.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentImageName
 	}
-	if !v.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
-		return elasticAgentCompleteImageName
+	return elasticAgentLegacyImageName
+}
+
+type configurationOptions struct {
+	agentBaseImage string
+	stackVersion   string
+}
+
+type ConfigurationOption func(*configurationOptions)
+
+// OptionWithAgentBaseImage sets the agent image type to be used.
+func OptionWithAgentBaseImage(agentBaseImage string) ConfigurationOption {
+	return func(opts *configurationOptions) {
+		opts.agentBaseImage = agentBaseImage
 	}
-	if !v.LessThan(elasticAgentCompleteFirstSupportedVersion) {
-		return elasticAgentCompleteLegacyImageName
+}
+
+// OptionWithStackVersion sets the Elastic Stack version to be used.
+func OptionWithStackVersion(stackVersion string) ConfigurationOption {
+	return func(opts *configurationOptions) {
+		opts.stackVersion = stackVersion
 	}
-	return elasticAgentImageName
 }
 
 // Configuration function returns the elastic-package configuration.
-func Configuration() (*ApplicationConfiguration, error) {
+func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, error) {
 	configPath, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, fmt.Errorf("can't read configuration directory: %w", err)
@@ -180,9 +251,18 @@ func Configuration() (*ApplicationConfiguration, error) {
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)
 	}
 
-	return &ApplicationConfiguration{
-		c: c,
-	}, nil
+	configOptions := configurationOptions{}
+	for _, option := range options {
+		option(&configOptions)
+	}
+
+	configuration := ApplicationConfiguration{
+		c:              c,
+		agentBaseImage: configOptions.agentBaseImage,
+		stackVersion:   configOptions.stackVersion,
+	}
+
+	return &configuration, nil
 }
 
 func stringOrDefault(value string, defaultValue string) string {

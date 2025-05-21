@@ -29,7 +29,7 @@ type InstalledObjectsDumper struct {
 	componentTemplates []ComponentTemplate
 	ilmPolicies        []ILMPolicy
 	indexTemplates     []IndexTemplate
-	ingestPipelines    []IngestPipeline
+	ingestPipelines    []RemoteIngestPipeline
 	mlModels           []MLModel
 }
 
@@ -213,7 +213,7 @@ func (e *InstalledObjectsDumper) dumpIngestPipelines(ctx context.Context, dir st
 	return len(ingestPipelines), nil
 }
 
-func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]IngestPipeline, error) {
+func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]RemoteIngestPipeline, error) {
 	if len(e.ingestPipelines) == 0 {
 		templates, err := e.getTemplatesWithSettings(ctx)
 		if err != nil {
@@ -223,7 +223,7 @@ func (e *InstalledObjectsDumper) getIngestPipelines(ctx context.Context) ([]Inge
 		names := getIngestPipelinesFromTemplates(templates)
 		ingestPipelines, err := getIngestPipelines(ctx, e.client, names...)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get ingest pipelines: %w", err)
+			return nil, fmt.Errorf("failed to get ingest pipelines from templates: %w", err)
 		}
 		e.ingestPipelines = ingestPipelines
 	}

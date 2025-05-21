@@ -7,7 +7,12 @@ package cobraext
 // Global flags
 const (
 	VerboseFlagName        = "verbose"
+	VerboseFlagShorthand   = "v"
 	VerboseFlagDescription = "verbose mode"
+
+	ChangeDirectoryFlagName        = "change-directory"
+	ChangeDirectoryFlagShorthand   = "C"
+	ChangeDirectoryFlagDescription = "change to the specified directory before running the command"
 )
 
 // Primary flags reused by multiple commands
@@ -28,6 +33,9 @@ const (
 
 	AllowSnapshotFlagName    = "allow-snapshot"
 	AllowSnapshotDescription = "allow to export dashboards from a Elastic stack SNAPSHOT version"
+
+	BenchPathFlagName        = "path"
+	BenchPathFlagDescription = "path of the benchmark scenario to run"
 
 	BenchNameFlagName        = "benchmark"
 	BenchNameFlagDescription = "name of the benchmark scenario to run"
@@ -57,7 +65,28 @@ const (
 	BenchCorpusRallyTrackOutputDirFlagDescription = "output dir of the rally track: if present the command will save the generated rally track"
 
 	BenchCorpusRallyDryRunFlagName        = "dry-run"
-	BenchCorpusRallyDryRunFlagDescription = "Do not run rally but just generate the rally track"
+	BenchCorpusRallyDryRunFlagDescription = "do not run rally but just generate the rally track"
+
+	BenchCorpusRallyPackageFromRegistryFlagName        = "package-from-registry"
+	BenchCorpusRallyPackageFromRegistryFlagDescription = "fetch package from registry instead of local directory, expected format: <package>-<version>"
+
+	BenchCorpusRallyUseCorpusAtPathFlagName        = "use-corpus-at-path"
+	BenchCorpusRallyUseCorpusAtPathFlagDescription = "path of the corpus to use for the benchmark: if present no new corpus will be generated"
+
+	BenchStreamBackFillFlagName        = "backfill"
+	BenchStreamBackFillFlagDescription = "amount of time to ingest events for, starting before now: expressed as a positive duration"
+
+	BenchStreamEventsPerPeriodFlagName        = "events-per-period"
+	BenchStreamEventsPerPeriodFlagDescription = "number of events to ingest at every ingestion cycle"
+
+	BenchStreamPeriodDurationFlagName        = "period-duration"
+	BenchStreamPeriodDurationFlagDescription = "duration of the period between each ingestion cycle: expressed as a positive duration"
+
+	BenchStreamPerformCleanupFlagName        = "perform-cleanup"
+	BenchStreamPerformCleanupFlagDescription = "whether to perform cleanup at the beginning and after finishing streaming: default to false, if provided will delete data before and after streaming events and uninstall the package at the end"
+
+	BenchStreamTimestampFieldFlagName        = "timestamp-field"
+	BenchStreamTimestampFieldFlagDescription = "name of the field that's used in the generator config as `@timestamp`"
 
 	BuildSkipValidationFlagName        = "skip-validation"
 	BuildSkipValidationFlagDescription = "skip validation of the built package, use only if all validation issues have been acknowledged"
@@ -108,6 +137,9 @@ const (
 	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
+
+	IngestPipelineIDsFlagName        = "id"
+	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
 
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
@@ -165,30 +197,31 @@ const (
 	StatusExtraInfoFlagName        = "info"
 	StatusExtraInfoFlagDescription = "show additional information (comma-separated values: \"%s\")"
 
+	StatusFormatFlagName        = "format"
+	StatusFormatFlagDescription = "output format (\"%s\")"
+
 	TestCoverageFlagName        = "test-coverage"
-	TestCoverageFlagDescription = "generate Cobertura test coverage reports"
+	TestCoverageFlagDescription = "enable test coverage reports"
+
+	TestCoverageFormatFlagName        = "coverage-format"
+	TestCoverageFormatFlagDescription = "set format for coverage reports: %s"
 
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
+	ConfigFileFlagName        = "config-file"
+	ConfigFileFlagDescription = "configuration file to setup service and test"
+
+	SetupFlagName        = "setup"
+	SetupFlagDescription = "trigger just the setup phase of testing"
+
+	TearDownFlagName        = "tear-down"
+	TearDownFlagDescription = "trigger just the tear-down phase of testing"
+
+	NoProvisionFlagName        = "no-provision"
+	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
-
-	// To be removed promote commands flags
-	DirectionFlagName        = "direction"
-	DirectionFlagDescription = "promotion direction"
-
-	NewestOnlyFlagName        = "newest-only"
-	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
-
-	PromotedPackagesFlagName        = "packages"
-	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
-
-	// To be removed publish commands flags
-	ForkFlagName        = "fork"
-	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
-
-	SkipPullRequestFlagName        = "skip-pull-request"
-	SkipPullRequestFlagDescription = "skip opening a new pull request"
 )

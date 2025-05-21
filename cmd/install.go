@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -34,6 +35,7 @@ func setupInstallCommand() *cobraext.Command {
 	cmd.Flags().StringP(cobraext.ZipPackageFilePathFlagName, cobraext.ZipPackageFilePathFlagShorthand, "", cobraext.ZipPackageFilePathFlagDescription)
 	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	cmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -57,7 +59,13 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	var opts []kibana.ClientOption
+	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if tlsSkipVerify {
+		opts = append(opts, kibana.TLSSkipVerify())
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
@@ -74,7 +82,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	installer, err := installer.NewForPackage(installer.Options{
+	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
 		Kibana:         kibanaClient,
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
@@ -90,7 +98,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("can't process check-condition flag: %w", err)
 	}
 	if len(keyValuePairs) > 0 {
-		manifest, err := installer.Manifest()
+		manifest, err := installer.Manifest(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -105,6 +113,6 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return nil
 	}
 
-	_, err = installer.Install()
+	_, err = installer.Install(cmd.Context())
 	return err
 }

@@ -38,6 +38,7 @@ type newPackageAnswers struct {
 	GithubOwner         string `survey:"github_owner"`
 	OwnerType           string `survey:"owner_type"`
 	DataStreamType      string `survey:"datastream_type"`
+	Subobjects          bool
 }
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
@@ -48,7 +49,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "type",
 			Prompt: &survey.Select{
 				Message: "Package type:",
-				Options: []string{"input", "integration"},
+				Options: []string{"input", "integration", "content"},
 				Default: "integration",
 			},
 			Validate: survey.Required,
@@ -184,6 +185,14 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				},
 				Validate: survey.Required,
 			},
+			{
+				Name: "subobjects",
+				Prompt: &survey.Confirm{
+					Message: "Enable creation of subobjects for fields with dots in their names?",
+					Default: false,
+				},
+				Validate: survey.Required,
+			},
 		}
 
 		qs = append(qs, inputQs...)
@@ -216,10 +225,21 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 		sourceLicense = answers.SourceLicense
 	}
 
+	var elasticsearch *packages.Elasticsearch
 	inputDataStreamType := ""
 	if answers.Type == "input" {
 		inputDataStreamType = answers.DataStreamType
+		if !answers.Subobjects {
+			elasticsearch = &packages.Elasticsearch{
+				IndexTemplate: &packages.ManifestIndexTemplate{
+					Mappings: &packages.ManifestMappings{
+						Subobjects: false,
+					},
+				},
+			}
+		}
 	}
+
 	return archetype.PackageDescriptor{
 		Manifest: packages.PackageManifest{
 			Name:    answers.Name,
@@ -241,9 +261,10 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 				Github: answers.GithubOwner,
 				Type:   answers.OwnerType,
 			},
-			License:     answers.ElasticSubscription,
-			Description: answers.Description,
-			Categories:  answers.Categories,
+			License:       answers.ElasticSubscription,
+			Description:   answers.Description,
+			Categories:    answers.Categories,
+			Elasticsearch: elasticsearch,
 		},
 		InputDataStreamType: inputDataStreamType,
 	}

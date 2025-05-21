@@ -20,12 +20,12 @@ const (
 	envYmlFile = "env.yml"
 )
 
-func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(ctxt ServiceContext) []string {
+func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info ServiceInfo) []string {
 	vars := map[string]string{}
-	vars[serviceLogsDirEnv] = ctxt.Logs.Folder.Local
-	vars[tfTestRunID] = ctxt.Test.RunID
+	vars[serviceLogsDirEnv] = info.Logs.Folder.Local
+	vars[tfTestRunID] = info.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
-	vars[tfOutputDir] = ctxt.OutputDir
+	vars[tfOutputDir] = info.OutputDir
 
 	var pairs []string
 	for k, v := range vars {

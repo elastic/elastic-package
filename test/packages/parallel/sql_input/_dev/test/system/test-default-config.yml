@@ -2,3 +2,4 @@ vars:
   hosts:
     - root:test@tcp({{Hostname}}:{{Port}})/
   sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+  data_stream.dataset: sql_input.test

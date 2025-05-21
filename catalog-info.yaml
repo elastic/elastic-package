@@ -31,7 +31,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -47,7 +47,7 @@ spec:
         build_tags: true
         filter_enabled: true
         filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
@@ -60,49 +60,7 @@ spec:
           access_level: MANAGE_BUILD_AND_READ
         ingest-fp:
           access_level: MANAGE_BUILD_AND_READ
-        everyone:
-          access_level: READ_ONLY
-
----
-# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/e57ee3bed7a6f73077a3f55a38e76e40ec87a7cf/rre.schema.json
-apiVersion: backstage.io/v1alpha1
-kind: Resource
-metadata:
-  name: buildkite-pipeline-elastic-package-package-storage-publish
-  description: 'Minimal pipeline to exercise publishing a package to Package Storage (for testing only)'
-  links:
-    - title: Pipeline
-      url: https://buildkite.com/elastic/elastic-package-package-storage-publish
-
-spec:
-  type: buildkite-pipeline
-  owner: group:ingest-fp
-  system: buildkite
-  implementation:
-    apiVersion: buildkite.elastic.dev/v1
-    kind: Pipeline
-    metadata:
-      name: elastic-package-package-storage-publish
-      description: 'Minimal pipeline to exercise publishing a package to Package Storage (for testing only)'
-    spec:
-      branch_configuration: main
-      pipeline_file: ".buildkite/pipeline.package-storage-publish.yml"
-      provider_settings:
-        build_pull_request_forks: false
-        build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
-        build_tags: true
-        filter_enabled: true
-        filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
-      repository: elastic/elastic-package
-      cancel_intermediate_builds: true
-      cancel_intermediate_builds_branch_filter: '!main'
-      skip_intermediate_builds: true
-      skip_intermediate_builds_branch_filter: '!main'
-      teams:
-        ecosystem:
-          access_level: MANAGE_BUILD_AND_READ
-        ingest-fp:
+        observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
@@ -121,7 +79,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -139,7 +97,7 @@ spec:
         build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
         filter_enabled: true
         filter_condition: >-
-          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null)
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
       repository: elastic/elastic-package
       cancel_intermediate_builds: true
       cancel_intermediate_builds_branch_filter: '!main'
@@ -152,3 +110,105 @@ spec:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
+
+---
+# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/e57ee3bed7a6f73077a3f55a38e76e40ec87a7cf/rre.schema.json
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: buildkite-pipeline-elastic-package-cloud-cleanup
+  description: Clean up stale cloud resources
+  links:
+    - title: Pipeline
+      url: https://buildkite.com/elastic/elastic-package-cloud-cleanup
+
+spec:
+  type: buildkite-pipeline
+  owner: group:ingest-fp
+  system: platform-ingest
+  implementation:
+    apiVersion: buildkite.elastic.dev/v1
+    kind: Pipeline
+    metadata:
+      name: elastic-package-cloud-cleanup
+      description: Buildkite pipeline for cleaning stale resource in cloud providers
+    spec:
+      pipeline_file: ".buildkite/pipeline.cloud-cleanup.yml"
+      provider_settings:
+        build_pull_request_forks: false
+        build_pull_requests: false # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
+        publish_commit_status: false # do not update status of commits for this pipeline
+        build_tags: false
+        build_branches: false
+        filter_enabled: true
+        filter_condition: >-
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
+      cancel_intermediate_builds: false  # do not cancel any build to avoid inconsistent states
+      skip_intermediate_builds: true     # just need to run the latest commit
+      repository: elastic/elastic-package
+      schedules:
+        Daily main:
+          branch: main
+          cronline: "00 1 * * *"
+          message: Daily Cloud cleanup
+      teams:
+        ingest-fp:
+          access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
+          access_level: MANAGE_BUILD_AND_READ
+        everyone:
+          access_level: READ_ONLY
+
+---
+# yaml-language-server: $schema=https://gist.githubusercontent.com/elasticmachine/988b80dae436cafea07d9a4a460a011d/raw/e57ee3bed7a6f73077a3f55a38e76e40ec87a7cf/rre.schema.json
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: buildkite-pipeline-elastic-package-test-serverless
+  description: Pipeline to test elastic-package with Serverless projects
+  links:
+    - title: Pipeline
+      url: https://buildkite.com/elastic/elastic-package-test-serverless
+
+spec:
+  type: buildkite-pipeline
+  owner: group:ingest-fp
+  system: platform-ingest
+  implementation:
+    apiVersion: buildkite.elastic.dev/v1
+    kind: Pipeline
+    metadata:
+      name: elastic-package-test-serverless
+      description: Pipeline to test elastic-package with Serverless projects
+    spec:
+      pipeline_file: ".buildkite/pipeline.serverless.yml"
+      provider_settings:
+        build_pull_request_forks: false
+        # Managed by buildkite-pr-bot
+        build_pull_requests: true # requires filter_enabled and filter_condition settings as below when used with buildkite-pr-bot
+        publish_commit_status: false # do not update status of commits for this pipeline
+        build_tags: false
+        build_branches: false
+        filter_enabled: true
+        filter_condition: >-
+          build.pull_request.id == null || (build.creator.name == 'elasticmachine' && build.pull_request.id != null && build.source == 'api')
+      cancel_intermediate_builds: true
+      cancel_intermediate_builds_branch_filter: '!main'
+      skip_intermediate_builds: true
+      skip_intermediate_builds_branch_filter: '!main'
+      repository: elastic/elastic-package
+      schedules:
+        Test Serverless Daily:
+          branch: main
+          cronline: "00 5 * * *"
+          message: Test Serverless Daily
+          env:
+            SERVERLESS_PROJECT: observability
+      teams:
+        ingest-fp:
+          access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
+          access_level: MANAGE_BUILD_AND_READ
+        everyone:
+          access_level: BUILD_AND_READ
+

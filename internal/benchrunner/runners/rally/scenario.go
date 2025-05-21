@@ -59,10 +59,8 @@ func readConfig(path, scenario, packageName, packageVersion string) (*scenario, 
 		return nil, fmt.Errorf("can't load benchmark configuration: %s: %w", configPath, err)
 	}
 
-	if err == nil {
-		if err := cfg.Unpack(c); err != nil {
-			return nil, fmt.Errorf("can't unpack benchmark configuration: %s: %w", configPath, err)
-		}
+	if err := cfg.Unpack(c); err != nil {
+		return nil, fmt.Errorf("can't unpack benchmark configuration: %s: %w", configPath, err)
 	}
 
 	c.Package = packageName

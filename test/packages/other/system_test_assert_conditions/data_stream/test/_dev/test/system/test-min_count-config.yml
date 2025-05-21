@@ -1,0 +1,25 @@
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "/custom/paths/logs.json"
+assert:
+  min_count: 500
+agent:
+  provisioning_script:
+    language: bash
+    contents: |
+      mkdir -p /custom/paths
+      cd /custom/paths
+      touch logs.json
+      # elastic-package just retrieves the 500 first documents in the search query
+      for i in $(seq 1 501) ; do
+        echo '{ "contents": "Message from file", "file": "logs.json"}'
+      done >> logs.json
+  pre_start_script:
+    language: sh
+    contents: |
+      export PATH=${PATH}:/custom/paths
+      mkdir -p /tmp/other/path
+      cd /tmp/other/path
+      echo "Pre-start: Current directory $(pwd)"

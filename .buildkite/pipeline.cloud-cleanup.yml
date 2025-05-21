@@ -1,0 +1,50 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/buildkite/pipeline-schema/main/schema.json
+
+# Removes stale Cloud resources (AWS and GCP) having matching labels, name prefixes and older than 24 hours
+name: elastic-package-cloud-cleanup
+
+env:
+  DOCKER_REGISTRY: docker.elastic.co
+  NOTIFY_TO: "ecosystem-team@elastic.co"
+
+steps:
+  - input: "Input values for the variables"
+    key: "input-variables"
+    fields:
+    - select: "DRY_RUN"
+      key: "DRY_RUN"
+      options:
+        - label: "True"
+          value: "true"
+        - label: "False"
+          value: "false"
+      default: "true"
+    - select: "DRY_RUN (Deprecated step)"
+      key: "DRY_RUN_DEPRECATED"
+      options:
+        - label: "True"
+          value: "true"
+        - label: "False"
+          value: "false"
+      default: "true"
+    if: "build.source == 'ui'"
+
+  - wait: ~
+    if: "build.source == 'ui'"
+    allow_dependency_failure: false
+
+  - label: "Cloud Cleanup OIDC"
+    key: "cloud-cleanup-oidc"
+    command: ".buildkite/scripts/cloud-cleanup-oidc.sh"
+    env:
+      RESOURCE_RETENTION_PERIOD: "24 hours"
+      DRY_RUN: "${DRY_RUN:-true}"
+    agents:
+      provider: "gcp" # this step requires docker
+    plugins:
+      - elastic/oblt-aws-auth#v0.1.0:
+          duration: 3600 # seconds
+
+notify:
+  - email: "$NOTIFY_TO"
+    if: "build.state == 'failed' && build.env('BUILDKITE_PULL_REQUEST') == 'false'"

@@ -14,7 +14,7 @@ import (
 
 const checkLongDescription = `Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, lint, and build commands all at once, in that order.`
+It will execute the lint and build commands all at once, in that order.`
 
 func setupCheckCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -23,8 +23,7 @@ func setupCheckCommand() *cobraext.Command {
 		Long:  checkLongDescription,
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := cobraext.ComposeCommands(args,
-				setupFormatCommand(),
+			err := cobraext.ComposeCommands(cmd, args,
 				setupLintCommand(),
 				setupBuildCommand(),
 			)

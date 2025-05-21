@@ -1,0 +1,44 @@
+---
+name: Update versions of Elastic Stack dependencies
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * 1-5'
+  pull_request:
+    paths:
+      - .github/workflows/updatecli/**
+      - .github/workflows/bump-elastic-stack-version.yml
+
+permissions:
+  contents: read
+
+jobs:
+  bump-elastic-stack:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select diff action
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "UPDATECLI_ACTION=diff" >> $GITHUB_ENV
+
+      - name: Select apply action
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          echo "UPDATECLI_ACTION=apply" >> $GITHUB_ENV
+
+      - name: Install Updatecli in the runner
+        uses: updatecli/updatecli-action@307ce72e224b82157cc31c78828f168b8e55d47d #v2.84.0
+
+      - name: Update default stack version
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }} --config .github/workflows/updatecli --values .github/workflows/updatecli/values.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

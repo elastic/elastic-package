@@ -10,9 +10,12 @@ import (
 	"os"
 
 	"github.com/elastic/go-ucfg/yaml"
+	"github.com/go-viper/mapstructure/v2"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
+
+const currentVersion = 1
 
 type config struct {
 	settings common.MapStr
@@ -47,4 +50,19 @@ func (c *config) get(name string) (string, bool) {
 	default:
 		return fmt.Sprintf("%v", v), true
 	}
+}
+
+func (c *config) Decode(name string, out any) error {
+	v, err := c.settings.GetValue(name)
+	if err != nil {
+		if errors.Is(err, common.ErrKeyNotFound) {
+			return nil
+		}
+		return err
+	}
+	if err := mapstructure.Decode(v, out); err != nil {
+		return err
+	}
+
+	return nil
 }

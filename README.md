@@ -9,6 +9,9 @@ test and build your packages. Learn about each of these and other features in [_
 
 Currently, `elastic-package` only supports packages of type [Elastic Integrations](https://github.com/elastic/integrations).
 
+Please review the [integrations contributing guide](https://github.com/elastic/integrations/blob/main/CONTRIBUTING.md) to learn how to build and develop packages, understand the release procedure and
+explore the builder tools.
+
 ## Getting started
 
 Download latest release from the [Releases](https://github.com/elastic/elastic-package/releases/latest) page.
@@ -111,7 +114,27 @@ Usually, this process would require the following manual steps:
    go mod tidy
    ```
 4. Push these changes into a branch and create a Pull Request
-    - Creating this PR would automatically trigger a new Jenkins pipeline.
+    - Creating this PR would automatically trigger a new build of the corresponding Buildkite pipeline.
+
+
+### Testing with Elastic serverless
+
+While working on a branch, it might be interesting to test your changes using
+a project created in [Elastic serverless](https://docs.elastic.co/serverless), instead of spinning up a local
+Elastic stack. To do so, you can add a new comment while developing in your Pull request
+a comment like `test serverless`.
+
+Adding that comment in your Pull Request will create a new build of this
+[Buildkite pipeline](https://buildkite.com/elastic/elastic-package-test-serverless).
+This pipeline creates a new Serverless project and run some tests with the packages defined
+in the `test/packages/parallel` folder. Currently, there are some differences with respect to testing
+with a local Elastic stack:
+- System tests are not executed.
+- Disabled comparison of results in pipeline tests to avoid errors related to GeoIP fields
+- Pipeline tests cannot be executed with coverage flags.
+
+At the same time, this pipeline is going to be triggered daily to test the latest contents
+of the main branch with an Elastic serverless project.
 
 
 ## Commands
@@ -159,6 +182,16 @@ These benchmarks allow you to benchmark an integration corpus with rally.
 
 For details on how to configure rally benchmarks for a package, review the [HOWTO guide](./docs/howto/rally_benchmarking.md).
 
+#### Stream Benchmarks
+
+These benchmarks allow you to benchmark ingesting real time data.
+You can stream data to a remote ES cluster setting the following environment variables:
+
+ELASTIC_PACKAGE_ELASTICSEARCH_HOST=https://my-deployment.es.eu-central-1.aws.foundit.no
+ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
+ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
+ELASTIC_PACKAGE_KIBANA_HOST=https://my-deployment.kb.eu-central-1.aws.foundit.no:9243
+
 #### System Benchmarks
 
 These benchmarks allow you to benchmark an integration end to end.
@@ -177,6 +210,12 @@ _Context: package_
 
 Run rally benchmarks for the package (esrally needs to be installed in the path of the system).
 
+### `elastic-package benchmark stream`
+
+_Context: package_
+
+Run stream benchmarks for the package.
+
 ### `elastic-package benchmark system`
 
 _Context: package_
@@ -187,7 +226,7 @@ Run system benchmarks for the package.
 
 _Context: package_
 
-Use this command to build a package. Currently it supports only the "integration" package type.
+Use this command to build a package.
 
 Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
@@ -225,7 +264,7 @@ _Context: package_
 
 Use this command to verify if the package is correct in terms of formatting, validation and building.
 
-It will execute the format, lint, and build commands all at once, in that order.
+It will execute the lint and build commands all at once, in that order.
 
 ### `elastic-package clean`
 
@@ -233,7 +272,7 @@ _Context: package_
 
 Use this command to clean resources used for building the package.
 
-The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs).
+The command will remove built package files (in build/), files needed for managing the development stack (in ~/.elastic-package/stack/development) and stack service logs (in ~/.elastic-package/tmp/service_logs and ~/.elastic-package/profiles/<profile>/service_logs/).
 
 ### `elastic-package create`
 
@@ -287,6 +326,20 @@ Use this command to dump objects installed by Fleet as part of a package.
 
 Use this command as an exploratory tool to dump objects as they are installed by Fleet when installing a package. Dumped objects are stored in files as they are returned by APIs of the stack, without any processing.
 
+### `elastic-package edit`
+
+_Context: package_
+
+Use this command to edit assets relevant for the package, e.g. Kibana dashboards.
+
+### `elastic-package edit dashboards`
+
+_Context: package_
+
+Use this command to make dashboards editable.
+
+Pass a comma-separated list of dashboard ids with -d or use the interactive prompt to make managed dashboards editable in Kibana.
+
 ### `elastic-package export`
 
 _Context: package_
@@ -300,6 +353,14 @@ _Context: package_
 Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).
+
+### `elastic-package export ingest-pipelines`
+
+_Context: package_
+
+Use this command to export ingest pipelines with referenced pipelines from the Elasticsearch instance.
+
+Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.
 
 ### `elastic-package format`
 
@@ -358,24 +419,6 @@ List available profiles.
 _Context: global_
 
 Sets the profile to use when no other is specified.
-
-### `elastic-package promote`
-
-_Context: global_
-
-[DEPRECATED] Use this command to move packages between the snapshot, staging, and production stages of the package registry.
-
-This command is intended primarily for use by administrators.
-
-It allows for selecting packages for promotion and opens new pull requests to review changes. Please be aware that the tool checks out an in-memory Git repository and switches over branches (snapshot, staging and production), so it may take longer to promote a larger number of packages.
-
-### `elastic-package publish`
-
-_Context: package_
-
-[DEPRECATED] Use this command to publish a new package revision.
-
-The command checks if the package hasn't been already published (whether it's present in snapshot/staging/production branch or open as pull request). If the package revision hasn't been published, it will open a new pull request.
 
 ### `elastic-package report`
 
@@ -445,6 +488,7 @@ The output of this command is intended to be evaluated by the current shell. For
 
 Relevant environment variables are:
 
+- ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY
 - ELASTIC_PACKAGE_ELASTICSEARCH_HOST
 - ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 - ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
@@ -477,6 +521,11 @@ To expose local packages in the Package Registry, build them first and boot up t
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
 You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.
+
+There are different providers supported, that can be selected with the --provider flag.
+- compose: Starts a local stack using Docker Compose. This is the default.
+- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key. You can learn more about this in [this document](./docs/howto/use_serverless_stack.md).
 
 ### `elastic-package stack update`
 
@@ -518,7 +567,12 @@ For details on how to run static tests for a package, see the [HOWTO guide](http
 #### System Tests
 These tests allow you to test a package's ability to ingest data end-to-end.
 
-For details on how to configure amd run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
+
+#### Policy Tests
+These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
+
+For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).
 
 ### `elastic-package test asset`
 
@@ -531,6 +585,12 @@ Run asset loading tests for the package.
 _Context: package_
 
 Run pipeline tests for the package.
+
+### `elastic-package test policy`
+
+_Context: package_
+
+Run policy tests for the package.
 
 ### `elastic-package test static`
 
@@ -578,14 +638,94 @@ you can copy to start.
 
 The following settings are available per profile:
 
+* `stack.apm_enabled` can be set to true to start an APM server and configure instrumentation
+  in services managed by elastic-package. Traces for these services are available in the APM
+  UI of the kibana instance managed by elastic-package. Supported only by the compose provider.
+  Defaults to false.
+* `stack.elastic_cloud.host` can be used to override the address when connecting with
+  the Elastic Cloud APIs. It defaults to `https://cloud.elastic.co`.
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
+* `stack.kibana_http2_enabled` can be used to control if HTTP/2 should be used in versions of
+  kibana that support it. Defaults to true.
+* `stack.logsdb_enabled` can be set to true to activate the feature flag in Elasticsearch that
+  enables logs index mode in all data streams that support it. Defaults to false.
+* `stack.logstash_enabled` can be set to true to start Logstash and configure it as the
+  default output for tests using elastic-package. Supported only by the compose provider.
+  Defaults to false.
+* `stack.self_monitor_enabled` enables monitoring and the system package for the default
+  policy assigned to the managed Elastic Agent. Defaults to false.
+* `stack.serverless.type` selects the type of serverless project to start when using
+  the serverless stack provider.
+* `stack.serverless.region` can be used to select the region to use when starting
+  serverless projects.
+* `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
+  Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
+  which enables all subscription features for 30 days.  Defaults to "trial".
+
+## Useful environment variables
+
+There are available some environment variables that could be used to change some of the
+`elastic-package` settings:
+
+- Related to `docker-compose` / `docker compose` commands:
+    - `ELASTIC_PACKAGE_COMPOSE_DISABLE_VERBOSE_OUTPUT`: If set to `true`, it disables the progress output from `docker compose`/`docker-compose` commands.
+        - For versions v2 `< 2.19.0`, it sets `--ansi never` flag.
+        - For versions v2 `>= 2.19.0`, it sets `--progress plain` flag and `--quiet-pull` for `up` sub-command`.
+
+
+- Related to global `elastic-package` settings:
+    - `ELASTIC_PACKAGE_CHECK_UPDATE_DISABLED`: if set to `true`, `elastic-package` is not going to check
+      for newer versions.
+    - `ELASTIC_PACKAGE_PROFILE`: Name of the profile to be using.
+    - `ELASTIC_PACKAGE_DATA_HOME`: Custom path to be used for `elastic-package` data directory. By default this is `~/.elastic-package`.
+
+- Related to the build process:
+    - `ELASTIC_PACKAGE_REPOSITORY_LICENSE`: Path to the default repository license.
+    - `ELASTIC_PACKAGE_LINKS_FILE_PATH`: Path to the links table file (e.g. `links_table.yml`) with the link definitions to be used in the build process of a package.
+
+- Related to signing packages:
+    - `ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE`: Path to the private key file to sign packages.
+    - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
+
+- Related to tests:
+    - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
+    - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images
+      (e.g. `docker.elastic.co/elastic-agent/elastic-agent-complete`). If set to `false`, the Elastic Agent image used for the running agents will be based on the wolfi
+      images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `false`.
+    - `ELASTIC_PACKAGE_TEST_DUMP_SCENARIO_DOCS`. If the variable is set, elastic-package will dump to a file the documents generated
+      by system tests before they are verified. This is useful to know exactly what fields are being verified when investigating
+      issues on this step. Documents are dumped to a file in the system temporary directory. It is disabled by default.
+    - `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT`. If the variable is set to false, all system tests defined in the package will use
+      the Elastic Agent started along with the stack. If set to true, a new Elastic Agent will be started and enrolled for each test defined in the
+      package (and unenrolled at the end of each test). Default: `true`.
+    - `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD`. This variable can take one of these values: `mappings` or `fields`. If this
+      variable is set to `fields`, then validation of fields will be based on the contents of the documents ingested into Elasticsearch. If this is set to
+      `mappings`, then validation of fields will be based on their mappings generated when the documents are ingested into Elasticsearch as well as
+      the contents of the documents ingested into Elasticsearch.
+      Default option: `mappings`.
+
+- To configure the Elastic stack to be used by `elastic-package`:
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch and kibana (e.g. elastic)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD`: Password of that user.
+    - `ELASTIC_PACKAGE_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+- To configure an external metricstore while running benchmarks (more info at [system benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_benchmarking.md#setting-up-an-external-metricstore) or [rally benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/rally_benchmarking.md#setting-up-an-external-metricstore)):
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
 
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+is automatically managed by the Buildkite CI ([Pipeline](https://github.com/elastic/elastic-package/blob/main/.buildkite/pipeline.yml))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release

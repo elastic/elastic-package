@@ -5,8 +5,10 @@
 package stack
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
@@ -14,52 +16,50 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func dockerComposeLogs(serviceName string, profile *profile.Profile) ([]byte, error) {
-	appConfig, err := install.Configuration()
+func dockerComposeLogsSince(ctx context.Context, serviceName string, profile *profile.Profile, since time.Time) ([]byte, error) {
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(install.DefaultStackVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
 
-	snapshotFile := profile.Path(profileStackPath, SnapshotFile)
+	composeFile := profile.Path(ProfileStackPath, ComposeFile)
 
-	p, err := compose.NewProject(DockerComposeProjectName(profile), snapshotFile)
+	p, err := compose.NewProject(DockerComposeProjectName(profile), composeFile)
 	if err != nil {
 		return nil, fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	opts := compose.CommandOptions{
 		Env: newEnvBuilder().
-			withEnvs(appConfig.StackImageRefs(install.DefaultStackVersion).AsEnv()).
+			withEnvs(appConfig.StackImageRefs().AsEnv()).
 			withEnv(stackVariantAsEnv(install.DefaultStackVersion)).
 			withEnvs(profile.ComposeEnvVars()).
 			build(),
 		Services: []string{serviceName},
 	}
 
-	out, err := p.Logs(opts)
+	if !since.IsZero() {
+		opts.ExtraArgs = append(opts.ExtraArgs, "--since", since.UTC().Format("2006-01-02T15:04:05Z"))
+	}
+
+	out, err := p.Logs(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("running command failed: %w", err)
 	}
 	return out, nil
 }
 
-func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) error {
-	switch serviceName {
-	case elasticAgentService, fleetServerService:
-	default:
-		return nil // we need to pull internal logs only from Elastic-Agent and Fleets Server container
-	}
-
+func copyDockerInternalLogs(serviceName, outputPath string, profile *profile.Profile) (string, error) {
 	p, err := compose.NewProject(DockerComposeProjectName(profile))
 	if err != nil {
-		return fmt.Errorf("could not create docker compose project: %w", err)
+		return "", fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
 	outputPath = filepath.Join(outputPath, serviceName+"-internal")
 	serviceContainer := p.ContainerName(serviceName)
 	err = docker.Copy(serviceContainer, "/usr/share/elastic-agent/state/data/logs/", outputPath)
 	if err != nil {
-		return fmt.Errorf("docker copy failed: %w", err)
+		return "", fmt.Errorf("docker copy failed: %w", err)
 	}
-	return nil
+	return outputPath, nil
 }

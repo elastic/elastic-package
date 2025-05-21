@@ -7,6 +7,7 @@ package stack
 import (
 	"bufio"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -20,8 +21,16 @@ type ParseLogsOptions struct {
 }
 
 type LogLine struct {
-	LogLevel  string    `json:"log.lovel"`
+	LogLevel  string    `json:"log.level"`
 	Timestamp time.Time `json:"@timestamp"`
+	Logger    string    `json:"log.logger"`
+	Message   string    `json:"message"`
+}
+
+type LogLineWithType struct {
+	LogLevel  string    `json:"level"`
+	Timestamp time.Time `json:"timestamp"`
+	Component string    `json:"component"`
 	Message   string    `json:"message"`
 }
 
@@ -33,32 +42,41 @@ func ParseLogs(options ParseLogsOptions, process func(log LogLine) error) error 
 	}
 	defer file.Close()
 
+	return ParseLogsFromReader(file, options, process)
+}
+
+func ParseLogsFromReader(reader io.Reader, options ParseLogsOptions, process func(log LogLine) error) error {
 	startProcessing := false
 
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		messageSlice := strings.SplitN(line, "|", 2)
-
-		if len(messageSlice) != 2 {
+		_, messageLog, valid := strings.Cut(line, "|")
+		if !valid {
 			logger.Debugf("skipped malformed docker-compose log line: %s", line)
 			continue
 		}
 
-		messageLog := messageSlice[1]
-
 		var log LogLine
 		err := json.Unmarshal([]byte(messageLog), &log)
 		if err != nil {
-			// there are logs that are just plain text in these logs
 			log.Message = strings.TrimSpace(messageLog)
+		} else if log.Timestamp.IsZero() {
+			// this means that no log was unmarshalled, let's try with another format
+			var logWithType LogLineWithType
+			if err := json.Unmarshal([]byte(messageLog), &logWithType); err == nil {
+				log.Message = logWithType.Message
+				log.LogLevel = logWithType.LogLevel
+				log.Logger = logWithType.Component
+				log.Timestamp = logWithType.Timestamp
+			}
 		}
 
 		// There could be valid messages with just plain text without timestamp
 		// and therefore not processed, cannot be ensured in which timestamp they
 		// were generated
-		if !startProcessing && log.Timestamp.Before(options.StartTime) {
+		if !startProcessing && log.Timestamp.UTC().Before(options.StartTime.UTC()) {
 			continue
 		}
 		startProcessing = true

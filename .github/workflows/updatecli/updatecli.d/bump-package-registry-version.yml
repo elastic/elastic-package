@@ -1,0 +1,44 @@
+---
+name: Bump Package Registry version
+pipelineid: 'bump-package-registry-version'
+
+actions:
+  default:
+    title: '[updatecli] Update Package Registry base image to {{ source "latestRegistryVersion" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  latestRegistryVersion:
+    name: Get latest Package Registry version
+    kind: json
+    spec:
+      file: https://api.github.com/repos/elastic/package-registry/releases/latest
+      key: .tag_name
+
+targets:
+  update-package-registry-base-image:
+    name: '[updatecli] Update Package Registry base image to {{ source "latestRegistryVersion" }}'
+    kind: file
+    sourceid: latestRegistryVersion
+    scmid: default
+    spec:
+      file: internal/stack/versions.go
+      matchpattern: '"(docker.elastic.co/package-registry/package-registry):v[0-9\.]+"'
+      replacepattern: '"$1:{{ source "latestRegistryVersion" }}"'

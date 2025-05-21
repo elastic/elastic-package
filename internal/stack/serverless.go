@@ -24,7 +24,9 @@ import (
 const (
 	paramServerlessProjectID   = "serverless_project_id"
 	paramServerlessProjectType = "serverless_project_type"
-	paramServerlessFleetURL    = "serverless_fleet_url"
+	ParamServerlessFleetURL    = "serverless_fleet_url"
+
+	ParamServerlessLocalStackVersion = "serverless_local_stack_version"
 
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
@@ -34,12 +36,10 @@ const (
 	defaultProjectType = "observability"
 )
 
-var (
-	allowedProjectTypes = []string{
-		"security",
-		"observability",
-	}
-)
+var allowedProjectTypes = []string{
+	"security",
+	"observability",
+}
 
 type serverlessProvider struct {
 	profile *profile.Profile
@@ -54,16 +54,18 @@ type projectSettings struct {
 	Region string
 	Type   string
 
-	StackVersion string
+	StackVersion    string
+	LogstashEnabled bool
+	SelfMonitor     bool
 }
 
-func (sp *serverlessProvider) createProject(settings projectSettings, options Options, conf Config) (Config, error) {
-	project, err := sp.client.CreateProject(settings.Name, settings.Region, settings.Type)
+func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options, conf Config) (Config, error) {
+	project, err := sp.client.CreateProject(ctx, settings.Name, settings.Region, settings.Type)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.TODO(), time.Minute*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*30)
 	defer cancel()
 	if err := sp.client.EnsureEndpoints(ctx, project); err != nil {
 		return Config{}, fmt.Errorf("failed to ensure endpoints have been provisioned properly: %w", err)
@@ -75,11 +77,13 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		paramServerlessProjectID:   project.ID,
 		paramServerlessProjectType: project.Type,
 	}
-
 	config.ElasticsearchHost = project.Endpoints.Elasticsearch
 	config.KibanaHost = project.Endpoints.Kibana
 	config.ElasticsearchUsername = project.Credentials.Username
 	config.ElasticsearchPassword = project.Credentials.Password
+
+	// add stack version set in command line
+	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
 
 	// Store config now in case fails initialization or other requests,
 	// so it can be destroyed later
@@ -99,11 +103,11 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, err
 	}
 
-	config.Parameters[paramServerlessFleetURL], err = project.DefaultFleetServerURL(sp.kibanaClient)
+	config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
-	project.Endpoints.Fleet = config.Parameters[paramServerlessFleetURL]
+	project.Endpoints.Fleet = config.Parameters[ParamServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
 
@@ -118,15 +122,22 @@ func (sp *serverlessProvider) createProject(settings projectSettings, options Op
 		return Config{}, fmt.Errorf("not all services are healthy: %w", err)
 	}
 
+	if settings.LogstashEnabled {
+		err = addLogstashFleetOutput(ctx, sp.kibanaClient)
+		if err != nil {
+			return Config{}, err
+		}
+	}
+
 	return config, nil
 }
 
-func (sp *serverlessProvider) deleteProject(project *serverless.Project, options Options) error {
-	return sp.client.DeleteProject(project)
+func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project, options Options) error {
+	return sp.client.DeleteProject(ctx, project)
 }
 
-func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config Config) (*serverless.Project, error) {
-	project, err := sp.currentProject(config)
+func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx context.Context, config Config) (*serverless.Project, error) {
+	project, err := sp.currentProject(ctx, config)
 	if err != nil {
 		return nil, err
 	}
@@ -136,9 +147,9 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config C
 		return nil, err
 	}
 
-	fleetURL, found := config.Parameters[paramServerlessFleetURL]
+	fleetURL, found := config.Parameters[ParamServerlessFleetURL]
 	if !found {
-		fleetURL, err = project.DefaultFleetServerURL(sp.kibanaClient)
+		fleetURL, err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get fleet URL: %w", err)
 		}
@@ -148,7 +159,7 @@ func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(config C
 	return project, nil
 }
 
-func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project, error) {
+func (sp *serverlessProvider) currentProject(ctx context.Context, config Config) (*serverless.Project, error) {
 	projectID, found := config.Parameters[paramServerlessProjectID]
 	if !found {
 		return nil, serverless.ErrProjectNotExist
@@ -159,8 +170,8 @@ func (sp *serverlessProvider) currentProject(config Config) (*serverless.Project
 		return nil, serverless.ErrProjectNotExist
 	}
 
-	project, err := sp.client.GetProject(projectType, projectID)
-	if errors.Is(serverless.ErrProjectNotExist, err) {
+	project, err := sp.client.GetProject(ctx, projectType, projectID)
+	if errors.Is(err, serverless.ErrProjectNotExist) {
 		return nil, err
 	}
 	if err != nil {
@@ -198,10 +209,12 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 
 func getProjectSettings(options Options) (projectSettings, error) {
 	s := projectSettings{
-		Name:         createProjectName(options),
-		Type:         options.Profile.Config(configProjectType, defaultProjectType),
-		Region:       options.Profile.Config(configRegion, defaultRegion),
-		StackVersion: options.StackVersion,
+		Name:            createProjectName(options),
+		Type:            options.Profile.Config(configProjectType, defaultProjectType),
+		Region:          options.Profile.Config(configRegion, defaultRegion),
+		StackVersion:    options.StackVersion,
+		LogstashEnabled: options.Profile.Config(configLogstashEnabled, "false") == "true",
+		SelfMonitor:     options.Profile.Config(configSelfMonitorEnabled, "false") == "true",
 	}
 
 	return s, nil
@@ -225,7 +238,7 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 	return &serverlessProvider{profile, client, nil, nil}, nil
 }
 
-func (sp *serverlessProvider) BootUp(options Options) error {
+func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
 	logger.Warn("Elastic Serverless provider is in technical preview")
 
 	config, err := LoadConfig(sp.profile)
@@ -244,27 +257,30 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 
 	var project *serverless.Project
 
-	project, err = sp.currentProject(config)
+	isNewProject := false
+	project, err = sp.currentProject(ctx, config)
 	switch err {
 	default:
 		return err
 	case serverless.ErrProjectNotExist:
 		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
-		config, err = sp.createProject(settings, options, config)
+		config, err = sp.createProject(ctx, settings, options, config)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProjectWithClientsAndFleetEndpoint(config)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve latest project created: %w", err)
+		outputID := ""
+		if settings.LogstashEnabled {
+			outputID = serverless.FleetLogstashOutput
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(options.StackVersion, sp.kibanaClient)
+		_, err = createAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
+
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
+		isNewProject = true
 
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
@@ -273,10 +289,19 @@ func (sp *serverlessProvider) BootUp(options Options) error {
 		printUserConfig(options.Printer, config)
 	}
 
-	logger.Infof("Starting local agent")
-	err = sp.startLocalAgent(options, config)
+	logger.Infof("Starting local services")
+	err = sp.startLocalServices(ctx, options, config)
 	if err != nil {
-		return fmt.Errorf("failed to start local agent: %w", err)
+		return fmt.Errorf("failed to start local services: %w", err)
+	}
+
+	// Updating the output with ssl certificates created in startLocalServices
+	// The certificates are updated only when a new project is created and logstash is enabled
+	if isNewProject && settings.LogstashEnabled {
+		err = updateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -286,46 +311,52 @@ func (sp *serverlessProvider) composeProjectName() string {
 	return DockerComposeProjectName(sp.profile)
 }
 
-func (sp *serverlessProvider) localAgentComposeProject() (*compose.Project, error) {
-	composeFile := sp.profile.Path(profileStackPath, SnapshotFile)
+func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, error) {
+	composeFile := sp.profile.Path(ProfileStackPath, ComposeFile)
 	return compose.NewProject(sp.composeProjectName(), composeFile)
 }
 
-func (sp *serverlessProvider) startLocalAgent(options Options, config Config) error {
-	err := applyServerlessResources(sp.profile, options.StackVersion, config)
+func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {
+	err := applyLocalResources(sp.profile, options.StackVersion, config)
 	if err != nil {
-		return fmt.Errorf("could not initialize compose files for local agent: %w", err)
+		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}
 
-	project, err := sp.localAgentComposeProject()
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Build(compose.CommandOptions{})
+	opts := compose.CommandOptions{
+		ExtraArgs: []string{},
+	}
+	err = project.Build(ctx, opts)
 	if err != nil {
-		return fmt.Errorf("failed to build images for local agent: %w", err)
+		return fmt.Errorf("failed to build images for local services: %w", err)
 	}
 
-	err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-	if err != nil {
+	if options.DaemonMode {
+		opts.ExtraArgs = append(opts.ExtraArgs, "-d")
+	}
+	if err := project.Up(ctx, opts); err != nil {
 		// At least starting on 8.6.0, fleet-server may be reconfigured or
 		// restarted after being healthy. If elastic-agent tries to enroll at
 		// this moment, it fails inmediately, stopping and making `docker-compose up`
 		// to fail too.
 		// As a workaround, try to give another chance to docker-compose if only
 		// elastic-agent failed.
-		fmt.Println("Elastic Agent failed to start, trying again.")
-		err = project.Up(compose.CommandOptions{ExtraArgs: []string{"-d"}})
-		if err != nil {
-			return fmt.Errorf("failed to start local agent: %w", err)
+		if onlyElasticAgentFailed(ctx, options) && !errors.Is(err, context.Canceled) {
+			fmt.Println("Elastic Agent failed to start, trying again.")
+			if err := project.Up(ctx, opts); err != nil {
+				return fmt.Errorf("failed to start local services: %w", err)
+			}
 		}
 	}
 
 	return nil
 }
 
-func (sp *serverlessProvider) TearDown(options Options) error {
+func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) error {
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
@@ -333,20 +364,20 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 
 	var errs error
 
-	err = sp.destroyLocalAgent()
+	err = sp.destroyLocalServices(ctx)
 	if err != nil {
-		logger.Errorf("failed to destroy local agent: %v", err)
-		errs = fmt.Errorf("failed to destroy local agent: %w", err)
+		logger.Errorf("failed to destroy local services: %v", err)
+		errs = fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
-	project, err := sp.currentProject(config)
+	project, err := sp.currentProject(ctx, config)
 	if err != nil {
 		return fmt.Errorf("failed to find current project: %w", err)
 	}
 
 	logger.Debugf("Deleting project %q (%s)", project.Name, project.ID)
 
-	err = sp.deleteProject(project, options)
+	err = sp.deleteProject(ctx, project, options)
 	if err != nil {
 		logger.Errorf("failed to delete project: %v", err)
 		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
@@ -357,44 +388,55 @@ func (sp *serverlessProvider) TearDown(options Options) error {
 	return errs
 }
 
-func (sp *serverlessProvider) destroyLocalAgent() error {
-	project, err := sp.localAgentComposeProject()
+func (sp *serverlessProvider) destroyLocalServices(ctx context.Context) error {
+	project, err := sp.localServicesComposeProject()
 	if err != nil {
-		return fmt.Errorf("could not initialize local agent compose project")
+		return fmt.Errorf("could not initialize local services compose project")
 	}
 
-	err = project.Down(compose.CommandOptions{})
+	opts := compose.CommandOptions{
+		// Remove associated volumes.
+		ExtraArgs: []string{"--volumes", "--remove-orphans"},
+	}
+	err = project.Down(ctx, opts)
 	if err != nil {
-		return fmt.Errorf("failed to destroy local agent: %w", err)
+		return fmt.Errorf("failed to destroy local services: %w", err)
 	}
 
 	return nil
 }
 
-func (sp *serverlessProvider) Update(options Options) error {
+func (sp *serverlessProvider) Update(ctx context.Context, options Options) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (sp *serverlessProvider) Dump(options DumpOptions) (string, error) {
-	return Dump(options)
+func (sp *serverlessProvider) Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
+	for _, service := range options.Services {
+		if service != "elastic-agent" {
+			return nil, &ErrNotImplemented{
+				Operation: fmt.Sprintf("logs dump for service %s", service),
+				Provider:  ProviderServerless,
+			}
+		}
+	}
+	return Dump(ctx, options)
 }
 
-func (sp *serverlessProvider) Status(options Options) ([]ServiceStatus, error) {
+func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]ServiceStatus, error) {
 	logger.Warn("Elastic Serverless provider is in technical preview")
 	config, err := LoadConfig(sp.profile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	project, err := sp.currentProjectWithClientsAndFleetEndpoint(config)
-	if errors.Is(serverless.ErrProjectNotExist, err) {
+	project, err := sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
+	if errors.Is(err, serverless.ErrProjectNotExist) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	ctx := context.TODO()
 	projectServiceStatus, err := project.Status(ctx, sp.elasticsearchClient, sp.kibanaClient)
 	if err != nil {
 		return nil, err
@@ -439,21 +481,6 @@ func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	return services, nil
 }
 
-func localServiceNames(project string) ([]string, error) {
-	services := []string{}
-	serviceFunc := func(description docker.ContainerDescription) error {
-		services = append(services, description.Config.Labels[serviceLabelDockerCompose])
-		return nil
-	}
-
-	err := runOnLocalServices(project, serviceFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	return services, nil
-}
-
 func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescription) error) error {
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, project)
@@ -471,7 +498,7 @@ func runOnLocalServices(project string, serviceFunc func(docker.ContainerDescrip
 	}
 
 	for _, containerDescription := range containerDescriptions {
-		serviceName := containerDescription.Config.Labels[serviceLabelDockerCompose]
+		serviceName := containerDescription.Config.Labels.ComposeService
 		if strings.HasSuffix(serviceName, readyServicesSuffix) {
 			continue
 		}

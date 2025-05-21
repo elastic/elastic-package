@@ -1,17 +1,18 @@
 #!/bin/bash
 
-set -euo pipefail
-
-cleanup() {
-    rm -rf ${WORKSPACE}
-}
-trap cleanup exit
-
-WORKSPACE="/tmp/bin-buildkite/"
-
-VERSION=""
 source .buildkite/scripts/install_deps.sh
 source .buildkite/scripts/tooling.sh
+
+set -euo pipefail
+
+cleanup_binaries() {
+    rm -rf "${WORKSPACE}"
+}
+trap cleanup_binaries EXIT
+
+export WORKSPACE="/tmp/bin-buildkite/"
+
+VERSION=""
 
 add_bin_path
 with_go

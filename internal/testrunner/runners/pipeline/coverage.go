@@ -12,12 +12,13 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-// GetPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
-func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipeline) (*testrunner.CoberturaCoverage, error) {
+// getPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
+func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
@@ -33,62 +34,108 @@ func GetPipelineCoverage(options testrunner.TestOptions, pipelines []ingest.Pipe
 		return nil, fmt.Errorf("error fetching pipeline stats for code coverage calculations: %w", err)
 	}
 
-	// Construct the Cobertura report.
-	pkg := &testrunner.CoberturaPackage{
-		Name: options.TestFolder.Package + "." + options.TestFolder.DataStream,
-	}
-
 	// Use the package's parent directory as base path, so that the relative paths
 	// for each class (pipeline) include the package name. This prevents paths for
 	// different packages colliding (i.e. a lot of packages have a "log" datastream
 	// and a default.yml pipeline).
 	basePath := filepath.Dir(options.PackageRootPath)
 
-	coverage := &testrunner.CoberturaCoverage{
-		Sources: []*testrunner.CoberturaSource{
-			{
-				Path: basePath,
-			},
-		},
-		Packages:  []*testrunner.CoberturaPackage{pkg},
-		Timestamp: time.Now().UnixNano(),
+	repositoryRootDir, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, err
 	}
 
-	// Calculate coverage for each pipeline
-	for _, pipeline := range pipelines {
-		covered, class, err := coverageForSinglePipeline(pipeline, stats, basePath, dataStreamPath)
-		if err != nil {
-			return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
+	if options.CoverageType == "cobertura" {
+		pkg := &testrunner.CoberturaPackage{
+			Name: pkgName,
 		}
-		pkg.Classes = append(pkg.Classes, class)
-		coverage.LinesValid += int64(len(class.Methods))
-		coverage.LinesCovered += covered
+
+		cobertura := &testrunner.CoberturaCoverage{
+			Sources: []*testrunner.CoberturaSource{
+				{
+					Path: basePath,
+				},
+			},
+			Packages:  []*testrunner.CoberturaPackage{pkg},
+			Timestamp: time.Now().UnixNano(),
+		}
+
+		// Calculate coverage for each pipeline
+		for _, pipeline := range pipelines {
+			pipelineName, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
+			if err != nil {
+				return nil, err
+			}
+			covered, class, err := coberturaForSinglePipeline(pipelineName, pipelineRelPath, src, pstats)
+			if err != nil {
+				return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
+			}
+			pkg.Classes = append(pkg.Classes, class)
+			cobertura.LinesValid += int64(len(class.Methods))
+			cobertura.LinesCovered += covered
+		}
+		return cobertura, nil
 	}
-	return coverage, nil
+
+	if options.CoverageType == "generic" {
+		coverage := &testrunner.GenericCoverage{
+			Version:   1,
+			Timestamp: time.Now().UnixNano(),
+			TestType:  "Cobertura for pipeline test",
+		}
+
+		// Calculate coverage for each pipeline
+		for _, pipeline := range pipelines {
+			_, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
+			if err != nil {
+				return nil, err
+			}
+			_, file, err := genericCoverageForSinglePipeline(pipelineRelPath, src, pstats)
+			if err != nil {
+				return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
+			}
+			coverage.Files = append(coverage.Files, file)
+		}
+		return coverage, nil
+
+	}
+
+	return nil, fmt.Errorf("unrecognised coverage type")
 }
 
-func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamPath string) (linesCovered int64, class *testrunner.CoberturaClass, err error) {
+func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamPath string) (string, string, []ingest.Processor, ingest.PipelineStats, error) {
 	// Load the list of main processors from the pipeline source code, annotated with line numbers.
-	src, err := pipeline.Processors()
+	src, err := pipeline.OriginalProcessors()
 	if err != nil {
-		return 0, nil, err
+		return "", "", nil, ingest.PipelineStats{}, err
 	}
 
 	pstats, found := stats[pipeline.Name]
 	if !found {
-		return 0, nil, fmt.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
+		return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("pipeline '%s' not installed in Elasticsearch", pipeline.Name)
 	}
+
+	// Remove reroute processors if any so the pipeline has the same processors as in the file
+	// reroute processors are added if there are any routing_rules file defined
+	var processors []ingest.ProcessorStats
+	for _, proc := range pstats.Processors {
+		if proc.Type == "reroute" {
+			continue
+		}
+		processors = append(processors, proc)
+	}
+	pstats.Processors = processors
 
 	// Ensure there is no inconsistency in the list of processors in stats vs obtained from source.
 	if len(src) != len(pstats.Processors) {
-		return 0, nil, fmt.Errorf("processor count mismatch for %s (src:%d stats:%d)", pipeline.Filename(), len(src), len(pstats.Processors))
+		return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("processor count mismatch for %s (src:%d stats:%d)", pipeline.Filename(), len(src), len(pstats.Processors))
 	}
 	for idx, st := range pstats.Processors {
 		// Check that we have the expected type of processor, except for `compound` processors.
 		// Elasticsearch will return a `compound` processor in the case of `foreach` and
 		// any processor that defines `on_failure` processors.
 		if st.Type != "compound" && st.Type != src[idx].Type {
-			return 0, nil, fmt.Errorf("processor type mismatch for %s processor %d (src:%s stats:%s)", pipeline.Filename(), idx, src[idx].Type, st.Type)
+			return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("processor type mismatch for %s processor %d (src:%s stats:%s)", pipeline.Filename(), idx, src[idx].Type, st.Type)
 		}
 	}
 
@@ -104,9 +151,33 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 	pipelinePath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", pipeline.Filename())
 	pipelineRelPath, err := filepath.Rel(basePath, pipelinePath)
 	if err != nil {
-		return 0, nil, fmt.Errorf("cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s': %w", basePath, pipelinePath, err)
+		return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s': %w", basePath, pipelinePath, err)
 	}
 
+	return pipelineName, pipelineRelPath, src, pstats, nil
+}
+
+func genericCoverageForSinglePipeline(pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.GenericFile, err error) {
+	// Report every pipeline as a "file".
+	file := &testrunner.GenericFile{
+		Path: pipelineRelPath,
+	}
+	for idx, srcProc := range src {
+		if pstats.Processors[idx].Stats.Count > 0 {
+			linesCovered++
+		}
+		for num := srcProc.FirstLine; num <= srcProc.LastLine; num++ {
+			line := &testrunner.GenericLine{
+				LineNumber: int64(num),
+				Covered:    pstats.Processors[idx].Stats.Count > 0,
+			}
+			file.Lines = append(file.Lines, line)
+		}
+	}
+	return linesCovered, file, nil
+}
+
+func coberturaForSinglePipeline(pipelineName, pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.CoberturaClass, err error) {
 	// Report every pipeline as a "class".
 	class = &testrunner.CoberturaClass{
 		Name:     pipelineName,
@@ -120,7 +191,6 @@ func coverageForSinglePipeline(pipeline ingest.Pipeline, stats ingest.PipelineSt
 		}
 		method := testrunner.CoberturaMethod{
 			Name: srcProc.Type,
-			Hits: pstats.Processors[idx].Stats.Count,
 		}
 		for num := srcProc.FirstLine; num <= srcProc.LastLine; num++ {
 			line := &testrunner.CoberturaLine{

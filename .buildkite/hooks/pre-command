@@ -3,59 +3,99 @@
 source .buildkite/scripts/tooling.sh
 set -euo pipefail
 
-export GO_VERSION=$(cat .go-version)
+GO_VERSION=$(cat .go-version)
+export GO_VERSION
 
-GCP_SERVICE_ACCOUNT_SECRET_PATH=secret/ci/elastic-elastic-package/gcp-service-account
-AWS_SERVICE_ACCOUNT_SECRET_PATH=kv/ci-shared/platform-ingest/aws_account_auth
-GITHUB_TOKEN_VAULT_PATH=kv/ci-shared/platform-ingest/github_token
-JENKINS_API_TOKEN_PATH=kv/ci-shared/platform-ingest/jenkins_api_tokens
-SIGNING_PACKAGES_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/signing_packages_gcs_artifacts_credentials
-PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/package_storage_uploader
-PRIVATE_CI_GCS_CREDENTIALS_PATH=kv/ci-shared/platform-ingest/private_ci_artifacts_gcs_credentials
+export SERVERLESS=${SERVERLESS:-"false"}
+WORKSPACE=$(pwd)
+export WORKSPACE
+
+EC_TOKEN_PATH=kv/ci-shared/platform-ingest/platform-ingest-ec-qa
+EC_DATA_PATH=secret/ci/elastic-elastic-package/ec_data
+
+# variables required for Terraform
+export ENVIRONMENT="ci"
+REPO=$(repo_name "${BUILDKITE_REPO}")
+export REPO
+
+branch_name_label() {
+    local branch="$1"
+
+    if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]] ; then
+        # remove fork from branch name
+        branch=$(echo $branch | cut -d : -f 2)
+    fi
+
+    # From Jenkins
+    # BRANCH_NAME_LOWER_CASE = "${env.BRANCH_NAME.toLowerCase().replaceAll('[^a-z0-9-]', '-')}"
+    # to lower case and replace characters
+    branch=$(echo "$branch" | tr '[:upper:]' '[:lower:]' | tr '_/\:. ' '-')
+
+    # truncate up to 63 characters limit
+    echo $branch | head -c 63
+}
+
+BRANCH_NAME_LOWER_CASE=$(branch_name_label "$BUILDKITE_BRANCH")
+export BRANCH_NAME_LOWER_CASE
+# This variable contains the build number https://buildkite.com/elastic/elastic-package/<number>
+export BUILD_ID="${BUILDKITE_BUILD_NUMBER}"
+# get current timestamp in milliseconds
+CREATED_DATE=$(date +%s%3N)
+export CREATED_DATE
 
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives) ]]; then
-    export PRIVATE_CI_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field plaintext ${PRIVATE_CI_GCS_CREDENTIALS_PATH})
-fi
+export TMP_FOLDER_TEMPLATE_BASE="tmp.${REPO}"
+export TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "integration-parallel-gcp" ]]; then
-    export ELASTIC_PACKAGE_GCP_PROJECT_SECRET=$(retry 5 vault read -field projectId ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET=$(retry 5 vault read -field credentials ${GCP_SERVICE_ACCOUNT_SECRET_PATH})
+is_step_required_to_upload_safe_logs() {
+    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" && "$BUILDKITE_PIPELINE_SLUG" != "elastic-package-test-serverless" ]]; then
+        return 1
+    fi
 
-    # Environment variables required by the service deployer
-    export GOOGLE_CREDENTIALS=${ELASTIC_PACKAGE_GCP_CREDENTIALS_SECRET}
-    export GCP_PROJECT_ID=${ELASTIC_PACKAGE_GCP_PROJECT_SECRET}
-fi
+    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" ]]; then
+        if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
+            return 0
+        fi
+    fi
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && ("$BUILDKITE_STEP_KEY" == "integration-parallel-aws" || "$BUILDKITE_STEP_KEY" == "integration-parallel-aws_logs") ]]; then
-    export ELASTIC_PACKAGE_AWS_SECRET_KEY=$(retry 5 vault kv get -field secret_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
-    export ELASTIC_PACKAGE_AWS_ACCESS_KEY=$(retry 5 vault kv get -field access_key ${AWS_SERVICE_ACCOUNT_SECRET_PATH})
+    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-serverless" ]]; then
+        if [[ "$BUILDKITE_STEP_KEY" == "test-serverless" ]]; then
+            return 0
+        fi
+    fi
+    return 1
+}
 
-    # Environment variables required by the service deployer
-    export AWS_SECRET_ACCESS_KEY=${ELASTIC_PACKAGE_AWS_SECRET_KEY}
-    export AWS_ACCESS_KEY_ID=${ELASTIC_PACKAGE_AWS_ACCESS_KEY}
+if is_step_required_to_upload_safe_logs; then
+    export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
-    export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
-fi
-
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-package-storage-publish" && "$BUILDKITE_STEP_KEY" == "sign-publish" ]]; then
-    export JENKINS_USERNAME_SECRET=$(retry 5 vault kv get -field username ${JENKINS_API_TOKEN_PATH})
-    export JENKINS_HOST_SECRET=$(retry 5 vault kv get -field internal_ci_host ${JENKINS_API_TOKEN_PATH})
-    export JENKINS_TOKEN=$(retry 5 vault kv get -field internal_ci ${JENKINS_API_TOKEN_PATH})
-
-    # signing job
-    export SIGNING_PACKAGES_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${SIGNING_PACKAGES_GCS_CREDENTIALS_PATH})
-
-    # publishing job
-    export PACKAGE_UPLOADER_GCS_CREDENTIALS_SECRET=$(retry 5 vault kv get -field value ${PACKAGE_UPLOADER_GCS_CREDENTIALS_PATH})
+    GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+    export GITHUB_TOKEN
 fi
 
 if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    export GITHUB_USERNAME_SECRET=$(retry 5 vault kv get -field username ${GITHUB_TOKEN_VAULT_PATH})
-    export GITHUB_EMAIL_SECRET=$(retry 5 vault kv get -field email ${GITHUB_TOKEN_VAULT_PATH})
-    export GITHUB_TOKEN=$(retry 5 vault kv get -field token ${GITHUB_TOKEN_VAULT_PATH})
+    # required to set the git commit information
+    GITHUB_USERNAME_SECRET="elasticmachine"
+    export GITHUB_USERNAME_SECRET=$GITHUB_USERNAME_SECRET
+    export GITHUB_EMAIL_SECRET="elasticmachine@elastic.co"
+    # required by `gh` commands
+    export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+fi
+
+if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
+    if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
+        EC_API_KEY_SECRET=$(retry 5 vault kv get -field apiKey "${EC_TOKEN_PATH}")
+        export EC_API_KEY_SECRET
+        EC_HOST_SECRET=$(retry 5 vault kv get -field url "${EC_TOKEN_PATH}")
+        export EC_HOST_SECRET
+        EC_REGION_SECRET=$(retry 5 vault read -field region_qa "${EC_DATA_PATH}")
+        export EC_REGION_SECRET
+
+        GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
+        export GITHUB_TOKEN
+    fi
 fi

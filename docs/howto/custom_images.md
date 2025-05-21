@@ -46,8 +46,8 @@ Depending on the service you need to use a custom image, you need to set a diffe
 
 Following the example of elastic-agent, it is required to define the `ELASTICSEARCH_IMAGE_REF_OVERRIDE` environment variable before running `elastic-package stack up`:
 ```
-export ELASTIC_AGENT_IMAGE_REF="docker.elastic.co/beats/elastic-agent-complete:8.8.2-SNAPSHOT-test"
-elastic-package stack up -v -d --version 8.8.0-SNAPSHOT
+export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:8.8.2-SNAPSHOT-test"
+elastic-package stack up -v -d --version 8.8.2-SNAPSHOT
 ```
 
 Once the Elastic stack is running, you can check that the docker image used for the elastic-agent image is now the one it was built:

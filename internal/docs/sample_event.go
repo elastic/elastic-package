@@ -5,6 +5,7 @@
 package docs
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -19,7 +20,12 @@ import (
 const sampleEventFile = "sample_event.json"
 
 func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
-	eventPath := filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
+	var eventPath string
+	if dataStreamName == "" {
+		eventPath = filepath.Join(packageRoot, sampleEventFile)
+	} else {
+		eventPath = filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
+	}
 
 	body, err := os.ReadFile(eventPath)
 	if err != nil {
@@ -42,10 +48,14 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	}
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
-		stripDataStreamFolderSuffix(dataStreamName)))
+	if dataStreamName == "" {
+		builder.WriteString("An example event looks as following:\n\n")
+	} else {
+		builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
+			stripDataStreamFolderSuffix(dataStreamName)))
+	}
 	builder.WriteString("```json\n")
-	builder.Write(formatted)
+	builder.Write(bytes.TrimSpace(formatted))
 	builder.WriteString("\n```")
 	return builder.String(), nil
 }

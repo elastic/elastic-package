@@ -1,0 +1,16 @@
+{
+    "expected": [
+        {
+            "example": {
+                "count": "34",
+                "metric": "43.2"
+            }
+        },
+        {
+            "example": {
+                "count": "0",
+                "metric": "1234"
+            }
+        }
+    ]
+}

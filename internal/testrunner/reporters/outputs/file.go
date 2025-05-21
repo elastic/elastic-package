@@ -25,7 +25,7 @@ const (
 	ReportOutputFile testrunner.TestReportOutput = "file"
 )
 
-func reportToFile(pkg, report string, format testrunner.TestReportFormat) error {
+func reportToFile(pkg, report string, testType testrunner.TestType, format testrunner.TestReportFormat) error {
 	dest, err := testReportsDir()
 	if err != nil {
 		return fmt.Errorf("could not determine test reports folder: %w", err)
@@ -43,7 +43,7 @@ func reportToFile(pkg, report string, format testrunner.TestReportFormat) error 
 		ext = "xml"
 	}
 
-	fileName := fmt.Sprintf("%s_%d.%s", pkg, time.Now().UnixNano(), ext)
+	fileName := fmt.Sprintf("%s-%s-%d.%s", pkg, testType, time.Now().UnixNano(), ext)
 	filePath := filepath.Join(dest, fileName)
 
 	if err := os.WriteFile(filePath, []byte(report+"\n"), 0644); err != nil {

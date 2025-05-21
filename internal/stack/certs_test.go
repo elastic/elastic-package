@@ -15,50 +15,62 @@ import (
 )
 
 func TestTLSCertsInitialization(t *testing.T) {
+
+	tests := []struct {
+		name     string
+		services []tlsService
+	}{
+		{"tlsServices", tlsServices},
+		{"tlsServicesServerless", tlsLocalServices},
+	}
 	profilePath := t.TempDir()
 	caCertFile := filepath.Join(profilePath, "certs", "ca-cert.pem")
 	caKeyFile := filepath.Join(profilePath, "certs", "ca-key.pem")
 
-	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
+	assert.Error(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, tlsService{}))
 
 	providerName := "test-file"
-	resources, err := initTLSCertificates(providerName, profilePath)
-	require.NoError(t, err)
-
 	resourceManager := resource.NewManager()
-	resourceManager.RegisterProvider(providerName, &resource.FileProvider{
-		Prefix: profilePath,
-	})
-	_, err = resourceManager.Apply(resources)
-	require.NoError(t, err)
 
-	assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, ""))
-
-	for _, service := range tlsServices {
-		t.Run(service, func(t *testing.T) {
-			serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
-			serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
-		})
-	}
-
-	t.Run("service certificate individually recreated", func(t *testing.T) {
-		service := tlsServices[0]
-		serviceCertFile := filepath.Join(profilePath, "certs", service, "cert.pem")
-		serviceKeyFile := filepath.Join(profilePath, "certs", service, "key.pem")
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
-
-		// Remove the certificate.
-		os.Remove(serviceCertFile)
-		os.Remove(serviceKeyFile)
-		assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
-
-		// Check it is created again and is validated by the same CA.
-		resources, err := initTLSCertificates(providerName, profilePath)
+	for _, tt := range tests {
+		resources, err := initTLSCertificates(providerName, profilePath, tt.services)
 		require.NoError(t, err)
+
+		resourceManager.RegisterProvider(providerName, &resource.FileProvider{
+			Prefix: profilePath,
+		})
 		_, err = resourceManager.Apply(resources)
 		require.NoError(t, err)
 
-		assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
-	})
+		assert.NoError(t, verifyTLSCertificates(caCertFile, caCertFile, caKeyFile, tlsService{}))
+		for _, service := range tt.services {
+			t.Run(service.Name, func(t *testing.T) {
+				serviceCertFile := filepath.Join(profilePath, "certs", service.Name, "cert.pem")
+				serviceKeyFile := filepath.Join(profilePath, "certs", service.Name, "key.pem")
+				assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+			})
+		}
+	}
+
+	for _, tt := range tests {
+		t.Run("service certificate individually recreated", func(t *testing.T) {
+			service := tt.services[0]
+			serviceCertFile := filepath.Join(profilePath, "certs", service.Name, "cert.pem")
+			serviceKeyFile := filepath.Join(profilePath, "certs", service.Name, "key.pem")
+			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+
+			// Remove the certificate.
+			os.Remove(serviceCertFile)
+			os.Remove(serviceKeyFile)
+			assert.Error(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+
+			// Check it is created again and is validated by the same CA.
+			resources, err := initTLSCertificates(providerName, profilePath, tt.services)
+			require.NoError(t, err)
+			_, err = resourceManager.Apply(resources)
+			require.NoError(t, err)
+
+			assert.NoError(t, verifyTLSCertificates(caCertFile, serviceCertFile, serviceKeyFile, service))
+		})
+	}
 }

@@ -25,6 +25,7 @@ type newDataStreamAnswers struct {
 	Name                   string
 	Title                  string
 	Type                   string
+	Subobjects             bool
 	SyntheticAndTimeSeries bool
 	Synthetic              bool
 }
@@ -72,6 +73,14 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Type:",
 				Options: []string{"logs", "metrics"},
 				Default: "logs",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "subobjects",
+			Prompt: &survey.Confirm{
+				Message: "Enable creation of subobjects for fields with dots in their names?",
+				Default: false,
 			},
 			Validate: survey.Required,
 		},
@@ -133,19 +142,26 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		Type:  answers.Type,
 	}
 
-	if !answers.SyntheticAndTimeSeries && !answers.Synthetic {
-		return archetype.DataStreamDescriptor{
-			Manifest:    manifest,
-			PackageRoot: packageRoot,
+	if !answers.Subobjects {
+		manifest.Elasticsearch = &packages.Elasticsearch{
+			IndexTemplate: &packages.ManifestIndexTemplate{
+				Mappings: &packages.ManifestMappings{
+					Subobjects: false,
+				},
+			},
 		}
 	}
-	elasticsearch := packages.Elasticsearch{
-		SourceMode: "synthetic",
+
+	if answers.Synthetic || answers.SyntheticAndTimeSeries {
+		if manifest.Elasticsearch == nil {
+			manifest.Elasticsearch = &packages.Elasticsearch{}
+		}
+		manifest.Elasticsearch.SourceMode = "synthetic"
+		if answers.SyntheticAndTimeSeries {
+			manifest.Elasticsearch.IndexMode = "time_series"
+		}
 	}
-	if answers.SyntheticAndTimeSeries {
-		elasticsearch.IndexMode = "time_series"
-	}
-	manifest.Elasticsearch = &elasticsearch
+
 	return archetype.DataStreamDescriptor{
 		Manifest:    manifest,
 		PackageRoot: packageRoot,

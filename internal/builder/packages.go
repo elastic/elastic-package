@@ -5,6 +5,7 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -142,7 +143,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 // BuildPackage function builds the package.
-func BuildPackage(options BuildOptions) (string, error) {
+func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	destinationDir, err := BuildPackagesDirectory(options.PackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
@@ -185,7 +186,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	if options.CreateZip {
-		return buildZippedPackage(options, destinationDir)
+		return buildZippedPackage(ctx, options, destinationDir)
 	}
 
 	if options.SkipValidation {
@@ -204,14 +205,14 @@ func BuildPackage(options BuildOptions) (string, error) {
 	return destinationDir, nil
 }
 
-func buildZippedPackage(options BuildOptions, destinationDir string) (string, error) {
+func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDir string) (string, error) {
 	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(destinationDir, zippedPackagePath)
+	err = files.Zip(ctx, destinationDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}

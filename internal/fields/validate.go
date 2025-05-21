@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -29,10 +30,98 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
 
+const externalFieldAppendedTag = "ecs_component"
+
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
 	semver2_3_0 = semver.MustParse("2.3.0")
 	semver3_0_1 = semver.MustParse("3.0.1")
+
+	// List of stack releases that do not
+	// include ECS mappings (all versions before 8.13.0).
+	stackVersionsWithoutECS = []*semver.Version{
+		semver.MustParse("8.12.2"),
+		semver.MustParse("8.12.1"),
+		semver.MustParse("8.12.0"),
+		semver.MustParse("8.11.4"),
+		semver.MustParse("8.11.3"),
+		semver.MustParse("8.11.2"),
+		semver.MustParse("8.11.1"),
+		semver.MustParse("8.11.0"),
+		semver.MustParse("8.10.4"),
+		semver.MustParse("8.10.3"),
+		semver.MustParse("8.10.2"),
+		semver.MustParse("8.10.1"),
+		semver.MustParse("8.10.0"),
+		semver.MustParse("8.9.2"),
+		semver.MustParse("8.9.1"),
+		semver.MustParse("8.9.0"),
+		semver.MustParse("8.8.2"),
+		semver.MustParse("8.8.1"),
+		semver.MustParse("8.8.0"),
+		semver.MustParse("8.7.1"),
+		semver.MustParse("8.7.0"),
+		semver.MustParse("8.6.2"),
+		semver.MustParse("8.6.1"),
+		semver.MustParse("8.6.0"),
+		semver.MustParse("8.5.3"),
+		semver.MustParse("8.5.2"),
+		semver.MustParse("8.5.1"),
+		semver.MustParse("8.5.0"),
+		semver.MustParse("8.4.3"),
+		semver.MustParse("8.4.2"),
+		semver.MustParse("8.4.1"),
+		semver.MustParse("8.4.0"),
+		semver.MustParse("8.3.3"),
+		semver.MustParse("8.3.2"),
+		semver.MustParse("8.3.1"),
+		semver.MustParse("8.3.0"),
+		semver.MustParse("8.2.3"),
+		semver.MustParse("8.2.2"),
+		semver.MustParse("8.2.1"),
+		semver.MustParse("8.2.0"),
+		semver.MustParse("8.1.3"),
+		semver.MustParse("8.1.2"),
+		semver.MustParse("8.1.1"),
+		semver.MustParse("8.1.0"),
+		semver.MustParse("8.0.1"),
+		semver.MustParse("8.0.0"),
+		semver.MustParse("7.17.24"),
+		semver.MustParse("7.17.23"),
+		semver.MustParse("7.17.22"),
+		semver.MustParse("7.17.21"),
+		semver.MustParse("7.17.20"),
+		semver.MustParse("7.17.19"),
+		semver.MustParse("7.17.18"),
+		semver.MustParse("7.17.17"),
+		semver.MustParse("7.17.16"),
+		semver.MustParse("7.17.15"),
+		semver.MustParse("7.17.14"),
+		semver.MustParse("7.17.13"),
+		semver.MustParse("7.17.12"),
+		semver.MustParse("7.17.11"),
+		semver.MustParse("7.17.10"),
+		semver.MustParse("7.17.9"),
+		semver.MustParse("7.17.8"),
+		semver.MustParse("7.17.7"),
+		semver.MustParse("7.17.6"),
+		semver.MustParse("7.17.5"),
+		semver.MustParse("7.17.4"),
+		semver.MustParse("7.17.3"),
+		semver.MustParse("7.17.2"),
+		semver.MustParse("7.17.1"),
+		semver.MustParse("7.17.0"),
+		semver.MustParse("7.16.3"),
+		semver.MustParse("7.16.2"),
+		semver.MustParse("7.16.1"),
+		semver.MustParse("7.16.0"),
+		semver.MustParse("7.15.2"),
+		semver.MustParse("7.15.1"),
+		semver.MustParse("7.15.0"),
+		semver.MustParse("7.14.2"),
+		semver.MustParse("7.14.1"),
+		semver.MustParse("7.14.0"), // First version of Fleet in GA; there are no packages older than this version.
+	}
 
 	defaultExternal = "ecs"
 )
@@ -49,7 +138,12 @@ type Validator struct {
 	expectedDatasets []string
 
 	defaultNumericConversion bool
-	numericKeywordFields     map[string]struct{}
+
+	// fields that store keywords, but can be received as numeric types.
+	numericKeywordFields []string
+
+	// fields that store numbers, but can be received as strings.
+	stringNumberFields []string
 
 	disabledDependencyManagement bool
 
@@ -90,10 +184,16 @@ func WithDefaultNumericConversion() ValidatorOption {
 // while defined as keyword or constant_keyword.
 func WithNumericKeywordFields(fields []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.numericKeywordFields = make(map[string]struct{}, len(fields))
-		for _, field := range fields {
-			v.numericKeywordFields[field] = struct{}{}
-		}
+		v.numericKeywordFields = common.StringSlicesUnion(v.numericKeywordFields, fields)
+		return nil
+	}
+}
+
+// WithStringNumberFields configures the validator to accept specific fields to have fields defined as numbers
+// as their string representation.
+func WithStringNumberFields(fields []string) ValidatorOption {
+	return func(v *Validator) error {
+		v.stringNumberFields = common.StringSlicesUnion(v.stringNumberFields, fields)
 		return nil
 	}
 }
@@ -215,16 +315,173 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
+	// Check if the package embeds ECS mappings
+	packageEmbedsEcsMappings := buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0)
+
+	// Check if all stack versions support ECS mappings
+	stackSupportsEcsMapping, err := supportsECSMappings(packageRoot)
+	if err != nil {
+		return nil, nil, fmt.Errorf("can't check if stack version includes ECS mappings: %w", err)
+	}
+
+	// If the package embeds ECS mappings, or the stack version includes ECS mappings, then
+	// we should import the ECS schema to validate the package fields against it.
 	var schema []FieldDefinition
-	if buildManifest.ImportMappings() && !specVersion.LessThan(semver2_3_0) && importECSSchema {
+	if (packageEmbedsEcsMappings || stackSupportsEcsMapping) && importECSSchema {
+		// Import all fields from external schema (most likely ECS) to
+		// validate the package fields against it.
 		ecsSchema, err := fdm.ImportAllFields(defaultExternal)
 		if err != nil {
 			return nil, nil, err
 		}
+		logger.Debugf("Imported ECS fields definition from external schema for validation (embedded in package: %v, stack uses ecs@mappings template: %v)", packageEmbedsEcsMappings, stackSupportsEcsMapping)
+
 		schema = ecsSchema
 	}
 
+	// ecs@mappings adds additional multifields that are not defined anywhere.
+	// Adding them in all cases so packages can be tested in versions of the stack that
+	// add the ecs@mappings component template.
+	schema = appendECSMappingMultifields(schema, "")
+
 	return fdm, schema, nil
+}
+
+// supportsECSMappings check if all the versions of the stack the package can run on support ECS mappings.
+func supportsECSMappings(packageRoot string) (bool, error) {
+	packageManifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return false, fmt.Errorf("can't read package manifest: %w", err)
+	}
+
+	if len(packageManifest.Conditions.Kibana.Version) == 0 {
+		logger.Debugf("No Kibana version constraint found in package manifest; assuming it does not support ECS mappings.")
+		return false, nil
+	}
+
+	kibanaConstraints, err := semver.NewConstraint(packageManifest.Conditions.Kibana.Version)
+	if err != nil {
+		return false, fmt.Errorf("invalid constraint for Kibana: %w", err)
+	}
+
+	return allVersionsIncludeECS(kibanaConstraints), nil
+}
+
+// allVersionsIncludeECS Check if all the stack versions in the constraints include ECS mappings. Only the stack
+// versions 8.13.0 and above include ECS mappings.
+//
+// Returns true if all the stack versions in the constraints include ECS mappings, otherwise returns false.
+func allVersionsIncludeECS(kibanaConstraints *semver.Constraints) bool {
+	// Looking for a version that satisfies the package constraints.
+	for _, v := range stackVersionsWithoutECS {
+		if kibanaConstraints.Check(v) {
+			// Found a version that satisfies the constraints,
+			// so at least this version does not include
+			// ECS mappings.
+			return false
+		}
+	}
+
+	// If no version satisfies the constraints, then all versions
+	// include ECS mappings.
+	return true
+
+	// This check works under the assumption the constraints are not limited
+	// upwards.
+	//
+	// For example, if the constraint is `>= 8.12.0` and the stack version is
+	// `8.12.999`, the constraint will be satisfied.
+	//
+	// However, if the constraint is `>= 8.0.0, < 8.10.0` the check will not
+	// return the right result.
+	//
+	// To support this, we would need to check the constraint against a larger
+	// set of versions, and check if the constraint is satisfied for all
+	// of them, like in the commented out example above.
+	//
+	// lastStackVersionWithoutEcsMappings := semver.MustParse("8.12.999")
+	// return !kibanaConstraints.Check(lastStackVersionWithoutEcsMappings)
+}
+
+func ecsPathWithMultifieldsMatch(name string) bool {
+	suffixes := []string{
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L87
+		".body.content",
+		"url.full",
+		"url.original",
+
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L96
+		"command_line",
+		"stack_trace",
+
+		// From https://github.com/elastic/elasticsearch/blob/34a78f3cf3e91cd13f51f1f4f8e378f8ed244a2b/x-pack/plugin/core/template-resources/src/main/resources/ecs%40mappings.json#L113
+		".title",
+		".executable",
+		".name",
+		".working_directory",
+		".full_name",
+		"file.path",
+		"file.target_path",
+		"os.full",
+		"email.subject",
+		"vulnerability.description",
+		"user_agent.original",
+	}
+
+	for _, suffix := range suffixes {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// appendECSMappingMultifields adds multifields included in ecs@mappings that are not defined anywhere, for fields
+// that don't define any multifield.
+func appendECSMappingMultifields(schema []FieldDefinition, prefix string) []FieldDefinition {
+	rules := []struct {
+		match       func(name string) bool
+		definitions []FieldDefinition
+	}{
+		{
+			match: ecsPathWithMultifieldsMatch,
+			definitions: []FieldDefinition{
+				{
+					Name:     "text",
+					Type:     "match_only_text",
+					External: externalFieldAppendedTag,
+				},
+			},
+		},
+	}
+
+	var result []FieldDefinition
+	for _, def := range schema {
+		fullName := def.Name
+		if prefix != "" {
+			fullName = prefix + "." + fullName
+		}
+		def.Fields = appendECSMappingMultifields(def.Fields, fullName)
+
+		for _, rule := range rules {
+			if !rule.match(fullName) {
+				continue
+			}
+			for _, mf := range rule.definitions {
+				// Append multifields only if they are not already defined.
+				f := func(d FieldDefinition) bool {
+					return d.Name == mf.Name
+				}
+				if !slices.ContainsFunc(def.MultiFields, f) {
+					def.MultiFields = append(def.MultiFields, mf)
+				}
+			}
+		}
+
+		result = append(result, def)
+	}
+	return result
 }
 
 //go:embed _static/allowed_geo_ips.txt
@@ -293,9 +550,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	var c common.MapStr
 	err := json.Unmarshal(body, &c)
 	if err != nil {
-		var errs multierror.Error
-		errs = append(errs, fmt.Errorf("unmarshalling document body failed: %w", err))
-		return errs
+		return multierror.Error{fmt.Errorf("unmarshalling document body failed: %w", err)}
 	}
 
 	return v.ValidateDocumentMap(c)
@@ -308,7 +563,7 @@ func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	if len(errs) == 0 {
 		return nil
 	}
-	return errs
+	return errs.Unique()
 }
 
 var datasetFieldNames = []string{
@@ -390,14 +645,14 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 		key := strings.TrimLeft(root+"."+name, ".")
 
 		switch val := val.(type) {
-		case []map[string]interface{}:
+		case []map[string]any:
 			for _, m := range val {
 				err := v.validateMapElement(key, m, doc)
 				if err != nil {
 					errs = append(errs, err...)
 				}
 			}
-		case map[string]interface{}:
+		case map[string]any:
 			if isFieldTypeFlattened(key, v.Schema) {
 				// Do not traverse into objects with flattened data types
 				// because the entire object is mapped as a single field.
@@ -408,51 +663,63 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 				errs = append(errs, err...)
 			}
 		default:
+			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
+				// Till some versions we skip some validations on leaf of objects, check if it is the case.
+				break
+			}
+
 			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err...)
 			}
 		}
 	}
-	return errs
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+	return nil
 }
 
-func (v *Validator) validateScalarElement(key string, val interface{}, doc common.MapStr) error {
+func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) multierror.Error {
 	if key == "" {
 		return nil // root key is always valid
 	}
 
 	definition := FindElementDefinition(key, v.Schema)
-	if definition == nil && skipValidationForField(key) {
-		return nil // generic field, let's skip validation for now
-	}
-
 	if definition == nil {
-		return fmt.Errorf(`field "%s" is undefined`, key)
-	}
-
-	// Convert numeric keyword fields to string for validation.
-	_, found := v.numericKeywordFields[key]
-	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
-		val = fmt.Sprintf("%q", val)
+		switch {
+		case skipValidationForField(key):
+			return nil // generic field, let's skip validation for now
+		case isFlattenedSubfield(key, v.Schema):
+			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
+		case isArrayOfObjects(val):
+			return multierror.Error{fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)}
+		case couldBeMultifield(key, v.Schema):
+			return multierror.Error{fmt.Errorf(`field %q is undefined, could be a multifield`, key)}
+		case !isParentEnabled(key, v.Schema):
+			return nil // parent mapping is disabled
+		default:
+			return multierror.Error{fmt.Errorf(`field %q is undefined`, key)}
+		}
 	}
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
 		if err != nil {
-			return fmt.Errorf("field %q is not normalized as expected: %w", key, err)
+			return multierror.Error{fmt.Errorf("field %q is not normalized as expected: %w", key, err)}
 		}
 	}
 
-	err := v.parseElementValue(key, *definition, val, doc)
-	if err != nil {
-		return fmt.Errorf("parsing field value failed: %w", err)
+	errs := v.parseElementValue(key, *definition, val, doc)
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
 
 func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.MapStr, error) {
 	var newDocs []common.MapStr
+	var multifields []string
 	for _, doc := range docs {
 		for key, contents := range doc {
 			shouldBeArray := false
@@ -468,7 +735,7 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 			// in case it is not specified any normalization and that field is an array of
 			// just one element, the field is going to be updated to remove the array and keep
 			// that element as a value.
-			vals, ok := contents.([]interface{})
+			vals, ok := contents.([]any)
 			if !ok {
 				continue
 			}
@@ -479,12 +746,23 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 				}
 			}
 		}
-		expandedDoc, err := createDocExpandingObjects(doc)
+		expandedDoc, newMultifields, err := createDocExpandingObjects(doc, v.Schema)
 		if err != nil {
 			return nil, fmt.Errorf("failure while expanding objects from doc: %w", err)
 		}
 
 		newDocs = append(newDocs, expandedDoc)
+
+		for _, multifield := range newMultifields {
+			if slices.Contains(multifields, multifield) {
+				continue
+			}
+			multifields = append(multifields, multifield)
+		}
+	}
+	if len(multifields) > 0 {
+		sort.Strings(multifields)
+		logger.Debugf("Some keys were not included in sanitized docs because they are multifields: %s", strings.Join(multifields, ", "))
 	}
 	return newDocs, nil
 }
@@ -503,7 +781,7 @@ func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {
 	return false
 }
 
-func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
+func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (common.MapStr, []string, error) {
 	keys := make([]string, 0)
 	for k := range doc {
 		keys = append(keys, k)
@@ -511,10 +789,11 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 	sort.Strings(keys)
 
 	newDoc := make(common.MapStr)
+	var multifields []string
 	for _, k := range keys {
 		value, err := doc.GetValue(k)
 		if err != nil {
-			return nil, fmt.Errorf("not found key %s: %w", k, err)
+			return nil, nil, fmt.Errorf("not found key %s: %w", k, err)
 		}
 
 		_, err = newDoc.Put(k, value)
@@ -524,18 +803,19 @@ func createDocExpandingObjects(doc common.MapStr) (common.MapStr, error) {
 
 		// Possible errors found but not limited to those
 		// - expected map but type is string
-		// - expected map but type is []interface{}
+		// - expected map but type is []any
 		if strings.HasPrefix(err.Error(), "expected map but type is") {
-			logger.Debugf("not able to add key %s, is this a multifield?: %s", k, err)
+			if couldBeMultifield(k, schema) {
+				// We cannot add multifields and they are not in source documents ignore them.
+				multifields = append(multifields, k)
+				continue
+			}
+			logger.Warnf("not able to add key %s: %s", k, err)
 			continue
 		}
-		return nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
+		return nil, nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
 	}
-	return newDoc, nil
-}
-func isNumericKeyword(definition FieldDefinition, val interface{}) bool {
-	_, isNumber := val.(float64)
-	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
+	return newDoc, multifields, nil
 }
 
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
@@ -551,6 +831,37 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("event.module", key) // field is deprecated
 }
 
+// skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
+// version of the spec. This is relevant in documents that store fields without subobjects.
+func skipLeafOfObject(root, name string, specVersion semver.Version, schema []FieldDefinition) bool {
+	// We are only skipping validation of these fields on versions older than 3.0.1.
+	if !specVersion.LessThan(semver3_0_1) {
+		return false
+	}
+
+	// If it doesn't contain a dot in the name, we have traversed its parent, if any.
+	if !strings.Contains(name, ".") {
+		return false
+	}
+
+	key := name
+	if root != "" {
+		key = root + "." + name
+	}
+	_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
+		// Don't look for ancestors beyond root, these objects have been already traversed.
+		if len(key) < len(root) {
+			return false
+		}
+		if !slices.Contains([]string{"group", "object", "nested", "flattened"}, def.Type) {
+			return false
+		}
+		return true
+	})
+
+	return ancestor != nil
+}
+
 func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
@@ -560,8 +871,55 @@ func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 	return definition != nil && definition.Type == "flattened"
 }
 
-func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
-	for _, def := range FieldDefinitions {
+func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
+	parent := findParentElementDefinition(key, fieldDefinitions)
+	if parent == nil {
+		// Parent is not defined, so not sure what this can be.
+		return false
+	}
+	switch parent.Type {
+	case "", "group", "nested", "object":
+		// Objects cannot have multifields.
+		return false
+	}
+	return true
+}
+
+// isParentEnabled returns true by default unless the parent field exists and enabled is set false
+// This is needed in order to correctly validate the fields that should not be mapped
+// because parent field mapping was disabled
+func isParentEnabled(key string, fieldDefinitions []FieldDefinition) bool {
+	parent := findParentElementDefinition(key, fieldDefinitions)
+	if parent != nil && parent.Enabled != nil && !*parent.Enabled {
+		return false
+	}
+	return true
+}
+
+func isArrayOfObjects(val any) bool {
+	switch val := val.(type) {
+	case []map[string]any:
+		return true
+	case []any:
+		for _, e := range val {
+			if _, isMap := e.(map[string]any); isMap {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
+	_, ancestor := findAncestorElementDefinition(key, schema, func(_ string, def *FieldDefinition) bool {
+		return def.Type == "flattened"
+	})
+
+	return ancestor != nil
+}
+
+func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -577,12 +935,51 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return fd
 		}
 	}
+
+	if root == "" {
+		// No definition found, check if the parent is an object with object type.
+		parent := findParentElementDefinition(searchedKey, fieldDefinitions)
+		if parent != nil && parent.Type == "object" && parent.ObjectType != "" {
+			fd := *parent
+			fd.Name = searchedKey
+			fd.Type = parent.ObjectType
+			fd.ObjectType = ""
+			return &fd
+		}
+	}
+
 	return nil
 }
 
 // FindElementDefinition is a helper function used to find the fields definition in the schema.
 func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
+}
+
+func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return nil
+	}
+	parentKey := key[:lastDotIndex]
+	return FindElementDefinition(parentKey, fieldDefinitions)
+}
+
+func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinition, cond func(string, *FieldDefinition) bool) (string, *FieldDefinition) {
+	for strings.Contains(key, ".") {
+		i := strings.LastIndex(key, ".")
+		key = key[:i]
+		ancestor := FindElementDefinition(key, fieldDefinitions)
+		if ancestor == nil {
+			continue
+		}
+		if cond(key, ancestor) {
+			return key, ancestor
+		}
+	}
+
+	return "", nil
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
@@ -633,7 +1030,7 @@ func compareKeys(key string, def FieldDefinition, searchedKey string) bool {
 	return false
 }
 
-func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val interface{}) error {
+func (v *Validator) validateExpectedNormalization(definition FieldDefinition, val any) error {
 	// Validate expected normalization starting with packages following spec v2 format.
 	if v.specVersion.LessThan(semver2_0_0) {
 		return nil
@@ -641,7 +1038,7 @@ func (v *Validator) validateExpectedNormalization(definition FieldDefinition, va
 	for _, normalize := range definition.Normalize {
 		switch normalize {
 		case "array":
-			if _, isArray := val.([]interface{}); val != nil && !isArray {
+			if _, isArray := val.([]any); val != nil && !isArray {
 				return fmt.Errorf("expected array, found %q (%T)", val, val)
 			}
 		}
@@ -684,26 +1081,34 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
-	err := v.parseAllElementValues(key, definition, val, doc)
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+	// Validate types first for each element, so other checks don't need to worry about types.
+	var errs multierror.Error
+	err := forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 	if err != nil {
-		return err
+		errs = append(errs, err...)
 	}
 
-	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+	// Perform validations that need to be done on several fields at the same time.
+	allElementsErr := v.parseAllElementValues(key, definition, val, doc)
+	if allElementsErr != nil {
+		errs = append(errs, allElementsErr)
+	}
+
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+
+	return nil
 }
 
 // parseAllElementValues performs validations that must be done for all elements at once in
 // case that there are multiple values.
-func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
+func (v *Validator) parseAllElementValues(key string, definition FieldDefinition, val any, doc common.MapStr) error {
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
-			strings, err := valueToStringsSlice(val)
-			if err != nil {
-				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
-			}
-			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
+			if err := ensureExpectedEventType(key, val, definition, doc); err != nil {
 				return err
 			}
 		}
@@ -712,9 +1117,21 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 }
 
 // parseSingeElementValue performs validations on individual values of each element.
-func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr) error {
-	invalidTypeError := func() error {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+	invalidTypeError := func() multierror.Error {
+		return multierror.Error{fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)}
+	}
+
+	stringValue := func() (string, bool) {
+		switch val := val.(type) {
+		case string:
+			return val, true
+		case bool, float64:
+			if v.defaultNumericConversion || slices.Contains(v.numericKeywordFields, key) {
+				return fmt.Sprintf("%v", val), true
+			}
+		}
+		return "", false
 	}
 
 	switch definition.Type {
@@ -722,33 +1139,33 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	// values stored in this field should be this one.
 	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
 	// since epoch.
@@ -757,12 +1174,12 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		switch val := val.(type) {
 		case string:
 			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
-				return err
+				return multierror.Error{err}
 			}
 		case float64:
 			// date as seconds or milliseconds since epoch
 			if definition.Pattern != "" {
-				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
+				return multierror.Error{fmt.Errorf("numeric date in field %q, but pattern defined", key)}
 			}
 		default:
 			return invalidTypeError()
@@ -777,16 +1194,16 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+			return multierror.Error{fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)}
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group", "nested":
+	case "group", "nested", "object":
 		switch val := val.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			// This is probably an element from an array of objects,
 			// even if not recommended, it should be validated.
 			if v.specVersion.LessThan(semver3_0_1) {
@@ -796,8 +1213,8 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			if len(errs) == 0 {
 				return nil
 			}
-			return errs
-		case []interface{}:
+			return errs.Unique()
+		case []any:
 			// This can be an array of array of objects. Elasticsearh will probably
 			// flatten this. So even if this is quite unexpected, let's try to handle it.
 			if v.specVersion.LessThan(semver3_0_1) {
@@ -808,11 +1225,33 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			// The document contains a null, let's consider this like an empty array.
 			return nil
 		default:
-			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			switch {
+			case definition.Type == "object" && definition.ObjectType != "":
+				// This is the leaf element of an object without wildcards in the name, adapt the definition and try again.
+				definition.Name = definition.Name + ".*"
+				definition.Type = definition.ObjectType
+				definition.ObjectType = ""
+				return v.parseSingleElementValue(key, definition, val, doc)
+			case definition.Type == "object" && definition.ObjectType == "":
+				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
+				return nil
+			}
+
+			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		if _, valid := val.(float64); !valid {
+		switch val := val.(type) {
+		case float64:
+		case json.Number:
+		case string:
+			if !slices.Contains(v.stringNumberFields, key) {
+				return invalidTypeError()
+			}
+			if _, err := strconv.ParseFloat(val, 64); err != nil {
+				return invalidTypeError()
+			}
+		default:
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -823,10 +1262,36 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	return nil
 }
 
+// isDocumentation reports whether ip is a reserved address for documentation,
+// according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation), RFC 6676,
+// RFC 3849 (IPv6 Address Prefix Reserved for Documentation) and RFC 9637.
+func isDocumentation(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		// Following RFC 5737, Section 3. Documentation Address Blocks which says:
+		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
+		//   and 203.0.113.0/24 (TEST-NET-3) are provided for use in
+		//   documentation.
+		// Following RFC 6676, the IPV4 multicast addresses allocated for documentation
+		// purposes are 233.252.0.0/24
+		return ((ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2) ||
+			(ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100) ||
+			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113) ||
+			(ip4[0] == 233 && ip4[1] == 252 && ip4[2] == 0))
+	}
+	// Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
+	// says:
+	//   The prefix allocated for documentation purposes is 2001:DB8::/32
+	// Following RFC 9637, a new address block 3fff::/20 is registered for documentation purposes
+	return len(ip) == net.IPv6len &&
+		(ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184) ||
+		(ip[0] == 63 && ip[1] == 255 && ip[2] <= 15)
+}
+
 // isAllowedIPValue checks if the provided IP is allowed for testing
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
 // - public IPs allowed by MaxMind for testing
+// - Reserved IPs for documentation RFC 5737, RFC 3849, RFC 6676 and RFC 9637
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
@@ -843,6 +1308,7 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 	if ip.IsUnspecified() ||
 		ip.IsPrivate() ||
+		isDocumentation(ip) ||
 		ip.IsLoopback() ||
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||
@@ -856,16 +1322,20 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(key string, definition FieldDefinition, val interface{}, doc common.MapStr, fn func(string, FieldDefinition, interface{}, common.MapStr) error) error {
-	arr, isArray := val.([]interface{})
+func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) multierror.Error) multierror.Error {
+	arr, isArray := val.([]any)
 	if !isArray {
 		return fn(key, definition, val, doc)
 	}
+	var errs multierror.Error
 	for _, element := range arr {
 		err := fn(key, definition, element, doc)
 		if err != nil {
-			return err
+			errs = append(errs, err...)
 		}
+	}
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
@@ -912,12 +1382,10 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 
 // ensureExpectedEventType validates that the document's `event.type` field is one of the expected
 // one for the given value.
-func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
+func ensureExpectedEventType(key string, val any, definition FieldDefinition, doc common.MapStr) error {
 	eventTypeVal, _ := doc.GetValue("event.type")
-	eventTypes, err := valueToStringsSlice(eventTypeVal)
-	if err != nil {
-		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
-	}
+	eventTypes := valueToStringsSlice(eventTypeVal)
+	values := valueToStringsSlice(val)
 	var expected []string
 	for _, value := range values {
 		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
@@ -936,23 +1404,19 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 	return nil
 }
 
-func valueToStringsSlice(value interface{}) ([]string, error) {
+func valueToStringsSlice(value any) []string {
 	switch v := value.(type) {
 	case nil:
-		return nil, nil
+		return nil
 	case string:
-		return []string{v}, nil
-	case []interface{}:
+		return []string{v}
+	case []any:
 		var values []string
 		for _, e := range v {
-			s, ok := e.(string)
-			if !ok {
-				return nil, fmt.Errorf("expected string or array of strings")
-			}
-			values = append(values, s)
+			values = append(values, fmt.Sprintf("%v", e))
 		}
-		return values, nil
+		return values
 	default:
-		return nil, fmt.Errorf("expected string or array of strings")
+		return []string{fmt.Sprintf("%v", v)}
 	}
 }

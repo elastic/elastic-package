@@ -1,0 +1,12 @@
+{
+  "package": "foo",
+  "versions": [
+    {
+      "environment": "production",
+      "version": "1.0.0",
+      "release": "ga",
+      "title": "Foo",
+      "description": "Foo integration"
+    }
+  ]
+}

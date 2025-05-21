@@ -1,0 +1,102 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 538
+        uncompressed: false
+        body: |
+            {
+              "name" : "201adec91c57",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "OjedtNeaRNyPKRlkRW1Q3A",
+              "version" : {
+                "number" : "8.8.0",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "c01029875a091076ed42cdb3a41c10b1a9a5a20f",
+                "build_date" : "2023-05-23T17:16:07.179039820Z",
+                "build_snapshot" : false,
+                "lucene_version" : "9.6.0",
+                "minimum_wire_compatibility_version" : "7.17.0",
+                "minimum_index_compatibility_version" : "7.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "538"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 4.483625ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
+        url: https://127.0.0.1:9200/_index_template/_simulate_index/metrics-couchdb.server-12345simulated
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 4752
+        uncompressed: false
+        body: '{"template":{"settings":{"index":{"lifecycle":{"name":"metrics"},"mode":"time_series","codec":"best_compression","routing":{"allocation":{"include":{"_tier_preference":"data_hot"}}},"mapping":{"total_fields":{"limit":"10000"}},"time_series":{"end_time":"2024-07-03T23:41:23.000Z","start_time":"2024-07-03T19:41:23.000Z"},"final_pipeline":".fleet_final_pipeline-1","query":{"default_field":["ecs.version","error.message","event.category","event.dataset","event.kind","event.module","event.type","host.name","service.address","service.type","tags","agent.id","cloud.account.id","cloud.region","cloud.instance.id","cloud.provider","cloud.availability_zone","container.id"]},"default_pipeline":"metrics-couchdb.server-1.2.0","routing_path":["service.address","agent.id","container.id","cloud.account.id","cloud.region","cloud.availability_zone","host.name","cloud.provider","cloud.instance.id"]}},"mappings":{"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"couchdb"}},"dynamic_templates":[{"strings_as_keyword":{"match_mapping_type":"string","mapping":{"ignore_above":1024,"type":"keyword"}}}],"date_detection":false,"properties":{"@timestamp":{"type":"date"},"agent":{"properties":{"id":{"type":"keyword","time_series_dimension":true}}},"cloud":{"properties":{"account":{"properties":{"id":{"type":"keyword","time_series_dimension":true}}},"availability_zone":{"type":"keyword","time_series_dimension":true},"instance":{"properties":{"id":{"type":"keyword","time_series_dimension":true}}},"provider":{"type":"keyword","time_series_dimension":true},"region":{"type":"keyword","time_series_dimension":true}}},"container":{"properties":{"id":{"type":"keyword","time_series_dimension":true}}},"couchdb":{"properties":{"server":{"properties":{"auth_cache":{"properties":{"hits":{"type":"long","time_series_metric":"counter"},"misses":{"type":"long","time_series_metric":"counter"}}},"database":{"properties":{"open":{"type":"long","time_series_metric":"counter"},"reads":{"type":"long","time_series_metric":"counter"},"writes":{"type":"long","time_series_metric":"counter"}}},"httpd":{"properties":{"clients_requesting_changes":{"type":"long","time_series_metric":"counter"},"request_methods":{"properties":{"copy":{"type":"long","time_series_metric":"counter"},"delete":{"type":"long","time_series_metric":"counter"},"get":{"type":"long","time_series_metric":"counter"},"head":{"type":"long","time_series_metric":"counter"},"post":{"type":"long","time_series_metric":"counter"},"put":{"type":"long","time_series_metric":"counter"}}},"requests":{"properties":{"bulk":{"type":"long","time_series_metric":"counter"},"count":{"type":"long","time_series_metric":"counter"}}},"status_codes":{"properties":{"200":{"type":"long","time_series_metric":"counter"},"201":{"type":"long","time_series_metric":"counter"},"202":{"type":"long","time_series_metric":"counter"},"301":{"type":"long","time_series_metric":"counter"},"304":{"type":"long","time_series_metric":"counter"},"400":{"type":"long","time_series_metric":"counter"},"401":{"type":"long","time_series_metric":"counter"},"403":{"type":"long","time_series_metric":"counter"},"404":{"type":"long","time_series_metric":"counter"},"405":{"type":"long","time_series_metric":"counter"},"409":{"type":"long","time_series_metric":"counter"},"412":{"type":"long","time_series_metric":"counter"},"500":{"type":"long","time_series_metric":"counter"}}},"view_reads":{"properties":{"count":{"type":"long","time_series_metric":"counter"},"temporary":{"type":"long","time_series_metric":"counter"}}}}},"open_os_files":{"type":"long","time_series_metric":"counter"},"request_time":{"properties":{"avg":{"type":"float","meta":{"unit":"s"}}}}}}}},"data_stream":{"properties":{"dataset":{"type":"constant_keyword"},"namespace":{"type":"constant_keyword"},"type":{"type":"constant_keyword"}}},"ecs":{"properties":{"version":{"type":"keyword","ignore_above":1024}}},"error":{"properties":{"message":{"type":"match_only_text"}}},"event":{"properties":{"agent_id_status":{"type":"keyword","ignore_above":1024},"category":{"type":"keyword","ignore_above":1024},"dataset":{"type":"keyword","ignore_above":1024},"ingested":{"type":"date","format":"strict_date_time_no_millis||strict_date_optional_time||epoch_millis"},"kind":{"type":"keyword","ignore_above":1024},"module":{"type":"keyword","ignore_above":1024},"type":{"type":"keyword","ignore_above":1024}}},"host":{"properties":{"ip":{"type":"ip"},"name":{"type":"keyword","time_series_dimension":true}}},"service":{"properties":{"address":{"type":"keyword","time_series_dimension":true},"type":{"type":"keyword","ignore_above":1024}}},"tags":{"type":"keyword","ignore_above":1024}}},"aliases":{}},"overlapping":[{"name":"metrics","index_patterns":["metrics-*-*"]}]}'
+        headers:
+            Content-Length:
+                - "4752"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 14.401834ms

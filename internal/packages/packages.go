@@ -12,6 +12,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
@@ -96,6 +98,16 @@ type Conditions struct {
 	Elastic ElasticConditions `config:"elastic" json:"elastic" yaml:"elastic"`
 }
 
+// Discovery define indications for the data this package can be useful with.
+type Discovery struct {
+	Fields []DiscoveryField `config:"fields" json:"fields" yaml:"fields"`
+}
+
+// DiscoveryField defines a field used for discovery.
+type DiscoveryField struct {
+	Name string `config:"name" json:"name" yaml:"name"`
+}
+
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
 	Name        string   `config:"name" json:"name" yaml:"name"`                                                       // Name of policy template.
@@ -115,6 +127,12 @@ type Owner struct {
 	Type   string `config:"type" json:"type" yaml:"type"`
 }
 
+type Agent struct {
+	Privileges struct {
+		Root bool `config:"root" json:"root" yaml:"root"`
+	} `config:"privileges" json:"privileges" yaml:"privileges"`
+}
+
 // PackageManifest represents the basic structure of a package's manifest
 type PackageManifest struct {
 	SpecVersion     string           `config:"format_version" json:"format_version" yaml:"format_version"`
@@ -124,22 +142,34 @@ type PackageManifest struct {
 	Version         string           `config:"version" json:"version" yaml:"version"`
 	Source          Source           `config:"source" json:"source" yaml:"source"`
 	Conditions      Conditions       `config:"conditions" json:"conditions" yaml:"conditions"`
+	Discovery       Discovery        `config:"discovery" json:"discovery" yaml:"discovery"`
 	PolicyTemplates []PolicyTemplate `config:"policy_templates" json:"policy_templates" yaml:"policy_templates"`
 	Vars            []Variable       `config:"vars" json:"vars" yaml:"vars"`
 	Owner           Owner            `config:"owner" json:"owner" yaml:"owner"`
 	Description     string           `config:"description" json:"description" yaml:"description"`
 	License         string           `config:"license" json:"license" yaml:"license"`
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
+	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
+	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+}
+
+type ManifestIndexTemplate struct {
+	IngestPipeline *ManifestIngestPipeline `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
+	Mappings       *ManifestMappings       `config:"mappings" json:"mappings" yaml:"mappings"`
+}
+
+type ManifestIngestPipeline struct {
+	Name string `config:"name" json:"name" yaml:"name"`
+}
+
+type ManifestMappings struct {
+	Subobjects bool `config:"subobjects" json:"subobjects" yaml:"subobjects"`
 }
 
 type Elasticsearch struct {
-	IndexTemplate *struct {
-		IngestPipeline *struct {
-			Name string `config:"name" json:"name" yaml:"name"`
-		} `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
-	} `config:"index_template" json:"index_template" yaml:"index_template"`
-	SourceMode string `config:"source_mode" json:"source_mode" yaml:"source_mode"`
-	IndexMode  string `config:"index_mode" json:"index_mode" yaml:"index_mode"`
+	IndexTemplate *ManifestIndexTemplate `config:"index_template" json:"index_template" yaml:"index_template"`
+	SourceMode    string                 `config:"source_mode" json:"source_mode" yaml:"source_mode"`
+	IndexMode     string                 `config:"index_mode" json:"index_mode" yaml:"index_mode"`
 }
 
 // DataStreamManifest represents the structure of a data stream's manifest
@@ -155,6 +185,7 @@ type DataStreamManifest struct {
 		Input string     `config:"input" json:"input" yaml:"input"`
 		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
 	} `config:"streams" json:"streams" yaml:"streams"`
+	Agent Agent `config:"agent" json:"agent" yaml:"agent"`
 }
 
 // Transform contains information about a transform included in a package.
@@ -177,14 +208,19 @@ type TransformDefinition struct {
 // HasSource checks if a given index or data stream name maches the transform sources
 func (t *Transform) HasSource(name string) (bool, error) {
 	for _, indexPattern := range t.Definition.Source.Index {
-		// Using filepath.Match to match index patterns because the syntax
-		// is basically the same.
-		found, err := filepath.Match(indexPattern, name)
-		if err != nil {
-			return false, fmt.Errorf("maching pattern %q with %q: %w", indexPattern, name, err)
-		}
-		if found {
-			return true, nil
+		// Split the pattern by commas in case the source indexes are provided with a
+		// comma-separated index strings
+		patterns := strings.Split(indexPattern, ",")
+		for _, pattern := range patterns {
+			// Using filepath.Match to match index patterns because the syntax
+			// is basically the same.
+			found, err := filepath.Match(pattern, name)
+			if err != nil {
+				return false, fmt.Errorf("maching pattern %q with %q: %w", pattern, name, err)
+			}
+			if found {
+				return true, nil
+			}
 		}
 	}
 	return false, nil
@@ -432,7 +468,12 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
-	return (m.Type == "integration" || m.Type == "input") && m.Version != "", nil
+	supportedTypes := []string{
+		"content",
+		"input",
+		"integration",
+	}
+	return slices.Contains(supportedTypes, m.Type) && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {

@@ -5,6 +5,7 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -38,7 +39,7 @@ func NewPipelineBenchmark(opts Options) benchrunner.Runner {
 	return &runner{options: opts}
 }
 
-func (r *runner) SetUp() error {
+func (r *runner) SetUp(ctx context.Context) error {
 	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {
 		return fmt.Errorf("locating data_stream root failed: %w", err)
@@ -47,7 +48,7 @@ func (r *runner) SetUp() error {
 		return errors.New("data stream root not found")
 	}
 
-	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
+	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.options.API, dataStreamPath)
 	if err != nil {
 		return fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
@@ -56,25 +57,25 @@ func (r *runner) SetUp() error {
 }
 
 // TearDown shuts down the pipeline benchmark runner.
-func (r *runner) TearDown() error {
-	if err := ingest.UninstallPipelines(r.options.API, r.pipelines); err != nil {
+func (r *runner) TearDown(ctx context.Context) error {
+	if err := ingest.UninstallPipelines(ctx, r.options.API, r.pipelines); err != nil {
 		return fmt.Errorf("uninstalling ingest pipelines failed: %w", err)
 	}
 	return nil
 }
 
 // Run runs the pipeline benchmarks defined under the given folder
-func (r *runner) Run() (reporters.Reportable, error) {
-	return r.run()
+func (r *runner) Run(ctx context.Context) (reporters.Reportable, error) {
+	return r.run(ctx)
 }
 
-func (r *runner) run() (reporters.Reportable, error) {
+func (r *runner) run(ctx context.Context) (reporters.Reportable, error) {
 	b, err := r.loadBenchmark()
 	if err != nil {
 		return nil, fmt.Errorf("loading benchmark failed: %w", err)
 	}
 
-	benchmark, err := r.benchmarkPipeline(b, r.entryPipeline)
+	benchmark, err := r.benchmarkPipeline(ctx, b, r.entryPipeline)
 	if err != nil {
 		return nil, err
 	}

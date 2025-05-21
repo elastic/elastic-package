@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "modified_date": "2022-04-06T15:40:04.332Z",
+  "modified_date": "2025-05-08T17:28:20.341Z",
   "policy": {
     "phases": {
       "hot": {
@@ -19,8 +19,14 @@
     }
   },
   "in_use_by": {
-    "indices": [],
-    "data_streams": [],
+    "indices": [
+      ".ds-metrics-elastic_agent.elastic_agent-default-2025.05.08-000001",
+      ".ds-metrics-elastic_agent.fleet_server-default-2025.05.08-000001"
+    ],
+    "data_streams": [
+      "metrics-elastic_agent.fleet_server-default",
+      "metrics-elastic_agent.elastic_agent-default"
+    ],
     "composable_templates": [
       "metrics-system.process",
       "metrics-elastic_agent.packetbeat",
@@ -36,11 +42,13 @@
       "metrics-system.load",
       "metrics-system.core",
       "metrics-elastic_agent.filebeat",
+      "metrics-elastic_agent.filebeat_input",
       "metrics-system.uptime",
       "metrics-system.process.summary",
       "metrics-system.cpu",
       "metrics-elastic_agent.heartbeat",
       "metrics-system.diskio",
+      "metrics-elastic_agent.cloudbeat",
       "metrics-elastic_agent.metricbeat",
       "metrics-elastic_agent.auditbeat",
       "metrics-system.network",

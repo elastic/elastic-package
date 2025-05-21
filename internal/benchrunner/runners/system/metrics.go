@@ -6,6 +6,7 @@ package system
 
 import (
 	"bytes"
+	"context"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -21,7 +23,7 @@ import (
 )
 
 type collector struct {
-	ctxt     servicedeployer.ServiceContext
+	svcInfo  servicedeployer.ServiceInfo
 	metadata benchMeta
 	scenario scenario
 
@@ -65,7 +67,7 @@ type metricsSummary struct {
 }
 
 func newCollector(
-	ctxt servicedeployer.ServiceContext,
+	svcInfo servicedeployer.ServiceInfo,
 	benchName string,
 	scenario scenario,
 	esAPI, metricsAPI *elasticsearch.API,
@@ -74,9 +76,9 @@ func newCollector(
 ) *collector {
 	meta := benchMeta{Parameters: scenario}
 	meta.Info.Benchmark = benchName
-	meta.Info.RunID = ctxt.Test.RunID
+	meta.Info.RunID = svcInfo.Test.RunID
 	return &collector{
-		ctxt:           ctxt,
+		svcInfo:        svcInfo,
 		interval:       interval,
 		scenario:       scenario,
 		metadata:       meta,
@@ -88,7 +90,7 @@ func newCollector(
 	}
 }
 
-func (c *collector) start() {
+func (c *collector) start(ctx context.Context) {
 	c.tick = time.NewTicker(c.interval)
 	c.createMetricsIndex()
 	var once sync.Once
@@ -101,14 +103,14 @@ func (c *collector) start() {
 			select {
 			case <-c.stopC:
 				// last collect before stopping
-				c.collectMetricsPreviousToStop()
+				c.collectMetricsPreviousToStop(ctx)
 				c.publish(c.createEventsFromMetrics(c.endMetrics))
 				return
 			case <-c.tick.C:
 				once.Do(func() {
 					c.waitUntilReady()
 					c.startIngestMetrics = c.collectIngestMetrics()
-					c.startTotalHits = c.collectTotalHits()
+					c.startTotalHits = c.collectTotalHits(ctx)
 					c.startMetrics = c.collect()
 					c.publish(c.createEventsFromMetrics(c.startMetrics))
 				})
@@ -201,12 +203,12 @@ func (c *collector) createMetricsIndex() {
 }
 
 func (c *collector) indexName() string {
-	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.ctxt.Test.RunID)
+	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.svcInfo.Test.RunID)
 }
 
 func (c *collector) summarize() (*metricsSummary, error) {
 	sum := metricsSummary{
-		RunID:               c.ctxt.Test.RunID,
+		RunID:               c.svcInfo.Test.RunID,
 		IngestPipelineStats: make(map[string]ingest.PipelineStatsMap),
 		NodesStats:          make(map[string]ingest.NodeStats),
 		DiskUsage:           c.diskUsage,
@@ -311,17 +313,17 @@ func (c *collector) collectDiskUsage() map[string]ingest.DiskUsage {
 	return du
 }
 
-func (c *collector) collectMetricsPreviousToStop() {
+func (c *collector) collectMetricsPreviousToStop(ctx context.Context) {
 	c.endIngestMetrics = c.collectIngestMetrics()
 	c.diskUsage = c.collectDiskUsage()
-	c.endTotalHits = c.collectTotalHits()
+	c.endTotalHits = c.collectTotalHits(ctx)
 	c.endMetrics = c.collect()
 }
 
-func (c *collector) collectTotalHits() int {
-	totalHits, err := getTotalHits(c.esAPI, c.datastream)
+func (c *collector) collectTotalHits(ctx context.Context) int {
+	totalHits, err := common.CountDocsInDataStream(ctx, c.esAPI, c.datastream)
 	if err != nil {
-		logger.Debugf("could not total hits: %w", err)
+		logger.Debugf("could not get total hits: %s", err)
 	}
 	return totalHits
 }

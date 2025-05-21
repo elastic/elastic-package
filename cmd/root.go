@@ -5,6 +5,8 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -22,13 +24,12 @@ var commands = []*cobraext.Command{
 	setupCleanCommand(),
 	setupCreateCommand(),
 	setupDumpCommand(),
+	setupEditCommand(),
 	setupExportCommand(),
 	setupFormatCommand(),
 	setupInstallCommand(),
 	setupLintCommand(),
-	setupPromoteCommand(),
 	setupProfilesCommand(),
-	setupPublishCommand(),
 	setupReportsCommand(),
 	setupServiceCommand(),
 	setupStackCommand(),
@@ -51,7 +52,8 @@ func RootCmd() *cobra.Command {
 			)
 		},
 	}
-	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, "v", false, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().CountP(cobraext.VerboseFlagName, cobraext.VerboseFlagShorthand, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().StringP(cobraext.ChangeDirectoryFlagName, cobraext.ChangeDirectoryFlagShorthand, "", cobraext.ChangeDirectoryFlagDescription)
 
 	for _, cmd := range commands {
 		rootCmd.AddCommand(cmd.Command)
@@ -69,18 +71,32 @@ func Commands() []*cobraext.Command {
 }
 
 func processPersistentFlags(cmd *cobra.Command, args []string) error {
-	verbose, err := cmd.Flags().GetBool(cobraext.VerboseFlagName)
+	verbose, err := cmd.Flags().GetCount(cobraext.VerboseFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
-
-	if verbose {
+	if verbose == 1 {
 		logger.EnableDebugMode()
+	} else if verbose > 1 {
+		logger.EnableTraceMode()
 	}
+
+	changeDirectory, err := cmd.Flags().GetString(cobraext.ChangeDirectoryFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ChangeDirectoryFlagName)
+	}
+	if changeDirectory != "" {
+		err := os.Chdir(changeDirectory)
+		if err != nil {
+			return fmt.Errorf("failed to change directory: %w", err)
+		}
+		logger.Debugf("Running command in directory \"%s\"", changeDirectory)
+	}
+
 	return nil
 }
 
 func checkVersionUpdate(cmd *cobra.Command, args []string) error {
-	version.CheckUpdate()
+	version.CheckUpdate(cmd.Context())
 	return nil
 }

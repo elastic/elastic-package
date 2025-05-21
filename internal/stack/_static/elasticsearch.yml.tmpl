@@ -4,7 +4,8 @@ http.host: "0.0.0.0"
 
 indices.id_field_data.enabled: true
 
-xpack.license.self_generated.type: "trial"
+{{ $elastic_subscription := fact "elastic_subscription" }}
+xpack.license.self_generated.type: "{{ $elastic_subscription }}"
 xpack.security.enabled: true
 xpack.security.authc.api_key.enabled: true
 xpack.security.http.ssl.enabled: true
@@ -13,11 +14,29 @@ xpack.security.http.ssl.certificate: "certs/cert.pem"
 
 ingest.geoip.downloader.enabled: false
 
-{{ $version := fact "elasticsearch_version" }}
+{{- $version := fact "elasticsearch_version" -}}
+{{- $logsdb_enabled := fact "logsdb_enabled" -}}
+{{ if (and (eq $logsdb_enabled "true") (not (semverLessThan $version "8.15.0-SNAPSHOT"))) }}
+cluster.logsdb.enabled: true
+{{- end -}}
+
 {{ if semverLessThan $version "8.0.0" }}
 script.max_compilations_rate: "use-context"
 script.context.template.max_compilations_rate: "unlimited"
 script.context.ingest.cache_max_size: 2000
 script.context.processor_conditional.cache_max_size: 2000
 script.context.template.cache_max_size: 2000
-{{ end }}
+{{- end -}}
+
+{{ $apm_enabled := fact "apm_enabled" }}
+{{ if (and (eq $apm_enabled "true") (not (semverLessThan $version "8.5.0"))) }}
+{{ if semverLessThan $version "8.14.0" }}
+tracing.apm.enabled: true
+tracing.apm.agent.server_url: "http://fleet-server:8200"
+tracing.apm.agent.environment: "dev"
+{{- else -}}
+telemetry.tracing.enabled: true
+telemetry.agent.server_url: "http://fleet-server:8200"
+telemetry.agent.environment: "dev"
+{{- end -}}
+{{- end -}}

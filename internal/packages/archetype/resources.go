@@ -20,6 +20,9 @@ var packageDocsReadme string
 //go:embed _static/fields-base.yml.tmpl
 var fieldsBaseTemplate string
 
+//go:embed _static/package-validation.yml.tmpl
+var validationBaseTemplate string
+
 // Images (logo and screenshot)
 
 //go:embed _static/sampleIcon.svg

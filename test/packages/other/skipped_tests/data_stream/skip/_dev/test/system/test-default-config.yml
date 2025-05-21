@@ -1,0 +1,8 @@
+skip:
+  reason: There are undefined fields.
+  link: https://github.com/elastic/elastic-package/issues/1
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "/usr/share/elastic-agent/state/data/logs/*"

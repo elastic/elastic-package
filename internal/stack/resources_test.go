@@ -28,9 +28,8 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 
 	// Create profile.
 	err := profile.CreateProfile(profile.Options{
-		// PackagePath is actually the profiles path, what is a bit counterintuitive.
-		PackagePath: profilesPath,
-		Name:        profileName,
+		ProfilesDirPath: profilesPath,
+		Name:            profileName,
 	})
 	require.NoError(t, err)
 
@@ -52,7 +51,7 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	err = applyResources(p, "8.6.1")
 	require.NoError(t, err)
 
-	d, err := os.ReadFile(p.Path(profileStackPath, SnapshotFile))
+	d, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
 	require.NoError(t, err)
 
 	var composeFile struct {
@@ -78,4 +77,39 @@ func TestSemverLessThan(t *testing.T) {
 	b, err = semverLessThan("8.10.0-SNAPSHOT", "8.10.0")
 	require.NoError(t, err)
 	assert.True(t, b)
+}
+
+func TestIndent(t *testing.T) {
+	s := indent(`-----BEGIN CERTIFICATE-----
+MIIByDCCAW+gAwIBAgIRAKZ7t5czbExcLrfZnBchSzUwCgYIKoZIzj0EAwIwHTEb
+MBkGA1UEAxMSZWxhc3RpYy1wYWNrYWdlIENBMB4XDTI0MDIxMzA5MjM0M1oXDTI2
+MDQyMzA5MjM0M1owGDEWMBQGA1UEAxMNZWxhc3RpYy1hZ2VudDBZMBMGByqGSM49
+AgEGCCqGSM49AwEHA0IABBv3HqeW3NWIfp408trMNvBiSIHv4Dahc+os52yXN5/b
+ho1G3WGLj0WYErCzJbB4He18pCV4c0/33o/lEYW3JjijgZQwgZEwDgYDVR0PAQH/
+BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHwYDVR0j
+BBgwFoAUw0L8p+5q7uZycR3T7xj5pyWOIU8wOwYDVR0RBDQwMoIJbG9jYWxob3N0
+gg1lbGFzdGljLWFnZW50hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMAoGCCqGSM49
+BAMCA0cAMEQCIFukH6qlkBvHkZAccsFZZtX4vHQ7foeNTQhursBMmynOAiA0wwwQ
+vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
+-----END CERTIFICATE-----`, "        ")
+
+	exp :=
+		`-----BEGIN CERTIFICATE-----
+        MIIByDCCAW+gAwIBAgIRAKZ7t5czbExcLrfZnBchSzUwCgYIKoZIzj0EAwIwHTEb
+        MBkGA1UEAxMSZWxhc3RpYy1wYWNrYWdlIENBMB4XDTI0MDIxMzA5MjM0M1oXDTI2
+        MDQyMzA5MjM0M1owGDEWMBQGA1UEAxMNZWxhc3RpYy1hZ2VudDBZMBMGByqGSM49
+        AgEGCCqGSM49AwEHA0IABBv3HqeW3NWIfp408trMNvBiSIHv4Dahc+os52yXN5/b
+        ho1G3WGLj0WYErCzJbB4He18pCV4c0/33o/lEYW3JjijgZQwgZEwDgYDVR0PAQH/
+        BAQDAgWgMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAwGA1UdEwEB/wQCMAAwHwYDVR0j
+        BBgwFoAUw0L8p+5q7uZycR3T7xj5pyWOIU8wOwYDVR0RBDQwMoIJbG9jYWxob3N0
+        gg1lbGFzdGljLWFnZW50hwR/AAABhxAAAAAAAAAAAAAAAAAAAAABMAoGCCqGSM49
+        BAMCA0cAMEQCIFukH6qlkBvHkZAccsFZZtX4vHQ7foeNTQhursBMmynOAiA0wwwQ
+        vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
+        -----END CERTIFICATE-----`
+
+	assert.Equal(t, exp, s)
+
+	s = indent("\n", "        ")
+	exp = "\n        "
+	assert.Equal(t, exp, s)
 }

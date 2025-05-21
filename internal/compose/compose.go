@@ -5,12 +5,15 @@
 package compose
 
 import (
+	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +25,6 @@ import (
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/signal"
 )
 
 const (
@@ -33,8 +35,12 @@ const (
 )
 
 var (
-	DisableANSIComposeEnv             = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_ANSI")
-	DisablePullProgressInformationEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_PULL_PROGRESS_INFORMATION")
+	EnableComposeStandaloneEnv     = environment.WithElasticPackagePrefix("COMPOSE_ENABLE_STANDALONE")
+	DisableVerboseOutputComposeEnv = environment.WithElasticPackagePrefix("COMPOSE_DISABLE_VERBOSE_OUTPUT")
+)
+
+const (
+	defaultComposeProgressOutput = "plain"
 )
 
 // Project represents a Docker Compose project.
@@ -42,9 +48,11 @@ type Project struct {
 	name             string
 	composeFilePaths []string
 
-	dockerComposeV1                bool
+	dockerComposeStandalone        bool
 	disableANSI                    bool
 	disablePullProgressInformation bool
+	progressOutput                 string
+	composeVersion                 *semver.Version
 }
 
 // Config represents a Docker Compose configuration file.
@@ -114,11 +122,14 @@ func (p *portMapping) UnmarshalYAML(node *yaml.Node) error {
 	}
 
 	// First, parse out the protocol.
-	parts := strings.Split(str, "/")
-	p.Protocol = parts[1]
+	mapping, protocol, found := strings.Cut(str, "/")
+	if !found {
+		return errors.New("could not find protocol in port mapping")
+	}
+	p.Protocol = protocol
 
 	// Now, try to parse out external host, external IP, and internal port.
-	parts = strings.Split(parts[0], ":")
+	parts := strings.Split(mapping, ":")
 	var externalIP, internalPortStr, externalPortStr string
 	switch len(parts) {
 	case 1:
@@ -178,27 +189,33 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	c.name = name
 	c.composeFilePaths = paths
 
-	ver, err := c.dockerComposeVersion()
-	if err != nil {
-		logger.Errorf("Unable to determine Docker Compose version: %v. Defaulting to 1.x", err)
-		c.dockerComposeV1 = true
-		return &c, nil
-	}
-
-	versionMessage := fmt.Sprintf("Determined Docker Compose version: %v", ver)
-	if ver.Major() == 1 {
-		versionMessage = fmt.Sprintf("%s, the tool will use Compose V1", versionMessage)
-		c.dockerComposeV1 = true
-	}
-	logger.Debug(versionMessage)
-
-	v, ok := os.LookupEnv(DisableANSIComposeEnv)
-	if !c.dockerComposeV1 && ok && strings.ToLower(v) != "false" {
-		c.disableANSI = true
-	}
-
-	v, ok = os.LookupEnv(DisablePullProgressInformationEnv)
+	v, ok := os.LookupEnv(EnableComposeStandaloneEnv)
 	if ok && strings.ToLower(v) != "false" {
+		c.dockerComposeStandalone = true
+	} else {
+		c.dockerComposeStandalone = c.dockerComposeStandaloneRequired()
+	}
+
+	// Passing a nil context here because we are on initialization.
+	ver, err := c.dockerComposeVersion(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine Docker Compose version: %w", err)
+	}
+	if ver.Major() < 2 {
+		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
+	}
+	logger.Debugf("Determined Docker Compose version: %v", ver)
+
+	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
+	if ok && strings.ToLower(v) != "false" {
+		if c.composeVersion.LessThan(semver.MustParse("2.19.0")) {
+			c.disableANSI = true
+		} else {
+			// --ansi never looks is ignored by "docker compose" and latest versions of "docker-compose"
+			// adding --progress plain is a similar result as --ansi never
+			// if set to "--progress quiet", there is no output at all from docker compose commands
+			c.progressOutput = defaultComposeProgressOutput
+		}
 		c.disablePullProgressInformation = true
 	}
 
@@ -206,7 +223,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 }
 
 // Up brings up a Docker Compose project.
-func (p *Project) Up(opts CommandOptions) error {
+func (p *Project) Up(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "up")
 	if p.disablePullProgressInformation {
@@ -215,20 +232,33 @@ func (p *Project) Up(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return fmt.Errorf("running Docker Compose up command failed: %w", err)
 	}
 
 	return nil
 }
 
+// Stop stops a Docker Compose project.
+func (p *Project) Stop(ctx context.Context, opts CommandOptions) error {
+	args := p.baseArgs()
+	args = append(args, "stop")
+	args = append(args, opts.ExtraArgs...)
+
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+		return fmt.Errorf("running Docker Compose stop command failed: %w", err)
+	}
+
+	return nil
+}
+
 // Down tears down a Docker Compose project.
-func (p *Project) Down(opts CommandOptions) error {
+func (p *Project) Down(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "down")
 	args = append(args, opts.ExtraArgs...)
 
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return fmt.Errorf("running Docker Compose down command failed: %w", err)
 	}
 
@@ -236,13 +266,13 @@ func (p *Project) Down(opts CommandOptions) error {
 }
 
 // Build builds a Docker Compose project.
-func (p *Project) Build(opts CommandOptions) error {
+func (p *Project) Build(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "build")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return fmt.Errorf("running Docker Compose build command failed: %w", err)
 	}
 
@@ -250,13 +280,13 @@ func (p *Project) Build(opts CommandOptions) error {
 }
 
 // Kill sends a signal to a service container.
-func (p *Project) Kill(opts CommandOptions) error {
+func (p *Project) Kill(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "kill")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return fmt.Errorf("running Docker Compose kill command failed: %w", err)
 	}
 
@@ -264,14 +294,14 @@ func (p *Project) Kill(opts CommandOptions) error {
 }
 
 // Config returns the combined configuration for a Docker Compose project.
-func (p *Project) Config(opts CommandOptions) (*Config, error) {
+func (p *Project) Config(ctx context.Context, opts CommandOptions) (*Config, error) {
 	args := p.baseArgs()
 	args = append(args, "config")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return nil, err
 	}
 
@@ -284,7 +314,7 @@ func (p *Project) Config(opts CommandOptions) (*Config, error) {
 }
 
 // Pull pulls down images for a Docker Compose project.
-func (p *Project) Pull(opts CommandOptions) error {
+func (p *Project) Pull(ctx context.Context, opts CommandOptions) error {
 	args := p.baseArgs()
 	args = append(args, "pull")
 	if p.disablePullProgressInformation {
@@ -293,7 +323,7 @@ func (p *Project) Pull(opts CommandOptions) error {
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env}); err != nil {
 		return fmt.Errorf("running Docker Compose pull command failed: %w", err)
 	}
 
@@ -301,43 +331,35 @@ func (p *Project) Pull(opts CommandOptions) error {
 }
 
 // Logs returns service logs for the selected service in the Docker Compose project.
-func (p *Project) Logs(opts CommandOptions) ([]byte, error) {
+func (p *Project) Logs(ctx context.Context, opts CommandOptions) ([]byte, error) {
 	args := p.baseArgs()
 	args = append(args, "logs")
 	args = append(args, opts.ExtraArgs...)
 	args = append(args, opts.Services...)
 
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return nil, err
 	}
 	return b.Bytes(), nil
 }
 
 // WaitForHealthy method waits until all containers are healthy.
-func (p *Project) WaitForHealthy(opts CommandOptions) error {
+func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error {
 	// Read container IDs
 	args := p.baseArgs()
 	args = append(args, "ps", "-a", "-q")
 
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return err
 	}
 
-	startTime := time.Now()
-	timeout := startTime.Add(waitForHealthyTimeout)
+	ctx, stop := context.WithTimeout(ctx, waitForHealthyTimeout)
+	defer stop()
 
 	containerIDs := strings.Fields(b.String())
 	for {
-		if time.Now().After(timeout) {
-			return errors.New("timeout waiting for healthy container")
-		}
-
-		if signal.SIGINT() {
-			return errors.New("SIGINT: cancel waiting for policy assigned")
-		}
-
 		// NOTE: healthy must be reinitialized at each iteration
 		healthy := true
 
@@ -347,31 +369,26 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 			return err
 		}
 
-		for _, containerDescription := range descriptions {
-			logger.Debugf("Container status: %s", containerDescription.String())
-
+		for _, d := range descriptions {
+			switch {
 			// No healthcheck defined for service
-			if containerDescription.State.Status == "running" && containerDescription.State.Health == nil {
-				continue
-			}
-
-			// Service is up and running and it's healthy
-			if containerDescription.State.Status == "running" && containerDescription.State.Health.Status == "healthy" {
-				continue
-			}
-
-			// Container started and finished with exit code 0
-			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode == 0 {
-				continue
-			}
-
-			// Container exited with code > 0
-			if containerDescription.State.Status == "exited" && containerDescription.State.ExitCode > 0 {
-				return fmt.Errorf("container (ID: %s) exited with code %d", containerDescription.ID, containerDescription.State.ExitCode)
-			}
-
+			case d.State.Status == "running" && d.State.Health == nil:
+				logger.Debugf("Container %s (%s) status: %s (no health status)", d.Config.Labels.ComposeService, d.ID, d.State.Status)
+				// Service is up and running and it's healthy
+			case d.State.Status == "running" && d.State.Health.Status == "healthy":
+				logger.Debugf("Container %s (%s) status: %s (health: %s)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.Health.Status)
+				// Container started and finished with exit code 0
+			case d.State.Status == "exited" && d.State.ExitCode == 0:
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
+				// Container exited with code > 0
+			case d.State.Status == "exited" && d.State.ExitCode > 0:
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
+				return fmt.Errorf("container (ID: %s) exited with code %d", d.ID, d.State.ExitCode)
 			// Any different status is considered unhealthy
-			healthy = false
+			default:
+				logger.Debugf("Container %s (%s) status: unhealthy", d.Config.Labels.ComposeService, d.ID)
+				healthy = false
+			}
 		}
 
 		// end loop before timeout if healthy
@@ -379,21 +396,28 @@ func (p *Project) WaitForHealthy(opts CommandOptions) error {
 			break
 		}
 
-		// NOTE: using sleep does not guarantee interval but it's ok for this use case
-		time.Sleep(waitForHealthyInterval)
+		select {
+		case <-ctx.Done():
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				return errors.New("timeout waiting for healthy container")
+			}
+			return ctx.Err()
+		// NOTE: using after does not guarantee interval but it's ok for this use case
+		case <-time.After(waitForHealthyInterval):
+		}
 	}
 
 	return nil
 }
 
 // ServiceExitCode returns true if the specified service is exited with an error.
-func (p *Project) ServiceExitCode(service string, opts CommandOptions) (bool, int, error) {
+func (p *Project) ServiceExitCode(ctx context.Context, service string, opts CommandOptions) (bool, int, error) {
 	// Read container IDs
 	args := p.baseArgs()
 	args = append(args, "ps", "-a", "-q", service)
 
 	var b bytes.Buffer
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
 		return false, -1, err
 	}
 
@@ -430,6 +454,10 @@ func (p *Project) baseArgs() []string {
 		args = append(args, "--ansi", "never")
 	}
 
+	if p.progressOutput != "" {
+		args = append(args, "--progress", p.progressOutput)
+	}
+
 	args = append(args, "-p", p.name)
 	return args
 }
@@ -440,30 +468,58 @@ type dockerComposeOptions struct {
 	stdout io.Writer
 }
 
-func (p *Project) runDockerComposeCmd(opts dockerComposeOptions) error {
-	cmd := exec.Command("docker-compose", opts.args...)
-	cmd.Env = append(os.Environ(), opts.env...)
+const daemonResponse = `Error response from daemon:`
 
-	if logger.IsDebugMode() {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
-	if opts.stdout != nil {
-		cmd.Stdout = opts.stdout
+// This regexp must match prefixes like WARN[0000], which may include escape sequences for colored letters
+// or structured logs, starting with key=value pairs.
+var composeLoggerPrefix = regexp.MustCompile(`^[^\s]+\[[0-9]+\]`)
+
+func cleanComposeError(msg string) string {
+	// If there is a daemon response, just return it.
+	if i := strings.Index(msg, daemonResponse); i >= 0 {
+		return strings.TrimSpace(msg[i+len(daemonResponse):])
 	}
 
-	logger.Debugf("running command: %s", cmd)
-	return cmd.Run()
+	// Filter out lines coming from the docker compose structured logger.
+	var cleanError strings.Builder
+	scanner := bufio.NewScanner(strings.NewReader(msg))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if composeLoggerPrefix.MatchString(line) {
+			continue
+		}
+		fmt.Fprintln(&cleanError, line)
+	}
+
+	return strings.TrimSpace(cleanError.String())
 }
 
-func (p *Project) dockerComposeVersion() (*semver.Version, error) {
+func (p *Project) dockerComposeBaseCommand() (name string, args []string) {
+	if p.dockerComposeStandalone {
+		return "docker-compose", nil
+	}
+	return "docker", []string{"compose"}
+}
+
+func (p *Project) dockerComposeStandaloneRequired() bool {
+	output, err := exec.Command("docker", "compose", "version", "--short").CombinedOutput()
+	if err == nil {
+		return false
+	} else {
+		logger.Debugf("docker compose subcommand failed: %v: %s", err, output)
+	}
+
+	return true
+}
+
+func (p *Project) dockerComposeVersion(ctx context.Context) (*semver.Version, error) {
 	var b bytes.Buffer
 
 	args := []string{
 		"version",
 		"--short",
 	}
-	if err := p.runDockerComposeCmd(dockerComposeOptions{args: args, stdout: &b}); err != nil {
+	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, stdout: &b}); err != nil {
 		return nil, fmt.Errorf("running Docker Compose version command failed: %w", err)
 	}
 	dcVersion := b.String()
@@ -471,13 +527,11 @@ func (p *Project) dockerComposeVersion() (*semver.Version, error) {
 	if err != nil {
 		return nil, fmt.Errorf("docker compose version is not a valid semver (value: %s): %w", dcVersion, err)
 	}
+	p.composeVersion = ver
 	return ver, nil
 }
 
 // ContainerName method the container name for the service.
 func (p *Project) ContainerName(serviceName string) string {
-	if p.dockerComposeV1 {
-		return fmt.Sprintf("%s_%s_1", p.name, serviceName)
-	}
 	return fmt.Sprintf("%s-%s-1", p.name, serviceName)
 }

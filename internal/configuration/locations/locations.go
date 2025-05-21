@@ -31,10 +31,9 @@ var (
 	// elasticPackageDataHome is the name of the environment variable used to override data folder for elastic-package
 	elasticPackageDataHome = environment.WithElasticPackagePrefix("DATA_HOME")
 
-	serviceLogsDir        = filepath.Join(temporaryDir, "service_logs")
-	rallyCorpusDir        = filepath.Join(temporaryDir, "rally_corpus")
-	kubernetesDeployerDir = filepath.Join(deployerDir, "kubernetes")
-	serviceOutputDir      = filepath.Join(temporaryDir, "output")
+	serviceLogsDir   = filepath.Join(temporaryDir, "service_logs")
+	rallyCorpusDir   = filepath.Join(temporaryDir, "rally_corpus")
+	serviceOutputDir = filepath.Join(temporaryDir, "output")
 )
 
 // LocationManager maintains an instance of a config path location
@@ -73,19 +72,9 @@ func (loc LocationManager) DeployerDir() string {
 	return filepath.Join(loc.stackPath, deployerDir)
 }
 
-// StackDir returns the stack directory location
-func (loc LocationManager) StackDir() string {
-	return filepath.Join(loc.stackPath, stackDir)
-}
-
 // PackagesDir returns the packages directory location
 func (loc LocationManager) PackagesDir() string {
 	return filepath.Join(loc.stackPath, stackDir, packagesDir)
-}
-
-// KubernetesDeployerDir returns the Kubernetes Deployer directory location
-func (loc LocationManager) KubernetesDeployerDir() string {
-	return filepath.Join(loc.stackPath, kubernetesDeployerDir)
 }
 
 // RallyCorpusDir returns the rally coprus directory

@@ -5,16 +5,14 @@
 package test
 
 import (
-	"io"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
+	"errors"
+	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/dnaeon/go-vcr.v3/cassette"
+	"gopkg.in/dnaeon/go-vcr.v3/recorder"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -24,65 +22,58 @@ import (
 // responses. If responses are not found, it forwards the query to the server started by
 // elastic-package stack, and records the response.
 // Responses are recorded in the directory indicated by serverDataDir.
-func NewClient(t *testing.T, serverDataDir string) *elasticsearch.Client {
-	server := testElasticsearchServer(t, serverDataDir)
-	t.Cleanup(func() { server.Close() })
-
-	client, err := stack.NewElasticsearchClient(
-		elasticsearch.OptionWithAddress(server.URL),
-	)
+func NewClient(t *testing.T, recordFileName string, matcher cassette.MatcherFunc) *elasticsearch.Client {
+	options, err := clientOptionsForRecord(recordFileName)
 	require.NoError(t, err)
+
+	config, err := elasticsearch.NewConfig(options...)
+	require.NoError(t, err)
+
+	rec, err := recorder.NewWithOptions(&recorder.Options{
+		CassetteName:       recordFileName,
+		Mode:               recorder.ModeRecordOnce,
+		SkipRequestLatency: true,
+		RealTransport:      config.Transport,
+	})
+
+	if matcher != nil {
+		rec.SetMatcher(matcher)
+	}
+
+	require.NoError(t, err)
+	config.Transport = rec
+
+	client, err := elasticsearch.NewClientWithConfig(config)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		err := rec.Stop()
+		require.NoError(t, err)
+	})
 
 	return client
 }
 
-func testElasticsearchServer(t *testing.T, mockServerDir string) *httptest.Server {
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Log(r.Method, r.URL.String())
-		f := filepath.Join(mockServerDir, pathForURL(r.URL.String()))
-		if _, err := os.Stat(f); err != nil {
-			recordRequest(t, r, f)
+func clientOptionsForRecord(recordFileName string) ([]elasticsearch.ClientOption, error) {
+	const defaultAddress = "https://127.0.0.1:9200"
+	_, err := os.Stat(cassette.New(recordFileName).File)
+	if errors.Is(err, os.ErrNotExist) {
+		address := os.Getenv(stack.ElasticsearchHostEnv)
+		if address == "" {
+			address = defaultAddress
 		}
-		http.ServeFile(w, r, f)
-	}))
-}
-
-var pathReplacer = strings.NewReplacer(
-	"/", "-",
-	"*", "_",
-	"?", "_",
-	"=", "_",
-)
-
-func pathForURL(url string) string {
-	clean := strings.Trim(url, "/")
-	if len(clean) == 0 {
-		return "root.json"
+		return []elasticsearch.ClientOption{
+			elasticsearch.OptionWithAddress(address),
+			elasticsearch.OptionWithPassword(os.Getenv(stack.ElasticsearchPasswordEnv)),
+			elasticsearch.OptionWithUsername(os.Getenv(stack.ElasticsearchUsernameEnv)),
+			elasticsearch.OptionWithCertificateAuthority(os.Getenv(stack.CACertificateEnv)),
+		}, nil
 	}
-	return pathReplacer.Replace(clean) + ".json"
-}
-
-func recordRequest(t *testing.T, r *http.Request, path string) {
-	client, err := stack.NewElasticsearchClient()
-	require.NoError(t, err)
-
-	t.Logf("Recording %s in %s", r.URL.Path, path)
-	var recordURL url.URL
-	recordURL.Path = r.URL.Path
-	recordURL.RawQuery = r.URL.RawQuery
-
-	req, err := http.NewRequest(r.Method, recordURL.String(), nil)
-	require.NoError(t, err)
-
-	resp, err := client.Perform(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	os.MkdirAll(filepath.Dir(path), 0755)
-	f, err := os.Create(path)
-	require.NoError(t, err)
-	defer f.Close()
-
-	_, err = io.Copy(f, resp.Body)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if record file name exists %s: %w", recordFileName, err)
+	}
+	options := []elasticsearch.ClientOption{
+		elasticsearch.OptionWithAddress(defaultAddress),
+	}
+	return options, nil
 }

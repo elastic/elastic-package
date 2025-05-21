@@ -5,6 +5,7 @@
 package export
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -20,7 +21,7 @@ import (
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
-func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
+func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs []string) error {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -40,16 +41,16 @@ func Dashboards(kibanaClient *kibana.Client, dashboardsIDs []string) error {
 		return fmt.Errorf("cannot import from this Kibana version: %w", err)
 	}
 
-	objects, err := kibanaClient.Export(dashboardsIDs)
+	objects, err := kibanaClient.Export(ctx, dashboardsIDs)
 	if err != nil {
 		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
 	}
 
-	ctx := &transformationContext{
+	transformContext := &transformationContext{
 		packageName: m.Name,
 	}
 
-	objects, err = applyTransformations(ctx, objects)
+	objects, err = applyTransformations(transformContext, objects)
 	if err != nil {
 		return fmt.Errorf("can't transform Kibana objects: %w", err)
 	}

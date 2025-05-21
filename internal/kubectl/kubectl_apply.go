@@ -5,6 +5,7 @@
 package kubectl
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -69,9 +70,9 @@ func (c condition) String() string {
 }
 
 // Apply function adds resources to the Kubernetes cluster based on provided definitions.
-func Apply(definitionsPath []string) error {
+func Apply(ctx context.Context, definitionsPath []string) error {
 	logger.Debugf("Apply Kubernetes custom definitions")
-	out, err := modifyKubernetesResources("apply", definitionsPath)
+	out, err := modifyKubernetesResources(ctx, "apply", definitionsPath)
 	if err != nil {
 		return fmt.Errorf("can't modify Kubernetes resources (apply): %w", err)
 	}
@@ -85,9 +86,9 @@ func Apply(definitionsPath []string) error {
 }
 
 // ApplyStdin function adds resources to the Kubernetes cluster based on provided stdin.
-func ApplyStdin(input []byte) error {
+func ApplyStdin(ctx context.Context, input []byte) error {
 	logger.Debugf("Apply Kubernetes stdin")
-	out, err := applyKubernetesResourcesStdin(input)
+	out, err := applyKubernetesResourcesStdin(ctx, input)
 	if err != nil {
 		return fmt.Errorf("can't modify Kubernetes resources (apply stdin): %w", err)
 	}
@@ -134,6 +135,8 @@ func waitForReadyResources(resources []resource) error {
 	// be unavailable (DaemonSet.spec.updateStrategy.rollingUpdate.maxUnavailable defaults to 1).
 	// daemonSetReady will return true regardless of the pod not being ready yet.
 	// Can be solved with multi-node clusters.
+	// TODO: Support context cancelation in this wait. We rely on a helm waiter
+	// that doesn't support it.
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
 		return fmt.Errorf("waiter failed: %w", err)

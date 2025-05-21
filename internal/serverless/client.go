@@ -34,16 +34,16 @@ type Client struct {
 type ClientOption func(*Client)
 
 var (
-	elasticCloudApiKeyEnv   = "EC_API_KEY"
+	elasticCloudAPIKeyEnv   = "EC_API_KEY"
 	elasticCloudEndpointEnv = "EC_HOST"
 
 	ErrProjectNotExist = errors.New("project does not exist")
 )
 
 func NewClient(opts ...ClientOption) (*Client, error) {
-	apiKey := os.Getenv(elasticCloudApiKeyEnv)
+	apiKey := os.Getenv(elasticCloudAPIKeyEnv)
 	if apiKey == "" {
-		return nil, fmt.Errorf("unable to obtain value from %s environment variable", elasticCloudApiKeyEnv)
+		return nil, fmt.Errorf("unable to obtain value from %s environment variable", elasticCloudAPIKeyEnv)
 	}
 	c := &Client{
 		host:   defaultHostURL,
@@ -140,7 +140,7 @@ func (c *Client) doRequest(request *http.Request) (int, []byte, error) {
 	return resp.StatusCode, body, nil
 }
 
-func (c *Client) CreateProject(name, region, projectType string) (*Project, error) {
+func (c *Client) CreateProject(ctx context.Context, name, region, projectType string) (*Project, error) {
 	ReqBody := struct {
 		Name     string `json:"name"`
 		RegionID string `json:"region_id"`
@@ -152,13 +152,11 @@ func (c *Client) CreateProject(name, region, projectType string) (*Project, erro
 	if err != nil {
 		return nil, err
 	}
-	ctx := context.TODO()
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType)
 	if err != nil {
 		return nil, fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.post(ctx, resourcePath, p)
-
 	if err != nil {
 		return nil, fmt.Errorf("error creating project: %w", err)
 	}
@@ -171,11 +169,6 @@ func (c *Client) CreateProject(name, region, projectType string) (*Project, erro
 	err = json.Unmarshal(respBody, &serverlessProject)
 	if err != nil {
 		return nil, fmt.Errorf("error while decoding create project response: %w", err)
-	}
-
-	err = c.ResetCredentials(ctx, serverlessProject)
-	if err != nil {
-		return nil, fmt.Errorf("failed to reset credentials: %w", err)
 	}
 
 	return serverlessProject, nil
@@ -213,7 +206,6 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 		return "", fmt.Errorf("could not build the URL: %w", err)
 	}
 	statusCode, respBody, err := c.get(ctx, resourcePath)
-
 	if err != nil {
 		return "", fmt.Errorf("error getting status project: %w", err)
 	}
@@ -233,37 +225,7 @@ func (c *Client) StatusProject(ctx context.Context, project *Project) (string, e
 	return status.Phase, nil
 }
 
-func (c *Client) ResetCredentials(ctx context.Context, project *Project) error {
-	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID, "_reset-credentials")
-	if err != nil {
-		return fmt.Errorf("could not build the URL: %w", err)
-	}
-	statusCode, respBody, err := c.post(ctx, resourcePath, nil)
-
-	if err != nil {
-		return fmt.Errorf("error creating project: %w", err)
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code %d", statusCode)
-	}
-
-	var credentials struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-	if err := json.Unmarshal(respBody, &credentials); err != nil {
-		return fmt.Errorf("unable to decode credentials: %w", err)
-	}
-
-	project.Credentials.Username = credentials.Username
-	project.Credentials.Password = credentials.Password
-
-	return nil
-}
-
-func (c *Client) DeleteProject(project *Project) error {
-	ctx := context.TODO()
+func (c *Client) DeleteProject(ctx context.Context, project *Project) error {
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, project.Type, project.ID)
 	if err != nil {
 		return fmt.Errorf("could not build the URL: %w", err)
@@ -280,8 +242,7 @@ func (c *Client) DeleteProject(project *Project) error {
 	return nil
 }
 
-func (c *Client) GetProject(projectType, projectID string) (*Project, error) {
-	ctx := context.TODO()
+func (c *Client) GetProject(ctx context.Context, projectType, projectID string) (*Project, error) {
 	resourcePath, err := url.JoinPath(c.host, projectsAPI, projectType, projectID)
 	if err != nil {
 		return nil, fmt.Errorf("could not build the URL: %w", err)
@@ -314,7 +275,7 @@ func (c *Client) EnsureEndpoints(ctx context.Context, project *Project) error {
 	}
 
 	for {
-		newProject, err := c.GetProject(project.Type, project.ID)
+		newProject, err := c.GetProject(ctx, project.Type, project.ID)
 		switch {
 		case err != nil:
 			logger.Debugf("request error: %s", err.Error())

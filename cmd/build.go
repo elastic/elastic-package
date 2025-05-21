@@ -19,7 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
+const buildLongDescription = `Use this command to build a package.
 
 Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
@@ -82,7 +82,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		CreateZip:      createZip,
 		SignPackage:    signPackage,

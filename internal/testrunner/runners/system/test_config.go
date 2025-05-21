@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
+	"github.com/elastic/elastic-package/internal/agentdeployer"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -34,23 +35,41 @@ type testConfig struct {
 	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	IgnoreServiceError  bool          `config:"ignore_service_error"`
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
+	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
 
 	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
 		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
+	SkipTransformValidation bool `config:"skip_transform_validation"`
+
 	Assert struct {
-		// Expected number of hits for a given test
+		// HitCount expected number of hits for a given test
 		HitCount int `config:"hit_count"`
+
+		// MinCount minimum number of hits for a given test
+		MinCount int `config:"min_count"`
+
+		// FieldsPresent list of fields that must be present in any of documents ingested
+		FieldsPresent []string `config:"fields_present"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
 
+	// StringNumberFields holds a list of fields that have numeric
+	// types but can be ingested as strings.
+	StringNumberFields []string `config:"string_number_fields"`
+
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
+
+	// Agent related properties
+	Agent struct {
+		agentdeployer.AgentSettings `config:",inline"`
+	} `config:"agent"`
 }
 
 func (t testConfig) Name() string {
@@ -70,7 +89,7 @@ func (t testConfig) Name() string {
 	return sb.String()
 }
 
-func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, serviceVariantName string) (*testConfig, error) {
+func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, serviceVariantName string) (*testConfig, error) {
 	data, err := os.ReadFile(configFilePath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
 		return nil, fmt.Errorf("unable to find system test configuration file: %s: %w", configFilePath, err)
@@ -80,7 +99,7 @@ func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, servi
 		return nil, fmt.Errorf("could not load system test configuration file: %s: %w", configFilePath, err)
 	}
 
-	data, err = applyContext(data, ctxt)
+	data, err = applyServiceInfo(data, svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not apply context to test configuration file: %s: %w", configFilePath, err)
 	}
@@ -96,6 +115,20 @@ func newConfig(configFilePath string, ctxt servicedeployer.ServiceContext, servi
 	// Save path
 	c.Path = configFilePath
 	c.ServiceVariantName = serviceVariantName
+
+	// Default values for AgentSettings
+	if c.Agent.Runtime == "" {
+		c.Agent.Runtime = agentdeployer.DefaultAgentRuntime
+	}
+
+	if c.Agent.ProvisioningScript.Contents != "" && c.Agent.ProvisioningScript.Language == "" {
+		c.Agent.ProvisioningScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
+		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
 	return &c, nil
 }
 
@@ -117,17 +150,17 @@ func listConfigFiles(systemTestFolderPath string) (files []string, err error) {
 	return files, nil
 }
 
-// applyContext takes the given system test configuration (data) and replaces any placeholder variables in
-// it with values from the given context (ctxt). The context may be populated from various sources but usually the
+// applyServiceInfo takes the given system test configuration (data) and replaces any placeholder variables in
+// it with values from the given service information. The context may be populated from various sources but usually the
 // most interesting context values will be set by a ServiceDeployer in its SetUp method.
-func applyContext(data []byte, ctxt servicedeployer.ServiceContext) ([]byte, error) {
+func applyServiceInfo(data []byte, serviceInfo servicedeployer.ServiceInfo) ([]byte, error) {
 	tmpl, err := raymond.Parse(string(data))
 	if err != nil {
 		return data, fmt.Errorf("parsing template body failed: %w", err)
 	}
-	tmpl.RegisterHelpers(ctxt.Aliases())
+	tmpl.RegisterHelpers(serviceInfo.Aliases())
 
-	result, err := tmpl.Exec(ctxt)
+	result, err := tmpl.Exec(serviceInfo)
 	if err != nil {
 		return data, fmt.Errorf("could not render data with context: %w", err)
 	}

@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,12 +25,12 @@ type exportedType struct {
 }
 
 // Export method exports selected dashboards using the Kibana APIs.
-func (c *Client) Export(dashboardIDs []string) ([]common.MapStr, error) {
+func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	if c.semver.LessThan(semver.MustParse("8.11.0")) {
-		return c.exportWithDashboardsAPI(dashboardIDs)
+		return c.exportWithDashboardsAPI(ctx, dashboardIDs)
 	}
 
-	return c.exportWithSavedObjectsAPI(dashboardIDs)
+	return c.exportWithSavedObjectsAPI(ctx, dashboardIDs)
 }
 
 type exportSavedObjectsRequest struct {
@@ -43,7 +44,7 @@ type exportSavedObjectsRequestObject struct {
 	Type string `json:"type"`
 }
 
-func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapStr, error) {
+func (c *Client) exportWithSavedObjectsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
 	exportRequest := exportSavedObjectsRequest{
@@ -63,7 +64,7 @@ func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapS
 	}
 
 	path := SavedObjectsAPI + "/_export"
-	statusCode, respBody, err := c.SendRequest(http.MethodPost, path, body)
+	statusCode, respBody, err := c.SendRequest(ctx, http.MethodPost, path, body)
 	if err != nil {
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}
@@ -84,7 +85,7 @@ func (c *Client) exportWithSavedObjectsAPI(dashboardIDs []string) ([]common.MapS
 	return dashboards, nil
 }
 
-func (c *Client) exportWithDashboardsAPI(dashboardIDs []string) ([]common.MapStr, error) {
+func (c *Client) exportWithDashboardsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Export API")
 
 	var query strings.Builder
@@ -96,7 +97,7 @@ func (c *Client) exportWithDashboardsAPI(dashboardIDs []string) ([]common.MapStr
 	}
 
 	path := fmt.Sprintf("%s/dashboards/export%s", CoreAPI, query.String())
-	statusCode, respBody, err := c.get(path)
+	statusCode, respBody, err := c.get(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not export dashboards; API status code = %d; response body = %s: %w", statusCode, respBody, err)
 	}

@@ -156,7 +156,6 @@ To use environment variables within the Terraform service deployer a `env.yml` f
 The file should be structured like this:
 
 ```yaml
-version: '2.3'
 services:
   terraform:
     environment:
