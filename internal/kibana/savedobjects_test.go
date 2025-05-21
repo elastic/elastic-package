@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
 )
@@ -35,7 +36,7 @@ func preloadDashboard(t *testing.T, client *kibana.Client) string {
 	id := "test-managed-saved-objects"
 	importRequest := kibana.ImportSavedObjectsRequest{
 		Overwrite: false, // We should not need to overwrite objects.
-		Objects: []map[string]any{
+		Objects: []common.MapStr{
 			{
 				"attributes": map[string]any{
 					"title": "Empty Dashboard",

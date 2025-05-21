@@ -46,17 +46,7 @@ func (c *Client) exportWithSavedObjectsAPI(ctx context.Context, dashboardIDs []s
 		})
 	}
 
-	savedObjects, err := c.ExportSavedObjects(ctx, request)
-	if err != nil {
-		return nil, err
-	}
-
-	dashboards := make([]common.MapStr, len(savedObjects))
-	for i := range savedObjects {
-		dashboards[i] = common.MapStr(savedObjects[i])
-	}
-
-	return dashboards, nil
+	return c.ExportSavedObjects(ctx, request)
 }
 
 func (c *Client) exportWithDashboardsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
