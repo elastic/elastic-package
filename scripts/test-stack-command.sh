@@ -124,7 +124,7 @@ Status of Elastic stack services:
 ╰──────────────────┴─────────┴───────────────────╯
 EOF
 
-elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
+NO_COLOR=true elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
 
 # Remove spaces to avoid issues with spaces between columns
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"

@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/olekukonko/tablewriter"
@@ -360,7 +359,7 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	}
 	config := defaultColorizedConfig()
 	config.Settings.Separators.BetweenRows = tw.Off
-	table := tablewriter.NewTable(os.Stderr,
+	table := tablewriter.NewTable(cmd.OutOrStderr(),
 		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
