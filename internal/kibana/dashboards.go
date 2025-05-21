@@ -26,7 +26,7 @@ type exportedType struct {
 
 // Export method exports selected dashboards using the Kibana APIs.
 func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
-	if c.semver.LessThan(semver.MustParse("8.11.0")) {
+	if c.semver.LessThan(semver.MustParse("9.0.0")) {
 		return c.exportWithDashboardsAPI(ctx, dashboardIDs)
 	}
 
