@@ -1,0 +1,260 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.18.1
+        url: https://127.0.0.1:5601/api/status
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding:
+            - chunked
+        trailer: {}
+        content_length: -1
+        uncompressed: true
+        body: '{"name":"kibana","uuid":"5bcbae52-16d9-48c9-935c-b365758e7875","version":{"number":"9.0.1","build_hash":"0df588b1a307954a3103991180df23c70184d34c","build_number":84599,"build_snapshot":false,"build_flavor":"traditional","build_date":"2025-04-30T11:08:02.678Z"},"status":{"overall":{"level":"available","summary":"All services and plugins are available"},"core":{"elasticsearch":{"level":"available","summary":"Elasticsearch is available","meta":{"warningNodes":[],"incompatibleNodes":[]}},"savedObjects":{"level":"available","summary":"SavedObjects service has completed migrations and is available","meta":{"migratedIndices":{"migrated":0,"skipped":0,"patched":7}}}},"plugins":{"alerting":{"level":"available","summary":"Alerting is (probably) ready","reported":true},"streams":{"level":"available","summary":"All services and plugins are available"},"triggersActionsUi":{"level":"available","summary":"All services and plugins are available"},"transform":{"level":"available","summary":"All services and plugins are available"},"stackConnectors":{"level":"available","summary":"All services and plugins are available"},"automaticImport":{"level":"available","summary":"All services and plugins are available"},"stackAlerts":{"level":"available","summary":"All services and plugins are available"},"ruleRegistry":{"level":"available","summary":"All services and plugins are available"},"cases":{"level":"available","summary":"All services and plugins are available"},"timelines":{"level":"available","summary":"All services and plugins are available"},"sessionView":{"level":"available","summary":"All services and plugins are available"},"threatIntelligence":{"level":"available","summary":"All services and plugins are available"},"observabilityShared":{"level":"available","summary":"All services and plugins are available"},"streamsApp":{"level":"available","summary":"All services and plugins are available"},"metricsDataAccess":{"level":"available","summary":"All services and plugins are available"},"entityManagerApp":{"level":"available","summary":"All services and plugins are available"},"aiops":{"level":"available","summary":"All services and plugins are available"},"discover":{"level":"available","summary":"All services and plugins are available"},"reporting":{"level":"available","summary":"All services and plugins are available"},"canvas":{"level":"available","summary":"All services and plugins are available"},"ml":{"level":"available","summary":"All services and plugins are available"},"searchAssistant":{"level":"available","summary":"All services and plugins are available"},"observabilityAiAssistantManagement":{"level":"available","summary":"All services and plugins are available"},"elasticAssistant":{"level":"available","summary":"All services and plugins are available"},"logsExplorer":{"level":"available","summary":"All services and plugins are available"},"inventory":{"level":"available","summary":"All services and plugins are available"},"exploratoryView":{"level":"available","summary":"All services and plugins are available"},"discoverEnhanced":{"level":"available","summary":"All services and plugins are available"},"links":{"level":"available","summary":"All services and plugins are available"},"observability":{"level":"available","summary":"All services and plugins are available"},"slo":{"level":"available","summary":"All services and plugins are available"},"observabilityAIAssistantApp":{"level":"available","summary":"All services and plugins are available"},"searchPlayground":{"level":"available","summary":"All services and plugins are available"},"searchInferenceEndpoints":{"level":"available","summary":"All services and plugins are available"},"uptime":{"level":"available","summary":"All services and plugins are available"},"synthetics":{"level":"available","summary":"All services and plugins are available"},"searchConnectors":{"level":"available","summary":"All services and plugins are available"},"osquery":{"level":"available","summary":"All services and plugins are available"},"infra":{"level":"available","summary":"All services and plugins are available"},"observabilityOnboarding":{"level":"available","summary":"All services and plugins are available"},"monitoring":{"level":"available","summary":"All services and plugins are available"},"logstash":{"level":"available","summary":"All services and plugins are available"},"indexManagement":{"level":"available","summary":"All services and plugins are available"},"searchIndices":{"level":"available","summary":"All services and plugins are available"},"enterpriseSearch":{"level":"available","summary":"All services and plugins are available"},"rollup":{"level":"available","summary":"All services and plugins are available"},"remoteClusters":{"level":"available","summary":"All services and plugins are available"},"crossClusterReplication":{"level":"available","summary":"All services and plugins are available"},"indexLifecycleManagement":{"level":"available","summary":"All services and plugins are available"},"esql":{"level":"available","summary":"All services and plugins are available"},"datasetQuality":{"level":"available","summary":"All services and plugins are available"},"dataQuality":{"level":"available","summary":"All services and plugins are available"},"observabilityLogsExplorer":{"level":"available","summary":"All services and plugins are available"},"cloudSecurityPosture":{"level":"available","summary":"All services and plugins are available"},"cloudDefend":{"level":"available","summary":"All services and plugins are available"},"securitySolution":{"level":"available","summary":"All services and plugins are available"},"securitySolutionEss":{"level":"available","summary":"All services and plugins are available"},"apm":{"level":"available","summary":"All services and plugins are available"},"ux":{"level":"available","summary":"All services and plugins are available"},"fleet":{"level":"available","summary":"Fleet is available","reported":true},"urlForwarding":{"level":"available","summary":"All services are available"},"unifiedHistogram":{"level":"available","summary":"All services are available"},"uiActions":{"level":"available","summary":"All services are available"},"translations":{"level":"available","summary":"All services are available"},"share":{"level":"available","summary":"All services are available"},"searchNavigation":{"level":"available","summary":"All services are available"},"screenshotMode":{"level":"available","summary":"All services are available"},"savedObjectsFinder":{"level":"available","summary":"All services are available"},"runtimeFields":{"level":"available","summary":"All services are available"},"noDataPage":{"level":"available","summary":"All services are available"},"monitoringCollection":{"level":"available","summary":"All services are available"},"licenseApiGuard":{"level":"available","summary":"All services are available"},"kibanaUtils":{"level":"available","summary":"All services are available"},"kibanaReact":{"level":"available","summary":"All services are available"},"ftrApis":{"level":"available","summary":"All services are available"},"fieldsMetadata":{"level":"available","summary":"All services are available"},"fieldFormats":{"level":"available","summary":"All services are available"},"expressions":{"level":"available","summary":"All services are available"},"esUiShared":{"level":"available","summary":"All services are available"},"entitiesDataAccess":{"level":"available","summary":"All services are available"},"discoverShared":{"level":"available","summary":"All services are available"},"customIntegrations":{"level":"available","summary":"All services are available"},"devTools":{"level":"available","summary":"All services and plugins are available"},"inspector":{"level":"available","summary":"All services and plugins are available"},"usageCollection":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionManager":{"level":"available","summary":"All services and plugins are available"},"telemetryCollectionXpack":{"level":"available","summary":"All services and plugins are available"},"kibanaUsageCollection":{"level":"available","summary":"All services and plugins are available"},"contentManagement":{"level":"available","summary":"All services and plugins are available"},"cloud":{"level":"available","summary":"All services and plugins are available"},"newsfeed":{"level":"available","summary":"All services and plugins are available"},"productDocBase":{"level":"available","summary":"All services and plugins are available"},"mapsEms":{"level":"available","summary":"All services and plugins are available"},"globalSearch":{"level":"available","summary":"All services and plugins are available"},"globalSearchProviders":{"level":"available","summary":"All services and plugins are available"},"features":{"level":"available","summary":"All services and plugins are available"},"guidedOnboarding":{"level":"available","summary":"All services and plugins are available"},"banners":{"level":"available","summary":"All services and plugins are available"},"customBranding":{"level":"available","summary":"All services and plugins are available"},"screenshotting":{"level":"available","summary":"All services and plugins are available"},"dataViews":{"level":"available","summary":"All services and plugins are available"},"home":{"level":"available","summary":"All services and plugins are available"},"searchprofiler":{"level":"available","summary":"All services and plugins are available"},"painlessLab":{"level":"available","summary":"All services and plugins are available"},"management":{"level":"available","summary":"All services and plugins are available"},"spaces":{"level":"available","summary":"All services and plugins are available"},"security":{"level":"available","summary":"All services and plugins are available"},"telemetry":{"level":"available","summary":"All services and plugins are available"},"licenseManagement":{"level":"available","summary":"All services and plugins are available"},"snapshotRestore":{"level":"available","summary":"All services and plugins are available"},"lists":{"level":"available","summary":"All services and plugins are available"},"files":{"level":"available","summary":"All services and plugins are available"},"filesManagement":{"level":"available","summary":"All services and plugins are available"},"encryptedSavedObjects":{"level":"available","summary":"All services and plugins are available"},"entityManager":{"level":"available","summary":"All services and plugins are available"},"cloudLinks":{"level":"available","summary":"All services and plugins are available"},"eventLog":{"level":"available","summary":"All services and plugins are available"},"actions":{"level":"available","summary":"All services and plugins are available"},"notifications":{"level":"available","summary":"All services and plugins are available"},"inference":{"level":"available","summary":"All services and plugins are available"},"observabilityAIAssistant":{"level":"available","summary":"All services and plugins are available"},"llmTasks":{"level":"available","summary":"All services and plugins are available"},"advancedSettings":{"level":"available","summary":"All services and plugins are available"},"telemetryManagementSection":{"level":"available","summary":"All services and plugins are available"},"data":{"level":"available","summary":"All services and plugins are available"},"unifiedDocViewer":{"level":"available","summary":"All services and plugins are available"},"savedObjects":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTaggingOss":{"level":"available","summary":"All services and plugins are available"},"savedObjectsTagging":{"level":"available","summary":"All services and plugins are available"},"globalSearchBar":{"level":"available","summary":"All services and plugins are available"},"savedObjectsManagement":{"level":"available","summary":"All services and plugins are available"},"unifiedSearch":{"level":"available","summary":"All services and plugins are available"},"navigation":{"level":"available","summary":"All services and plugins are available"},"inferenceEndpoint":{"level":"available","summary":"All services and plugins are available"},"graph":{"level":"available","summary":"All services and plugins are available"},"presentationPanel":{"level":"available","summary":"All services and plugins are available"},"embeddable":{"level":"available","summary":"All services and plugins are available"},"uiActionsEnhanced":{"level":"available","summary":"All services and plugins are available"},"urlDrilldown":{"level":"available","summary":"All services and plugins are available"},"embeddableEnhanced":{"level":"available","summary":"All services and plugins are available"},"imageEmbeddable":{"level":"available","summary":"All services and plugins are available"},"savedSearch":{"level":"available","summary":"All services and plugins are available"},"presentationUtil":{"level":"available","summary":"All services and plugins are available"},"expressionShape":{"level":"available","summary":"All services and plugins are available"},"expressionRevealImage":{"level":"available","summary":"All services and plugins are available"},"expressionRepeatImage":{"level":"available","summary":"All services and plugins are available"},"expressionMetric":{"level":"available","summary":"All services and plugins are available"},"expressionImage":{"level":"available","summary":"All services and plugins are available"},"expressionError":{"level":"available","summary":"All services and plugins are available"},"controls":{"level":"available","summary":"All services and plugins are available"},"logsDataAccess":{"level":"available","summary":"All services and plugins are available"},"fileUpload":{"level":"available","summary":"All services and plugins are available"},"esqlDataGrid":{"level":"available","summary":"All services and plugins are available"},"ecsDataQualityDashboard":{"level":"available","summary":"All services and plugins are available"},"dataViewFieldEditor":{"level":"available","summary":"All services and plugins are available"},"dataViewEditor":{"level":"available","summary":"All services and plugins are available"},"kibanaOverview":{"level":"available","summary":"All services and plugins are available"},"dataViewManagement":{"level":"available","summary":"All services and plugins are available"},"charts":{"level":"available","summary":"All services and plugins are available"},"watcher":{"level":"available","summary":"All services and plugins are available"},"visualizations":{"level":"available","summary":"All services and plugins are available"},"visTypeXy":{"level":"available","summary":"All services and plugins are available"},"visTypeVislib":{"level":"available","summary":"All services and plugins are available"},"visTypeVega":{"level":"available","summary":"All services and plugins are available"},"visTypeTimeseries":{"level":"available","summary":"All services and plugins are available"},"visTypeTimelion":{"level":"available","summary":"All services and plugins are available"},"visTypeTagcloud":{"level":"available","summary":"All services and plugins are available"},"visTypeTable":{"level":"available","summary":"All services and plugins are available"},"visTypeMetric":{"level":"available","summary":"All services and plugins are available"},"visTypeMarkdown":{"level":"available","summary":"All services and plugins are available"},"visTypeHeatmap":{"level":"available","summary":"All services and plugins are available"},"visDefaultEditor":{"level":"available","summary":"All services and plugins are available"},"inputControlVis":{"level":"available","summary":"All services and plugins are available"},"expressionTagcloud":{"level":"available","summary":"All services and plugins are available"},"expressionPartitionVis":{"level":"available","summary":"All services and plugins are available"},"visTypePie":{"level":"available","summary":"All services and plugins are available"},"expressionMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionLegacyMetricVis":{"level":"available","summary":"All services and plugins are available"},"expressionHeatmap":{"level":"available","summary":"All services and plugins are available"},"expressionGauge":{"level":"available","summary":"All services and plugins are available"},"visTypeGauge":{"level":"available","summary":"All services and plugins are available"},"eventAnnotation":{"level":"available","summary":"All services and plugins are available"},"expressionXY":{"level":"available","summary":"All services and plugins are available"},"lens":{"level":"available","summary":"All services and plugins are available"},"maps":{"level":"available","summary":"All services and plugins are available"},"dataVisualizer":{"level":"available","summary":"All services and plugins are available"},"eventAnnotationListing":{"level":"available","summary":"All services and plugins are available"},"dashboard":{"level":"available","summary":"All services and plugins are available"},"dashboardEnhanced":{"level":"available","summary":"All services and plugins are available"},"logsShared":{"level":"available","summary":"All services and plugins are available"},"upgradeAssistant":{"level":"available","summary":"All services and plugins are available"},"apmDataAccess":{"level":"available","summary":"All services and plugins are available"},"cloudDataMigration":{"level":"available","summary":"All services and plugins are available"},"aiAssistantManagementSelection":{"level":"available","summary":"All services and plugins are available"},"grokdebugger":{"level":"available","summary":"All services and plugins are available"},"console":{"level":"available","summary":"All services and plugins are available"},"searchSynonyms":{"level":"available","summary":"All services and plugins are available"},"searchNotebooks":{"level":"available","summary":"All services and plugins are available"},"ingestPipelines":{"level":"available","summary":"All services and plugins are available"},"licensing":{"level":"available","summary":"License fetched","reported":true},"taskManager":{"level":"available","summary":"Task Manager is healthy","reported":true}}},"metrics":{"last_updated":"2025-05-21T14:35:14.668Z","collection_interval_in_millis":5000,"os":{"platform":"linux","platformRelease":"linux-6.8.0-59-generic","load":{"1m":3.75,"5m":4.88,"15m":4.7},"memory":{"total_in_bytes":33362878464,"free_in_bytes":16996888576,"used_in_bytes":16365989888},"uptime_in_millis":97865350,"distro":"Red Hat Linux","distroRelease":"Red Hat Linux-9.5","cpu":{"cfs_quota_micros":-1,"cfs_period_micros":100000,"control_group":"/","stat":{"number_of_elapsed_periods":0,"number_of_times_throttled":0,"time_throttled_nanos":0}},"cpuacct":{"control_group":"/","usage_nanos":76459104},"cgroup_memory":{"current_in_bytes":838516736,"swap_current_in_bytes":0}},"process":{"memory":{"heap":{"total_in_bytes":466038784,"used_in_bytes":387022224,"size_limit":4345298944},"resident_set_size_in_bytes":591101952,"array_buffers_in_bytes":1052160,"external_in_bytes":4713074},"pid":7,"event_loop_delay":16.670719,"event_loop_delay_histogram":{"min":9.125888,"max":16.670719,"mean":10.119005987829615,"exceeds":0,"stddev":0.3437285602449361,"fromTimestamp":"2025-05-21T14:35:09.668Z","lastUpdatedAt":"2025-05-21T14:35:14.667Z","percentiles":{"50":10.108927,"75":10.158079,"95":10.264575,"99":10.731519}},"event_loop_utilization":{"active":69.44511200033594,"idle":4930.153542999993,"utilization":0.01389013734750102},"uptime_in_millis":160428.682487},"processes":[{"memory":{"heap":{"total_in_bytes":466038784,"used_in_bytes":387022224,"size_limit":4345298944},"resident_set_size_in_bytes":591101952,"array_buffers_in_bytes":1052160,"external_in_bytes":4713074},"pid":7,"event_loop_delay":16.670719,"event_loop_delay_histogram":{"min":9.125888,"max":16.670719,"mean":10.119005987829615,"exceeds":0,"stddev":0.3437285602449361,"fromTimestamp":"2025-05-21T14:35:09.668Z","lastUpdatedAt":"2025-05-21T14:35:14.667Z","percentiles":{"50":10.108927,"75":10.158079,"95":10.264575,"99":10.731519}},"event_loop_utilization":{"active":69.44511200033594,"idle":4930.153542999993,"utilization":0.01389013734750102},"uptime_in_millis":160428.682487}],"response_times":{"avg_in_millis":12,"max_in_millis":12},"concurrent_connections":0,"requests":{"disconnects":0,"total":1,"statusCodes":{"200":1},"status_codes":{"200":1}},"elasticsearch_client":{"totalActiveSockets":0,"totalIdleSockets":3,"totalQueuedRequests":0}}}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Security-Policy-Report-Only:
+                - form-action 'report-sample' 'self'; object-src 'report-sample' 'none'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Wed, 21 May 2025 14:35:18 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 59b539ac93437721640b16bb4556e9540adfb4afc454ef6a12d1a207d2a301c1
+            Kbn-Name:
+                - kibana
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Vary:
+                - accept-encoding
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 44.513659ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 354
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: "--05258aadb6e35aad4c11322ba721bae7584310a38503a28cc08b8b32e031\r\nContent-Disposition: form-data; name=\"file\"; filename=\"file.ndjson\"\r\nContent-Type: application/octet-stream\r\n\r\n{\"attributes\":{\"title\":\"Empty Dashboard\"},\"id\":\"test-managed-saved-objects\",\"managed\":true,\"type\":\"dashboard\"}\n\r\n--05258aadb6e35aad4c11322ba721bae7584310a38503a28cc08b8b32e031--\r\n"
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - multipart/form-data; boundary=05258aadb6e35aad4c11322ba721bae7584310a38503a28cc08b8b32e031
+            Kbn-Xsrf:
+                - 8.18.1
+        url: https://127.0.0.1:5601/api/saved_objects/_import
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 193
+        uncompressed: false
+        body: '{"successCount":1,"success":true,"warnings":[],"successResults":[{"type":"dashboard","id":"test-managed-saved-objects","meta":{"title":"Empty Dashboard","icon":"dashboardApp"},"managed":true}]}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "193"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Security-Policy-Report-Only:
+                - form-action 'report-sample' 'self'; object-src 'report-sample' 'none'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Wed, 21 May 2025 14:35:19 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 59b539ac93437721640b16bb4556e9540adfb4afc454ef6a12d1a207d2a301c1
+            Kbn-Name:
+                - kibana
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 215.811947ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 125
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: '{"excludeExportDetails":true,"includeReferencesDeep":true,"objects":[{"id":"test-managed-saved-objects","type":"dashboard"}]}'
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.18.1
+        url: https://127.0.0.1:5601/api/saved_objects/_export
+        method: POST
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 328
+        uncompressed: false
+        body: '{"attributes":{"panelsJSON":"[]","timeRestore":false,"title":"Empty Dashboard"},"coreMigrationVersion":"8.8.0","created_at":"2025-05-21T14:35:18.940Z","id":"test-managed-saved-objects","managed":true,"references":[],"type":"dashboard","typeMigrationVersion":"10.2.0","updated_at":"2025-05-21T14:35:18.940Z","version":"WzQxLDFd"}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Disposition:
+                - attachment; filename="export.ndjson"
+            Content-Length:
+                - "328"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Security-Policy-Report-Only:
+                - form-action 'report-sample' 'self'; object-src 'report-sample' 'none'
+            Content-Type:
+                - application/ndjson
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Wed, 21 May 2025 14:35:19 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 59b539ac93437721640b16bb4556e9540adfb4afc454ef6a12d1a207d2a301c1
+            Kbn-Name:
+                - kibana
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 36.558076ms
+    - id: 3
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: 127.0.0.1:5601
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            Content-Type:
+                - application/json
+            Kbn-Xsrf:
+                - 8.18.1
+        url: https://127.0.0.1:5601/api/saved_objects/dashboard/test-managed-saved-objects
+        method: DELETE
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 2
+        uncompressed: false
+        body: '{}'
+        headers:
+            Cache-Control:
+                - private, no-cache, no-store, must-revalidate
+            Connection:
+                - keep-alive
+            Content-Length:
+                - "2"
+            Content-Security-Policy:
+                - script-src 'report-sample' 'self'; worker-src 'report-sample' 'self' blob:; style-src 'report-sample' 'self' 'unsafe-inline'
+            Content-Security-Policy-Report-Only:
+                - form-action 'report-sample' 'self'; object-src 'report-sample' 'none'
+            Content-Type:
+                - application/json; charset=utf-8
+            Cross-Origin-Opener-Policy:
+                - same-origin
+            Date:
+                - Wed, 21 May 2025 14:35:20 GMT
+            Elastic-Api-Version:
+                - "2023-10-31"
+            Kbn-License-Sig:
+                - 59b539ac93437721640b16bb4556e9540adfb4afc454ef6a12d1a207d2a301c1
+            Kbn-Name:
+                - kibana
+            Permissions-Policy:
+                - camera=(), display-capture=(), fullscreen=(self), geolocation=(), microphone=(), web-share=()
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Warning:
+                - 299 Kibana-9.0.1 "This endpoint is deprecated"
+            X-Content-Type-Options:
+                - nosniff
+        status: 200 OK
+        code: 200
+        duration: 1.001920449s
