@@ -74,9 +74,6 @@ prepare_serverless_stack() {
     fi
     create_elastic_package_profile "${profile_name}"
 
-    export EC_API_KEY=${EC_API_KEY_SECRET}
-    export EC_HOST=${EC_HOST_SECRET}
-
     echo "Boot up the Elastic stack"
     # Currently, if STACK_VERSION is not defined, for serverless it will be
     # used as Elastic stack version (for agents) the default version in elastic-package
