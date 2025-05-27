@@ -115,8 +115,8 @@ github.com/elastic/gojsonschema v1.2.1 h1:cUMbgsz0wyEB4x7xf3zUEvUVDl6WCz2RKcQPul
 github.com/elastic/gojsonschema v1.2.1/go.mod h1:biw5eBS2Z4T02wjATMRSfecfjCmwaDPvuaqf844gLrg=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.3.5 h1:D0AXRiTNcF8Ue8gLIafF/BLOk7V2yqSFVUy/p0fwArM=
-github.com/elastic/package-spec/v3 v3.3.5/go.mod h1:+q7JpjqBFnNVMmh9VAVfZdOxQ3EmdCD+KM8Cg6VhKgg=
+github.com/elastic/package-spec/v3 v3.4.0 h1:smilq7r7TNiyXSI9vJs2mqTv9+gGUCrfEmITOYwAdDA=
+github.com/elastic/package-spec/v3 v3.4.0/go.mod h1:utJSiN5B7Mr6cxOJoQ3FXUh4YcZqKd26dD/tZ21p8w8=
 github.com/emicklei/go-restful/v3 v3.11.0 h1:rAQeMHw1c7zTmncogyy8VvRZwtkmkZ4FxERmMY4rD+g=
 github.com/emicklei/go-restful/v3 v3.11.0/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
