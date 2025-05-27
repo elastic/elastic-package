@@ -27,7 +27,8 @@ version.
 | -- | -- |
 | <2.3 | <9.0 |
 | 2.3 - 2.11 | All versions, except serverless. |
-| 3.0 - 3.3 | All versions from 8.16. |
+| 3.0 | All versions. |
+| 3.1 - 3.3 | All versions from 8.16. |
 | 3.4 | 8.19 and all versions from 9.1. |
 
 Serverless supports from 3.0 to 3.4.
