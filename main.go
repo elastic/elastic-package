@@ -22,6 +22,7 @@ func main() {
 	}
 
 	rootCmd := cmd.RootCmd()
+
 	rootCmd.SilenceErrors = true // Silence errors so we handle them here.
 	err = rootCmd.Execute()
 	if errIsInterruption(err) {
