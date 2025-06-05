@@ -4,6 +4,7 @@ set -euxo pipefail
 
 cleanup() {
   local r=$?
+  echo "--- elastic-package cleanup"
 
   local output_path="build/elastic-stack-dump/install-zip"
   if [ ${USE_SHELLINIT} -eq 1 ]; then

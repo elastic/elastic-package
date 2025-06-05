@@ -8,7 +8,8 @@ SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
 ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
 
 cleanup() {
-  r=$?
+  local r=$?
+  echo "--- elastic-package cleanup"
 
   # Dump stack logs
   elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
