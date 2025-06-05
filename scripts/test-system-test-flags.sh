@@ -7,6 +7,8 @@ cleanup() {
     local container_id=""
     local agent_ids
 
+    echo "--- Cleanup"
+
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
 

@@ -8,6 +8,7 @@ set -euxo pipefail
 
 cleanup() {
   r=$?
+  echo "--- Cleaning up"
 
   # Dump stack logs
   elastic-package stack dump -v \
@@ -54,10 +55,13 @@ export SERVERLESS=${SERVERLESS:-"false"}
 
 # Build/check packages
 for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
+  echo "--- Checking package ${d}"
   elastic-package check -C "$d" -v
 done
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+  echo "--- Create logstash profile"
+
   # Create a logstash profile and use it
   elastic-package profiles create logstash -v
   elastic-package profiles use logstash
@@ -73,6 +77,7 @@ fi
 # started to test all packages. In our CI, this Elastic serverless stack is started 
 # at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
+  echo "--- Prepare Elastic stack"
   stack_args=$(stack_version_args) # --version <version>
 
   # Update the stack
@@ -90,6 +95,7 @@ fi
 
 if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
   # Boot up the kind cluster
+  echo "--- Create kind cluster"
   kind create cluster --config "$PWD/scripts/kind-config.yaml" --image "kindest/node:${K8S_VERSION}"
 fi
 
@@ -100,6 +106,8 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
     # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
     if [ "${package_to_test}" == "pipeline_benchmark" ]; then
+      echo "--- Run pipeline benchmarks and report for package ${package_to_test}"
+
       rm -rf "${PWD}/build/benchmark-results"
       elastic-package benchmark pipeline -C "$d" -v --report-format xUnit --report-output file --fail-on-missing
 
@@ -114,12 +122,16 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
         --threshold 1 --report-output-path="${PWD}/build/benchreport"
     fi
     if [ "${package_to_test}" == "system_benchmark" ]; then
+      echo "--- Run system benchmarks and report for package ${package_to_test}"
+
       elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
     fi
   elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
+      echo "--- Run system benchmarks and report for package ${package_to_test}"
       elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
   else
     if [[ "${SERVERLESS}" == "true" ]]; then
+        echo "--- Run tests for package ${d} in Serverless mode"
         # skip system tests
         elastic-package test asset -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
         elastic-package test static -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s  --test-coverage --coverage-format=generic
@@ -129,6 +141,8 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
 
         continue
     fi
+
+    echo "--- Run tests for package ${d}"
     # Run all tests
     # defer-cleanup is set to a short period to verify that the option is available
     elastic-package test -C "$d" -v --report-format xUnit --report-output file --defer-cleanup 1s --test-coverage --coverage-format=generic
