@@ -403,7 +403,7 @@ type resourcesOptions struct {
 	installedPackage bool
 }
 
-func (r *tester) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
+func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.profile,
 		PackageRootPath:    r.packageRootPath,
@@ -414,13 +414,14 @@ func (r *tester) createAgentOptions(policyName string) agentdeployer.FactoryOpti
 		PackageName:        r.testFolder.Package,
 		DataStream:         r.testFolder.DataStream,
 		PolicyName:         policyName,
+		DeployerName:       deployerName,
 		RunTearDown:        r.runTearDown,
 		RunTestsOnly:       r.runTestsOnly,
 		RunSetup:           r.runSetup,
 	}
 }
 
-func (r *tester) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
+func (r *tester) createServiceOptions(variantName, deployerName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:                r.profile,
 		PackageRootPath:        r.packageRootPath,
@@ -433,6 +434,7 @@ func (r *tester) createServiceOptions(variantName string) servicedeployer.Factor
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,
 		DeployIndependentAgent: r.runIndependentElasticAgent,
+		DeployerName:           deployerName,
 	}
 }
 
@@ -964,7 +966,7 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 }
 
 func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
-	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
+	serviceOptions := r.createServiceOptions(config.ServiceVariantName, config.Deployer)
 
 	var err error
 	var serviceStateData ServiceState
@@ -1109,10 +1111,13 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
-	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("No service deployer defined for this test")
-	} else if err != nil {
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
+	}
+	if serviceOptions.DeployerName == "" && (errors.Is(err, os.ErrNotExist) || service == nil) {
+		// If the service deployer is not defined, it means that the test does not require a service deployer.
+		// Just valid when the deployer setting is not defined in the test config.
+		logger.Debugf("No service deployer defined for this test")
 	}
 
 	// Reload test config with ctx variable substitution.
@@ -1353,6 +1358,9 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
+	if serviceDeployer == nil {
+		return nil, svcInfo, nil
+	}
 
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
@@ -1391,7 +1399,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 		return nil, agentdeployer.AgentInfo{}, err
 	}
 
-	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
+	agentOptions := r.createAgentOptions(agentInfo.Policy.Name, config.Deployer)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)

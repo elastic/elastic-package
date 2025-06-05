@@ -37,6 +37,8 @@ type testConfig struct {
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
 
+	Deployer string `config:"deployer"` // Name of the service deployer to use for this test.
+
 	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
 		Vars common.MapStr `config:"vars"`
