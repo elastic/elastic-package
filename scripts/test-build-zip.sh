@@ -3,7 +3,8 @@
 set -euxo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
+  echo "--- elastic-package cleanup"
 
   # Clean used resources
   for d in test/packages/*/*/; do
@@ -34,6 +35,7 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building zip package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
 

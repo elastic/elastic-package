@@ -8,7 +8,7 @@ set -euxo pipefail
 
 function cleanup() {
   r=$?
-  echo "--- Cleanup"
+  echo "--- elastic-package cleanup"
 
   # Dump stack logs
   elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"

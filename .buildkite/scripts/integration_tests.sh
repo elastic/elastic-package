@@ -101,15 +101,15 @@ add_bin_path
 if [[ "$SERVERLESS" == "false" ]]; then
     # If packages are tested with Serverless, these action are already performed
     # here: .buildkite/scripts/test_packages_with_serverless.sh
-    echo "--- install go"
+    echo "--- Install go"
     with_go
 
     if [[ "${TARGET}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
         # Not supported in Macos ARM
-        echo "--- install docker"
+        echo "--- Install docker"
         with_docker
 
-        echo "--- install docker-compose plugin"
+        echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
 fi
@@ -118,7 +118,7 @@ echo "--- install yq"
 with_yq
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
-    echo "--- install kubectl & kind"
+    echo "--- Install kubectl & kind"
     with_kubernetes
 fi
 

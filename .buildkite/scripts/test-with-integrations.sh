@@ -5,10 +5,10 @@ set -euo pipefail
 
 add_bin_path
 
-echo "--- install gh cli"
+echo "--- Install gh cli"
 with_github_cli
 
-echo "--- install jq"
+echo "--- Install jq"
 with_jq
 
 
@@ -87,7 +87,7 @@ create_integrations_pull_request() {
 
 update_dependency() {
     # it needs to set the Golang version from the integrations repository (.go-version file)
-    echo "--- install go for integrations repository :go:"
+    echo "--- Install go for integrations repository :go:"
     with_go
 
     echo "--- Updating go.mod and go.sum with ${GITHUB_PR_HEAD_SHA} :hammer_and_wrench:"
@@ -167,7 +167,7 @@ create_or_update_pull_request() {
 
     rm -rf "${temp_path}"
 
-    echo "--- adding comment into ${GITHUB_PR_BASE_REPO} pull request :memo:"
+    echo "--- Adding comment into ${GITHUB_PR_BASE_REPO} pull request :memo:"
     add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link "${integrations_pr_number}")"
 }
 
@@ -186,5 +186,5 @@ if [[ "${BUILDKITE_PULL_REQUEST}" == "false" ]]; then
     exit 1
 fi
 
-echo "--- creating or updating integrations pull request"
+echo "--- Creating or updating integrations pull request"
 create_or_update_pull_request

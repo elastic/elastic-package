@@ -8,7 +8,7 @@ set -euxo pipefail
 
 cleanup() {
   r=$?
-  echo "--- Cleaning up"
+  echo "--- elastic-package cleanup"
 
   # Dump stack logs
   elastic-package stack dump -v \

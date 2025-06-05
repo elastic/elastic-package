@@ -3,7 +3,8 @@
 set -euxo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
+  echo "--- elastic-package cleanup"
 
   # Dump stack logs
   elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
@@ -40,12 +41,14 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
 
+echo "--- Prepare Elastic stack"
 # Boot up the stack
 elastic-package stack up -d -v
 
@@ -60,6 +63,7 @@ for d in test/packages/*/*/; do
   package_name=$(yq -r '.name' "${d}/manifest.yml")
   package_version=$(yq -r '.version' "${d}/manifest.yml")
 
+  echo "--- Installing package: ${PACKAGE_NAME_VERSION}"
   elastic-package install -C "$d" -v
 
   # check that the package is installed
