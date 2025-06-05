@@ -8,6 +8,7 @@ set -euxo pipefail
 
 function cleanup() {
   r=$?
+  echo "--- Cleanup"
 
   # Dump stack logs
   elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
@@ -94,6 +95,7 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 stack_args=$(stack_version_args) # --version <version>
 
+echo "--- Prepare Elastic stack"
 # Update the stack
 elastic-package stack update -v ${stack_args}
 
@@ -108,6 +110,8 @@ elastic-package stack status
 
 # Run package tests
 for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+  echo "--- Check build output: ${d}"
   check_build_output "$d"
+  echo "--- Check expected errors: ${d}"
   check_expected_errors "$d"
 done
