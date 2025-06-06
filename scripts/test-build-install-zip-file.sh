@@ -4,18 +4,20 @@ set -euxo pipefail
 
 cleanup() {
   local r=$?
-  echo "--- elastic-package cleanup"
+  echo "~~~ elastic-package cleanup"
 
   local output_path="build/elastic-stack-dump/install-zip"
   if [ ${USE_SHELLINIT} -eq 1 ]; then
       output_path="${output_path}-shellinit"
   fi
 
-  # Dump stack logs
-  elastic-package stack dump -v --output ${output_path}
+  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
+    # Dump stack logs
+    elastic-package stack dump -v --output ${output_path}
 
-  # Take down the stack
-  elastic-package stack down -v
+    # Take down the stack
+    elastic-package stack down -v
+  fi
 
   for d in test/packages/*/*/; do
     elastic-package clean -C "$d" -v
@@ -91,11 +93,13 @@ if [ "${STACK_VERSION}" != "default" ]; then
   ARG_VERSION="--version ${STACK_VERSION}"
 fi
 
+ELASTIC_PACKAGE_STARTED=0
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
 # Boot up the stack
 elastic-package stack up -d -v ${ARG_VERSION}
+ELASTIC_PACKAGE_STARTED=1
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH

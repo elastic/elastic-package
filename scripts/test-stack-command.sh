@@ -9,13 +9,15 @@ ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
 
 cleanup() {
   local r=$?
-  echo "--- elastic-package cleanup"
+  echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
+  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
+    # Dump stack logs
+    elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
 
-  # Take down the stack
-  elastic-package stack down -v
+    # Take down the stack
+    elastic-package stack down -v
+  fi
 
   if [ "${APM_SERVER_ENABLED}" = true ]; then
     elastic-package profiles delete with-apm-server
@@ -101,11 +103,13 @@ if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
     echo "Override elastic-agent docker image: ${ELASTIC_AGENT_IMAGE_REF_OVERRIDE}"
 fi
 
+ELASTIC_PACKAGE_STARTED=0
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
 # Boot up the stack
 elastic-package stack up -d -v ${ARG_VERSION}
+ELASTIC_PACKAGE_STARTED=1
 
 # Verify it's accessible
 eval "$(elastic-package stack shellinit)"
