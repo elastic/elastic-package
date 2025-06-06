@@ -5,7 +5,11 @@ set -euxo pipefail
 cleanup() {
     local r=$?
     local container_id=""
-    local agent_ids
+    local agent_ids=""
+    if [ "${r}" -ne 0 ]; then
+      # Ensure that the group where the failure happened is opened.
+      echo "^^^ +++"
+    fi
 
     echo "~~~ elastic-package cleanup"
 
