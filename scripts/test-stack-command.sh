@@ -15,10 +15,8 @@ cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
-    # Dump stack logs
-    elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
-  fi
+  # Dump stack logs
+  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}" || true
 
   # Take down the stack
   elastic-package stack down -v
@@ -107,13 +105,11 @@ if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
     echo "Override elastic-agent docker image: ${ELASTIC_AGENT_IMAGE_REF_OVERRIDE}"
 fi
 
-ELASTIC_PACKAGE_STARTED=0
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
 # Boot up the stack
 elastic-package stack up -d -v ${ARG_VERSION}
-ELASTIC_PACKAGE_STARTED=1
 
 # Verify it's accessible
 eval "$(elastic-package stack shellinit)"

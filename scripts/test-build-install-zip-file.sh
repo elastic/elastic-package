@@ -15,10 +15,8 @@ cleanup() {
       output_path="${output_path}-shellinit"
   fi
 
-  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
-    # Dump stack logs
-    elastic-package stack dump -v --output ${output_path}
-  fi
+  # Dump stack logs
+  elastic-package stack dump -v --output ${output_path} || true
 
   # Take down the stack
   elastic-package stack down -v
@@ -97,13 +95,11 @@ if [ "${STACK_VERSION}" != "default" ]; then
   ARG_VERSION="--version ${STACK_VERSION}"
 fi
 
-ELASTIC_PACKAGE_STARTED=0
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
 # Boot up the stack
 elastic-package stack up -d -v ${ARG_VERSION}
-ELASTIC_PACKAGE_STARTED=1
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
