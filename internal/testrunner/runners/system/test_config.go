@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,7 +25,10 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
+var (
+	systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
+	allowedDeployerNames        = []string{"docker", "k8s", "tf"}
+)
 
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
@@ -129,6 +133,11 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 
 	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
 		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	// Not included in package-spec validation for deployer name
+	if c.Deployer != "" && !slices.Contains(allowedDeployerNames, c.Deployer) {
+		return nil, fmt.Errorf("invalid deployer name %q in system test configuration file %q, allowed values are: %s", c.Deployer, configFilePath, strings.Join(allowedDeployerNames, ", "))
 	}
 
 	return &c, nil
