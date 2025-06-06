@@ -8,6 +8,9 @@ set -euxo pipefail
 
 cleanup() {
   r=$?
+  if [ "${r}" -ne 0 ]; then
+    echo "^^^ +++"
+  fi
   echo "~~~ elastic-package cleanup"
 
   if [[ "${SERVERLESS}" == "true" || "${ELASTIC_PACKAGE_STARTED}" == "1" ]]; then
