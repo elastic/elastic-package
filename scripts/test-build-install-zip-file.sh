@@ -4,6 +4,11 @@ set -euxo pipefail
 
 cleanup() {
   local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   local output_path="build/elastic-stack-dump/install-zip"
   if [ ${USE_SHELLINIT} -eq 1 ]; then
@@ -11,7 +16,7 @@ cleanup() {
   fi
 
   # Dump stack logs
-  elastic-package stack dump -v --output ${output_path}
+  elastic-package stack dump -v --output ${output_path} || true
 
   # Take down the stack
   elastic-package stack down -v

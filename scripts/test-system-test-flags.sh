@@ -5,10 +5,16 @@ set -euxo pipefail
 cleanup() {
     local r=$?
     local container_id=""
-    local agent_ids
+    local agent_ids=""
+    if [ "${r}" -ne 0 ]; then
+      # Ensure that the group where the failure happened is opened.
+      echo "^^^ +++"
+    fi
+
+    echo "~~~ elastic-package cleanup"
 
     # Dump stack logs
-    elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+    elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags ||true
 
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")

@@ -3,7 +3,12 @@
 set -euxo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   # Clean used resources
   for d in test/packages/*/*/; do
@@ -34,6 +39,7 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building zip package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
 
