@@ -64,8 +64,8 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  package_name=$(cat "${d}/manifest.yml" | yq -r .name)
-  package_version=$(cat "${d}/manifest.yml" | yq -r .version)
+  package_name=$(yq -r '.name' "{d}/manifest.yml")
+  package_version=$(yq -r '.version' "{d}/manifest.yml")
   PACKAGE_NAME_VERSION="${package_name}-${package_version}"
 
   echo "--- Installing package: ${PACKAGE_NAME_VERSION}"
