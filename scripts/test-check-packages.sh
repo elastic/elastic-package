@@ -35,7 +35,7 @@ cleanup() {
   # started to test all packages. In our CI, this Elastic serverless stack is started 
   # at the beginning of the pipeline and must be running for all packages without stopping it between
   # packages.
-  if [[ "$SERVERLESS" != "true" && "${ELASTIC_PACKAGE_STARTED}" == 1 ]]; then
+  if [[ "$SERVERLESS" != "true" ]]; then
       # Take down the stack
       elastic-package stack down -v
   fi

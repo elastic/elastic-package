@@ -13,10 +13,10 @@ cleanup() {
   if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
     # Dump stack logs
     elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
-
-    # Take down the stack
-    elastic-package stack down -v
   fi
+
+  # Take down the stack
+  elastic-package stack down -v
 
   # Clean used resources
   for d in test/packages/*/*/; do

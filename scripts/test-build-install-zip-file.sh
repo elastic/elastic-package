@@ -18,10 +18,10 @@ cleanup() {
   if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
     # Dump stack logs
     elastic-package stack dump -v --output ${output_path}
-
-    # Take down the stack
-    elastic-package stack down -v
   fi
+
+  # Take down the stack
+  elastic-package stack down -v
 
   for d in test/packages/*/*/; do
     elastic-package clean -C "$d" -v

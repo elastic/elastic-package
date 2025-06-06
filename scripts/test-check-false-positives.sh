@@ -17,10 +17,10 @@ function cleanup() {
   if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
     # Dump stack logs
     elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
-
-    # Take down the stack
-    elastic-package stack down -v
   fi
+
+  # Take down the stack
+  elastic-package stack down -v
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
