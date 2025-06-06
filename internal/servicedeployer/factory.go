@@ -53,6 +53,8 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("can't find any valid service deployer: %w", err)
 	}
+	// It's allowed to not define a service deployer in system tests
+	// if deployerName is not defined in the test configuration.
 	if serviceDeployerName == "" {
 		return nil, nil
 	}
@@ -166,7 +168,7 @@ func FindAllServiceDeployers(devDeployPath string) ([]string, error) {
 func findServiceDeployer(devDeployPath, expectedDeployer string) (string, error) {
 	names, err := FindAllServiceDeployers(devDeployPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to find service deployers in \"%s\": %w", devDeployPath, err)
+		return "", fmt.Errorf("failed to find service deployers in %q: %w", devDeployPath, err)
 	}
 	deployers := slices.DeleteFunc(names, func(name string) bool {
 		return expectedDeployer != "" && name != expectedDeployer
@@ -181,9 +183,10 @@ func findServiceDeployer(devDeployPath, expectedDeployer string) (string, error)
 	}
 
 	// If "_dev/deploy" directory exists, but it is empty. It does not have any service deployer,
+	// package-spec does not disallow to be empty this folder.
 	if len(deployers) == 0 {
 		return "", nil
 	}
 
-	return "", fmt.Errorf("expected to find only one service deployer in \"%s\" (found %d service deployers)", devDeployPath, len(deployers))
+	return "", fmt.Errorf("expected to find only one service deployer in %q (found %d service deployers)", devDeployPath, len(deployers))
 }
