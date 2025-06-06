@@ -9,6 +9,7 @@ set -euxo pipefail
 cleanup() {
   r=$?
   if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
     echo "^^^ +++"
   fi
   echo "~~~ elastic-package cleanup"
@@ -97,9 +98,6 @@ if [[ "${SERVERLESS}" != "true" ]]; then
   elastic-package stack up -d -v ${stack_args}
 
   ELASTIC_PACKAGE_STARTED=1
-  if [ "${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}" == "parallel/nginx" ]; then
-    ls -l not_exist_file
-  fi
 
   elastic-package stack status
 fi

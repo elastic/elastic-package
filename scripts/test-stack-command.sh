@@ -9,6 +9,10 @@ ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
 
 cleanup() {
   local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
   echo "~~~ elastic-package cleanup"
 
   if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
