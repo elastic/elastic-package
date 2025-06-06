@@ -4,7 +4,11 @@ set -euxo pipefail
 
 cleanup() {
   local r=$?
-  echo "--- elastic-package cleanup"
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   # Clean used resources
   for d in test/packages/*/*/; do
