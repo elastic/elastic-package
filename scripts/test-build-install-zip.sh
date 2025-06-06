@@ -10,10 +10,8 @@ cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
-    # Dump stack logs
-    elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
-  fi
+  # Dump stack logs
+  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip || true
 
   # Take down the stack
   elastic-package stack down -v
@@ -39,7 +37,6 @@ ELASTIC_PACKAGE_SIGNER_PASSPHRASE=$(cat "$OLDPWD/scripts/gpg-pass.txt")
 export ELASTIC_PACKAGE_SIGNER_PASSPHRASE
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
-ELASTIC_PACKAGE_STARTED=0
 
 go run ./scripts/gpgkey
 
@@ -58,7 +55,6 @@ rm -r build/packages/*/
 echo "--- Prepare Elastic stack"
 # Boot up the stack
 elastic-package stack up -d -v
-ELASTIC_PACKAGE_STARTED=1
 
 eval "$(elastic-package stack shellinit)"
 

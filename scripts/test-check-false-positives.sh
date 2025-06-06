@@ -14,10 +14,8 @@ function cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
-    # Dump stack logs
-    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
-  fi
+  # Dump stack logs
+  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}" || true
 
   # Take down the stack
   elastic-package stack down -v
@@ -98,7 +96,6 @@ trap cleanup EXIT
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
-ELASTIC_PACKAGE_STARTED=0
 
 stack_args=$(stack_version_args) # --version <version>
 
@@ -113,7 +110,6 @@ stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 # Boot up the stack
 elastic-package stack up -d -v ${stack_args}
 
-ELASTIC_PACKAGE_STARTED=1
 elastic-package stack status
 
 # Run package tests

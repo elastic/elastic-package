@@ -14,11 +14,9 @@ cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  if [[ "${SERVERLESS}" == "true" || "${ELASTIC_PACKAGE_STARTED}" == "1" ]]; then
-    # Dump stack logs
-    elastic-package stack dump -v \
-        --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
-  fi
+  # Dump stack logs
+  elastic-package stack dump -v \
+      --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}" || true
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
@@ -82,7 +80,6 @@ fi
 # In case it is tested with Elastic serverless, there should be just one Elastic stack
 # started to test all packages. In our CI, this Elastic serverless stack is started 
 # at the beginning of the pipeline and must be running for all packages.
-ELASTIC_PACKAGE_STARTED=0
 if [[ "${SERVERLESS}" != "true" ]]; then
   echo "--- Prepare Elastic stack"
   stack_args=$(stack_version_args) # --version <version>
@@ -96,8 +93,6 @@ if [[ "${SERVERLESS}" != "true" ]]; then
 
   # Boot up the stack
   elastic-package stack up -d -v ${stack_args}
-
-  ELASTIC_PACKAGE_STARTED=1
 
   elastic-package stack status
 fi
