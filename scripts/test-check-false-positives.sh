@@ -8,13 +8,15 @@ set -euxo pipefail
 
 function cleanup() {
   r=$?
-  echo "--- elastic-package cleanup"
+  echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
+  if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
+    # Dump stack logs
+    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
 
-  # Take down the stack
-  elastic-package stack down -v
+    # Take down the stack
+    elastic-package stack down -v
+  fi
 
   # Clean used resources
   for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
@@ -92,6 +94,7 @@ trap cleanup EXIT
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
+ELASTIC_PACKAGE_STARTED=0
 
 stack_args=$(stack_version_args) # --version <version>
 
@@ -106,6 +109,7 @@ stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
 # Boot up the stack
 elastic-package stack up -d -v ${stack_args}
 
+ELASTIC_PACKAGE_STARTED=1
 elastic-package stack status
 
 # Run package tests

@@ -7,10 +7,12 @@ cleanup() {
     local container_id=""
     local agent_ids
 
-    echo "--- elastic-package cleanup"
+    echo "~~~ elastic-package cleanup"
 
     # Dump stack logs
-    elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+    if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
+        elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+    fi
 
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
@@ -281,10 +283,12 @@ SERVICE_CONTAINER_NAME=""
 
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
+ELASTIC_PACKAGE_STARTED=0
 
 # Run default stack version
 echo "--- Start Elastic stack"
 elastic-package stack up -v -d
+ELASTIC_PACKAGE_STARTED=1
 
 elastic-package stack status
 
