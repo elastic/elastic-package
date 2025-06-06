@@ -18,10 +18,10 @@ cleanup() {
   if [ "${ELASTIC_PACKAGE_STARTED}" -eq 1 ]; then
     # Dump stack logs
     elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
-
-    # Take down the stack
-    elastic-package stack down -v
   fi
+
+  # Take down the stack
+  elastic-package stack down -v
 
   if [ "${APM_SERVER_ENABLED}" = true ]; then
     elastic-package profiles delete with-apm-server
