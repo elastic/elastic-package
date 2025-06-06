@@ -126,12 +126,12 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
         --threshold 1 --report-output-path="${PWD}/build/benchreport"
     fi
     if [ "${package_to_test}" == "system_benchmark" ]; then
-      echo "--- Run system benchmarks and report for package ${package_to_test}"
+      echo "--- Run system benchmarks for package ${package_to_test}"
 
       elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
     fi
   elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
-      echo "--- Run system benchmarks and report for package ${package_to_test}"
+      echo "--- Run system benchmarks for package ${package_to_test}"
       elastic-package benchmark system -C "$d" --benchmark logs-benchmark -v --defer-cleanup 1s
   else
     if [[ "${SERVERLESS}" == "true" ]]; then
