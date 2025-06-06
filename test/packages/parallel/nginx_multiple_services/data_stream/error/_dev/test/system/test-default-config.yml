@@ -1,4 +1,5 @@
 vars: ~
+service: nginx
 data_stream:
   vars:
     paths:

@@ -1,4 +1,5 @@
 deployer: docker
+service: nginx
 vars: ~
 data_stream:
   vars:
