@@ -23,6 +23,16 @@ testype() {
   basename "$(dirname "$1")"
 }
 
+stackVersion() {
+  curl -s \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+    -H 'content-type: application/json' \
+    -H 'kbn-xsrf: true' \
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | yq -r '.version.number'
+}
+
+
 trap cleanup EXIT
 
 OLDPWD=$PWD
@@ -51,15 +61,21 @@ elastic-package stack up -d -v
 
 eval "$(elastic-package stack shellinit)"
 
+stack_version=$(stackVersion)
+
 # Install packages from working copy
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  package_name=$(cat "${d}/manifest.yml" | yq -r .name)
-  package_version=$(cat "${d}/manifest.yml" | yq -r .version)
+  package_name=$(yq -r .name "${d}/manifest.yml")
+  package_version=$(yq -r .version "${d}/manifest.yml")
+
   PACKAGE_NAME_VERSION="${package_name}-${package_version}"
+  if [[ "${stack_version}" == 9 ]]; then
+    PACKAGE_NAME_VERSION="${package_name}/${package_version}"
+  fi
 
   elastic-package install -C "$d" -v
 

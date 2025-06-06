@@ -34,6 +34,10 @@ installAndVerifyPackage() {
   local PACKAGE_NAME_VERSION
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
+  if [[ ! "${PACKAGE_NAME_VERSION}" =~ ^9 ]]; then
+    PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
+  fi
+
   elastic-package install -v --zip "${zipFile}"
 
   # check that the package is installed
@@ -43,6 +47,15 @@ installAndVerifyPackage() {
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
     -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | grep -q '"status":"installed"'
+}
+
+stackVersion() {
+  curl -s \
+    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
+    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
+    -H 'content-type: application/json' \
+    -H 'kbn-xsrf: true' \
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | yq -r '.version.number'
 }
 
 usage() {
@@ -115,6 +128,7 @@ else
   export ELASTIC_PACKAGE_CA_CERT=${HOME}/.elastic-package/profiles/default/certs/ca-cert.pem
 fi
 
+stack_version=$(stackVersion)
 for zipFile in build/packages/*.zip; do
-  installAndVerifyPackage "${zipFile}"
+  installAndVerifyPackage "${zipFile}" "${stack_version}"
 done
