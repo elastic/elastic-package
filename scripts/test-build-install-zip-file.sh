@@ -55,7 +55,7 @@ stackVersion() {
     --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
-    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | yq -r '.version.number'
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/status" | yq -r '.version.number'
 }
 
 usage() {

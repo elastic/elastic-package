@@ -29,7 +29,7 @@ stackVersion() {
     --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
-    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | yq -r '.version.number'
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/status" | yq -r '.version.number'
 }
 
 
@@ -69,8 +69,8 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  package_name=$(yq -r .name "${d}/manifest.yml")
-  package_version=$(yq -r .version "${d}/manifest.yml")
+  package_name=$(yq -r '.name' "${d}/manifest.yml")
+  package_version=$(yq -r '.version' "${d}/manifest.yml")
 
   PACKAGE_NAME_VERSION="${package_name}-${package_version}"
   if [[ "${stack_version}" == 9 ]]; then
