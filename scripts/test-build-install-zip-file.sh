@@ -31,14 +31,13 @@ trap cleanup EXIT
 
 installAndVerifyPackage() {
   local zipFile="$1"
-  local stack_version="$2"
 
   local PACKAGE_NAME_VERSION=""
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
-  if [[ "${stack_version}" =~ ^9 ]]; then
-    PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
-  fi
+  # Replace dash with a slash in the file name to match the API endpoint format
+  # e.g. "apache-999.999.999" becomes "apache/999.999.999"
+  PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
 
   elastic-package install -v --zip "${zipFile}"
 
@@ -49,15 +48,6 @@ installAndVerifyPackage() {
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
     -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | grep -q '"status":"installed"'
-}
-
-stackVersion() {
-  curl -s \
-    -u "${ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME}:${ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD}" \
-    --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
-    -H 'content-type: application/json' \
-    -H 'kbn-xsrf: true' \
-    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/status" | yq -r '.version.number'
 }
 
 usage() {
@@ -130,7 +120,6 @@ else
   export ELASTIC_PACKAGE_CA_CERT=${HOME}/.elastic-package/profiles/default/certs/ca-cert.pem
 fi
 
-stack_version=$(stackVersion)
 for zipFile in build/packages/*.zip; do
-  installAndVerifyPackage "${zipFile}" "${stack_version}"
+  installAndVerifyPackage "${zipFile}"
 done
