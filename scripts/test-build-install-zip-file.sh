@@ -31,10 +31,12 @@ trap cleanup EXIT
 
 installAndVerifyPackage() {
   local zipFile="$1"
-  local PACKAGE_NAME_VERSION
+  local stack_version="$2"
+
+  local PACKAGE_NAME_VERSION=""
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
-  if [[ "${PACKAGE_NAME_VERSION}" =~ ^9 ]]; then
+  if [[ "${stack_version}" =~ ^9 ]]; then
     PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
   fi
 
