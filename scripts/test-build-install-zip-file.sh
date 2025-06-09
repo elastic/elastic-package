@@ -34,7 +34,7 @@ installAndVerifyPackage() {
   local PACKAGE_NAME_VERSION
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
 
-  if [[ ! "${PACKAGE_NAME_VERSION}" =~ ^9 ]]; then
+  if [[ "${PACKAGE_NAME_VERSION}" =~ ^9 ]]; then
     PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
   fi
 

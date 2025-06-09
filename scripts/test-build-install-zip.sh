@@ -73,7 +73,7 @@ for d in test/packages/*/*/; do
   package_version=$(yq -r '.version' "${d}/manifest.yml")
 
   PACKAGE_NAME_VERSION="${package_name}-${package_version}"
-  if [[ "${stack_version}" == 9 ]]; then
+  if [[ "${stack_version}" =~ ^9 ]]; then
     PACKAGE_NAME_VERSION="${package_name}/${package_version}"
   fi
 
