@@ -76,6 +76,15 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		}
 	}
 
+	var logsPath string
+	if options.Output != "" {
+		logsPath = filepath.Join(options.Output, "logs")
+		err = os.MkdirAll(logsPath, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
+		}
+	}
+
 	var results []DumpResult
 	var containerErrors error
 	for _, serviceName := range services {
@@ -100,13 +109,6 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 		result := DumpResult{
 			ServiceName: serviceName,
-		}
-
-		logsPath := filepath.Join(options.Output, "logs")
-		err = os.MkdirAll(logsPath, 0755)
-		if err != nil {
-			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err))
-			continue
 		}
 
 		logPath, err := writeLogFiles(logsPath, serviceName, content)
