@@ -1,6 +1,5 @@
 #!/bin/bash
-
-set -euxo pipefail
+set -euo pipefail
 
 cleanup() {
   local r=$?
@@ -36,7 +35,7 @@ go run ./scripts/gpgkey
 
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
   echo "--- Building zip package: ${d}"
