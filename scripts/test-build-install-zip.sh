@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euxo pipefail
+set -euo pipefail
 
 cleanup() {
   local r=$?
@@ -42,7 +42,7 @@ go run ./scripts/gpgkey
 
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
   echo "--- Building package: ${d}"
@@ -61,13 +61,13 @@ eval "$(elastic-package stack shellinit)"
 # Install packages from working copy
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
   package_name=$(yq -r '.name' "${d}/manifest.yml")
   package_version=$(yq -r '.version' "${d}/manifest.yml")
 
-  echo "--- Installing package: ${PACKAGE_NAME_VERSION}"
+  echo "--- Installing package: ${package_name} (${package_version})"
   elastic-package install -C "$d" -v
 
   # check that the package is installed
