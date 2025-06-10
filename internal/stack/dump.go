@@ -6,6 +6,7 @@ package stack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -75,7 +76,17 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		}
 	}
 
+	var logsPath string
+	if options.Output != "" {
+		logsPath = filepath.Join(options.Output, "logs")
+		err = os.MkdirAll(logsPath, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
+		}
+	}
+
 	var results []DumpResult
+	var containerErrors error
 	for _, serviceName := range services {
 		if len(options.Services) > 0 && !slices.Contains(options.Services, serviceName) {
 			continue
@@ -85,7 +96,8 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)
 		if err != nil {
-			return nil, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
+			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err))
+			continue
 		}
 		if options.Output == "" {
 			results = append(results, DumpResult{
@@ -99,15 +111,10 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 			ServiceName: serviceName,
 		}
 
-		logsPath := filepath.Join(options.Output, "logs")
-		err = os.MkdirAll(logsPath, 0755)
-		if err != nil {
-			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
-		}
-
 		logPath, err := writeLogFiles(logsPath, serviceName, content)
 		if err != nil {
-			return nil, fmt.Errorf("can't write log files for service %q: %w", serviceName, err)
+			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't write log files for service %q: %w", serviceName, err))
+			continue
 		}
 		result.LogsFile = logPath
 
@@ -115,12 +122,17 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		case elasticAgentService, fleetServerService:
 			logPath, err := copyDockerInternalLogs(serviceName, logsPath, options.Profile)
 			if err != nil {
-				return nil, fmt.Errorf("can't copy internal logs (service: %s): %w", serviceName, err)
+				containerErrors = errors.Join(containerErrors, fmt.Errorf("can't copy internal logs for service %q: %w", serviceName, err))
+				continue
 			}
 			result.InternalLogsDir = logPath
 		}
 
 		results = append(results, result)
+	}
+
+	if containerErrors != nil {
+		return nil, fmt.Errorf("failed to dump stack logs: %w", containerErrors)
 	}
 
 	return results, nil
