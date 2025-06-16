@@ -35,7 +35,7 @@ jobs:
           echo "UPDATECLI_ACTION=apply" >> $GITHUB_ENV
 
       - name: Install Updatecli in the runner
-        uses: updatecli/updatecli-action@307ce72e224b82157cc31c78828f168b8e55d47d #v2.84.0
+        uses: updatecli/updatecli-action@1536e372d5f433385f11b5b133b23a9833c510ce #v2.86.0
 
       - name: Update default stack version
         # --experimental needed for commitusingapi option.
