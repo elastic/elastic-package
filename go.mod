@@ -18,7 +18,7 @@ require (
 	github.com/elastic/go-ucfg v0.8.8
 	github.com/elastic/package-spec/v3 v3.4.0
 	github.com/fatih/color v1.18.0
-	github.com/go-viper/mapstructure/v2 v2.2.1
+	github.com/go-viper/mapstructure/v2 v2.3.0
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.1.0
