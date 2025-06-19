@@ -69,7 +69,7 @@ or the data stream's level:
 
 `<service deployer>` - a name of the supported service deployer:
 * `docker` - Docker Compose
-* `agent` - Custom `elastic-agent` with Docker Compose
+* `agent` - (Deprecated) Custom `elastic-agent` with Docker Compose
 * `k8s` - Kubernetes
 * `tf` - Terraform
 
@@ -109,6 +109,63 @@ services:
 volumes:
   mysqldata:
 ```
+
+#### Run terraform along with the Docker Compose service deployer
+
+This same service deployer can be used along with Terraform.
+There is an example in the [test package `nginx_multiple_services`](../../test/packages/parallel/nginx_multiple_services/).
+
+For that, you need to add another `terraform` service container in the docker-compose scenario as follows:
+```yaml
+version: '2.3'
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 80
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/var/log/nginx
+    depends_on:
+      terraform:
+        condition: service_healthy
+  terraform:
+    tty: true
+    stop_grace_period: 5m
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+    environment:
+      - TF_VAR_TEST_RUN_ID=${TEST_RUN_ID:-detached}
+      - TF_VAR_CREATED_DATE=${CREATED_DATE:-unknown}
+      - TF_VAR_BRANCH=${BRANCH_NAME_LOWER_CASE:-unknown}
+      - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
+      - TF_VAR_ENVIRONMENT=${ENVIRONMENT:-unknown}
+      - TF_VAR_REPO=${REPO:-unknown}
+    volumes:
+      - ./tf/:/stage/
+      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
+```
+
+Two other files required are to define this `terraform` service:
+- Dockerfile to build the terraform container.
+- Shellscript to trigger the terraform commands.
+
+Those files are available in the [test package](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/)
+([Dockerfile.terraform](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/Dockerfile.terraform) and
+[terraform.run.sh](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/terraform.run.sh))
+and they could be used as a basis for other packages.
+
+Along with that docker-compose definition, it is required to add the terraform files (`*.tf`) within the `docker` folder.
+They can be placed in a `tf` folder for convenience.
+
+This terraform container must be used as a helper for the main service defined in the docker-compose to create the required resources for the main service (e.g. `nginx` in the example above).
+In this example, Terraform creates a new file in `/tmp/service_logs` and it is used by the `nginx` service.
+
+Currently, there is no support to use outputs of terraform via this service deployer to set parameters in the test configuration file (variables),
+as it is available in the terraform service deployer.
+
 
 ### Agent service deployer
 
@@ -579,6 +636,7 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 | `Port` | int | Alias for `Ports[0]`. Provided as a convenience. |
 | `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
 | `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
+| `TEST_RUN_ID` | string | Unique identifier for the test run, allows to distinguish each run. Provided as a convenience. |
 
 Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{{` and `}}}` delimiters, per Handlebars syntax.
 
