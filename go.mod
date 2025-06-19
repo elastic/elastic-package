@@ -37,7 +37,7 @@ require (
 	golang.org/x/tools v0.34.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
-	gotest.tools/gotestsum v1.12.2
+	gotest.tools/gotestsum v1.12.3
 	helm.sh/helm/v3 v3.18.3
 	honnef.co/go/tools v0.6.1
 	k8s.io/apimachinery v0.33.2
