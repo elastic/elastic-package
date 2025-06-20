@@ -127,7 +127,7 @@ func findAgentDeployers(devDeployPath, expectedDeployer string) ([]string, error
 	// It is allowed to have no agent deployers
 	// if a specific service deployer is expected, it will be returned an error when setting up the service
 	if len(deployers) <= 1 {
-		return names, nil
+		return deployers, nil
 	}
 
 	// If we have more than one agent deployer, we expect to find only one.
