@@ -29,3 +29,10 @@ Access logs collects the nginx access logs.
 
 {{fields "access"}}
 
+### Error Logs
+
+Error logs collects the nginx error logs.
+
+{{event "error"}}
+
+{{fields "error"}}
