@@ -96,16 +96,14 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
 	}
 
-	agentDeployerNames, err := findAgentDeployers(devDeployPath, options.DeployerName)
-	if errors.Is(err, os.ErrNotExist) || len(agentDeployerNames) == 0 {
+	agentDeployerName, err := findAgentDeployer(devDeployPath, options.DeployerName)
+	if errors.Is(err, os.ErrNotExist) || agentDeployerName == "" {
 		logger.Debugf("Not agent deployer found, using default one")
 		return "default", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to find agent deployer: %w", err)
 	}
-	agentDeployerName := agentDeployerNames[0]
-
 	// if package defines `_dev/deploy/docker` or `_dev/deploy/tf` folder to start their services,
 	// it should be using the default agent deployer`
 	if agentDeployerName == "docker" || agentDeployerName == "tf" {
@@ -115,25 +113,28 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	return agentDeployerName, nil
 }
 
-func findAgentDeployers(devDeployPath, expectedDeployer string) ([]string, error) {
+func findAgentDeployer(devDeployPath, expectedDeployer string) (string, error) {
 	names, err := servicedeployer.FindAllServiceDeployers(devDeployPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find service deployers in \"%s\": %w", devDeployPath, err)
+		return "", fmt.Errorf("failed to find service deployers in \"%s\": %w", devDeployPath, err)
 	}
 	deployers := slices.DeleteFunc(names, func(name string) bool {
 		return expectedDeployer != "" && name != expectedDeployer
 	})
 
-	// It is allowed to have no agent deployers
-	// if a specific service deployer is expected, it will be returned an error when setting up the service
-	if len(deployers) <= 1 {
-		return deployers, nil
-	}
-
 	// If we have more than one agent deployer, we expect to find only one.
-	if expectedDeployer != "" {
-		return nil, fmt.Errorf("expected to find %q agent deployer in %q", expectedDeployer, devDeployPath)
+	if expectedDeployer != "" && len(deployers) != 1 {
+		return "", fmt.Errorf("expected to find %q agent deployer in %q", expectedDeployer, devDeployPath)
 	}
 
-	return nil, fmt.Errorf("expected to find only one agent deployer in \"%s\"", devDeployPath)
+	// It is allowed to have no agent deployers
+	if len(deployers) == 0 {
+		return "", nil
+	}
+
+	if len(deployers) == 1 {
+		return deployers[0], nil
+	}
+
+	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\"", devDeployPath)
 }
