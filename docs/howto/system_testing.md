@@ -387,6 +387,45 @@ wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/main/script
 elastic-package test system --data-streams pod -v # start system tests for the "pod" data stream
 ```
 
+
+### Defining more than one service deployer
+
+Since `elastic-package` v0.113.0, it is allowed to define more than one service deployer in each `_dev/deploy` folder. And each system test
+configuration can choose which service deployer to use among them.
+For instance, a data stream could contain a definition for Docker Compose and a Terraform service deployers.
+
+First, `elastic-package` looks for the corresponding `_dev/folder` to use. It will follow this order, and the first one that exists has
+preference:
+- Deploy folder at Data Stream level: `packages/<package_name>/data_stream/<data_stream_name>/_dev/deploy/`
+- Deploy folder at Package level: `packages/<package_name>/data_stream/<data_stream_name>/_dev/deploy/`
+
+If there is more than one service deployer defined in the deploy folder found, the system test configuration files of the
+required tests must set the `deployer` field to choose which service deployer configure and start for that given test. If that setting
+is not defined and there are more than one service edployer, `elastic-package` will fail with an error since it is not supported
+to run several service deployers at the same time.
+
+Example of system test configuration including `deployer` setting:
+
+```yaml
+deployer: docker
+service: nginx
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/access.log*"
+```
+
+In this example, `elastic-package` looks for a Docker Compose service deployer in the given `_dev/deploy` folder found previously.
+
+Each service deployer folder keep the same format and files as defined in previous sections.
+
+For instance, this allows to test one data stream using different inputs, each input with a different service deployer. One of them could be using
+the Docker Compose service deployer, and another input could be using terraform to create resources in AWS.
+
+You can find an example of a package using this in this [test package](../../test/packages/parallel/nginx_multiple_services/).
+
+
 ### Test case definition
 
 Next, we must define at least one configuration for each data stream that we
@@ -421,7 +460,11 @@ for system tests.
 | agent.provisioning_script.language | string | | Programming language of the provisioning script. Default: `sh`. |
 | agent.provisioning_script.contents | string | | Code to run as a provisioning script to customize the system where the agent will be run. |
 | agent.user | string | | User that runs the Elastic Agent process. |
+| assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
+| assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
+| assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
+| deployer | string|  | Name of the service deployer to setup for this system test. Available values: docker, tf or k8s. |
 | ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
 | numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
@@ -434,9 +477,6 @@ for system tests.
 | skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
-| assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
-| assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
-| assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
