@@ -97,7 +97,7 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	}
 
 	agentDeployerName, err := findAgentDeployer(devDeployPath, options.DeployerName)
-	if errors.Is(err, os.ErrNotExist) || agentDeployerName == "" {
+	if errors.Is(err, os.ErrNotExist) || (err == nil && agentDeployerName == "") {
 		logger.Debugf("Not agent deployer found, using default one")
 		return "default", nil
 	}
@@ -136,5 +136,5 @@ func findAgentDeployer(devDeployPath, expectedDeployer string) (string, error) {
 		return deployers[0], nil
 	}
 
-	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\"", devDeployPath)
+	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\" (found %d deployers)", devDeployPath, len(deployers))
 }
