@@ -1,0 +1,26 @@
+FROM --platform=linux/amd64 ubuntu:24.04
+ENV TERRAFORM_VERSION=1.9.6
+
+# Based on this Dockerfile:
+# https://github.com/elastic/elastic-package/blob/d8e4300715af43b3b792d25960d75c3382948dcd/internal/servicedeployer/_static/Dockerfile.terraform_deployer
+# This dockerfile just installs terraform and sets up the environment to run terraform commands.
+
+RUN apt-get -qq update \
+  && apt-get install -yq curl apt-transport-https ca-certificates gnupg \
+  && apt-get clean
+
+RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg \
+  && echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" | tee /etc/apt/sources.list.d/hashicorp.list \
+  && apt-get update -qq \
+  && apt-get install -yq terraform=${TERRAFORM_VERSION}-1 \
+  && apt-get clean
+
+HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
+
+ENV TF_IN_AUTOMATION=true
+ENV TF_CLI_ARGS="-no-color"
+ADD terraform.run.sh /run.sh
+RUN chmod +x /run.sh
+WORKDIR /workspace
+
+ENTRYPOINT exec /run.sh

@@ -80,6 +80,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
+			fmt.Sprintf("%s=%s", testRunIDEnv, svcInfo.Test.RunID),
 		},
 	}
 
