@@ -1,9 +1,13 @@
 #!/bin/bash
-
-set -euxo pipefail
+set -euo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   # Clean used resources
   for d in test/packages/*/*/; do
@@ -31,9 +35,10 @@ go run ./scripts/gpgkey
 
 for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "$(testype "$d")" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building zip package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
 
