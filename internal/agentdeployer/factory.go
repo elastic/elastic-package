@@ -136,5 +136,5 @@ func findAgentDeployer(devDeployPath, expectedDeployer string) (string, error) {
 		return deployers[0], nil
 	}
 
-	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\" (found %d deployers)", devDeployPath, len(deployers))
+	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\" (found %d agent deployers)", devDeployPath, len(deployers))
 }
