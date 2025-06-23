@@ -110,9 +110,15 @@ volumes:
   mysqldata:
 ```
 
-#### Run terraform along with the Docker Compose service deployer
+#### Run provisioner tool along with the Docker Compose service deployer
 
-This same service deployer can be used along with Terraform.
+Along with the Docker Compose service deployer, it could be added other services in the docker-compose scenario
+to run other provisioner tools. For instance, the following example shows how it could be used Terraform with the
+Docker Compose service deployer, but other tools could be used too.
+
+**Please note**: this is not officially supported by `elastic-package`. Package owners are responsible for maintaining
+their own provisioner Dockerfiles and other resources required (e.g. scripts).
+
 There is an example in the [test package `nginx_multiple_services`](../../test/packages/parallel/nginx_multiple_services/).
 
 For that, you need to add another `terraform` service container in the docker-compose scenario as follows:
