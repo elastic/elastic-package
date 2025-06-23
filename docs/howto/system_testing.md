@@ -112,8 +112,8 @@ volumes:
 
 #### Run provisioner tool along with the Docker Compose service deployer
 
-Along with the Docker Compose service deployer, it could be added other services in the docker-compose scenario
-to run other provisioner tools. For instance, the following example shows how it could be used Terraform with the
+Along with the Docker Compose service deployer, other services could be added in the docker-compose scenario
+to run other provisioner tools. For instance, the following example shows how Terraform could be used with the
 Docker Compose service deployer, but other tools could be used too.
 
 **Please note**: this is not officially supported by `elastic-package`. Package owners are responsible for maintaining
