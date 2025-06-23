@@ -1,9 +1,0 @@
----
-description: Pipeline for processing sample logs
-processors:
-- convert:
-    field: message
-    type: integer
-- rename:
-    field: message
-    target_field: number

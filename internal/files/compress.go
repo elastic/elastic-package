@@ -5,7 +5,7 @@
 package files
 
 import (
-	"compress/flate"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,30 +13,24 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 
-	"github.com/mholt/archiver/v3"
+	"github.com/mholt/archives"
 )
 
 // Zip function creates the .zip archive from the source path (built package content).
-func Zip(sourcePath, destinationFile string) error {
-	logger.Debugf("Compress using archiver.Zip (destination: %s)", destinationFile)
-
-	z := archiver.Zip{
-		CompressionLevel:       flate.DefaultCompression,
-		MkdirAll:               false,
-		SelectiveCompression:   true,
-		ContinueOnError:        false,
-		OverwriteExisting:      true,
-		ImplicitTopLevelFolder: false,
-	}
+func Zip(ctx context.Context, sourcePath, destinationFile string) error {
+	logger.Debugf("Compress using archives.Zip (destination: %s)", destinationFile)
 
 	// Create a temporary work directory to properly name the root directory in the archive, e.g. aws-1.0.1
 	tempDir, err := os.MkdirTemp("", "elastic-package-")
 	if err != nil {
 		return fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
+
+	folderName := folderNameFromFileName(destinationFile)
+
 	defer os.RemoveAll(tempDir)
-	workDir := filepath.Join(tempDir, folderNameFromFileName(destinationFile))
-	err = os.MkdirAll(workDir, 0755)
+	workDir := filepath.Join(tempDir, folderName)
+	err = os.MkdirAll(workDir, 0o755)
 	if err != nil {
 		return fmt.Errorf("can't prepare work directory: %s: %w", workDir, err)
 	}
@@ -47,7 +41,27 @@ func Zip(sourcePath, destinationFile string) error {
 		return fmt.Errorf("can't create a work directory (path: %s): %w", workDir, err)
 	}
 
-	err = z.Archive([]string{workDir}, destinationFile)
+	filenames := map[string]string{
+		workDir: folderName,
+	}
+
+	files, err := archives.FilesFromDisk(ctx, nil, filenames)
+	if err != nil {
+		return fmt.Errorf("failed to get files from disk: %w", err)
+	}
+
+	out, err := os.Create(destinationFile)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	z := archives.Zip{
+		SelectiveCompression: true,
+		ContinueOnError:      false,
+	}
+
+	err = z.Archive(ctx, out, files)
 	if err != nil {
 		return fmt.Errorf("can't archive source directory (source path: %s): %w", sourcePath, err)
 	}

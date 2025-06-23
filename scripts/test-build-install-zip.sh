@@ -19,11 +19,11 @@ cleanup() {
   exit $r
 }
 
+trap cleanup EXIT
+
 testype() {
   basename "$(dirname "$1")"
 }
-
-trap cleanup EXIT
 
 OLDPWD=$PWD
 # Build packages
@@ -57,9 +57,8 @@ for d in test/packages/*/*/; do
   if [ "$(testype $d)" == "false_positives" ]; then
     continue
   fi
-  package_name=$(cat "${d}/manifest.yml" | yq -r .name)
-  package_version=$(cat "${d}/manifest.yml" | yq -r .version)
-  PACKAGE_NAME_VERSION="${package_name}-${package_version}"
+  package_name=$(yq -r '.name' "${d}/manifest.yml")
+  package_version=$(yq -r '.version' "${d}/manifest.yml")
 
   elastic-package install -C "$d" -v
 
@@ -69,5 +68,5 @@ for d in test/packages/*/*/; do
     --cacert "${ELASTIC_PACKAGE_CA_CERT}" \
     -H 'content-type: application/json' \
     -H 'kbn-xsrf: true' \
-    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${PACKAGE_NAME_VERSION}" | grep -q '"status":"installed"'
+    -f "${ELASTIC_PACKAGE_KIBANA_HOST}/api/fleet/epm/packages/${package_name}/${package_version}" | grep -q '"status":"installed"'
 done

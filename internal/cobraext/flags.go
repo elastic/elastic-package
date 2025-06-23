@@ -141,6 +141,9 @@ const (
 	PackagesFlagName        = "packages"
 	PackagesFlagDescription = "whether to return packages names or complete paths for the linked files found"
 
+	IngestPipelineIDsFlagName        = "id"
+	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
+
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 

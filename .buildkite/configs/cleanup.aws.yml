@@ -5,8 +5,8 @@ accounts:
   - name: "${ACCOUNT_PROJECT}"
     driver: "aws"
     options:
-      key: '${ACCOUNT_KEY}'
-      secret: '${ACCOUNT_SECRET}'
+      key: '${AWS_ACCESS_KEY_ID}'
+      secret: '${AWS_SECRET_ACCESS_KEY}'
 
 scanners:
   - account_name: "${ACCOUNT_PROJECT}"

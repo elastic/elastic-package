@@ -103,8 +103,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: "bash /healthcheck.sh {{ $fleet_healthcheck_success_checks }} {{ $fleet_healthcheck_waiting_time }}"
-      start_period: 60s
+      start_period: 360s
       interval: 5s
+      retries: 180
     hostname: docker-fleet-server
     environment:
     - "ELASTICSEARCH_HOST=https://elasticsearch:9200"

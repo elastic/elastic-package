@@ -220,32 +220,6 @@ func (client *Client) Info(ctx context.Context) (*Info, error) {
 	return &info, nil
 }
 
-// IsFailureStoreAvailable checks if the failure store is available.
-func (client *Client) IsFailureStoreAvailable(ctx context.Context) (bool, error) {
-	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	request, err := http.NewRequest(http.MethodGet, "/_search?failure_store=only", nil)
-	if err != nil {
-		return false, fmt.Errorf("failed to create search request: %w", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Transport.Perform(request)
-	if err != nil {
-		return false, fmt.Errorf("failed to perform search request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return true, nil
-	case http.StatusBadRequest:
-		// Error expected when using an unrecognized parameter.
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected status code received: %d", resp.StatusCode)
-	}
-}
-
 // redHealthCause tries to identify the cause of a cluster in red state. This could be
 // also used as a replacement of CheckHealth, but keeping them separated because it uses
 // internal undocumented APIs that might change.

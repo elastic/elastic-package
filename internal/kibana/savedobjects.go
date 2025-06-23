@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -159,7 +160,7 @@ type ExportSavedObjectsRequestObject struct {
 	Type string `json:"type"`
 }
 
-func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObjectsRequest) ([]map[string]any, error) {
+func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObjectsRequest) ([]common.MapStr, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode request: %w", err)
@@ -174,7 +175,7 @@ func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObje
 		return nil, fmt.Errorf("could not export saved objects; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
-	var objects []map[string]any
+	var objects []common.MapStr
 	decoder := json.NewDecoder(bytes.NewReader(respBody))
 	for decoder.More() {
 		var object map[string]any
@@ -191,7 +192,7 @@ func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObje
 
 type ImportSavedObjectsRequest struct {
 	Overwrite bool
-	Objects   []map[string]any
+	Objects   []common.MapStr
 }
 
 type ImportSavedObjectsResponse struct {

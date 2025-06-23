@@ -187,10 +187,12 @@ For details on how to configure rally benchmarks for a package, review the [HOWT
 These benchmarks allow you to benchmark ingesting real time data.
 You can stream data to a remote ES cluster setting the following environment variables:
 
+```
 ELASTIC_PACKAGE_ELASTICSEARCH_HOST=https://my-deployment.es.eu-central-1.aws.foundit.no
 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
 ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
 ELASTIC_PACKAGE_KIBANA_HOST=https://my-deployment.kb.eu-central-1.aws.foundit.no:9243
+```
 
 #### System Benchmarks
 
@@ -353,6 +355,14 @@ _Context: package_
 Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).
+
+### `elastic-package export ingest-pipelines`
+
+_Context: package_
+
+Use this command to export ingest pipelines with referenced pipelines from the Elasticsearch instance.
+
+Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.
 
 ### `elastic-package format`
 

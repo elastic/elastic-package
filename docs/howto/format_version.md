@@ -20,10 +20,21 @@ This is controlled in two places now:
   `xpack.fleet.internal.registry.spec.min` and/or
   `xpack.fleet.internal.registry.spec.max`.
 
-At the moment of writing this document, the following rules can be assumed:
-- Stacks older than 8.16 support all versions of the spec till 3.0.x.
-- Stacks from 8.16 support all versions of the spec till 3.3.x.
-- Serverless projects support versions of the stack from 3.0.0 to 3.3.x.
+The following table shows what versions of the stack support each format
+version.
+
+| Format Version | Versions of the stack that support it |
+| -- | -- |
+| <2.3 | <9.0 |
+| 2.3 - 2.11 | All versions, except serverless. |
+| 3.0 | All versions. |
+| 3.1 - 3.3 | All versions from 8.16. |
+| 3.4 | 8.19 and all versions from 9.1. |
+
+Versions older than 8.11 didn't have restrictions on the supported spec versions,
+so they might have limited support for some features.
+
+Serverless supports from 3.0 to 3.4.
 
 In case of doubt, you can check the Fleet default configuration, and the
 configuration overrides in the Kibana repository.

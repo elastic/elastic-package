@@ -1263,29 +1263,35 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 }
 
 // isDocumentation reports whether ip is a reserved address for documentation,
-// according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation) and
-// RFC 3849 (IPv6 Address Prefix Reserved for Documentation).
+// according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation), RFC 6676,
+// RFC 3849 (IPv6 Address Prefix Reserved for Documentation) and RFC 9637.
 func isDocumentation(ip net.IP) bool {
 	if ip4 := ip.To4(); ip4 != nil {
 		// Following RFC 5737, Section 3. Documentation Address Blocks which says:
 		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
 		//   and 203.0.113.0/24 (TEST-NET-3) are provided for use in
 		//   documentation.
+		// Following RFC 6676, the IPV4 multicast addresses allocated for documentation
+		// purposes are 233.252.0.0/24
 		return ((ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2) ||
 			(ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100) ||
-			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113))
+			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113) ||
+			(ip4[0] == 233 && ip4[1] == 252 && ip4[2] == 0))
 	}
 	// Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
 	// says:
 	//   The prefix allocated for documentation purposes is 2001:DB8::/32
-	return len(ip) == net.IPv6len && ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184
+	// Following RFC 9637, a new address block 3fff::/20 is registered for documentation purposes
+	return len(ip) == net.IPv6len &&
+		(ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184) ||
+		(ip[0] == 63 && ip[1] == 255 && ip[2] <= 15)
 }
 
 // isAllowedIPValue checks if the provided IP is allowed for testing
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
 // - public IPs allowed by MaxMind for testing
-// - Reserved IPs for documentation RFC 5737 and RFC 3849
+// - Reserved IPs for documentation RFC 5737, RFC 3849, RFC 6676 and RFC 9637
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {

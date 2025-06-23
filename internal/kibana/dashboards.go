@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -21,8 +23,33 @@ type exportedType struct {
 	Objects []common.MapStr `json:"objects"`
 }
 
-// Export method exports selected dashboards using the Kibana Export API.
+// Export method exports selected dashboards using the Kibana APIs.
 func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
+	if c.semver.LessThan(semver.MustParse("9.0.0")) {
+		return c.exportWithDashboardsAPI(ctx, dashboardIDs)
+	}
+
+	return c.exportWithSavedObjectsAPI(ctx, dashboardIDs)
+}
+
+func (c *Client) exportWithSavedObjectsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
+	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
+
+	request := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: true,
+	}
+	for _, dashboardID := range dashboardIDs {
+		request.Objects = append(request.Objects, ExportSavedObjectsRequestObject{
+			ID:   dashboardID,
+			Type: "dashboard",
+		})
+	}
+
+	return c.ExportSavedObjects(ctx, request)
+}
+
+func (c *Client) exportWithDashboardsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Export API")
 
 	var query strings.Builder

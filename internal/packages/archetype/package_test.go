@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -62,15 +61,6 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	excludeChecks := []string{}
 	if err != nil {
 		panic(err)
-	}
-	if packageType == "content" {
-		minSpecVersion := semver.MustParse("3.4.0")
-		if !specVersion.LessThan(minSpecVersion) {
-			panic("this code can be removed")
-		}
-		version = "0.1.0"
-		specVersion = *minSpecVersion
-		excludeChecks = append(excludeChecks, "PSR00002")
 	}
 	return PackageDescriptor{
 		Manifest: packages.PackageManifest{

@@ -31,8 +31,13 @@ trap cleanup EXIT
 
 installAndVerifyPackage() {
   local zipFile="$1"
-  local PACKAGE_NAME_VERSION
+
+  local PACKAGE_NAME_VERSION=""
   PACKAGE_NAME_VERSION=$(basename "${zipFile}" .zip)
+
+  # Replace dash with a slash in the file name to match the API endpoint format
+  # e.g. "apache-999.999.999" becomes "apache/999.999.999"
+  PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
 
   elastic-package install -v --zip "${zipFile}"
 

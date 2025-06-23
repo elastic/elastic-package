@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jedib0t/go-pretty/table"
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/spf13/cobra"
 
@@ -355,12 +357,15 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		cmd.Printf(" - No service running\n")
 		return
 	}
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Service", "Version", "Status"})
-
+	config := defaultColorizedConfig()
+	config.Settings.Separators.BetweenRows = tw.Off
+	table := tablewriter.NewTable(cmd.OutOrStderr(),
+		tablewriter.WithRenderer(renderer.NewColorized(config)),
+		tablewriter.WithConfig(defaultTableConfig),
+	)
+	table.Header("Service", "Version", "Status")
 	for _, service := range servicesStatus {
-		t.AppendRow(table.Row{service.Name, service.Version, service.Status})
+		table.Append(service.Name, service.Version, service.Status)
 	}
-	t.SetStyle(table.StyleRounded)
-	cmd.Println(t.Render())
+	table.Render()
 }
