@@ -21,6 +21,14 @@ To disable this conversion, the event.timezone field can be removed with the dro
 If logs are originated from systems or applications with a different timezone to the local one, the `event.timezone`
 field can be overwritten with the original timezone using the add_fields processor.
 
+### Access Logs
+
+Access logs collects the nginx access logs.
+
+{{event "access"}}
+
+{{fields "access"}}
+
 ### Access Docker & TF Logs
 
 Access logs collects the nginx access logs.
@@ -29,3 +37,11 @@ Access logs collects the nginx access logs.
 
 {{fields "access_docker_tf"}}
 
+
+### Error Logs
+
+Error logs collects the nginx error logs.
+
+{{event "error"}}
+
+{{fields "error"}}

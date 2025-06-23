@@ -1,0 +1,7 @@
+deployer: docker
+service: nginx
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/access.log*"
