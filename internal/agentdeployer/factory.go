@@ -8,10 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
+	"slices"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
 
 const (
@@ -29,6 +30,8 @@ type FactoryOptions struct {
 	Type               string
 	StackVersion       string
 	PolicyName         string
+
+	DeployerName string
 
 	PackageName string
 	DataStream  string
@@ -81,7 +84,11 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 }
 
 func selectAgentDeployerType(options FactoryOptions) (string, error) {
-	devDeployPath, err := FindDevDeployPath(options)
+	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		DataStreamRootPath: options.DataStreamRootPath,
+		DevDeployDir:       options.DevDeployDir,
+		PackageRootPath:    options.PackageRootPath,
+	})
 	if errors.Is(err, os.ErrNotExist) {
 		return "default", nil
 	}
@@ -89,19 +96,14 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
 	}
 
-	agentDeployerNames, err := findAgentDeployers(devDeployPath)
-	if errors.Is(err, os.ErrNotExist) || len(agentDeployerNames) == 0 {
+	agentDeployerName, err := findAgentDeployer(devDeployPath, options.DeployerName)
+	if errors.Is(err, os.ErrNotExist) || (err == nil && agentDeployerName == "") {
 		logger.Debugf("Not agent deployer found, using default one")
 		return "default", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to find agent deployer: %w", err)
 	}
-	if len(agentDeployerNames) != 1 {
-		return "", fmt.Errorf("expected to find only one agent deployer in \"%s\"", devDeployPath)
-	}
-	agentDeployerName := agentDeployerNames[0]
-
 	// if package defines `_dev/deploy/docker` or `_dev/deploy/tf` folder to start their services,
 	// it should be using the default agent deployer`
 	if agentDeployerName == "docker" || agentDeployerName == "tf" {
@@ -111,43 +113,28 @@ func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	return agentDeployerName, nil
 }
 
-// FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
-func FindDevDeployPath(options FactoryOptions) (string, error) {
-	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, options.DevDeployDir)
-	info, err := os.Stat(dataStreamDevDeployPath)
-	if err == nil && info.IsDir() {
-		return dataStreamDevDeployPath, nil
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("stat failed for data stream (path: %s): %w", dataStreamDevDeployPath, err)
-	}
-
-	packageDevDeployPath := filepath.Join(options.PackageRootPath, options.DevDeployDir)
-	info, err = os.Stat(packageDevDeployPath)
-	if err == nil && info.IsDir() {
-		return packageDevDeployPath, nil
-	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
-	}
-
-	return "", fmt.Errorf("\"%s\" %w", options.DevDeployDir, os.ErrNotExist)
-}
-
-func findAgentDeployers(devDeployPath string) ([]string, error) {
-	fis, err := os.ReadDir(devDeployPath)
+func findAgentDeployer(devDeployPath, expectedDeployer string) (string, error) {
+	names, err := servicedeployer.FindAllServiceDeployers(devDeployPath)
 	if err != nil {
-		return nil, fmt.Errorf("can't read directory (path: %s): %w", devDeployPath, err)
+		return "", fmt.Errorf("failed to find service deployers in \"%s\": %w", devDeployPath, err)
+	}
+	deployers := slices.DeleteFunc(names, func(name string) bool {
+		return expectedDeployer != "" && name != expectedDeployer
+	})
+
+	// If we have more than one agent deployer, we expect to find only one.
+	if expectedDeployer != "" && len(deployers) != 1 {
+		return "", fmt.Errorf("expected to find %q agent deployer in %q", expectedDeployer, devDeployPath)
 	}
 
-	var folders []os.DirEntry
-	for _, fi := range fis {
-		if fi.IsDir() {
-			folders = append(folders, fi)
-		}
+	// It is allowed to have no agent deployers
+	if len(deployers) == 0 {
+		return "", nil
 	}
 
-	var names []string
-	for _, folder := range folders {
-		names = append(names, folder.Name())
+	if len(deployers) == 1 {
+		return deployers[0], nil
 	}
-	return names, nil
+
+	return "", fmt.Errorf("expected to find only one agent deployer in \"%s\" (found %d agent deployers)", devDeployPath, len(deployers))
 }

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -31,6 +32,8 @@ type FactoryOptions struct {
 
 	PolicyName string
 
+	DeployerName string
+
 	Variant string
 
 	RunTearDown  bool
@@ -46,9 +49,14 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		return nil, fmt.Errorf("can't find \"%s\" directory: %w", options.DevDeployDir, err)
 	}
 
-	serviceDeployerName, err := findServiceDeployer(devDeployPath)
+	serviceDeployerName, err := findServiceDeployer(devDeployPath, options.DeployerName)
 	if err != nil {
 		return nil, fmt.Errorf("can't find any valid service deployer: %w", err)
+	}
+	// It's allowed to not define a service deployer in system tests
+	// if deployerName is not defined in the test configuration.
+	if serviceDeployerName == "" {
+		return nil, nil
 	}
 
 	serviceDeployerPath := filepath.Join(devDeployPath, serviceDeployerName)
@@ -123,37 +131,62 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 // FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
 func FindDevDeployPath(options FactoryOptions) (string, error) {
 	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, options.DevDeployDir)
-	if _, err := os.Stat(dataStreamDevDeployPath); err == nil {
+	info, err := os.Stat(dataStreamDevDeployPath)
+	if err == nil && info.IsDir() {
 		return dataStreamDevDeployPath, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stat failed for data stream (path: %s): %w", dataStreamDevDeployPath, err)
 	}
 
 	packageDevDeployPath := filepath.Join(options.PackageRootPath, options.DevDeployDir)
-	if _, err := os.Stat(packageDevDeployPath); err == nil {
+	info, err = os.Stat(packageDevDeployPath)
+	if err == nil && info.IsDir() {
 		return packageDevDeployPath, nil
-	} else if !errors.Is(err, os.ErrNotExist) {
+	} else if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return "", fmt.Errorf("stat failed for package (path: %s): %w", packageDevDeployPath, err)
 	}
 
 	return "", fmt.Errorf("\"%s\" %w", options.DevDeployDir, os.ErrNotExist)
 }
 
-func findServiceDeployer(devDeployPath string) (string, error) {
+func FindAllServiceDeployers(devDeployPath string) ([]string, error) {
 	fis, err := os.ReadDir(devDeployPath)
 	if err != nil {
-		return "", fmt.Errorf("can't read directory (path: %s): %w", devDeployPath, err)
+		return nil, fmt.Errorf("can't read directory (path: %s): %w", devDeployPath, err)
 	}
 
-	var folders []os.DirEntry
+	var names []string
 	for _, fi := range fis {
 		if fi.IsDir() {
-			folders = append(folders, fi)
+			names = append(names, fi.Name())
 		}
 	}
 
-	if len(folders) != 1 {
-		return "", fmt.Errorf("expected to find only one service deployer in \"%s\"", devDeployPath)
+	return names, nil
+}
+
+func findServiceDeployer(devDeployPath, expectedDeployer string) (string, error) {
+	names, err := FindAllServiceDeployers(devDeployPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to find service deployers in %q: %w", devDeployPath, err)
 	}
-	return folders[0].Name(), nil
+	deployers := slices.DeleteFunc(names, func(name string) bool {
+		return expectedDeployer != "" && name != expectedDeployer
+	})
+
+	if len(deployers) == 1 {
+		return deployers[0], nil
+	}
+
+	if expectedDeployer != "" {
+		return "", fmt.Errorf("expected to find %q service deployer in %q", expectedDeployer, devDeployPath)
+	}
+
+	// If "_dev/deploy" directory exists, but it is empty. It does not have any service deployer,
+	// package-spec does not disallow to be empty this folder.
+	if len(deployers) == 0 {
+		return "", nil
+	}
+
+	return "", fmt.Errorf("expected to find only one service deployer in %q (found %d service deployers)", devDeployPath, len(deployers))
 }
