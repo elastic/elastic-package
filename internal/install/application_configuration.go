@@ -112,7 +112,7 @@ type ImageRefs struct {
 	Elasticsearch string `yaml:"elasticsearch"`
 	Kibana        string `yaml:"kibana"`
 	Logstash      string `yaml:"logstash"`
-	is_ready      string `yaml:"is_ready"`
+	IsReady      string `yaml:"is_ready"`
 }
 
 // AsEnv method returns key=value representation of image refs.
