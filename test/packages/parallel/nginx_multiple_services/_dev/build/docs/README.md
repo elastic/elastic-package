@@ -29,6 +29,15 @@ Access logs collects the nginx access logs.
 
 {{fields "access"}}
 
+### Access Docker & TF Logs
+
+Access logs collects the nginx access logs.
+
+{{event "access_docker_tf"}}
+
+{{fields "access_docker_tf"}}
+
+
 ### Error Logs
 
 Error logs collects the nginx error logs.
