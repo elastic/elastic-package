@@ -27,8 +27,8 @@ services:
     ports:
       - "127.0.0.1:9200:9200"
 
-  elasticsearch_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  elasticsearch_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -56,8 +56,8 @@ services:
     ports:
       - "127.0.0.1:5601:5601"
 
-  kibana_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  kibana_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       kibana:
         condition: service_healthy
@@ -88,8 +88,8 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:9000:9000"
 
-  package-registry_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  package-registry_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       package-registry:
         condition: service_healthy
@@ -129,8 +129,8 @@ services:
       - "127.0.0.1:8200:8200"
       {{ end }}
 
-  fleet-server_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  fleet-server_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -161,8 +161,8 @@ services:
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
 
-  elastic-agent_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  elastic-agent_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -194,8 +194,8 @@ services:
       - ELASTIC_PASSWORD=changeme
       - ELASTIC_HOSTS=https://127.0.0.1:9200
 
-  logstash_is_ready:
-    image: "${IS_READY_IMAGE_REF}"
+  logstash_IsReady:
+    image: "${IsReady_IMAGE_REF}"
     depends_on:
       logstash:
         condition: service_healthy

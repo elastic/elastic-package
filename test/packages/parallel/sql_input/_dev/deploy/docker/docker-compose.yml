@@ -7,7 +7,7 @@ services:
     volumes:
       - ${SERVICE_LOGS_DIR}/sql_input:/var/log/mysql
       - mysqldata:/var/lib/mysql
-  sql_input_is_ready:
+  sql_input_IsReady:
     image: tianon/true:multiarch
     depends_on:
       sql_input:

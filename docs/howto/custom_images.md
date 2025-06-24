@@ -21,7 +21,7 @@ The current images that could be overwritten are:
 | Kibana | KIBANA_IMAGE_REF_OVERRIDE | kibana |
 | Elastic Agent | ELASTIC_AGENT_IMAGE_REF_OVERRIDE | elastic-agent |
 | Logstash | LOGSTASH_IMAGE_REF_OVERRIDE | logstash |
-| is_ready | IS_READY_IMAGE_REF_OVERRIDE | is_ready |
+| IsReady | ISREADY_IMAGE_REF_OVERRIDE | is_ready |
 
 
 For the following two examples, it will be used as example overwriting elastic-agent image.

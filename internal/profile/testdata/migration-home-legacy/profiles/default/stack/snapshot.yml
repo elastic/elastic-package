@@ -19,7 +19,7 @@ services:
     ports:
       - "127.0.0.1:9200:9200"
 
-  elasticsearch_is_ready:
+  elasticsearch_IsReady:
     image: tianon/true:multiarch
     depends_on:
       elasticsearch:
@@ -48,7 +48,7 @@ services:
     ports:
       - "127.0.0.1:5601:5601"
 
-  kibana_is_ready:
+  kibana_IsReady:
     image: tianon/true:multiarch
     depends_on:
       kibana:
@@ -77,7 +77,7 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:9000:9000"
 
-  package-registry_is_ready:
+  package-registry_IsReady:
     image: tianon/true:multiarch
     depends_on:
       package-registry:
@@ -115,7 +115,7 @@ services:
       - "127.0.0.1:8220:8220"
       
 
-  fleet-server_is_ready:
+  fleet-server_IsReady:
     image: tianon/true:multiarch
     depends_on:
       fleet-server:
@@ -147,7 +147,7 @@ services:
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
 
-  elastic-agent_is_ready:
+  elastic-agent_IsReady:
     image: tianon/true:multiarch
     depends_on:
       elastic-agent:

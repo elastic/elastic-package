@@ -39,7 +39,7 @@ services:
     extra_hosts:
     - "host.docker.internal:host-gateway"
 
-  fleet-server_is_ready:
+  fleet-server_IsReady:
     image: tianon/true:multiarch
     depends_on:
       fleet-server:
@@ -75,7 +75,7 @@ services:
     extra_hosts:
     - "host.docker.internal:host-gateway"
 
-  elastic-agent_is_ready:
+  elastic-agent_IsReady:
     image: tianon/true:multiarch
     depends_on:
       elastic-agent:
@@ -108,7 +108,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  logstash_is_ready:
+  logstash_IsReady:
     image: tianon/true:multiarch
     depends_on:
       logstash:
