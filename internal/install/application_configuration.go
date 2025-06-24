@@ -37,7 +37,7 @@ const (
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
-	isreadyImageName                    = "tianon/true:multiarch"
+	isReadyImageName                    = "tianon/true:multiarch"
 
 	applicationConfigurationYmlFile = "config.yml"
 )
