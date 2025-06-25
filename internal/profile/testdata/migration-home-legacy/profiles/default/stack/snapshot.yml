@@ -19,7 +19,7 @@ services:
     ports:
       - "127.0.0.1:9200:9200"
 
-  elasticsearch_IsReady:
+  elasticsearch_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elasticsearch:
@@ -48,7 +48,7 @@ services:
     ports:
       - "127.0.0.1:5601:5601"
 
-  kibana_IsReady:
+  kibana_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       kibana:
@@ -77,7 +77,7 @@ services:
       - "127.0.0.1:8080:8080"
       - "127.0.0.1:9000:9000"
 
-  package-registry_IsReady:
+  package-registry_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       package-registry:
@@ -115,7 +115,7 @@ services:
       - "127.0.0.1:8220:8220"
       
 
-  fleet-server_IsReady:
+  fleet-server_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
@@ -147,7 +147,7 @@ services:
       source: ../../../tmp/service_logs/
       target: /run/service_logs/
 
-  elastic-agent_IsReady:
+  elastic-agent_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:

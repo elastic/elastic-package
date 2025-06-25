@@ -20,7 +20,7 @@ type ServiceStatus struct {
 	Version string
 }
 
-const readyServicesSuffix = "IsReady"
+const readyServicesSuffix = "is_ready"
 
 const (
 	// projectLabelDockerCompose is the label with the project name created by docker-compose

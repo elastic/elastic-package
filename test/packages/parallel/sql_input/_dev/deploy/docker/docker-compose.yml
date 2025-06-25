@@ -7,7 +7,7 @@ services:
     volumes:
       - ${SERVICE_LOGS_DIR}/sql_input:/var/log/mysql
       - mysqldata:/var/lib/mysql
-  sql_input_IsReady:
+  sql_input_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       sql_input:

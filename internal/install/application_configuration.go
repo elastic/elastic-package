@@ -122,7 +122,7 @@ func (ir ImageRefs) AsEnv() []string {
 	vars = append(vars, "ELASTICSEARCH_IMAGE_REF="+ir.Elasticsearch)
 	vars = append(vars, "KIBANA_IMAGE_REF="+ir.Kibana)
 	vars = append(vars, "LOGSTASH_IMAGE_REF="+ir.Logstash)
-	vars = append(vars, "IsReady_IMAGE_REF="+ir.IsReady)
+	vars = append(vars, "ISREADY_IMAGE_REF="+ir.IsReady)
 	return vars
 }
 
@@ -133,7 +133,7 @@ func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
 	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
-	refs.IsReady = stringOrDefault(refs.IsReady, isreadyImageName)
+	refs.IsReady = stringOrDefault(refs.IsReady, isReadyImageName)
 	return refs
 }
 
