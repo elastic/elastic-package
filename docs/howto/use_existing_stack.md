@@ -102,7 +102,7 @@ assuming that it is `http://localhost:5601/xyz`.
 Then configure the required environment variables:
 ```sh
 export ELASTIC_PACKAGE_KIBANA_HOST=http://localhost:5601/xyz
-export ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:5200
+export ELASTIC_PACKAGE_ELASTICSEARCH_HOST=http://localhost:9200
 export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
 export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
 ```
