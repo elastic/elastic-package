@@ -39,7 +39,7 @@ services:
     extra_hosts:
     - "host.docker.internal:host-gateway"
 
-  fleet-server_IsReady:
+  fleet-server_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
@@ -75,7 +75,7 @@ services:
     extra_hosts:
     - "host.docker.internal:host-gateway"
 
-  elastic-agent_IsReady:
+  elastic-agent_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:
@@ -108,7 +108,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  logstash_IsReady:
+  logstash_is_ready:
     image: "${ISREADY_IMAGE_REF}"
     depends_on:
       logstash:
