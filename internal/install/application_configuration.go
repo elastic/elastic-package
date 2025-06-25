@@ -102,7 +102,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
 		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 		Logstash:      checkImageRefOverride("LOGSTASH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Logstash, "")),
-		IsReady:       checkImageRefOverride("IsReady_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.IsReady, "")),
+		IsReady:       checkImageRefOverride("ISREADY_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.IsReady, "")),
 	}
 }
 

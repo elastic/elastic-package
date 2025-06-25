@@ -28,7 +28,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       kibana:
         condition: service_healthy
@@ -89,7 +89,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       package-registry:
         condition: service_healthy
@@ -130,7 +130,7 @@ services:
       {{ end }}
 
   fleet-server_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -162,7 +162,7 @@ services:
       target: /run/service_logs/
 
   elastic-agent_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -195,7 +195,7 @@ services:
       - ELASTIC_HOSTS=https://127.0.0.1:9200
 
   logstash_IsReady:
-    image: "${IsReady_IMAGE_REF}"
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       logstash:
         condition: service_healthy

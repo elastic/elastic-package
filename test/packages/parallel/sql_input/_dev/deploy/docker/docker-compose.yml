@@ -8,7 +8,7 @@ services:
       - ${SERVICE_LOGS_DIR}/sql_input:/var/log/mysql
       - mysqldata:/var/lib/mysql
   sql_input_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       sql_input:
         condition: service_healthy

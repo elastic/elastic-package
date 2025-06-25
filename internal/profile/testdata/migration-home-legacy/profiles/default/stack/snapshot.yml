@@ -20,7 +20,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -49,7 +49,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       kibana:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       package-registry:
         condition: service_healthy
@@ -116,7 +116,7 @@ services:
       
 
   fleet-server_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -148,7 +148,7 @@ services:
       target: /run/service_logs/
 
   elastic-agent_IsReady:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:
         condition: service_healthy
