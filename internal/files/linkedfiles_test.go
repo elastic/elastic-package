@@ -38,6 +38,7 @@ func TestLinkUpdateChecksum(t *testing.T) {
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Test Case 1: Outdated link file (missing checksum)
 	// Load a link file that points to an included file but has no checksum
@@ -86,6 +87,7 @@ func TestListLinkedFiles(t *testing.T) {
 	// Find the repository root to create a secure os.Root context
 	root, err := FindRepositoryRoot()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// List all linked files in the test directory
 	linkedFiles, err := ListLinkedFiles(root, basePath)
@@ -130,6 +132,7 @@ func TestCopyFile(t *testing.T) {
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Copy the file using the secure copyFromRoot function
 	assert.NoError(t, copyFromRoot(root, fileA, fileB))
@@ -154,6 +157,7 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	// Find the repository root to create a secure os.Root context
 	root, err := FindRepositoryRoot()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Get all outdated linked files from the test directory
 	linkedFiles, err := AreLinkedFilesUpToDate(root, basePath)
@@ -190,6 +194,7 @@ func TestUpdateLinkedFilesChecksums(t *testing.T) {
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Update checksums for all outdated linked files
 	updated, err := UpdateLinkedFilesChecksums(root, basePath)
@@ -219,6 +224,7 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	// Find the repository root to create a secure os.Root context
 	root, err := FindRepositoryRoot()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Get linked files organized by package
 	packageLinks, err := LinkedFilesByPackageFrom(root, basePath)
@@ -264,6 +270,7 @@ func TestIncludeLinkedFiles(t *testing.T) {
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	// Include (copy) all linked files from source to destination
 	linkedFiles, err := IncludeLinkedFiles(root, fromDir, toDir)
@@ -448,6 +455,7 @@ func TestNewLinkedFileRejectsPathTraversal(t *testing.T) {
 
 	root, err := os.OpenRoot(repoDir)
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
