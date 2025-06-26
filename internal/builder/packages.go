@@ -186,7 +186,11 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Include linked files")
-	links, err := files.IncludeLinkedFiles(options.PackageRoot, destinationDir)
+	root, err := files.FindRepositoryRoot()
+	if err != nil {
+		return "", err
+	}
+	links, err := files.IncludeLinkedFiles(root, options.PackageRoot, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("including linked files failed: %w", err)
 	}

@@ -6,7 +6,6 @@ package files
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -27,39 +26,37 @@ var _ fs.FS = (*LinksFS)(nil)
 
 // LinksFS is a filesystem that handles linked files.
 // It wraps another filesystem and checks for linked files with the ".link" extension.
-// If a linked file is found, it reads the link file to determine the target file
-// and its checksum. If the target file is up to date, it returns the target file.
+// If a linked file is found, it reads the link file to determine the included file
+// and its checksum. If the included file is up to date, it returns the included file.
 // Otherwise, it returns an error.
 type LinksFS struct {
-	workDir string
-	inner   fs.FS
+	repoRoot *os.Root // The root of the repository, used to check if paths are within the repository.
+	workDir  string
+	inner    fs.FS
 }
 
 // NewLinksFS creates a new LinksFS.
-func NewLinksFS(workDir string) *LinksFS {
-	return &LinksFS{workDir: workDir, inner: os.DirFS(workDir)}
+func NewLinksFS(repoRoot *os.Root, workDir string) *LinksFS {
+	return &LinksFS{repoRoot: repoRoot, workDir: workDir, inner: os.DirFS(workDir)}
 }
 
 // Open opens a file in the filesystem.
 func (lfs *LinksFS) Open(name string) (fs.File, error) {
-	name, err := filepath.Rel(lfs.workDir, name)
-	if err != nil {
-		return nil, fmt.Errorf("could not get relative path: %w", err)
-	}
-	fmt.Println(name)
 	if filepath.Ext(name) != linkExtension {
 		return lfs.inner.Open(name)
 	}
-	pathName := filepath.Join(lfs.workDir, name)
-	l, err := NewLinkedFile(pathName)
+	// Convert to absolute path for NewLinkedFile
+	absoluteLinkPath := filepath.Join(lfs.repoRoot.Name(), lfs.workDir, name)
+	l, err := NewLinkedFile(lfs.repoRoot, absoluteLinkPath)
 	if err != nil {
 		return nil, err
 	}
 	if !l.UpToDate {
 		return nil, fmt.Errorf("linked file %s is not up to date", name)
 	}
-	includedPath := filepath.Join(lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
-	return os.Open(includedPath)
+	// Use the included file path relative to the link's working directory
+	includedFilePath := filepath.Join(lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
+	return lfs.repoRoot.Open(includedFilePath)
 }
 
 // ReadFile reads a file from the filesystem.
@@ -77,8 +74,8 @@ func (lfs *LinksFS) ReadFile(name string) ([]byte, error) {
 }
 
 // A Link represents a linked file.
-// It contains the path to the link file, the checksum of the linked file,
-// the path to the target file, and the checksum of the included file contents.
+// It contains the path to the link file, the checksum of the link file,
+// the path to the included file, and the checksum of the included file contents.
 // It also contains a boolean indicating whether the link is up to date.
 type Link struct {
 	WorkDir string
@@ -95,7 +92,7 @@ type Link struct {
 }
 
 // NewLinkedFile creates a new Link from the given link file path.
-func NewLinkedFile(linkFilePath string) (Link, error) {
+func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	var l Link
 	l.WorkDir = filepath.Dir(linkFilePath)
 	if linkPackageRoot, _, _ := packages.FindPackageRootFrom(l.WorkDir); linkPackageRoot != "" {
@@ -112,27 +109,34 @@ func NewLinkedFile(linkFilePath string) (Link, error) {
 	}
 
 	fields := strings.Fields(firstLine)
+	if len(fields) == 0 {
+		return Link{}, fmt.Errorf("link file %s is empty or has no valid content", linkFilePath)
+	}
+	if len(fields) > 2 {
+		return Link{}, fmt.Errorf("link file %s has invalid format: expected 1 or 2 fields, got %d", linkFilePath, len(fields))
+	}
 	l.IncludedFilePath = fields[0]
 	if len(fields) == 2 {
 		l.LinkChecksum = fields[1]
 	}
 
 	pathName := filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath))
+	
+	inRoot, err := pathIsInRepositoryRoot(root, pathName)
+	if err != nil {
+		return Link{}, fmt.Errorf("could not check if path %s is in repository root: %w", pathName, err)
+	}
+	if !inRoot {
+		return Link{}, fmt.Errorf("path %s escapes the repository root", pathName)
+	}
+
 	if _, err := os.Stat(pathName); err != nil {
 		return Link{}, err
 	}
 
-	notInRoot, err := pathIsInRepositoryRoot(pathName)
-	if err != nil {
-		return Link{}, fmt.Errorf("could not check if path %v is in repository root: %w", pathName, err)
-	}
-	if !notInRoot {
-		return Link{}, fmt.Errorf("path %v escapes the repository root", pathName)
-	}
-
 	cs, err := getLinkedFileChecksum(pathName)
 	if err != nil {
-		return Link{}, fmt.Errorf("could not collect file %v: %w", l.IncludedFilePath, err)
+		return Link{}, fmt.Errorf("could not collect file %s: %w", l.IncludedFilePath, err)
 	}
 	if l.LinkChecksum == cs {
 		l.UpToDate = true
@@ -153,20 +157,22 @@ func (l *Link) UpdateChecksum() (bool, error) {
 		return false, nil
 	}
 	if l.IncludedFilePath == "" {
-		return false, fmt.Errorf("file path is empty for file %v", l.IncludedFilePath)
+		return false, fmt.Errorf("included file path is empty for link file %s", l.LinkFilePath)
 	}
 	if l.IncludedFileContentsChecksum == "" {
-		return false, fmt.Errorf("checksum is empty for file %v", l.IncludedFilePath)
+		return false, fmt.Errorf("checksum is empty for included file %s", l.IncludedFilePath)
 	}
 	newContent := fmt.Sprintf("%v %v", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
-	if err := WriteFile(filepath.Join(l.WorkDir, l.LinkFilePath), []byte(newContent)); err != nil {
-		return false, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
+	if err := writeFile(filepath.Join(l.WorkDir, l.LinkFilePath), []byte(newContent)); err != nil {
+		return false, fmt.Errorf("could not update checksum for link file %s: %w", l.LinkFilePath, err)
 	}
 	l.LinkChecksum = l.IncludedFileContentsChecksum
 	l.UpToDate = true
 	return true, nil
 }
 
+// TargetFilePath returns the path where the linked file should be written.
+// If workDir is provided, it uses that as the base directory, otherwise uses the link's WorkDir.
 func (l *Link) TargetFilePath(workDir ...string) string {
 	targetFilePath := filepath.FromSlash(strings.TrimSuffix(l.LinkFilePath, linkExtension))
 	wd := l.WorkDir
@@ -181,21 +187,22 @@ func (l *Link) TargetFilePath(workDir ...string) string {
 // It returns a slice of Link structs representing the included files.
 // It also updates the checksum of the linked files.
 // Both directories must be relative to the root.
-func IncludeLinkedFiles(fromDir, toDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(fromDir)
+func IncludeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
+	links, err := ListLinkedFiles(root, fromDir)
 	if err != nil {
 		return nil, fmt.Errorf("including linked files failed: %w", err)
 	}
 	for _, l := range links {
 		if _, err := l.UpdateChecksum(); err != nil {
-			return nil, fmt.Errorf("could not update checksum for file %v: %w", l.LinkFilePath, err)
+			return nil, fmt.Errorf("could not update checksum for file %s: %w", l.LinkFilePath, err)
 		}
 		targetFilePath := l.TargetFilePath(toDir)
-		if err := CopyFile(
+		if err := copyFromRoot(
+			root,
 			filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath)),
 			targetFilePath,
 		); err != nil {
-			return nil, fmt.Errorf("could not write file %v: %w", targetFilePath, err)
+			return nil, fmt.Errorf("could not write file %s: %w", targetFilePath, err)
 		}
 	}
 
@@ -203,7 +210,7 @@ func IncludeLinkedFiles(fromDir, toDir string) ([]Link, error) {
 }
 
 // ListLinkedFiles function returns a slice of Link structs representing linked files.
-func ListLinkedFiles(fromDir string) ([]Link, error) {
+func ListLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
 	var linkFiles []string
 	if err := filepath.Walk(
 		filepath.FromSlash(fromDir),
@@ -222,9 +229,9 @@ func ListLinkedFiles(fromDir string) ([]Link, error) {
 	links := make([]Link, len(linkFiles))
 
 	for i, f := range linkFiles {
-		l, err := NewLinkedFile(filepath.FromSlash(f))
+		l, err := NewLinkedFile(root, filepath.FromSlash(f))
 		if err != nil {
-			return nil, fmt.Errorf("could not initialize linked file %v: %w", f, err)
+			return nil, fmt.Errorf("could not initialize linked file %s: %w", f, err)
 		}
 		links[i] = l
 	}
@@ -232,23 +239,58 @@ func ListLinkedFiles(fromDir string) ([]Link, error) {
 	return links, nil
 }
 
-// CopyFile function copies a file from to to inside the root.
-func CopyFile(from, to string) error {
-	from = filepath.FromSlash(from)
-	source, err := os.Open(from)
+// createDirInRoot function creates a directory and all its parents within the root.
+func createDirInRoot(root *os.Root, dir string) error {
+	dir = filepath.Clean(dir)
+	if dir == "." || dir == "/" {
+		return nil
+	}
+
+	// Check if the directory already exists
+	if _, err := root.Stat(dir); err == nil {
+		return nil
+	}
+
+	// Create parent directory first
+	parent := filepath.Dir(dir)
+	if parent != dir { // Avoid infinite recursion
+		if err := createDirInRoot(root, parent); err != nil {
+			return err
+		}
+	}
+
+	// Create the directory
+	return root.Mkdir(dir, 0700)
+}
+
+// copyFromRoot function copies a file from to to inside the root.
+func copyFromRoot(root *os.Root, from, to string) error {
+	var err error
+	if filepath.IsAbs(from) {
+		from, err = filepath.Rel(root.Name(), filepath.FromSlash(from))
+		if err != nil {
+			return fmt.Errorf("could not get relative path: %w", err)
+		}
+	}
+	source, err := root.Open(from)
 	if err != nil {
 		return err
 	}
 	defer source.Close()
 
-	to = filepath.FromSlash(to)
+	if filepath.IsAbs(to) {
+		to, err = filepath.Rel(root.Name(), filepath.FromSlash(to))
+		if err != nil {
+			return fmt.Errorf("could not get relative path: %w", err)
+		}
+	}
 	dir := filepath.Dir(to)
-	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		if err := os.MkdirAll(dir, 0700); err != nil {
+	if _, err := root.Stat(dir); os.IsNotExist(err) {
+		if err := createDirInRoot(root, dir); err != nil {
 			return err
 		}
 	}
-	destination, err := os.Create(to)
+	destination, err := root.Create(to)
 	if err != nil {
 		return err
 	}
@@ -258,8 +300,8 @@ func CopyFile(from, to string) error {
 	return err
 }
 
-// WriteFile function writes a byte slice to a file inside the root.
-func WriteFile(to string, b []byte) error {
+// writeFile function writes a byte slice to a file inside the root.
+func writeFile(to string, b []byte) error {
 	to = filepath.FromSlash(to)
 	if _, err := os.Stat(filepath.Dir(to)); os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(to), 0700); err != nil {
@@ -270,10 +312,10 @@ func WriteFile(to string, b []byte) error {
 }
 
 // AreLinkedFilesUpToDate function checks if all the linked files are up-to-date.
-func AreLinkedFilesUpToDate(fromDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(fromDir)
+func AreLinkedFilesUpToDate(root *os.Root, fromDir string) ([]Link, error) {
+	links, err := ListLinkedFiles(root, fromDir)
 	if err != nil {
-		return nil, fmt.Errorf("including linked files failed: %w", err)
+		return nil, fmt.Errorf("checking linked files failed: %w", err)
 	}
 
 	var outdated []Link
@@ -290,8 +332,8 @@ func AreLinkedFilesUpToDate(fromDir string) ([]Link, error) {
 // UpdateLinkedFilesChecksums function updates the checksums of the linked files.
 // It returns a slice of updated links.
 // If no links were updated, it returns an empty slice.
-func UpdateLinkedFilesChecksums(fromDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(fromDir)
+func UpdateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
+	links, err := ListLinkedFiles(root, fromDir)
 	if err != nil {
 		return nil, fmt.Errorf("updating linked files checksums failed: %w", err)
 	}
@@ -312,14 +354,12 @@ func UpdateLinkedFilesChecksums(fromDir string) ([]Link, error) {
 
 // LinkedFilesByPackageFrom function returns a slice of maps containing linked files grouped by package.
 // Each map contains the package name as the key and a slice of linked file paths as the value.
-func LinkedFilesByPackageFrom(fromDir string) ([]map[string][]string, error) {
-	root, err := FindRepositoryRoot()
+func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]map[string][]string, error) {
+	// we list linked files from all the root directory
+	// to check which ones are linked to the 'fromDir' package
+	links, err := ListLinkedFiles(root, root.Name())
 	if err != nil {
-		return nil, err
-	}
-	links, err := ListLinkedFiles(root.Name())
-	if err != nil {
-		return nil, fmt.Errorf("including linked files failed: %w", err)
+		return nil, fmt.Errorf("listing linked files failed: %w", err)
 	}
 
 	var packageName string
@@ -349,6 +389,7 @@ func LinkedFilesByPackageFrom(fromDir string) ([]map[string][]string, error) {
 	return byPackage, nil
 }
 
+// getLinkedFileChecksum calculates the SHA256 checksum of a file.
 func getLinkedFileChecksum(path string) (string, error) {
 	b, err := os.ReadFile(filepath.FromSlash(path))
 	if err != nil {
@@ -361,6 +402,7 @@ func getLinkedFileChecksum(path string) (string, error) {
 	return cs, nil
 }
 
+// readFirstLine reads and returns the first line of a file.
 func readFirstLine(filePath string) (string, error) {
 	file, err := os.Open(filepath.FromSlash(filePath))
 	if err != nil {
@@ -380,20 +422,16 @@ func readFirstLine(filePath string) (string, error) {
 	return "", fmt.Errorf("file is empty or first line is missing")
 }
 
+// checksum calculates the SHA256 checksum of a byte slice.
 func checksum(b []byte) (string, error) {
-	hash := sha256.New()
-	if _, err := io.Copy(hash, bytes.NewReader(b)); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	hash := sha256.Sum256(b)
+	return hex.EncodeToString(hash[:]), nil
 }
 
-func pathIsInRepositoryRoot(path string) (bool, error) {
+// pathIsInRepositoryRoot checks if a path is within the repository root and doesn't escape it.
+func pathIsInRepositoryRoot(root *os.Root, path string) (bool, error) {
 	path = filepath.FromSlash(path)
-	root, err := FindRepositoryRoot()
-	if err != nil {
-		return false, err
-	}
+	var err error
 	if filepath.IsAbs(path) {
 		path, err = filepath.Rel(root.Name(), path)
 		if err != nil {
@@ -401,7 +439,15 @@ func pathIsInRepositoryRoot(path string) (bool, error) {
 		}
 	}
 
-	if _, err := root.Stat(path); err != nil {
+	// Clean the path to resolve any ".." components
+	cleanPath := filepath.Clean(path)
+
+	// Check if the cleaned path tries to escape the root
+	if strings.HasPrefix(cleanPath, "..") {
+		return false, nil
+	}
+
+	if _, err := root.Stat(cleanPath); err != nil {
 		return false, nil
 	}
 	return true, nil
