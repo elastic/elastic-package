@@ -22,6 +22,91 @@ import (
 
 const linkExtension = ".link"
 
+// PackageLinks represents linked files grouped by package.
+type PackageLinks struct {
+	PackageName string
+	Links       []string
+}
+
+// CheckLinkedFiles checks if all linked files in the given directory are up-to-date.
+// Returns a list of outdated links that need updating.
+func CheckLinkedFiles(fromDir string) ([]Link, error) {
+	repoRoot, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root: %w", err)
+	}
+
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+
+	return AreLinkedFilesUpToDate(root, fromDir)
+}
+
+// UpdateLinkedFiles updates the checksums of all outdated linked files in the given directory.
+// Returns a list of links that were updated.
+func UpdateLinkedFiles(fromDir string) ([]Link, error) {
+	repoRoot, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root: %w", err)
+	}
+
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+
+	return UpdateLinkedFilesChecksums(root, fromDir)
+}
+
+// IncludeLinkedFilesFromPath copies all linked files from the source directory to the target directory.
+// This is used during package building to include linked files in the build output.
+func IncludeLinkedFilesFromPath(fromDir, toDir string) ([]Link, error) {
+	repoRoot, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root: %w", err)
+	}
+
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+
+	return IncludeLinkedFiles(root, fromDir, toDir)
+}
+
+// ListLinkedFilesByPackage returns a mapping of packages to their linked files that reference
+// files from the given directory.
+func ListLinkedFilesByPackage(fromDir string) ([]PackageLinks, error) {
+	repoRoot, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root: %w", err)
+	}
+
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+
+	return LinkedFilesByPackageFrom(root, fromDir)
+}
+
+// CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
+func CreateLinksFSFromPath(workDir string) (*LinksFS, error) {
+	repoRoot, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root: %w", err)
+	}
+
+	root, err := os.OpenRoot(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("opening repository root: %w", err)
+	}
+
+	return NewLinksFS(root, workDir), nil
+}
+
 var _ fs.FS = (*LinksFS)(nil)
 
 // LinksFS is a filesystem that handles linked files.
@@ -121,7 +206,7 @@ func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	}
 
 	pathName := filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath))
-	
+
 	inRoot, err := pathIsInRepositoryRoot(root, pathName)
 	if err != nil {
 		return Link{}, fmt.Errorf("could not check if path %s is in repository root: %w", pathName, err)
@@ -352,9 +437,9 @@ func UpdateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
 	return updatedLinks, nil
 }
 
-// LinkedFilesByPackageFrom function returns a slice of maps containing linked files grouped by package.
-// Each map contains the package name as the key and a slice of linked file paths as the value.
-func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]map[string][]string, error) {
+// LinkedFilesByPackageFrom function returns a slice of PackageLinks containing linked files grouped by package.
+// Each PackageLinks contains the package name and a slice of linked file paths.
+func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, error) {
 	// we list linked files from all the root directory
 	// to check which ones are linked to the 'fromDir' package
 	links, err := ListLinkedFiles(root, root.Name())
@@ -381,12 +466,14 @@ func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]map[string][]str
 	}
 	slices.Sort(packages)
 
-	var byPackage []map[string][]string
+	var result []PackageLinks
 	for _, p := range packages {
-		m := map[string][]string{p: byPackageMap[p]}
-		byPackage = append(byPackage, m)
+		result = append(result, PackageLinks{
+			PackageName: p,
+			Links:       byPackageMap[p],
+		})
 	}
-	return byPackage, nil
+	return result, nil
 }
 
 // getLinkedFileChecksum calculates the SHA256 checksum of a file.

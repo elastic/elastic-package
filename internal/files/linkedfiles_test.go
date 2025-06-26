@@ -221,18 +221,20 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get linked files organized by package
-	m, err := LinkedFilesByPackageFrom(root, basePath)
+	packageLinks, err := LinkedFilesByPackageFrom(root, basePath)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, m)
-	assert.Len(t, m, 1) // Expect 1 package group
-	assert.NotEmpty(t, m[0])
-	assert.Len(t, m[0], 1)                  // Expect 1 package in the group
-	assert.NotEmpty(t, m[0]["testpackage"]) // Expect "testpackage" to be found
-	assert.Len(t, m[0]["testpackage"], 1)   // Expect 1 linked file in testpackage
+	assert.NotEmpty(t, packageLinks)
+	assert.Len(t, packageLinks, 1) // Expect 1 package group
+
+	// Verify the package structure
+	pkg := packageLinks[0]
+	assert.Equal(t, "testpackage", pkg.PackageName)
+	assert.NotEmpty(t, pkg.Links)
+	assert.Len(t, pkg.Links, 1) // Expect 1 linked file in testpackage
 
 	// Verify the linked file path ends with the expected relative path
 	match := strings.HasSuffix(
-		filepath.ToSlash(m[0]["testpackage"][0]),
+		filepath.ToSlash(pkg.Links[0]),
 		"/testdata/testpackage/included.yml.link",
 	)
 	assert.True(t, match)

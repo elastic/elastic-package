@@ -82,7 +82,10 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	linksFS := files.NewLinksFS(elasticsearchPath)
+	linksFS, err := files.CreateLinksFSFromPath(elasticsearchPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating links filesystem failed: %w", err)
+	}
 	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
 		c, err := linksFS.ReadFile(path)

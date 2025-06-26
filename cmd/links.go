@@ -57,7 +57,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linkedFiles, err := files.AreLinkedFilesUpToDate(pwd)
+	linkedFiles, err := files.CheckLinkedFiles(pwd)
 	if err != nil {
 		return fmt.Errorf("checking linked files are up-to-date failed: %w", err)
 	}
@@ -90,7 +90,7 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	updatedLinks, err := files.UpdateLinkedFilesChecksums(pwd)
+	updatedLinks, err := files.UpdateLinkedFiles(pwd)
 	if err != nil {
 		return fmt.Errorf("updating linked files checksums failed: %w", err)
 	}
@@ -125,20 +125,18 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	byPackage, err := files.LinkedFilesByPackageFrom(pwd)
+	byPackage, err := files.ListLinkedFilesByPackage(pwd)
 	if err != nil {
 		return fmt.Errorf("listing linked packages failed: %w", err)
 	}
 
-	for i := range byPackage {
-		for p, links := range byPackage[i] {
-			if onlyPackages {
-				cmd.Println(p)
-				continue
-			}
-			for _, l := range links {
-				cmd.Println(l)
-			}
+	for _, pkg := range byPackage {
+		if onlyPackages {
+			cmd.Println(pkg.PackageName)
+			continue
+		}
+		for _, link := range pkg.Links {
+			cmd.Println(link)
 		}
 	}
 
