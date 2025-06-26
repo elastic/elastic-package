@@ -41,7 +41,7 @@ the type. If you are not sure, you can follow this section to help deciding:
 For legacy reasons, integration packages can be used for most use cases. For
 example a package can include dashboards without including any data stream, as
 if it were a content package. Or an integration package can define a single data
-stream, as if it were an input packages.
+stream, as if it were an input package.
 
 Even when this is true, these cases push integration packages (and the code
 supporting them) beyond what they were designed for. By having different types
