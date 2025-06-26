@@ -523,6 +523,9 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 
 	// Use t.Cleanup to ensure file is closed before test cleanup on Windows
 	t.Cleanup(func() {
+		if root != nil {
+			_ = root.Close()
+		}
 		if file != nil {
 			file.Close()
 		}
