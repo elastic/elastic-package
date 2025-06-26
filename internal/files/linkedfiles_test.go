@@ -512,7 +512,13 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	// Test opening the linked file - this should work and use the repository root
 	file, err := lfs.Open("test.txt.link")
 	require.NoError(t, err)
-	defer file.Close()
+
+	// Use t.Cleanup to ensure file is closed before test cleanup on Windows
+	t.Cleanup(func() {
+		if file != nil {
+			file.Close()
+		}
+	})
 
 	// Read the content to ensure it's correct
 	content, err := io.ReadAll(file)
