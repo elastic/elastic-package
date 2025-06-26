@@ -40,7 +40,7 @@ services:
     - "host.docker.internal:host-gateway"
 
   fleet-server_is_ready:
-    image: "${ISREADY_IMAGE_REF}"
+    image: "{{ fact "isready_image" }}"
     depends_on:
       fleet-server:
         condition: service_healthy
