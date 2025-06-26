@@ -31,7 +31,7 @@ the type. If you are not sure, you can follow this section to help deciding:
     * If yes, create an integration package.
     * If not, create a content package that complements the method/s used for ingestion.
   * If not, do you plan to define how to collect data?
-    * If yes, do we plan to define how to collect data in a generic way for a given protocol?
+    * If yes, do you plan to define how to collect data in a generic way for a given protocol?
       * If yes, create an input package.
       * If not, create an integration package for the use case.
     * If not, create a content package.
