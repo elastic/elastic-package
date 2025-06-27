@@ -58,7 +58,7 @@ func TestLinkUpdateChecksum(t *testing.T) {
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", outdatedFile.LinkChecksum)
 	assert.True(t, outdatedFile.UpToDate)
 
-	// Test Case 2: Up-to-date link file (already has correct checksum)
+	// Test Case 2: Up-to-date link file (already has the correct checksum)
 	// Load a link file that already has the correct checksum
 	uptodateFile, err := NewLinkedFile(root, filepath.Join(basePath, "uptodate.yml.link"))
 	assert.NoError(t, err)
@@ -146,7 +146,7 @@ func TestCopyFile(t *testing.T) {
 // TestAreLinkedFilesUpToDate tests the AreLinkedFilesUpToDate function that identifies outdated link files.
 // This test verifies that:
 // 1. The function correctly identifies which link files are outdated (missing or incorrect checksums)
-// 2. Only outdated files are returned (up-to-date files are filtered out)
+// 2. Only outdated files are returned (up-to-date files are left unchanged)
 // 3. The returned outdated file has correct metadata and status information
 func TestAreLinkedFilesUpToDate(t *testing.T) {
 	// Get current working directory to locate test data
@@ -515,7 +515,8 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	relWorkDir, err := filepath.Rel(repoDir, workDir)
 	require.NoError(t, err)
 
-	lfs := NewLinksFS(root, relWorkDir)
+	lfs, err := NewLinksFS(root, relWorkDir)
+	require.NoError(t, err)
 
 	// Test opening the linked file - this should work and use the repository root
 	file, err := lfs.Open("test.txt.link")
@@ -535,4 +536,326 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	content, err := io.ReadAll(file)
 	require.NoError(t, err)
 	assert.Equal(t, "included content", string(content))
+}
+
+// TestLinksFS_Open tests the LinksFS Open method with various path scenarios.
+// This test ensures proper handling of absolute/relative paths and both link and non-link files.
+func TestLinksFS_Open(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create repository structure
+	repoDir := filepath.Join(tempDir, "repo")
+	err := os.MkdirAll(repoDir, 0755)
+	require.NoError(t, err)
+
+	workDir := filepath.Join(repoDir, "work")
+	err = os.MkdirAll(workDir, 0755)
+	require.NoError(t, err)
+
+	// Create test files
+	regularFile := filepath.Join(workDir, "regular.txt")
+	err = os.WriteFile(regularFile, []byte("regular content"), 0644)
+	require.NoError(t, err)
+
+	includedFile := filepath.Join(workDir, "included.txt")
+	includedContent := "included content"
+	err = os.WriteFile(includedFile, []byte(includedContent), 0644)
+	require.NoError(t, err)
+
+	// Create link file with correct checksum
+	linkFile := filepath.Join(workDir, "linked.txt.link")
+	hash := sha256.Sum256([]byte(includedContent))
+	checksum := hex.EncodeToString(hash[:])
+	linkContent := fmt.Sprintf("./included.txt %s", checksum)
+	err = os.WriteFile(linkFile, []byte(linkContent), 0644)
+	require.NoError(t, err)
+
+	// Create outdated link file (no checksum)
+	outdatedLinkFile := filepath.Join(workDir, "outdated.txt.link")
+	err = os.WriteFile(outdatedLinkFile, []byte("./included.txt"), 0644)
+	require.NoError(t, err)
+
+	// Setup LinksFS with absolute workDir
+	root, err := os.OpenRoot(repoDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
+
+	lfs, err := NewLinksFS(root, workDir)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		fileName    string
+		expectError bool
+		errorMsg    string
+		expectFile  bool
+	}{
+		{
+			name:       "open regular file with relative path",
+			fileName:   "regular.txt",
+			expectFile: true,
+		},
+		{
+			name:       "open regular file with absolute path",
+			fileName:   filepath.Join(workDir, "regular.txt"),
+			expectFile: true,
+		},
+		{
+			name:       "open up-to-date link file",
+			fileName:   "linked.txt.link",
+			expectFile: true,
+		},
+		{
+			name:       "open up-to-date link file with absolute path",
+			fileName:   filepath.Join(workDir, "linked.txt.link"),
+			expectFile: true,
+		},
+		{
+			name:       "open outdated link file should fail",
+			fileName:   "outdated.txt.link",
+			expectError: true,
+			errorMsg:    "not up to date",
+		},
+		{
+			name:        "open non-existent file should fail",
+			fileName:    "nonexistent.txt",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			file, err := lfs.Open(tc.fileName)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.errorMsg != "" {
+					assert.Contains(t, err.Error(), tc.errorMsg)
+				}
+				assert.Nil(t, file)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, file)
+
+				if file != nil {
+					// Verify we can read from the file
+					content, err := io.ReadAll(file)
+					assert.NoError(t, err)
+
+					// For link files, content should be from the included file
+					if strings.HasSuffix(tc.fileName, ".link") {
+						assert.Equal(t, includedContent, string(content))
+					} else {
+						assert.Equal(t, "regular content", string(content))
+					}
+
+					file.Close()
+				}
+			}
+		})
+	}
+}
+
+// TestLinksFS_RelativeWorkDir tests LinksFS with relative workDir paths.
+func TestLinksFS_RelativeWorkDir(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create repository structure
+	repoDir := filepath.Join(tempDir, "repo")
+	err := os.MkdirAll(repoDir, 0755)
+	require.NoError(t, err)
+
+	workDir := filepath.Join(repoDir, "work")
+	err = os.MkdirAll(workDir, 0755)
+	require.NoError(t, err)
+
+	// Create test files
+	regularFile := filepath.Join(workDir, "regular.txt")
+	regularContent := "regular file content"
+	err = os.WriteFile(regularFile, []byte(regularContent), 0644)
+	require.NoError(t, err)
+
+	includedFile := filepath.Join(workDir, "included.txt")
+	includedContent := "included file content"
+	err = os.WriteFile(includedFile, []byte(includedContent), 0644)
+	require.NoError(t, err)
+
+	// Create link file with correct checksum
+	linkFile := filepath.Join(workDir, "linked.txt.link")
+	hash := sha256.Sum256([]byte(includedContent))
+	checksum := hex.EncodeToString(hash[:])
+	linkContent := fmt.Sprintf("./included.txt %s", checksum)
+	err = os.WriteFile(linkFile, []byte(linkContent), 0644)
+	require.NoError(t, err)
+
+	// Setup LinksFS with relative workDir
+	root, err := os.OpenRoot(repoDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
+
+	// Use relative path "work" instead of absolute path
+	lfs, err := NewLinksFS(root, "work")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name            string
+		fileName        string
+		expectedContent string
+		expectError     bool
+	}{
+		{
+			name:            "read regular file",
+			fileName:        "regular.txt",
+			expectedContent: regularContent,
+		},
+		{
+			name:            "read linked file returns included content",
+			fileName:        "linked.txt.link",
+			expectedContent: includedContent,
+		},
+		{
+			name:        "read non-existent file should fail",
+			fileName:    "nonexistent.txt",
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			content, err := lfs.ReadFile(tc.fileName)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Nil(t, content)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedContent, string(content))
+			}
+		})
+	}
+}
+
+// TestLinksFS_ErrorConditions tests various error conditions in LinksFS.
+func TestLinksFS_ErrorConditions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create repository structure
+	repoDir := filepath.Join(tempDir, "repo")
+	err := os.MkdirAll(repoDir, 0755)
+	require.NoError(t, err)
+
+	workDir := filepath.Join(repoDir, "work")
+	err = os.MkdirAll(workDir, 0755)
+	require.NoError(t, err)
+
+	// Create link file that points to non-existent file (this will fail security check)
+	brokenLinkFile := filepath.Join(workDir, "broken.txt.link")
+	err = os.WriteFile(brokenLinkFile, []byte("./nonexistent.txt"), 0644)
+	require.NoError(t, err)
+
+	// Create link file with invalid format
+	invalidLinkFile := filepath.Join(workDir, "invalid.txt.link")
+	err = os.WriteFile(invalidLinkFile, []byte(""), 0644)
+	require.NoError(t, err)
+
+	// Setup LinksFS
+	root, err := os.OpenRoot(repoDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
+
+	lfs, err := NewLinksFS(root, workDir)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		fileName string
+		errorMsg string
+	}{
+		{
+			name:     "broken link to non-existent file",
+			fileName: "broken.txt.link",
+			errorMsg: "escapes the repository root",
+		},
+		{
+			name:     "invalid link file format",
+			fileName: "invalid.txt.link",
+			errorMsg: "file is empty or first line is missing",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			file, err := lfs.Open(tc.fileName)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), tc.errorMsg)
+			assert.Nil(t, file)
+		})
+	}
+}
+
+// TestLinksFS_WorkDirValidation tests that LinksFS validates workDir is within repository root.
+func TestLinksFS_WorkDirValidation(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create repository structure
+	repoDir := filepath.Join(tempDir, "repo")
+	err := os.MkdirAll(repoDir, 0755)
+	require.NoError(t, err)
+
+	// Create directory outside repo
+	outsideDir := filepath.Join(tempDir, "outside")
+	err = os.MkdirAll(outsideDir, 0755)
+	require.NoError(t, err)
+
+	// Create directory inside repo
+	insideDir := filepath.Join(repoDir, "inside")
+	err = os.MkdirAll(insideDir, 0755)
+	require.NoError(t, err)
+
+	root, err := os.OpenRoot(repoDir)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = root.Close() })
+
+	tests := []struct {
+		name        string
+		workDir     string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name:    "valid relative workDir",
+			workDir: "inside",
+		},
+		{
+			name:    "valid absolute workDir",
+			workDir: insideDir,
+		},
+		{
+			name:        "invalid absolute workDir outside repo",
+			workDir:     outsideDir,
+			expectError: true,
+			errorMsg:    "is outside the repository root",
+		},
+		{
+			name:        "invalid relative workDir escaping repo",
+			workDir:     "../outside",
+			expectError: true,
+			errorMsg:    "is outside the repository root",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			lfs, err := NewLinksFS(root, tc.workDir)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errorMsg)
+				assert.Nil(t, lfs)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, lfs)
+			}
+		})
+	}
 }

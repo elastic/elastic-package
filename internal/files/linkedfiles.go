@@ -104,7 +104,7 @@ func CreateLinksFSFromPath(workDir string) (*LinksFS, error) {
 		return nil, fmt.Errorf("opening repository root: %w", err)
 	}
 
-	return NewLinksFS(root, workDir), nil
+	return NewLinksFS(root, workDir)
 }
 
 var _ fs.FS = (*LinksFS)(nil)
@@ -121,40 +121,61 @@ type LinksFS struct {
 }
 
 // NewLinksFS creates a new LinksFS.
-func NewLinksFS(repoRoot *os.Root, workDir string) *LinksFS {
-	return &LinksFS{repoRoot: repoRoot, workDir: workDir, inner: os.DirFS(workDir)}
+func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
+	// Ensure workDir is absolute for os.DirFS
+	var absWorkDir string
+	if filepath.IsAbs(workDir) {
+		absWorkDir = workDir
+	} else {
+		absWorkDir = filepath.Join(repoRoot.Name(), workDir)
+	}
+	
+	// Validate that workDir is within the repository root
+	inRoot, err := pathIsInRepositoryRoot(repoRoot, absWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not validate workDir %s: %w", absWorkDir, err)
+	}
+	if !inRoot {
+		return nil, fmt.Errorf("workDir %s is outside the repository root %s", absWorkDir, repoRoot.Name())
+	}
+	
+	return &LinksFS{repoRoot: repoRoot, workDir: absWorkDir, inner: os.DirFS(absWorkDir)}, nil
 }
 
 // Open opens a file in the filesystem.
 func (lfs *LinksFS) Open(name string) (fs.File, error) {
-	// For non-link files, use the inner filesystem
-	if filepath.Ext(name) != linkExtension {
-		return lfs.inner.Open(name)
+	// Ensure name is relative for os.DirFS compatibility
+	var relativeName string
+	if filepath.IsAbs(name) {
+		var err error
+		relativeName, err = filepath.Rel(lfs.workDir, name)
+		if err != nil {
+			return nil, fmt.Errorf("could not make name relative to workDir: %w", err)
+		}
+	} else {
+		relativeName = name
 	}
 
-	// For link files, construct the full path
-	var linkFilePath string
-	if filepath.IsAbs(lfs.workDir) {
-		linkFilePath = filepath.Join(lfs.workDir, name)
-	} else {
-		linkFilePath = filepath.Join(lfs.repoRoot.Name(), lfs.workDir, name)
+	// For non-link files, use the inner filesystem
+	if filepath.Ext(relativeName) != linkExtension {
+		return lfs.inner.Open(relativeName)
 	}
+
+	// For link files, construct the absolute path to the link file
+	// Since workDir is expected to be absolute, we can directly join
+	linkFilePath := filepath.Join(lfs.workDir, relativeName)
 
 	l, err := NewLinkedFile(lfs.repoRoot, linkFilePath)
 	if err != nil {
 		return nil, err
 	}
 	if !l.UpToDate {
-		return nil, fmt.Errorf("linked file %s is not up to date", name)
+		return nil, fmt.Errorf("linked file %s is not up to date", relativeName)
 	}
 
-	// Calculate the included file path
-	var includedPath string
-	if filepath.IsAbs(lfs.workDir) {
-		includedPath = filepath.Join(lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
-	} else {
-		includedPath = filepath.Join(lfs.repoRoot.Name(), lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
-	}
+	// Calculate the included file path relative to the link file's directory
+	linkDir := filepath.Dir(linkFilePath)
+	includedPath := filepath.Join(linkDir, l.IncludedFilePath)
 
 	// Convert to relative path from repository root for secure access of target file
 	relativePath, err := filepath.Rel(lfs.repoRoot.Name(), includedPath)
@@ -172,11 +193,7 @@ func (lfs *LinksFS) ReadFile(name string) ([]byte, error) {
 		return nil, err
 	}
 	defer f.Close()
-	b, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+	return io.ReadAll(f)
 }
 
 // A Link represents a linked file.
