@@ -129,7 +129,7 @@ func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	} else {
 		absWorkDir = filepath.Join(repoRoot.Name(), workDir)
 	}
-	
+
 	// Validate that workDir is within the repository root
 	inRoot, err := pathIsInRepositoryRoot(repoRoot, absWorkDir)
 	if err != nil {
@@ -138,7 +138,7 @@ func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	if !inRoot {
 		return nil, fmt.Errorf("workDir %s is outside the repository root %s", absWorkDir, repoRoot.Name())
 	}
-	
+
 	return &LinksFS{repoRoot: repoRoot, workDir: absWorkDir, inner: os.DirFS(absWorkDir)}, nil
 }
 

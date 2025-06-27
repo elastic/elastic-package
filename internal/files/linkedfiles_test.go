@@ -611,8 +611,8 @@ func TestLinksFS_Open(t *testing.T) {
 			expectFile: true,
 		},
 		{
-			name:       "open outdated link file should fail",
-			fileName:   "outdated.txt.link",
+			name:        "open outdated link file should fail",
+			fileName:    "outdated.txt.link",
 			expectError: true,
 			errorMsg:    "not up to date",
 		},
