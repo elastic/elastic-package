@@ -66,17 +66,17 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.17.28
+	./scripts/test-stack-command.sh 7.17.29
 
 # Keeping a test for 8.6 because it has an specific configuration file.
 test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.0-b3749f5b-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.0-5cc30e4a-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.1.0-ea0b7542-SNAPSHOT
+	./scripts/test-stack-command.sh 9.1.0-dd974feb-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
