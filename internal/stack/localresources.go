@@ -53,6 +53,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 		"agent_version":        stackVersion,
 		"agent_image":          imageRefs.ElasticAgent,
 		"logstash_image":       imageRefs.Logstash,
+		"isready_image":        imageRefs.IsReady,
 		"elasticsearch_host":   DockerInternalHost(esHostWithPort(config.ElasticsearchHost)),
 		"api_key":              config.ElasticsearchAPIKey,
 		"username":             config.ElasticsearchUsername,
