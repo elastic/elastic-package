@@ -1,0 +1,3 @@
+processors:
+  - test:
+      foo: bar
