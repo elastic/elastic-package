@@ -127,21 +127,42 @@ func NewLinksFS(repoRoot *os.Root, workDir string) *LinksFS {
 
 // Open opens a file in the filesystem.
 func (lfs *LinksFS) Open(name string) (fs.File, error) {
+	// For non-link files, use the inner filesystem
 	if filepath.Ext(name) != linkExtension {
 		return lfs.inner.Open(name)
 	}
-	// Convert to absolute path for NewLinkedFile
-	absoluteLinkPath := filepath.Join(lfs.repoRoot.Name(), lfs.workDir, name)
-	l, err := NewLinkedFile(lfs.repoRoot, absoluteLinkPath)
+
+	// For link files, construct the full path
+	var linkFilePath string
+	if filepath.IsAbs(lfs.workDir) {
+		linkFilePath = filepath.Join(lfs.workDir, name)
+	} else {
+		linkFilePath = filepath.Join(lfs.repoRoot.Name(), lfs.workDir, name)
+	}
+
+	l, err := NewLinkedFile(lfs.repoRoot, linkFilePath)
 	if err != nil {
 		return nil, err
 	}
 	if !l.UpToDate {
 		return nil, fmt.Errorf("linked file %s is not up to date", name)
 	}
-	// Use the included file path relative to the link's working directory
-	includedFilePath := filepath.Join(lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
-	return lfs.repoRoot.Open(includedFilePath)
+
+	// Calculate the included file path
+	var includedPath string
+	if filepath.IsAbs(lfs.workDir) {
+		includedPath = filepath.Join(lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
+	} else {
+		includedPath = filepath.Join(lfs.repoRoot.Name(), lfs.workDir, filepath.Dir(name), l.IncludedFilePath)
+	}
+
+	// Convert to relative path from repository root for secure access of target file
+	relativePath, err := filepath.Rel(lfs.repoRoot.Name(), includedPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not get relative path: %w", err)
+	}
+
+	return lfs.repoRoot.Open(relativePath)
 }
 
 // ReadFile reads a file from the filesystem.
@@ -205,7 +226,7 @@ func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 		l.LinkChecksum = fields[1]
 	}
 
-	pathName := filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath))
+	pathName := filepath.Clean(filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath)))
 
 	inRoot, err := pathIsInRepositoryRoot(root, pathName)
 	if err != nil {
@@ -215,11 +236,22 @@ func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 		return Link{}, fmt.Errorf("path %s escapes the repository root", pathName)
 	}
 
-	if _, err := os.Stat(pathName); err != nil {
+	// Store the original absolute path for package root detection
+	originalAbsPath := pathName
+
+	// Convert to relative path for secure access of target file
+	if filepath.IsAbs(pathName) {
+		pathName, err = filepath.Rel(root.Name(), pathName)
+		if err != nil {
+			return Link{}, fmt.Errorf("could not get relative path: %w", err)
+		}
+	}
+
+	if _, err := root.Stat(pathName); err != nil {
 		return Link{}, err
 	}
 
-	cs, err := getLinkedFileChecksum(pathName)
+	cs, err := getLinkedFileChecksumFromRoot(root, pathName)
 	if err != nil {
 		return Link{}, fmt.Errorf("could not collect file %s: %w", l.IncludedFilePath, err)
 	}
@@ -228,7 +260,7 @@ func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	}
 	l.IncludedFileContentsChecksum = cs
 
-	if includedPackageRoot, _, _ := packages.FindPackageRootFrom(filepath.Dir(pathName)); includedPackageRoot != "" {
+	if includedPackageRoot, _, _ := packages.FindPackageRootFrom(filepath.Dir(originalAbsPath)); includedPackageRoot != "" {
 		l.IncludedPackageName = filepath.Base(includedPackageRoot)
 	}
 
@@ -476,9 +508,15 @@ func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, er
 	return result, nil
 }
 
-// getLinkedFileChecksum calculates the SHA256 checksum of a file.
-func getLinkedFileChecksum(path string) (string, error) {
-	b, err := os.ReadFile(filepath.FromSlash(path))
+// getLinkedFileChecksumFromRoot calculates the SHA256 checksum of a file using root-relative access.
+func getLinkedFileChecksumFromRoot(root *os.Root, relativePath string) (string, error) {
+	file, err := root.Open(filepath.FromSlash(relativePath))
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	b, err := io.ReadAll(file)
 	if err != nil {
 		return "", err
 	}
