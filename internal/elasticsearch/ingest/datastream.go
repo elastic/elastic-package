@@ -26,8 +26,8 @@ import (
 var (
 	ingestPipelineTag       = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
 	defaultPipelineJSON     = "default.json"
-	defaultPipelineJSONLink = "default.json"
-	defaultPipelineYML      = "default.yml.link"
+	defaultPipelineJSONLink = "default.json.link"
+	defaultPipelineYML      = "default.yml"
 	defaultPipelineYMLLink  = "default.yml.link"
 )
 
