@@ -109,7 +109,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   logstash_is_ready:
-    image: "${ISREADY_IMAGE_REF}"
+    image: "{{ fact "isready_image" }}"
     depends_on:
       logstash:
         condition: service_healthy
