@@ -47,7 +47,7 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 	if err != nil {
 		return fmt.Errorf("can't render package changelog: %w", err)
 	}
-	
+
 	logger.Debugf("Write docs readme")
 	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "docs", "README.md"))
 	if err != nil {
