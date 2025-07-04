@@ -37,6 +37,7 @@ const (
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
+	isReadyImageName                    = "tianon/true:multiarch"
 
 	applicationConfigurationYmlFile = "config.yml"
 )
@@ -101,6 +102,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
 		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 		Logstash:      checkImageRefOverride("LOGSTASH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Logstash, "")),
+		IsReady:       checkImageRefOverride("ISREADY_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.IsReady, "")),
 	}
 }
 
@@ -110,6 +112,7 @@ type ImageRefs struct {
 	Elasticsearch string `yaml:"elasticsearch"`
 	Kibana        string `yaml:"kibana"`
 	Logstash      string `yaml:"logstash"`
+	IsReady       string `yaml:"is_ready"`
 }
 
 // AsEnv method returns key=value representation of image refs.
@@ -119,6 +122,7 @@ func (ir ImageRefs) AsEnv() []string {
 	vars = append(vars, "ELASTICSEARCH_IMAGE_REF="+ir.Elasticsearch)
 	vars = append(vars, "KIBANA_IMAGE_REF="+ir.Kibana)
 	vars = append(vars, "LOGSTASH_IMAGE_REF="+ir.Logstash)
+	vars = append(vars, "ISREADY_IMAGE_REF="+ir.IsReady)
 	return vars
 }
 
@@ -129,6 +133,7 @@ func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
 	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
+	refs.IsReady = stringOrDefault(refs.IsReady, isReadyImageName)
 	return refs
 }
 
