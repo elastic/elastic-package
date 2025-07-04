@@ -1,84 +1,92 @@
-<!-- Use this template language as a starting point, replacing {placeholder text} with details about the integration. -->
-<!-- Find more detailed documentation guidelines in https://github.com/elastic/integrations/blob/main/docs/documentation_guidelines.md -->
+<!-- This template can be used as a starting point for writing documentation for your new integration. For each section, fill in the details
+described in the comments.
 
-# {{.Manifest.Title}}
-
-<!-- The {{.Manifest.Title}} integration allows you to monitor {name of service}. {name of service} is {describe service}.
-
-Use the {{.Manifest.Title}} integration to {purpose}. Then visualize that data in Kibana, create alerts to notify you if something goes wrong, and reference {data stream type} when troubleshooting an issue.
-
-For example, if you wanted to {sample use case} you could {action}. Then you can {visualize|alert|troubleshoot} by {action}. -->
-
-## Data streams
-
-<!-- The {{.Manifest.Title}} integration collects {one|two} type{s} of data streams: {logs and/or metrics}. -->
-
-<!-- If applicable -->
-<!-- **Logs** help you keep a record of events happening in {service}.
-Log data streams collected by the {name} integration include {sample data stream(s)} and more. See more details in the [Logs](#logs-reference). -->
-
-<!-- If applicable -->
-<!-- **Metrics** give you insight into the state of {service}.
-Metric data streams collected by the {name} integration include {sample data stream(s)} and more. See more details in the [Metrics](#metrics-reference). -->
-
-<!-- Optional: Any additional notes on data streams -->
-
-## Requirements
-
-You need Elasticsearch for storing and searching your data and Kibana for visualizing and managing it.
-You can use our hosted Elasticsearch Service on Elastic Cloud, which is recommended, or self-manage the Elastic Stack on your own hardware.
-
-<!--
-	Optional: Other requirements including:
-	* System compatibility
-	* Supported versions of third-party products
-	* Permissions needed
-	* Anything else that could block a user from successfully using the integration
+Find more detailed documentation guidelines in https://www.elastic.co/docs/extend/integrations/documentation-guidelines
 -->
 
-## Setup
+<!-- Do not remove header -->
+{{ `{{header}}` }}
+# {{.Manifest.Title}} for Elastic
 
-<!-- Any prerequisite instructions -->
+## Overview
 
-For step-by-step instructions on how to set up an integration, see the
-[Getting started](https://www.elastic.co/guide/en/welcome-to-elastic/current/getting-started-observability.html) guide.
+<!-- Complete this section with a short summary of what data this integration collects and what use cases it enables -->
+The {{.Manifest.Title}} for Elastic integration enables collection of ...
+This integration facilitates ...
 
-<!-- Additional set up instructions -->
+### Compatibility
 
-<!-- If applicable -->
-<!-- ## Logs reference -->
+<!-- Complete this section with information on what 3rd party software or hardware versions this integration is compatible with -->
+This integration is compatible with ...
 
-<!-- Repeat for each data stream of the current type -->
-<!-- ### {Data stream name}
+### How it works
 
-The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+<!-- Add a high level overview on how this integration works. For example, does it collect data from API calls or recieving data from a network or file.-->
 
-<!-- Optional -->
-<!-- #### Example
+## What data does this integration collect?
 
-An example event for `{data stream name}` looks as following:
+<!-- Complete this section with information on what types of data the integration collects, and link to reference documentation if available -->
+The {{.Manifest.Title}} integration collects log messages of the following types:
+* ...
 
-{code block with example} -->
+### Supported use cases
 
-<!-- #### Exported fields
+<!-- Add details on the use cases that can be enabled by using this integration. Explain why a user would want to install and use this integration. -->
 
-{insert table} -->
+## What do I need to use this integration?
 
-<!-- If applicable -->
-<!-- ## Metrics reference -->
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
 
-<!-- Repeat for each data stream of the current type -->
-<!-- ### {Data stream name}
+Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+<!-- List any other vendor-specific prerequisites needed before starting to install the integration. -->
 
-<!-- Optional -->
-<!-- #### Example
+## How do I deploy this integration?
 
-An example event for `{data stream name}` looks as following:
+### Onboard / configure
 
-{code block with example} -->
+<!-- List the steps that will need to be followed in order to completely set up a working inte completely set up a working integration.
+For integrations that support multiple input types, be sure to add steps for all inputs.
+-->
 
-<!-- #### Exported fields
+### Validation
 
-{insert table} -->
+<!-- How can the user test whether the integration is working? Including example commands or test files if applicable -->
+
+## Troubleshooting
+
+For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
+
+<!-- Add any vendor specific troubleshooting here.
+
+Are there common issues or “gotchas” for deploying this integration? If so, how can they be resolved?
+If applicable, links to the third-party software’s troubleshooting documentation.
+-->
+
+## Scaling
+
+For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
+
+<!-- Add any vendor specific scaling information here -->
+
+## Reference
+
+### ECS field Reference
+
+{{ `{{fields}}` }}
+
+### Sample Event
+
+{{ `{{event}}` }}
+
+### Inputs used
+
+<!-- List inputs used in this integration, and link to the documentation -->
+These inputs can be used with this integration:
+* ...
+
+### API usage
+
+<!-- For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information -->
+These APIs are used with this integration:
+* ...
