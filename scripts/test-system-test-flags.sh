@@ -266,9 +266,9 @@ run_tests_for_package() {
 
 
 # Set variables depending on whether or not independent Elastic Agents are running
-DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-[0-9]{5}-docker-custom-agent"
+DEFAULT_AGENT_CONTAINER_NAME="elastic-package-service-[0-9]{6}-docker-custom-agent"
 service_deployer_type="docker"
-service_prefix='elastic-package-service-[0-9]{5}'
+service_prefix='elastic-package-service-[0-9]{6}'
 if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-"false"}" == "true" ]]; then
     service_deployer_type="agent"
 fi
