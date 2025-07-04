@@ -8,10 +8,15 @@ SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
 ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
 
 cleanup() {
-  r=$?
+  local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
+  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}" || true
 
   # Take down the stack
   elastic-package stack down -v
