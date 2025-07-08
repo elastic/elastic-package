@@ -10,12 +10,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
+
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 
 	"github.com/pmezard/go-difflib/difflib"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -257,4 +263,79 @@ func readmePath(fileName, packageRoot string) string {
 
 func docsPath(packageRoot string) string {
 	return filepath.Join(packageRoot, "docs")
+}
+
+func ValidateDocsStructure(packageRoot string) error {
+	logger.Debugf("Validating docs structure (package: %s)", packageRoot)
+
+	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
+	if err != nil {
+		return fmt.Errorf("reading build manifest failed: %w", err)
+	}
+	if !ok {
+		return fmt.Errorf("build manifest not found in package root: %s", packageRoot)
+	}
+
+	if !bm.Dependencies.DocsStructureEnforced {
+		logger.Debug("Docs structure validation is not enforced, skipping")
+		return nil
+	}
+
+	logger.Debug("Docs structure validation is enforced, proceeding with validation")
+
+	err = validateReadmeStructure(packageRoot)
+	if err != nil {
+		return fmt.Errorf("structure validation: %w", err)
+	}
+
+	return nil
+}
+
+func validateReadmeStructure(packageRoot string) (error) {
+	requiredHeaders := []string{"Overview", "Troubleshooting", "Scaling"}
+	fileName := "README.md"
+
+	readmePath := filepath.Join(packageRoot, "_dev", "build", "docs", fileName)
+	content, err := os.ReadFile(readmePath)
+	if err != nil && errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("readme file %s not found: %w", fileName, err)
+	}
+
+	md := goldmark.New()
+	reader := text.NewReader(content)
+	doc := md.Parser().Parse(reader)
+
+	found := map[string]bool{}
+	ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+		if heading, ok := n.(*ast.Heading); ok && entering {
+			text := extractHeadingText(heading, content)
+			for _, required := range requiredHeaders {
+				if strings.EqualFold(text, required) {
+					found[required] = true
+				}
+			}
+		}
+		return ast.WalkContinue, nil
+	})
+
+	for _, header := range requiredHeaders {
+		if !found[header] {
+			return fmt.Errorf("missing required header: %s", header)
+		}
+	}
+
+	return nil
+}
+
+func extractHeadingText(n ast.Node, source []byte) string {
+	var builder strings.Builder
+
+	for child := n.FirstChild(); child != nil; child = child.NextSibling() {
+		switch t := child.(type) {
+		case *ast.Text:
+			builder.Write(t.Segment.Value(source))
+		}
+	}
+
+	return builder.String()
 }
