@@ -28,70 +28,6 @@ type PackageLinks struct {
 	Links       []string
 }
 
-// CheckLinkedFiles checks if all linked files in the given directory are up-to-date.
-// Returns a list of outdated links that need updating.
-func CheckLinkedFiles(fromDir string) ([]Link, error) {
-	repoRoot, err := FindRepositoryRootDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("finding repository root: %w", err)
-	}
-
-	root, err := os.OpenRoot(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("opening repository root: %w", err)
-	}
-
-	return AreLinkedFilesUpToDate(root, fromDir)
-}
-
-// UpdateLinkedFiles updates the checksums of all outdated linked files in the given directory.
-// Returns a list of links that were updated.
-func UpdateLinkedFiles(fromDir string) ([]Link, error) {
-	repoRoot, err := FindRepositoryRootDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("finding repository root: %w", err)
-	}
-
-	root, err := os.OpenRoot(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("opening repository root: %w", err)
-	}
-
-	return UpdateLinkedFilesChecksums(root, fromDir)
-}
-
-// IncludeLinkedFilesFromPath copies all linked files from the source directory to the target directory.
-// This is used during package building to include linked files in the build output.
-func IncludeLinkedFilesFromPath(fromDir, toDir string) ([]Link, error) {
-	repoRoot, err := FindRepositoryRootDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("finding repository root: %w", err)
-	}
-
-	root, err := os.OpenRoot(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("opening repository root: %w", err)
-	}
-
-	return IncludeLinkedFiles(root, fromDir, toDir)
-}
-
-// ListLinkedFilesByPackage returns a mapping of packages to their linked files that reference
-// files from the given directory.
-func ListLinkedFilesByPackage(fromDir string) ([]PackageLinks, error) {
-	repoRoot, err := FindRepositoryRootDirectory()
-	if err != nil {
-		return nil, fmt.Errorf("finding repository root: %w", err)
-	}
-
-	root, err := os.OpenRoot(repoRoot)
-	if err != nil {
-		return nil, fmt.Errorf("opening repository root: %w", err)
-	}
-
-	return LinkedFilesByPackageFrom(root, fromDir)
-}
-
 // CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
 func CreateLinksFSFromPath(workDir string) (*LinksFS, error) {
 	repoRoot, err := FindRepositoryRootDirectory()
@@ -165,7 +101,7 @@ func (lfs *LinksFS) Open(name string) (fs.File, error) {
 	// Since workDir is expected to be absolute, we can directly join
 	linkFilePath := filepath.Join(lfs.workDir, relativeName)
 
-	l, err := NewLinkedFile(lfs.repoRoot, linkFilePath)
+	l, err := newLinkedFile(lfs.repoRoot, linkFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -196,6 +132,30 @@ func (lfs *LinksFS) ReadFile(name string) ([]byte, error) {
 	return io.ReadAll(f)
 }
 
+// CheckLinkedFiles checks if all linked files in the directory are up-to-date.
+// Returns a list of outdated links that need updating.
+func (lfs *LinksFS) CheckLinkedFiles() ([]Link, error) {
+	return areLinkedFilesUpToDate(lfs.repoRoot, lfs.workDir)
+}
+
+// UpdateLinkedFiles updates the checksums of all outdated linked files in the directory.
+// Returns a list of links that were updated.
+func (lfs *LinksFS) UpdateLinkedFiles() ([]Link, error) {
+	return updateLinkedFilesChecksums(lfs.repoRoot, lfs.workDir)
+}
+
+// IncludeLinkedFiles copies all linked files from the source directory to the target directory.
+// This is used during package building to include linked files in the build output.
+func (lfs *LinksFS) IncludeLinkedFiles(toDir string) ([]Link, error) {
+	return includeLinkedFiles(lfs.repoRoot, lfs.workDir, toDir)
+}
+
+// ListLinkedFilesByPackage returns a mapping of packages to their linked files that reference
+// files from the given directory.
+func (lfs *LinksFS) ListLinkedFilesByPackage() ([]PackageLinks, error) {
+	return linkedFilesByPackageFrom(lfs.repoRoot, lfs.workDir)
+}
+
 // A Link represents a linked file.
 // It contains the path to the link file, the checksum of the link file,
 // the path to the included file, and the checksum of the included file contents.
@@ -215,7 +175,7 @@ type Link struct {
 }
 
 // NewLinkedFile creates a new Link from the given link file path.
-func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
+func newLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	var l Link
 	l.WorkDir = filepath.Dir(linkFilePath)
 	if linkPackageRoot, _, _ := packages.FindPackageRootFrom(l.WorkDir); linkPackageRoot != "" {
@@ -284,9 +244,9 @@ func NewLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	return l, nil
 }
 
-// UpdateChecksum function updates the checksum of the linked file.
+// updateChecksum function updates the checksum of the linked file.
 // It returns true if the checksum was updated, false if it was already up-to-date.
-func (l *Link) UpdateChecksum() (bool, error) {
+func (l *Link) updateChecksum() (bool, error) {
 	if l.UpToDate {
 		return false, nil
 	}
@@ -316,18 +276,18 @@ func (l *Link) TargetFilePath(workDir ...string) string {
 	return filepath.Join(wd, targetFilePath)
 }
 
-// IncludeLinkedFiles function includes linked files from the source
+// includeLinkedFiles function includes linked files from the source
 // directory to the target directory.
 // It returns a slice of Link structs representing the included files.
 // It also updates the checksum of the linked files.
 // Both directories must be relative to the root.
-func IncludeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(root, fromDir)
+func includeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
+	links, err := listLinkedFiles(root, fromDir)
 	if err != nil {
 		return nil, fmt.Errorf("including linked files failed: %w", err)
 	}
 	for _, l := range links {
-		if _, err := l.UpdateChecksum(); err != nil {
+		if _, err := l.updateChecksum(); err != nil {
 			return nil, fmt.Errorf("could not update checksum for file %s: %w", l.LinkFilePath, err)
 		}
 		targetFilePath := l.TargetFilePath(toDir)
@@ -343,8 +303,8 @@ func IncludeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
 	return links, nil
 }
 
-// ListLinkedFiles function returns a slice of Link structs representing linked files.
-func ListLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
+// listLinkedFiles function returns a slice of Link structs representing linked files.
+func listLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
 	var linkFiles []string
 	if err := filepath.Walk(
 		filepath.FromSlash(fromDir),
@@ -363,7 +323,7 @@ func ListLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
 	links := make([]Link, len(linkFiles))
 
 	for i, f := range linkFiles {
-		l, err := NewLinkedFile(root, filepath.FromSlash(f))
+		l, err := newLinkedFile(root, filepath.FromSlash(f))
 		if err != nil {
 			return nil, fmt.Errorf("could not initialize linked file %s: %w", f, err)
 		}
@@ -445,9 +405,9 @@ func writeFile(to string, b []byte) error {
 	return os.WriteFile(to, b, 0644)
 }
 
-// AreLinkedFilesUpToDate function checks if all the linked files are up-to-date.
-func AreLinkedFilesUpToDate(root *os.Root, fromDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(root, fromDir)
+// areLinkedFilesUpToDate function checks if all the linked files are up-to-date.
+func areLinkedFilesUpToDate(root *os.Root, fromDir string) ([]Link, error) {
+	links, err := listLinkedFiles(root, fromDir)
 	if err != nil {
 		return nil, fmt.Errorf("checking linked files failed: %w", err)
 	}
@@ -463,18 +423,18 @@ func AreLinkedFilesUpToDate(root *os.Root, fromDir string) ([]Link, error) {
 	return outdated, nil
 }
 
-// UpdateLinkedFilesChecksums function updates the checksums of the linked files.
+// updateLinkedFilesChecksums function updates the checksums of the linked files.
 // It returns a slice of updated links.
 // If no links were updated, it returns an empty slice.
-func UpdateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
-	links, err := ListLinkedFiles(root, fromDir)
+func updateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
+	links, err := listLinkedFiles(root, fromDir)
 	if err != nil {
 		return nil, fmt.Errorf("updating linked files checksums failed: %w", err)
 	}
 
 	var updatedLinks []Link
 	for _, l := range links {
-		updated, err := l.UpdateChecksum()
+		updated, err := l.updateChecksum()
 		if err != nil {
 			return nil, fmt.Errorf("updating linked files checksums failed: %w", err)
 		}
@@ -486,12 +446,12 @@ func UpdateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
 	return updatedLinks, nil
 }
 
-// LinkedFilesByPackageFrom function returns a slice of PackageLinks containing linked files grouped by package.
+// linkedFilesByPackageFrom function returns a slice of PackageLinks containing linked files grouped by package.
 // Each PackageLinks contains the package name and a slice of linked file paths.
-func LinkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, error) {
+func linkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, error) {
 	// we list linked files from all the root directory
 	// to check which ones are linked to the 'fromDir' package
-	links, err := ListLinkedFiles(root, root.Name())
+	links, err := listLinkedFiles(root, root.Name())
 	if err != nil {
 		return nil, fmt.Errorf("listing linked files failed: %w", err)
 	}

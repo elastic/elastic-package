@@ -57,7 +57,12 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linkedFiles, err := files.CheckLinkedFiles(pwd)
+	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	if err != nil {
+		return fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	linkedFiles, err := linksFS.CheckLinkedFiles()
 	if err != nil {
 		return fmt.Errorf("checking linked files are up-to-date failed: %w", err)
 	}
@@ -90,7 +95,12 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	updatedLinks, err := files.UpdateLinkedFiles(pwd)
+	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	if err != nil {
+		return fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	updatedLinks, err := linksFS.UpdateLinkedFiles()
 	if err != nil {
 		return fmt.Errorf("updating linked files checksums failed: %w", err)
 	}
@@ -125,7 +135,12 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	byPackage, err := files.ListLinkedFilesByPackage(pwd)
+	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	if err != nil {
+		return fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	byPackage, err := linksFS.ListLinkedFilesByPackage()
 	if err != nil {
 		return fmt.Errorf("listing linked packages failed: %w", err)
 	}

@@ -186,7 +186,12 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Include linked files")
-	links, err := files.IncludeLinkedFilesFromPath(options.PackageRoot, destinationDir)
+	linksFS, err := files.CreateLinksFSFromPath(options.PackageRoot)
+	if err != nil {
+		return "", fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	links, err := linksFS.IncludeLinkedFiles(destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("including linked files failed: %w", err)
 	}
