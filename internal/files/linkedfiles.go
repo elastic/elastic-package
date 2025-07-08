@@ -61,13 +61,13 @@ func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	// Ensure workDir is absolute for os.DirFS
 	var absWorkDir string
 	var err error
-	
+
 	if filepath.IsAbs(workDir) {
 		absWorkDir = workDir
 	} else {
 		// First try: assume workDir is relative to the repository root
 		absWorkDir = filepath.Join(repoRoot.Name(), workDir)
-		
+
 		// Check if path exists
 		if _, err := os.Stat(absWorkDir); os.IsNotExist(err) {
 			// Second try: path might be relative to current working directory
@@ -88,7 +88,7 @@ func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not validate workDir %s: %w", absWorkDir, err)
 	}
-	
+
 	if !inRoot {
 		return nil, fmt.Errorf("workDir %s is outside the repository root %s", absWorkDir, repoRoot.Name())
 	}
