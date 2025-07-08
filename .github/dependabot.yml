@@ -7,8 +7,6 @@ updates:
       interval: "daily"
     labels:
       - automation
-    reviewers:
-      - "elastic/ecosystem"
     open-pull-requests-limit: 10
     groups:
       k8s:
@@ -22,5 +20,3 @@ updates:
     open-pull-requests-limit: 2
     labels:
       - automation
-    reviewers:
-      - "elastic/ecosystem"

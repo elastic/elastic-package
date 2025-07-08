@@ -73,10 +73,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.0-5cc30e4a-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.0-54de9d88-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.1.0-dd974feb-SNAPSHOT
+	./scripts/test-stack-command.sh 9.2.0-cd34cd9b-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh

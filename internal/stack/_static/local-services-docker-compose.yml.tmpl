@@ -40,7 +40,7 @@ services:
     - "host.docker.internal:host-gateway"
 
   fleet-server_is_ready:
-    image: tianon/true:multiarch
+    image: "{{ fact "isready_image" }}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -76,7 +76,7 @@ services:
     - "host.docker.internal:host-gateway"
 
   elastic-agent_is_ready:
-    image: tianon/true:multiarch
+    image: "{{ fact "isready_image" }}"
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -109,7 +109,7 @@ services:
       - "host.docker.internal:host-gateway"
 
   logstash_is_ready:
-    image: tianon/true:multiarch
+    image: "{{ fact "isready_image" }}"
     depends_on:
       logstash:
         condition: service_healthy
