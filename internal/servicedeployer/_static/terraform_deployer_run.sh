@@ -20,7 +20,15 @@ trap cleanup EXIT INT TERM
 
 terraform init
 terraform plan
+
+export AWS_DEFAULT_REGION="${AWS_REGION}"
+echo "Before Terraform Apply command"
+aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+
 terraform apply -auto-approve
+
+echo "After Terraform Apply command"
+aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
 
 terraform output -json > /output/tfOutputValues.json
 
