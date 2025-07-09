@@ -60,8 +60,6 @@ type LinksFS struct {
 func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	// Ensure workDir is absolute for os.DirFS
 	var absWorkDir string
-	var err error
-
 	if filepath.IsAbs(workDir) {
 		absWorkDir = workDir
 	} else {
