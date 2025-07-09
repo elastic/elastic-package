@@ -138,6 +138,9 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	PackagesFlagName        = "packages"
+	PackagesFlagDescription = "whether to return packages names or complete paths for the linked files found"
+
 	IngestPipelineIDsFlagName        = "id"
 	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
 
