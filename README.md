@@ -380,6 +380,30 @@ Use this command to install the package in Kibana.
 
 The command uses Kibana API to install the package in Kibana. The package must be exposed via the Package Registry or built locally in zip format so they can be installed using --zip parameter. Zip packages can be installed directly in Kibana >= 8.7.0. More details in this [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/install_package.md).
 
+### `elastic-package links`
+
+_Context: global_
+
+Use this command to manage linked files in the repository.
+
+### `elastic-package links check`
+
+_Context: global_
+
+Use this command to check if linked files references inside the current directory are up to date.
+
+### `elastic-package links list`
+
+_Context: global_
+
+Use this command to list all packages that have linked file references that include the current directory.
+
+### `elastic-package links update`
+
+_Context: global_
+
+Use this command to update all linked files references inside the current directory.
+
 ### `elastic-package lint`
 
 _Context: package_

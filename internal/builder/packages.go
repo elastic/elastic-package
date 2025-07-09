@@ -185,6 +185,20 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
+	logger.Debug("Include linked files")
+	linksFS, err := files.CreateLinksFSFromPath(options.PackageRoot)
+	if err != nil {
+		return "", fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	links, err := linksFS.IncludeLinkedFiles(destinationDir)
+	if err != nil {
+		return "", fmt.Errorf("including linked files failed: %w", err)
+	}
+	for _, l := range links {
+		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
+	}
+
 	if options.CreateZip {
 		return buildZippedPackage(ctx, options, destinationDir)
 	}
