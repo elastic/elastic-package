@@ -14,8 +14,10 @@ cleanup() {
   set -x
   terraform destroy -auto-approve
 
-  echo "After Terraform destroy command"
-  aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+  if [[ "${running_on_aws}" == 1 ]]; then
+    echo "After Terraform destroy command"
+    aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+  fi
 
   exit $r
 }
@@ -24,13 +26,19 @@ trap cleanup EXIT INT TERM
 terraform init
 terraform plan
 
-echo "Before Terraform Apply command"
-aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+running_on_aws=0
+if [[ "${AWS_SECRET_ACCESS_KEY:-""}" != "" ]]; then
+  running_on_aws=1
+  echo "Before Terraform Apply command"
+  aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+fi
 
 terraform apply -auto-approve
 
-echo "After Terraform Apply command"
-aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+if [[ "${running_on_aws}" == 1 ]]; then
+  echo "After Terraform Apply command"
+  aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+fi
 
 terraform output -json > /output/tfOutputValues.json
 
