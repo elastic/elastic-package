@@ -14,6 +14,9 @@ cleanup() {
   set -x
   terraform destroy -auto-approve
 
+  echo "After Terraform destroy command"
+  aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+
   exit $r
 }
 trap cleanup EXIT INT TERM
@@ -25,6 +28,7 @@ export AWS_DEFAULT_REGION="${AWS_REGION}"
 echo "Before Terraform Apply command"
 aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
 
+export TF_LOG="DEBUG"
 terraform apply -auto-approve
 
 echo "After Terraform Apply command"
