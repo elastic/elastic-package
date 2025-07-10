@@ -23,6 +23,25 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
+retry() {
+  local retries=$1
+  shift
+  local count=0
+  until "$@"; do
+    exit=$?
+    wait=$((2 ** count))
+    count=$((count + 1))
+    if [ $count -lt "$retries" ]; then
+      >&2 echo "Retry $count/$retries exited $exit, retrying in $wait seconds..."
+      sleep $wait
+    else
+      >&2 echo "Retry $count/$retries exited $exit, no more retries left."
+      return $exit
+    fi
+  done
+  return 0
+}
+
 terraform init
 terraform plan
 
@@ -33,7 +52,7 @@ if [[ "${AWS_SECRET_ACCESS_KEY:-""}" != "" ]]; then
   aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
 fi
 
-terraform apply -auto-approve
+retry 2 terraform apply -auto-approve
 
 if [[ "${running_on_aws}" == 1 ]]; then
   echo "After Terraform Apply command"
