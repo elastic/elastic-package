@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -26,6 +27,12 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfTestRunID] = info.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 	vars[tfOutputDir] = info.OutputDir
+
+	vars[tfTestRunID] = "64363"
+
+	if v, found := os.LookupEnv("ELASTIC_PACKAGE_SUFFIX_TERRAFORM_RUN_ID"); found && strings.ToLower(v) == "true" {
+		vars[tfTestRunID] = fmt.Sprintf("ci-%s", info.Test.RunID)
+	}
 
 	var pairs []string
 	for k, v := range vars {
