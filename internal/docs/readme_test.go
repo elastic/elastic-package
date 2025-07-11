@@ -5,6 +5,7 @@
 package docs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -263,6 +264,57 @@ Introduction to the package
 	}
 }
 
+func TestValidateReadmeStructure(t *testing.T) {
+	tests := []struct {
+		name            string
+		packageRoot	 string
+		readmeTemplateContents  string
+		enforcedDocs bool
+		expectedError   error
+	}{
+		{
+			name:           "Valid structure",
+			packageRoot: t.TempDir(),
+			readmeTemplateContents: "### Overview\n\nThis is a valid README file with the required headers.\n\n### Troubleshooting\n\nSome troubleshooting tips.\n\n### Scaling\n\nScaling considerations.",
+			enforcedDocs: true,
+			expectedError:  nil,
+		},
+		{
+			name:           "Missing sections",
+			packageRoot: t.TempDir(),
+			readmeTemplateContents: "### Overview\n\nThis is a valid README file with the required headers.\n\n### Troubleshooting\n\nSome troubleshooting tips.",
+			enforcedDocs: true,
+			expectedError:  fmt.Errorf("missing required header: Scaling"),
+		},		
+		{
+			name:           "Missing sections with no validation",
+			packageRoot: t.TempDir(),
+			readmeTemplateContents: "### Overview\n\nThis is a valid README file with the required headers.\n\n### Troubleshooting\n\nSome troubleshooting tips.",
+			enforcedDocs: false,
+			expectedError:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := createReadmeFile(tt.packageRoot, tt.readmeTemplateContents)
+			require.NoError(t, err, "Failed to create README file")
+
+			err = createBuildManifestFile(tt.packageRoot, tt.enforcedDocs)
+			require.NoError(t, err, "Failed to create build manifest file")
+			
+			err = ValidateDocsStructure(tt.packageRoot)
+
+			if tt.expectedError != nil {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError.Error(), "Error does not match expected")
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func createReadmeFile(packageRoot, contents string) error {
 	docsFolder, err := createDocsFolder(packageRoot)
 	if err != nil {
@@ -340,4 +392,16 @@ func createFieldsFolder(packageRoot, dataStreamName string) (string, error) {
 		return "", err
 	}
 	return fieldsFolder, nil
+}
+
+func createBuildManifestFile(packageRoot string, enforceDocs bool) error {
+	manifest := fmt.Sprintf(`
+dependencies:
+  ecs:
+    reference: git@1.10
+  docs_structure_enforced: %t
+`, enforceDocs)
+	fmt.Println(manifest)
+	manifestFile := filepath.Join(packageRoot, "_dev", "build", "build.yml")
+	return os.WriteFile(manifestFile, []byte(manifest), 0644)
 }

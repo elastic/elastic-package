@@ -22,6 +22,7 @@ type BuildManifest struct {
 // Dependencies define external package dependencies.
 type Dependencies struct {
 	ECS ECSDependency `config:"ecs"`
+	DocsStructureEnforced bool `config:"docs_structure_enforced"`
 }
 
 // ECSDependency defines a dependency on ECS fields.
