@@ -50,7 +50,21 @@ if [[ "${AWS_SECRET_ACCESS_KEY:-""}" != "" ]]; then
   running_on_aws=1
   echo "Before Terraform Apply command"
   aws s3api list-buckets --query "Buckets[].Name" --output text | tr '\t' '\n'
+
+  buckets=(
+      "elastic-package-canva-bucket-64363"
+      "elastic-package-canva-bucket-51662"
+      "elastic-package-sublime-security-bucket-35776"
+      "elastic-package-symantec-endpoint-security-bucket-65009"
+      "elastic-package-symantec-endpoint-security-bucket-78346"
+  )
+  for b in "${buckets[@]}"; do
+      echo "Check buckets: ${b}"
+      aws s3api head-bucket --bucket "${b}"
+      echo ""
+  done
 fi
+
 
 retry 2 terraform apply -auto-approve
 
