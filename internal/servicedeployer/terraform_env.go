@@ -29,7 +29,8 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfOutputDir] = info.OutputDir
 
 	// vars[tfTestRunID] = "64363"
-	vars[tfTestRunID] = "51662"
+	// vars[tfTestRunID] = "51662"
+	vars[tfTestRunID] = "35776"
 
 	if v, found := os.LookupEnv("ELASTIC_PACKAGE_SUFFIX_TERRAFORM_RUN_ID"); found && strings.ToLower(v) == "true" {
 		vars[tfTestRunID] = fmt.Sprintf("ci-%s", info.Test.RunID)
