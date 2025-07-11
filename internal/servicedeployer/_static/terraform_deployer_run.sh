@@ -60,7 +60,7 @@ if [[ "${AWS_SECRET_ACCESS_KEY:-""}" != "" ]]; then
   )
   for b in "${buckets[@]}"; do
       echo "Check buckets: ${b}"
-      aws s3api head-bucket --bucket "${b}"
+      aws s3api head-bucket --bucket "${b}" || true
       echo ""
   done
 fi
