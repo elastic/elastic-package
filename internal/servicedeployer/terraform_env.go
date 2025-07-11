@@ -7,6 +7,7 @@ package servicedeployer
 import (
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/compose"
@@ -26,6 +27,20 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfTestRunID] = info.Test.RunID
 	vars[tfDir] = tsd.definitionsDir
 	vars[tfOutputDir] = info.OutputDir
+
+	// canva
+	// vars[tfTestRunID] = "64363"
+	vars[tfTestRunID] = "51662"
+	// sublime_security
+	// vars[tfTestRunID] = "35776"
+
+	if v, found := os.LookupEnv("ELASTIC_PACKAGE_PREFIX_TERRAFORM_RUN_ID"); found && v != "" {
+		vars[tfTestRunID] = fmt.Sprintf("%s%s", v, info.Test.RunID)
+	}
+
+	if v, found := os.LookupEnv("ELASTIC_PACKAGE_SET_TERRAFORM_RUN_ID"); found && v != "" {
+		vars[tfTestRunID] = v
+	}
 
 	var pairs []string
 	for k, v := range vars {

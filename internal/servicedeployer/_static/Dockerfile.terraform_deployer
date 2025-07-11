@@ -3,7 +3,7 @@ ENV GCLOUD_SDK_VERSION=467.0.0-0
 ENV TERRAFORM_VERSION=1.9.6
 
 RUN apt-get -qq update \
-  && apt-get install -yq curl apt-transport-https ca-certificates gnupg \
+  && apt-get install -yq curl apt-transport-https ca-certificates gnupg unzip \
   && apt-get clean
 
 RUN echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list \
@@ -17,6 +17,11 @@ RUN curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/sh
   && apt-get update -qq \
   && apt-get install -yq terraform=${TERRAFORM_VERSION}-1 \
   && apt-get clean
+
+RUN curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+  && unzip -q awscliv2.zip \
+  && ./aws/install \
+  && rm -rf awscliv2.zip aws
 
 HEALTHCHECK --timeout=3s CMD sh -c "[ -f /tmp/tf-applied ]"
 
