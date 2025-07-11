@@ -28,12 +28,14 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfDir] = tsd.definitionsDir
 	vars[tfOutputDir] = info.OutputDir
 
+	// canva
 	// vars[tfTestRunID] = "64363"
-	// vars[tfTestRunID] = "51662"
-	vars[tfTestRunID] = "35776"
+	vars[tfTestRunID] = "51662"
+	// sublime_security
+	// vars[tfTestRunID] = "35776"
 
-	if v, found := os.LookupEnv("ELASTIC_PACKAGE_SUFFIX_TERRAFORM_RUN_ID"); found && strings.ToLower(v) == "true" {
-		vars[tfTestRunID] = fmt.Sprintf("ci-%s", info.Test.RunID)
+	if v, found := os.LookupEnv("ELASTIC_PACKAGE_PREFIX_TERRAFORM_RUN_ID"); found && v != "" {
+		vars[tfTestRunID] = fmt.Sprintf("%s%s", v, info.Test.RunID)
 	}
 
 	var pairs []string
