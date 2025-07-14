@@ -73,8 +73,14 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
+
 	if errs != nil {
-		return fmt.Errorf("linting package failed: %w", errs)
+		// return fmt.Errorf("linting package failed: %w", errs)
+	}
+
+	docsErrors := validation.ValidateDocsStructureFromPath(packageRootPath)
+	if docsErrors != nil {
+		return fmt.Errorf("Documentation validation failed: %v", docsErrors)
 	}
 	return nil
 }

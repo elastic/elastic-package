@@ -72,11 +72,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	err = docs.ValidateDocsStructure(packageRoot)
-	if err != nil {
-		return fmt.Errorf("validating docs structure failed: %w", err)
-	}
-
 	targets, err := docs.UpdateReadmes(packageRoot)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)

@@ -33,6 +33,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
+	github.com/yuin/goldmark v1.4.13
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.34.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
@@ -183,3 +184,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace github.com/elastic/package-spec/v3 => github.com/haetamoudi/package-spec/v3 v3.0.0-20250710152742-0e3bdbef3665
