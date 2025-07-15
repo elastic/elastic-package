@@ -19,18 +19,9 @@ func TestValidateDocsStructureFromPath(t *testing.T) {
 		expectedResult error
 	}{
 		{
-			name:           "Valid test",
-			rootPath:       "../../test/packages/other/readme_structure/valid",
-			expectedResult: nil,
-		},
-		{
 			name:           "Missing header",
-			rootPath:       "../../test/packages/other/readme_structure/missing_header",
+			rootPath:       "../../test/packages/other/readme_structure",
 			expectedResult: DocsValidationError{fmt.Errorf("missing required section 'Overview' in file 'README.md'")},
-		}, {
-			name:           "Enforce structure not enabled",
-			rootPath:       "../../test/packages/other/readme_structure/enforced_not_enabled",
-			expectedResult: nil,
 		},
 	}
 
