@@ -5,8 +5,8 @@ logs created by the HTTP server.
 
 ## Compatibility
 
-The Nginx `stubstatus` metrics was tested with Nginx 1.19.5 and are expected to work with all version >= 1.9.
-The logs were tested with version 1.19.5.
+The Nginx `stubstatus` metrics was tested with Nginx 1.22.1 and are expected to work with all version >= 1.9.
+The logs were tested with version 1.22.1.
 On Windows, the module was tested with Nginx installed from the Chocolatey repository.
 
 ## Logs

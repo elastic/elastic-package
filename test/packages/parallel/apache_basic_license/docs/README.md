@@ -5,7 +5,7 @@ logs created by the Apache server.
 
 ## Compatibility
 
-The Apache datasets were tested with Apache 2.4.12 and 2.4.46 and are expected to work with
+The Apache datasets were tested with Apache 2.4.51 and are expected to work with
 all versions >= 2.2.31 and >= 2.4.16 (independent from operating system).
 
 ## Logs

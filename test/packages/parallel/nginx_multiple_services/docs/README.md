@@ -5,7 +5,7 @@ logs created by the HTTP server.
 
 ## Compatibility
 
-The logs were tested with version 1.19.5.
+The logs were tested with version 1.22.1.
 On Windows, the module was tested with Nginx installed from the Chocolatey repository.
 
 ## Logs
