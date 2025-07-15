@@ -75,7 +75,7 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if errs != nil {
-		// return fmt.Errorf("linting package failed: %w", errs)
+		return fmt.Errorf("linting package failed: %w", errs)
 	}
 
 	docsErrors := validation.ValidateDocsStructureFromPath(packageRootPath)
