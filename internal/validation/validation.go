@@ -30,13 +30,12 @@ var static embed.FS
 
 var staticSource = resource.NewSourceFS(static)
 
-
 type DocsValidationError []error
 
 func (dve DocsValidationError) Error() string {
 	var out string
 	for _, err := range dve {
-		out +=  "\n" + err.Error()
+		out += "\n" + err.Error()
 	}
 	return out
 }
@@ -138,7 +137,7 @@ func extractHeadingText(n ast.Node, source []byte) string {
 	return builder.String()
 }
 
-func validateReadmeStructure(packageRoot string, enforcedSections []string) (error) {
+func validateReadmeStructure(packageRoot string, enforcedSections []string) error {
 	docsFolderPath := filepath.Join(packageRoot, "docs")
 	files, err := os.ReadDir(docsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
@@ -150,38 +149,38 @@ func validateReadmeStructure(packageRoot string, enforcedSections []string) (err
 
 	for _, file := range files {
 		fmt.Println("Validating file:", file.Name())
-			if !file.IsDir() {
-				fullPath := filepath.Join(docsFolderPath, file.Name())
+		if !file.IsDir() {
+			fullPath := filepath.Join(docsFolderPath, file.Name())
 
-				content, err := os.ReadFile(fullPath)
-				if err != nil {
-					fmt.Printf("Error opening file %s: %v\n", fullPath, err)
-					continue
-				}
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				fmt.Printf("Error opening file %s: %v\n", fullPath, err)
+				continue
+			}
 
-				reader := text.NewReader(content)
-				doc := md.Parser().Parse(reader)
+			reader := text.NewReader(content)
+			doc := md.Parser().Parse(reader)
 
-				found := map[string]bool{}
-				ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
-					if heading, ok := n.(*ast.Heading); ok && entering {
-						text := extractHeadingText(heading, content)
-						for _, required := range enforcedSections {
-							if strings.EqualFold(text, required) {
-								found[required] = true
-							}
+			found := map[string]bool{}
+			ast.Walk(doc, func(n ast.Node, entering bool) (ast.WalkStatus, error) {
+				if heading, ok := n.(*ast.Heading); ok && entering {
+					text := extractHeadingText(heading, content)
+					for _, required := range enforcedSections {
+						if strings.EqualFold(text, required) {
+							found[required] = true
 						}
 					}
-					return ast.WalkContinue, nil
-				})
-
-				for _, header := range enforcedSections {
-					if !found[header] {
-						errs = append(errs, fmt.Errorf("missing required section '%s' in file '%s'", header, file.Name()))
-					}
 				}
+				return ast.WalkContinue, nil
+			})
 
+			for _, header := range enforcedSections {
+				if !found[header] {
+					errs = append(errs, fmt.Errorf("missing required section '%s' in file '%s'", header, file.Name()))
+				}
 			}
+
+		}
 	}
 
 	if len(errs) == 0 {
@@ -190,7 +189,6 @@ func validateReadmeStructure(packageRoot string, enforcedSections []string) (err
 
 	return errs
 }
-
 
 func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 	dirs, err := fs.ReadDir(fsys, ".")
@@ -234,23 +232,23 @@ func filterErrors(allErrors error, fsys fs.FS) (specerrors.FilterResult, error) 
 			fmt.Errorf("failed to filter errors: %w", err)
 	}
 	return result, nil
-} 
+}
 
-func retrieveEnforcedDocsSections(fsys fs.FS) ([]string, error){
-	sections :=[]string{}
+func retrieveEnforcedDocsSections(fsys fs.FS) ([]string, error) {
+	sections := []string{}
 
 	config, err := specerrors.LoadConfigFilter(fsys)
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return sections, fmt.Errorf("failed to read config filter: %w", err)
 	}
 
+	if config == nil || !config.DocsStructureEnforced.Enabled {
+		return sections, nil
+	}
+
 	defaultSections, err := loadSectionsFromConfig(fmt.Sprintf("%d", config.DocsStructureEnforced.Version))
 	if err != nil {
 		fmt.Printf("Failed to load enforced sections from config: %v\n", err)
-	}
-
-	if config == nil || !config.DocsStructureEnforced.Enabled {
-		return sections, nil
 	}
 
 	for _, section := range defaultSections {
@@ -274,12 +272,12 @@ func contains(slice []specerrors.Skip, item string) bool {
 }
 
 type EnforcedSections struct {
-	Version string `yaml:"version"`
+	Version  string    `yaml:"version"`
 	Sections []Section `yaml:"enforced_sections"`
 }
 
 type Section struct {
-	Name string `yaml:"name"`
+	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
 }
 

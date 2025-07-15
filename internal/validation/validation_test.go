@@ -12,24 +12,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
-
-
 func TestValidateDocsStructureFromPath(t *testing.T) {
 	tests := []struct {
-		name            string
-		rootPath             string
-		expectedResult  error
+		name           string
+		rootPath       string
+		expectedResult error
 	}{
 		{
 			name:           "Valid test",
-			rootPath:            "test/packages/other/readme_structure",
+			rootPath:       "../../test/packages/other/readme_structure/valid",
+			expectedResult: nil,
+		},
+		{
+			name:           "Missing header",
+			rootPath:       "../../test/packages/other/readme_structure/missing_header",
+			expectedResult: DocsValidationError{fmt.Errorf("missing required section 'Overview' in file 'README.md'")},
+		}, {
+			name:           "Enforce structure not enabled",
+			rootPath:       "../../test/packages/other/readme_structure/enforced_not_enabled",
 			expectedResult: nil,
 		},
 	}
 
 	for _, tt := range tests {
-		// staticSource = resource.NewSourceFS(static)
 		t.Run(tt.name, func(t *testing.T) {
 			actualResult := ValidateDocsStructureFromPath(tt.rootPath)
 			assert.Equal(t, tt.expectedResult, actualResult, "Result does not match expected")
@@ -37,23 +42,22 @@ func TestValidateDocsStructureFromPath(t *testing.T) {
 	}
 }
 
-
 func TestLoadSectionsFromConfig(t *testing.T) {
 	tests := []struct {
-		name            string
-		version             string
-		expectedResult  []string
-		expectedError   error
+		name           string
+		version        string
+		expectedResult []string
+		expectedError  error
 	}{
 		{
 			name:           "Valid version",
-			version:            "1",
+			version:        "1",
 			expectedResult: []string{"Overview", "What data does this integration collect?", "What do I need to use this integration?", "How do I deploy this integration?", "Troubleshooting", "Performance and scaling"},
 			expectedError:  nil,
 		},
 		{
 			name:           "Invalid version",
-			version:            "999",
+			version:        "999",
 			expectedResult: nil,
 			expectedError:  fmt.Errorf("unsupported format_version: 999"),
 		},
