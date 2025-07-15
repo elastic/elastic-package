@@ -11,34 +11,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestValidateContent(t *testing.T) {
 	tests := []struct {
-		name            string
-		filename             string
-		content []byte
+		name             string
+		filename         string
+		content          []byte
 		enforcedSections []string
-		expectedResult  error
+		expectedResult   error
 	}{
 		{
-			name:           "Valid content",
-			filename:            "test.md",
-			content: []byte("# Overview\n\nThis is a valid overview section."),
+			name:             "Valid content",
+			filename:         "test.md",
+			content:          []byte("# Overview\n\nThis is a valid overview section."),
 			enforcedSections: []string{"Overview"},
-			expectedResult:  nil,
+			expectedResult:   nil,
 		},
-				{
-			name:           "Missing header",
-			filename:            "test.md",
-			content: []byte("# Overview\n\nThis is a valid overview section."),
+		{
+			name:             "Missing header",
+			filename:         "test.md",
+			content:          []byte("# Overview\n\nThis is a valid overview section."),
 			enforcedSections: []string{"Overview", "Setup"},
-			expectedResult:  DocsValidationError{fmt.Errorf("missing required section 'Setup' in file 'test.md'")},
-		},				{
-			name:           "Empty content",
-			filename:            "test.md",
-			content: []byte(""),
+			expectedResult:   DocsValidationError{fmt.Errorf("missing required section 'Setup' in file 'test.md'")},
+		}, {
+			name:             "Empty content",
+			filename:         "test.md",
+			content:          []byte(""),
 			enforcedSections: []string{"Overview", "Setup"},
-			expectedResult:  DocsValidationError{fmt.Errorf("missing required section 'Overview' in file 'test.md'"), fmt.Errorf("missing required section 'Setup' in file 'test.md'")},
+			expectedResult:   DocsValidationError{fmt.Errorf("missing required section 'Overview' in file 'test.md'"), fmt.Errorf("missing required section 'Setup' in file 'test.md'")},
 		},
 	}
 
@@ -55,13 +54,13 @@ func TestValidateReadmeStructure(t *testing.T) {
 		name             string
 		packageRoot      string
 		enforcedSections []string
-		expectedResult    string
+		expectedResult   string
 	}{
 		{
-			name:           "Valid test",
-			packageRoot:            "testdata",
+			name:             "Valid test",
+			packageRoot:      "testdata",
 			enforcedSections: []string{"Overview", "Setup"},
-			expectedResult: "\n\nmissing required section 'Setup' in file 'missing_headers.md'",
+			expectedResult:   "\n\nmissing required section 'Setup' in file 'missing_headers.md'",
 		},
 	}
 

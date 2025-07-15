@@ -80,7 +80,7 @@ func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
 
 	docsErrors := validation.ValidateDocsStructureFromPath(packageRootPath)
 	if docsErrors != nil {
-		return fmt.Errorf("Documentation validation failed: %v", docsErrors)
+		return fmt.Errorf("documentation validation failed: %v", docsErrors)
 	}
 	return nil
 }

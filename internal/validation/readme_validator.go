@@ -16,11 +16,11 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-func ValidateReadmeStructure(packageRoot string, enforcedSections []string) (error) {
+func ValidateReadmeStructure(packageRoot string, enforcedSections []string) error {
 	docsFolderPath := filepath.Join(packageRoot, "docs")
 	files, err := os.ReadDir(docsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Docs folder %s not found: %w", docsFolderPath, err)
+		return fmt.Errorf("docs folder %s not found: %w", docsFolderPath, err)
 	}
 
 	var errs DocsValidationError
@@ -49,7 +49,7 @@ func ValidateReadmeStructure(packageRoot string, enforcedSections []string) (err
 	return errs
 }
 
-func validateContent(filename string, content []byte, enforcedSections []string) (error) {
+func validateContent(filename string, content []byte, enforcedSections []string) error {
 	var errs DocsValidationError
 
 	md := goldmark.New()
@@ -82,4 +82,3 @@ func validateContent(filename string, content []byte, enforcedSections []string)
 
 	return errs
 }
-

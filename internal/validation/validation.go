@@ -141,7 +141,7 @@ func validateReadmeStructure(packageRoot string, enforcedSections []string) erro
 	docsFolderPath := filepath.Join(packageRoot, "docs")
 	files, err := os.ReadDir(docsFolderPath)
 	if err != nil && errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("Docs folder %s not found: %w", docsFolderPath, err)
+		return fmt.Errorf("docs folder %s not found: %w", docsFolderPath, err)
 	}
 
 	md := goldmark.New()
