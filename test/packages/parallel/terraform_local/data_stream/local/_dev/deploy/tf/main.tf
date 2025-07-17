@@ -1,6 +1,6 @@
 resource "local_file" "log" {
   source          = "./files/example.log"
-  filename        = "/tmp/service_logs/file.log"
+  filename        = "/tmp/service_logs/file-${var.TEST_RUN_ID}.log"
   file_permission = "0777"
 }
 
