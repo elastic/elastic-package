@@ -27,14 +27,6 @@ func (tsd TerraformServiceDeployer) buildTerraformExecutorEnvironment(info Servi
 	vars[tfDir] = tsd.definitionsDir
 	vars[tfOutputDir] = info.OutputDir
 
-	// if v, found := os.LookupEnv("ELASTIC_PACKAGE_SET_TERRAFORM_RUN_ID"); found && v != "" {
-	// 	vars[tfTestRunID] = v
-	// }
-
-	// if v, found := os.LookupEnv("ELASTIC_PACKAGE_PREFIX_TERRAFORM_RUN_ID"); found && v != "" {
-	// 	vars[tfTestRunID] = fmt.Sprintf("%s%s", v, info.Test.RunID)
-	// }
-
 	var pairs []string
 	for k, v := range vars {
 		pairs = append(pairs, fmt.Sprintf("%s=%s", k, v))
