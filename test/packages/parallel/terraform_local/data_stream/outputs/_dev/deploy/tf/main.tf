@@ -1,7 +1,3 @@
-variable "TEST_RUN_ID" {
-  default = "detached"
-}
-
 resource "local_file" "log" {
   source          = "./files/example.log"
   filename        = "/tmp/service_logs/${var.TEST_RUN_ID}.log"

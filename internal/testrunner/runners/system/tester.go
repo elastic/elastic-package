@@ -483,7 +483,13 @@ func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Name = r.testFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	svcInfo.Test.RunID = common.CreateTestRunID()
+
+	prefix := ""
+	if v, found := os.LookupEnv("ELASTIC_PACKAGE_PREFIX_SERVICE_TEST_RUN_ID"); found && v != "" {
+		prefix = v
+	}
+
+	svcInfo.Test.RunID = common.CreateTestRunIDWithPrefix(prefix)
 
 	if r.runTearDown || r.runTestsOnly {
 		logger.Debug("Skip creating output directory")
