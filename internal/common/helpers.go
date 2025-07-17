@@ -58,7 +58,11 @@ func ToStringSlice(val interface{}) ([]string, error) {
 }
 
 func CreateTestRunID() string {
-	return fmt.Sprintf("%d", rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
+	return CreateTestRunIDWithPrefix("")
+}
+
+func CreateTestRunIDWithPrefix(prefix string) string {
+	return fmt.Sprintf("%s%d", prefix, rand.Intn(testRunMaxID-testRunMinID)+testRunMinID)
 }
 
 func ProcessResourceApplyResults(results resource.ApplyResults) string {
