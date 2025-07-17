@@ -1,6 +1,5 @@
 FROM --platform=linux/amd64 ubuntu:24.04
 ENV GCLOUD_SDK_VERSION=467.0.0-0
-# ENV TERRAFORM_VERSION=1.12.2
 ENV TERRAFORM_VERSION=1.9.6
 
 RUN apt-get -qq update \
