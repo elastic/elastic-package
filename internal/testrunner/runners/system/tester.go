@@ -136,6 +136,7 @@ var (
 	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
+	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
 )
 
 type fieldValidationMethod int
@@ -485,7 +486,7 @@ func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
 
 	prefix := ""
-	if v, found := os.LookupEnv("ELASTIC_PACKAGE_PREFIX_SERVICE_TEST_RUN_ID"); found && v != "" {
+	if v, found := os.LookupEnv(prefixServiceTestRunIDEnv); found && v != "" {
 		prefix = v
 	}
 	svcInfo.Test.RunID = common.CreateTestRunIDWithPrefix(prefix)
