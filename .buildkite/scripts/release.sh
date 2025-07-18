@@ -17,11 +17,11 @@ VERSION=""
 add_bin_path
 with_go
 
-echo "--- fetching tags"
+echo "--- Fetching tags"
 # Ensure that tags are present so goreleaser can build the changelog from the last release.
 git rev-parse --is-shallow-repository
 git fetch origin --tags
 
-echo "--- running goreleaser"
+echo "--- Running goreleaser"
 # Run latest version of goreleaser
 curl -sL https://git.io/goreleaser | bash

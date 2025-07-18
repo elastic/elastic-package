@@ -3,7 +3,7 @@
 set -euxo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
 
   # Delete extra profiles
   elastic-package profiles delete test_default

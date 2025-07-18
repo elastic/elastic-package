@@ -6,7 +6,7 @@ set -euo pipefail
 
 add_bin_path
 
-echo "--- install go"
+echo "--- Install go"
 with_go
 
 echo "--- Running unit tests"

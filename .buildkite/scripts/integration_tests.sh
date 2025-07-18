@@ -52,6 +52,44 @@ while getopts ":t:p:sh" o; do
     esac
 done
 
+
+upload_package_test_logs() {
+    local retry_count=0
+    local package_folder=""
+
+    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
+    package_folder="${PACKAGE}"
+
+    if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
+        package_folder="${package_folder}-stack_agent"
+    fi
+
+    if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
+        package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
+    fi
+
+    if [[ "${retry_count}" -ne 0 ]]; then
+        package_folder="${package_folder}_retry_${retry_count}"
+    fi
+
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
+        "insecure-logs/${package_folder}/elastic-agent-logs/"
+
+    # required for <8.6.0
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
+        "insecure-logs/${package_folder}/elastic-agent-logs/default/"
+
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/container-logs/*.log" \
+        "insecure-logs/${package_folder}/container-logs/"
+
+}
+
 if [[ "${TARGET}" == "" ]]; then
     echo "Missing target"
     usage
@@ -63,15 +101,15 @@ add_bin_path
 if [[ "$SERVERLESS" == "false" ]]; then
     # If packages are tested with Serverless, these action are already performed
     # here: .buildkite/scripts/test_packages_with_serverless.sh
-    echo "--- install go"
+    echo "--- Install go"
     with_go
 
     if [[ "${TARGET}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
         # Not supported in Macos ARM
-        echo "--- install docker"
+        echo "--- Install docker"
         with_docker
 
-        echo "--- install docker-compose plugin"
+        echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
 fi
@@ -80,7 +118,7 @@ echo "--- install yq"
 with_yq
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
-    echo "--- install kubectl & kind"
+    echo "--- Install kubectl & kind"
     with_kubernetes
 fi
 
@@ -88,56 +126,31 @@ label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
     label="${label} - ${PACKAGE}"
 fi
+
+echo "--- Install elastic-package"
+make install
+
 echo "--- Run integration test ${label}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
-    make install
-
     # allow to fail this command, to be able to upload safe logs
     set +e
     make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
     testReturnCode=$?
     set -e
 
-    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
-        package_folder="${PACKAGE}"
-        if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
-            package_folder="${package_folder}-stack_agent"
-        fi
-
-        if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
-            package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
-        fi
-
-        if [[ "${retry_count}" -ne 0 ]]; then
-            package_folder="${package_folder}_retry_${retry_count}"
-        fi
-
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
-            "insecure-logs/${package_folder}/elastic-agent-logs/"
-
-        # required for <8.6.0
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
-            "insecure-logs/${package_folder}/elastic-agent-logs/default/"
-
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/container-logs/*.log" \
-            "insecure-logs/${package_folder}/container-logs/"
+        upload_package_test_logs
     fi
 
     if [ $testReturnCode != 0 ]; then
         echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
         exit ${testReturnCode}
     fi
-
-    make check-git-clean
-    exit 0
+else
+    make "${TARGET}"
 fi
 
-make install "${TARGET}" check-git-clean
+echo "--- Check git clean"
+make check-git-clean
+exit 0
