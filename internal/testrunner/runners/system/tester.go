@@ -136,6 +136,7 @@ var (
 	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
+	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
 )
 
 type fieldValidationMethod int
@@ -483,7 +484,12 @@ func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Name = r.testFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	svcInfo.Test.RunID = common.CreateTestRunID()
+
+	prefix := ""
+	if v, found := os.LookupEnv(prefixServiceTestRunIDEnv); found && v != "" {
+		prefix = v
+	}
+	svcInfo.Test.RunID = common.CreateTestRunIDWithPrefix(prefix)
 
 	if r.runTearDown || r.runTestsOnly {
 		logger.Debug("Skip creating output directory")
