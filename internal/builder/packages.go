@@ -216,6 +216,12 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	if errs != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", errs)
 	}
+
+	docsValidationErrors := validation.ValidateDocsStructureFromPath(destinationDir)
+	if docsValidationErrors != nil {
+		return "", fmt.Errorf("documentation validation failed: %v", docsValidationErrors)
+	}
+
 	return destinationDir, nil
 }
 
@@ -242,6 +248,11 @@ func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDi
 		if errs != nil {
 			return "", fmt.Errorf("invalid content found in built zip package: %w", errs)
 		}
+	}
+
+	docsValidationErrors := validation.ValidateDocsStructureFromZip(zippedPackagePath)
+	if docsValidationErrors != nil {
+		return "", fmt.Errorf("documentation validation failed: %v", docsValidationErrors)
 	}
 
 	if options.SignPackage {

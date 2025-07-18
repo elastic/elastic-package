@@ -33,6 +33,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.9.1
 	github.com/stretchr/testify v1.10.0
+	github.com/yuin/goldmark v1.4.13
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.35.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0

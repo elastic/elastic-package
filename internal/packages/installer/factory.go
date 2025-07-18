@@ -77,6 +77,12 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 			}
 		}
 		logger.Debug("Skip validation of the built .zip package")
+
+		docsValidationErrors := validation.ValidateDocsStructureFromZip(options.ZipPath)
+		if docsValidationErrors != nil {
+			return nil, fmt.Errorf("documentation validation failed: %v", docsValidationErrors)
+		}
+
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
