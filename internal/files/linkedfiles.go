@@ -74,7 +74,7 @@ func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 		}
 		workDir = relative
 	} else {
-		absWorkDir = filepath.Join(repoRoot.Name(), workDir)
+		absWorkDir = filepath.Clean(filepath.Join(repoRoot.Name(), workDir))
 	}
 
 	info, err := repoRoot.Stat(workDir)

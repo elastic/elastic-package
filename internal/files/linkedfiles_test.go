@@ -772,7 +772,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 
 	// Create link that escapes root
 	outOfRootLinkFile := filepath.Join(workDir, "escapesroot.txt.link")
-	err = os.WriteFile(outOfRootLinkFile, []byte("../../etc/passwd"), 06444)
+	err = os.WriteFile(outOfRootLinkFile, []byte("../../etc/passwd"), 0644)
 	require.NoError(t, err)
 
 	// Setup LinksFS
