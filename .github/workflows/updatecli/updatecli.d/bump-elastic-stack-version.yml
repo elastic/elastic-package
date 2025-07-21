@@ -4,7 +4,7 @@ pipelineid: 'bump-elastic-stack-default-version'
 
 actions:
   default:
-    title: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
+    title: '[updatecli] Update default stack version to {{ source "latest9xVersion" }}'
     kind: github/pullrequest
     scmid: default
     spec:
@@ -25,8 +25,8 @@ scms:
       branch: main
 
 sources:
-  latest8xVersion:
-    name: Get latest 8.x version
+  latest9xVersion:
+    name: Get latest 9.x version
     kind: file
     transformers:
       # Get only the version to avoid spaces and newlines.
@@ -34,15 +34,15 @@ sources:
           pattern: '([0-9\.]+)'
           captureindex: 1
     spec:
-      file: https://storage.googleapis.com/artifacts-api/releases/current/8
+      file: https://storage.googleapis.com/artifacts-api/releases/current/9
 
 targets:
   update-default-version:
-    name: '[updatecli] Update default stack version to {{ source "latest8xVersion" }}'
+    name: '[updatecli] Update default stack version to {{ source "latest9xVersion" }}'
     kind: file
-    sourceid: latest8xVersion
+    sourceid: latest9xVersion
     scmid: default
     spec:
       file: internal/install/stack_version.go
       matchpattern: '(DefaultStackVersion =) "[^"]+"'
-      replacepattern: '$1 "{{ source "latest8xVersion" }}"'
+      replacepattern: '$1 "{{ source "latest9xVersion" }}"'
