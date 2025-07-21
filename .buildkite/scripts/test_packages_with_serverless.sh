@@ -25,7 +25,7 @@ add_pr_comment() {
 
 echo "Running packages on Serverles project type: ${SERVERLESS_PROJECT}"
 if running_on_buildkite; then
-    SERVERLESS_PROJECT="$(buildkite-agent meta-data get SERVERLESS_PROJECT --default ${SERVERLESS_PROJECT:-"observability"})"
+    SERVERLESS_PROJECT="$(buildkite-agent meta-data get SERVERLESS_PROJECT --default "${SERVERLESS_PROJECT:-"observability"}")"
     buildkite-agent annotate "Serverless Project: ${SERVERLESS_PROJECT}" --context "ctx-info-${SERVERLESS_PROJECT}" --style "info"
 fi
 
