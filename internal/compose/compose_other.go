@@ -45,7 +45,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 		return fmt.Errorf("failed to start command with pseudo-tty: %w", err)
 	}
 	defer ptty.Close()
-	logger.Debugf("running command: %s", cmd)
+	logger.Tracef("running command: %s", cmd)
 
 	io.Copy(stderr, ptty)
 

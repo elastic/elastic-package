@@ -204,7 +204,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	if ver.Major() < 2 {
 		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
-	logger.Debugf("Determined Docker Compose version: %v", ver)
+	logger.Tracef("Determined Docker Compose version: %v", ver)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if ok && strings.ToLower(v) != "false" {
