@@ -111,7 +111,6 @@ update_dependency() {
     echo ""
 }
 
-
 exists_branch() {
     local owner="$1"
     local repository="$2"
@@ -171,7 +170,6 @@ create_or_update_pull_request() {
     echo "--- adding comment into ${GITHUB_PR_BASE_REPO} pull request :memo:"
     add_pr_comment "${BUILDKITE_PULL_REQUEST}" "$(get_integrations_pr_link "${integrations_pr_number}")"
 }
-
 
 add_pr_comment() {
     local source_pr_number="$1"
