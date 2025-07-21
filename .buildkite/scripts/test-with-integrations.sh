@@ -62,7 +62,7 @@ get_assignees() {
     if [[ "${GITHUB_PR_HEAD_USER}" != "elastic" && "${GITHUB_PR_HEAD_USER}" != "${GITHUB_PR_TRIGGER_USER}" ]]; then
         assignees="${assignees},${GITHUB_PR_HEAD_USER}"
     fi
-    echo "${assignees},jsoriano"
+    echo "${assignees}"
 }
 
 create_integrations_pull_request() {
