@@ -39,8 +39,8 @@ get_source_commit_link() {
 }
 
 set_git_config() {
-    git config user.name "${GITHUB_USERNAME_SECRET}"
-    git config user.email "${GITHUB_EMAIL_SECRET}"
+    git config user.name "${GITHUB_USERNAME}"
+    git config user.email "${GITHUB_EMAIL}"
 }
 
 git_push() {
