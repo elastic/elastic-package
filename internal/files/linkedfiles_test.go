@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -782,6 +783,11 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	lfs, err := NewLinksFS(root, workDir)
 	require.NoError(t, err)
 
+	notFoundErrorMsg := "no such file or directory"
+	if runtime.GOOS == "windows" {
+		notFoundErrorMsg = "The system cannot find the file specified"
+	}
+
 	tests := []struct {
 		name     string
 		fileName string
@@ -790,7 +796,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 		{
 			name:     "broken link to non-existent file",
 			fileName: "broken.txt.link",
-			errorMsg: "no such file or directory",
+			errorMsg: notFoundErrorMsg,
 		},
 		{
 			name:     "invalid link file format",
