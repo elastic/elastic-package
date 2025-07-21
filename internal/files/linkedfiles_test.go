@@ -33,7 +33,7 @@ func TestLinkUpdateChecksum(t *testing.T) {
 	require.NoError(t, copyDir(testDataSrc, filepath.Join(tempDir, "testdata")))
 
 	// Set up paths within the temporary directory
-	basePath := filepath.Join(tempDir, "testdata/links")
+	basePath := filepath.Join(tempDir, "testdata", "links")
 
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
@@ -82,7 +82,7 @@ func TestListLinkedFiles(t *testing.T) {
 	// Get current working directory to locate test data
 	wd, err := os.Getwd()
 	assert.NoError(t, err)
-	basePath := filepath.Join(wd, filepath.FromSlash("testdata/links"))
+	basePath := filepath.Join(wd, "testdata", "links")
 
 	// Find the repository root to create a secure os.Root context
 	root, err := FindRepositoryRoot()
@@ -193,7 +193,7 @@ func TestUpdateLinkedFilesChecksums(t *testing.T) {
 	require.NoError(t, copyDir(testDataSrc, filepath.Join(tempDir, "testdata")))
 
 	// Set up paths within the temporary directory
-	basePath := filepath.Join(tempDir, "testdata/links")
+	basePath := filepath.Join(tempDir, "testdata", "links")
 
 	// Create an os.Root for secure file operations within tempDir
 	root, err := os.OpenRoot(tempDir)
@@ -227,7 +227,7 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	// Get current working directory to locate test data
 	wd, err := os.Getwd()
 	assert.NoError(t, err)
-	basePath := filepath.Join(wd, filepath.FromSlash("testdata/links"))
+	basePath := filepath.Join(wd, "testdata", "links")
 
 	// Find the repository root to create a secure os.Root context
 	root, err := FindRepositoryRoot()
@@ -269,14 +269,14 @@ func TestIncludeLinkedFiles(t *testing.T) {
 	// Get current working directory to locate test data
 	wd, err := os.Getwd()
 	assert.NoError(t, err)
-	testPkg := filepath.Join(wd, filepath.FromSlash("testdata"))
+	testPkg := filepath.Join(wd, "testdata")
 
 	// Create a temporary directory and copy test data to avoid modifying originals
 	tempDir := t.TempDir()
 	require.NoError(t, copyDir(testPkg, filepath.Join(tempDir, "testdata")))
 
 	// Set up source and destination directories
-	fromDir := filepath.Join(tempDir, "testdata/testpackage")
+	fromDir := filepath.Join(tempDir, "testdata", "testpackage")
 	toDir := filepath.Join(tempDir, "dest")
 
 	// Create an os.Root for secure file operations within tempDir
@@ -769,6 +769,11 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	err = os.WriteFile(invalidLinkFile, []byte(""), 0644)
 	require.NoError(t, err)
 
+	// Create link that escapes root
+	outOfRootLinkFile := filepath.Join(workDir, "escapesroot.txt.link")
+	err = os.WriteFile(outOfRootLinkFile, []byte("../../etc/passwd"), 06444)
+	require.NoError(t, err)
+
 	// Setup LinksFS
 	root, err := os.OpenRoot(repoDir)
 	require.NoError(t, err)
@@ -785,12 +790,17 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 		{
 			name:     "broken link to non-existent file",
 			fileName: "broken.txt.link",
-			errorMsg: "escapes the repository root",
+			errorMsg: "no such file or directory",
 		},
 		{
 			name:     "invalid link file format",
 			fileName: "invalid.txt.link",
 			errorMsg: "file is empty or first line is missing",
+		},
+		{
+			name:     "escapes root",
+			fileName: "escapesroot.txt.link",
+			errorMsg: "path escapes from parent",
 		},
 	}
 
@@ -845,13 +855,13 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 			name:        "invalid absolute workDir outside repo",
 			workDir:     outsideDir,
 			expectError: true,
-			errorMsg:    "is outside the repository root",
+			errorMsg:    "path escapes from parent",
 		},
 		{
 			name:        "invalid relative workDir escaping repo",
 			workDir:     "../outside",
 			expectError: true,
-			errorMsg:    "is outside the repository root",
+			errorMsg:    "path escapes from parent",
 		},
 	}
 
