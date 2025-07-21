@@ -54,7 +54,21 @@ clone_repository() {
     retry 5 git clone https://github.com/elastic/integrations "${target}"
 }
 
+# This function retrieves the assignees for the pull request.
+# It checks if the head user is not "elastic" or the trigger user, and adds it to the list of assignees.
+# It returns a comma-separated list of assignees.
+get_assignees() {
+    local assignees="${GITHUB_PR_TRIGGER_USER}"
+    if [[ "${GITHUB_PR_HEAD_USER}" != "elastic" && "${GITHUB_PR_HEAD_USER}" != "${GITHUB_PR_TRIGGER_USER}" ]]; then
+        assignees="${assignees},${GITHUB_PR_HEAD_USER}"
+    fi
+    echo "${assignees}"
+}
+
 create_integrations_pull_request() {
+    local assignees=""
+    assignees=$(get_assignees)
+
     # requires GITHUB_TOKEN
     local temp_path
     temp_path=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
@@ -68,7 +82,7 @@ create_integrations_pull_request() {
         --draft \
         --base "${INTEGRATIONS_SOURCE_BRANCH}" \
         --head "${INTEGRATIONS_PR_BRANCH}" \
-        --assignee "${GITHUB_PR_HEAD_USER}"
+        --assignee "${assignees}"
 }
 
 update_dependency() {
@@ -80,7 +94,7 @@ update_dependency() {
     local source_dep="github.com/${GITHUB_PR_BASE_OWNER}/${GITHUB_PR_BASE_REPO}${VERSION_DEP}"
     local target_dep="github.com/${GITHUB_PR_OWNER}/${GITHUB_PR_REPO}${VERSION_DEP}@${GITHUB_PR_HEAD_SHA}"
 
-    go mod edit -replace ${source_dep}=${target_dep}
+    go mod edit -replace "${source_dep}=${target_dep}"
     go mod tidy
 
     git add go.mod
@@ -169,6 +183,10 @@ add_pr_comment() {
         "Created or updated PR in integrations repository to test this version. Check ${integrations_pr_link}"
 }
 
+if [[ "${BUILDKITE_PULL_REQUEST}" == "false" ]]; then
+    echo "Currently, this pipeline is just supported in Pull Requests."
+    exit 1
+fi
 
 echo "--- creating or updating integrations pull request"
 create_or_update_pull_request
