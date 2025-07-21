@@ -191,11 +191,11 @@ func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project)
 		}
 
 		if status != "initialized" {
-			logger.Debugf("project not initialized, status: %s", status)
+			logger.Debugf("project %s not initialized (status: %s)", project.ID, status)
 			timer.Reset(time.Second * 5)
 			continue
 		}
-
+		logger.Debugf("project %s initialized", project.ID)
 		return nil
 	}
 }
