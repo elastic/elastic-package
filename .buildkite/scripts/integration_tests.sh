@@ -18,6 +18,7 @@ FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TEST_BUILD_ZIP_TARGET="test-build-zip"
+TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
@@ -99,7 +100,7 @@ fi
 add_bin_path
 
 if [[ "$SERVERLESS" == "false" ]]; then
-    # If packages are tested with Serverless, these action are already performed
+    # If packages are tested with Serverless, these actions are already performed
     # here: .buildkite/scripts/test_packages_with_serverless.sh
     echo "--- Install go"
     with_go
@@ -113,9 +114,11 @@ if [[ "$SERVERLESS" == "false" ]]; then
         with_docker_compose_plugin
     fi
 
-    # yq is not required for serverless pipeline
-    echo "--- Install yq"
-    with_yq
+    # In Serverless pipeline, elastic-package is installed in advance here:
+    # .buildkite/scripts/test_packages_with_serverless.sh
+    # No need to install it again for every package.
+    echo "--- Install elastic-package"
+    make install
 fi
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
@@ -123,13 +126,15 @@ if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TAR
     with_kubernetes
 fi
 
+if [[ "${TARGET}" == "${TEST_BUILD_INSTALL_ZIP_TARGET}" || "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
+    echo "--- Install yq"
+    with_yq
+fi
+
 label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
     label="${label} - ${PACKAGE}"
 fi
-
-echo "--- Install elastic-package"
-make install
 
 echo "--- Run integration test ${label}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
