@@ -112,10 +112,10 @@ if [[ "$SERVERLESS" == "false" ]]; then
         echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
-fi
 
-echo "--- Install yq"
-with_yq
+    echo "--- Install yq"
+    with_yq
+fi
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
     echo "--- Install kubectl & kind"
