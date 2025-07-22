@@ -113,6 +113,7 @@ if [[ "$SERVERLESS" == "false" ]]; then
         with_docker_compose_plugin
     fi
 
+    # yq is not required for serverless pipeline
     echo "--- Install yq"
     with_yq
 fi
