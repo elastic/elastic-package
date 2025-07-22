@@ -114,7 +114,7 @@ if [[ "$SERVERLESS" == "false" ]]; then
     fi
 fi
 
-echo "--- install yq"
+echo "--- Install yq"
 with_yq
 
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
