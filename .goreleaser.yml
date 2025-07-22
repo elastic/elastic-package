@@ -1,3 +1,5 @@
+version: 2
+
 builds:
   - ldflags:
       - -X github.com/elastic/elastic-package/internal/version.Tag={{.Tag}}
@@ -11,4 +13,5 @@ builds:
 archives:
   - format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
