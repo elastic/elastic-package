@@ -73,6 +73,8 @@ upload_package_test_logs() {
         package_folder="${package_folder}_retry_${retry_count}"
     fi
 
+    echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
+
     upload_safe_logs \
         "${JOB_GCS_BUCKET_INTERNAL}" \
         "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
