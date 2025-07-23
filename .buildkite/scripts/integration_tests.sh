@@ -148,9 +148,9 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
         echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
         exit ${testReturnCode}
     fi
-
-    make check-git-clean
-    exit 0
+else
+    make "${TARGET}"
 fi
 
-make "${TARGET}" check-git-clean
+echo "--- Check git clean"
+make check-git-clean
