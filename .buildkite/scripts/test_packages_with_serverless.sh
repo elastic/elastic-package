@@ -10,7 +10,6 @@ UPLOAD_SAFE_LOGS=${UPLOAD_SAFE_LOGS:-"0"}
 SKIPPED_PACKAGES_FILE_PATH="${WORKSPACE}/skipped_packages.txt"
 FAILED_PACKAGES_FILE_PATH="${WORKSPACE}/failed_packages.txt"
 
-export SERVERLESS="true"
 SERVERLESS_PROJECT=${SERVERLESS_PROJECT:-"observability"}
 
 add_pr_comment() {
