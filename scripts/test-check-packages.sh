@@ -147,22 +147,26 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     elif [ "${package_to_test}" == "system_benchmark" ]; then
       run_system_benchmark "${package_to_test}" "$d"
     fi
-  elif [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
-      run_system_benchmark "${package_to_test}" "$d"
-  else
-    if [[ "${SERVERLESS}" == "true" ]]; then
-      run_serverless_tests "${d}"
-      continue
-    fi
-
-    echo "--- Run tests for package ${d}"
-    # Run all tests
-    # defer-cleanup is set to a short period to verify that the option is available
-    elastic-package test -C "$d" -v \
-      --report-format xUnit \
-      --report-output file \
-      --defer-cleanup 1s \
-      --test-coverage \
-      --coverage-format=generic
+    continue
   fi
+
+  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
+    run_system_benchmark "${package_to_test}" "$d"
+    continue
+  fi
+
+  if [[ "${SERVERLESS}" == "true" ]]; then
+    run_serverless_tests "${d}"
+    continue
+  fi
+
+  echo "--- Run tests for package ${d}"
+  # Run all tests
+  # defer-cleanup is set to a short period to verify that the option is available
+  elastic-package test -C "$d" -v \
+    --report-format xUnit \
+    --report-output file \
+    --defer-cleanup 1s \
+    --test-coverage \
+    --coverage-format=generic
 done
