@@ -58,6 +58,8 @@ steps:
           env:
             EC_API_KEY: elastic-cloud-observability-team-qa-api-key
             EC_HOST: elastic-cloud-observability-team-qa-endpoint
+      # Required to post comments on PRs
+      - elastic/vault-github-token#v0.1.0:
     artifact_paths:
       - build/test-results/*.xml
       - build/test-coverage/coverage-*.xml
