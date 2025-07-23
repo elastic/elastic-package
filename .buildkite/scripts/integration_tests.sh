@@ -54,46 +54,6 @@ while getopts ":t:p:sh" o; do
     esac
 done
 
-
-upload_package_test_logs() {
-    local retry_count=0
-    local package_folder=""
-
-    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
-    package_folder="${PACKAGE}"
-
-    if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
-        package_folder="${package_folder}-stack_agent"
-    fi
-
-    if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
-        package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
-    fi
-
-    if [[ "${retry_count}" -ne 0 ]]; then
-        package_folder="${package_folder}_retry_${retry_count}"
-    fi
-
-    echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
-
-    upload_safe_logs \
-        "${JOB_GCS_BUCKET_INTERNAL}" \
-        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
-        "insecure-logs/${package_folder}/elastic-agent-logs/"
-
-    # required for <8.6.0
-    upload_safe_logs \
-        "${JOB_GCS_BUCKET_INTERNAL}" \
-        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
-        "insecure-logs/${package_folder}/elastic-agent-logs/default/"
-
-    upload_safe_logs \
-        "${JOB_GCS_BUCKET_INTERNAL}" \
-        "build/container-logs/*.log" \
-        "insecure-logs/${package_folder}/container-logs/"
-
-}
-
 if [[ "${TARGET}" == "" ]]; then
     echo "Missing target"
     usage
@@ -158,7 +118,38 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
 
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
-        upload_package_test_logs
+        retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
+        package_folder="${PACKAGE}"
+
+        if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
+            package_folder="${package_folder}-stack_agent"
+        fi
+
+        if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
+            package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
+        fi
+
+        if [[ "${retry_count}" -ne 0 ]]; then
+            package_folder="${package_folder}_retry_${retry_count}"
+        fi
+
+        echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
+
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
+            "insecure-logs/${package_folder}/elastic-agent-logs/"
+
+        # required for <8.6.0
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
+            "insecure-logs/${package_folder}/elastic-agent-logs/default/"
+
+        upload_safe_logs \
+            "${JOB_GCS_BUCKET_INTERNAL}" \
+            "build/container-logs/*.log" \
+            "insecure-logs/${package_folder}/container-logs/"
     fi
 
     if [ $testReturnCode != 0 ]; then
