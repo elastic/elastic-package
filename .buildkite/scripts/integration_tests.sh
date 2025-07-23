@@ -130,26 +130,20 @@ echo "--- Install elastic-package"
 make install
 
 echo "--- Run integration test ${label}"
-if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
+#
+# allow to fail this command, to be able to upload safe logs
+set +e
+make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
+testReturnCode=$?
+set -e
 
-    # allow to fail this command, to be able to upload safe logs
-    set +e
-    make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
-    testReturnCode=$?
-    set -e
+if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
+    upload_package_test_logs
+fi
 
-    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
-
-    if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
-        upload_package_test_logs
-    fi
-
-    if [ $testReturnCode != 0 ]; then
-        echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
-        exit ${testReturnCode}
-    fi
-else
-    make "${TARGET}"
+if [ $testReturnCode != 0 ]; then
+    echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
+    exit ${testReturnCode}
 fi
 
 echo "--- Check git clean"
