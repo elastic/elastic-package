@@ -21,7 +21,8 @@ TEST_BUILD_ZIP_TARGET="test-build-zip"
 TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
-export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+export REPO_BUILD_TAG
 TARGET=""
 PACKAGE=""
 SERVERLESS="false"
