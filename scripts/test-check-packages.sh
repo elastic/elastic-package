@@ -118,6 +118,7 @@ run_pipeline_benchmark() {
   local package_name=$1
   local package_path=$2
   echo "--- Run pipeline benchmarks and report for package ${package_name}"
+  ls notexistfile
 
   rm -rf "${PWD}/build/benchmark-results"
   elastic-package benchmark pipeline -C "$d" -v --report-format xUnit --report-output file --fail-on-missing
