@@ -11,10 +11,10 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" && "${BU
     # is already installed in the test_serverless pipeline step, accessing
     # directly to the binary
     if ! "${HOME}"/go/bin/elastic-package stack down -v ; then
+        # Ensure that even if this command fails, the script continues
         exit_code=1
     fi
 fi
-echo "Value of SERVERLESS: ${SERVERLESS:-"none"}"
 
 echo "--- Cleanup"
 cleanup
