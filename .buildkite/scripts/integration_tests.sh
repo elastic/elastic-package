@@ -58,6 +58,44 @@ if [[ "${TARGET}" == "" ]]; then
     exit 1
 fi
 
+upload_package_test_logs() {
+    local retry_count=0
+    local package_folder=""
+
+    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
+    package_folder="${PACKAGE}"
+
+    if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
+        package_folder="${package_folder}-stack_agent"
+    fi
+
+    if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
+        package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
+    fi
+
+    if [[ "${retry_count}" -ne 0 ]]; then
+        package_folder="${package_folder}_retry_${retry_count}"
+    fi
+
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
+        "insecure-logs/${package_folder}/elastic-agent-logs/"
+
+    # required for <8.6.0
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
+        "insecure-logs/${package_folder}/elastic-agent-logs/default/"
+
+    upload_safe_logs \
+        "${JOB_GCS_BUCKET_INTERNAL}" \
+        "build/container-logs/*.log" \
+        "insecure-logs/${package_folder}/container-logs/"
+
+}
+
+
 add_bin_path
 
 if [[ "$SERVERLESS" == "false" ]]; then
@@ -88,9 +126,11 @@ label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
     label="${label} - ${PACKAGE}"
 fi
+echo "--- Install elastic-package"
+make install
+
 echo "--- Run integration test ${label}"
 if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
-    make install
 
     # allow to fail this command, to be able to upload safe logs
     set +e
@@ -101,34 +141,7 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
-        package_folder="${PACKAGE}"
-        if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
-            package_folder="${package_folder}-stack_agent"
-        fi
-
-        if [[ "${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD:-""}" != "" ]]; then
-            package_folder="${package_folder}-${ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD}"
-        fi
-
-        if [[ "${retry_count}" -ne 0 ]]; then
-            package_folder="${package_folder}_retry_${retry_count}"
-        fi
-
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/*.*" \
-            "insecure-logs/${package_folder}/elastic-agent-logs/"
-
-        # required for <8.6.0
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/elastic-stack-dump/check-${PACKAGE}/logs/elastic-agent-internal/default/*" \
-            "insecure-logs/${package_folder}/elastic-agent-logs/default/"
-
-        upload_safe_logs \
-            "${JOB_GCS_BUCKET_INTERNAL}" \
-            "build/container-logs/*.log" \
-            "insecure-logs/${package_folder}/container-logs/"
+        upload_package_test_logs
     fi
 
     if [ $testReturnCode != 0 ]; then
@@ -140,4 +153,4 @@ if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSIT
     exit 0
 fi
 
-make install "${TARGET}" check-git-clean
+make "${TARGET}" check-git-clean
