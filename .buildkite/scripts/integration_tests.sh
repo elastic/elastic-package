@@ -13,6 +13,8 @@ usage() {
     echo -e "\t-h: Show this message"
 }
 
+export UPLOAD_SAFE_LOGS=${UPLOAD_SAFE_LOGS:-"0"}
+
 PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
