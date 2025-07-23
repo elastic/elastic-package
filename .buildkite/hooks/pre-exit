@@ -10,7 +10,7 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" && "${BU
     # BUILDKITE resets PATH contents in pre-exit hook, but elastic-package
     # is already installed in the test_serverless pipeline step, accessing
     # directly to the binary
-    if "${HOME}"/go/bin/elastic-package stack down -v ; then
+    if ! "${HOME}"/go/bin/elastic-package stack down -v ; then
         exit_code=1
     fi
 fi
