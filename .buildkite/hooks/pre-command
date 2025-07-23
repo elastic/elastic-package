@@ -50,28 +50,7 @@ export CREATED_DATE
 export TMP_FOLDER_TEMPLATE_BASE="tmp.${REPO}"
 export TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 
-is_step_required_to_upload_safe_logs() {
-    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" && "$BUILDKITE_PIPELINE_SLUG" != "elastic-package-test-serverless" ]]; then
-        return 1
-    fi
-
-    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" ]]; then
-        if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
-            return 0
-        fi
-    fi
-
-    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-serverless" ]]; then
-        if [[ "$BUILDKITE_STEP_KEY" == "test-serverless" ]]; then
-            return 0
-        fi
-    fi
-    return 1
-}
-
-if is_step_required_to_upload_safe_logs; then
-    export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
-fi
+export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
     if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
