@@ -100,6 +100,15 @@ if [[ "${TARGET}" == "" ]]; then
     exit 1
 fi
 
+if [[ "${SERVERLESS}" == "true" && "${TARGET}" != "${PARALLEL_TARGET}" ]]; then
+    # Just tested parallel target to run with Serverless projects, other Makefile targets
+    # have not been tested yet and could fail unexpectedly. For instance, "test-check-package-false-positives"
+    # target would require a different management to not stop Elastic stack after each package test.
+    echo "Target ${TARGET} is not supported for Serverless testing"
+    usage
+    exit 1
+fi
+
 add_bin_path
 
 if [[ "$SERVERLESS" == "false" ]]; then
