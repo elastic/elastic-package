@@ -83,6 +83,8 @@ while IFS= read -r -d '' package ; do
     echo "              project-number: \"911195782929\""
     echo "        artifact_paths:"
     echo "          - build/test-results/*.xml"
+    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
     echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
 done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
 popd > /dev/null
