@@ -4,15 +4,20 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
+exit_code=0
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" && "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
     echo "--- Take down the Elastic stack"
     # BUILDKITE resets PATH contents in pre-exit hook, but elastic-package
     # is already installed in the test_serverless pipeline step, accessing
     # directly to the binary
-    "${HOME}"/go/bin/elastic-package stack down -v
+    if "${HOME}"/go/bin/elastic-package stack down -v ; then
+        exit_code=1
+    fi
 fi
+echo "Value of SERVERLESS: ${SERVERLESS:-"none"}"
 
 echo "--- Cleanup"
 cleanup
 unset_secrets
 
+exit "$exit_code"
