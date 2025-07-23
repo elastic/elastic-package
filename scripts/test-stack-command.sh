@@ -2,6 +2,10 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+source "${SCRIPT_DIR}/stack_helpers.sh"
+
 VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
@@ -15,11 +19,13 @@ cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}" || true
+  if is_stack_created; then
+    # Dump stack logs
+    elastic-package stack dump -v --output "build/elastic-stack-dump/stack/${VERSION}"
 
-  # Take down the stack
-  elastic-package stack down -v
+    # Take down the stack
+    elastic-package stack down -v
+  fi
 
   if [ "${APM_SERVER_ENABLED}" = true ]; then
     elastic-package profiles delete with-apm-server

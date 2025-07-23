@@ -3,6 +3,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 source "${SCRIPT_DIR}/stack_parameters.sh"
+source "${SCRIPT_DIR}/stack_helpers.sh"
 
 set -euxo pipefail
 
@@ -14,9 +15,11 @@ cleanup() {
   fi
   echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v \
-      --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}" || true
+  if is_stack_created; then
+    # Dump stack logs
+    elastic-package stack dump -v \
+        --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+  fi
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
     # Dump kubectl details
@@ -34,8 +37,10 @@ cleanup() {
   # at the beginning of the pipeline and must be running for all packages without stopping it between
   # packages.
   if [[ "$SERVERLESS" != "true" ]]; then
+    if is_stack_created; then
       # Take down the stack
       elastic-package stack down -v
+    fi
   fi
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then

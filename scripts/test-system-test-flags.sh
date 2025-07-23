@@ -2,6 +2,10 @@
 
 set -euxo pipefail
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+source "${SCRIPT_DIR}/stack_helpers.sh"
+
 cleanup() {
     local r=$?
     local container_id=""
@@ -13,8 +17,10 @@ cleanup() {
 
     echo "~~~ elastic-package cleanup"
 
-    # Dump stack logs
-    elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags ||true
+    if is_stack_created; then
+        # Dump stack logs
+        elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+    fi
 
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
@@ -38,8 +44,10 @@ cleanup() {
 
     kind delete cluster || true
 
-    # Take down the stack
-    elastic-package stack down -v
+    if is_stack_created; then
+        # Take down the stack
+        elastic-package stack down -v
+    fi
 
     # Clean used resources
     for d in test/packages/*/*/; do
