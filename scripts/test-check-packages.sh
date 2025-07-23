@@ -144,7 +144,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     # use_pipeline_steps and rally_benchmark
 
     # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
-    if [[ "${package_to_test}" == "pipeline_benchmark" || "${package_to_test}" == "use_pipeline_steps" ]]; then
+    if [[ "${package_to_test}" == "pipeline_benchmark" || "${package_to_test}" == "use_pipeline_tests" ]]; then
       run_pipeline_benchmark "${package_to_test}" "$d"
     elif [ "${package_to_test}" == "system_benchmark" ]; then
       run_system_benchmark "${package_to_test}" "$d"
