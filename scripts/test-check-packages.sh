@@ -140,10 +140,8 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
   package_to_test=$(basename "${d}")
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
-    # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like
-    # use_pipeline_steps and rally_benchmark
+    # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
 
-    # It is not used PACKAGE_UNDER_TEST, so all benchmark packages are run in the same loop
     if [[ "${package_to_test}" == "pipeline_benchmark" || "${package_to_test}" == "use_pipeline_tests" ]]; then
       run_pipeline_benchmark "${package_to_test}" "$d"
     elif [ "${package_to_test}" == "system_benchmark" ]; then
