@@ -45,6 +45,7 @@ steps:
       provider: "gcp"
       image: "${UBUNTU_X86_64_AGENT_IMAGE}"
     env:
+      SERVERLESS: "true"
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
       UPLOAD_SAFE_LOGS: 1
       # See https://github.com/elastic/oblt-infra/blob/main/conf/resources/repos/integrations/01-gcp-buildkite-oidc.tf

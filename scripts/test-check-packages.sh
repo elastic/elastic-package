@@ -3,6 +3,7 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 source "${SCRIPT_DIR}/stack_parameters.sh"
+source "${SCRIPT_DIR}/stack_helpers.sh"
 
 set -euxo pipefail
 
@@ -13,10 +14,18 @@ export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
 
 cleanup() {
   r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v \
-      --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}"
+  if is_stack_created; then
+    # Dump stack logs
+    # Required containers could not be running, so ignore the error
+    elastic-package stack dump -v \
+      --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}" || true
+  fi
 
   if [ "${PACKAGE_TEST_TYPE}" == "with-kind" ]; then
     # Dump kubectl details
@@ -34,8 +43,10 @@ cleanup() {
   # at the beginning of the pipeline and must be running for all packages without stopping it between
   # packages.
   if [[ "$SERVERLESS" != "true" ]]; then
+    if is_stack_created; then
       # Take down the stack
       elastic-package stack down -v
+    fi
   fi
 
   if [ "${PACKAGE_TEST_TYPE}" == "with-logstash" ]; then
@@ -68,6 +79,7 @@ run_serverless_tests() {
   local package_path="$1"
   local test_options="-v --report-format xUnit --report-output file --defer-cleanup 1s"
   local coverage_options="--test-coverage --coverage-format=generic"
+
   echo "--- Run tests for package ${package_path} in Serverless mode"
   # skip system tests
   elastic-package test asset -C "$package_path" $test_options $coverage_options
@@ -80,8 +92,9 @@ run_serverless_tests() {
 run_pipeline_benchmark() {
   local package_name="$1"
   local package_path="$2"
-  echo "--- Run pipeline benchmarks and report for package ${package_name}"
   local test_options="-v --report-format xUnit --report-output file --fail-on-missing"
+
+  echo "--- Run pipeline benchmarks and report for package ${package_name}"
 
   rm -rf "${PWD}/build/benchmark-results"
   elastic-package benchmark pipeline -C "$d" $test_options
@@ -100,10 +113,13 @@ run_pipeline_benchmark() {
 
 # Build/check packages
 for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
+  echo "--- Checking package ${d}"
   elastic-package check -C "$d" -v
 done
 
 if [ "${PACKAGE_TEST_TYPE}" == "with-logstash" ]; then
+  echo "--- Create logstash profile"
+
   # Create a logstash profile and use it
   elastic-package profiles create logstash -v
   elastic-package profiles use logstash
@@ -119,14 +135,15 @@ fi
 # started to test all packages. In our CI, this Elastic serverless stack is started 
 # at the beginning of the pipeline and must be running for all packages.
 if [[ "${SERVERLESS}" != "true" ]]; then
-  stack_args=$(stack_version_args) # --version <version>
+  echo "--- Prepare Elastic stack"
+  stack_args=$(set +x;stack_version_args) # --version <version>
 
   # Update the stack
   elastic-package stack update -v ${stack_args}
 
   # NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
   # that all parameters are taken into account by the services
-  stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
+  stack_args="${stack_args} $(set +x; stack_provider_args)" # -U <setting=1,settings=2>
 
   # Boot up the stack
   elastic-package stack up -d -v ${stack_args}
