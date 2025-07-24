@@ -74,7 +74,12 @@ upload_package_test_logs() {
     echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
 
     retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
-    package_folder="${TARGET}.${PACKAGE}"
+    # Add target as part of the package folder name to allow to distinguish
+    # different test runs for the same package in different Makefile targets.
+    # Currently, just for test-check-packages-* targets, but could be extended
+    # to other targets in the future.
+    target=${TARGET#"test-check-packages-"}
+    package_folder="${target}.${PACKAGE}"
 
     if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
         package_folder="${package_folder}-stack_agent"
