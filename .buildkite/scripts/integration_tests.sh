@@ -71,6 +71,8 @@ upload_package_test_logs() {
         return
     fi
 
+    echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
+
     retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
     package_folder="${PACKAGE}"
 
