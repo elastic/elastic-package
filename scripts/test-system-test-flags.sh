@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-set -euxo pipefail
-
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+set -euxo pipefail
 
 source "${SCRIPT_DIR}/stack_helpers.sh"
 
