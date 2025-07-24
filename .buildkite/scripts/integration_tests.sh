@@ -20,9 +20,11 @@ FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TEST_BUILD_ZIP_TARGET="test-build-zip"
+TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
-export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+export REPO_BUILD_TAG
 TARGET=""
 PACKAGE=""
 SERVERLESS="false"
@@ -99,42 +101,63 @@ upload_package_test_logs() {
         "${JOB_GCS_BUCKET_INTERNAL}" \
         "build/container-logs/*.log" \
         "insecure-logs/${package_folder}/container-logs/"
-
 }
 
+install_required_tools() {
+    add_bin_path
 
-add_bin_path
+    local target="${1}"
+    if [[ "${SERVERLESS}" == "true" ]]; then
+        # If packages are tested with Serverless, these action are already performed
+        # here: .buildkite/scripts/test_packages_with_serverless.sh
+        echo "Skipping installation of required tools for Serverless testing"
+        return
+    fi
 
-if [[ "$SERVERLESS" == "false" ]]; then
-    # If packages are tested with Serverless, these action are already performed
-    # here: .buildkite/scripts/test_packages_with_serverless.sh
-    echo "--- install go"
+    echo "--- Install go"
     with_go
 
-    if [[ "${TARGET}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
+    if [[ "${target}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
         # Not supported in Macos ARM
-        echo "--- install docker"
+        echo "--- Install docker"
         with_docker
 
-        echo "--- install docker-compose plugin"
+        echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
+    case "${target}" in
+        "${KIND_TARGET}" | "${SYSTEM_TEST_FLAGS_TARGET}")
+            echo "--- Install kind"
+            with_kind
+            ;;
+        "${FALSE_POSITIVES_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_TARGET}")
+            echo "--- Install yq"
+            with_yq
+            ;;
+    esac
+
+    # In Serverless pipeline, elastic-package is installed in advance here:
+    # .buildkite/scripts/test_packages_with_serverless.sh
+    # No need to install it again for every package.
+    echo "--- Install elastic-package"
+    make install
+}
+
+if [[ "${SERVERLESS}" == "true" && "${TARGET}" != "${PARALLEL_TARGET}" ]]; then
+    # Just tested parallel target to run with Serverless projects, other Makefile targets
+    # have not been tested yet and could fail unexpectedly. For instance, "test-check-package-false-positives"
+    # target would require a different management to not stop Elastic stack after each package test.
+    echo "Target ${TARGET} is not supported for Serverless testing"
+    usage
+    exit 1
 fi
 
-echo "--- install yq"
-with_yq
-
-if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
-    echo "--- install kubectl & kind"
-    with_kubernetes
-fi
+install_required_tools "${TARGET}"
 
 label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
     label="${label} - ${PACKAGE}"
 fi
-echo "--- Install elastic-package"
-make install
 
 echo "--- Run integration test ${label}"
 #
