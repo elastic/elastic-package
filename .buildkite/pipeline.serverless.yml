@@ -45,6 +45,7 @@ steps:
       provider: "gcp"
       image: "${UBUNTU_X86_64_AGENT_IMAGE}"
     env:
+      SERVERLESS: "true"
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"
       UPLOAD_SAFE_LOGS: 1
       # See https://github.com/elastic/oblt-infra/blob/main/conf/resources/repos/integrations/01-gcp-buildkite-oidc.tf
@@ -58,6 +59,8 @@ steps:
           env:
             EC_API_KEY: elastic-cloud-observability-team-qa-api-key
             EC_HOST: elastic-cloud-observability-team-qa-endpoint
+      # Required to post comments on PRs
+      - elastic/vault-github-token#v0.1.0:
     artifact_paths:
       - build/test-results/*.xml
       - build/test-coverage/coverage-*.xml

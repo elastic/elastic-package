@@ -19,9 +19,11 @@ KIND_TARGET="test-check-packages-with-kind"
 LOGSTASH_TARGET="test-check-packages-with-logstash"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TEST_BUILD_ZIP_TARGET="test-build-zip"
+TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
-export REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
+export REPO_BUILD_TAG
 TARGET=""
 PACKAGE=""
 SERVERLESS="false"
@@ -59,36 +61,54 @@ if [[ "${TARGET}" == "" ]]; then
     exit 1
 fi
 
+if [[ "${SERVERLESS}" == "true" && "${TARGET}" != "${PARALLEL_TARGET}" ]]; then
+    # Just tested parallel target to run with Serverless projects, other Makefile targets
+    # have not been tested yet and could fail unexpectedly. For instance, "test-check-package-false-positives"
+    # target would require a different management to not stop Elastic stack after each package test.
+    echo "Target ${TARGET} is not supported for Serverless testing"
+    usage
+    exit 1
+fi
+
 add_bin_path
 
 if [[ "$SERVERLESS" == "false" ]]; then
-    # If packages are tested with Serverless, these action are already performed
+    # If packages are tested with Serverless, these actions are already performed
     # here: .buildkite/scripts/test_packages_with_serverless.sh
-    echo "--- install go"
+    echo "--- Install go"
     with_go
 
     if [[ "${TARGET}" != "${TEST_BUILD_ZIP_TARGET}" ]]; then
         # Not supported in Macos ARM
-        echo "--- install docker"
+        echo "--- Install docker"
         with_docker
 
-        echo "--- install docker-compose plugin"
+        echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
+
+    # In Serverless pipeline, elastic-package is installed in advance here:
+    # .buildkite/scripts/test_packages_with_serverless.sh
+    # No need to install it again for every package.
+    echo "--- Install elastic-package"
+    make install
 fi
 
-echo "--- install yq"
-with_yq
-
 if [[ "${TARGET}" == "${KIND_TARGET}" || "${TARGET}" == "${SYSTEM_TEST_FLAGS_TARGET}" ]]; then
-    echo "--- install kubectl & kind"
+    echo "--- Install kubectl & kind"
     with_kubernetes
+fi
+
+if [[ "${TARGET}" == "${TEST_BUILD_INSTALL_ZIP_TARGET}" || "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
+    echo "--- Install yq"
+    with_yq
 fi
 
 label="${TARGET}"
 if [ -n "${PACKAGE}" ]; then
     label="${label} - ${PACKAGE}"
 fi
+
 echo "--- Run integration test ${label}"
 test_each_package=false
 case "${TARGET}" in
@@ -98,17 +118,17 @@ case "${TARGET}" in
 esac
 if [[ "${test_each_package}" == "true" ]]; then
     make install
-
     # allow to fail this command, to be able to upload safe logs
     set +e
     make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
     testReturnCode=$?
     set -e
 
-    retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
 
     if [[ "${UPLOAD_SAFE_LOGS}" -eq 1 ]] ; then
+        retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
         package_folder="${PACKAGE}"
+
         if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
             package_folder="${package_folder}-stack_agent"
         fi
@@ -120,6 +140,8 @@ if [[ "${test_each_package}" == "true" ]]; then
         if [[ "${retry_count}" -ne 0 ]]; then
             package_folder="${package_folder}_retry_${retry_count}"
         fi
+
+        echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
 
         upload_safe_logs \
             "${JOB_GCS_BUCKET_INTERNAL}" \
@@ -142,9 +164,10 @@ if [[ "${test_each_package}" == "true" ]]; then
         echo "make SERVERLESS=${SERVERLESS} PACKAGE_UNDER_TEST=${PACKAGE} ${TARGET} failed with ${testReturnCode}"
         exit ${testReturnCode}
     fi
-
-    make check-git-clean
-    exit 0
+else
+    make "${TARGET}"
 fi
 
-make install "${TARGET}" check-git-clean
+echo "--- Check git clean"
+make check-git-clean
+exit 0

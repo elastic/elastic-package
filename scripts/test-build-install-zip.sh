@@ -3,10 +3,16 @@
 set -euxo pipefail
 
 cleanup() {
-  r=$?
+  local r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
   # Dump stack logs
-  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip
+  # Required containers could not be running, so ignore the error
+  elastic-package stack dump -v --output build/elastic-stack-dump/build-zip || true
 
   # Take down the stack
   elastic-package stack down -v
@@ -36,16 +42,21 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 go run ./scripts/gpgkey
 
 for d in test/packages/*/*/; do
+  # Added set +x in a sub-shell to avoid printing the testype command in the output
+  # This helps to keep the CI output cleaner
+  packageTestType=$(set +x ; testype "$d")
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
 
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
 
+echo "--- Prepare Elastic stack"
 # Boot up the stack
 elastic-package stack up -d -v
 
@@ -53,13 +64,17 @@ eval "$(elastic-package stack shellinit)"
 
 # Install packages from working copy
 for d in test/packages/*/*/; do
+  # Added set +x in a sub-shell to avoid printing the testype command in the output
+  # This helps to keep the CI output cleaner
+  packageTestType=$(set +x ; testype "$d")
   # Packages in false_positives can have issues.
-  if [ "$(testype $d)" == "false_positives" ]; then
+  if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
   package_name=$(yq -r '.name' "${d}/manifest.yml")
   package_version=$(yq -r '.version' "${d}/manifest.yml")
 
+  echo "--- Installing package: ${package_name} (${package_version})"
   elastic-package install -C "$d" -v
 
   # check that the package is installed

@@ -49,26 +49,9 @@ export TMP_FOLDER_TEMPLATE_BASE="tmp.${REPO}"
 export TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
-    GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-    export GITHUB_TOKEN
-fi
-
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    # required to set the git commit information
-    GITHUB_USERNAME_SECRET="elasticmachine"
-    export GITHUB_USERNAME_SECRET=$GITHUB_USERNAME_SECRET
-    export GITHUB_EMAIL_SECRET="elasticmachine@elastic.co"
-    # required by `gh` commands
-    export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-fi
-
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
     if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
         EC_REGION_SECRET=$(retry 5 vault read -field region_qa "${EC_DATA_PATH}")
         export EC_REGION_SECRET
-
-        GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-        export GITHUB_TOKEN
     fi
 fi

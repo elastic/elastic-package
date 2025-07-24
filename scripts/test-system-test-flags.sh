@@ -1,14 +1,27 @@
 #!/usr/bin/env bash
 
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
 set -euxo pipefail
+
+source "${SCRIPT_DIR}/stack_helpers.sh"
 
 cleanup() {
     local r=$?
     local container_id=""
-    local agent_ids
+    local agent_ids=""
+    if [ "${r}" -ne 0 ]; then
+      # Ensure that the group where the failure happened is opened.
+      echo "^^^ +++"
+    fi
 
-    # Dump stack logs
-    elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+    echo "~~~ elastic-package cleanup"
+
+    if is_stack_created; then
+        # Dump stack logs
+        # Required containers could not be running, so ignore the error
+        elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags || true
+    fi
 
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then
         container_id=$(container_ids "${DEFAULT_AGENT_CONTAINER_NAME}")
@@ -32,8 +45,10 @@ cleanup() {
 
     kind delete cluster || true
 
-    # Take down the stack
-    elastic-package stack down -v
+    if is_stack_created; then
+        # Take down the stack
+        elastic-package stack down -v
+    fi
 
     # Clean used resources
     for d in test/packages/*/*/; do

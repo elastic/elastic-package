@@ -10,7 +10,6 @@ UPLOAD_SAFE_LOGS=${UPLOAD_SAFE_LOGS:-"0"}
 SKIPPED_PACKAGES_FILE_PATH="${WORKSPACE}/skipped_packages.txt"
 FAILED_PACKAGES_FILE_PATH="${WORKSPACE}/failed_packages.txt"
 
-export SERVERLESS="true"
 SERVERLESS_PROJECT=${SERVERLESS_PROJECT:-"observability"}
 
 add_pr_comment() {
@@ -32,7 +31,7 @@ fi
 
 add_bin_path
 
-echo "--- install go"
+echo "--- Install go"
 with_go
 
 echo "--- Install docker"
@@ -42,7 +41,7 @@ echo "--- Install docker-compose"
 with_docker_compose_plugin
 
 if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]]; then
-    echo "--- install gh cli"
+    echo "--- Install gh cli"
     with_github_cli
 
     add_pr_comment "${BUILDKITE_PULL_REQUEST}" "${BUILDKITE_BUILD_URL}"
