@@ -57,7 +57,6 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if host != "" {
 		c.host = host
 	}
-	logger.Debugf("Using Elastic Cloud URL: %s", c.host)
 	return c, nil
 }
 
