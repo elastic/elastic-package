@@ -64,8 +64,11 @@ eval "$(elastic-package stack shellinit)"
 
 # Install packages from working copy
 for d in test/packages/*/*/; do
+  # Added set +x in a sub-shell to avoid printing the testype command in the output
+  # This helps to keep the CI output cleaner
+  packageTestType=$(set +x ; testype "$d")
   # Packages in false_positives can have issues.
-  if [ "$(testype "$d")" == "false_positives" ]; then
+  if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
   package_name=$(yq -r '.name' "${d}/manifest.yml")
