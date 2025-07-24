@@ -104,15 +104,16 @@ upload_package_test_logs() {
 }
 
 install_required_tools() {
-    add_bin_path
-
     local target="${1}"
+
     if [[ "${SERVERLESS}" == "true" ]]; then
         # If packages are tested with Serverless, these action are already performed
         # here: .buildkite/scripts/test_packages_with_serverless.sh
         echo "Skipping installation of required tools for Serverless testing"
         return
     fi
+
+    add_bin_path
 
     echo "--- Install go"
     with_go
@@ -125,6 +126,7 @@ install_required_tools() {
         echo "--- Install docker-compose plugin"
         with_docker_compose_plugin
     fi
+
     case "${target}" in
         "${KIND_TARGET}" | "${SYSTEM_TEST_FLAGS_TARGET}")
             echo "--- Install kind"
@@ -160,7 +162,6 @@ if [ -n "${PACKAGE}" ]; then
 fi
 
 echo "--- Run integration test ${label}"
-#
 # allow to fail this command, to be able to upload safe logs
 set +e
 make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
