@@ -74,7 +74,7 @@ upload_package_test_logs() {
     echo "--- Uploading safe logs to GCP bucket ${JOB_GCS_BUCKET_INTERNAL}"
 
     retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
-    package_folder="${PACKAGE}"
+    package_folder="${TARGET}.${PACKAGE}"
 
     if [[ "${ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT:-""}" == "false" ]]; then
         package_folder="${package_folder}-stack_agent"
@@ -149,7 +149,7 @@ install_required_tools() {
 
 if [[ "${SERVERLESS}" == "true" && "${TARGET}" != "${PARALLEL_TARGET}" ]]; then
     # Just tested parallel target to run with Serverless projects, other Makefile targets
-    # have not been tested yet and could fail unexpectedly. For instance, "test-check-package-false-positives"
+    # have not been tested yet and could fail unexpectedly. For instance, "test-check-packages-false-positives"
     # target would require a different management to not stop Elastic stack after each package test.
     echo "Target ${TARGET} is not supported for Serverless testing"
     usage
