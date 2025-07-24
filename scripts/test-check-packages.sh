@@ -53,14 +53,14 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 export SERVERLESS=${SERVERLESS:-"false"}
 
 run_system_benchmark() {
-  local package_name=$1
-  local package_path=$2
+  local package_name="$1"
+  local package_path="$2"
   echo "--- Run system benchmarks for package ${package_name}"
   elastic-package benchmark system -C "$package_path" --benchmark logs-benchmark -v --defer-cleanup 1s
 }
 
 run_serverless_tests() {
-  local package_path=$1
+  local package_path="$1"
   echo "--- Run tests for package ${package_path} in Serverless mode"
   local test_options="-v --report-format xUnit --report-output file --defer-cleanup 1s"
   local coverage_options="--test-coverage --coverage-format=generic"
@@ -73,8 +73,8 @@ run_serverless_tests() {
 }
 
 run_pipeline_benchmark() {
-  local package_name=$1
-  local package_path=$2
+  local package_name="$1"
+  local package_path="$2"
   echo "--- Run pipeline benchmarks and report for package ${package_name}"
   local test_options="-v --report-format xUnit --report-output file --fail-on-missing"
 
@@ -141,12 +141,14 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
     # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
-
-    if [[ "${package_to_test}" == "pipeline_benchmark" || "${package_to_test}" == "use_pipeline_tests" ]]; then
-      run_pipeline_benchmark "${package_to_test}" "$d"
-    elif [ "${package_to_test}" == "system_benchmark" ]; then
-      run_system_benchmark "${package_to_test}" "$d"
-    fi
+    case "${package_to_test}" in
+      pipeline_benchmark|use_pipeline_tests)
+        run_pipeline_benchmark "${package_to_test}" "$d"
+        ;;
+      system_benchmark)
+        run_system_benchmark "${package_to_test}" "$d"
+        ;;
+    esac
     continue
   fi
 
