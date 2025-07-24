@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
 
 cleanup() {
   local r=$?
@@ -41,8 +41,11 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 go run ./scripts/gpgkey
 
 for d in test/packages/*/*/; do
+  # Added set +x in a sub-shell to avoid printing the testype command in the output
+  # This helps to keep the CI output cleaner
+  packageTestType=$(set +x ; testype "$d")
   # Packages in false_positives can have issues.
-  if [ "$(testype "$d")" == "false_positives" ]; then
+  if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
   echo "--- Building package: ${d}"

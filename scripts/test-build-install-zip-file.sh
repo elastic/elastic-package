@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -euo pipefail
+set -euxo pipefail
 
 cleanup() {
   local r=$?
@@ -44,6 +44,7 @@ installAndVerifyPackage() {
   # e.g. "apache-999.999.999" becomes "apache/999.999.999"
   PACKAGE_NAME_VERSION="${PACKAGE_NAME_VERSION//-/\/}"
 
+  echo "--- Installing package: ${PACKAGE_NAME_VERSION}"
   elastic-package install -v --zip "${zipFile}"
 
   # check that the package is installed
@@ -95,6 +96,7 @@ if [ "${STACK_VERSION}" != "default" ]; then
   ARG_VERSION="--version ${STACK_VERSION}"
 fi
 
+echo "--- Prepare Elastic stack"
 # Update the stack
 elastic-package stack update -v ${ARG_VERSION}
 
@@ -106,10 +108,14 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 # Build packages
 for d in test/packages/*/*/; do
+  # Added set +x in a sub-shell to avoid printing the testype command in the output
+  # This helps to keep the CI output cleaner
+  packageTestType=$(set +x ; testype "$d")
   # Packages in false_positives can have issues.
-  if [ "$(testype "$d")" == "false_positives" ]; then
+  if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
+  echo "--- Building zip package: ${d}"
   elastic-package build -C "$d"
 done
 
