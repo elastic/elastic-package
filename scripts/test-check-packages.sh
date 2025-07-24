@@ -6,14 +6,19 @@ source "${SCRIPT_DIR}/stack_parameters.sh"
 
 set -euxo pipefail
 
+# Add default values
+export SUFFIX_FOLDER_DUMP_LOGS="${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+export PACKAGE_TEST_TYPE="${PACKAGE_TEST_TYPE:-"other"}"
+export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
+
 cleanup() {
   r=$?
 
   # Dump stack logs
   elastic-package stack dump -v \
-      --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+      --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}"
 
-  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
+  if [ "${PACKAGE_TEST_TYPE}" == "with-kind" ]; then
     # Dump kubectl details
     kubectl describe pods --all-namespaces > build/kubectl-dump.txt
     kubectl logs -l app=elastic-agent -n kube-system >> build/kubectl-dump.txt
@@ -33,13 +38,13 @@ cleanup() {
       elastic-package stack down -v
   fi
 
-  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+  if [ "${PACKAGE_TEST_TYPE}" == "with-logstash" ]; then
     # Delete the logstash profile
     elastic-package profiles delete logstash -v
   fi
 
   # Clean used resources
-  for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
+  for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
     elastic-package clean -C "$d" -v
   done
 
@@ -94,11 +99,11 @@ run_pipeline_benchmark() {
 
 
 # Build/check packages
-for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
+for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   elastic-package check -C "$d" -v
 done
 
-if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ]; then
+if [ "${PACKAGE_TEST_TYPE}" == "with-logstash" ]; then
   # Create a logstash profile and use it
   elastic-package profiles create logstash -v
   elastic-package profiles use logstash
@@ -129,17 +134,17 @@ if [[ "${SERVERLESS}" != "true" ]]; then
   elastic-package stack status
 fi
 
-if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then
+if [ "${PACKAGE_TEST_TYPE}" == "with-kind" ]; then
   # Boot up the kind cluster
   echo "--- Create kind cluster"
   kind create cluster --config "$PWD/scripts/kind-config.yaml" --image "kindest/node:${K8S_VERSION}"
 fi
 
 # Run package tests
-for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
+for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   package_to_test=$(basename "${d}")
 
-  if [ "${PACKAGE_TEST_TYPE:-other}" == "benchmarks" ]; then
+  if [ "${PACKAGE_TEST_TYPE}" == "benchmarks" ]; then
     # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
     case "${package_to_test}" in
       pipeline_benchmark|use_pipeline_tests)
@@ -152,7 +157,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE:-other}/${PACKAGE_UNDER_TEST:-*}/; do
     continue
   fi
 
-  if [ "${PACKAGE_TEST_TYPE:-other}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
+  if [ "${PACKAGE_TEST_TYPE}" == "with-logstash" ] && [ "${package_to_test}" == "system_benchmark" ]; then
     run_system_benchmark "${package_to_test}" "$d"
     continue
   fi

@@ -6,17 +6,22 @@ source "${SCRIPT_DIR}/stack_parameters.sh"
 
 set -euxo pipefail
 
+# Add default values
+export SUFFIX_FOLDER_DUMP_LOGS="${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+export PACKAGE_TEST_TYPE="${PACKAGE_TEST_TYPE:-"false_positives"}"
+export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
+
 function cleanup() {
   r=$?
 
   # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
+  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}}"
 
   # Take down the stack
   elastic-package stack down -v
 
   # Clean used resources
-  for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+  for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
     elastic-package clean -C "$d" -v
   done
 
@@ -107,7 +112,7 @@ elastic-package stack up -d -v ${stack_args}
 elastic-package stack status
 
 # Run package tests
-for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   check_build_output "$d"
   check_expected_errors "$d"
 done
