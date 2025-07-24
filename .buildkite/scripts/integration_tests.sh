@@ -128,7 +128,7 @@ install_required_tools() {
     case "${target}" in
         "${KIND_TARGET}" | "${SYSTEM_TEST_FLAGS_TARGET}")
             echo "--- Install kind"
-            with_kind
+            with_kubernetes
             ;;
         "${FALSE_POSITIVES_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_TARGET}")
             echo "--- Install yq"
