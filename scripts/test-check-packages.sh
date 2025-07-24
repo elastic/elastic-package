@@ -61,9 +61,9 @@ run_system_benchmark() {
 
 run_serverless_tests() {
   local package_path="$1"
-  echo "--- Run tests for package ${package_path} in Serverless mode"
   local test_options="-v --report-format xUnit --report-output file --defer-cleanup 1s"
   local coverage_options="--test-coverage --coverage-format=generic"
+  echo "--- Run tests for package ${package_path} in Serverless mode"
   # skip system tests
   elastic-package test asset -C "$package_path" $test_options $coverage_options
   elastic-package test static -C "$package_path" $test_options $coverage_options
