@@ -64,6 +64,11 @@ upload_package_test_logs() {
     local retry_count=0
     local package_folder=""
 
+    if [[ "${PACKAGE}" == "" ]]; then
+        echo "No package specified, skipping upload of safe logs"
+        return
+    fi
+
     retry_count=${BUILDKITE_RETRY_COUNT:-"0"}
     package_folder="${PACKAGE}"
 
