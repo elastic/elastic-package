@@ -17,7 +17,8 @@ function cleanup() {
 
   if is_stack_created ; then
     # Dump stack logs
-    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
+    # Required containers could not be running, so ignore the error
+    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}" || true
 
     # Take down the stack
     elastic-package stack down -v

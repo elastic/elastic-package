@@ -17,8 +17,9 @@ cleanup() {
 
   if is_stack_created; then
     # Dump stack logs
+    # Required containers could not be running, so ignore the error
     elastic-package stack dump -v \
-        --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+        --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}" || true
   fi
 
   if [ "${PACKAGE_TEST_TYPE:-other}" == "with-kind" ]; then

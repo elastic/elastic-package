@@ -19,7 +19,8 @@ cleanup() {
 
     if is_stack_created; then
         # Dump stack logs
-        elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags
+        # Required containers could not be running, so ignore the error
+        elastic-package stack dump -v --output build/elastic-stack-dump/system-test-flags || true
     fi
 
     if is_service_container_running "${DEFAULT_AGENT_CONTAINER_NAME}" ; then

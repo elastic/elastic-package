@@ -16,6 +16,7 @@ cleanup() {
   fi
 
   # Dump stack logs
+  # Required containers could not be running, so ignore the error
   elastic-package stack dump -v --output ${output_path} || true
 
   # Take down the stack

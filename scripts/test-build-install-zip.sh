@@ -11,6 +11,7 @@ cleanup() {
   echo "~~~ elastic-package cleanup"
 
   # Dump stack logs
+  # Required containers could not be running, so ignore the error
   elastic-package stack dump -v --output build/elastic-stack-dump/build-zip || true
 
   # Take down the stack
