@@ -24,7 +24,7 @@ branch_name_label() {
 
     if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]] ; then
         # remove fork from branch name
-        branch=$(echo $branch | cut -d : -f 2)
+        branch=$(echo "$branch" | cut -d : -f 2)
     fi
 
     # From Jenkins
@@ -33,7 +33,7 @@ branch_name_label() {
     branch=$(echo "$branch" | tr '[:upper:]' '[:lower:]' | tr '_/\:. ' '-')
 
     # truncate up to 63 characters limit
-    echo $branch | head -c 63
+    echo "$branch" | head -c 63
 }
 
 BRANCH_NAME_LOWER_CASE=$(branch_name_label "$BUILDKITE_BRANCH")
