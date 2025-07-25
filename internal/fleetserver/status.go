@@ -29,7 +29,7 @@ func (c *Client) Status(ctx context.Context) (*Status, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not build URL: %w", err)
 	}
-	logger.Debugf("GET %s", statusURL)
+	logger.Tracef("GET %s", statusURL)
 	req, err := c.httpRequest(ctx, "GET", statusURL, nil)
 	if err != nil {
 		return nil, err

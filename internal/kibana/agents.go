@@ -139,6 +139,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 	ticker := time.NewTicker(waitForPolicyAssignedRetryPeriod)
 	defer ticker.Stop()
 
+	logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 	for {
 		agent, err := c.getAgent(ctx, a.ID)
 		if err != nil {
@@ -152,7 +153,6 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 			break
 		}
 
-		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 		select {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
