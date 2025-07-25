@@ -44,7 +44,6 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
-    test-check-packages-with-logstash
 )
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     test_name=${test#"test-check-packages-"}
@@ -62,6 +61,33 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
         echo "          - build/kubectl-dump.txt"
     fi
 done
+
+# Testing with logstash with different versions needed because of failures in 9.x, see https://github.com/elastic/elastic-package/pull/2763.
+pushd test/packages/with-logstash > /dev/null
+while IFS= read -r -d '' package ; do
+    package_name=$(basename "${package}")
+    echo "      - label: \":go: Integration test (with logstash): ${package_name}\""
+    echo "        key: \"integration-with_logstash-${package_name}\""
+    echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-with-logstash -p ${package_name}"
+    echo "        env:"
+    echo "          UPLOAD_SAFE_LOGS: 1"
+    echo "        agents:"
+    echo "          provider: \"gcp\""
+    echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
+    echo "        plugins:"
+    echo "          # See https://github.com/elastic/oblt-infra/blob/main/conf/resources/repos/integrations/01-gcp-buildkite-oidc.tf"
+    echo "          # This plugin authenticates to Google Cloud using the OIDC token."
+    echo "          - elastic/oblt-google-auth#v1.2.0:"
+    echo "              lifetime: 10800 # seconds"
+    echo "              project-id: \"elastic-observability-ci\""
+    echo "              project-number: \"911195782929\""
+    echo "        artifact_paths:"
+    echo "          - build/test-results/*.xml"
+    echo "          - build/elastic-stack-dump/check-*/logs/*.log"
+    echo "          - build/elastic-stack-dump/check-*/logs/fleet-server-internal/**/*"
+    echo "          - build/test-coverage/coverage-*.xml" # these files should not be used to compute the final coverage of elastic-package
+done < <(find . -maxdepth 1 -mindepth 1 -type d -print0)
+popd > /dev/null
 
 pushd test/packages/false_positives > /dev/null
 while IFS= read -r -d '' package ; do

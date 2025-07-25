@@ -1335,7 +1335,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 }
 
 func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
-	logger.Debug("setting up service...")
+	logger.Info("Setting up service...")
 	if r.runTearDown || r.runTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
 		svcInfo.OutputDir = state.ServiceOutputDir
@@ -1380,7 +1380,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		if service == nil {
 			return nil
 		}
-		logger.Debug("tearing down service...")
+		logger.Info("Tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
@@ -1399,7 +1399,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if r.runTearDown || r.runTestsOnly {
 		agentRunID = state.AgentRunID
 	}
-	logger.Debug("setting up independent Elastic Agent...")
+	logger.Info("Setting up independent Elastic Agent...")
 	agentInfo, err := r.createAgentInfo(policy, config, agentRunID)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
@@ -1426,7 +1426,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 		if agentDeployer == nil {
 			return nil
 		}
-		logger.Debug("tearing down agent...")
+		logger.Info("Tearing down agent...")
 		if err := agentDeployed.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down agent: %w", err)
 		}
@@ -1708,7 +1708,11 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		return result.WithSkip(skip)
 	}
 
-	logger.Debugf("running test with configuration '%s'", config.Name())
+	if r.testFolder.DataStream != "" {
+		logger.Infof("Running test for data_stream %q with configuration '%s'", r.testFolder.DataStream, config.Name())
+	} else {
+		logger.Infof("Running test with configuration '%s'", config.Name())
+	}
 
 	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {

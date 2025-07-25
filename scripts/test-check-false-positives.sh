@@ -7,6 +7,11 @@ source "${SCRIPT_DIR}/stack_helpers.sh"
 
 set -euxo pipefail
 
+# Add default values
+export SUFFIX_FOLDER_DUMP_LOGS="${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+export PACKAGE_TEST_TYPE="${PACKAGE_TEST_TYPE:-"false_positives"}"
+export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
+
 function cleanup() {
   r=$?
   if [ "${r}" -ne 0 ]; then
@@ -18,14 +23,14 @@ function cleanup() {
   if is_stack_created ; then
     # Dump stack logs
     # Required containers could not be running, so ignore the error
-    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}" || true
+    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}}" || true
 
     # Take down the stack
     elastic-package stack down -v
   fi
 
   # Clean used resources
-  for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+  for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
     elastic-package clean -C "$d" -v
   done
 
@@ -117,9 +122,10 @@ elastic-package stack up -d -v ${stack_args}
 elastic-package stack status
 
 # Run package tests
-for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   echo "--- Check build output: ${d}"
   check_build_output "$d"
+
   echo "--- Check expected errors: ${d}"
   check_expected_errors "$d"
 done

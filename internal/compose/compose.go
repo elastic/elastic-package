@@ -204,7 +204,7 @@ func NewProject(name string, paths ...string) (*Project, error) {
 	if ver.Major() < 2 {
 		return nil, fmt.Errorf("required Docker Compose v2, found %s", ver.String())
 	}
-	logger.Debugf("Determined Docker Compose version: %v", ver)
+	logger.Tracef("Determined Docker Compose version: %v", ver)
 
 	v, ok = os.LookupEnv(DisableVerboseOutputComposeEnv)
 	if ok && strings.ToLower(v) != "false" {
@@ -348,7 +348,7 @@ func (p *Project) Logs(ctx context.Context, opts CommandOptions) ([]byte, error)
 func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error {
 	// Read container IDs
 	args := p.baseArgs()
-	args = append(args, "ps", "-a", "-q")
+	args = append(args, "ps", "-a", "--format", "{{.ID}}")
 
 	var b bytes.Buffer
 	if err := p.runDockerComposeCmd(ctx, dockerComposeOptions{args: args, env: opts.Env, stdout: &b}); err != nil {
@@ -359,34 +359,35 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 	defer stop()
 
 	containerIDs := strings.Fields(b.String())
+	logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
 	for {
 		// NOTE: healthy must be reinitialized at each iteration
 		healthy := true
 
-		logger.Debugf("Wait for healthy containers: %s", strings.Join(containerIDs, ","))
 		descriptions, err := docker.InspectContainers(containerIDs...)
 		if err != nil {
 			return err
 		}
 
 		for _, d := range descriptions {
+			dockerID := fmt.Sprintf("%.*s", 12, d.ID) // Ensure it is always 12 characters long
 			switch {
 			// No healthcheck defined for service
 			case d.State.Status == "running" && d.State.Health == nil:
-				logger.Debugf("Container %s (%s) status: %s (no health status)", d.Config.Labels.ComposeService, d.ID, d.State.Status)
+				logger.Debugf("Container %s (%s) status: %s (no health status)", d.Config.Labels.ComposeService, dockerID, d.State.Status)
 				// Service is up and running and it's healthy
 			case d.State.Status == "running" && d.State.Health.Status == "healthy":
-				logger.Debugf("Container %s (%s) status: %s (health: %s)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.Health.Status)
+				logger.Debugf("Container %s (%s) status: %s (health: %s)", d.Config.Labels.ComposeService, dockerID, d.State.Status, d.State.Health.Status)
 				// Container started and finished with exit code 0
 			case d.State.Status == "exited" && d.State.ExitCode == 0:
-				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, dockerID, d.State.Status, d.State.ExitCode)
 				// Container exited with code > 0
 			case d.State.Status == "exited" && d.State.ExitCode > 0:
-				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, d.ID, d.State.Status, d.State.ExitCode)
-				return fmt.Errorf("container (ID: %s) exited with code %d", d.ID, d.State.ExitCode)
+				logger.Debugf("Container %s (%s) status: %s (exit code: %d)", d.Config.Labels.ComposeService, dockerID, d.State.Status, d.State.ExitCode)
+				return fmt.Errorf("container (ID: %s) exited with code %d", dockerID, d.State.ExitCode)
 			// Any different status is considered unhealthy
 			default:
-				logger.Debugf("Container %s (%s) status: unhealthy", d.Config.Labels.ComposeService, d.ID)
+				logger.Debugf("Container %s (%s) status: unhealthy", d.Config.Labels.ComposeService, dockerID)
 				healthy = false
 			}
 		}

@@ -115,7 +115,7 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
-	logger.Debug("Installing package...")
+	logger.Info("Installing package...")
 	resourcesOptions := resourcesOptions{
 		// Install it unless we are running the tear down only.
 		installedPackage: !r.runTearDown,
@@ -131,7 +131,7 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 // TearDownRunner cleans up any global test runner resources. It must be called
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
-	logger.Debug("Uninstalling package...")
+	logger.Info("Uninstalling package...")
 	resourcesOptions := resourcesOptions{
 		// Keep it installed only if we were running setup, or tests only.
 		installedPackage: r.runSetup || r.runTestsOnly,
