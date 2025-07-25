@@ -16,6 +16,7 @@ usage() {
 PARALLEL_TARGET="test-check-packages-parallel"
 FALSE_POSITIVES_TARGET="test-check-packages-false-positives"
 KIND_TARGET="test-check-packages-with-kind"
+LOGSTASH_TARGET="test-check-packages-with-logstash"
 SYSTEM_TEST_FLAGS_TARGET="test-system-test-flags"
 TEST_BUILD_ZIP_TARGET="test-build-zip"
 TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
@@ -109,7 +110,14 @@ if [ -n "${PACKAGE}" ]; then
 fi
 
 echo "--- Run integration test ${label}"
-if [[ "${TARGET}" == "${PARALLEL_TARGET}" ]] || [[ "${TARGET}" == "${FALSE_POSITIVES_TARGET}" ]]; then
+test_each_package=false
+case "${TARGET}" in
+    "${PARALLEL_TARGET}" | "${FALSE_POSITIVES_TARGET}" | "${LOGSTASH_TARGET}")
+        test_each_package=true
+        ;;
+esac
+if [[ "${test_each_package}" == "true" ]]; then
+    make install
     # allow to fail this command, to be able to upload safe logs
     set +e
     make SERVERLESS="${SERVERLESS}" PACKAGE_UNDER_TEST="${PACKAGE}" "${TARGET}"
