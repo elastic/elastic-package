@@ -70,7 +70,7 @@ steps:
 
   - label: ":junit: Junit annotate"
     agents:
-      image: "ruby:3.1-alpine@sha256:a39e26d0598837f08c75a42c8b0886d9ed5cc862c4b535662922ee1d05272fca"
+      image: "ruby:3.4.5-slim@sha256:8eb53388a8f3a1bad038fa4ea8d8011acaef53c176a9a1182d418123d8a66ccd"
     plugins:
       - junit-annotate#v2.7.0:
           artifacts: "build/test-results/*.xml"
