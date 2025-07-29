@@ -7,6 +7,8 @@ GO_VERSION=$(cat .go-version)
 export GO_VERSION
 
 export SERVERLESS=${SERVERLESS:-"false"}
+export UPLOAD_SAFE_LOGS=${UPLOAD_SAFE_LOGS:-"0"}
+
 WORKSPACE=$(pwd)
 export WORKSPACE
 
@@ -22,7 +24,7 @@ branch_name_label() {
 
     if [[ "${BUILDKITE_PULL_REQUEST}" != "false" ]] ; then
         # remove fork from branch name
-        branch=$(echo $branch | cut -d : -f 2)
+        branch=$(echo "$branch" | cut -d : -f 2)
     fi
 
     # From Jenkins
@@ -31,7 +33,7 @@ branch_name_label() {
     branch=$(echo "$branch" | tr '[:upper:]' '[:lower:]' | tr '_/\:. ' '-')
 
     # truncate up to 63 characters limit
-    echo $branch | head -c 63
+    echo "$branch" | head -c 63
 }
 
 BRANCH_NAME_LOWER_CASE=$(branch_name_label "$BUILDKITE_BRANCH")
@@ -47,50 +49,11 @@ export CREATED_DATE
 
 export TMP_FOLDER_TEMPLATE_BASE="tmp.${REPO}"
 export TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
-
-is_step_required_to_upload_safe_logs() {
-    if [[ "$BUILDKITE_PIPELINE_SLUG" != "elastic-package" && "$BUILDKITE_PIPELINE_SLUG" != "elastic-package-test-serverless" ]]; then
-        return 1
-    fi
-
-    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" ]]; then
-        if [[ "$BUILDKITE_STEP_KEY" =~ ^integration-parallel || "$BUILDKITE_STEP_KEY" =~ ^integration-false_positives ]]; then
-            return 0
-        fi
-    fi
-
-    if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-serverless" ]]; then
-        if [[ "$BUILDKITE_STEP_KEY" == "test-serverless" ]]; then
-            return 0
-        fi
-    fi
-    return 1
-}
-
-if is_step_required_to_upload_safe_logs; then
-    export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
-fi
-
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package" && "$BUILDKITE_STEP_KEY" == "release" ]]; then
-    GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-    export GITHUB_TOKEN
-fi
-
-if [[ "$BUILDKITE_PIPELINE_SLUG" == "elastic-package-test-with-integrations" && "$BUILDKITE_STEP_KEY" == "pr-integrations" ]]; then
-    # required to set the git commit information
-    GITHUB_USERNAME_SECRET="elasticmachine"
-    export GITHUB_USERNAME_SECRET=$GITHUB_USERNAME_SECRET
-    export GITHUB_EMAIL_SECRET="elasticmachine@elastic.co"
-    # required by `gh` commands
-    export GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-fi
+export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then
     if [[ "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
         EC_REGION_SECRET=$(retry 5 vault read -field region_qa "${EC_DATA_PATH}")
         export EC_REGION_SECRET
-
-        GITHUB_TOKEN=$VAULT_GITHUB_TOKEN
-        export GITHUB_TOKEN
     fi
 fi

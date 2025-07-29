@@ -57,7 +57,6 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 	if host != "" {
 		c.host = host
 	}
-	logger.Debugf("Using Elastic Cloud URL: %s", c.host)
 	return c, nil
 }
 
@@ -110,7 +109,7 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
 
-	logger.Debugf("%s %s", method, u)
+	logger.Tracef("%s %s", method, u)
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
@@ -191,11 +190,11 @@ func (c *Client) EnsureProjectInitialized(ctx context.Context, project *Project)
 		}
 
 		if status != "initialized" {
-			logger.Debugf("project not initialized, status: %s", status)
+			logger.Debugf("project %s not initialized (status: %s)", project.ID, status)
 			timer.Reset(time.Second * 5)
 			continue
 		}
-
+		logger.Debugf("project %s initialized", project.ID)
 		return nil
 	}
 }

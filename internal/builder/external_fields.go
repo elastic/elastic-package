@@ -78,7 +78,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 				return err
 			}
 		} else {
-			logger.Debugf("%s: source file hasn't been changed", rel)
+			logger.Tracef("%s: source file hasn't been changed", rel)
 		}
 	}
 

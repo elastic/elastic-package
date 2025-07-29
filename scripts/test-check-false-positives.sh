@@ -3,20 +3,34 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 source "${SCRIPT_DIR}/stack_parameters.sh"
+source "${SCRIPT_DIR}/stack_helpers.sh"
 
 set -euxo pipefail
 
+# Add default values
+export SUFFIX_FOLDER_DUMP_LOGS="${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-any}}"
+export PACKAGE_TEST_TYPE="${PACKAGE_TEST_TYPE:-"false_positives"}"
+export PACKAGE_UNDER_TEST="${PACKAGE_UNDER_TEST:-*}"
+
 function cleanup() {
   r=$?
+  if [ "${r}" -ne 0 ]; then
+    # Ensure that the group where the failure happened is opened.
+    echo "^^^ +++"
+  fi
+  echo "~~~ elastic-package cleanup"
 
-  # Dump stack logs
-  elastic-package stack dump -v --output "build/elastic-stack-dump/check-${PACKAGE_UNDER_TEST:-${PACKAGE_TEST_TYPE:-*}}"
+  if is_stack_created ; then
+    # Dump stack logs
+    # Required containers could not be running, so ignore the error
+    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}}" || true
 
-  # Take down the stack
-  elastic-package stack down -v
+    # Take down the stack
+    elastic-package stack down -v
+  fi
 
   # Clean used resources
-  for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+  for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
     elastic-package clean -C "$d" -v
   done
 
@@ -92,14 +106,15 @@ trap cleanup EXIT
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
-stack_args=$(stack_version_args) # --version <version>
+stack_args=$(set +x; stack_version_args) # --version <version>
 
+echo "--- Prepare Elastic stack"
 # Update the stack
 elastic-package stack update -v ${stack_args}
 
 # NOTE: if any provider argument is defined, the stack must be shutdown first to ensure
 # that all parameters are taken into account by the services
-stack_args="${stack_args} $(stack_provider_args)" # -U <setting=1,settings=2>
+stack_args="${stack_args} $(set +x; stack_provider_args)" # -U <setting=1,settings=2>
 
 # Boot up the stack
 elastic-package stack up -d -v ${stack_args}
@@ -107,7 +122,10 @@ elastic-package stack up -d -v ${stack_args}
 elastic-package stack status
 
 # Run package tests
-for d in test/packages/${PACKAGE_TEST_TYPE:-false_positives}/${PACKAGE_UNDER_TEST:-*}/; do
+for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
+  echo "--- Check build output: ${d}"
   check_build_output "$d"
+
+  echo "--- Check expected errors: ${d}"
   check_expected_errors "$d"
 done

@@ -46,7 +46,11 @@ type DumpResult struct {
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
 func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump Elastic stack data")
+	targetPathLogMessage := ""
+	if options.Output != "" {
+		targetPathLogMessage = fmt.Sprintf(" (location: %s)", options.Output)
+	}
+	logger.Debugf("Dump Elastic stack data%s", targetPathLogMessage)
 
 	results, err := dumpStackLogs(ctx, options)
 	if err != nil {
@@ -56,12 +60,6 @@ func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
 }
 
 func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump stack logs (location: %s)", options.Output)
-	err := os.RemoveAll(options.Output)
-	if err != nil {
-		return nil, fmt.Errorf("can't remove output location: %w", err)
-	}
-
 	localServices := &localServicesManager{
 		profile: options.Profile,
 	}
@@ -78,6 +76,11 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 	var logsPath string
 	if options.Output != "" {
+		err := os.RemoveAll(options.Output)
+		if err != nil {
+			return nil, fmt.Errorf("can't remove output location: %w", err)
+		}
+
 		logsPath = filepath.Join(options.Output, "logs")
 		err = os.MkdirAll(logsPath, 0755)
 		if err != nil {
@@ -91,7 +94,6 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		if len(options.Services) > 0 && !slices.Contains(options.Services, serviceName) {
 			continue
 		}
-
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
 		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)

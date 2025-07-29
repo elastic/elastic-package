@@ -40,7 +40,12 @@ func CreateLinksFSFromPath(workDir string) (*LinksFS, error) {
 		return nil, fmt.Errorf("opening repository root: %w", err)
 	}
 
-	return NewLinksFS(root, workDir)
+	absWorkDir, err := filepath.Abs(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("obtaining absolute path of working directory: %w", err)
+	}
+
+	return NewLinksFS(root, absWorkDir)
 }
 
 var _ fs.FS = (*LinksFS)(nil)
@@ -56,39 +61,28 @@ type LinksFS struct {
 	inner    fs.FS
 }
 
-// NewLinksFS creates a new LinksFS.
+// NewLinksFS creates a new LinksFS. workDir must be an absolute path, or a path relative to
+// the repository root.
 func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	// Ensure workDir is absolute for os.DirFS
 	var absWorkDir string
 	if filepath.IsAbs(workDir) {
 		absWorkDir = workDir
-	} else {
-		// First try: assume workDir is relative to the repository root
-		absWorkDir = filepath.Join(repoRoot.Name(), workDir)
-
-		// Check if path exists
-		if _, err := os.Stat(absWorkDir); os.IsNotExist(err) {
-			// Second try: path might be relative to current working directory
-			currentDir, err := os.Getwd()
-			if err == nil {
-				alternativePath := filepath.Join(currentDir, workDir)
-				if _, err := os.Stat(alternativePath); err == nil {
-					// If this path exists, use it instead
-					absWorkDir = alternativePath
-					logger.Debugf("Using path relative to current working directory: %s", absWorkDir)
-				}
-			}
+		relative, err := filepath.Rel(repoRoot.Name(), absWorkDir)
+		if err != nil {
+			return nil, fmt.Errorf("invalid working directory %s: %w", absWorkDir, err)
 		}
+		workDir = relative
+	} else {
+		absWorkDir = filepath.Clean(filepath.Join(repoRoot.Name(), workDir))
 	}
 
-	// Validate that workDir is within the repository root
-	inRoot, err := pathIsInRepositoryRoot(repoRoot, absWorkDir)
+	info, err := repoRoot.Stat(workDir)
 	if err != nil {
-		return nil, fmt.Errorf("could not validate workDir %s: %w", absWorkDir, err)
+		return nil, fmt.Errorf("invalid working directory %s: %w", absWorkDir, err)
 	}
-
-	if !inRoot {
-		return nil, fmt.Errorf("workDir %s is outside the repository root %s", absWorkDir, repoRoot.Name())
+	if !info.IsDir() {
+		return nil, fmt.Errorf("working directory %s is not a directory", absWorkDir)
 	}
 
 	return &LinksFS{repoRoot: repoRoot, workDir: absWorkDir, inner: os.DirFS(absWorkDir)}, nil
@@ -220,14 +214,6 @@ func newLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
 	}
 
 	pathName := filepath.Clean(filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath)))
-
-	inRoot, err := pathIsInRepositoryRoot(root, pathName)
-	if err != nil {
-		return Link{}, fmt.Errorf("could not check if path %s is in repository root: %w", pathName, err)
-	}
-	if !inRoot {
-		return Link{}, fmt.Errorf("path %s escapes the repository root", pathName)
-	}
 
 	// Store the original absolute path for package root detection
 	originalAbsPath := pathName
@@ -544,29 +530,4 @@ func readFirstLine(filePath string) (string, error) {
 func checksum(b []byte) (string, error) {
 	hash := sha256.Sum256(b)
 	return hex.EncodeToString(hash[:]), nil
-}
-
-// pathIsInRepositoryRoot checks if a path is within the repository root and doesn't escape it.
-func pathIsInRepositoryRoot(root *os.Root, path string) (bool, error) {
-	path = filepath.FromSlash(path)
-	var err error
-	if filepath.IsAbs(path) {
-		path, err = filepath.Rel(root.Name(), path)
-		if err != nil {
-			return false, fmt.Errorf("could not get relative path: %w", err)
-		}
-	}
-
-	// Clean the path to resolve any ".." components
-	cleanPath := filepath.Clean(path)
-
-	// Check if the cleaned path tries to escape the root
-	if strings.HasPrefix(cleanPath, "..") {
-		return false, nil
-	}
-
-	if _, err := root.Stat(cleanPath); err != nil {
-		return false, nil
-	}
-	return true, nil
 }

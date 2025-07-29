@@ -122,3 +122,6 @@ steps:
     command: ".buildkite/scripts/release.sh"
     agents:
       provider: "gcp"
+    plugins:
+      # required to create Github releases
+      - elastic/vault-github-token#v0.1.0:

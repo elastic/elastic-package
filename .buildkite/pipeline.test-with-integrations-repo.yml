@@ -26,6 +26,12 @@ steps:
   - label: ":hammer: Create PR in integrations"
     key: pr-integrations
     command: ".buildkite/scripts/test-with-integrations.sh"
+    env:
+      GITHUB_EMAIL: "elasticmachine@elastic.co"
+      GITHUB_USERNAME: "elastic-vault-github-plugin-prod"
+    plugins:
+      # Required to push branches, create PRs and post comments on PRs
+      - elastic/vault-github-token#v0.1.0:
     agents:
       provider: "gcp"
     depends_on:
