@@ -111,11 +111,22 @@ For more information on architectures that can be used for scaling this integrat
 
 ### ECS field Reference
 
-{{ `{{fields}}` }}
+#### access fields
+{{fields "access"}}
+
+### error fields
+{{fields "error"}}
+
+### status fields
+{{fields "status"}}
 
 ### Sample Event
 
-{{ `{{event}}` }}
+{{event "access"}}
+
+{{event "error"}}
+
+{{event "status"}}
 
 ### Inputs used
 

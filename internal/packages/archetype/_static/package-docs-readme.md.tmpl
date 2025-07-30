@@ -71,13 +71,26 @@ For more information on architectures that can be used for scaling this integrat
 
 ## Reference
 
-### ECS field Reference
+<!-- Repeat for each data stream of the current type -->
+<!-- ### {Data stream name}
 
-{{ `{{fields}}` }}
+The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+
+### ECS field reference
+
+<!-- Repeat and fill in the comment block below for each data stream of the current type. {{ `{{fields}}` }} will be replaced by a generated list of all fields from the `fields/` directory of the data stream when building the integration. -->
+<!--
+#### {data stream name} fields
+{{ `{{fields {data_stream_name} }}` }}
+
+-->
 
 ### Sample Event
 
-{{ `{{event}}` }}
+<!-- Repeat and fill in the comment block below for each data stream of the current type. {{ '{{event}}' }} will be replace by a sample event, taken from `sample_event.json`, when building this integration. -->
+<!--
+{{ `{{event {data_stream_name} }}` }}
+-->
 
 ### Inputs used
 
