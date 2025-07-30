@@ -68,6 +68,15 @@ namespaces: []
 			equal: true,
 		},
 		{
+			title: "clean namespaces if default",
+			expected: `
+`,
+			found: `
+namespaces: [default]
+`,
+			equal: true,
+		},
+		{
 			title: "clean namespaces only if empty",
 			expected: `
 namespaces: []

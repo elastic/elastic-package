@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
@@ -98,6 +99,7 @@ type policyEntryFilter struct {
 	elementsEntries []policyEntryFilter
 	memberReplace   *policyEntryReplace
 	onlyIfEmpty     bool
+	ignoreValues    []any
 }
 
 type policyEntryReplace struct {
@@ -151,7 +153,7 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 
 	// Namespaces may not be present in older versions of the stack.
-	{name: "namespaces", onlyIfEmpty: true},
+	{name: "namespaces", onlyIfEmpty: true, ignoreValues: []any{"default"}},
 }
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
@@ -213,7 +215,7 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				}
 			}
 		default:
-			if entry.onlyIfEmpty && !isEmpty(v) {
+			if entry.onlyIfEmpty && !isEmpty(v, entry.ignoreValues) {
 				continue
 			}
 			err := policyMap.Delete(entry.name)
@@ -229,15 +231,21 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 	return policyMap, nil
 }
 
-func isEmpty(v any) bool {
+func isEmpty(v any, ignoreValues []any) bool {
 	switch v := v.(type) {
 	case nil:
 		return true
 	case []any:
-		return len(v) == 0
+		return len(filterIgnored(v, ignoreValues)) == 0
 	case map[string]any:
 		return len(v) == 0
 	}
 
 	return false
+}
+
+func filterIgnored(v []any, ignoredValues []any) []any {
+	return slices.DeleteFunc(v, func(e any) bool {
+		return slices.Contains(ignoredValues, e)
+	})
 }
