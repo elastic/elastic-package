@@ -116,7 +116,6 @@ steps:
           report-skipped: true
           always-annotate: true
           run-in-docker: false
-          report-slowest: 5
 
   - label: ":github: Release"
     key: "release"
