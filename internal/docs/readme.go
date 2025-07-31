@@ -209,9 +209,6 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			}
 			return linksMap.RenderLink(args[0], options)
 		},
-		"header": func(args ...string) (string, error) {
-			return doNotModifyStr, nil
-		},
 	}).ParseFiles(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("parsing README template failed (path: %s): %w", templatePath, err)
@@ -222,7 +219,10 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 	if err != nil {
 		return nil, fmt.Errorf("executing template failed: %w", err)
 	}
-	return rendered.Bytes(), nil
+	
+	// Prepend the doNotModifyStr to all generated files
+	result := append([]byte(doNotModifyStr+"\n"), rendered.Bytes()...)
+	return result, nil
 }
 
 func readReadme(fileName, packageRoot string) ([]byte, bool, error) {

@@ -1,4 +1,3 @@
-{{ `{{header}}` }}
 # Apache Integration for Elastic
 
 ## Overview
