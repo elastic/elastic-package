@@ -54,10 +54,12 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		return fmt.Errorf("can't render package README: %w", err)
 	}
 
-	logger.Debugf("Write docs readme to _dev")
-	err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "_dev", "build", "docs", "README.md"))
-	if err != nil {
-		return fmt.Errorf("can't render package README in _dev: %w", err)
+	if packageDescriptor.Manifest.Type != "content" {
+		logger.Debugf("Write docs readme to _dev")
+		err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "_dev", "build", "docs", "README.md"))
+		if err != nil {
+			return fmt.Errorf("can't render package README in _dev: %w", err)
+		}
 	}
 
 	if license := packageDescriptor.Manifest.Source.License; license != "" {
