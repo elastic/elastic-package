@@ -72,7 +72,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(packageRoot, "")
+	targets, err := docs.UpdateReadmes(packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}
@@ -84,6 +84,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRoot:    packageRoot,
+		BuildDir:       buildDir,
 		CreateZip:      createZip,
 		SignPackage:    signPackage,
 		SkipValidation: skipValidation,
