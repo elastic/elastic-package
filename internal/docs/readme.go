@@ -215,14 +215,12 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 	}
 
 	var rendered bytes.Buffer
+	fmt.Fprintln(&rendered, doNotModifyStr)
 	err = t.Execute(&rendered, nil)
 	if err != nil {
 		return nil, fmt.Errorf("executing template failed: %w", err)
 	}
-
-	// Prepend the doNotModifyStr to all generated files
-	result := append([]byte(doNotModifyStr+"\n"), rendered.Bytes()...)
-	return result, nil
+	return rendered.Bytes(), nil
 }
 
 func readReadme(fileName, packageRoot string) ([]byte, bool, error) {
