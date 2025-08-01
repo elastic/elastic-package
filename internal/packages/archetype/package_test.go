@@ -150,12 +150,13 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 // https://github.com/elastic/elastic-package/issues/2797
 func makeInRepoBuildTempDir(t *testing.T) string {
 	t.Helper()
-	dir, err := os.MkdirTemp(".", "_build-test-*")
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	dir, err := os.MkdirTemp(cwd, "_build-test-*")
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		err := os.RemoveAll(dir)
 		assert.NoError(t, err)
 	})
-	abs, _ := filepath.Abs(dir)
-	return abs
+	return dir
 }
