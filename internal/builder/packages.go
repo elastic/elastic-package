@@ -81,6 +81,14 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 			return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 		}
 		buildDir = d
+	} else {
+		info, err := os.Stat(buildDir)
+		if err != nil {
+			return "", fmt.Errorf("can't check build directory: %w", err)
+		}
+		if !info.IsDir() {
+			return "", fmt.Errorf("build path (%s) expected to be a directory", err)
+		}
 	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
