@@ -154,6 +154,16 @@ var policyEntryFilters = []policyEntryFilter{
 
 	// Namespaces may not be present in older versions of the stack.
 	{name: "namespaces", onlyIfEmpty: true, ignoreValues: []any{"default"}},
+
+	// Values set by Fleet in input packages starting on 9.1.0.
+	{name: "inputs", elementsEntries: []policyEntryFilter{
+		{name: "streams", elementsEntries: []policyEntryFilter{
+			{name: "data_stream.type"},
+			{name: "data_stream.elasticsearch.dynamic_dataset"},
+			{name: "data_stream.elasticsearch.dynamic_namespace"},
+			{name: "data_stream.elasticsearch", onlyIfEmpty: true},
+		}},
+	}},
 }
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
@@ -238,6 +248,8 @@ func isEmpty(v any, ignoreValues []any) bool {
 	case []any:
 		return len(filterIgnored(v, ignoreValues)) == 0
 	case map[string]any:
+		return len(v) == 0
+	case common.MapStr:
 		return len(v) == 0
 	}
 
