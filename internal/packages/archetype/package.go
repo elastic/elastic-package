@@ -54,6 +54,14 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		return fmt.Errorf("can't render package README: %w", err)
 	}
 
+	if packageDescriptor.Manifest.Type != "content" {
+		logger.Debugf("Write docs readme to _dev")
+		err = renderResourceFile(packageDocsReadme, &packageDescriptor, filepath.Join(baseDir, "_dev", "build", "docs", "README.md"))
+		if err != nil {
+			return fmt.Errorf("can't render package README in _dev: %w", err)
+		}
+	}
+
 	if license := packageDescriptor.Manifest.Source.License; license != "" {
 		logger.Debugf("Write license file")
 		err = licenses.WriteTextToFile(license, filepath.Join(baseDir, "LICENSE.txt"))
@@ -76,6 +84,14 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 	err = writeRawResourceFile(decodedSampleScreenshot, filepath.Join(baseDir, "img", "sample-screenshot.png"))
 	if err != nil {
 		return fmt.Errorf("can't render sample screenshot: %w", err)
+	}
+
+	if packageDescriptor.Manifest.Type == "integration" {
+		logger.Debugf("Write sample sample_event")
+		err = renderResourceFile(packageSampleEvent, &packageDescriptor, filepath.Join(baseDir, "sample_event.json"))
+		if err != nil {
+			return fmt.Errorf("can't render sample sample_event: %w", err)
+		}
 	}
 
 	if packageDescriptor.Manifest.Type == "input" {
