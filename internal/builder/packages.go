@@ -20,13 +20,14 @@ import (
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
-const builtPackagesFolder = "packages"
+const builtPackagesDir = "packages"
 const licenseTextFileName = "LICENSE.txt"
 
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
 	PackageRoot string
+	BuildDir    string
 
 	CreateZip      bool
 	SignPackage    bool
@@ -73,10 +74,28 @@ func findBuildDirectory() (string, bool, error) {
 }
 
 // BuildPackagesDirectory function locates the target build directory for the package.
-func BuildPackagesDirectory(packageRoot string) (string, error) {
-	buildDir, err := buildPackagesRootDirectory()
-	if err != nil {
-		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
+// It is in the form <buildDir>/packages/<package name>/<package version>.
+func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error) {
+	if buildDir == "" {
+		d, err := buildPackagesRootDirectory()
+		if err != nil {
+			return "", fmt.Errorf("can't locate build packages root directory: %w", err)
+		}
+		buildDir = d
+	} else {
+		info, err := os.Stat(buildDir)
+		if err != nil {
+			return "", fmt.Errorf("can't check build directory: %w", err)
+		}
+		if !info.IsDir() {
+			return "", fmt.Errorf("build path (%s) expected to be a directory", err)
+		}
+		d := filepath.Join(buildDir, builtPackagesDir)
+		err = os.MkdirAll(d, 0755)
+		if err != nil {
+			return "", err
+		}
+		buildDir = d
 	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
@@ -109,7 +128,7 @@ func buildPackagesRootDirectory() (string, error) {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(builtPackagesFolder)
+		buildDir, err = createBuildDirectory(builtPackagesDir)
 		if err != nil {
 			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
@@ -125,7 +144,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	}
 
 	if found {
-		path := filepath.Join(buildDir, builtPackagesFolder)
+		path := filepath.Join(buildDir, builtPackagesDir)
 		fileInfo, err := os.Stat(path)
 		if errors.Is(err, os.ErrNotExist) {
 			return "", false, nil
@@ -144,7 +163,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.PackageRoot)
+	destinationDir, err := BuildPackagesDirectory(options.PackageRoot, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}

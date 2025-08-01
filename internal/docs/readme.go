@@ -99,7 +99,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(packageRoot string) ([]string, error) {
+func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
@@ -108,7 +108,7 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 	var targets []string
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, packageRoot)
+		target, err := updateReadme(fileName, packageRoot, buildDir)
 		if err != nil {
 			return nil, fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
@@ -120,7 +120,7 @@ func UpdateReadmes(packageRoot string) ([]string, error) {
 	return targets, nil
 }
 
-func updateReadme(fileName, packageRoot string) (string, error) {
+func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
 	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
@@ -136,7 +136,7 @@ func updateReadme(fileName, packageRoot string) (string, error) {
 		return "", fmt.Errorf("writing %s file failed: %w", fileName, err)
 	}
 
-	packageBuildRoot, err := builder.BuildPackagesDirectory(packageRoot)
+	packageBuildRoot, err := builder.BuildPackagesDirectory(packageRoot, buildDir)
 	if err != nil {
 		return "", fmt.Errorf("package build root not found: %w", err)
 	}

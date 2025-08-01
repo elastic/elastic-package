@@ -50,6 +50,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("data-streams are not supported in input packages")
 	}
 
+	validator := surveyext.Validator{Cwd: "."}
 	qs := []*survey.Question{
 		{
 			Name: "name",
@@ -57,7 +58,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Data stream name:",
 				Default: "new_data_stream",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.DataStreamDoesNotExistValidator, surveyext.DataStreamNameValidator),
+			Validate: survey.ComposeValidators(survey.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
 		},
 		{
 			Name: "title",
