@@ -5,92 +5,72 @@
 package surveyext
 
 import (
-	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestPackageDoesNotExistValidator_Exists(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	os.Chdir("testdata")
-	defer os.Chdir(wd)
-
-	err = PackageDoesNotExistValidator("hello-world")
+	validator := Validator{Cwd: "testdata"}
+	err := validator.PackageDoesNotExist("hello-world")
 	require.Error(t, err)
 }
 
 func TestPackageDoesNotExistValidator_NotExists(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	os.Chdir("testdata")
-	defer os.Chdir(wd)
-
-	err = PackageDoesNotExistValidator("lost-world")
+	validator := Validator{Cwd: "testdata"}
+	err := validator.PackageDoesNotExist("lost-world")
 	require.NoError(t, err)
 }
 
 func TestDataStreamDoesNotExistValidator_Exists(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	os.Chdir("testdata/hello-world")
-	defer os.Chdir(wd)
-
-	err = DataStreamDoesNotExistValidator("magic")
+	validator := Validator{Cwd: filepath.Join("testdata", "hello-world")}
+	err := validator.DataStreamDoesNotExist("magic")
 	require.Error(t, err)
 }
 
 func TestDataStreamDoesNotExistValidator_NotExists(t *testing.T) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
-	os.Chdir("testdata/hello-world")
-	defer os.Chdir(wd)
-
-	err = DataStreamDoesNotExistValidator("no-magic")
+	validator := Validator{Cwd: filepath.Join("testdata", "hello-world")}
+	err := validator.DataStreamDoesNotExist("no-magic")
 	require.NoError(t, err)
 }
 
 func TestSemverValidator_Valid(t *testing.T) {
-	err := SemverValidator("1.2.3-FOOBAR")
+	err := Validator{}.Semver("1.2.3-FOOBAR")
 	require.NoError(t, err)
 }
 
 func TestSemverValidator_Invalid(t *testing.T) {
-	err := SemverValidator("1.2.3.4")
+	err := Validator{}.Semver("1.2.3.4")
 	require.Error(t, err)
 }
 
 func TestConstraintValidator_Valid(t *testing.T) {
-	err := ConstraintValidator("^1.2.3")
+	err := Validator{}.Constraint("^1.2.3")
 	require.NoError(t, err)
 }
 
 func TestConstraintValidator_Invalid(t *testing.T) {
-	err := ConstraintValidator("+1.2.3")
+	err := Validator{}.Constraint("+1.2.3")
 	require.Error(t, err)
 }
 
 func TestGithubOwnerValidator_ValidUser(t *testing.T) {
-	err := GithubOwnerValidator("mtojek")
+	err := Validator{}.GithubOwner("mtojek")
 	require.NoError(t, err)
 }
 
 func TestGithubOwnerValidator_InvalidUser(t *testing.T) {
-	err := GithubOwnerValidator("mtojek%")
+	err := Validator{}.GithubOwner("mtojek%")
 	require.Error(t, err)
 }
 
 func TestGithubOwnerValidator_ValidTeam(t *testing.T) {
-	err := GithubOwnerValidator("elastic/integrations")
+	err := Validator{}.GithubOwner("elastic/integrations")
 	require.NoError(t, err)
 }
 
 func TestGithubOwnerValidator_InvalidTeam(t *testing.T) {
-	err := GithubOwnerValidator("elastic/integrations/123")
+	err := Validator{}.GithubOwner("elastic/integrations/123")
 	require.Error(t, err)
 }
