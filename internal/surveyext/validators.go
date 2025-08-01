@@ -21,27 +21,31 @@ var (
 	dataStreamNameRegexp = regexp.MustCompile(`^([a-z0-9]{2}|[a-z0-9][a-z0-9_]+[a-z0-9])$`)
 )
 
-// PackageDoesNotExistValidator function checks if the package hasn't been already created.
-func PackageDoesNotExistValidator(val interface{}) error {
+type Validator struct {
+	Cwd string
+}
+
+// PackageDoesNotExist function checks if the package hasn't been already created.
+func (v Validator) PackageDoesNotExist(val interface{}) error {
 	baseDir, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
 	}
-	_, err := os.Stat(baseDir)
+	_, err := os.Stat(filepath.Join(v.Cwd, baseDir))
 	if err == nil {
 		return fmt.Errorf(`package "%s" already exists`, baseDir)
 	}
 	return nil
 }
 
-// DataStreamDoesNotExistValidator function checks if the package doesn't contain the data stream.
-func DataStreamDoesNotExistValidator(val interface{}) error {
+// DataStreamDoesNotExist function checks if the package doesn't contain the data stream.
+func (v Validator) DataStreamDoesNotExist(val interface{}) error {
 	name, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
 	}
 
-	dataStreamDir := filepath.Join("data_stream", name)
+	dataStreamDir := filepath.Join(v.Cwd, "data_stream", name)
 	_, err := os.Stat(dataStreamDir)
 	if err == nil {
 		return fmt.Errorf(`data stream "%s" already exists`, name)
@@ -49,8 +53,8 @@ func DataStreamDoesNotExistValidator(val interface{}) error {
 	return nil
 }
 
-// SemverValidator function checks if the value is a correct semver.
-func SemverValidator(val interface{}) error {
+// Semver function checks if the value is a correct semver.
+func (v Validator) Semver(val interface{}) error {
 	ver, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
@@ -62,8 +66,8 @@ func SemverValidator(val interface{}) error {
 	return nil
 }
 
-// ConstraintValidator function checks if the value is a correct version constraint.
-func ConstraintValidator(val interface{}) error {
+// Constraint function checks if the value is a correct version constraint.
+func (v Validator) Constraint(val interface{}) error {
 	c, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
@@ -75,8 +79,8 @@ func ConstraintValidator(val interface{}) error {
 	return nil
 }
 
-// GithubOwnerValidator function checks if the Github owner is valid (team or user)
-func GithubOwnerValidator(val interface{}) error {
+// GithubOwner function checks if the Github owner is valid (team or user)
+func (v Validator) GithubOwner(val interface{}) error {
 	githubOwner, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
@@ -88,7 +92,7 @@ func GithubOwnerValidator(val interface{}) error {
 	return nil
 }
 
-func PackageNameValidator(val interface{}) error {
+func (v Validator) PackageName(val interface{}) error {
 	packageName, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
@@ -100,7 +104,7 @@ func PackageNameValidator(val interface{}) error {
 	return nil
 }
 
-func DataStreamNameValidator(val interface{}) error {
+func (v Validator) DataStreamName(val interface{}) error {
 	dataStreamFolderName, ok := val.(string)
 	if !ok {
 		return errors.New("string type expected")
