@@ -276,6 +276,72 @@ secret_references:
 `,
 			equal: false,
 		},
+		{
+			title: "otel ids",
+			expected: `
+inputs: []
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+receivers:
+    httpcheck/componentid:
+        collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+secret_references: []
+service:
+    pipelines:
+        logs:
+            receivers:
+                - httpcheck/componentid
+
+`,
+			found: `
+inputs: []
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+receivers:
+    httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
+        collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+secret_references: []
+service:
+    pipelines:
+        logs:
+            receivers:
+                - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
+
+`,
+			equal: true,
+		},
 	}
 
 	for _, c := range cases {
