@@ -5,14 +5,17 @@
 package archetype
 
 import (
+	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/validation"
 )
 
 func TestPackage(t *testing.T) {
@@ -36,7 +39,7 @@ func TestPackage(t *testing.T) {
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
-	tempDir := t.TempDir()
+	tempDir := makeInRepoBuildTempDir(t)
 	err := createPackageInDir(pd, tempDir)
 	require.NoError(t, err)
 
@@ -90,8 +93,22 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
+func buildPackage(t *testing.T, packageRoot string) error {
+	buildDir := makeInRepoBuildTempDir(t)
+	_, err := docs.UpdateReadmes(packageRoot, buildDir)
+	if err != nil {
+		return err
+	}
+
+	_, err = builder.BuildPackage(context.Background(), builder.BuildOptions{
+		PackageRoot: packageRoot,
+		BuildDir:    buildDir,
+	})
+	return err
+}
+
 func checkPackage(t *testing.T, packageRoot string, valid bool) {
-	err, _ := validation.ValidateAndFilterFromPath(packageRoot)
+	err := buildPackage(t, packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return
@@ -123,4 +140,23 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 			}
 		})
 	}
+}
+
+// makeInRepoBuildTempDir mimicks t.TempDir(), but creates the directory inside the current
+// directory.
+// FIXME: It should be possible to use t.TempDir(), but conflicts with links resolution, as
+// t.TempDir() creates the directory out of the repository. We should refactor links resolution
+// so it can write files out of the repository.
+// https://github.com/elastic/elastic-package/issues/2797
+func makeInRepoBuildTempDir(t *testing.T) string {
+	t.Helper()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	dir, err := os.MkdirTemp(cwd, "_build-test-*")
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		err := os.RemoveAll(dir)
+		assert.NoError(t, err)
+	})
+	return dir
 }
