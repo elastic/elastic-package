@@ -27,6 +27,7 @@ var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICE
 
 type BuildOptions struct {
 	PackageRoot string
+	BuildDir    string
 
 	CreateZip      bool
 	SignPackage    bool
@@ -73,10 +74,13 @@ func findBuildDirectory() (string, bool, error) {
 }
 
 // BuildPackagesDirectory function locates the target build directory for the package.
-func BuildPackagesDirectory(packageRoot string) (string, error) {
-	buildDir, err := buildPackagesRootDirectory()
-	if err != nil {
-		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
+func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error) {
+	if buildDir == "" {
+		d, err := buildPackagesRootDirectory()
+		if err != nil {
+			return "", fmt.Errorf("can't locate build packages root directory: %w", err)
+		}
+		buildDir = d
 	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
@@ -144,7 +148,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.PackageRoot)
+	destinationDir, err := BuildPackagesDirectory(options.PackageRoot, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}

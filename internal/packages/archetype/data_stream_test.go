@@ -62,13 +62,12 @@ func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamD
 	wd, err := os.Getwd()
 	require.NoError(t, err)
 
-	tempDir, err := os.MkdirTemp("", "archetype-create-data-stream-")
+	tempDir := makeInRepoBuildTempDir(t)
 	require.NoError(t, err)
 
 	os.Chdir(tempDir)
 	defer func() {
 		os.Chdir(wd)
-		os.RemoveAll(tempDir)
 	}()
 
 	err = CreatePackage(pd)
