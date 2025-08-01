@@ -147,6 +147,7 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 // FIXME: It should be possible to use t.TempDir(), but conflicts with links resolution, as
 // t.TempDir() creates the directory out of the repository. We should refactor links resolution
 // so it can write files out of the repository.
+// https://github.com/elastic/elastic-package/issues/2797
 func makeInRepoBuildTempDir(t *testing.T) string {
 	t.Helper()
 	dir, err := os.MkdirTemp(".", "_build-test-*")
