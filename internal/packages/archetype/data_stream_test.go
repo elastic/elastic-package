@@ -5,7 +5,6 @@
 package archetype
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -59,18 +58,8 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 }
 
 func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool) {
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-
 	tempDir := makeInRepoBuildTempDir(t)
-	require.NoError(t, err)
-
-	os.Chdir(tempDir)
-	defer func() {
-		os.Chdir(wd)
-	}()
-
-	err = CreatePackage(pd)
+	err := createPackageInDir(pd, tempDir)
 	require.NoError(t, err)
 
 	packageRoot := filepath.Join(tempDir, pd.Manifest.Name)
@@ -79,5 +68,5 @@ func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamD
 	err = CreateDataStream(dd)
 	require.NoError(t, err)
 
-	checkPackage(t, pd.Manifest.Name, valid)
+	checkPackage(t, packageRoot, valid)
 }
