@@ -96,6 +96,7 @@ func expectedPathFor(testPath string) string {
 type policyEntryFilter struct {
 	name            string
 	elementsEntries []policyEntryFilter
+	elementsReplace *policyEntryReplace
 	memberReplace   *policyEntryReplace
 	onlyIfEmpty     bool
 }
@@ -152,6 +153,29 @@ var policyEntryFilters = []policyEntryFilter{
 
 	// Namespaces may not be present in older versions of the stack.
 	{name: "namespaces", onlyIfEmpty: true},
+
+	// OTel Collector IDs are relevant, but just check that they are there.
+	{name: "extensions", memberReplace: &otelComponentIDReplace},
+	{name: "receivers", memberReplace: &otelComponentIDReplace},
+	{name: "processors", memberReplace: &otelComponentIDReplace},
+	{name: "exporters", memberReplace: &otelComponentIDReplace},
+	{name: "service.extensions", elementsReplace: &otelComponentIDReplace},
+
+	// TODO: The signals here will need patterns at some moment, as they can also contain ids.
+	{name: "service.pipelines.logs.receivers", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.logs.processors", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.logs.exporters", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.metrics.receivers", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.metrics.processors", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.metrics.exporters", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.traces.receivers", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.traces.processors", elementsReplace: &otelComponentIDReplace},
+	{name: "service.pipelines.traces.exporters", elementsReplace: &otelComponentIDReplace},
+}
+
+var otelComponentIDReplace = policyEntryReplace{
+	regexp:  regexp.MustCompile(`^([^/]+)/.*$`),
+	replace: "$1/componentid",
 }
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
@@ -206,10 +230,31 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			if !ok {
 				return nil, fmt.Errorf("expected map, found %T", v)
 			}
+			regexp := entry.memberReplace.regexp
+			replacement := entry.memberReplace.replace
 			for k, e := range m {
-				if entry.memberReplace.regexp.MatchString(k) {
+				key := k
+				if regexp.MatchString(k) {
 					delete(m, k)
-					m[entry.memberReplace.replace] = e
+					key = regexp.ReplaceAllString(k, replacement)
+					m[key] = e
+				}
+				strElement, ok := e.(string)
+				if ok && regexp.MatchString(strElement) {
+					m[key] = regexp.ReplaceAllString(strElement, replacement)
+				}
+			}
+		case entry.elementsReplace != nil:
+			list, ok := v.([]any)
+			if !ok {
+				return nil, fmt.Errorf("expected list, found %T", v)
+			}
+			regexp := entry.elementsReplace.regexp
+			replacement := entry.elementsReplace.replace
+			for i, e := range list {
+				strElement, ok := e.(string)
+				if ok && regexp.MatchString(strElement) {
+					list[i] = regexp.ReplaceAllString(strElement, replacement)
 				}
 			}
 		default:
