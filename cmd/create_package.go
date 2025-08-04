@@ -62,6 +62,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
 
+	validator := surveyext.Validator{Cwd: "."}
 	qs = []*survey.Question{
 		{
 			Name: "name",
@@ -69,7 +70,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Package name:",
 				Default: "new_package",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.PackageDoesNotExistValidator, surveyext.PackageNameValidator),
+			Validate: survey.ComposeValidators(survey.Required, validator.PackageDoesNotExist, validator.PackageName),
 		},
 		{
 			Name: "version",
@@ -77,7 +78,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Version:",
 				Default: "0.0.1",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.SemverValidator),
+			Validate: survey.ComposeValidators(survey.Required, validator.Semver),
 		},
 		{
 			Name: "source_license",
@@ -132,7 +133,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Kibana version constraint:",
 				Default: surveyext.DefaultKibanaVersionConditionValue(),
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.ConstraintValidator),
+			Validate: survey.ComposeValidators(survey.Required, validator.Constraint),
 		},
 		{
 			Name: "elastic_subscription",
@@ -149,7 +150,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 				Message: "Github owner:",
 				Default: "elastic/integrations",
 			},
-			Validate: survey.ComposeValidators(survey.Required, surveyext.GithubOwnerValidator),
+			Validate: survey.ComposeValidators(survey.Required, validator.GithubOwner),
 		},
 		{
 			Name: "owner_type",
