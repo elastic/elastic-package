@@ -33,13 +33,23 @@ The {{.Manifest.Title}} integration collects log messages of the following types
 
 ## What do I need to use this integration?
 
+<!-- List any vendor-specific prerequisites needed before starting to install the integration. -->
+
+## How do I deploy this integration?
+
+### Agent-based deployment
+
 Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
 
 Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-<!-- List any other vendor-specific prerequisites needed before starting to install the integration. -->
+<!-- If agentless is available for this integration, we'll want to include that here as well. -->
+<!-- ### Agentless deployment
 
-## How do I deploy this integration?
+Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
+
+For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html) 
+-->
 
 ### Onboard / configure
 
@@ -72,11 +82,11 @@ For more information on architectures that can be used for scaling this integrat
 <!-- Repeat for each data stream of the current type -->
 <!-- ### {Data stream name}
 
-The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+The `{data stream name}` data stream provides events from {source} of the following types: {list types}.
 
-### ECS field reference
+For each data_stream_name, include an optional summary of the datastream, the exported fields reference table and the sample event. -->
 
-<!-- Repeat and fill in the comment block below for each data stream of the current type. The fields template function will be replaced by a generated list of all fields from the `fields/` directory of the data stream when building the integration. -->
+<!-- The fields template function will be replaced by a generated list of all fields from the `fields/` directory of the data stream when building the integration. -->
 <!--
 #### {data stream name} fields
 
@@ -86,9 +96,7 @@ To include a generated list of fields from the `fields/` directory, uncomment an
 
 -->
 
-### Sample Event
-
-<!-- Repeat and fill in the comment block below for each data stream of the current type. The event template function will be replace by a sample event, taken from `sample_event.json`, when building this integration. -->
+<!-- The event template function will be replace by a sample event, taken from `sample_event.json`, when building this integration. -->
 <!--
 
 To include a sample event from `sample_event.json`, uncomment and use:
