@@ -33,6 +33,9 @@ var packageImgSampleIcon []byte
 //go:embed _static/sampleScreenshot.png.b64
 var packageImgSampleScreenshot string
 
+//go:embed _static/package-sample-event.json.tmpl
+var packageSampleEvent string
+
 // Input Package templates
 
 //go:embed _static/input-package-agent-config.yml.tmpl
