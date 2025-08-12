@@ -102,7 +102,7 @@ upload_safe_logs() {
     local target="$3"
 
     if ! ls ${source} > /dev/null 2>&1; then
-        echo "upload_safe_logs: artifacts files not found at ${soure}, nothing will be archived"
+        echo "upload_safe_logs: artifacts files not found at ${source}, nothing will be archived"
         return
     fi
 
