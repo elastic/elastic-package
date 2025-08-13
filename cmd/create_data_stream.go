@@ -154,7 +154,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 						"winlog",
 					},
 				},
-			Validate: survey.Required,
+				Validate: survey.Required,
 			},
 		}
 		err = survey.Ask(qs, &answers)
@@ -202,11 +202,11 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 
 	if len(answers.Inputs) > 0 {
 		var streams []packages.Stream
-		for _, input := range(answers.Inputs) {
+		for _, input := range answers.Inputs {
 			// Add inputs to manifest
-			streams = append(streams, packages.Stream {
+			streams = append(streams, packages.Stream{
 				Input: input,
-				Vars: []packages.Variable{},
+				Vars:  []packages.Variable{},
 			})
 		}
 		manifest.Streams = streams

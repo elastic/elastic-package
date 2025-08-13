@@ -1,5 +1,5 @@
 inputs:
-  - aws-cloudwatch:
+  - name: aws-cloudwatch
     vars:
       - name: log_group_arn
         type: text
@@ -144,7 +144,7 @@ inputs:
 
         type: yaml
         default: ""
-  - aws-s3:
+  - name: aws-s3
     vars:
       - name: collect_s3_logs
         required: true
@@ -294,7 +294,7 @@ inputs:
         description: >
           Additional settings to be added to the configuration. Be careful using this as it might break the input as those settings are not validated and can override the settings specified above. See [`aws-s3` input settings docs](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-aws-s3.html) for details.
 
-  - azure-blob-storage:
+  - name: azure-blob-storage
     vars:
       - name: oauth2
         required: true
@@ -463,7 +463,7 @@ inputs:
           - azure_blob_storage-generic
         multi: true
         show_user: true
-  - azure-eventhub:
+  - name: azure-eventhub
     vars:
       - name: eventhub
         type: text
@@ -1025,9 +1025,9 @@ inputs:
         description: >
           The request tracer logs HTTP requests and responses to the agent's local file-system for debugging configurations. Enabling this request tracing compromises security and should only be used for debugging. See [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html#_resource_tracer_filename) for details.
 
-  - entity-analytics:
+  - name: entity-analytics
     vars: []
-  - etw:
+  - name: etw
     vars:
       - name: provider_name
         type: text
@@ -1122,7 +1122,7 @@ inputs:
           #  - drop_event.when.not.or:
           #    - equals.event.code: '903'
           #    - equals.event.code: '1024'
-  - filestream:
+  - name: filestream
     vars:
       - name: paths
         type: text
@@ -1424,7 +1424,7 @@ inputs:
         multi: false
         required: false
         show_user: true
-  - gcp-pubsub:
+  - name: gcp-pubsub
     vars:
       - name: data_stream.dataset
         type: text
@@ -1518,7 +1518,7 @@ inputs:
         multi: false
         required: false
         show_user: false
-  - gcs:
+  - name: gcs
     vars:
       - name: project_id
         type: text
@@ -1667,7 +1667,7 @@ inputs:
           - google_cloud_storage-generic
         multi: true
         show_user: true
-  - http_endpoint:
+  - name: http_endpoint
     vars:
       - name: method
         title: HTTP Method
@@ -1863,7 +1863,7 @@ inputs:
         description: >
           The request tracer logs HTTP requests and responses to the agent's local file-system for debugging configurations. Enabling this request tracing compromises security and should only be used for debugging. See [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html#_resource_tracer_filename) for details.
 
-  - httpjson:
+  - name: httpjson
     vars:
       - name: data_stream.dataset
         type: text
@@ -2189,7 +2189,7 @@ inputs:
         show_user: false
         default:
           - forwarded
-  - journald:
+  - name: journald
     vars:
       - name: include_matches
         type: text
@@ -2233,7 +2233,7 @@ inputs:
         type: text
         multi: false
         required: false
-  - netflow:
+  - name: netflow
     vars:
       - name: host
         type: text
@@ -2329,7 +2329,7 @@ inputs:
         show_user: false
         description: >-
           Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the logs are parsed. See [Processors](https://www.elastic.co/guide/en/beats/filebeat/current/filtering-and-enhancing-data.html) for details.
-  - redis:
+  - name: redis
     vars:
       - name: hosts
         type: text
@@ -2354,7 +2354,7 @@ inputs:
         required: false
         show_user: false
         description: "Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the events are shipped. See [Processors](https://www.elastic.co/guide/en/fleet/current/elastic-agent-processor-configuration.html) for details.  \n"
-  - tcp:
+  - name: tcp
     vars:
       - name: listen_address
         type: text
@@ -2486,7 +2486,7 @@ inputs:
 
         type: yaml
         default: ""
-  - udp:
+  - name: udp
     vars:
       - name: listen_address
         type: text
@@ -2593,7 +2593,7 @@ inputs:
 
         type: yaml
         default: ""
-  - winlog:
+  - name: winlog
     vars:
       - name: channel
         type: text
