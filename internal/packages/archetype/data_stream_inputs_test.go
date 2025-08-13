@@ -31,7 +31,7 @@ func TestDataStreamInputs(t *testing.T) {
 			PackageRoot: "",
 		}
 
-		err := populateInputVariables(&descriptor)
+		err := populateInput(&descriptor)
 
 		assert.Nil(t, err)
 		assert.Len(t, descriptor.Manifest.Streams[0].Vars, 14)

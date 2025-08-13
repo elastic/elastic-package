@@ -211,8 +211,12 @@ type TransformDefinition struct {
 
 // Stream contains information about an input stream.
 type Stream struct {
-	Input string     `config:"input" json:"input" yaml:"input"`
-	Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Input        string     `config:"input" json:"input" yaml:"input"`
+	Title        string     `config:"title" json:"title" yaml:"title"`
+	Description  string     `config:"description" json:"description" yaml:"description"`
+	DocLink      string     `config:"doc_link" json:"doc_link" yaml:"doc_link"`
+	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
+	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources

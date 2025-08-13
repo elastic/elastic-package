@@ -1,5 +1,8 @@
 inputs:
   - name: aws-cloudwatch
+    title: logs via CloudWatch
+    description: Collect logs using CloudWatch input.
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: log_group_arn
         type: text
@@ -145,6 +148,9 @@ inputs:
         type: yaml
         default: ""
   - name: aws-s3
+    title: Logs via AWS S3
+    description: Collect logs via AWS S3
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: collect_s3_logs
         required: true
@@ -295,6 +301,9 @@ inputs:
           Additional settings to be added to the configuration. Be careful using this as it might break the input as those settings are not validated and can override the settings specified above. See [`aws-s3` input settings docs](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-aws-s3.html) for details.
 
   - name: azure-blob-storage
+    title: logs via Azure Blob Storage
+    description: Collect logs via Azure Blob Storage
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: oauth2
         required: true
@@ -464,6 +473,9 @@ inputs:
         multi: true
         show_user: true
   - name: azure-eventhub
+    title: logs via Azure Event Hub
+    description: Collect logs via Azure Event Hub
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: eventhub
         type: text
@@ -651,6 +663,9 @@ inputs:
 
           Default is `100` messages.
   - cel:
+    title: logs via CEL
+    description: Collect logs with CEL
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: condition
         title: Condition
@@ -1026,8 +1041,14 @@ inputs:
           The request tracer logs HTTP requests and responses to the agent's local file-system for debugging configurations. Enabling this request tracing compromises security and should only be used for debugging. See [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html#_resource_tracer_filename) for details.
 
   - name: entity-analytics
+    title: Logs via Entity Analytics
+    description: Collect logs with Entity Analytics
+    doc_link: https://www.elastic.co/docs
     vars: []
   - name: etw
+    title: logs via ETW
+    description: Collect logs with ETW (Event Tracing for Windows)
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: provider_name
         type: text
@@ -1123,6 +1144,9 @@ inputs:
           #    - equals.event.code: '903'
           #    - equals.event.code: '1024'
   - name: filestream
+    title: logs via filestream
+    description: Collect logs with filestream
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: paths
         type: text
@@ -1425,6 +1449,9 @@ inputs:
         required: false
         show_user: true
   - name: gcp-pubsub
+    title: logs via GCP PubSub
+    description: Collect logs with GCP PubSub
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: data_stream.dataset
         type: text
@@ -1519,6 +1546,9 @@ inputs:
         required: false
         show_user: false
   - name: gcs
+    title: logs via GCS
+    description: Collect logs with GCS (Google Cloud Storage)
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: project_id
         type: text
@@ -1668,6 +1698,9 @@ inputs:
         multi: true
         show_user: true
   - name: http_endpoint
+    title: logs via http_endpoint
+    description: Collect logs with an HTTP Endpoint
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: method
         title: HTTP Method
@@ -1864,6 +1897,9 @@ inputs:
           The request tracer logs HTTP requests and responses to the agent's local file-system for debugging configurations. Enabling this request tracing compromises security and should only be used for debugging. See [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html#_resource_tracer_filename) for details.
 
   - name: httpjson
+    title: logs via httpjson
+    description: Collect logs with HTTP JSON
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: data_stream.dataset
         type: text
@@ -2190,6 +2226,9 @@ inputs:
         default:
           - forwarded
   - name: journald
+    title: logs via journald
+    description: Collect logs with journald
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: include_matches
         type: text
@@ -2234,6 +2273,9 @@ inputs:
         multi: false
         required: false
   - name: netflow
+    title: logs via netflow
+    description: Collect logs with Netflow
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: host
         type: text
@@ -2330,6 +2372,9 @@ inputs:
         description: >-
           Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the logs are parsed. See [Processors](https://www.elastic.co/guide/en/beats/filebeat/current/filtering-and-enhancing-data.html) for details.
   - name: redis
+    title: logs via Redis
+    description: Collect logs with Redis
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: hosts
         type: text
@@ -2355,6 +2400,9 @@ inputs:
         show_user: false
         description: "Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the events are shipped. See [Processors](https://www.elastic.co/guide/en/fleet/current/elastic-agent-processor-configuration.html) for details.  \n"
   - name: tcp
+    title: logs via TCP
+    description: Collect logs with TCP
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: listen_address
         type: text
@@ -2487,6 +2535,9 @@ inputs:
         type: yaml
         default: ""
   - name: udp
+    title: logs via UDP
+    description: Collect logs with UDP
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: listen_address
         type: text
@@ -2594,6 +2645,9 @@ inputs:
         type: yaml
         default: ""
   - name: winlog
+    title: logs via winlogbeat
+    description: Collect logs with winlogbeat
+    doc_link: https://www.elastic.co/docs
     vars:
       - name: channel
         type: text

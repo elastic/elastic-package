@@ -10,11 +10,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 )
 
 func renderResourceFile(templateBody string, data interface{}, targetPath string) error {
-	t := template.Must(template.New("template").Parse(templateBody))
+	t := template.Must(template.New("template").Funcs(template.FuncMap{"indent": Indent}).Parse(templateBody))
 	var rendered bytes.Buffer
 	err := t.Execute(&rendered, data)
 	if err != nil {
@@ -54,4 +55,16 @@ func writeRawResourceFile(content []byte, targetPath string) error {
 		return fmt.Errorf("can't write resource file (path: %s): %w", packageManifestPath, err)
 	}
 	return nil
+}
+
+func Indent(s string, numSpaces int) string {
+	lines := strings.Split(s, "\n")
+	indent := ""
+	for range numSpaces {
+		indent = indent + " "
+	}
+	for i, line := range lines {
+		lines[i] = indent + line
+	}
+	return strings.Join(lines, "\n")
 }

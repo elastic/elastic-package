@@ -29,7 +29,7 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	}
 
 	logger.Debugf("Populate input variables")
-	err = populateInputVariables(&dataStreamDescriptor)
+	err = populateInput(&dataStreamDescriptor)
 	if err != nil {
 		return fmt.Errorf("can't populate input variables: %w", err)
 	}

@@ -17,8 +17,12 @@ type InputConfig struct {
 }
 
 type Input struct {
-	Name string          `yaml:"name"`
-	Vars []InputVariable `yaml:"vars"`
+	Name         string          `yaml:"name"`
+	Title        string          `yaml:"title"`
+	Description  string          `yaml:"description"`
+	DocLink      string          `yaml:"doc_link"`
+	TemplatePath string          `yaml:"template_path"`
+	Vars         []InputVariable `yaml:"vars"`
 }
 
 type InputVariable struct {
@@ -31,11 +35,11 @@ type InputVariable struct {
 	Description string `yaml:"description"`
 }
 
-// populateInputVariables will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.
+// populateInput will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.
 //
 // When `dataStreamDescriptor` is created by the create data-stream command, it will be populated with only the input names
 // provided by the user. This will further enrich the `dataStreamDescriptor` with the variables for the given inputs.
-func populateInputVariables(dataStreamDescriptor *DataStreamDescriptor) error {
+func populateInput(dataStreamDescriptor *DataStreamDescriptor) error {
 	var cfg InputConfig
 	err := yaml.Unmarshal([]byte(inputVariables), &cfg)
 	if err != nil {
@@ -45,6 +49,10 @@ func populateInputVariables(dataStreamDescriptor *DataStreamDescriptor) error {
 	for i := range dataStreamDescriptor.Manifest.Streams {
 		for _, input := range cfg.Inputs {
 			if dataStreamDescriptor.Manifest.Streams[i].Input == input.Name {
+				dataStreamDescriptor.Manifest.Streams[i].Title = input.Title
+				dataStreamDescriptor.Manifest.Streams[i].Description = input.Description
+				dataStreamDescriptor.Manifest.Streams[i].DocLink = input.DocLink
+				dataStreamDescriptor.Manifest.Streams[i].TemplatePath = input.TemplatePath
 				unpackVars(&dataStreamDescriptor.Manifest.Streams[i].Vars, input.Vars)
 				break
 			}

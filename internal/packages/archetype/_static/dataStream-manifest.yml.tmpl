@@ -1,17 +1,40 @@
 title: "{{.Manifest.Title}}"
 type: {{.Manifest.Type}}
-streams:{{if eq .Manifest.Type "logs" }}
-  - input: logfile
-    title: Sample logs
-    description: Collect sample logs
+streams:{{ if eq .Manifest.Type "logs" }}
+{{- range .Manifest.Streams }}
+  - input: {{ .Input }}
+{{- if .Title }}
+    title: {{ .Title }}
+{{- end }}
+{{- if .Description }}
+    description: |-
+{{ indent .Description 6 }}
+{{- end }}
+{{- if .TemplatePath }}
+    template_path: {{ .TemplatePath }}
+{{- end }}
     vars:
-      - name: paths
-        type: text
-        title: Paths
-        multi: true
-        default:
-          - /var/log/*.log
-{{else}}
+{{- range .Vars }}
+    - name: {{ .Name }}
+{{- if .Type }}
+      type: {{ .Type }}
+{{- end }}
+{{- if .Multi }}
+      multi: {{ .Multi }}
+{{- end }}
+{{- if .Required }}
+      required: {{ .Required }}
+{{- end -}}
+{{- if .ShowUser }}
+      show_user: {{ .ShowUser }}
+{{- end }}
+{{- if .Description }}
+      description: |-
+{{ indent .Description 8 }}
+{{- end }}
+{{- end }} {{/* .Vars */}}
+{{- end }} {{/* .Manifest.Streams */}}
+{{ else }}
   - input: sample/metrics
     title: Sample metrics
     description: Collect sample metrics
@@ -25,11 +48,11 @@ streams:{{if eq .Manifest.Type "logs" }}
 elasticsearch:
 {{ if .Manifest.Elasticsearch.SourceMode }}
   source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
-{{- end}}
-{{ if .Manifest.Elasticsearch.IndexMode }}
-  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
 {{- end }}
-{{ if .Manifest.Elasticsearch.IndexTemplate }}
+{{ if .Manifest.Elasticsearch.IndexMode }}
+  index_mode: {{- .Manifest.Elasticsearch.IndexMode }}
+{{- end }}
+{{- if .Manifest.Elasticsearch.IndexTemplate }}
   index_template:
 {{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
     mappings:
