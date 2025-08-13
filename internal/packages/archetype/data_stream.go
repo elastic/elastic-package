@@ -28,6 +28,12 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 		return fmt.Errorf(`data stream "%s" already exists`, dataStreamDescriptor.Manifest.Name)
 	}
 
+	logger.Debugf("Populate input variables")
+	err = populateInputVariables(&dataStreamDescriptor)
+	if err != nil {
+		return fmt.Errorf("can't populate input variables: %w", err)
+	}
+
 	logger.Debugf("Write data stream manifest")
 	err = renderResourceFile(dataStreamManifestTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "manifest.yml"))
 	if err != nil {

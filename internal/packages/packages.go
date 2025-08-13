@@ -181,10 +181,7 @@ type DataStreamManifest struct {
 	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string         `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams       []struct {
-		Input string     `config:"input" json:"input" yaml:"input"`
-		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
-	} `config:"streams" json:"streams" yaml:"streams"`
+	Streams       []Stream `config:"streams" json:"streams" yaml:"streams"`
 	Agent Agent `config:"agent" json:"agent" yaml:"agent"`
 }
 
@@ -203,6 +200,12 @@ type TransformDefinition struct {
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
+}
+
+// Stream contains information about an input stream.
+type Stream struct {
+		Input string     `config:"input" json:"input" yaml:"input"`
+		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources

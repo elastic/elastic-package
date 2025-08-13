@@ -51,3 +51,6 @@ var dataStreamElasticsearchIngestPipelineTemplate string
 
 //go:embed _static/dataStream-manifest.yml.tmpl
 var dataStreamManifestTemplate string
+
+//go:embed _static/input-variables.yml
+var inputVariables string

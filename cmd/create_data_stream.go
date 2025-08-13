@@ -25,6 +25,7 @@ type newDataStreamAnswers struct {
 	Name                   string
 	Title                  string
 	Type                   string
+	Inputs                 []string
 	Subobjects             bool
 	SyntheticAndTimeSeries bool
 	Synthetic              bool
@@ -126,6 +127,42 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if answers.Type == "logs" {
+		qs := []*survey.Question{
+			{
+				Name: "inputs",
+				Prompt: &survey.MultiSelect{
+					Message: "Select Input types which will be used in this datastream",
+					Options: []string{
+						"aws-cloudwatch",
+						"aws-s3",
+						"azure-blob-storage",
+						"azure-eventhub",
+						"cel",
+						"entity-analytics",
+						"etw",
+						"filestream",
+						"gcp-pubsub",
+						"gcs",
+						"http_endpoint",
+						"httpjson",
+						"journald",
+						"netflow",
+						"redis",
+						"tcp",
+						"udp",
+						"winlog",
+					},
+				},
+			Validate: survey.Required,
+			},
+		}
+		err = survey.Ask(qs, &answers)
+		if err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+	}
+
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
@@ -161,6 +198,18 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		if answers.SyntheticAndTimeSeries {
 			manifest.Elasticsearch.IndexMode = "time_series"
 		}
+	}
+
+	if len(answers.Inputs) > 0 {
+		var streams []packages.Stream
+		for _, input := range(answers.Inputs) {
+			// Add inputs to manifest
+			streams = append(streams, packages.Stream {
+				Input: input,
+				Vars: []packages.Variable{},
+			})
+		}
+		manifest.Streams = streams
 	}
 
 	return archetype.DataStreamDescriptor{
