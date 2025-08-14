@@ -6,7 +6,7 @@ NUMBER_SUCCESSES="$1"
 WAITING_TIME="$2"
 
 healthcheck() {
-    curl -s --cacert /etc/ssl/certs/elastic-package.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null
+    curl -s --cacert /etc/ssl/certs/elastic-package.pem -f https://localhost:8220/api/status | grep -i healthy >/dev/null
 }
 
 # Fleet Server can restart after announcing to be healthy, agents connecting during this restart will
