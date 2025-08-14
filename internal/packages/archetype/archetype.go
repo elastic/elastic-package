@@ -57,7 +57,7 @@ func writeRawResourceFile(content []byte, targetPath string) error {
 	return nil
 }
 
-//Indent adds `numSpaces` to the beginning of each line in `s`.
+// Indent adds `numSpaces` to the beginning of each line in `s`.
 func Indent(s string, numSpaces int) string {
 	lines := strings.Split(s, "\n")
 	indent := ""

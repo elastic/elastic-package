@@ -43,9 +43,9 @@ func TestDataStreamInputs(t *testing.T) {
 	t.Run("empty", func(t *testing.T) {
 		descriptor := DataStreamDescriptor{
 			Manifest: packages.DataStreamManifest{
-				Name:  "test",
-				Title: "Test",
-				Type:  "log",
+				Name:    "test",
+				Title:   "Test",
+				Type:    "log",
 				Streams: []packages.Stream{},
 			},
 			PackageRoot: "",
