@@ -132,7 +132,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			{
 				Name: "inputs",
 				Prompt: &survey.MultiSelect{
-					Message: "Select Input types which will be used in this datastream",
+					Message: "Select input types which will be used in this data stream",
 					Options: []string{
 						"aws-cloudwatch",
 						"aws-s3",
@@ -202,7 +202,6 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 	if len(answers.Inputs) > 0 {
 		var streams []packages.Stream
 		for _, input := range answers.Inputs {
-			// Add inputs to manifest
 			streams = append(streams, packages.Stream{
 				Input: input,
 				Vars:  []packages.Variable{},
