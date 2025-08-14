@@ -82,7 +82,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "subobjects",
 			Prompt: &survey.Confirm{
 				Message: "Enable creation of subobjects for fields with dots in their names?",
-				Default: false,
+				Default: true,
 			},
 			Validate: survey.Required,
 		},
@@ -154,7 +154,6 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 						"winlog",
 					},
 				},
-				Validate: survey.Required,
 			},
 		}
 		err = survey.Ask(qs, &answers)

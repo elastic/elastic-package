@@ -1,6 +1,8 @@
 title: "{{.Manifest.Title}}"
 type: {{.Manifest.Type}}
-streams:{{ if eq .Manifest.Type "logs" }}
+{{- if eq .Manifest.Type "logs" }}
+{{- if .Manifest.Streams }}
+streams:
 {{- range .Manifest.Streams }}
   - input: {{ .Input }}
 {{- if .Title }}
@@ -32,9 +34,11 @@ streams:{{ if eq .Manifest.Type "logs" }}
       description: |-
 {{ indent .Description 8 }}
 {{- end }}
-{{- end }} {{/* .Vars */}}
-{{- end }} {{/* .Manifest.Streams */}}
+{{- end }} {{/* range .Vars */}}
+{{- end }} {{/* range .Manifest.Streams */}}
+{{- end }} {{/* if .Manifest.Streams */}}
 {{ else }}
+streams:
   - input: sample/metrics
     title: Sample metrics
     description: Collect sample metrics
@@ -43,20 +47,20 @@ streams:{{ if eq .Manifest.Type "logs" }}
         type: text
         title: Period
         default: 10s
-{{- end }}
+{{- end }} {{/* if eq .Manifest.Type "logs" */}}
 {{ if .Manifest.Elasticsearch }}
 elasticsearch:
 {{ if .Manifest.Elasticsearch.SourceMode }}
   source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
 {{- end }}
 {{ if .Manifest.Elasticsearch.IndexMode }}
-  index_mode: {{- .Manifest.Elasticsearch.IndexMode }}
+  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
 {{- end }}
-{{- if .Manifest.Elasticsearch.IndexTemplate }}
+{{ if .Manifest.Elasticsearch.IndexTemplate }}
   index_template:
 {{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
     mappings:
       subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
 {{- end }}
-{{- end }}
-{{- end }}
+{{- end }} {{/* if .Manifest.Elasticsearch.IndexTemplate */}}
+{{- end }} {{/* if .Manifest.Elasticsearch */}}
