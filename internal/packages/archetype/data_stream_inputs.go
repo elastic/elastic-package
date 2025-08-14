@@ -20,7 +20,6 @@ type Input struct {
 	Name         string          `yaml:"name"`
 	Title        string          `yaml:"title"`
 	Description  string          `yaml:"description"`
-	DocLink      string          `yaml:"doc_link"`
 	TemplatePath string          `yaml:"template_path"`
 	Vars         []InputVariable `yaml:"vars"`
 }
@@ -51,7 +50,6 @@ func populateInput(dataStreamDescriptor *DataStreamDescriptor) error {
 			if dataStreamDescriptor.Manifest.Streams[i].Input == input.Name {
 				dataStreamDescriptor.Manifest.Streams[i].Title = input.Title
 				dataStreamDescriptor.Manifest.Streams[i].Description = input.Description
-				dataStreamDescriptor.Manifest.Streams[i].DocLink = input.DocLink
 				dataStreamDescriptor.Manifest.Streams[i].TemplatePath = input.TemplatePath
 				unpackVars(&dataStreamDescriptor.Manifest.Streams[i].Vars, input.Vars)
 				break

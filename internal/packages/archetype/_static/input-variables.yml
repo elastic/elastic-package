@@ -2,7 +2,6 @@ inputs:
   - name: aws-cloudwatch
     title: logs via CloudWatch
     description: Collect logs using CloudWatch input.
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: log_group_arn
         type: text
@@ -150,7 +149,6 @@ inputs:
   - name: aws-s3
     title: Logs via AWS S3
     description: Collect logs via AWS S3
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: collect_s3_logs
         required: true
@@ -303,7 +301,6 @@ inputs:
   - name: azure-blob-storage
     title: logs via Azure Blob Storage
     description: Collect logs via Azure Blob Storage
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: oauth2
         required: true
@@ -475,7 +472,6 @@ inputs:
   - name: azure-eventhub
     title: logs via Azure Event Hub
     description: Collect logs via Azure Event Hub
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: eventhub
         type: text
@@ -665,7 +661,6 @@ inputs:
   - cel:
     title: logs via CEL
     description: Collect logs with CEL
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: condition
         title: Condition
@@ -1043,12 +1038,10 @@ inputs:
   - name: entity-analytics
     title: Logs via Entity Analytics
     description: Collect logs with Entity Analytics
-    doc_link: https://www.elastic.co/docs
     vars: []
   - name: etw
     title: logs via ETW
     description: Collect logs with ETW (Event Tracing for Windows)
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: provider_name
         type: text
@@ -1146,7 +1139,6 @@ inputs:
   - name: filestream
     title: logs via filestream
     description: Collect logs with filestream
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: paths
         type: text
@@ -1451,7 +1443,6 @@ inputs:
   - name: gcp-pubsub
     title: logs via GCP PubSub
     description: Collect logs with GCP PubSub
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: data_stream.dataset
         type: text
@@ -1548,7 +1539,6 @@ inputs:
   - name: gcs
     title: logs via GCS
     description: Collect logs with GCS (Google Cloud Storage)
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: project_id
         type: text
@@ -1700,7 +1690,6 @@ inputs:
   - name: http_endpoint
     title: logs via http_endpoint
     description: Collect logs with an HTTP Endpoint
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: method
         title: HTTP Method
@@ -1899,7 +1888,6 @@ inputs:
   - name: httpjson
     title: logs via httpjson
     description: Collect logs with HTTP JSON
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: data_stream.dataset
         type: text
@@ -2228,7 +2216,6 @@ inputs:
   - name: journald
     title: logs via journald
     description: Collect logs with journald
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: include_matches
         type: text
@@ -2275,7 +2262,6 @@ inputs:
   - name: netflow
     title: logs via netflow
     description: Collect logs with Netflow
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: host
         type: text
@@ -2374,7 +2360,6 @@ inputs:
   - name: redis
     title: logs via Redis
     description: Collect logs with Redis
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: hosts
         type: text
@@ -2402,7 +2387,6 @@ inputs:
   - name: tcp
     title: logs via TCP
     description: Collect logs with TCP
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: listen_address
         type: text
@@ -2537,7 +2521,6 @@ inputs:
   - name: udp
     title: logs via UDP
     description: Collect logs with UDP
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: listen_address
         type: text
@@ -2647,7 +2630,6 @@ inputs:
   - name: winlog
     title: logs via winlogbeat
     description: Collect logs with winlogbeat
-    doc_link: https://www.elastic.co/docs
     vars:
       - name: channel
         type: text
