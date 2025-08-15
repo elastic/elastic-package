@@ -12,15 +12,12 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type InputConfig struct {
-	Inputs []Input `yaml:"inputs"`
-}
-
 type Input struct {
 	Name         string          `yaml:"name"`
 	Title        string          `yaml:"title"`
 	Description  string          `yaml:"description"`
 	TemplatePath string          `yaml:"template_path"`
+	Documentation string `yaml:"documentation"`
 	Vars         []InputVariable `yaml:"vars"`
 }
 
@@ -76,4 +73,30 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 
 		*output = append(*output, newVar)
 	}
+func loadInputDefinitions() ([]Input, error) {
+	var inputDefs = []Input{}
+	var inputDef Input
+	for i := range inputs {
+		err := yaml.Unmarshal([]byte(inputs[i]), &inputDef)
+		if err != nil {
+			return nil, fmt.Errorf("loading input def: %w", err)
+		}
+		inputDefs = append(inputDefs, inputDef)
+
+	}
+	return inputDefs, nil
+}
+
+// GetDocumentation returns the documentation for the given input
+func GetDocumentation(inputName string) (string, error) {
+	inputDefs, err := loadInputDefinitions()
+	if err != nil {
+		return "", err
+	}
+	for _, input := range inputDefs {
+		if input.Name == inputName {
+			return input.Description, nil
+		}
+	}
+	return "", fmt.Errorf("no documentation found for input %s", inputName)
 }
