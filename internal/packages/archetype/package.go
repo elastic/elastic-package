@@ -107,7 +107,6 @@ func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
 		if err != nil {
 			return fmt.Errorf("can't render agent stream: %w", err)
 		}
-
 	}
 
 	if len(packageDescriptor.ExcludeChecks) > 0 {

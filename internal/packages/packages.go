@@ -66,9 +66,16 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name    string   `config:"name" json:"name" yaml:"name"`
-	Type    string   `config:"type" json:"type" yaml:"type"`
-	Default VarValue `config:"default" json:"default" yaml:"default"`
+	Name        string   `config:"name" json:"name" yaml:"name"`
+	Type        string   `config:"type" json:"type" yaml:"type"`
+	Title       string   `config:"title" json:"title" yaml:"title"`
+	Description string   `config:"description" json:"description" yaml:"description"`
+	Multi       bool     `config:"multi" json:"multi" yaml:"multi"`
+	Required    bool     `config:"required" json:"required" yaml:"required"`
+	Secret      bool     `config:"secret" json:"secret" yaml:"secret"`
+	ShowUser    bool     `config:"show_user" json:"show_user" yaml:"show_user"`
+	MinDuration string   `config:"min_duration" json:"min_duration" yaml:"min_duration"`
+	Default     VarValue `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
@@ -181,11 +188,8 @@ type DataStreamManifest struct {
 	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string         `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams       []struct {
-		Input string     `config:"input" json:"input" yaml:"input"`
-		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
-	} `config:"streams" json:"streams" yaml:"streams"`
-	Agent Agent `config:"agent" json:"agent" yaml:"agent"`
+	Streams       []Stream       `config:"streams" json:"streams" yaml:"streams"`
+	Agent         Agent          `config:"agent" json:"agent" yaml:"agent"`
 }
 
 // Transform contains information about a transform included in a package.
@@ -203,6 +207,15 @@ type TransformDefinition struct {
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
+}
+
+// Stream contains information about an input stream.
+type Stream struct {
+	Input        string     `config:"input" json:"input" yaml:"input"`
+	Title        string     `config:"title" json:"title" yaml:"title"`
+	Description  string     `config:"description" json:"description" yaml:"description"`
+	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
+	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
