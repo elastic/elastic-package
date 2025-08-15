@@ -31,10 +31,10 @@ func TestDataStreamInputs(t *testing.T) {
 			PackageRoot: "",
 		}
 
-		err := populateInput(&descriptor)
+		err := populateInputs(&descriptor)
 
 		assert.Nil(t, err)
-		// The asserted length is based on the actual number of variables for each input in `_static/input_variables.yml`.
+		// The asserted length is based on the actual number of variables for each input in `_static/inputs`.
 		// It may need to change if the file is changed.
 		assert.Len(t, descriptor.Manifest.Streams[0].Vars, 14)
 		assert.Len(t, descriptor.Manifest.Streams[1].Vars, 16)
@@ -51,7 +51,7 @@ func TestDataStreamInputs(t *testing.T) {
 			PackageRoot: "",
 		}
 
-		err := populateInput(&descriptor)
+		err := populateInputs(&descriptor)
 
 		assert.Nil(t, err)
 	})
@@ -72,7 +72,7 @@ func TestDataStreamInputs(t *testing.T) {
 			PackageRoot: "",
 		}
 
-		err := populateInput(&descriptor)
+		err := populateInputs(&descriptor)
 
 		assert.Nil(t, err)
 		assert.Len(t, descriptor.Manifest.Streams[0].Vars, 0)

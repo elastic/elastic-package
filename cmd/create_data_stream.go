@@ -132,7 +132,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			{
 				Name: "inputs",
 				Prompt: &survey.MultiSelect{
-					Message: "Select input types which will be used in this data stream",
+					Message: "Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs",
 					Options: []string{
 						"aws-cloudwatch",
 						"aws-s3",
@@ -153,6 +153,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 						"udp",
 						"winlog",
 					},
+					PageSize: 50,
 				},
 			},
 		}

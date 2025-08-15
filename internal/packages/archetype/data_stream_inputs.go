@@ -31,19 +31,17 @@ type InputVariable struct {
 	Description string `yaml:"description"`
 }
 
-// populateInput will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.
+// populateInputs will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.
 //
 // When `dataStreamDescriptor` is created by the create data-stream command, it will be populated with only the input names
 // provided by the user. This will further enrich the `dataStreamDescriptor` with the variables for the given inputs.
-func populateInput(dataStreamDescriptor *DataStreamDescriptor) error {
-	var cfg InputConfig
-	err := yaml.Unmarshal([]byte(inputVariables), &cfg)
+func populateInputs(dataStreamDescriptor *DataStreamDescriptor) error {
+	inputDefs, err := loadInputDefinitions()
 	if err != nil {
-		return fmt.Errorf("error unmarshaling yaml: %w", err)
+		return fmt.Errorf("populating inputs: %w", err)
 	}
-
 	for i := range dataStreamDescriptor.Manifest.Streams {
-		for _, input := range cfg.Inputs {
+		for _, input := range inputDefs {
 			if dataStreamDescriptor.Manifest.Streams[i].Input == input.Name {
 				dataStreamDescriptor.Manifest.Streams[i].Title = input.Title
 				dataStreamDescriptor.Manifest.Streams[i].Description = input.Description
@@ -54,6 +52,20 @@ func populateInput(dataStreamDescriptor *DataStreamDescriptor) error {
 		}
 	}
 	return nil
+}
+
+// GetDocumentation returns the documentation for the given input
+func GetDocumentation(inputName string) (string, error) {
+	inputDefs, err := loadInputDefinitions()
+	if err != nil {
+		return "", err
+	}
+	for _, input := range inputDefs {
+		if input.Name == inputName {
+			return input.Description, nil
+		}
+	}
+	return "", fmt.Errorf("no documentation found for input %s", inputName)
 }
 
 func unpackVars(output *[]packages.Variable, input []InputVariable) {
@@ -73,6 +85,9 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 
 		*output = append(*output, newVar)
 	}
+}
+
+// loadInputDefinitions loads from the embedded _static/inputs yml files.
 func loadInputDefinitions() ([]Input, error) {
 	var inputDefs = []Input{}
 	var inputDef Input
@@ -82,21 +97,6 @@ func loadInputDefinitions() ([]Input, error) {
 			return nil, fmt.Errorf("loading input def: %w", err)
 		}
 		inputDefs = append(inputDefs, inputDef)
-
 	}
 	return inputDefs, nil
-}
-
-// GetDocumentation returns the documentation for the given input
-func GetDocumentation(inputName string) (string, error) {
-	inputDefs, err := loadInputDefinitions()
-	if err != nil {
-		return "", err
-	}
-	for _, input := range inputDefs {
-		if input.Name == inputName {
-			return input.Description, nil
-		}
-	}
-	return "", fmt.Errorf("no documentation found for input %s", inputName)
 }
