@@ -149,13 +149,3 @@ vars:
       - google_cloud_storage-generic
     multi: true
     show_user: true
-documentation: |-
-  ## Setup
-  For more details about the GCS input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-gcs).
-
-  ### Collecting logs from GCS
-
-  To collect logs via GCS, select **Collect logs via GCS** and configure the following parameters:
-
-  - Buckets: This attribute contains details related to specific buckets like `name`, `number_of_workers`, `poll`, `poll_interval`, and `bucket_timeout`. The attribute `name` is specific to a bucket as it describes the bucket name, while the fields `number_of_workers`, `poll`, `poll_interval` and `bucket_timeout` can exist at the bucket level and at the global level. If you defined the attributes globally, you can only specify the name in this YAML config. If you want to override any specific attribute for a specific bucket, you can define it here. Any attribute defined in the YAML will override the global definitions. Check the [Filebeat documentation](https://www.elastic.co/guide/en/beats/filebeat/8.5/filebeat-input-gcs.html#attrib-buckets) for further information.
-  - Project ID: This attribute is required for various internal operations with respect to authentication, creating storage clients and logging which are used internally for various processing purposes.

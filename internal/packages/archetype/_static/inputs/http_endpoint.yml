@@ -195,15 +195,3 @@ vars:
     show_user: false
     description: >
       The request tracer logs HTTP requests and responses to the agent's local file-system for debugging configurations. Enabling this request tracing compromises security and should only be used for debugging. See [documentation](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-cel.html#_resource_tracer_filename) for details.
-
-documentation: |-
-  ## Setup
-
-  For more details about the Http endpoint input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-http_endpoint).
-
-  ### Collecting logs from Http Endpoint
-
-  To collect logs via Http Endpoint, select **Collect logs via Http Endpoint** and configure the following parameters:
-
-  - Listen Address: Bind address for the HTTP listener. Use 0.0.0.0 to listen on all interfaces.
-  - Listen port: Bind port for the listener.

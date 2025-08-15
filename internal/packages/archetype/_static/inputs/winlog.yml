@@ -96,16 +96,3 @@ vars:
       #  - drop_event.when.not.or:
       #    - equals.winlog.event_id: '903'
       #    - equals.winlog.event_id: '1024'
-
-documentation: |-
-  ## Setup
-
-  For more details about the Winlog input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-winlog).
-
-  ### Collecting logs from Winlog
-
-  You can use the `winlog` input package for Elastic to collect Windows event logs. It uses Windows APIs to read events from various logs, such as Application, Security, and System.
-
-  To collect logs via Winlog, select **Collect logs via Winlog** and configure the following parameter:
-
-  - Event IDs: A list of included and excluded (blocked) event IDs. The value is a comma-separated list. The accepted values are single event IDs to include (for example, 4624), a range of event IDs to include (for example, 4700-4800), and single event IDs to exclude (for example, -4735). Limit 22 IDs.

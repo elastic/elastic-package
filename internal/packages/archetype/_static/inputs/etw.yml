@@ -95,13 +95,3 @@ vars:
       #  - drop_event.when.not.or:
       #    - equals.event.code: '903'
       #    - equals.event.code: '1024'
-documentation: |-
-  ## Setup
-
-  For more details about the ETW input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-etw).
-
-  ### Collecting logs from ETW
-
-  [Event Tracing for Windows (ETW)](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-input-etw.html), a mechanism that allows real-time logging and capturing of Windows system events. To collect logs from ETW, you can either initiate a new ETW session to gather logs directly from the DNS Server provider or read pre-existing logs from an `.etl` (Event Trace Log) file.
-
-  To collect logs via ETW, select **Collect analytical events from Windows ETW**.

@@ -25,16 +25,3 @@ vars:
     required: false
     show_user: false
     description: "Processors are used to reduce the number of fields in the exported event or to enhance the event with metadata. This executes in the agent before the events are shipped. See [Processors](https://www.elastic.co/guide/en/fleet/current/elastic-agent-processor-configuration.html) for details.  \n"
- 
-documentation: |-
-  ## Setup
-
-  For more details about the Redis input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-redis).
-
-  ### Collecting logs from Redis
-
-  To collect logs via Redis, select **Collect logs via Redis** and configure the following parameters:
-
-  - Host(s): The list of Redis hosts to connect to.
-  - Username
-  - Password

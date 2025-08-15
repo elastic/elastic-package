@@ -17,7 +17,6 @@ type Input struct {
 	Title        string          `yaml:"title"`
 	Description  string          `yaml:"description"`
 	TemplatePath string          `yaml:"template_path"`
-	Documentation string `yaml:"documentation"`
 	Vars         []InputVariable `yaml:"vars"`
 }
 
@@ -52,20 +51,6 @@ func populateInputs(dataStreamDescriptor *DataStreamDescriptor) error {
 		}
 	}
 	return nil
-}
-
-// GetDocumentation returns the documentation for the given input
-func GetDocumentation(inputName string) (string, error) {
-	inputDefs, err := loadInputDefinitions()
-	if err != nil {
-		return "", err
-	}
-	for _, input := range inputDefs {
-		if input.Name == inputName {
-			return input.Description, nil
-		}
-	}
-	return "", fmt.Errorf("no documentation found for input %s", inputName)
 }
 
 func unpackVars(output *[]packages.Variable, input []InputVariable) {
