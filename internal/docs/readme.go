@@ -209,6 +209,9 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			}
 			return linksMap.RenderLink(args[0], options)
 		},
+		"inputDocs": func(args ...string) (string, error) {
+			return RenderInputDocs(packageRoot)
+		},
 	}).ParseFiles(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("parsing README template failed (path: %s): %w", templatePath, err)

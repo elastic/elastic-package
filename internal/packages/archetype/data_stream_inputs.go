@@ -76,8 +76,8 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 func loadInputDefinitions() ([]Input, error) {
 	var inputDefs = []Input{}
 	var inputDef Input
-	for i := range inputs {
-		err := yaml.Unmarshal([]byte(inputs[i]), &inputDef)
+	for i := range inputResources {
+		err := yaml.Unmarshal([]byte(inputResources[i]), &inputDef)
 		if err != nil {
 			return nil, fmt.Errorf("loading input def: %w", err)
 		}

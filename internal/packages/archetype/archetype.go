@@ -12,10 +12,12 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/elastic/elastic-package/internal/docs"
 )
 
 func renderResourceFile(templateBody string, data interface{}, targetPath string) error {
-	t := template.Must(template.New("template").Funcs(template.FuncMap{"indent": Indent}).Parse(templateBody))
+	t := template.Must(template.New("template").Funcs(template.FuncMap{"indent": Indent, "inputDocs": docs.RenderInputDocs}).Parse(templateBody))
 	var rendered bytes.Buffer
 	err := t.Execute(&rendered, data)
 	if err != nil {
