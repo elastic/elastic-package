@@ -209,7 +209,7 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			}
 			return linksMap.RenderLink(args[0], options)
 		},
-		"inputDocs": func(args ...string) (string, error) {
+		"inputDocs": func() (string, error) {
 			return RenderInputDocs(packageRoot)
 		},
 	}).ParseFiles(templatePath)
