@@ -82,7 +82,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			Name: "subobjects",
 			Prompt: &survey.Confirm{
 				Message: "Enable creation of subobjects for fields with dots in their names?",
-				Default: true,
+				Default: false,
 			},
 			Validate: survey.Required,
 		},
@@ -154,6 +154,47 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 						"winlog",
 					},
 					PageSize: 50,
+					Description: func(value string, index int) string {
+						switch value {
+						case "aws-cloudwatch":
+							return "AWS Cloudwatch"
+						case "aws-s3":
+							return "AWS S3"
+						case "azure-blob-storage":
+							return "Azure Blob Storage"
+						case "azure-eventhub":
+							return "Azure Eventhub"
+						case "cel":
+							return "Common Expression Language (CEL)"
+						case "entity-analytics":
+							return "Entity Analytics"
+						case "etw":
+							return "Event Tracing for Windows (ETW)"
+						case "filestream":
+							return "Filestream"
+						case "gcp-pubsub":
+							return "GCP PubSub"
+						case "gcs":
+							return "Google Cloud Storage (GCS)"
+						case "http_endpoint":
+							return "HTTP Endpoint"
+						case "httpjson":
+							return "HTTP JSON"
+						case "journald":
+							return "Journald"
+						case "netflow":
+							return "Netflow"
+						case "redis":
+							return "Redis"
+						case "tcp":
+							return "TCP"
+						case "udp":
+							return "UDP"
+						case "winlog":
+							return "WinLogBeat"
+						}
+						return ""
+					},
 				},
 			},
 		}
@@ -198,6 +239,11 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		if answers.SyntheticAndTimeSeries {
 			manifest.Elasticsearch.IndexMode = "time_series"
 		}
+	}
+
+	// If no inputs were selected, insert one so the datastream shows an example of an input.
+	if answers.Type == "logs" && len(answers.Inputs) == 0 {
+		answers.Inputs = []string{"tcp"}
 	}
 
 	if len(answers.Inputs) > 0 {
