@@ -112,6 +112,7 @@ var inputResources = []string{
 	inputAwsCloudwatch,
 	inputAwsS3,
 	inputAzureBlobStorage,
+	inputAzureEventhub,
 	inputCel,
 	inputEntityAnalytics,
 	inputEtw,
