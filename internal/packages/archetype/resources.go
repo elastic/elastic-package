@@ -87,9 +87,6 @@ var inputGcs string
 //go:embed _static/inputs/http_endpoint.yml
 var inputHttpEndpoint string
 
-//go:embed _static/inputs/httpjson.yml
-var inputHttpJson string
-
 //go:embed _static/inputs/journald.yml
 var inputJournald string
 
@@ -120,7 +117,6 @@ var inputResources = []string{
 	inputGcpPubSub,
 	inputGcs,
 	inputHttpEndpoint,
-	inputHttpJson,
 	inputJournald,
 	inputNetflow,
 	inputRedis,
