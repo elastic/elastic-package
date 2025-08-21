@@ -145,7 +145,6 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 						"gcp-pubsub",
 						"gcs",
 						"http_endpoint",
-						"httpjson",
 						"journald",
 						"netflow",
 						"redis",
@@ -178,8 +177,6 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 							return "Google Cloud Storage (GCS)"
 						case "http_endpoint":
 							return "HTTP Endpoint"
-						case "httpjson":
-							return "HTTP JSON"
 						case "journald":
 							return "Journald"
 						case "netflow":
@@ -243,7 +240,7 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 
 	// If no inputs were selected, insert one so the datastream shows an example of an input.
 	if answers.Type == "logs" && len(answers.Inputs) == 0 {
-		answers.Inputs = []string{"tcp"}
+		answers.Inputs = []string{"filestream"}
 	}
 
 	if len(answers.Inputs) > 0 {

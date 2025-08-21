@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 
 	"gopkg.in/yaml.v3"
@@ -42,14 +41,13 @@ func RenderInputDocs(packageRoot string) (string, error) {
 	sort.Strings(inputs)
 	renderedDocs := ""
 
-	re := regexp.MustCompile(`(?m)^(#+)(\s+)`)
 	for _, input := range inputs {
 		for _, inputDef := range inputDefs {
 			if inputDef.Name == input {
 				// Increase header level to match the level it will be placed into when rendered.
 				// In the rendered readme. input documentation is three levels lower than in the input definitions.
-				docs := re.ReplaceAllString(inputDef.Documentation, "${1}###${2}")
-				renderedDocs = fmt.Sprintf("%s#### %s\n\n%s\n\n", renderedDocs, inputDef.Name, docs)
+				// This also adds each doc to a collapsible section.
+				renderedDocs = fmt.Sprintf("%s<details>\n  <summary>%s</summary>\n\n%s\n</details>\n", renderedDocs, inputDef.Name, inputDef.Documentation)
 				break
 			}
 		}
