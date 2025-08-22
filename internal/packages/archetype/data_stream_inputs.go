@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -105,4 +106,32 @@ func loadInputDefinitions() ([]Input, error) {
 		return nil, err
 	}
 	return inputDefs, nil
+}
+
+// loadRawAgentTemplate returns the raw agent template for a specific input.
+func loadRawAgentTemplate(inputName string) (string, error) {
+	var agentTemplate string
+	templateFileName := strings.ReplaceAll(inputName, "-", "_")
+
+	err := fs.WalkDir(docs.AgentTemplates, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() && filepath.Ext(path) == ".hbs" {
+			if strings.HasPrefix(filepath.Base(path), templateFileName) {
+				// Found the agent file for the input
+				fileData, readErr := docs.AgentTemplates.ReadFile(path)
+				if readErr != nil {
+					return readErr
+				}
+
+				agentTemplate = strings.TrimSpace(string(fileData))
+				return nil
+			}
+		}
+		return nil
+	})
+
+	return agentTemplate, err
 }

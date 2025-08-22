@@ -12,3 +12,8 @@ import (
 
 //go:embed _static/inputs/*.yml
 var InputDescriptions embed.FS
+
+// Input Agent templates
+
+//go:embed _static/agent/*.yml.hbs
+var AgentTemplates embed.FS
