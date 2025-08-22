@@ -38,7 +38,7 @@ require (
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.12.3
-	helm.sh/helm/v3 v3.18.5
+	helm.sh/helm/v3 v3.18.6
 	honnef.co/go/tools v0.6.1
 	k8s.io/apimachinery v0.33.4
 	k8s.io/cli-runtime v0.33.4
