@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Select diff action
         if: ${{ github.event_name == 'pull_request' }}
@@ -35,7 +35,7 @@ jobs:
           echo "UPDATECLI_ACTION=apply" >> $GITHUB_ENV
 
       - name: Install Updatecli in the runner
-        uses: updatecli/updatecli-action@419b75cb4d4bd6b50b03da7b33e1e0065d383eaf #v2.89.0
+        uses: updatecli/updatecli-action@2289ae9c945707079a248f5e4f5743a6592429ef #v2.90.0
 
       - name: Update default stack version
         # --experimental needed for commitusingapi option.
