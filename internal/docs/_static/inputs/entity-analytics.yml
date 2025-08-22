@@ -1,4 +1,7 @@
 name: entity-analytics
+title: Logs via Entity Analytics
+description: Collect logs with Entity Analytics
+vars: []
 documentation: |-
   ## Setup
 

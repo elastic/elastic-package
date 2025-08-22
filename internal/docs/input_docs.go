@@ -44,10 +44,8 @@ func RenderInputDocs(packageRoot string) (string, error) {
 	for _, input := range inputs {
 		for _, inputDef := range inputDefs {
 			if inputDef.Name == input {
-				// Increase header level to match the level it will be placed into when rendered.
-				// In the rendered readme. input documentation is three levels lower than in the input definitions.
-				// This also adds each doc to a collapsible section.
-				renderedDocs = fmt.Sprintf("%s<details>\n  <summary>%s</summary>\n\n%s\n</details>\n", renderedDocs, inputDef.Name, inputDef.Documentation)
+				// Render each input documentation into a collapsible section.
+				renderedDocs = fmt.Sprintf("%s<details>\n<summary>%s</summary>\n\n%s\n</details>\n", renderedDocs, inputDef.Name, inputDef.Documentation)
 				break
 			}
 		}
@@ -112,13 +110,30 @@ func findDataStreamInputs(packagePath string) ([]string, error) {
 // loadInputDefinitions loads from the embedded _static/inputs yml files.
 func loadInputDefinitions() ([]Input, error) {
 	var inputDefs = []Input{}
-	var inputDef Input
-	for i := range inputResources {
-		err := yaml.Unmarshal([]byte(inputResources[i]), &inputDef)
+
+	err := fs.WalkDir(InputDescriptions, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("loading input def: %w", err)
+			return err
 		}
-		inputDefs = append(inputDefs, inputDef)
+		if !d.IsDir() && filepath.Ext(path) == ".yml" {
+			fileData, readErr := InputDescriptions.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+
+			var inputDef Input
+			unmarshalErr := yaml.Unmarshal(fileData, &inputDef)
+			if unmarshalErr != nil {
+				logger.Errorf("unmarshalling %s: %w", path, unmarshalErr)
+				// Continue with other files
+				return nil
+			}
+			inputDefs = append(inputDefs, inputDef)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return inputDefs, nil
 }

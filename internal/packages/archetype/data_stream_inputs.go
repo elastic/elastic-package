@@ -6,9 +6,13 @@ package archetype
 
 import (
 	"fmt"
+	"io/fs"
+	"path/filepath"
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -75,13 +79,30 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 // loadInputDefinitions loads from the embedded _static/inputs yml files.
 func loadInputDefinitions() ([]Input, error) {
 	var inputDefs = []Input{}
-	var inputDef Input
-	for i := range inputResources {
-		err := yaml.Unmarshal([]byte(inputResources[i]), &inputDef)
+
+	err := fs.WalkDir(docs.InputDescriptions, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("loading input def: %w", err)
+			return err
 		}
-		inputDefs = append(inputDefs, inputDef)
+		if !d.IsDir() && filepath.Ext(path) == ".yml" {
+			fileData, readErr := docs.InputDescriptions.ReadFile(path)
+			if readErr != nil {
+				return readErr
+			}
+
+			var inputDef Input
+			unmarshalErr := yaml.Unmarshal(fileData, &inputDef)
+			if unmarshalErr != nil {
+				logger.Errorf("unmarshalling %s: %w", path, unmarshalErr)
+				// Continue with other files
+				return nil
+			}
+			inputDefs = append(inputDefs, inputDef)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return inputDefs, nil
 }

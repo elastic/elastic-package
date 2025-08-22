@@ -7,6 +7,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/AlecAivazis/survey/v2"
 
@@ -128,67 +130,37 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if answers.Type == "logs" {
+		// Map of possible inputs that can be used in the wizard, and their description.
+		inputsMap := map[string]string{
+			"aws-cloudwatch":     "AWS Cloudwatch",
+			"aws-s3":             "AWS S3",
+			"azure-blob-storage": "Azure Blob Storage",
+			"azure-eventhub":     "Azure Eventhub",
+			"cel":                "Common Expression Language (CEL)",
+			"entity-analytics":   "Entity Analytics",
+			"etw":                "Event Tracing for Windows (ETW)",
+			"filestream":         "Filestream",
+			"gcp-pubsub":         "GCP PubSub",
+			"gcs":                "Google Cloud Storage (GCS)",
+			"http_endpoint":      "HTTP Endpoint",
+			"journald":           "Journald",
+			"netflow":            "Netflow",
+			"redis":              "Redis",
+			"tcp":                "TCP",
+			"udp":                "UDP",
+			"winlog":             "WinLogBeat",
+		}
 		qs := []*survey.Question{
 			{
 				Name: "inputs",
 				Prompt: &survey.MultiSelect{
-					Message: "Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs",
-					Options: []string{
-						"aws-cloudwatch",
-						"aws-s3",
-						"azure-blob-storage",
-						"azure-eventhub",
-						"cel",
-						"entity-analytics",
-						"etw",
-						"filestream",
-						"gcp-pubsub",
-						"gcs",
-						"http_endpoint",
-						"journald",
-						"netflow",
-						"redis",
-						"tcp",
-						"udp",
-						"winlog",
-					},
+					Message:  "Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs",
+					Options:  slices.Sorted(maps.Keys(inputsMap)),
 					PageSize: 50,
 					Description: func(value string, index int) string {
-						switch value {
-						case "aws-cloudwatch":
-							return "AWS Cloudwatch"
-						case "aws-s3":
-							return "AWS S3"
-						case "azure-blob-storage":
-							return "Azure Blob Storage"
-						case "azure-eventhub":
-							return "Azure Eventhub"
-						case "cel":
-							return "Common Expression Language (CEL)"
-						case "entity-analytics":
-							return "Entity Analytics"
-						case "etw":
-							return "Event Tracing for Windows (ETW)"
-						case "filestream":
-							return "Filestream"
-						case "gcp-pubsub":
-							return "GCP PubSub"
-						case "gcs":
-							return "Google Cloud Storage (GCS)"
-						case "http_endpoint":
-							return "HTTP Endpoint"
-						case "journald":
-							return "Journald"
-						case "netflow":
-							return "Netflow"
-						case "redis":
-							return "Redis"
-						case "tcp":
-							return "TCP"
-						case "udp":
-							return "UDP"
-						case "winlog":
-							return "WinLogBeat"
+						val, ok := inputsMap[value]
+						if ok {
+							return val
 						}
 						return ""
 					},
