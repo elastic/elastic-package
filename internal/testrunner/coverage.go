@@ -44,6 +44,11 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 			return nil
 		}
 
+		// Exclude validation configuration from coverage reports.
+		if d.Name() == "validation.yml" && filepath.Dir(match) == filepath.Clean(rootPath) {
+			return nil
+		}
+
 		fileCoverage, err := generateBaseFileCoverageReport(repoPath, pkgName, match, format, false)
 		if err != nil {
 			return fmt.Errorf("failed to generate base coverage for \"%s\": %w", match, err)
