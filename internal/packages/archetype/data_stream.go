@@ -7,11 +7,8 @@ package archetype
 import (
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -22,21 +19,6 @@ import (
 type DataStreamDescriptor struct {
 	Manifest    packages.DataStreamManifest
 	PackageRoot string
-}
-
-// Input defines the structure for an input within a policy template.
-type ManifestInput struct {
-	Type        string `yaml:"type"`
-	Title       string `yaml:"title"`
-	Description string `yaml:"description"`
-}
-
-// PolicyTemplate defines the structure for a single policy template item.
-type PolicyTemplate struct {
-	Name        string          `yaml:"name"`
-	Title       string          `yaml:"title"`
-	Description string          `yaml:"description"`
-	Inputs      []ManifestInput `yaml:"inputs"`
 }
 
 // CreateDataStream function bootstraps the new data stream based on the provided descriptor.
