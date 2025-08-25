@@ -80,6 +80,7 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 // loadInputDefinitions loads from the embedded _static/inputs yml files.
 func loadInputDefinitions() ([]Input, error) {
 	var inputDefs = []Input{}
+	agentTemplates := getAgentTemplateFileNames()
 
 	err := fs.WalkDir(docs.InputDescriptions, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -98,6 +99,10 @@ func loadInputDefinitions() ([]Input, error) {
 				// Continue with other files
 				return nil
 			}
+			template, ok := agentTemplates[inputDef.Name]
+			if ok {
+				inputDef.TemplatePath = template
+			}
 			inputDefs = append(inputDefs, inputDef)
 		}
 		return nil
@@ -106,6 +111,21 @@ func loadInputDefinitions() ([]Input, error) {
 		return nil, err
 	}
 	return inputDefs, nil
+}
+
+// getAgentTemplateFileNames returns a maps of agent template file names.
+func getAgentTemplateFileNames() map[string]string {
+	templates := make(map[string]string)
+	fs.WalkDir(docs.AgentTemplates, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			templates[strings.ReplaceAll(strings.TrimSuffix(filepath.Base(path), ".yml.hbs"), "_", "-")] = filepath.Base(path)
+		}
+		return nil
+	})
+	return templates
 }
 
 // loadRawAgentTemplate returns the raw agent template for a specific input.
