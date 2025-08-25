@@ -74,3 +74,27 @@ role_arn: {{role_arn}}
 {{#if proxy_url }}
 proxy_url: {{proxy_url}}
 {{/if}}
+
+{{#if tags.length}}
+tags:
+{{#each tags as |tag|}}
+- {{tag}}
+{{/each}}
+{{#if preserve_original_event}}
+- preserve_original_event
+{{/if}}
+{{else}}
+{{#if preserve_original_event}}
+tags:
+- preserve_original_event
+{{/if}}
+{{/if}}
+
+{{#contains "forwarded" tags}}
+publisher_pipeline.disable_host: true
+{{/contains}}
+
+{{#if processors}}
+processors:
+{{processors}}
+{{/if}}

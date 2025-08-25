@@ -1,13 +1,13 @@
 {{#if hosts}}
 hosts:
 {{#each hosts as |host i|}}
-  - {{host}}
+- {{host}}
 {{/each}}
 {{/if}}
 {{#if topics}}
 topics:
 {{#each topics as |topic i|}}
-  - {{topic}}
+- {{topic}}
 {{/each}}
 {{/if}}
 {{#if group_id}}
@@ -68,7 +68,7 @@ rebalance.max_retries: {{rebalance_max_retries}}
 rebalance.retry_backoff: {{rebalance_retry_backoff}}
 {{/if}}
 {{#if parsers}}
-parsers: 
+parsers:
 {{parsers}}
 {{/if}}
 {{#if kerberos_enabled}}
@@ -97,4 +97,28 @@ kerberos.realm: {{kerberos_realm}}
 {{/if}}
 {{#if kerberos_enable_krb5_fast}}
 kerberos.enable_krb5_fast: {{kerberos_enable_krb5_fast}}
+{{/if}}
+
+{{#if tags.length}}
+tags:
+{{#each tags as |tag|}}
+- {{tag}}
+{{/each}}
+{{#if preserve_original_event}}
+- preserve_original_event
+{{/if}}
+{{else}}
+{{#if preserve_original_event}}
+tags:
+- preserve_original_event
+{{/if}}
+{{/if}}
+
+{{#contains "forwarded" tags}}
+publisher_pipeline.disable_host: true
+{{/contains}}
+
+{{#if processors}}
+processors:
+{{processors}}
 {{/if}}
