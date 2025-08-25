@@ -1,0 +1,67 @@
+condition: ${host.platform} == 'linux'
+
+{{#if paths}}
+paths:
+{{#each paths as |path i|}}
+  - {{path}}
+{{/each}}
+{{/if}}
+{{#if backoff}}
+backoff: {{backoff}}
+{{/if}}
+{{#if max_backoff}}
+max_backoff: {{max_backoff}}
+{{/if}}
+{{#if seek}}
+seek: {{seek}}
+{{/if}}
+{{#if cursor_seek_fallback}}
+cursor_seek_fallback: {{cursor_seek_fallback}}
+{{/if}}
+{{#if since}}
+since: {{since}}
+{{/if}}
+{{#if units}}
+units: {{units}}
+{{/if}}
+{{#if syslog_identifiers}}
+syslog_identifiers:
+{{#each syslog_identifiers as |identifier i|}}
+  - {{identifier}}
+{{/each}}
+{{/if}}
+{{#if transports}}
+transports:
+{{#each transports as |transport i|}}
+  - {{transport}}
+{{/each}}
+{{/if}}
+{{#if include_matches}}
+include_matches:
+{{#each include_matches as |match i|}}
+  - {{match}}
+{{/each}}
+{{/if}}
+{{#if tags.length}}
+tags:
+{{#each tags as |tag|}}
+- {{tag}}
+{{/each}}
+{{#if preserve_original_event}}
+- preserve_original_event
+{{/if}}
+{{else}}
+{{#if preserve_original_event}}
+tags:
+- preserve_original_event
+{{/if}}
+{{/if}}
+
+{{#contains "forwarded" tags}}
+publisher_pipeline.disable_host: true
+{{/contains}}
+
+{{#if processors}}
+processors:
+{{processors}}
+{{/if}}

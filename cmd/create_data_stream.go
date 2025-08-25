@@ -7,6 +7,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/AlecAivazis/survey/v2"
 
@@ -25,6 +27,7 @@ type newDataStreamAnswers struct {
 	Name                   string
 	Title                  string
 	Type                   string
+	Inputs                 []string
 	Subobjects             bool
 	SyntheticAndTimeSeries bool
 	Synthetic              bool
@@ -126,6 +129,50 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	if answers.Type == "logs" {
+		// Map of possible inputs that can be used in the wizard, and their description.
+		inputsMap := map[string]string{
+			"aws-cloudwatch":     "AWS Cloudwatch",
+			"aws-s3":             "AWS S3",
+			"azure-blob-storage": "Azure Blob Storage",
+			"azure-eventhub":     "Azure Eventhub",
+			"cel":                "Common Expression Language (CEL)",
+			"entity-analytics":   "Entity Analytics",
+			"etw":                "Event Tracing for Windows (ETW)",
+			"filestream":         "Filestream",
+			"gcp-pubsub":         "GCP PubSub",
+			"gcs":                "Google Cloud Storage (GCS)",
+			"http_endpoint":      "HTTP Endpoint",
+			"journald":           "Journald",
+			"netflow":            "Netflow",
+			"redis":              "Redis",
+			"tcp":                "TCP",
+			"udp":                "UDP",
+			"winlog":             "WinLogBeat",
+		}
+		qs := []*survey.Question{
+			{
+				Name: "inputs",
+				Prompt: &survey.MultiSelect{
+					Message:  "Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs",
+					Options:  slices.Sorted(maps.Keys(inputsMap)),
+					PageSize: 50,
+					Description: func(value string, index int) string {
+						val, ok := inputsMap[value]
+						if ok {
+							return val
+						}
+						return ""
+					},
+				},
+			},
+		}
+		err = survey.Ask(qs, &answers)
+		if err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+	}
+
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
@@ -161,6 +208,22 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		if answers.SyntheticAndTimeSeries {
 			manifest.Elasticsearch.IndexMode = "time_series"
 		}
+	}
+
+	// If no inputs were selected, insert one so the datastream shows an example of an input.
+	if answers.Type == "logs" && len(answers.Inputs) == 0 {
+		answers.Inputs = []string{"filestream"}
+	}
+
+	if len(answers.Inputs) > 0 {
+		var streams []packages.Stream
+		for _, input := range answers.Inputs {
+			streams = append(streams, packages.Stream{
+				Input: input,
+				Vars:  []packages.Variable{},
+			})
+		}
+		manifest.Streams = streams
 	}
 
 	return archetype.DataStreamDescriptor{
