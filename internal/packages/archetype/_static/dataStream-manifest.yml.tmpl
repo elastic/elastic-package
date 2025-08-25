@@ -30,6 +30,9 @@ streams:
 {{- if .ShowUser }}
       show_user: {{ .ShowUser }}
 {{- end }}
+{{- if .Secret }}
+      secret: {{ .Secret }}
+{{- end }}
 {{- if .Description }}
       description: |-
 {{ indent .Description 8 }}

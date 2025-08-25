@@ -7,7 +7,10 @@ package archetype
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -18,6 +21,21 @@ import (
 type DataStreamDescriptor struct {
 	Manifest    packages.DataStreamManifest
 	PackageRoot string
+}
+
+// Input defines the structure for an input within a policy template.
+type ManifestInput struct {
+	Type        string `yaml:"type"`
+	Title       string `yaml:"title"`
+	Description string `yaml:"description"`
+}
+
+// PolicyTemplate defines the structure for a single policy template item.
+type PolicyTemplate struct {
+	Name        string          `yaml:"name"`
+	Title       string          `yaml:"title"`
+	Description string          `yaml:"description"`
+	Inputs      []ManifestInput `yaml:"inputs"`
 }
 
 // CreateDataStream function bootstraps the new data stream based on the provided descriptor.
@@ -60,6 +78,12 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 		}
 	}
 
+	logger.Debugf("Update package manifest")
+	err = updatePackageManifestForDatastream(dataStreamDescriptor)
+	if err != nil {
+		return fmt.Errorf("updating package manifest: %w", err)
+	}
+
 	logger.Debugf("Format the entire package")
 	err = formatter.Format(dataStreamDescriptor.PackageRoot, false)
 	if err != nil {
@@ -67,5 +91,59 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	}
 
 	fmt.Printf("New data stream has been created: %s\n", dataStreamDescriptor.Manifest.Name)
+	return nil
+}
+
+func updatePackageManifestForDatastream(dataStreamDescriptor DataStreamDescriptor) error {
+	packageManifestFile := path.Join(dataStreamDescriptor.PackageRoot, "manifest.yml")
+	yamlFile, err := os.ReadFile(packageManifestFile)
+	if err != nil {
+		return fmt.Errorf("failed to read yaml file: %w", err)
+	}
+
+	var data map[string]interface{}
+	err = yaml.Unmarshal(yamlFile, &data)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal yaml: %w", err)
+	}
+
+	manifestInputs := []ManifestInput{}
+	for _, descriptorInput := range dataStreamDescriptor.Manifest.Streams {
+		input := ManifestInput{
+			Type:        descriptorInput.Input,
+			Title:       descriptorInput.Title,
+			Description: fmt.Sprintf("%s Input", descriptorInput.Title),
+		}
+		manifestInputs = append(manifestInputs, input)
+	}
+
+	newTemplate := PolicyTemplate{
+		Name:        fmt.Sprintf("policy_for_%s", dataStreamDescriptor.Manifest.Name),
+		Title:       fmt.Sprintf("Policy for %s", dataStreamDescriptor.Manifest.Title),
+		Description: fmt.Sprintf("Gather logs for %s", dataStreamDescriptor.Manifest.Title),
+		Inputs:      manifestInputs,
+	}
+
+	policyTemplates, ok := data["policy_templates"]
+	if !ok {
+		return fmt.Errorf("'policy_templates' key not found in the package manifest")
+	}
+
+	templatesList, ok := policyTemplates.([]interface{})
+	if !ok {
+		return fmt.Errorf("'policy_templates' is not a list")
+	}
+
+	data["policy_templates"] = append(templatesList, newTemplate)
+
+	updatedYaml, err := yaml.Marshal(&data)
+	if err != nil {
+		return fmt.Errorf("failed to marshal updated data to yaml: %w", err)
+	}
+
+	err = os.WriteFile(packageManifestFile, updatedYaml, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write updated yaml to file: %w", err)
+	}
 	return nil
 }
