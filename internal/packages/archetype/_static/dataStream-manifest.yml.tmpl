@@ -6,7 +6,7 @@ streams:
 {{- range .Manifest.Streams }}
   - input: {{ .Input }}
 {{- if .Title }}
-    title: {{ .Title }}
+    title: "{{ .Title }}"
 {{- end }}
 {{- if .Description }}
     description: |-
@@ -22,7 +22,7 @@ streams:
       type: {{ .Type }}
 {{- end }}
 {{- if .Title }}
-      title: {{ .Title }}
+      title: "{{ .Title }}"
 {{- end }}
 {{- if .Description }}
       description: |-
@@ -33,7 +33,7 @@ streams:
 {{- end }}
 {{- if .Required }}
       required: {{ .Required }}
-{{- end -}}
+{{- end }}
 {{- if .Secret }}
       secret: {{ .Secret }}
 {{- end }}
@@ -45,6 +45,9 @@ streams:
 {{- end }}
 {{- if .UrlAllowedSchemes }}
       url_allowed_schemes: {{ .UrlAllowedSchemes }}
+{{- end }}
+{{- if .Default }}
+      {{ yamlString .Default "default" 6 }}
 {{- end }}
 {{- end }} {{/* range .Vars */}}
 {{- end }} {{/* range .Manifest.Streams */}}

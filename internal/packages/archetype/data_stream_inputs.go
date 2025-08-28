@@ -26,18 +26,19 @@ type Input struct {
 }
 
 type InputVariable struct {
-	Name                  string   `yaml:"name"`
-	Type                  string   `yaml:"type"`
-	Title                 string   `yaml:"title"`
-	Description           string   `yaml:"description"`
-	Multi                 bool     `yaml:"multi"`
-	Required              bool     `yaml:"required"`
-	Secret                bool     `yaml:"secret"`
-	ShowUser              bool     `yaml:"show_user"`
-	HideInDeploymentModes []string `yaml:"hide_in_deployment_modes"`
-	UrlAllowedSchemes     []string `yaml:"url_allowed_schemes"`
-	MinDuration           string   `yaml:"min_duration"`
-	MaxDuration           string   `yaml:"max_duration"`
+	Name                  string      `yaml:"name"`
+	Type                  string      `yaml:"type"`
+	Title                 string      `yaml:"title"`
+	Description           string      `yaml:"description"`
+	Multi                 bool        `yaml:"multi"`
+	Required              bool        `yaml:"required"`
+	Secret                bool        `yaml:"secret"`
+	ShowUser              bool        `yaml:"show_user"`
+	HideInDeploymentModes []string    `yaml:"hide_in_deployment_modes"`
+	UrlAllowedSchemes     []string    `yaml:"url_allowed_schemes"`
+	MinDuration           string      `yaml:"min_duration"`
+	MaxDuration           string      `yaml:"max_duration"`
+	Default               interface{} `yaml:"default"`
 }
 
 // populateInputs will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.
@@ -75,9 +76,16 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 		newVar.Title = inputVar.Title
 		newVar.Multi = inputVar.Multi
 		newVar.Required = inputVar.Required
+		newVar.Secret = inputVar.Secret
 		newVar.ShowUser = inputVar.ShowUser
+		newVar.HideInDeploymentModes = inputVar.HideInDeploymentModes
+		newVar.UrlAllowedSchemes = inputVar.UrlAllowedSchemes
+		newVar.MinDuration = inputVar.MinDuration
+		newVar.MaxDuration = inputVar.MaxDuration
 		newVar.Description = inputVar.Description
-
+		if inputVar.Default != nil {
+			newVar.Default.Unpack(inputVar.Default)
+		}
 		*output = append(*output, newVar)
 	}
 }

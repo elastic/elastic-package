@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 
+	yamlv3 "gopkg.in/yaml.v3"
+
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -62,6 +64,40 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 		return json.Marshal(vv.list)
 	}
 	return []byte("null"), nil
+}
+
+// VarValueYamlString will return a YAML style string representation of vv,
+// in the given YAML field, and with numSpaces indentation if it's a list.
+func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
+	// Default indentation is 4 spaces
+	n := 4
+	if len(numSpaces) == 1 {
+		n = numSpaces[0]
+	}
+
+	var valueToMarshal interface{}
+	if vv.scalar != nil {
+		valueToMarshal = vv.scalar
+	} else if vv.list != nil {
+		valueToMarshal = vv.list
+	} else {
+		return ""
+	}
+
+	// Use yaml.v3 encoder to ensure correct yaml string formatting
+	data := map[string]interface{}{
+		field: valueToMarshal,
+	}
+
+	var b strings.Builder
+	encoder := yamlv3.NewEncoder(&b)
+	encoder.SetIndent(n) // Apply the custom indentation.
+
+	if err := encoder.Encode(&data); err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(b.String())
 }
 
 // Variable is an instance of configuration variable (named, typed).
