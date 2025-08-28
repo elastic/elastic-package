@@ -27,7 +27,7 @@ func TestSetManagedSavedObject(t *testing.T) {
 	id := preloadDashboard(t, client)
 	require.True(t, getManagedSavedObject(t, client, "dashboard", id))
 
-	err := client.SetManagedSavedObject(context.Background(), "dashboard", id, false)
+	err := client.SetManagedSavedObject(t.Context(), "dashboard", id, false)
 	require.NoError(t, err)
 	assert.False(t, getManagedSavedObject(t, client, "dashboard", id))
 }
@@ -47,7 +47,7 @@ func preloadDashboard(t *testing.T, client *kibana.Client) string {
 			},
 		},
 	}
-	_, err := client.ImportSavedObjects(context.Background(), importRequest)
+	_, err := client.ImportSavedObjects(t.Context(), importRequest)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -69,7 +69,7 @@ func getManagedSavedObject(t *testing.T, client *kibana.Client, savedObjectType 
 			},
 		},
 	}
-	export, err := client.ExportSavedObjects(context.Background(), exportRequest)
+	export, err := client.ExportSavedObjects(t.Context(), exportRequest)
 	require.NoError(t, err)
 	require.Len(t, export, 1)
 

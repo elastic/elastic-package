@@ -5,7 +5,6 @@
 package fleetserver_test
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,7 +22,7 @@ func TestStatusAPIKeyAuthenticated(t *testing.T) {
 		fleetserver.TLSSkipVerify(),
 	)
 
-	status, err := client.Status(context.Background())
+	status, err := client.Status(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, status.Name, "fleet-server")
@@ -38,7 +37,7 @@ func TestStatusUnauthenticated(t *testing.T) {
 		fleetserver.TLSSkipVerify(),
 	)
 
-	status, err := client.Status(context.Background())
+	status, err := client.Status(t.Context())
 	require.NoError(t, err)
 
 	assert.Equal(t, status.Name, "fleet-server")
