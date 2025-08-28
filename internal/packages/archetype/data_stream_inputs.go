@@ -26,13 +26,18 @@ type Input struct {
 }
 
 type InputVariable struct {
-	Name        string `yaml:"name"`
-	Type        string `yaml:"type"`
-	Title       string `yaml:"title"`
-	Multi       bool   `yaml:"multi"`
-	Required    bool   `yaml:"required"`
-	ShowUser    bool   `yaml:"show_user"`
-	Description string `yaml:"description"`
+	Name                  string   `yaml:"name"`
+	Type                  string   `yaml:"type"`
+	Title                 string   `yaml:"title"`
+	Description           string   `yaml:"description"`
+	Multi                 bool     `yaml:"multi"`
+	Required              bool     `yaml:"required"`
+	Secret                bool     `yaml:"secret"`
+	ShowUser              bool     `yaml:"show_user"`
+	HideInDeploymentModes []string `yaml:"hide_in_deployment_modes"`
+	UrlAllowedSchemes     []string `yaml:"url_allowed_schemes"`
+	MinDuration           string   `yaml:"min_duration"`
+	MaxDuration           string   `yaml:"max_duration"`
 }
 
 // populateInputs will populate `dataStreamDescriptor` with the appropriate variables for each input type it contains.

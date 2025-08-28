@@ -21,21 +21,30 @@ streams:
 {{- if .Type }}
       type: {{ .Type }}
 {{- end }}
+{{- if .Title }}
+      title: {{ .Title }}
+{{- end }}
+{{- if .Description }}
+      description: |-
+{{ indent .Description 8 }}
+{{- end }}
 {{- if .Multi }}
       multi: {{ .Multi }}
 {{- end }}
 {{- if .Required }}
       required: {{ .Required }}
 {{- end -}}
-{{- if .ShowUser }}
-      show_user: {{ .ShowUser }}
-{{- end }}
 {{- if .Secret }}
       secret: {{ .Secret }}
 {{- end }}
-{{- if .Description }}
-      description: |-
-{{ indent .Description 8 }}
+{{- if .ShowUser }}
+      show_user: {{ .ShowUser }}
+{{- end }}
+{{- if .HideInDeploymentModes }}
+      hide_in_deployment_modes: {{ .HideInDeploymentModes }}
+{{- end }}
+{{- if .UrlAllowedSchemes }}
+      url_allowed_schemes: {{ .UrlAllowedSchemes }}
 {{- end }}
 {{- end }} {{/* range .Vars */}}
 {{- end }} {{/* range .Manifest.Streams */}}
