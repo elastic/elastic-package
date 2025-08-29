@@ -5,7 +5,6 @@
 package dump
 
 import (
-	"context"
 	"errors"
 	"os"
 	"testing"
@@ -88,7 +87,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
-		n, err := dumper.DumpAll(context.Background(), s.DumpDirAll)
+		n, err := dumper.DumpAll(s.T().Context(), s.DumpDirAll)
 		s.Require().NoError(err)
 		s.Require().Greater(n, 0)
 	} else {
@@ -101,7 +100,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
-		n, err := dumper.DumpByPackage(context.Background(), s.DumpDirPackage, s.PackageName)
+		n, err := dumper.DumpByPackage(s.T().Context(), s.DumpDirPackage, s.PackageName)
 		s.Require().NoError(err)
 		s.Require().Greater(n, 0)
 	} else {
@@ -114,7 +113,7 @@ func (s *agentPoliciesDumpSuite) SetupTest() {
 		s.Require().NoError(err)
 
 		dumper := NewAgentPoliciesDumper(client)
-		err = dumper.DumpByName(context.Background(), s.DumpDirAgentPolicy, s.AgentPolicy)
+		err = dumper.DumpByName(s.T().Context(), s.DumpDirAgentPolicy, s.AgentPolicy)
 		s.Require().NoError(err)
 	} else {
 		s.Require().NoError(err)
@@ -126,7 +125,7 @@ func (s *agentPoliciesDumpSuite) TestDumpAll() {
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
-	n, err := dumper.DumpAll(context.Background(), outputDir)
+	n, err := dumper.DumpAll(s.T().Context(), outputDir)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.DumpDirAll)
@@ -143,7 +142,7 @@ func (s *agentPoliciesDumpSuite) TestDumpByPackage() {
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
-	n, err := dumper.DumpByPackage(context.Background(), outputDir, s.PackageName)
+	n, err := dumper.DumpByPackage(s.T().Context(), outputDir, s.PackageName)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.DumpDirPackage)
@@ -160,7 +159,7 @@ func (s *agentPoliciesDumpSuite) TestDumpByName() {
 
 	outputDir := s.T().TempDir()
 	dumper := NewAgentPoliciesDumper(client)
-	err := dumper.DumpByName(context.Background(), outputDir, s.AgentPolicy)
+	err := dumper.DumpByName(s.T().Context(), outputDir, s.AgentPolicy)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.DumpDirAgentPolicy)

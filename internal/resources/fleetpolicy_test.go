@@ -5,7 +5,6 @@
 package resources
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -120,7 +119,7 @@ func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
 func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, policyID string) bool {
 	t.Helper()
 
-	_, err := client.GetPolicy(context.Background(), policyID)
+	_, err := client.GetPolicy(t.Context(), policyID)
 	if expected {
 		return assert.NoError(t, err)
 	}

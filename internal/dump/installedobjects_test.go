@@ -98,7 +98,7 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 		s.Require().NoError(err)
 
 		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
-		n, err := dumper.DumpAll(context.Background(), s.DumpDir)
+		n, err := dumper.DumpAll(s.T().Context(), s.DumpDir)
 		s.Require().NoError(err)
 		s.Require().Greater(n, 0)
 	} else {
@@ -111,7 +111,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 
 	outputDir := s.T().TempDir()
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
-	n, err := dumper.DumpAll(context.Background(), outputDir)
+	n, err := dumper.DumpAll(s.T().Context(), outputDir)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.DumpDir)
@@ -139,7 +139,7 @@ func (s *installedObjectsDumpSuite) TestDumpSome() {
 	for dir, dumpFunction := range dumpers {
 		s.Run(dir, func() {
 			outputDir := s.T().TempDir()
-			n, err := dumpFunction(context.Background(), outputDir)
+			n, err := dumpFunction(s.T().Context(), outputDir)
 			s.Require().NoError(err)
 
 			expectedDir := subDir(s.T(), s.DumpDir, dir)

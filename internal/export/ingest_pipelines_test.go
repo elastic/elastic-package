@@ -5,7 +5,6 @@
 package export
 
 import (
-	"context"
 	"errors"
 	"io/fs"
 	"net/http"
@@ -77,7 +76,7 @@ func (s *ingestPipelineExportSuite) SetupTest() {
 
 		writeAssignments := createTestWriteAssignments(s.PipelineIds, s.ExportDir)
 
-		err = IngestPipelines((context.Background()), client.API, writeAssignments)
+		err = IngestPipelines(s.T().Context(), client.API, writeAssignments)
 
 		s.Require().NoError(err)
 	} else {
@@ -90,7 +89,7 @@ func (s *ingestPipelineExportSuite) TestExportPipelines() {
 
 	outputDir := s.T().TempDir()
 	writeAssignments := createTestWriteAssignments(s.PipelineIds, outputDir)
-	err := IngestPipelines(context.Background(), client.API, writeAssignments)
+	err := IngestPipelines(s.T().Context(), client.API, writeAssignments)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.ExportDir)

@@ -5,7 +5,6 @@
 package kibana_test
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
@@ -43,7 +42,7 @@ func TestExportDashboards(t *testing.T) {
 			id := preloadDashboard(t, client)
 
 			dashboardIDs := []string{id}
-			dashboards, err := client.Export(context.Background(), dashboardIDs)
+			dashboards, err := client.Export(t.Context(), dashboardIDs)
 			require.NoError(t, err)
 
 			assert.Len(t, dashboards, 1)

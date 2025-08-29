@@ -5,7 +5,6 @@
 package system
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -433,7 +432,7 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			client := estest.NewClient(t, c.record, nil)
-			enabled, err := isSyntheticSourceModeEnabled(context.Background(), client.API, c.dataStreamName)
+			enabled, err := isSyntheticSourceModeEnabled(t.Context(), client.API, c.dataStreamName)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, enabled)
 		})

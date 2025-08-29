@@ -6,7 +6,6 @@ package elasticsearch_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"net/http"
@@ -81,7 +80,7 @@ func TestClusterHealth(t *testing.T) {
 		t.Run(c.Record, func(t *testing.T) {
 			client := test.NewClient(t, c.Record, nil)
 
-			err := client.CheckHealth(context.Background())
+			err := client.CheckHealth(t.Context())
 			if c.Expected != "" {
 				if assert.Error(t, err) {
 					assert.Equal(t, c.Expected, err.Error())
@@ -95,7 +94,7 @@ func TestClusterHealth(t *testing.T) {
 
 func TestClusterInfo(t *testing.T) {
 	client := test.NewClient(t, "./testdata/elasticsearch-9-info", nil)
-	info, err := client.Info(context.Background())
+	info, err := client.Info(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "9.0.0-SNAPSHOT", info.Version.Number)
 }

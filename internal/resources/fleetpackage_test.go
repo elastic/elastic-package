@@ -5,7 +5,6 @@
 package resources
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -92,7 +91,7 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 func assertPackageInstalled(t *testing.T, client *kibana.Client, expected string, packageName string) bool {
 	t.Helper()
 
-	p, err := client.GetPackage(context.Background(), packageName)
+	p, err := client.GetPackage(t.Context(), packageName)
 	var notFoundError *kibana.ErrPackageNotFound
 	if errors.As(err, &notFoundError) {
 		return assert.Equal(t, expected, "not_installed")
