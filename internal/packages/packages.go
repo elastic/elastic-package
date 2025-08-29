@@ -15,6 +15,8 @@ import (
 	"slices"
 	"strings"
 
+	yamlv3 "gopkg.in/yaml.v3"
+
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -64,11 +66,55 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 	return []byte("null"), nil
 }
 
+// VarValueYamlString will return a YAML style string representation of vv,
+// in the given YAML field, and with numSpaces indentation if it's a list.
+func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
+	// Default indentation is 4 spaces
+	n := 4
+	if len(numSpaces) == 1 {
+		n = numSpaces[0]
+	}
+
+	var valueToMarshal interface{}
+	if vv.scalar != nil {
+		valueToMarshal = vv.scalar
+	} else if vv.list != nil {
+		valueToMarshal = vv.list
+	} else {
+		return ""
+	}
+
+	// Use yaml.v3 encoder to ensure correct yaml string formatting
+	data := map[string]interface{}{
+		field: valueToMarshal,
+	}
+
+	var b strings.Builder
+	encoder := yamlv3.NewEncoder(&b)
+	encoder.SetIndent(n) // Apply the custom indentation.
+
+	if err := encoder.Encode(&data); err != nil {
+		return ""
+	}
+
+	return strings.TrimSpace(b.String())
+}
+
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name    string   `config:"name" json:"name" yaml:"name"`
-	Type    string   `config:"type" json:"type" yaml:"type"`
-	Default VarValue `config:"default" json:"default" yaml:"default"`
+	Name                  string   `config:"name" json:"name" yaml:"name"`
+	Type                  string   `config:"type" json:"type" yaml:"type"`
+	Title                 string   `config:"title" json:"title" yaml:"title"`
+	Description           string   `config:"description" json:"description" yaml:"description"`
+	Multi                 bool     `config:"multi" json:"multi" yaml:"multi"`
+	Required              bool     `config:"required" json:"required" yaml:"required"`
+	Secret                bool     `config:"secret" json:"secret" yaml:"secret"`
+	ShowUser              bool     `config:"show_user" json:"show_user" yaml:"show_user"`
+	HideInDeploymentModes []string `config:"hide_in_deployment_modes" json:"hide_in_deployment_modes" yaml:"hide_in_deployment_modes"`
+	UrlAllowedSchemes     []string `config:"url_allowed_schemes" json:"url_allowed_schemes" yaml:"url_allowed_schemes"`
+	MinDuration           string   `config:"min_duration" json:"min_duration" yaml:"min_duration"`
+	MaxDuration           string   `config:"max_duration" json:"max_duration" yaml:"max_duration"`
+	Default               VarValue `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
@@ -181,11 +227,8 @@ type DataStreamManifest struct {
 	Hidden        bool           `config:"hidden" json:"hidden" yaml:"hidden"`
 	Release       string         `config:"release" json:"release" yaml:"release"`
 	Elasticsearch *Elasticsearch `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
-	Streams       []struct {
-		Input string     `config:"input" json:"input" yaml:"input"`
-		Vars  []Variable `config:"vars" json:"vars" yaml:"vars"`
-	} `config:"streams" json:"streams" yaml:"streams"`
-	Agent Agent `config:"agent" json:"agent" yaml:"agent"`
+	Streams       []Stream       `config:"streams" json:"streams" yaml:"streams"`
+	Agent         Agent          `config:"agent" json:"agent" yaml:"agent"`
 }
 
 // Transform contains information about a transform included in a package.
@@ -203,6 +246,15 @@ type TransformDefinition struct {
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
+}
+
+// Stream contains information about an input stream.
+type Stream struct {
+	Input        string     `config:"input" json:"input" yaml:"input"`
+	Title        string     `config:"title" json:"title" yaml:"title"`
+	Description  string     `config:"description" json:"description" yaml:"description"`
+	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
+	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
