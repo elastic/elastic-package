@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -130,6 +131,11 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	installedAssets := installedPackage.Assets()
 
+	installedTags, err := r.kibanaClient.ExportSavedObjects(ctx, kibana.ExportSavedObjectsRequest{Type: "tag"})
+	if err != nil {
+		return result.WithError(fmt.Errorf("cannot get installed tags: %w", err))
+	}
+
 	// No Elasticsearch asset is created when an Input package is installed through the API.
 	// This would require to create a Agent policy and add that input package to the Agent policy.
 	// As those input packages could have some required fields, it would also require to add
@@ -151,14 +157,12 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 			TestType:   TestType,
 		})
 
-		var tr []testrunner.TestResult
-		if !findActualAsset(installedAssets, e) {
+		tr, _ := rc.WithSuccess()
+		if !findActualAsset(installedAssets, installedTags, e) {
 			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
 				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
 			})
-		} else {
-			tr, _ = rc.WithSuccess()
 		}
 		result := tr[0]
 		if r.withCoverage && e.SourcePath != "" {
@@ -191,10 +195,25 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+func findActualAsset(actualAssets []packages.Asset, installedTags []common.MapStr, expectedAsset packages.Asset) bool {
 	for _, a := range actualAssets {
 		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
 			return true
+		}
+	}
+
+	if expectedAsset.Type == "tag" {
+		// If we haven't found the asset, and it is a tag, it could be some of the shared tags defined in tags.yml.
+		for _, tag := range installedTags {
+			managed, _ := tag.GetValue("managed")
+			if managed, ok := managed.(bool); !ok || !managed {
+				continue
+			}
+
+			id, _ := tag.GetValue("id")
+			if id, ok := id.(string); ok && id == expectedAsset.ID {
+				return true
+			}
 		}
 	}
 
