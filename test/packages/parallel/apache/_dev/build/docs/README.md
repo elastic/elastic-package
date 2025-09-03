@@ -1,3 +1,4 @@
+{{- generatedHeader }}
 # Apache Integration for Elastic
 
 ## Overview
