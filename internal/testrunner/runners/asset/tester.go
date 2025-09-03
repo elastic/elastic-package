@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -161,7 +162,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		if !findActualAsset(installedAssets, installedTags, e) {
 			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
+				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets, installedTags)),
 			})
 		}
 		result := tr[0]
@@ -220,10 +221,31 @@ func findActualAsset(actualAssets []packages.Asset, installedTags []common.MapSt
 	return false
 }
 
-func formatAssetsAsString(assets []packages.Asset) string {
+func formatAssetsAsString(assets []packages.Asset, savedObjects []common.MapStr) string {
 	var sb strings.Builder
 	for _, asset := range assets {
-		sb.WriteString(fmt.Sprintf("- %s\n", asset.String()))
+		fmt.Fprintf(&sb, "- %s\n", asset.String())
+	}
+	for _, so := range savedObjects {
+		idValue, _ := so.GetValue("id")
+		id, ok := idValue.(string)
+		if !ok {
+			continue
+		}
+		soTypeValue, _ := so.GetValue("type")
+		soType, ok := soTypeValue.(string)
+		if !ok {
+			continue
+		}
+
+		// Avoid repeating.
+		if slices.ContainsFunc(assets, func(a packages.Asset) bool {
+			return a.Type == packages.AssetType(soType) && a.ID == id
+		}) {
+			continue
+		}
+
+		fmt.Fprintf(&sb, "- %s (type: %s)\n", id, soType)
 	}
 	return sb.String()
 }
