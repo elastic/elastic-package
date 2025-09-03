@@ -41,8 +41,8 @@ configuration overrides in the Kibana repository.
 
 ## What format version to choose for a package?
 
-The general rule of thumb is to use the latest version that enables everything
-that is required for a package.
+The general rule of thumb is to use the earliest version after 3.0 that enables
+everything that is required for a package.
 
 The safest option, to support a broader range of stack versions, and a greater
 number of features, would be to use 3.0.4. If you need some newer feature, you
