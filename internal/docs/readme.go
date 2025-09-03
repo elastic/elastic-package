@@ -210,7 +210,7 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			return linksMap.RenderLink(args[0], options)
 		},
 		"inputDocs": func() (string, error) {
-			return RenderInputDocs(packageRoot)
+			return renderInputDocs(packageRoot)
 		},
 		"generatedHeader": func() string {
 			return doNotModifyStr
