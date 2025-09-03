@@ -5,7 +5,6 @@
 package archetype
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -100,7 +99,7 @@ func buildPackage(t *testing.T, packageRoot string) error {
 		return err
 	}
 
-	_, err = builder.BuildPackage(context.Background(), builder.BuildOptions{
+	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
 		PackageRoot: packageRoot,
 		BuildDir:    buildDir,
 	})
