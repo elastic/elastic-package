@@ -1,25 +1,25 @@
-format_version: {{.Manifest.SpecVersion}}
-name: {{.Manifest.Name}}
-title: "{{.Manifest.Title}}"
-version: {{.Manifest.Version}}
-{{ if ne .Manifest.Source.License "" }}
+format_version: {[.Manifest.SpecVersion]}
+name: {[.Manifest.Name]}
+title: "{[.Manifest.Title]}"
+version: {[.Manifest.Version]}
+{[ if ne .Manifest.Source.License "" ]}
 source:
-  license: "{{.Manifest.Source.License}}"
-{{ end }}
-description: "{{.Manifest.Description}}"
-type: {{.Manifest.Type}}
-categories:{{range $category := .Manifest.Categories}}
-  - {{$category}}
-{{- end}}
+  license: "{[.Manifest.Source.License]}"
+{[ end ]}
+description: "{[.Manifest.Description]}"
+type: {[.Manifest.Type]}
+categories:{[range $category := .Manifest.Categories]}
+  - {[$category]}
+{[- end]}
 conditions:
   kibana:
-    version: "{{.Manifest.Conditions.Kibana.Version}}"
+    version: "{[.Manifest.Conditions.Kibana.Version]}"
   elastic:
-    subscription: "{{.Manifest.Conditions.Elastic.Subscription}}"
-{{- if eq .Manifest.Type "content" }}
+    subscription: "{[.Manifest.Conditions.Elastic.Subscription]}"
+{[- if eq .Manifest.Type "content" ]}
 discovery:
   fields: []
-{{- end }}
+{[- end ]}
 screenshots:
   - src: /img/sample-screenshot.png
     title: Sample screenshot
@@ -30,9 +30,9 @@ icons:
     title: Sample logo
     size: 32x32
     type: image/svg+xml
-{{- if (or (eq .Manifest.Type "integration") (eq .Manifest.Type "input")) }}
+{[- if (or (eq .Manifest.Type "integration") (eq .Manifest.Type "input")) ]}
 policy_templates:
-{{- if eq .Manifest.Type "integration" }}
+{[- if eq .Manifest.Type "integration" ]}
   - name: sample
     title: Sample logs
     description: Collect sample logs
@@ -40,8 +40,8 @@ policy_templates:
       - type: logfile
         title: Collect sample logs from instances
         description: Collecting sample logs
-{{ else -}}
-{{ if eq .InputDataStreamType "logs"}}
+{[ else -]}
+{[ if eq .InputDataStreamType "logs"]}
   - name: sample
     type: logs
     title: Sample logs
@@ -55,7 +55,7 @@ policy_templates:
         multi: true
         default:
           - /var/log/*.log
-{{ else }}
+{[ else ]}
   - name: sample
     type: metrics
     title: Sample metrics
@@ -75,25 +75,25 @@ policy_templates:
         show_user: true
         default:
           - localhost
-{{ end }}
-{{ end -}}
-{{ end -}}
-{{ if .Manifest.Elasticsearch }}
+{[ end ]}
+{[ end -]}
+{[ end -]}
+{[ if .Manifest.Elasticsearch ]}
 elasticsearch:
-{{ if .Manifest.Elasticsearch.SourceMode }}
-  source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
-{{- end}}
-{{ if .Manifest.Elasticsearch.IndexMode }}
-  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
-{{- end }}
-{{ if .Manifest.Elasticsearch.IndexTemplate }}
+{[ if .Manifest.Elasticsearch.SourceMode ]}
+  source_mode: {[ .Manifest.Elasticsearch.SourceMode ]}
+{[- end]}
+{[ if .Manifest.Elasticsearch.IndexMode ]}
+  index_mode: {[ .Manifest.Elasticsearch.IndexMode ]}
+{[- end ]}
+{[ if .Manifest.Elasticsearch.IndexTemplate ]}
   index_template:
-{{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
+{[ if .Manifest.Elasticsearch.IndexTemplate.Mappings ]}
     mappings:
-      subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
-{{- end }}
-{{- end }}
-{{- end }}
+      subobjects: {[ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects ]}
+{[- end ]}
+{[- end ]}
+{[- end ]}
 owner:
-  github: {{.Manifest.Owner.Github}}
-  type: {{.Manifest.Owner.Type}}
+  github: {[.Manifest.Owner.Github]}
+  type: {[.Manifest.Owner.Type]}
