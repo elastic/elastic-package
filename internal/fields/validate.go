@@ -1198,7 +1198,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return multierror.Error{fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)}
+			return multierror.Error{fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/docs/howto/ingest_geoip.md)", valStr)}
 		}
 	// Groups should only contain nested fields, not single values.
 	case "group", "nested", "object":

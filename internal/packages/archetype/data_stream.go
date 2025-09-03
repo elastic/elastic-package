@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -28,6 +29,12 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 		return fmt.Errorf(`data stream "%s" already exists`, dataStreamDescriptor.Manifest.Name)
 	}
 
+	logger.Debugf("Populate input variables")
+	err = populateInputs(&dataStreamDescriptor)
+	if err != nil {
+		return fmt.Errorf("can't populate input variables: %w", err)
+	}
+
 	logger.Debugf("Write data stream manifest")
 	err = renderResourceFile(dataStreamManifestTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "manifest.yml"))
 	if err != nil {
@@ -41,9 +48,33 @@ func CreateDataStream(dataStreamDescriptor DataStreamDescriptor) error {
 	}
 
 	logger.Debugf("Write agent stream")
-	err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
-	if err != nil {
-		return fmt.Errorf("can't render agent stream: %w", err)
+	if dataStreamDescriptor.Manifest.Type == "logs" {
+
+		if len(dataStreamDescriptor.Manifest.Streams) == 0 {
+			err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
+			if err != nil {
+				return fmt.Errorf("can't render agent stream: %w", err)
+			}
+		}
+
+		for _, stream := range dataStreamDescriptor.Manifest.Streams {
+			agentTemplate, err := loadRawAgentTemplate(stream.Input)
+			if err != nil {
+				return fmt.Errorf("can't find agent definition for input %q: %w", stream.Input, err)
+			}
+
+			fileName := fmt.Sprintf("%s.yml.hbs", strings.ReplaceAll(stream.Input, "-", "_"))
+			err = writeRawResourceFile([]byte(agentTemplate), filepath.Join(dataStreamDir, "agent", "stream", fileName))
+			if err != nil {
+				return fmt.Errorf("can't write agent stream file for input %q: %w", stream.Input, err)
+			}
+		}
+	} else {
+		err = renderResourceFile(dataStreamAgentStreamTemplate, &dataStreamDescriptor, filepath.Join(dataStreamDir, "agent", "stream", "stream.yml.hbs"))
+		if err != nil {
+			return fmt.Errorf("can't render agent stream: %w", err)
+		}
+
 	}
 
 	if dataStreamDescriptor.Manifest.Type == "logs" {

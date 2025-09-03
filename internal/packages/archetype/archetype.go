@@ -10,11 +10,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func renderResourceFile(templateBody string, data interface{}, targetPath string) error {
-	t := template.Must(template.New("template").Parse(templateBody))
+	t := template.Must(template.New("template").Funcs(template.FuncMap{"indent": indent, "yamlString": packages.VarValueYamlString}).Parse(templateBody))
 	var rendered bytes.Buffer
 	err := t.Execute(&rendered, data)
 	if err != nil {
@@ -54,4 +57,16 @@ func writeRawResourceFile(content []byte, targetPath string) error {
 		return fmt.Errorf("can't write resource file (path: %s): %w", packageManifestPath, err)
 	}
 	return nil
+}
+
+// indent adds `numSpaces` to the beginning of each line in `s`.
+func indent(s string, numSpaces int) string {
+	lines := strings.Split(s, "\n")
+
+	var b strings.Builder
+	indent := strings.Repeat(" ", numSpaces)
+	for _, line := range lines {
+		fmt.Fprintf(&b, "%s%s\n", indent, line)
+	}
+	return b.String()
 }
