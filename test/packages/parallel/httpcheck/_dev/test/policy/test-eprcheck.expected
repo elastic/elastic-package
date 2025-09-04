@@ -1,6 +1,4 @@
 inputs: []
-namespaces:
-    - default
 output_permissions:
     default:
         _elastic_agent_checks:
