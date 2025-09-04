@@ -1,4 +1,4 @@
-format_version: 3.4.0
+format_version: 3.5.0
 name: httpcheck
 title: "Simple HTTP Check"
 version: 0.0.1
