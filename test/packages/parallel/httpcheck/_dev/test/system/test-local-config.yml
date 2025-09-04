@@ -1,3 +1,6 @@
+skip:
+  reason: Not supported system tests with input type otelcol.
+  link: https://github.com/elastic/elastic-package/issues/2835
 service: web
 vars:
   endpoints:
