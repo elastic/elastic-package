@@ -41,9 +41,16 @@ xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.fleet_server.hosts: ["{{ fact "fleet_url" }}"]
 
-{{ if and (not (semverLessThan $version "8.7.0")) (semverLessThan $version "8.10.0-SNAPSHOT") }}
-xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable experimental toggles in Fleet UI
-{{ end }}
+{{/* Feature flags introduced in 8.3.0 https://github.com/elastic/kibana/pull/130253 */}}
+{{- if (not (semverLessThan $version "8.3.0")) }}
+xpack.fleet.enableExperimental: [
+{{- if and (not (semverLessThan $version "8.7.0")) (semverLessThan $version "8.10.0-SNAPSHOT") }}
+  "experimentalDataStreamSettings" # Enable experimental toggles in Fleet UI
+{{- else if (not (semverLessThan $version "9.2.0-SNAPSHOT")) }}
+  "enableOtelIntegrations"   # Support for otelcol input
+{{- end }}
+]
+{{- end }}
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
