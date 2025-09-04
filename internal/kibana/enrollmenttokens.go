@@ -53,7 +53,7 @@ func (c *Client) getEnrollmentTokens(ctx context.Context, kuery string) ([]Enrol
 		Items   []EnrollmentToken `json:"items"`
 		Total   int               `json:"total"`
 		Page    int               `json:"page"`
-		PerPage int               `json:"perPage`
+		PerPage int               `json:"perPage"`
 	}
 	for {
 		values := make(url.Values)

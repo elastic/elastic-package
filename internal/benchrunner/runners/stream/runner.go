@@ -605,8 +605,6 @@ func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) er
 			return fmt.Errorf("error performing bulk request: %w", err)
 		}
 	}
-
-	return nil
 }
 
 func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) error {
