@@ -150,9 +150,10 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 }
 
 type ExportSavedObjectsRequest struct {
+	Type                  string                            `json:"type,omitempty"`
 	ExcludeExportDetails  bool                              `json:"excludeExportDetails"`
 	IncludeReferencesDeep bool                              `json:"includeReferencesDeep"`
-	Objects               []ExportSavedObjectsRequestObject `json:"objects"`
+	Objects               []ExportSavedObjectsRequestObject `json:"objects,omitempty"`
 }
 
 type ExportSavedObjectsRequestObject struct {
