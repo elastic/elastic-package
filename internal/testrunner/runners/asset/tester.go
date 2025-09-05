@@ -192,6 +192,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 			results = append(results, result)
 		}
+
 		return success, nil
 	}, time.Second, assetsPresentTimeout)
 
@@ -227,11 +228,6 @@ func findActualAsset(actualAssets []packages.Asset, savedObjects []common.MapStr
 			return true
 		}
 		for _, so := range savedObjects {
-			managed, _ := so.GetValue("managed")
-			if managed, ok := managed.(bool); !ok || !managed {
-				continue
-			}
-
 			soType, _ := so.GetValue("type")
 			if soType, ok := soType.(string); !ok || soType != "tag" {
 				continue
