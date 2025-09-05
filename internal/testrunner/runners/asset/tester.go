@@ -223,7 +223,7 @@ func findActualAsset(actualAssets []packages.Asset, savedObjects []common.MapStr
 		// tags defined in tags.yml, whose id can be unpredictable, so check by name.
 		if len(actualAssets) == 0 {
 			// If there are no assets, the tag may not be installed, so assume it would have been.
-			// TODO: More accurately we should check if any of the listed tags in `tags.yml` is present.
+			// TODO: More accurately we should check if any of the listed objects in `tags.yml` is present.
 			return true
 		}
 		for _, tag := range savedObjects {
