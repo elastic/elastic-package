@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -55,12 +54,24 @@ var (
 type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
+	Name       string
 	DataStream string
 	SourcePath string
 }
 
+// IDOrName returns the ID if set, or the Name if not.
+func (asset Asset) IDOrName() string {
+	if asset.ID != "" {
+		return asset.ID
+	}
+	return asset.Name
+}
+
 // String method returns a string representation of the asset
 func (asset Asset) String() string {
+	if asset.ID == "" && asset.Name != "" {
+		return fmt.Sprintf("%q (type: %s)", asset.Name, asset.Type)
+	}
 	return fmt.Sprintf("%s (type: %s)", asset.ID, asset.Type)
 }
 
@@ -143,16 +154,11 @@ func loadKibanaTags(pkgRootPath string) ([]Asset, error) {
 
 	assets := make([]Asset, len(tags))
 	for i, tag := range tags {
-		assets[i].ID = sharedTagID(tag.Text)
+		assets[i].Name = tag.Text
 		assets[i].Type = AssetTypeKibanaTag.typeName
 		assets[i].SourcePath = tagsFilePath
 	}
 	return assets, nil
-}
-
-// sharedTagID tries to mimick tags created by fleet for tags defined in tags.yml.
-func sharedTagID(text string) string {
-	return strings.Join(append(strings.Split(strings.ToLower(text), " "), "default"), "-")
 }
 
 func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
