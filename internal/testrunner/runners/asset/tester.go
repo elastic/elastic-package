@@ -221,6 +221,11 @@ func findActualAsset(actualAssets []packages.Asset, savedObjects []common.MapStr
 	if expectedAsset.Type == "tag" && expectedAsset.ID == "" {
 		// If we haven't found the asset, and it is a tag, it could be some of the shared
 		// tags defined in tags.yml, whose id can be unpredictable, so check by name.
+		if len(actualAssets) == 0 {
+			// If there are no assets, the tag may not be installed, so assume it would have been.
+			// TODO: More accurately we should check if any of the listed tags in `tags.yml` is present.
+			return true
+		}
 		for _, tag := range savedObjects {
 			managed, _ := tag.GetValue("managed")
 			if managed, ok := managed.(bool); !ok || !managed {
