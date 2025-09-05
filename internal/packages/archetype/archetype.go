@@ -17,7 +17,11 @@ import (
 )
 
 func renderResourceFile(templateBody string, data interface{}, targetPath string) error {
-	t := template.Must(template.New("template").Funcs(template.FuncMap{"indent": indent, "yamlString": packages.VarValueYamlString}).Parse(templateBody))
+	funcs := template.FuncMap{
+		"indent":     indent,
+		"yamlString": packages.VarValueYamlString,
+	}
+	t := template.Must(template.New("template").Funcs(funcs).Delims("{[", "]}").Parse(templateBody))
 	var rendered bytes.Buffer
 	err := t.Execute(&rendered, data)
 	if err != nil {
