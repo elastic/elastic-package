@@ -121,7 +121,7 @@ output_permissions:
                 - monitor
         _elastic_agent_monitoring:
             indices: []
-        uuid-for-permissions-on-related-indices:
+        8d024b11-4e82-4192-8e7f-be71d1b13aac:
             indices:
                 - names:
                     - metrics-*-*
@@ -221,7 +221,7 @@ output_permissions:
                 - monitor
         _elastic_agent_monitoring:
             indices: []
-        uuid-for-permissions-on-related-indices:
+        bfe4f402-df02-4673-8a71-fd5b29f1e2f3:
             indices:
                 - names:
                     - metrics-*-*
@@ -296,15 +296,22 @@ output_permissions:
                 - monitor
         _elastic_agent_monitoring:
             indices: []
-        uuid-for-permissions-on-related-indices:
+        05c98f91-203c-44a9-bee7-dd621c9bd37e:
             indices:
                 - names:
                     - logs-*-*
                   privileges:
                     - auto_configure
                     - create_doc
+processors:
+    batch/11c35ad0-4351-49d4-9c78-fa679ce9d950:
+        send_batch_size: 10
+        timeout: 1s
+    batch/e6e379c5-6446-4090-af10-a9e5f8fc4640:
+        send_batch_size: 10000
+        timeout: 10s
 receivers:
-    httpcheck/componentid:
+    httpcheck/4bae34b3-8f66-49c1-b04f-d58af1b5f743:
         collection_interval: 1m
         targets:
             - endpoints:
@@ -315,7 +322,10 @@ service:
     pipelines:
         logs:
             receivers:
-                - httpcheck/componentid
+                - httpcheck/4bae34b3-8f66-49c1-b04f-d58af1b5f743
+            processors:
+                - batch/11c35ad0-4351-49d4-9c78-fa679ce9d950
+                - batch/e6e379c5-6446-4090-af10-a9e5f8fc4640
 
 `,
 			found: `
@@ -325,15 +335,22 @@ output_permissions:
         _elastic_agent_checks:
             cluster:
                 - monitor
-        _elastic_agent_monitoring:
-            indices: []
-        uuid-for-permissions-on-related-indices:
+        aeb4d606-2d90-4b41-b231-27bfad6dea09:
             indices:
                 - names:
                     - logs-*-*
                   privileges:
                     - auto_configure
                     - create_doc
+        _elastic_agent_monitoring:
+            indices: []
+processors:
+    batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b:
+        send_batch_size: 10
+        timeout: 1s
+    batch/8ec6ee99-2176-4231-9668-908069c77784:
+        send_batch_size: 10000
+        timeout: 10s
 receivers:
     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
         collection_interval: 1m
@@ -347,6 +364,95 @@ service:
         logs:
             receivers:
                 - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
+            processors:
+                - batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b
+                - batch/8ec6ee99-2176-4231-9668-908069c77784
+
+`,
+			equal: true,
+		},
+		{
+			title: "otel hardcode expected ids",
+			expected: `
+inputs: []
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        05c98f91-203c-44a9-bee7-dd621c9bd37e:
+            indices:
+                - names:
+                    - logs-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+processors:
+    batch/compomentid-0:
+        send_batch_size: 10
+        timeout: 1s
+    batch/compomentid-1:
+        send_batch_size: 10000
+        timeout: 10s
+receivers:
+    httpcheck/compomentid-0:
+        collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+secret_references: []
+service:
+    pipelines:
+        logs:
+            receivers:
+                - httpcheck/componentid-0
+            processors:
+                - batch/componentid-0
+                - batch/componentid-1
+
+`,
+			found: `
+inputs: []
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        aeb4d606-2d90-4b41-b231-27bfad6dea09:
+            indices:
+                - names:
+                    - logs-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+        _elastic_agent_monitoring:
+            indices: []
+processors:
+    batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b:
+        send_batch_size: 10
+        timeout: 1s
+    batch/8ec6ee99-2176-4231-9668-908069c77784:
+        send_batch_size: 10000
+        timeout: 10s
+receivers:
+    httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
+        collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+secret_references: []
+service:
+    pipelines:
+        logs:
+            receivers:
+                - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
+            processors:
+                - batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b
+                - batch/8ec6ee99-2176-4231-9668-908069c77784
 
 `,
 			equal: true,
