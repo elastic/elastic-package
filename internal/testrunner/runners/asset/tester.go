@@ -226,18 +226,18 @@ func findActualAsset(actualAssets []packages.Asset, savedObjects []common.MapStr
 			// TODO: More accurately we should check if any of the listed objects in `tags.yml` is present.
 			return true
 		}
-		for _, tag := range savedObjects {
-			managed, _ := tag.GetValue("managed")
+		for _, so := range savedObjects {
+			managed, _ := so.GetValue("managed")
 			if managed, ok := managed.(bool); !ok || !managed {
 				continue
 			}
 
-			soType, _ := tag.GetValue("type")
+			soType, _ := so.GetValue("type")
 			if soType, ok := soType.(string); !ok || soType != "tag" {
 				continue
 			}
 
-			name, _ := tag.GetValue("attributes.name")
+			name, _ := so.GetValue("attributes.name")
 			if name, ok := name.(string); ok && name == expectedAsset.Name {
 				return true
 			}
@@ -271,7 +271,12 @@ func formatAssetsAsString(assets []packages.Asset, savedObjects []common.MapStr)
 			continue
 		}
 
-		fmt.Fprintf(&sb, "- %s (type: %s)\n", id, soType)
+		name, _ := so.GetValue("attributes.name")
+		if name, ok := name.(string); ok && name != "" {
+			fmt.Fprintf(&sb, "- %s (name: %q, type: %s)\n", id, name, soType)
+		} else {
+			fmt.Fprintf(&sb, "- %s (type: %s)\n", id, soType)
+		}
 	}
 	return sb.String()
 }
