@@ -1,3 +1,4 @@
+{{- generatedHeader }}
 # Nginx Integration
 
 This integration periodically fetches metrics from [Nginx](https://nginx.org/) servers. It can parse access and error

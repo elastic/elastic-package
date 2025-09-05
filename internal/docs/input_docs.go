@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 
@@ -27,10 +28,13 @@ type DataStreamManifest struct {
 	} `yaml:"streams"`
 }
 
-func RenderInputDocs(packageRoot string) (string, error) {
+func renderInputDocs(packageRoot string) (string, error) {
 	inputs, err := findDataStreamInputs(packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("could not find data stream inputs: %w", err)
+	}
+	if len(inputs) == 0 {
+		return "", nil
 	}
 
 	inputDefs, err := loadInputDefinitions()
@@ -39,18 +43,18 @@ func RenderInputDocs(packageRoot string) (string, error) {
 	}
 
 	sort.Strings(inputs)
-	renderedDocs := ""
-
+	var renderedDocs strings.Builder
+	renderedDocs.WriteString("These inputs can be used with this integration:\n")
 	for _, input := range inputs {
 		for _, inputDef := range inputDefs {
 			if inputDef.Name == input {
 				// Render each input documentation into a collapsible section.
-				renderedDocs = fmt.Sprintf("%s<details>\n<summary>%s</summary>\n\n%s\n</details>\n", renderedDocs, inputDef.Name, inputDef.Documentation)
+				fmt.Fprintf(&renderedDocs, "<details>\n<summary>%s</summary>\n\n%s\n</details>\n", inputDef.Name, inputDef.Documentation)
 				break
 			}
 		}
 	}
-	return renderedDocs, nil
+	return renderedDocs.String(), nil
 }
 
 // FindDataStreamInputs scans a given package path for data stream manifests
