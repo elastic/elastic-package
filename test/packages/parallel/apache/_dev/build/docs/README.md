@@ -1,3 +1,4 @@
+{{- generatedHeader }}
 # Apache Integration for Elastic
 
 ## Overview
@@ -129,9 +130,7 @@ For more information on architectures that can be used for scaling this integrat
 
 ### Inputs used
 
-These inputs can be used with this integration:
-* [logfile](https://www.elastic.co/docs/reference/integrations/filestream)
-* [apache/metrics](https://www.elastic.co/docs/reference/beats/metricbeat/metricbeat-metricset-apache-status)
+{{ inputDocs }}
 
 ### API usage
 

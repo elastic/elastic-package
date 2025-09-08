@@ -696,8 +696,20 @@ An example event for `status` looks as following:
 ### Inputs used
 
 These inputs can be used with this integration:
-* [logfile](https://www.elastic.co/docs/reference/integrations/filestream)
-* [apache/metrics](https://www.elastic.co/docs/reference/beats/metricbeat/metricbeat-metricset-apache-status)
+<details>
+<summary>httpjson</summary>
+
+## Setup
+
+For more details about the Http Json input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-httpjson).
+
+### Collecting logs from Http Json
+
+To collect logs via http json, select **Collect logs via API** and configure the following parameter:
+
+- API url: The API URL without the path.
+</details>
+
 
 ### API usage
 
