@@ -178,26 +178,26 @@ var uniqueOtelComponentIDReplace = policyEntryReplace{
 
 // otelComponentIDsRegexp is the regex to find otel components sections and their IDs to replace them with controlled values.
 // It matches sections like:
-// extensions:
 //
-//	health_check/4391d954-1ffe-4014-a256-5eda78a71828: {}
+//	 extensions:
+//		  health_check/4391d954-1ffe-4014-a256-5eda78a71828: {}
 //
-// receivers:
-//
-//	otlp/123e4567-e89b-12d3-a456-426614174000:
-//	    protocols:
-//	        grpc: {}
-//	        http: {}
+//	 receivers:
+//	     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
+//	        collection_interval: 1m
+//	        targets:
+//	            - endpoints:
+//	                - https://epr.elastic.co
+//	              method: GET
 var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
-	// OTel Collector IDs are relevant, but it is needed to just check that they are there.
-	// This function replaces them with controlled values.
-	// This replacement needs to be done before unmarshalling the YAML, as the IDs are keys
-	// in maps, and using the policyEntryFilter with memberReplace will not keep the same ordering.
+	// Replacement of the OTEL component IDs needs to be done before unmarshalling the YAML.
+	// The OTEL IDs are keys in maps, and using the policyEntryFilter with memberReplace does
+	// not ensure to keep the same ordering.
 	policy = replaceOtelComponentIDs(policy)
 
 	var policyMap common.MapStr
@@ -217,10 +217,8 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 // replaceOtelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
 // It also replaces references to those IDs in service.extensions and service.pipelines.
 func replaceOtelComponentIDs(policy []byte) []byte {
-	// Keep track of all the replacements performed to later replace the references in services.pipelines
 	replacementsDone := map[string]string{}
 
-	// regex to find the otel components sections
 	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
 		count := 0
 		lines := bytes.Split(match, []byte("\n"))
@@ -233,7 +231,8 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 					count++
 					lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
 
-					// store the otel ID found with the space indentation and the colon to be replaced later
+					// store the otel ID replaced without the space indentation and the colon to be replaced later
+					// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
 					otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
 					replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
 				}
