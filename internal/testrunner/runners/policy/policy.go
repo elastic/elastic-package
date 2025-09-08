@@ -196,11 +196,23 @@ var policyEntryFilters = []policyEntryFilter{
 // }
 
 var uniqueOtelComponentIDReplace = policyEntryReplace{
-	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s*)$`),
+	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
 	replace: "$1$2/componentid-%s:$4",
 }
 
-var otelComponentsIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):\n(?:\s{2,}.+\n)+`)
+// otelComponentIDsRegexp is the regex to find otel components sections and their IDs to replace them with controlled values.
+// It matches sections like:
+// extensions:
+//
+//	health_check/4391d954-1ffe-4014-a256-5eda78a71828: {}
+//
+// receivers:
+//
+//	otlp/123e4567-e89b-12d3-a456-426614174000:
+//	    protocols:
+//	        grpc: {}
+//	        http: {}
+var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
@@ -227,8 +239,7 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 	replacementsDone := map[string]string{}
 
 	// regex to find the otel components sections
-	// otelIDsRegexp := regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):\n(?:\s{2,}.+\n)+`)
-	policy = otelComponentsIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
+	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
 		logger.Tracef("found otel components section:\n%s", string(match))
 		count := 0
 		lines := bytes.Split(match, []byte("\n"))
@@ -240,18 +251,20 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 					replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
 					count++
 					lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
-					logger.Tracef("matching line for unique replacement: %s - replacement: %s", stringLine, string(lines[i]))
 
 					// store the otel ID found with the space indentation and the colon to be replaced later
-					otelID := strings.TrimSuffix(strings.TrimSpace(stringLine), ":")
-					replacementsDone[otelID] = strings.TrimSuffix(strings.TrimSpace(string(lines[i])), ":")
+					otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
+					replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
+
+					logger.Tracef("replaced otel component ID %q with %q", otelID, replacementsDone[otelID])
 				}
 			}
 		}
 		return bytes.Join(lines, []byte("\n"))
 	})
 
-	// Replace other references to the otel component IDs replaced before:
+	// Replace references in arrays to the otel component IDs replaced before.
+	// These references can be in:
 	// service.extensions
 	// service.pipelines.<signal>.(receivers|processors|exporters)
 	for original, replacement := range replacementsDone {
