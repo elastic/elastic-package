@@ -390,14 +390,14 @@ output_permissions:
                     - auto_configure
                     - create_doc
 processors:
-    batch/compomentid-0:
+    batch/componentid-0:
         send_batch_size: 10
         timeout: 1s
-    batch/compomentid-1:
+    batch/componentid-1:
         send_batch_size: 10000
         timeout: 10s
 receivers:
-    httpcheck/compomentid-0:
+    httpcheck/componentid-0:
         collection_interval: 1m
         targets:
             - endpoints:
