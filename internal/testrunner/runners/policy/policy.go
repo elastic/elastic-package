@@ -73,8 +73,8 @@ func comparePolicies(expected, found []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare found policy: %w", err)
 	}
-	logger.Tracef("expected policy:\n%s", want)
-	logger.Tracef("found policy:\n%s", got)
+	logger.Tracef("expected policy after cleaning:\n%s", want)
+	logger.Tracef("found policy after cleaning:\n%s", got)
 
 	if bytes.Equal(want, got) {
 		return "", nil
@@ -102,7 +102,6 @@ func expectedPathFor(testPath string) string {
 type policyEntryFilter struct {
 	name            string
 	elementsEntries []policyEntryFilter
-	elementsReplace *policyEntryReplace
 	memberReplace   *policyEntryReplace
 	onlyIfEmpty     bool
 	ignoreValues    []any
@@ -170,30 +169,7 @@ var policyEntryFilters = []policyEntryFilter{
 			{name: "data_stream.elasticsearch", onlyIfEmpty: true},
 		}},
 	}},
-
-	// OTel Collector IDs are relevant, but just check that they are there.
-	// {name: "extensions", memberUniqueReplace: &uniqueOtelComponentIDReplace},
-	// {name: "receivers", memberUniqueReplace: &uniqueOtelComponentIDReplace},
-	// {name: "processors", memberUniqueReplace: &uniqueOtelComponentIDReplace},
-	// {name: "exporters", memberUniqueReplace: &uniqueOtelComponentIDReplace},
-	// {name: "service.extensions", elementsReplace: &otelComponentIDReplace},
-
-	// // TODO: The signals here will need patterns at some moment, as they can also contain ids.
-	// {name: "service.pipelines.logs.receivers", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.logs.processors", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.logs.exporters", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.metrics.receivers", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.metrics.processors", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.metrics.exporters", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.traces.receivers", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.traces.processors", elementsReplace: &otelComponentIDReplace},
-	// {name: "service.pipelines.traces.exporters", elementsReplace: &otelComponentIDReplace},
 }
-
-// var otelComponentIDReplace = policyEntryReplace{
-// 	regexp:  regexp.MustCompile(`^([^/]+)/.*$`),
-// 	replace: "$1/componentid",
-// }
 
 var uniqueOtelComponentIDReplace = policyEntryReplace{
 	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
@@ -218,6 +194,10 @@ var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|pr
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
+	// OTel Collector IDs are relevant, but it is needed to just check that they are there.
+	// This function replaces them with controlled values.
+	// This replacement needs to be done before unmarshalling the YAML, as the IDs are keys
+	// in maps, and using the policyEntryFilter with memberReplace will not keep the same ordering.
 	policy = replaceOtelComponentIDs(policy)
 
 	var policyMap common.MapStr
@@ -234,13 +214,14 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 	return yaml.Marshal(policyMap)
 }
 
+// replaceOtelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
+// It also replaces references to those IDs in service.extensions and service.pipelines.
 func replaceOtelComponentIDs(policy []byte) []byte {
 	// Keep track of all the replacements performed to later replace the references in services.pipelines
 	replacementsDone := map[string]string{}
 
 	// regex to find the otel components sections
 	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
-		logger.Tracef("found otel components section:\n%s", string(match))
 		count := 0
 		lines := bytes.Split(match, []byte("\n"))
 		for i, line := range lines {
@@ -255,8 +236,6 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 					// store the otel ID found with the space indentation and the colon to be replaced later
 					otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
 					replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
-
-					logger.Tracef("replaced otel component ID %q with %q", otelID, replacementsDone[otelID])
 				}
 			}
 		}
@@ -318,19 +297,6 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 					delete(m, k)
 					key = regexp.ReplaceAllString(k, replacement)
 					m[key] = e
-				}
-			}
-		case entry.elementsReplace != nil:
-			list, ok := v.([]any)
-			if !ok {
-				return nil, fmt.Errorf("expected list, found %T", v)
-			}
-			regexp := entry.elementsReplace.regexp
-			replacement := entry.elementsReplace.replace
-			for i, e := range list {
-				strElement, ok := e.(string)
-				if ok && regexp.MatchString(strElement) {
-					list[i] = regexp.ReplaceAllString(strElement, replacement)
 				}
 			}
 		default:
