@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/pmezard/go-difflib/difflib"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 func dumpExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, testPath string, policyID string) error {
@@ -71,6 +73,9 @@ func comparePolicies(expected, found []byte) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare found policy: %w", err)
 	}
+	logger.Tracef("expected policy:\n%s", want)
+	logger.Tracef("found policy:\n%s", got)
+
 	if bytes.Equal(want, got) {
 		return "", nil
 	}
@@ -167,33 +172,42 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 
 	// OTel Collector IDs are relevant, but just check that they are there.
-	{name: "extensions", memberReplace: &otelComponentIDReplace},
-	{name: "receivers", memberReplace: &otelComponentIDReplace},
-	{name: "processors", memberReplace: &otelComponentIDReplace},
-	{name: "exporters", memberReplace: &otelComponentIDReplace},
-	{name: "service.extensions", elementsReplace: &otelComponentIDReplace},
+	// {name: "extensions", memberUniqueReplace: &uniqueOtelComponentIDReplace},
+	// {name: "receivers", memberUniqueReplace: &uniqueOtelComponentIDReplace},
+	// {name: "processors", memberUniqueReplace: &uniqueOtelComponentIDReplace},
+	// {name: "exporters", memberUniqueReplace: &uniqueOtelComponentIDReplace},
+	// {name: "service.extensions", elementsReplace: &otelComponentIDReplace},
 
-	// TODO: The signals here will need patterns at some moment, as they can also contain ids.
-	{name: "service.pipelines.logs.receivers", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.logs.processors", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.logs.exporters", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.metrics.receivers", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.metrics.processors", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.metrics.exporters", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.traces.receivers", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.traces.processors", elementsReplace: &otelComponentIDReplace},
-	{name: "service.pipelines.traces.exporters", elementsReplace: &otelComponentIDReplace},
+	// // TODO: The signals here will need patterns at some moment, as they can also contain ids.
+	// {name: "service.pipelines.logs.receivers", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.logs.processors", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.logs.exporters", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.metrics.receivers", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.metrics.processors", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.metrics.exporters", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.traces.receivers", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.traces.processors", elementsReplace: &otelComponentIDReplace},
+	// {name: "service.pipelines.traces.exporters", elementsReplace: &otelComponentIDReplace},
 }
 
-var otelComponentIDReplace = policyEntryReplace{
-	regexp:  regexp.MustCompile(`^([^/]+)/.*$`),
-	replace: "$1/componentid",
+// var otelComponentIDReplace = policyEntryReplace{
+// 	regexp:  regexp.MustCompile(`^([^/]+)/.*$`),
+// 	replace: "$1/componentid",
+// }
+
+var uniqueOtelComponentIDReplace = policyEntryReplace{
+	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s*)$`),
+	replace: "$1$2/componentid-%s:$4",
 }
+
+var otelComponentsIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):\n(?:\s{2,}.+\n)+`)
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
+	policy = replaceOtelComponentIDs(policy)
+
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
 	if err != nil {
@@ -206,6 +220,47 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 	}
 
 	return yaml.Marshal(policyMap)
+}
+
+func replaceOtelComponentIDs(policy []byte) []byte {
+	// Keep track of all the replacements performed to later replace the references in services.pipelines
+	replacementsDone := map[string]string{}
+
+	// regex to find the otel components sections
+	// otelIDsRegexp := regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):\n(?:\s{2,}.+\n)+`)
+	policy = otelComponentsIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
+		logger.Tracef("found otel components section:\n%s", string(match))
+		count := 0
+		lines := bytes.Split(match, []byte("\n"))
+		for i, line := range lines {
+			line = bytes.TrimRight(line, "\r\n")
+			stringLine := string(line)
+			if strings.Contains(stringLine, ":") {
+				if uniqueOtelComponentIDReplace.regexp.MatchString(stringLine) {
+					replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
+					count++
+					lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
+					logger.Tracef("matching line for unique replacement: %s - replacement: %s", stringLine, string(lines[i]))
+
+					// store the otel ID found with the space indentation and the colon to be replaced later
+					otelID := strings.TrimSuffix(strings.TrimSpace(stringLine), ":")
+					replacementsDone[otelID] = strings.TrimSuffix(strings.TrimSpace(string(lines[i])), ":")
+				}
+			}
+		}
+		return bytes.Join(lines, []byte("\n"))
+	})
+
+	// Replace other references to the otel component IDs replaced before:
+	// service.extensions
+	// service.pipelines.<signal>.(receivers|processors|exporters)
+	for original, replacement := range replacementsDone {
+		originalArrayItem := fmt.Sprintf("- %s", original)
+		replacedArrayItem := fmt.Sprintf("- %s", replacement)
+
+		policy = bytes.ReplaceAll(policy, []byte(originalArrayItem), []byte(replacedArrayItem))
+	}
+	return policy
 }
 
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
