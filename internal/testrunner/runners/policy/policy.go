@@ -189,7 +189,7 @@ var uniqueOtelComponentIDReplace = policyEntryReplace{
 //	            - endpoints:
 //	                - https://epr.elastic.co
 //	              method: GET
-var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|exporters):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
+var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|connectors|exporters):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
