@@ -232,8 +232,8 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 
 				// store the otel ID replaced without the space indentation and the colon to be replaced later
 				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
-				replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
+				otelID, _, _ := strings.Cut(strings.TrimSpace(stringLine), ":")
+				replacementsDone[otelID], _, _ = strings.Cut(strings.TrimSpace(string(lines[i])), ":")
 			}
 		}
 		return bytes.Join(lines, []byte("\n"))
