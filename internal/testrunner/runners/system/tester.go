@@ -1147,9 +1147,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.kibanaDataStream = ds
 
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
-
 	scenario.indexTemplateName = r.buildIndexTemplateName(ds, policyTemplate, config)
 	scenario.dataStream = fmt.Sprintf(
 		"%s-%s",
