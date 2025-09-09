@@ -1007,86 +1007,9 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 
-	// Configure package (single data stream) via Fleet APIs.
-	testTime := time.Now().Format("20060102T15:04:05Z")
-	var policyToTest, policyCurrent, policyToEnroll *kibana.Policy
-	if r.runTearDown || r.runTestsOnly {
-		policyCurrent = &serviceStateData.CurrentPolicy
-		policyToEnroll = &serviceStateData.EnrollPolicy
-		logger.Debugf("Got current policy from file: %q - %q", policyCurrent.Name, policyCurrent.ID)
-	} else {
-		// Created a specific Agent Policy to enrolling purposes
-		// There are some issues when the stack is running for some time,
-		// agents cannot enroll with the default policy
-		// This enroll policy must be created even if independent Elastic Agents are not used. Agents created
-		// in Kubernetes or Custom Agents require this enroll policy too (service deployer).
-		logger.Debug("creating enroll policy...")
-		policyEnroll := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
-			Description: fmt.Sprintf("test policy created by elastic-package to enroll agent for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
-			Namespace:   common.CreateTestRunID(),
-		}
-
-		policyToEnroll, err = r.kibanaClient.CreatePolicy(ctx, policyEnroll)
-		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
-		}
-	}
-
-	r.deleteTestPolicyHandler = func(ctx context.Context) error {
-		// ensure that policyToEnroll policy gets deleted if the execution receives a signal
-		// before creating the test policy
-		// This handler is going to be redefined after creating the test policy
-		if r.runTestsOnly {
-			return nil
-		}
-		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
-			return fmt.Errorf("error cleaning up test policy: %w", err)
-		}
-		return nil
-	}
-
-	if r.runTearDown {
-		// required to assign the policy stored in the service state file
-		// so data stream related to this Agent Policy can be obtained (and deleted)
-		// in the cleanTestScenarioHandler handler
-		policyToTest = policyCurrent
-	} else {
-		// Create a specific Agent Policy just for testing this test.
-		// This allows us to ensure that the Agent Policy used for testing is
-		// assigned to the agent with all the required changes (e.g. Package DataStream)
-		logger.Debug("creating test policy...")
-		policy := kibana.Policy{
-			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
-			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
-			Namespace:   common.CreateTestRunID(),
-		}
-		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
-		// TODO: Migrate from stack.logstash_enabled to the stack config.
-		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
-			policy.DataOutputID = "fleet-logstash-output"
-		}
-		if stackConfig.OutputID != "" {
-			policy.DataOutputID = stackConfig.OutputID
-		}
-		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
-		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
-		}
-	}
-
-	r.deleteTestPolicyHandler = func(ctx context.Context) error {
-		logger.Debug("deleting test policies...")
-		if err := r.kibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
-			return fmt.Errorf("error cleaning up test policy: %w", err)
-		}
-		if r.runTestsOnly {
-			return nil
-		}
-		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
-			return fmt.Errorf("error cleaning up test policy: %w", err)
-		}
-		return nil
+	policyCurrent, policyToEnroll, policyToTest, err := r.createKibanaPolicies(ctx, serviceStateData, stackConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kibana policies: %w", err)
 	}
 
 	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
@@ -1317,6 +1240,94 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	return &scenario, nil
+}
+
+func (r *tester) createKibanaPolicies(ctx context.Context, serviceStateData ServiceState, stackConfig stack.Config) (*kibana.Policy, *kibana.Policy, *kibana.Policy, error) {
+	// Configure package (single data stream) via Fleet APIs.
+	testTime := time.Now().Format("20060102T15:04:05Z")
+	var policyToTest, policyCurrent, policyToEnroll *kibana.Policy
+	var err error
+
+	if r.runTearDown || r.runTestsOnly {
+		policyCurrent = &serviceStateData.CurrentPolicy
+		policyToEnroll = &serviceStateData.EnrollPolicy
+		logger.Debugf("Got current policy from file: %q - %q", policyCurrent.Name, policyCurrent.ID)
+	} else {
+		// Created a specific Agent Policy to enrolling purposes
+		// There are some issues when the stack is running for some time,
+		// agents cannot enroll with the default policy
+		// This enroll policy must be created even if independent Elastic Agents are not used. Agents created
+		// in Kubernetes or Custom Agents require this enroll policy too (service deployer).
+		logger.Debug("creating enroll policy...")
+		policyEnroll := kibana.Policy{
+			Name:        fmt.Sprintf("ep-test-system-enroll-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
+			Description: fmt.Sprintf("test policy created by elastic-package to enroll agent for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
+			Namespace:   common.CreateTestRunID(),
+		}
+
+		policyToEnroll, err = r.kibanaClient.CreatePolicy(ctx, policyEnroll)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+	}
+
+	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		// ensure that policyToEnroll policy gets deleted if the execution receives a signal
+		// before creating the test policy
+		// This handler is going to be redefined after creating the test policy
+		if r.runTestsOnly {
+			return nil
+		}
+		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		return nil
+	}
+
+	if r.runTearDown {
+		// required to assign the policy stored in the service state file
+		// so data stream related to this Agent Policy can be obtained (and deleted)
+		// in the cleanTestScenarioHandler handler
+		policyToTest = policyCurrent
+	} else {
+		// Create a specific Agent Policy just for testing this test.
+		// This allows us to ensure that the Agent Policy used for testing is
+		// assigned to the agent with all the required changes (e.g. Package DataStream)
+		logger.Debug("creating test policy...")
+		policy := kibana.Policy{
+			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
+			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
+			Namespace:   common.CreateTestRunID(),
+		}
+		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		// TODO: Migrate from stack.logstash_enabled to the stack config.
+		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
+			policy.DataOutputID = "fleet-logstash-output"
+		}
+		if stackConfig.OutputID != "" {
+			policy.DataOutputID = stackConfig.OutputID
+		}
+		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("could not create test policy: %w", err)
+		}
+	}
+
+	r.deleteTestPolicyHandler = func(ctx context.Context) error {
+		logger.Debug("deleting test policies...")
+		if err := r.kibanaClient.DeletePolicy(ctx, policyToTest.ID); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		if r.runTestsOnly {
+			return nil
+		}
+		if err := r.kibanaClient.DeletePolicy(ctx, policyToEnroll.ID); err != nil {
+			return fmt.Errorf("error cleaning up test policy: %w", err)
+		}
+		return nil
+	}
+
+	return policyCurrent, policyToEnroll, policyToTest, nil
 }
 
 func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, config *testConfig) string {
