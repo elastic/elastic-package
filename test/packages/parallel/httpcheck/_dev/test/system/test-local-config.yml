@@ -3,5 +3,6 @@ skip:
   link: https://github.com/elastic/elastic-package/issues/2835
 service: web
 vars:
+  period: 1s
   endpoints:
     - http://{{Hostname}}:{{Port}}
