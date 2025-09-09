@@ -1007,20 +1007,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 
-	policyCurrent, policyToEnroll, policyToTest, err := r.createKibanaPolicies(ctx, serviceStateData, stackConfig)
+	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kibana policies: %w", err)
 	}
 
-	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
-	policy := policyToEnroll
-	if r.runTearDown || r.runTestsOnly {
-		// required in order to be able select the right agent in `checkEnrolledAgents` when
-		// using independent agents or custom/kubernetes agents since policy data is set into `agentInfo` variable`
-		policy = policyCurrent
-	}
-
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy)
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policyToEnrollOrCurrent)
 	if err != nil {
 		return nil, err
 	}
@@ -1039,7 +1031,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		}
 	}
 
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policyToEnrollOrCurrent, serviceStateData)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
@@ -1241,7 +1233,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if r.runSetup {
 		opts := scenarioStateOpts{
 			origPolicy:    &origPolicy,
-			enrollPolicy:  policyToEnroll,
+			enrollPolicy:  policyToEnrollOrCurrent,
 			currentPolicy: policyToTest,
 			config:        config,
 			agent:         *origAgent,
@@ -1257,7 +1249,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	return &scenario, nil
 }
 
-func (r *tester) createKibanaPolicies(ctx context.Context, serviceStateData ServiceState, stackConfig stack.Config) (*kibana.Policy, *kibana.Policy, *kibana.Policy, error) {
+// createOrGetKibanaPolicies creates the Kibana policies required for testing.
+// It creates two policies, one for enrolling the agent (policyToEnroll) and another one
+// for testing purposes (policyToTest) where the package data stream is added.
+// In case the tester is running with --teardown or --no-provision flags, then the policies
+// are read from the service state file created in the setup stage.
+func (r *tester) createOrGetKibanaPolicies(ctx context.Context, serviceStateData ServiceState, stackConfig stack.Config) (*kibana.Policy, *kibana.Policy, error) {
 	// Configure package (single data stream) via Fleet APIs.
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	var policyToTest, policyCurrent, policyToEnroll *kibana.Policy
@@ -1282,7 +1279,7 @@ func (r *tester) createKibanaPolicies(ctx context.Context, serviceStateData Serv
 
 		policyToEnroll, err = r.kibanaClient.CreatePolicy(ctx, policyEnroll)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("could not create test policy: %w", err)
+			return nil, nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 
@@ -1324,7 +1321,7 @@ func (r *tester) createKibanaPolicies(ctx context.Context, serviceStateData Serv
 		}
 		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("could not create test policy: %w", err)
+			return nil, nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 
@@ -1342,7 +1339,14 @@ func (r *tester) createKibanaPolicies(ctx context.Context, serviceStateData Serv
 		return nil
 	}
 
-	return policyCurrent, policyToEnroll, policyToTest, nil
+	if r.runTearDown || r.runTestsOnly {
+		// required to return "policyCurrent" policy in order to be able select the right agent in `checkEnrolledAgents` when
+		// using independent agents or custom/kubernetes agents since policy data is set into `agentInfo` variable`
+		return policyCurrent, policyToTest, nil
+	}
+
+	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
+	return policyToEnroll, policyToTest, nil
 }
 
 func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
