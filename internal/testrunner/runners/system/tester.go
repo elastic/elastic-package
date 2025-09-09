@@ -1887,8 +1887,13 @@ func createInputPackageDatastream(
 	config testConfig,
 	suffix string,
 ) kibana.PackageDataStream {
+	dataset := fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name)
+	if policyTemplate.Input == "otelcol" {
+		dataset = fmt.Sprintf("%s.otel", dataset)
+	}
+
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
+		Name:      fmt.Sprintf("%s-%s", dataset, suffix),
 		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
@@ -1901,16 +1906,13 @@ func createInputPackageDatastream(
 			PolicyTemplate: policyTemplate.Name,
 			Enabled:        true,
 			Vars:           kibana.Vars{},
+			Type:           policyTemplate.Input,
 		},
 	}
 
-	streamInput := policyTemplate.Input
-	r.Inputs[0].Type = streamInput
-
-	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			ID:      fmt.Sprintf("%s-%s.%s", policyTemplate.Input, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
