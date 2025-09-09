@@ -225,17 +225,15 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 		for i, line := range lines {
 			line = bytes.TrimRight(line, "\r\n")
 			stringLine := string(line)
-			if strings.Contains(stringLine, ":") {
-				if uniqueOtelComponentIDReplace.regexp.MatchString(stringLine) {
-					replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
-					count++
-					lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
+			if uniqueOtelComponentIDReplace.regexp.MatchString(stringLine) {
+				replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
+				count++
+				lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
 
-					// store the otel ID replaced without the space indentation and the colon to be replaced later
-					// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-					otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
-					replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
-				}
+				// store the otel ID replaced without the space indentation and the colon to be replaced later
+				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
+				otelID := strings.SplitN(strings.TrimSpace(stringLine), ":", 2)[0]
+				replacementsDone[otelID] = strings.SplitN(strings.TrimSpace(string(lines[i])), ":", 2)[0]
 			}
 		}
 		return bytes.Join(lines, []byte("\n"))
