@@ -5,6 +5,7 @@
 package policy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"errors"
@@ -221,22 +222,25 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 
 	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
 		count := 0
-		lines := bytes.Split(match, []byte("\n"))
-		for i, line := range lines {
-			line = bytes.TrimRight(line, "\r\n")
-			stringLine := string(line)
-			if uniqueOtelComponentIDReplace.regexp.MatchString(stringLine) {
+		scanner := bufio.NewScanner(bytes.NewReader(match))
+		var section strings.Builder
+		for scanner.Scan() {
+			line := scanner.Text()
+			if uniqueOtelComponentIDReplace.regexp.MatchString(line) {
+				originalOtelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
+
 				replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
 				count++
-				lines[i] = []byte(uniqueOtelComponentIDReplace.regexp.ReplaceAllString(stringLine, replacement))
+				line = uniqueOtelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
 
 				// store the otel ID replaced without the space indentation and the colon to be replaced later
 				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				otelID, _, _ := strings.Cut(strings.TrimSpace(stringLine), ":")
-				replacementsDone[otelID], _, _ = strings.Cut(strings.TrimSpace(string(lines[i])), ":")
+				replacementsDone[originalOtelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
 			}
+			section.WriteString(line + "\n")
 		}
-		return bytes.Join(lines, []byte("\n"))
+
+		return []byte(section.String())
 	})
 
 	// Replace references in arrays to the otel component IDs replaced before.
