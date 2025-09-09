@@ -1150,19 +1150,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	// Delete old data
 	logger.Debug("deleting old data in data stream...")
 
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
-	scenario.indexTemplateName = fmt.Sprintf(
-		"%s-%s",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-	)
+	scenario.indexTemplateName = r.buildIndexTemplateName(ds, policyTemplate, config)
 	scenario.dataStream = fmt.Sprintf(
 		"%s-%s",
 		scenario.indexTemplateName,
@@ -1332,6 +1320,26 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	return &scenario, nil
+}
+
+func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, config *testConfig) string {
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+		if policyTemplate.Input == "otelcol" {
+			dataStreamDataset = fmt.Sprintf("%s.otel", dataStreamDataset)
+		}
+	}
+	indexTemplateName := fmt.Sprintf(
+		"%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+	)
+	return indexTemplateName
 }
 
 func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
