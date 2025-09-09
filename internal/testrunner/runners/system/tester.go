@@ -88,6 +88,9 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout = 10 * time.Minute
+
+	otelCollectorInputName = "otelcol"
+	otelSuffixDataset      = "otel"
 )
 
 type logsRegexp struct {
@@ -943,6 +946,7 @@ type scenarioTest struct {
 	dataStream          string
 	indexTemplateName   string
 	policyTemplateName  string
+	policyTemplateInput string
 	kibanaDataStream    kibana.PackageDataStream
 	syntheticEnabled    bool
 	docs                []common.MapStr
@@ -1006,6 +1010,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+
+	scenario.policyTemplateInput = policyTemplate.Input
 
 	// Configure package (single data stream) via Fleet APIs.
 	testTime := time.Now().Format("20060102T15:04:05Z")
@@ -1327,8 +1333,8 @@ func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, policyTempl
 		if dataset, ok := v.(string); ok && dataset != "" {
 			dataStreamDataset = dataset
 		}
-		if policyTemplate.Input == "otelcol" {
-			dataStreamDataset = fmt.Sprintf("%s.otel", dataStreamDataset)
+		if policyTemplate.Input == otelCollectorInputName {
+			dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
 		}
 	}
 	indexTemplateName := fmt.Sprintf(
@@ -1586,7 +1592,13 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		if ds := r.testFolder.DataStream; ds != "" {
 			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
 		} else {
+			// Input packages without data stream use the policy template name as dataset
 			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
+			// Special case for opentelemetry package
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				expectedDataset += "." + otelSuffixDataset
+			}
+			logger.Infof("No data stream defined, using policy template name as dataset: %s", expectedDataset)
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
@@ -1887,13 +1899,16 @@ func createInputPackageDatastream(
 	config testConfig,
 	suffix string,
 ) kibana.PackageDataStream {
-	dataset := fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name)
-	if policyTemplate.Input == "otelcol" {
-		dataset = fmt.Sprintf("%s.otel", dataset)
+	policyName := fmt.Sprintf("%s-%s", pkg.Name, policyTemplate.Name)
+	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
+
+	if policyTemplate.Input == otelCollectorInputName {
+		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
+		policyName = fmt.Sprintf("%s.%s", policyName, otelSuffixDataset)
 	}
 
 	r := kibana.PackageDataStream{
-		Name:      fmt.Sprintf("%s-%s", dataset, suffix),
+		Name:      fmt.Sprintf("%s-%s", policyName, suffix),
 		Namespace: kibanaPolicy.Namespace,
 		PolicyID:  kibanaPolicy.ID,
 		Enabled:   true,
