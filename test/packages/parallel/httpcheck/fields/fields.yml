@@ -1,5 +1,5 @@
 - name: "_metric_names_hash"
-  type: string
+  type: keyword
 - name: "attributes.http"
   type: group
   fields:
@@ -10,7 +10,7 @@
     - name: status_code
       type: long
     - name: url
-      type: string
+      type: keyword
 - name: "http"
   type: group
   fields:
@@ -21,7 +21,7 @@
     - name: status_code
       type: long
     - name: url
-      type: string
+      type: keyword
 - name: httpcheck
   type: group
   fields:
@@ -40,10 +40,10 @@
   type: group
   fields:
     - name: name
-      type: string
+      type: keyword
     - name: version
-      type: string
+      type: keyword
 - name: start_timestamp
   type: date
 - name: unit
-  type: string
+  type: keyword
