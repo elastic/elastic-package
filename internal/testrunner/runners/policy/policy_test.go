@@ -312,9 +312,24 @@ processors:
     batch/e6e379c5-6446-4090-af10-a9e5f8fc4640:
         send_batch_size: 10000
         timeout: 10s
+    transform/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-routing:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "httpcheck.check")
+                - set(attributes["data_stream.namespace"], "ep")
+connectors:
+  forward: {}
 receivers:
     httpcheck/4bae34b3-8f66-49c1-b04f-d58af1b5f743:
         collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+    httpcheck/httpcheck/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd:
+        collection_interval: 2m
         targets:
             - endpoints:
                 - https://epr.elastic.co
@@ -324,6 +339,13 @@ service:
     extensions:
         - health_check/31c94f44-214a-4778-8a36-acc2634096f7
     pipelines:
+        metrics/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd:
+            receivers:
+                - >-
+                  httpcheck/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd
+            processors:
+                - >-
+                  transform/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-routing
         logs:
             receivers:
                 - httpcheck/4bae34b3-8f66-49c1-b04f-d58af1b5f743
@@ -357,9 +379,24 @@ processors:
     batch/8ec6ee99-2176-4231-9668-908069c77784:
         send_batch_size: 10000
         timeout: 10s
+    transform/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-routing:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "httpcheck.check")
+                - set(attributes["data_stream.namespace"], "ep")
+connectors:
+  forward: {}
 receivers:
     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
         collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+    httpcheck/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77:
+        collection_interval: 2m
         targets:
             - endpoints:
                 - https://epr.elastic.co
@@ -369,6 +406,13 @@ service:
     extensions:
         - health_check/4391d954-1ffe-4014-a256-5eda78a71829
     pipelines:
+        metrics/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77:
+            receivers:
+                - >-
+                  httpcheck/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77
+            processors:
+                - >-
+                  transform/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-routing
         logs:
             receivers:
                 - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
@@ -406,9 +450,24 @@ processors:
     batch/componentid-1:
         send_batch_size: 10000
         timeout: 10s
+    transform/componentid-2:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "httpcheck.check")
+                - set(attributes["data_stream.namespace"], "ep")
+connectors:
+  forward: {}
 receivers:
     httpcheck/componentid-0:
         collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+    httpcheck/componentid-1:
+        collection_interval: 2m
         targets:
             - endpoints:
                 - https://epr.elastic.co
@@ -418,6 +477,13 @@ service:
     extensions:
         - health_check/componentid-0
     pipelines:
+        metrics/componentid-0:
+            receivers:
+                - >-
+                  httpcheck/componentid-1
+            processors:
+                - >-
+                  transform/componentid-2
         logs:
             receivers:
                 - httpcheck/componentid-0
@@ -451,9 +517,24 @@ processors:
     batch/8ec6ee99-2176-4231-9668-908069c77784:
         send_batch_size: 10000
         timeout: 10s
+    transform/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-routing:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "httpcheck.check")
+                - set(attributes["data_stream.namespace"], "ep")
+connectors:
+  forward: {}
 receivers:
     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
         collection_interval: 1m
+        targets:
+            - endpoints:
+                - https://epr.elastic.co
+              method: GET
+    httpcheck/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77:
+        collection_interval: 2m
         targets:
             - endpoints:
                 - https://epr.elastic.co
@@ -463,6 +544,13 @@ service:
     extensions:
         - health_check/4391d954-1ffe-4014-a256-5eda78a71828
     pipelines:
+        metrics/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77:
+            receivers:
+                - >-
+                  httpcheck/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77
+            processors:
+                - >-
+                  transform/otelcol-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-otelcol-httpcheck-check-12bd7179-ea83-494b-9f2c-5bf818cd6a77-routing
         logs:
             receivers:
                 - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
