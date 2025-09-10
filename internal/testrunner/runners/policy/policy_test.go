@@ -328,7 +328,7 @@ receivers:
             - endpoints:
                 - https://epr.elastic.co
               method: GET
-    httpcheck/httpcheck/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd:
+    httpcheck/otelcol-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd-otelcol-httpcheck-check-9987a1b9-3a12-43e8-a0a2-e83fa9deebfd:
         collection_interval: 2m
         targets:
             - endpoints:
