@@ -14,7 +14,7 @@ output_permissions:
                     - auto_configure
                     - create_doc
 receivers:
-    httpcheck/componentid:
+    httpcheck/componentid-0:
         collection_interval: 1m
         targets:
             - endpoints:
@@ -25,4 +25,4 @@ service:
     pipelines:
         metrics:
             receivers:
-                - httpcheck/componentid
+                - httpcheck/componentid-0

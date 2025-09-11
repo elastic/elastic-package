@@ -190,7 +190,14 @@ var uniqueOtelComponentIDReplace = policyEntryReplace{
 //	            - endpoints:
 //	                - https://epr.elastic.co
 //	              method: GET
-var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|connectors|exporters):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
+//	   service:
+//	      pipelines:
+//	          logs:
+//	              receivers/6b7f1379-dcb9-4ac7-b253-4df6d088b3ff:
+//	                  - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
+//
+// The regex captures the whole section, so it can be processed line by line to replace the IDs.
+var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|connectors|exporters|service):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
 
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
@@ -248,10 +255,7 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 	// service.extensions
 	// service.pipelines.<signal>.(receivers|processors|exporters)
 	for original, replacement := range replacementsDone {
-		originalArrayItem := fmt.Sprintf("- %s", original)
-		replacedArrayItem := fmt.Sprintf("- %s", replacement)
-
-		policy = bytes.ReplaceAll(policy, []byte(originalArrayItem), []byte(replacedArrayItem))
+		policy = bytes.ReplaceAll(policy, []byte(original), []byte(replacement))
 	}
 	return policy
 }
