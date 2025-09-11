@@ -95,7 +95,9 @@ prepare_serverless_stack() {
             -U "stack.serverless.region=${EC_REGION_SECRET},stack.serverless.type=${SERVERLESS_PROJECT}" 2>&1 | grep -E -v "^Password: " ; then
 
             echo "Failed to start Elastic stack with Serverless provider"
-            elastic-package stack down
+            # This command could fail since the docker-compose project could not be initialized
+            # or even when deleting the Serverless project
+            elastic-package stack down || true
             sleep 10
         else
             echo "Elastic stack with Serverless provider started"
