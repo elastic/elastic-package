@@ -51,9 +51,7 @@ echo "--- Install elastic-package"
 # Required to start the Serverless Elastic stack
 make install
 
-if ! prepare_serverless_stack ; then
-    exit 10
-fi
+prepare_serverless_stack
 
 echo "Waiting time to avoid getaddrinfo ENOTFOUND errors if any..."
 sleep 120

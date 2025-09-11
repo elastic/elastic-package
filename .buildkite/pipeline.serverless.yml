@@ -44,10 +44,6 @@ steps:
     agents:
       provider: "gcp"
       image: "${UBUNTU_X86_64_AGENT_IMAGE}"
-    retry:
-      automatic:
-        - exit_status: 10
-          limit: 2
     env:
       SERVERLESS: "true"
       SERVERLESS_PROJECT: "${SERVERLESS_PROJECT:-observability}"

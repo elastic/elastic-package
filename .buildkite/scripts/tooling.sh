@@ -84,11 +84,26 @@ prepare_serverless_stack() {
     fi
 
     # grep command required to remove password from the output
-    if ! elastic-package stack up \
-        -d \
-        ${args} \
-        --provider serverless \
-        -U "stack.serverless.region=${EC_REGION_SECRET},stack.serverless.type=${SERVERLESS_PROJECT}" 2>&1 | grep -E -v "^Password: " ; then
+    local failed=1
+    local max_iter=3
+    for iter in $(seq 1 "${max_iter}") ; do
+        echo "Trying to start serverless project (${iter}/${max_iter})..."
+        if ! elastic-package stack up \
+            -d \
+            ${args} \
+            --provider serverless \
+            -U "stack.serverless.region=${EC_REGION_SECRET},stack.serverless.type=${SERVERLESS_PROJECT}" 2>&1 | grep -E -v "^Password: " ; then
+
+            echo "Failed to start Elastic stack with Serverless provider"
+            elastic-package stack down
+            sleep 10
+        else
+            echo "Elastic stack with Serverless provider started"
+            failed=0
+            break
+        fi
+    done
+    if [[ "$failed" == 1 ]]; then
         return 1
     fi
     echo ""
