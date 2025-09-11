@@ -1,0 +1,16 @@
+# This file intentionally contains only documentation and no vars/configuration settings.
+# The logfile input has been deprecated since Filebeat 7.16.0 in favor of filestream.
+# We don't want to offer this as an option for new data streams, but existing integrations
+# using it will still get this documentation when built.
+name: logfile
+documentation: |
+  ## Setup
+  For more details about the logfile input settings, check the [Filebeat documentation](https://www.elastic.co/docs/reference/beats/filebeat/filebeat-input-log).
+
+  ### Collecting logs from logfile
+
+  To collect logs via logfile, select **Collect logs via the logfile input** and configure the following parameter:
+
+  - Paths: List of glob-based paths to crawl and fetch log files from. Supports glob patterns like
+    `/var/log/*.log` or `/var/log/*/*.log` for subfolder matching. Each file found starts a
+    separate harvester.
