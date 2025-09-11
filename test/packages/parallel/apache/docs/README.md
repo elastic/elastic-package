@@ -717,7 +717,7 @@ For more details about the logfile input settings, check the [Filebeat documenta
 
 ### Collecting logs from logfile
 
-To collect logs via GCS, select **Collect logs via the logfile input** and configure the following parameter:
+To collect logs via logfile, select **Collect logs via the logfile input** and configure the following parameter:
 
 - Paths: List of glob-based paths to crawl and fetch log files from. Supports glob patterns like
   `/var/log/*.log` or `/var/log/*/*.log` for subfolder matching. Each file found starts a
