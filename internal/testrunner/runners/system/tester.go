@@ -1607,13 +1607,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		if ds := r.testFolder.DataStream; ds != "" {
 			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
 		} else {
-			// Input packages without data stream use the policy template name as dataset
+			// If there is no data stream, then these packages are input packages and
+			// it is used the policy template name as part of the dataset
 			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
-			// Special case for opentelemetry package
 			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
 				expectedDataset += "." + otelSuffixDataset
 			}
-			logger.Infof("No data stream defined, using policy template name as dataset: %s", expectedDataset)
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
