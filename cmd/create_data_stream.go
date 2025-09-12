@@ -10,13 +10,12 @@ import (
 	"maps"
 	"slices"
 
-	"github.com/AlecAivazis/survey/v2"
-
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
+	"github.com/elastic/elastic-package/internal/tui"
 )
 
 const createDataStreamLongDescription = `Use this command to create a new data stream.
@@ -54,75 +53,56 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	validator := surveyext.Validator{Cwd: "."}
-	qs := []*survey.Question{
+	qs := []*tui.Question{
 		{
-			Name: "name",
-			Prompt: &survey.Input{
-				Message: "Data stream name:",
-				Default: "new_data_stream",
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
+			Name:     "name",
+			Prompt:   tui.NewInput("Data stream name:", "new_data_stream"),
+			Validate: tui.ComposeValidators(tui.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
 		},
 		{
-			Name: "title",
-			Prompt: &survey.Input{
-				Message: "Data stream title:",
-				Default: "New Data Stream",
-			},
-			Validate: survey.Required,
+			Name:     "title",
+			Prompt:   tui.NewInput("Data stream title:", "New Data Stream"),
+			Validate: tui.Required,
 		},
 		{
-			Name: "type",
-			Prompt: &survey.Select{
-				Message: "Type:",
-				Options: []string{"logs", "metrics"},
-				Default: "logs",
-			},
-			Validate: survey.Required,
+			Name:     "type",
+			Prompt:   tui.NewSelect("Type:", []string{"logs", "metrics"}, "logs"),
+			Validate: tui.Required,
 		},
 		{
-			Name: "subobjects",
-			Prompt: &survey.Confirm{
-				Message: "Enable creation of subobjects for fields with dots in their names?",
-				Default: false,
-			},
-			Validate: survey.Required,
+			Name:     "subobjects",
+			Prompt:   tui.NewConfirm("Enable creation of subobjects for fields with dots in their names?", false),
+			Validate: tui.Required,
 		},
 	}
 	var answers newDataStreamAnswers
-	err = survey.Ask(qs, &answers)
+	err = tui.Ask(qs, &answers)
 	if err != nil {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
 
 	if answers.Type == "metrics" {
-		qs := []*survey.Question{
+		qs := []*tui.Question{
 			{
-				Name: "syntheticAndTimeSeries",
-				Prompt: &survey.Confirm{
-					Message: "Enable time series and synthetic source?",
-					Default: true,
-				},
-				Validate: survey.Required,
+				Name:     "syntheticAndTimeSeries",
+				Prompt:   tui.NewConfirm("Enable time series and synthetic source?", true),
+				Validate: tui.Required,
 			},
 		}
-		err = survey.Ask(qs, &answers)
+		err = tui.Ask(qs, &answers)
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
 
 		if !answers.SyntheticAndTimeSeries {
-			qs := []*survey.Question{
+			qs := []*tui.Question{
 				{
-					Name: "synthetic",
-					Prompt: &survey.Confirm{
-						Message: "Enable synthetic source?",
-						Default: true,
-					},
-					Validate: survey.Required,
+					Name:     "synthetic",
+					Prompt:   tui.NewConfirm("Enable synthetic source?", true),
+					Validate: tui.Required,
 				},
 			}
-			err = survey.Ask(qs, &answers)
+			err = tui.Ask(qs, &answers)
 			if err != nil {
 				return fmt.Errorf("prompt failed: %w", err)
 			}
@@ -150,24 +130,23 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			"udp":                "UDP",
 			"winlog":             "WinLogBeat",
 		}
-		qs := []*survey.Question{
+		multiSelect := tui.NewMultiSelect("Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs", slices.Sorted(maps.Keys(inputsMap)), []string{})
+		multiSelect.SetPageSize(50)
+		multiSelect.SetDescription(func(value string, index int) string {
+			val, ok := inputsMap[value]
+			if ok {
+				return val
+			}
+			return ""
+		})
+
+		qs := []*tui.Question{
 			{
-				Name: "inputs",
-				Prompt: &survey.MultiSelect{
-					Message:  "Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs",
-					Options:  slices.Sorted(maps.Keys(inputsMap)),
-					PageSize: 50,
-					Description: func(value string, index int) string {
-						val, ok := inputsMap[value]
-						if ok {
-							return val
-						}
-						return ""
-					},
-				},
+				Name:   "inputs",
+				Prompt: multiSelect,
 			},
 		}
-		err = survey.Ask(qs, &answers)
+		err = tui.Ask(qs, &answers)
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}

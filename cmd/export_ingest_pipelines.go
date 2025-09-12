@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/elastic/elastic-package/internal/tui"
 
 	"github.com/spf13/cobra"
 
@@ -146,14 +146,11 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 		return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "global@")
 	})
 
-	ingestPipelinesPrompt := &survey.MultiSelect{
-		Message:  "Which ingest pipelines would you like to export?",
-		Options:  ingestPipelineNames,
-		PageSize: 20,
-	}
+	ingestPipelinesPrompt := tui.NewMultiSelect("Which ingest pipelines would you like to export?", ingestPipelineNames, []string{})
+	ingestPipelinesPrompt.SetPageSize(20)
 
 	var selectedOptions []string
-	err = survey.AskOne(ingestPipelinesPrompt, &selectedOptions, survey.WithValidator(survey.Required))
+	err = tui.AskOne(ingestPipelinesPrompt, &selectedOptions, tui.Required)
 	if err != nil {
 		return nil, err
 	}
@@ -168,23 +165,21 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 		options = append(options, writeLocation.Name)
 	}
 
-	var questions []*survey.Question
+	var questions []*tui.Question
 
 	for _, pipelineName := range pipelineNames {
-		question := &survey.Question{
-			Name: pipelineName,
-			Prompt: &survey.Select{
-				Message: fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName),
-				Options: options,
-				Description: func(value string, index int) string {
-					if writeLocations[index].Type == export.PipelineWriteLocationTypeDataStream {
-						return "data stream"
-					}
+		selectPrompt := tui.NewSelect(fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName), options, "")
+		selectPrompt.SetDescription(func(value string, index int) string {
+			if index < len(writeLocations) && writeLocations[index].Type == export.PipelineWriteLocationTypeDataStream {
+				return "data stream"
+			}
+			return ""
+		})
 
-					return ""
-				},
-			},
-			Validate: survey.Required,
+		question := &tui.Question{
+			Name:     pipelineName,
+			Prompt:   selectPrompt,
+			Validate: tui.Required,
 		}
 
 		questions = append(questions, question)
@@ -192,7 +187,7 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 
 	answers := make(map[string]string)
 
-	err := survey.Ask(questions, &answers)
+	err := tui.Ask(questions, &answers)
 
 	if err != nil {
 		return nil, err

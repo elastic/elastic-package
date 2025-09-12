@@ -8,7 +8,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/elastic/elastic-package/internal/tui"
 
 	"github.com/spf13/cobra"
 
@@ -98,14 +98,11 @@ func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]str
 		return []string{}, nil
 	}
 
-	dashboardsPrompt := &survey.MultiSelect{
-		Message:  "Which dashboards would you like to export?",
-		Options:  savedDashboards.Strings(),
-		PageSize: 100,
-	}
+	dashboardsPrompt := tui.NewMultiSelect("Which dashboards would you like to export?", savedDashboards.Strings(), []string{})
+	dashboardsPrompt.SetPageSize(100)
 
 	var selectedOptions []string
-	err = survey.AskOne(dashboardsPrompt, &selectedOptions, survey.WithValidator(survey.Required))
+	err = tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
 	if err != nil {
 		return nil, err
 	}
