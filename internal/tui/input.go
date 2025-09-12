@@ -26,16 +26,23 @@ func NewInput(message, defaultValue string) *Input {
 	return &Input{
 		message:      message,
 		defaultValue: defaultValue,
-		value:        defaultValue,
+		value:        "", // Start with empty value
 		focused:      true,
 	}
 }
 
 func (i *Input) Message() string         { return i.message }
 func (i *Input) Default() interface{}    { return i.defaultValue }
-func (i *Input) Value() interface{}      { return i.value }
 func (i *Input) SetError(err string)     { i.error = err }
 func (i *Input) SetFocused(focused bool) { i.focused = focused }
+
+// Value returns the current value or default if empty
+func (i *Input) Value() interface{} {
+	if strings.TrimSpace(i.value) == "" && i.defaultValue != "" {
+		return i.defaultValue
+	}
+	return i.value
+}
 
 func (i *Input) Update(msg tea.Msg) (Prompt, tea.Cmd) {
 	switch msg := msg.(type) {
