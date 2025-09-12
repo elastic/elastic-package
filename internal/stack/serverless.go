@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -47,6 +48,9 @@ type serverlessProvider struct {
 
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
+
+	retriesDefaultFleetServerTimeout  time.Duration
+	retriesDefaultFleetServerInterval time.Duration
 }
 
 type projectSettings struct {
@@ -103,10 +107,23 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, err
 	}
 
-	config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
-	if err != nil {
+	fleetServerURL := ""
+	wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		fleetServerURL, err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+		if errors.Is(err, kibana.ErrFleetServerNotFound) {
+			logger.Debugf("Fleet Server URL not found yet, retrying...")
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		return true, nil
+	}, sp.retriesDefaultFleetServerInterval, sp.retriesDefaultFleetServerTimeout)
+	if fleetServerURL == "" {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
+
+	config.Parameters[ParamServerlessFleetURL] = fleetServerURL
 	project.Endpoints.Fleet = config.Parameters[ParamServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
@@ -235,7 +252,14 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
-	return &serverlessProvider{profile, client, nil, nil}, nil
+	return &serverlessProvider{
+		profile:                           profile,
+		client:                            client,
+		elasticsearchClient:               nil,
+		kibanaClient:                      nil,
+		retriesDefaultFleetServerTimeout:  10 * time.Second,
+		retriesDefaultFleetServerInterval: 2 * time.Second,
+	}, nil
 }
 
 func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
