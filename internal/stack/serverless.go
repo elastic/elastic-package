@@ -35,6 +35,9 @@ const (
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
+
+	defaultRetriesDefaultFleetServerPeriod  = 2 * time.Second
+	defaultRetriesDefaultFleetServerTimeout = 10 * time.Second
 )
 
 var allowedProjectTypes = []string{
@@ -49,8 +52,8 @@ type serverlessProvider struct {
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
 
-	retriesDefaultFleetServerTimeout  time.Duration
-	retriesDefaultFleetServerInterval time.Duration
+	retriesDefaultFleetServerTimeout time.Duration
+	retriesDefaultFleetServerPeriod  time.Duration
 }
 
 type projectSettings struct {
@@ -119,7 +122,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		}
 		logger.Debug("Fleet Server found")
 		return true, nil
-	}, sp.retriesDefaultFleetServerInterval, sp.retriesDefaultFleetServerTimeout)
+	}, sp.retriesDefaultFleetServerPeriod, sp.retriesDefaultFleetServerTimeout)
 	if fleetServerURL == "" {
 		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
 	}
@@ -254,12 +257,12 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 	}
 
 	return &serverlessProvider{
-		profile:                           profile,
-		client:                            client,
-		elasticsearchClient:               nil,
-		kibanaClient:                      nil,
-		retriesDefaultFleetServerTimeout:  10 * time.Second,
-		retriesDefaultFleetServerInterval: 2 * time.Second,
+		profile:                          profile,
+		client:                           client,
+		elasticsearchClient:              nil,
+		kibanaClient:                     nil,
+		retriesDefaultFleetServerTimeout: defaultRetriesDefaultFleetServerTimeout,
+		retriesDefaultFleetServerPeriod:  defaultRetriesDefaultFleetServerPeriod,
 	}, nil
 }
 
