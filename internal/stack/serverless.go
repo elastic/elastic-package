@@ -127,7 +127,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, fmt.Errorf("error while waiting for Fleet Server URL: %w", err)
 	}
 	if !found {
-		return Config{}, fmt.Errorf("Fleet Server URL not found after %s", sp.retriesDefaultFleetServerTimeout)
+		return Config{}, fmt.Errorf("not found Fleet Server URL after %s", sp.retriesDefaultFleetServerTimeout)
 	}
 
 	config.Parameters[ParamServerlessFleetURL] = fleetServerURL
