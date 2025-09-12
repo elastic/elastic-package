@@ -111,7 +111,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 
 	fleetServerURL := ""
-	wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+	found, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		fleetServerURL, err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
 		if errors.Is(err, kibana.ErrFleetServerNotFound) {
 			logger.Debug("Fleet Server URL not found yet, retrying...")
@@ -123,8 +123,11 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		logger.Debug("Fleet Server found")
 		return true, nil
 	}, sp.retriesDefaultFleetServerPeriod, sp.retriesDefaultFleetServerTimeout)
-	if fleetServerURL == "" {
-		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+	if err != nil {
+		return Config{}, fmt.Errorf("error while waiting for Fleet Server URL: %w", err)
+	}
+	if !found {
+		return Config{}, fmt.Errorf("Fleet Server URL not found after %s", sp.retriesDefaultFleetServerTimeout)
 	}
 
 	config.Parameters[ParamServerlessFleetURL] = fleetServerURL
