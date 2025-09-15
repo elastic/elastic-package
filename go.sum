@@ -115,8 +115,8 @@ github.com/elastic/gojsonschema v1.2.1 h1:cUMbgsz0wyEB4x7xf3zUEvUVDl6WCz2RKcQPul
 github.com/elastic/gojsonschema v1.2.1/go.mod h1:biw5eBS2Z4T02wjATMRSfecfjCmwaDPvuaqf844gLrg=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.4.1 h1:ktWBeC3/6TNuFkueZG579iRDFU5xrGzxNKQJuiJ2R9c=
-github.com/elastic/package-spec/v3 v3.4.1/go.mod h1:9ZdoKYGO3urnMb+eg5hn2I1ypMBaosgSE06OAXB8Gxs=
+github.com/elastic/package-spec/v3 v3.5.0 h1:rvB+lWXXoUkSVx4TaHerV/eO6uN0NH1E5sPW1kW74Lk=
+github.com/elastic/package-spec/v3 v3.5.0/go.mod h1:dH//Q1geKx3fxC0lwPrVmnjN6RMqyDf5tnsw7trwqWE=
 github.com/emicklei/go-restful/v3 v3.12.2 h1:DhwDP0vY3k8ZzE0RunuJy8GhNpPL6zqLkDf9B/a0/xU=
 github.com/emicklei/go-restful/v3 v3.12.2/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/envoyproxy/go-control-plane v0.9.1-0.20191026205805-5f8ba28d4473/go.mod h1:YTl/9mNaCwkRvm6d1a2C3ymFceY/DCBVvsKhRF0iEA4=
@@ -425,6 +425,8 @@ github.com/youmark/pkcs8 v0.0.0-20181117223130-1be2e3e5546d/go.mod h1:rHwXgn7Jul
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+github.com/yuin/goldmark v1.7.13 h1:GPddIs617DnBLFFVJFgpo1aBfe/4xcvMc3SB5t/D0pA=
+github.com/yuin/goldmark v1.7.13/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
 github.com/yusufpapurcu/wmi v1.2.4 h1:zFUKzehAFReQwLys1b/iSMl+JQGSCSjtVqQn9bBrPo0=
 github.com/yusufpapurcu/wmi v1.2.4/go.mod h1:SBZ9tNy3G9/m5Oi98Zks0QjeHVDvuK0qfxQmPyzfmi0=
 go.mongodb.org/mongo-driver v1.10.0/go.mod h1:wsihk0Kdgv8Kqu1Anit4sfK+22vSFbUrAVEYRhCXrA8=
