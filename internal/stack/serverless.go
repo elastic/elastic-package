@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -34,6 +35,9 @@ const (
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
+
+	defaultRetriesDefaultFleetServerPeriod  = 2 * time.Second
+	defaultRetriesDefaultFleetServerTimeout = 10 * time.Second
 )
 
 var allowedProjectTypes = []string{
@@ -47,6 +51,9 @@ type serverlessProvider struct {
 
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
+
+	retriesDefaultFleetServerTimeout time.Duration
+	retriesDefaultFleetServerPeriod  time.Duration
 }
 
 type projectSettings struct {
@@ -103,10 +110,25 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, err
 	}
 
-	config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+	found, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+		if errors.Is(err, kibana.ErrFleetServerNotFound) {
+			logger.Debug("Fleet Server URL not found yet, retrying...")
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		logger.Debug("Fleet Server found")
+		return true, nil
+	}, sp.retriesDefaultFleetServerPeriod, sp.retriesDefaultFleetServerTimeout)
 	if err != nil {
-		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+		return Config{}, fmt.Errorf("error while waiting for Fleet Server URL: %w", err)
 	}
+	if !found {
+		return Config{}, fmt.Errorf("not found Fleet Server URL after %s", sp.retriesDefaultFleetServerTimeout)
+	}
+
 	project.Endpoints.Fleet = config.Parameters[ParamServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
@@ -235,7 +257,14 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
-	return &serverlessProvider{profile, client, nil, nil}, nil
+	return &serverlessProvider{
+		profile:                          profile,
+		client:                           client,
+		elasticsearchClient:              nil,
+		kibanaClient:                     nil,
+		retriesDefaultFleetServerTimeout: defaultRetriesDefaultFleetServerTimeout,
+		retriesDefaultFleetServerPeriod:  defaultRetriesDefaultFleetServerPeriod,
+	}, nil
 }
 
 func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
