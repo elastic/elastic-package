@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/Masterminds/semver/v3"
 
 	"github.com/spf13/cobra"
 
@@ -18,6 +19,8 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/surveyext"
 )
+
+var semver3_2_0 = semver.MustParse("3.2.0")
 
 const createDataStreamLongDescription = `Use this command to create a new data stream.
 
@@ -80,14 +83,21 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 			},
 			Validate: survey.Required,
 		},
-		{
+	}
+
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+	}
+	if !sv.LessThan(semver3_2_0) {
+		qs = append(qs, &survey.Question{
 			Name: "subobjects",
 			Prompt: &survey.Confirm{
 				Message: "Enable creation of subobjects for fields with dots in their names?",
 				Default: false,
 			},
 			Validate: survey.Required,
-		},
+		})
 	}
 	var answers newDataStreamAnswers
 	err = survey.Ask(qs, &answers)
@@ -173,7 +183,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
+	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
 		return fmt.Errorf("can't create new data stream: %w", err)
@@ -183,14 +193,14 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string) archetype.DataStreamDescriptor {
+func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string, specVersion *semver.Version) archetype.DataStreamDescriptor {
 	manifest := packages.DataStreamManifest{
 		Name:  answers.Name,
 		Title: answers.Title,
 		Type:  answers.Type,
 	}
 
-	if !answers.Subobjects {
+	if !specVersion.LessThan(semver3_2_0) && !answers.Subobjects {
 		manifest.Elasticsearch = &packages.Elasticsearch{
 			IndexTemplate: &packages.ManifestIndexTemplate{
 				Mappings: &packages.ManifestMappings{
