@@ -1,0 +1,32 @@
+[!external_stack] skip 'Skipping external stack test.'
+[!exec:curl] skip 'Skipping test requiring absent curl command'
+
+# Register stack and check that we get the expected output.
+use_stack -profile ${CONFIG_PROFILES}/default
+! stderr .
+cmpenv stdout want_use.json
+
+exec curl -s -O 'https://epr.elastic.co/epr/cel/cel-0.1.0.zip'
+
+add_package_zip -profile ${CONFIG_PROFILES}/default cel-0.1.0.zip
+! stderr .
+stdout 'added zipped package resources in '${WORK@R}'/cel-0\.1\.0\.zip for cel in test for with_script'
+
+remove_package_zip -profile ${CONFIG_PROFILES}/default cel-0.1.0.zip
+! stderr .
+stdout 'removed zipped package resources in '${WORK@R}'/cel-0\.1\.0\.zip for cel in test for with_script'
+
+# Then attempt to take it down again.
+! stack_down -profile ${CONFIG_PROFILES}/default
+! stdout .
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
+
+-- want_use.json --
+{
+	"provider": "compose",
+	"elasticsearch_host": "https://127.0.0.1:9200",
+	"elasticsearch_username": "elastic",
+	"elasticsearch_password": "changeme",
+	"kibana_host": "https://127.0.0.1:5601",
+	"ca_cert_file": "${CONFIG_PROFILES}/default/certs/ca-cert.pem"
+}
