@@ -16,7 +16,7 @@ func TestGetSurveyQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.1.9")
 	questions := getInitialSurveyQuestionsForVersion(version)
 
-	assert.Len(t, questions, 3, "should return 3 questions for spec version < 3.2.0")
+	require.Len(t, questions, 3, "should return 3 questions for spec version < 3.2.0")
 
 	assert.Equal(t, "name", questions[0].Name)
 	assert.IsType(t, &survey.Input{}, questions[0].Prompt)
