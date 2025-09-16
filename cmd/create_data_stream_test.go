@@ -88,8 +88,8 @@ func TestCreateDataStreamDescriptorFromAnswers_SubobjectsTrueForSpecVersionGTE3_
 	}
 	descriptor := createDataStreamDescriptorFromAnswers(answers, "/tmp/package", specVersion)
 
-	// Should not set Elasticsearch.IndexTemplate.Mappings.Subobjects
-	if descriptor.Manifest.Elasticsearch != nil && descriptor.Manifest.Elasticsearch.IndexTemplate != nil && descriptor.Manifest.Elasticsearch.IndexTemplate.Mappings != nil {
-		assert.NotEqual(t, false, descriptor.Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects)
-	}
+	require.NotNil(t, descriptor.Manifest.Elasticsearch)
+	require.NotNil(t, descriptor.Manifest.Elasticsearch.IndexTemplate)
+	require.NotNil(t, descriptor.Manifest.Elasticsearch.IndexTemplate.Mappings)
+	assert.False(t, descriptor.Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects)
 }
