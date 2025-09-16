@@ -70,6 +70,10 @@ type PipelineTesterOptions struct {
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
+	if options.API == nil {
+		return nil, errors.New("missing Elasticsearch client")
+	}
+
 	r := tester{
 		profile:            options.Profile,
 		packageRootPath:    options.PackageRootPath,
@@ -102,10 +106,6 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		if ok && strings.ToLower(v) == "true" {
 			r.runCompareResults = false
 		}
-	}
-
-	if r.esAPI == nil {
-		return nil, errors.New("missing Elasticsearch client")
 	}
 
 	return &r, nil
