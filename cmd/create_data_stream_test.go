@@ -45,6 +45,7 @@ func TestGetSurveyQuestionsForVersion_AboveSemver3_2_0(t *testing.T) {
 	assert.Equal(t, "subobjects", questions[3].Name)
 	assert.IsType(t, &survey.Confirm{}, questions[3].Prompt)
 }
+
 func TestCreateDataStreamDescriptorFromAnswers_SubobjectsFalseForSpecVersionBelow3_2_0(t *testing.T) {
 	specVersion := semver.MustParse("3.1.0")
 	answers := newDataStreamAnswers{
