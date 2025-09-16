@@ -56,49 +56,13 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("data-streams are not supported in input packages")
 	}
 
-	validator := surveyext.Validator{Cwd: "."}
-	qs := []*survey.Question{
-		{
-			Name: "name",
-			Prompt: &survey.Input{
-				Message: "Data stream name:",
-				Default: "new_data_stream",
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
-		},
-		{
-			Name: "title",
-			Prompt: &survey.Input{
-				Message: "Data stream title:",
-				Default: "New Data Stream",
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "type",
-			Prompt: &survey.Select{
-				Message: "Type:",
-				Options: []string{"logs", "metrics"},
-				Default: "logs",
-			},
-			Validate: survey.Required,
-		},
-	}
-
 	sv, err := semver.NewVersion(manifest.SpecVersion)
 	if err != nil {
 		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
-	if !sv.LessThan(semver3_2_0) {
-		qs = append(qs, &survey.Question{
-			Name: "subobjects",
-			Prompt: &survey.Confirm{
-				Message: "Enable creation of subobjects for fields with dots in their names?",
-				Default: false,
-			},
-			Validate: survey.Required,
-		})
-	}
+
+	qs := getInitialSurveyQuestionsForVersion(sv)
+
 	var answers newDataStreamAnswers
 	err = survey.Ask(qs, &answers)
 	if err != nil {
@@ -240,4 +204,48 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		Manifest:    manifest,
 		PackageRoot: packageRoot,
 	}
+}
+
+func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*survey.Question {
+	validator := surveyext.Validator{Cwd: "."}
+	qs := []*survey.Question{
+		{
+			Name: "name",
+			Prompt: &survey.Input{
+				Message: "Data stream name:",
+				Default: "new_data_stream",
+			},
+			Validate: survey.ComposeValidators(survey.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
+		},
+		{
+			Name: "title",
+			Prompt: &survey.Input{
+				Message: "Data stream title:",
+				Default: "New Data Stream",
+			},
+			Validate: survey.Required,
+		},
+		{
+			Name: "type",
+			Prompt: &survey.Select{
+				Message: "Type:",
+				Options: []string{"logs", "metrics"},
+				Default: "logs",
+			},
+			Validate: survey.Required,
+		},
+	}
+
+	if !specVersion.LessThan(semver3_2_0) {
+		qs = append(qs, &survey.Question{
+			Name: "subobjects",
+			Prompt: &survey.Confirm{
+				Message: "Enable creation of subobjects for fields with dots in their names?",
+				Default: false,
+			},
+			Validate: survey.Required,
+		})
+	}
+
+	return qs
 }
