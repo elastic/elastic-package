@@ -100,6 +100,9 @@ test-check-packages-with-kind:
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
 
+test-check-packages-independent-script:
+	elastic-package test script -C test/packages/other/with_script --external-stack=false --defer-cleanup 1s
+
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 
@@ -136,7 +139,7 @@ test-profiles-command:
 test-check-update-version:
 	./scripts/test-check-update-version.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
+test: test-go test-stack-command test-check-packages test-check-packages-independent-script test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
 
 check-git-clean:
 	git update-index --really-refresh

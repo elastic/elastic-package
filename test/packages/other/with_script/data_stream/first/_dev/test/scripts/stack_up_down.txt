@@ -1,0 +1,35 @@
+[external_stack] skip 'Skipping non-external stack test.'
+
+# Bring up a stack and check that we get the expected output.
+stack_up 8.19.3
+! stderr .
+cp stdout got_up.text
+match_file want_up.pattern got_up.text
+
+# Then take it down again.
+stack_down
+! stdout .
+! stderr .
+
+-- config.yml --
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default
+-- profiles/default/profile.json --
+{
+  "name": "default",
+  "date_created": "2025-09-15T03:46:37.979361939Z",
+  "version": "1"
+}
+-- stack/development/pin --
+This file is required to make the stack/development directory exist to prevent compose from failing.
+-- want_up.pattern --
+Elasticsearch host: https://127\.0\.0\.1:9200
+Kibana host: https://127\.0\.0\.1:5601
+Username: elastic
+Password: changeme
+Custom build packages directory found: .*/elastic/elastic-package/build/packages
+Local package-registry will serve packages from these sources:
+- Proxy to https://epr\.elastic\.co
+- Local directory .*/elastic/elastic-package/build/packages

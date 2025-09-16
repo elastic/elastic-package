@@ -1,0 +1,59 @@
+[external_stack] skip 'Skipping non-external stack test.'
+
+# Bring up stack.
+stack_up 8.19.3
+! stderr .
+stdout 'Local package-registry will serve packages from these sources'
+
+# Install an agent.
+install_agent
+! stderr .
+cmp stdout want_agent_up.text
+
+# Bring up a docker container and check that we get the expected output.
+docker_up hello_service
+! stderr .
+cp stdout got_up.text
+match_file want_up.pattern got_up.text 
+
+# Take down the service and check logs for our message.
+docker_down hello_service
+! stderr .
+cmp stdout want_down.text
+
+# Uninstall the agent.
+uninstall_agent
+! stderr .
+stdout '^deleted agent policies for '${PKG}/${DATA_STREAM}
+
+# Take down stack.
+stack_down
+! stdout .
+! stderr .
+
+-- config.yml --
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default
+-- profiles/default/profile.json --
+{
+  "name": "default",
+  "date_created": "2025-09-15T03:46:37.979361939Z",
+  "version": "1"
+}
+-- stack/development/pin --
+This file is required to make the stack/development directory exist to prevent compose from failing.
+-- hello_service/docker-compose.yml --
+version: '3.8'
+services:
+  # Service name matches directory… for reasons.
+  hello_service:
+    image: alpine:latest
+    command: ["echo", "Hello, World!"]
+-- want_up.pattern --
+deployed elastic-package-service-[0-9]+:hello_service-1
+-- want_down.text --
+hello_service-1  | Hello, World!
+-- want_agent_up.text --
+installed agent policies for with_script/first

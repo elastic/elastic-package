@@ -628,6 +628,12 @@ _Context: package_
 
 Run policy tests for the package.
 
+### `elastic-package test script`
+
+_Context: package_
+
+Run script tests for the package.
+
 ### `elastic-package test static`
 
 _Context: package_
