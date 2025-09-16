@@ -1,0 +1,70 @@
+[!external_stack] skip 'Skipping external stack test.'
+
+date START
+
+# Register stack and check that we get the expected output.
+use_stack -profile ${CONFIG_PROFILES}/default
+! stderr .
+cmpenv stdout want_use.json
+
+# Unfortunately due to constraints imposed by elastic-package, the path to
+# the pipeline cannot be within this file. This is due to the use of links
+# filesystems.
+
+# Install the data stream's pipeline.
+install_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+! stderr .
+stdout '^installed pipelines in '${DATA_STREAM}' with nonce'
+
+# Run a simulation with the data.
+simulate -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT} default data.json
+! stderr .
+cmp stdout want.json
+
+# Uninstall pipelines.
+uninstall_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+! stderr .
+stdout '^uninstalled pipelines in '${DATA_STREAM}
+
+# Put logs in the work directory check for existence.
+dump_logs -profile ${CONFIG_PROFILES}/default -since ${START}
+exists ${WORK}/logs/elastic-agent.log
+exists ${WORK}/logs/elasticsearch.log
+exists ${WORK}/logs/fleet-server.log
+exists ${WORK}/logs/kibana.log
+exists ${WORK}/logs/package-registry.log
+
+# Then attempt to take it down again.
+! stack_down -profile ${CONFIG_PROFILES}/default
+! stdout .
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
+
+-- want_use.json --
+{
+	"provider": "compose",
+	"elasticsearch_host": "https://127.0.0.1:9200",
+	"elasticsearch_username": "elastic",
+	"elasticsearch_password": "changeme",
+	"kibana_host": "https://127.0.0.1:5601",
+	"ca_cert_file": "${CONFIG_PROFILES}/default/certs/ca-cert.pem"
+}
+-- data.json --
+{
+	"message": "World!"
+}
+{
+	"message": "from testscript"
+}
+-- want.json --
+{
+	"event": {
+		"original": "World!"
+	},
+	"hello": "World!"
+}
+{
+	"event": {
+		"original": "from testscript"
+	},
+	"hello": "from testscript"
+}
