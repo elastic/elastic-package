@@ -87,7 +87,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 
 	sv, err := semver.NewVersion(manifest.SpecVersion)
 	if err != nil {
-		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\"", packageRoot)
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
 	if !sv.LessThan(semver3_2_0) {
 		qs = append(qs, &survey.Question{
