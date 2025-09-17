@@ -6,5 +6,5 @@ package stack
 
 const (
 	// PackageRegistryBaseImage is the base Docker image of the Elastic Package Registry.
-	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.31.1"
+	PackageRegistryBaseImage = "docker.elastic.co/package-registry/package-registry:v1.32.1"
 )
