@@ -57,7 +57,6 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 
 	if len(pipelineIDs) == 0 {
 		pipelineIDs, err = promptIngestPipelineIDs(cmd.Context(), esClient.API)
-
 		if err != nil {
 			return fmt.Errorf("prompt for ingest pipeline selection failed: %w", err)
 		}
@@ -69,13 +68,11 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
-
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	dataStreamDirs, err := getDataStreamDirs(packageRoot)
-
 	if err != nil {
 		return fmt.Errorf("getting data stream directories failed: %w", err)
 	}
@@ -89,13 +86,11 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	pipelineWriteLocations := append(dataStreamDirs, rootWriteLocation)
 
 	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
-
 	if err != nil {
 		return fmt.Errorf("prompt for ingest pipeline export locations failed: %w", err)
 	}
 
 	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineWriteAssignments)
-
 	if err != nil {
 		return err
 	}
@@ -108,13 +103,11 @@ func getDataStreamDirs(packageRoot string) ([]export.PipelineWriteLocation, erro
 	dataStreamDir := filepath.Join(packageRoot, "data_stream")
 
 	_, err := os.Stat(dataStreamDir)
-
 	if err != nil {
 		return nil, fmt.Errorf("data_stream directory does not exist: %w", err)
 	}
 
 	dataStreamEntries, err := os.ReadDir(dataStreamDir)
-
 	if err != nil {
 		return nil, fmt.Errorf("could not read data_stream directory: %w", err)
 	}
@@ -181,7 +174,7 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 		if err != nil {
 			return nil, err
 		}
-		
+
 		answers[pipelineName] = selectedLocation
 	}
 
