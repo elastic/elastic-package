@@ -12,7 +12,6 @@ import (
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/elastic/elastic-package/internal/tui"
 )
 
 var (
@@ -24,11 +23,6 @@ var (
 
 type Validator struct {
 	Cwd string
-}
-
-// Convert validator methods to be compatible with tui.Validator
-func (v Validator) toTUIValidator(validatorFunc func(interface{}) error) tui.Validator {
-	return tui.Validator(validatorFunc)
 }
 
 // PackageDoesNotExist function checks if the package hasn't been already created.
