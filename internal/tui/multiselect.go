@@ -113,7 +113,7 @@ func (m *MultiSelect) Render() string {
 
 	// Show instructions
 	if m.focused {
-		b.WriteString(helpStyle.Render("  Use ↑↓ to navigate, space to select, enter to confirm"))
+		b.WriteString(helpStyle.Render("  Use ↑↓ to navigate, space to toggle selection, enter to confirm"))
 		b.WriteString("\n")
 	}
 
@@ -133,22 +133,35 @@ func (m *MultiSelect) Render() string {
 	// Options
 	for i := start; i < end; i++ {
 		prefix := "  "
-		checkbox := "☐"
+		var checkbox, optionText string
 
+		// Better visual indicators for selection
 		if m.selected[i] {
-			checkbox = "☑"
+			checkbox = selectedStyle.Render("[✓]")
+			optionText = selectedStyle.Render(m.options[i])
+		} else {
+			checkbox = unselectedStyle.Render("[ ]")
+			optionText = m.options[i]
 		}
 
+		// Handle cursor highlighting
 		if i == m.cursor {
 			if m.focused {
 				prefix = focusedStyle.Render("> ")
-				checkbox = focusedStyle.Render(checkbox)
+				// Make the cursor line more prominent
+				if m.selected[i] {
+					checkbox = focusedStyle.Render("[✓]")
+					optionText = focusedStyle.Render(m.options[i])
+				} else {
+					checkbox = focusedStyle.Render("[ ]")
+					optionText = focusedStyle.Render(m.options[i])
+				}
 			} else {
 				prefix = "> "
 			}
 		}
 
-		optionText := m.options[i]
+		// Add description if available
 		if m.description != nil {
 			if desc := m.description(m.options[i], i); desc != "" {
 				optionText += helpStyle.Render(" - " + desc)
@@ -156,11 +169,7 @@ func (m *MultiSelect) Render() string {
 		}
 
 		line := prefix + checkbox + " " + optionText
-		if i == m.cursor && m.focused {
-			b.WriteString(focusedStyle.Render(line))
-		} else {
-			b.WriteString(line)
-		}
+		b.WriteString(line)
 		b.WriteString("\n")
 	}
 

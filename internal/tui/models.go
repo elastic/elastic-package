@@ -33,10 +33,12 @@ type Validator func(interface{}) error
 
 // Styles for consistent UI
 var (
-	focusedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	blurredStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	focusedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	blurredStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	errorStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	helpStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	selectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Bold(true) // Bright green, bold
+	unselectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))           // Gray
 )
 
 // ComposeValidators combines multiple validators
