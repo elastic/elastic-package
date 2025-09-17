@@ -29,7 +29,7 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	assert.FileExists(t, filepath.Join(profilesDirPath, profileName, "stack", "snapshot.yml"))
 	assert.NoFileExists(t, filepath.Join(profilesDirPath, profileName, "stack", "docker-compose.yml"))
 
-	profile, err := LoadProfileFrom(profilesDirPath, profileName)
+	profile, err := loadProfile(profilesDirPath, profileName)
 	t.Log(homeDir, profileName)
 	require.NoError(t, err)
 
@@ -42,11 +42,11 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	}
 	assert.Equal(t, expectedMeta, profile.metadata)
 
-	err = profile.Migrate(CurrentVersion)
+	err = profile.migrate(currentVersion)
 	require.NoError(t, err)
 
 	// Check that the in-memory profile is updated.
-	expectedMeta.Version = strconv.Itoa(CurrentVersion)
+	expectedMeta.Version = strconv.Itoa(currentVersion)
 	assert.Equal(t, expectedMeta, profile.metadata)
 
 	// Check some file that has been moved.
@@ -54,7 +54,7 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	assert.FileExists(t, filepath.Join(profilesDirPath, profileName, "stack", "docker-compose.yml"))
 
 	// Load it again to check that it is updated on disk too.
-	profile, err = LoadProfileFrom(profilesDirPath, profileName)
+	profile, err = loadProfile(profilesDirPath, profileName)
 	require.NoError(t, err)
 	assert.Equal(t, expectedMeta, profile.metadata)
 }

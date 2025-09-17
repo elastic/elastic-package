@@ -71,7 +71,7 @@ func CreateProfile(options Options) error {
 	}
 
 	if !options.OverwriteExisting {
-		_, err := LoadProfileFrom(options.ProfilesDirPath, options.Name)
+		_, err := loadProfile(options.ProfilesDirPath, options.Name)
 		if err == nil {
 			return fmt.Errorf("profile %q already exists", options.Name)
 		}
@@ -218,7 +218,7 @@ func FetchAllProfiles(profilesDirPath string) ([]Metadata, error) {
 		if !item.IsDir() {
 			continue
 		}
-		profile, err := LoadProfileFrom(profilesDirPath, item.Name())
+		profile, err := loadProfile(profilesDirPath, item.Name())
 		if errors.Is(err, ErrNotAProfile) {
 			continue
 		}
@@ -237,22 +237,22 @@ func LoadProfile(profileName string) (*Profile, error) {
 		return nil, fmt.Errorf("error finding stack dir location: %w", err)
 	}
 
-	profile, err := LoadProfileFrom(loc.ProfileDir(), profileName)
+	profile, err := loadProfile(loc.ProfileDir(), profileName)
 	if err != nil {
 		return nil, err
 	}
 
-	err = profile.Migrate(CurrentVersion)
+	err = profile.migrate(currentVersion)
 	if err != nil {
-		return nil, fmt.Errorf("error migrating profile to version %v: %w", CurrentVersion, err)
+		return nil, fmt.Errorf("error migrating profile to version %v: %w", currentVersion, err)
 	}
 
 	return profile, nil
 }
 
-// LoadProfileFrom loads an existing profile from a provided directory.
-func LoadProfileFrom(dir, name string) (*Profile, error) {
-	profilePath := filepath.Join(dir, name)
+// loadProfile loads an existing profile
+func loadProfile(profilesDirPath string, profileName string) (*Profile, error) {
+	profilePath := filepath.Join(profilesDirPath, profileName)
 
 	metadata, err := loadProfileMetadata(filepath.Join(profilePath, PackageProfileMetaFile))
 	if errors.Is(err, os.ErrNotExist) {
@@ -265,11 +265,11 @@ func LoadProfileFrom(dir, name string) (*Profile, error) {
 	configPath := filepath.Join(profilePath, PackageProfileConfigFile)
 	config, err := loadProfileConfig(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("error loading configuration for profile %q: %w", name, err)
+		return nil, fmt.Errorf("error loading configuration for profile %q: %w", profileName, err)
 	}
 
 	profile := Profile{
-		ProfileName: name,
+		ProfileName: profileName,
 		ProfilePath: profilePath,
 		config:      config,
 		metadata:    metadata,

@@ -42,7 +42,7 @@ func profileMetadataContent(applyCtx resource.Context, w io.Writer) error {
 	profileData := Metadata{
 		Name:        profileName,
 		DateCreated: creationDate,
-		Version:     strconv.Itoa(CurrentVersion),
+		Version:     strconv.Itoa(currentVersion),
 	}
 
 	enc := json.NewEncoder(w)

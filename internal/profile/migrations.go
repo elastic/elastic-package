@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/go-resource"
 )
 
-func (p *Profile) Migrate(version uint) error {
+func (p *Profile) migrate(version uint) error {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"creation_date": p.metadata.DateCreated.Format(dateFormat),
@@ -81,7 +81,7 @@ func (v *profileVersioner) Current() uint {
 }
 
 func (p *profileVersioner) Set(version uint) error {
-	if version != CurrentVersion {
+	if version != currentVersion {
 		return fmt.Errorf("cannot set metadata version distinct to current version, found %d", version)
 	}
 	_, err := p.manager.Apply(resource.Resources{
