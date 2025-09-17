@@ -189,15 +189,22 @@ func AskOne(prompt Prompt, answer interface{}, validators ...Validator) error {
 		question.Validate = ComposeValidators(validators...)
 	}
 
-	questions := []*Question{question}
-	answers := map[string]interface{}{}
+	// Run the single question directly
+	model := newQuestionnaireModel([]*Question{question})
+	program := tea.NewProgram(model)
 
-	if err := Ask(questions, &answers); err != nil {
-		return err
+	finalModel, err := program.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run prompt: %w", err)
 	}
 
-	// Extract the single answer
-	if val, ok := answers["answer"]; ok {
+	result := finalModel.(*questionnaireModel)
+	if result.err != nil {
+		return result.err
+	}
+
+	// Extract the single answer directly
+	if val, ok := result.answers["answer"]; ok {
 		return assignValue(answer, val)
 	}
 
