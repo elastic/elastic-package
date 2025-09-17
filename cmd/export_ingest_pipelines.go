@@ -165,7 +165,7 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 		options = append(options, writeLocation.Name)
 	}
 
-	var questions []*tui.Question
+	answers := make(map[string]string)
 
 	for _, pipelineName := range pipelineNames {
 		selectPrompt := tui.NewSelect(fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName), options, "")
@@ -176,21 +176,13 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 			return ""
 		})
 
-		question := &tui.Question{
-			Name:     pipelineName,
-			Prompt:   selectPrompt,
-			Validate: tui.Required,
+		var selectedLocation string
+		err := tui.AskOne(selectPrompt, &selectedLocation, tui.Required)
+		if err != nil {
+			return nil, err
 		}
-
-		questions = append(questions, question)
-	}
-
-	answers := make(map[string]string)
-
-	err := tui.Ask(questions, &answers)
-
-	if err != nil {
-		return nil, err
+		
+		answers[pipelineName] = selectedLocation
 	}
 
 	pipelinesToWriteLocations := make(export.PipelineWriteAssignments)
