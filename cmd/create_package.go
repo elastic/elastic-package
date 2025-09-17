@@ -222,7 +222,6 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 				Github: answers.GithubOwner,
 				Type:   answers.OwnerType,
 			},
-			License:       "basic", // Default license for packages
 			Description:   answers.Description,
 			Categories:    answers.Categories,
 			Elasticsearch: elasticsearch,

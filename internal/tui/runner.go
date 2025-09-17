@@ -233,12 +233,26 @@ func mapAnswersToStruct(answers map[string]interface{}, target interface{}) erro
 			continue
 		}
 
-		// Look for matching answer by field name (case-insensitive)
+		// Look for matching answer by survey tag first, then field name (case-insensitive)
 		var answerKey string
-		for key := range answers {
-			if strings.EqualFold(key, fieldType.Name) {
-				answerKey = key
-				break
+
+		// Check if field has a survey tag
+		if surveyTag := fieldType.Tag.Get("survey"); surveyTag != "" {
+			for key := range answers {
+				if strings.EqualFold(key, surveyTag) {
+					answerKey = key
+					break
+				}
+			}
+		}
+
+		// If no survey tag match, try field name
+		if answerKey == "" {
+			for key := range answers {
+				if strings.EqualFold(key, fieldType.Name) {
+					answerKey = key
+					break
+				}
 			}
 		}
 
