@@ -1,3 +1,9 @@
+connectors:
+    forward: {}
+exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
 inputs: []
 output_permissions:
     default:
@@ -13,6 +19,14 @@ output_permissions:
                   privileges:
                     - auto_configure
                     - create_doc
+processors:
+    transform/componentid-0:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "httpcheck.check")
+                - set(attributes["data_stream.namespace"], "ep")
 receivers:
     httpcheck/componentid-0:
         collection_interval: 1m
@@ -24,5 +38,14 @@ secret_references: []
 service:
     pipelines:
         metrics:
+            exporters:
+                - elasticsearch/componentid-0
+            receivers:
+                - forward
+        metrics/componentid-0:
+            exporters:
+                - forward
+            processors:
+                - transform/componentid-0
             receivers:
                 - httpcheck/componentid-0
