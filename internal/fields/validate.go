@@ -154,6 +154,8 @@ type Validator struct {
 
 	disabledNormalization bool
 
+	enabledOTELValidation bool
+
 	injectFieldsOptions InjectFieldsOptions
 }
 
@@ -242,6 +244,13 @@ func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
 func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	return func(v *Validator) error {
 		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
+func WithOTELValidation(enabled bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledOTELValidation = enabled
 		return nil
 	}
 }
@@ -690,6 +699,8 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		switch {
 		case skipValidationForField(key):
 			return nil // generic field, let's skip validation for now
+		case v.enabledOTELValidation && skipValidationForOTELField(key):
+			return nil // generic OTEL field, let's skip validation for now
 		case isFlattenedSubfield(key, v.Schema):
 			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
 		case isArrayOfObjects(val):
@@ -829,6 +840,50 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("host", key) || // too many common fields
 		isFieldFamilyMatching("metricset", key) || // field is deprecated
 		isFieldFamilyMatching("event.module", key) // field is deprecated
+}
+
+func skipValidationForOTELField(key string) bool {
+	// TODO: This list of fields to be skipped should be validated
+	return isFieldFamilyMatching("scope.name", key) ||
+		isFieldFamilyMatching("scope.version", key) ||
+		isFieldFamilyMatching("scope.schema_url", key) ||
+		isFieldFamilyMatching("scope.dropped_attributes_count", key) ||
+		isFieldFamilyMatching("scope.attributes", key) ||
+		isFieldFamilyMatching("dropped_attributes_count", key) ||
+		isFieldFamilyMatching("resource.schema_url", key) ||
+		isFieldFamilyMatching("resource.dropped_attributes_count", key) ||
+		isFieldFamilyMatching("resource.attributes", key) ||
+		isFieldFamilyMatching("attributes", key) ||
+		// common metrics
+		isFieldFamilyMatching("start_timestamp", key) ||
+		isFieldFamilyMatching("unit", key) ||
+		isFieldFamilyMatching("_metric_names_hash", key) ||
+		isFieldFamilyMatching("metrics", key) ||
+		// common logs
+		isFieldFamilyMatching("observed_timestamp", key) ||
+		isFieldFamilyMatching("trace_id", key) ||
+		isFieldFamilyMatching("trace.id", key) ||
+		isFieldFamilyMatching("span_id", key) ||
+		isFieldFamilyMatching("span.id", key) ||
+		isFieldFamilyMatching("severity_number", key) ||
+		isFieldFamilyMatching("severity_text", key) ||
+		isFieldFamilyMatching("log.level", key) ||
+		isFieldFamilyMatching("body", key) ||
+		isFieldFamilyMatching("event_name", key) ||
+		isFieldFamilyMatching("error", key) ||
+		// common traces
+		isFieldFamilyMatching("dropped_events_count", key) ||
+		isFieldFamilyMatching("parent_span_id", key) ||
+		isFieldFamilyMatching("span.name", key) ||
+		isFieldFamilyMatching("trace_state", key) ||
+		isFieldFamilyMatching("kind", key) ||
+		isFieldFamilyMatching("dropped_links_count", key) ||
+		isFieldFamilyMatching("duration", key) ||
+		isFieldFamilyMatching("name", key) ||
+		isFieldFamilyMatching("parent.id", key) ||
+		isFieldFamilyMatching("links", key) ||
+		isFieldFamilyMatching("status.code", key) ||
+		isFieldFamilyMatching("status.message", key)
 }
 
 // skipLeafOfObject checks if the element is a child of an object that was skipped in some previous

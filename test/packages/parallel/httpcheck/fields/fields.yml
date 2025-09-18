@@ -1,16 +1,16 @@
-- name: "_metric_names_hash"
-  type: keyword
-- name: "attributes.http"
-  type: group
-  fields:
-    - name: method
-      type: keyword
-    - name: status_class
-      type: keyword
-    - name: status_code
-      type: long
-    - name: url
-      type: keyword
+# - name: "_metric_names_hash"
+#   type: keyword
+# - name: "attributes.http"
+#   type: group
+#   fields:
+#     - name: method
+#       type: keyword
+#     - name: status_class
+#       type: keyword
+#     - name: status_code
+#       type: long
+#     - name: url
+#       type: keyword
 - name: "http"
   type: group
   fields:
@@ -29,21 +29,21 @@
       type: long
     - name: status
       type: long
-- name: metrics.httpcheck
-  type: group
-  fields:
-    - name: duration
-      type: long
-    - name: status
-      type: long
-- name: scope
-  type: group
-  fields:
-    - name: name
-      type: keyword
-    - name: version
-      type: keyword
-- name: start_timestamp
-  type: date
-- name: unit
-  type: keyword
+# - name: metrics.httpcheck
+#   type: group
+#   fields:
+#     - name: duration
+#       type: long
+#     - name: status
+#       type: long
+# - name: scope
+#   type: group
+#   fields:
+#     - name: name
+#       type: keyword
+#     - name: version
+#       type: keyword
+# - name: start_timestamp
+#   type: date
+# - name: unit
+#   type: keyword
