@@ -237,7 +237,12 @@ func LoadProfile(profileName string) (*Profile, error) {
 		return nil, fmt.Errorf("error finding stack dir location: %w", err)
 	}
 
-	profile, err := loadProfile(loc.ProfileDir(), profileName)
+	return LoadProfileFrom(loc.ProfileDir(), profileName)
+}
+
+// LoadProfile loads an existing profile from the provided directory.
+func LoadProfileFrom(dir, profileName string) (*Profile, error) {
+	profile, err := loadProfile(dir, profileName)
 	if err != nil {
 		return nil, err
 	}
