@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
+	"github.com/elastic/elastic-package/internal/tui"
 
 	"github.com/spf13/cobra"
 
@@ -57,7 +57,6 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 
 	if len(pipelineIDs) == 0 {
 		pipelineIDs, err = promptIngestPipelineIDs(cmd.Context(), esClient.API)
-
 		if err != nil {
 			return fmt.Errorf("prompt for ingest pipeline selection failed: %w", err)
 		}
@@ -69,13 +68,11 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	packageRoot, err := packages.MustFindPackageRoot()
-
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	dataStreamDirs, err := getDataStreamDirs(packageRoot)
-
 	if err != nil {
 		return fmt.Errorf("getting data stream directories failed: %w", err)
 	}
@@ -89,13 +86,11 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	pipelineWriteLocations := append(dataStreamDirs, rootWriteLocation)
 
 	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
-
 	if err != nil {
 		return fmt.Errorf("prompt for ingest pipeline export locations failed: %w", err)
 	}
 
 	err = export.IngestPipelines(cmd.Context(), esClient.API, pipelineWriteAssignments)
-
 	if err != nil {
 		return err
 	}
@@ -108,13 +103,11 @@ func getDataStreamDirs(packageRoot string) ([]export.PipelineWriteLocation, erro
 	dataStreamDir := filepath.Join(packageRoot, "data_stream")
 
 	_, err := os.Stat(dataStreamDir)
-
 	if err != nil {
 		return nil, fmt.Errorf("data_stream directory does not exist: %w", err)
 	}
 
 	dataStreamEntries, err := os.ReadDir(dataStreamDir)
-
 	if err != nil {
 		return nil, fmt.Errorf("could not read data_stream directory: %w", err)
 	}
@@ -146,14 +139,11 @@ func promptIngestPipelineIDs(ctx context.Context, api *elasticsearch.API) ([]str
 		return strings.HasPrefix(name, ".") || strings.HasPrefix(name, "global@")
 	})
 
-	ingestPipelinesPrompt := &survey.MultiSelect{
-		Message:  "Which ingest pipelines would you like to export?",
-		Options:  ingestPipelineNames,
-		PageSize: 20,
-	}
+	ingestPipelinesPrompt := tui.NewMultiSelect("Which ingest pipelines would you like to export?", ingestPipelineNames, []string{})
+	ingestPipelinesPrompt.SetPageSize(20)
 
 	var selectedOptions []string
-	err = survey.AskOne(ingestPipelinesPrompt, &selectedOptions, survey.WithValidator(survey.Required))
+	err = tui.AskOne(ingestPipelinesPrompt, &selectedOptions, tui.Required)
 	if err != nil {
 		return nil, err
 	}
@@ -168,34 +158,24 @@ func promptWriteLocations(pipelineNames []string, writeLocations []export.Pipeli
 		options = append(options, writeLocation.Name)
 	}
 
-	var questions []*survey.Question
-
-	for _, pipelineName := range pipelineNames {
-		question := &survey.Question{
-			Name: pipelineName,
-			Prompt: &survey.Select{
-				Message: fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName),
-				Options: options,
-				Description: func(value string, index int) string {
-					if writeLocations[index].Type == export.PipelineWriteLocationTypeDataStream {
-						return "data stream"
-					}
-
-					return ""
-				},
-			},
-			Validate: survey.Required,
-		}
-
-		questions = append(questions, question)
-	}
-
 	answers := make(map[string]string)
 
-	err := survey.Ask(questions, &answers)
+	for _, pipelineName := range pipelineNames {
+		selectPrompt := tui.NewSelect(fmt.Sprintf("Select a location to export ingest pipeline '%s'", pipelineName), options, "")
+		selectPrompt.SetDescription(func(value string, index int) string {
+			if index < len(writeLocations) && writeLocations[index].Type == export.PipelineWriteLocationTypeDataStream {
+				return "data stream"
+			}
+			return ""
+		})
 
-	if err != nil {
-		return nil, err
+		var selectedLocation string
+		err := tui.AskOne(selectPrompt, &selectedLocation, tui.Required)
+		if err != nil {
+			return nil, err
+		}
+
+		answers[pipelineName] = selectedLocation
 	}
 
 	pipelinesToWriteLocations := make(export.PipelineWriteAssignments)
