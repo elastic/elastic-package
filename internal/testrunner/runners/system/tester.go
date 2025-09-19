@@ -1620,13 +1620,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if expectedDatasets == nil {
-		var expectedDataset string
-		if ds := r.testFolder.DataStream; ds != "" {
-			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
-		} else {
-			// If there is no data stream, then these packages are input packages and
-			// it is used the policy template name as part of the dataset
-			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
+		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
+		if r.pkgManifest.Type == "input" {
 			if scenario.policyTemplateInput == otelCollectorInputName {
 				// Input packages whose input is `otelcol` must add the `.otel` suffix
 				// Example: httpcheck.metrics.otel
@@ -1638,6 +1633,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if r.pkgManifest.Type == "input" {
 		v, _ := config.Vars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				dataset += "." + otelSuffixDataset
+			}
 			expectedDatasets = append(expectedDatasets, dataset)
 		}
 	}
@@ -1898,13 +1898,17 @@ func createIntegrationPackageDatastream(
 	streamInput := stream.Input
 	r.Inputs[0].Type = streamInput
 
+	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
+	if len(ds.Dataset) > 0 {
+		dataset = ds.Dataset
+	}
 	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    ds.Type,
-				Dataset: getDataStreamDataset(pkg, ds),
+				Dataset: dataset,
 			},
 		},
 	}
@@ -2014,13 +2018,6 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 		}
 	}
 	return 0
-}
-
-func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamManifest) string {
-	if len(ds.Dataset) > 0 {
-		return ds.Dataset
-	}
-	return fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
 }
 
 // findPolicyTemplateForInput returns the name of the policy_template that
