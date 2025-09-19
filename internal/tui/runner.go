@@ -154,7 +154,8 @@ func (m *questionnaireModel) setCurrentError(err string) {
 
 func (m *questionnaireModel) View() string {
 	if m.finished {
-		return ""
+		// When finished, show the final summary of all answers
+		return m.renderFinalSummary()
 	}
 
 	var b strings.Builder
@@ -185,6 +186,24 @@ func (m *questionnaireModel) View() string {
 	b.WriteString("\n\n")
 	helpView := m.help.View(keys)
 	b.WriteString(helpView)
+
+	return b.String()
+}
+
+// renderFinalSummary shows all questions and answers when finished
+func (m *questionnaireModel) renderFinalSummary() string {
+	var b strings.Builder
+
+	// Display all questions and their answers
+	for i := 0; i < len(m.questions); i++ {
+		question := m.questions[i]
+		if answer, exists := m.answers[question.Name]; exists {
+			answerStr := m.formatAnswer(answer)
+			questionLine := fmt.Sprintf("? %s: %s", question.Prompt.Message(), answerStr)
+			b.WriteString(blurredStyle.Render(questionLine))
+			b.WriteString("\n")
+		}
+	}
 
 	return b.String()
 }

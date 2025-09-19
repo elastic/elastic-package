@@ -43,20 +43,6 @@ type newPackageAnswers struct {
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new package")
 
-	qs := []*tui.Question{
-		{
-			Name:     "type",
-			Prompt:   tui.NewSelect("Package type:", []string{"input", "integration", "content"}, "integration"),
-			Validate: tui.Required,
-		},
-	}
-
-	var answers newPackageAnswers
-	err := tui.Ask(qs, &answers)
-	if err != nil {
-		return fmt.Errorf("prompt failed: %w", err)
-	}
-
 	validator := tui.Validator{Cwd: "."}
 
 	// Create license select with description
@@ -91,7 +77,13 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		return ""
 	})
 
-	qs = []*tui.Question{
+	// Create all questions including conditional ones
+	qs := []*tui.Question{
+		{
+			Name:     "type",
+			Prompt:   tui.NewSelect("Package type:", []string{"input", "integration", "content"}, "integration"),
+			Validate: tui.Required,
+		},
 		{
 			Name:     "name",
 			Prompt:   tui.NewInput("Package name:", "new_package"),
@@ -143,6 +135,13 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		},
 	}
 
+	var answers newPackageAnswers
+	err := tui.Ask(qs, &answers)
+	if err != nil {
+		return fmt.Errorf("prompt failed: %w", err)
+	}
+
+	// If input type, ask additional questions
 	if answers.Type == "input" {
 		inputQs := []*tui.Question{
 			{
@@ -157,12 +156,10 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 			},
 		}
 
-		qs = append(qs, inputQs...)
-	}
-
-	err = tui.Ask(qs, &answers)
-	if err != nil {
-		return fmt.Errorf("prompt failed: %w", err)
+		err = tui.Ask(inputQs, &answers)
+		if err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
