@@ -1239,14 +1239,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 // buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
 func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *testConfig) string {
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
+	dataStreamDataset := getExpectedDatasetForTest(r.pkgManifest.Type, ds.Inputs[0].Streams[0].DataStream.Dataset, config)
+
 	indexTemplateName := fmt.Sprintf(
 		"%s-%s",
 		ds.Inputs[0].Streams[0].DataStream.Type,
@@ -1256,14 +1250,9 @@ func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *tes
 }
 
 func (r *tester) buildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, config *testConfig) string {
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
+	dataStreamDataset := getExpectedDatasetForTest(r.pkgManifest.Type, ds.Inputs[0].Streams[0].DataStream.Dataset, config)
+
+	// Input packages using the otel collector input require to add a specific dataset suffix
 	if r.pkgManifest.Type == "input" && policyTemplateInput == otelCollectorInputName {
 		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
 	}
@@ -1275,6 +1264,17 @@ func (r *tester) buildDataStreamName(policyTemplateInput string, ds kibana.Packa
 		ds.Namespace,
 	)
 	return dataStreamName
+}
+
+func getExpectedDatasetForTest(pkgType, dataset string, config *testConfig) string {
+	if pkgType == "input" {
+		// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if ds, ok := v.(string); ok && ds != "" {
+			return ds
+		}
+	}
+	return dataset
 }
 
 // createOrGetKibanaPolicies creates the Kibana policies required for testing.
