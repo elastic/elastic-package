@@ -88,6 +88,9 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout = 10 * time.Minute
+
+	otelCollectorInputName = "otelcol"
+	otelSuffixDataset      = "otel"
 )
 
 type logsRegexp struct {
@@ -1062,24 +1065,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.kibanaDataStream = ds
 
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
-	scenario.indexTemplateName = fmt.Sprintf(
-		"%s-%s",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-	)
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s",
-		scenario.indexTemplateName,
-		ds.Namespace,
-	)
+	scenario.indexTemplateName = r.buildIndexTemplateName(ds, config)
+	scenario.dataStream = r.buildDataStreamName(scenario.indexTemplateName, ds.Namespace, policyTemplate)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1244,6 +1231,36 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	return &scenario, nil
+}
+
+func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *testConfig) string {
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
+	indexTemplateName := fmt.Sprintf(
+		"%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+	)
+	return indexTemplateName
+}
+
+func (r *tester) buildDataStreamName(indexTemplateName, namespace string, policyTemplate packages.PolicyTemplate) string {
+	if r.pkgManifest.Type == "input" && policyTemplate.Input == otelCollectorInputName {
+		indexTemplateName = fmt.Sprintf("%s.%s", indexTemplateName, otelSuffixDataset)
+	}
+
+	dataStreamName := fmt.Sprintf(
+		"%s-%s",
+		indexTemplateName,
+		namespace,
+	)
+	return dataStreamName
 }
 
 // createOrGetKibanaPolicies creates the Kibana policies required for testing.
