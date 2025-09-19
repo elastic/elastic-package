@@ -14,9 +14,9 @@ import (
 	"github.com/elastic/elastic-package/internal/tui"
 )
 
-func TestGetTUIQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
+func TestGetSurveyQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.1.9")
-	questions := getInitialTUIQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version)
 
 	require.Len(t, questions, 3, "should return 3 questions for spec version < 3.2.0")
 
@@ -28,9 +28,9 @@ func TestGetTUIQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
 	assert.IsType(t, &tui.Select{}, questions[2].Prompt)
 }
 
-func TestGetTUIQuestionsForVersion_EqualSemver3_2_0(t *testing.T) {
+func TestGetSurveyQuestionsForVersion_EqualSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.2.0")
-	questions := getInitialTUIQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version)
 
 	require.Len(t, questions, 4, "should return 4 questions for spec version >= 3.2.0")
 
@@ -38,9 +38,9 @@ func TestGetTUIQuestionsForVersion_EqualSemver3_2_0(t *testing.T) {
 	assert.IsType(t, &tui.Confirm{}, questions[3].Prompt)
 }
 
-func TestGetTUIQuestionsForVersion_AboveSemver3_2_0(t *testing.T) {
+func TestGetSurveyQuestionsForVersion_AboveSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.3.0")
-	questions := getInitialTUIQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version)
 
 	require.Len(t, questions, 4, "should return 4 questions for spec version > 3.2.0")
 

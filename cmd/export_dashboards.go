@@ -39,7 +39,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
-	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	allowSnapshot, err := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
 	}
