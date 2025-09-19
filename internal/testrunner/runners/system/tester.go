@@ -1062,9 +1062,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.kibanaDataStream = ds
 
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
-
 	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
 	if r.pkgManifest.Type == "input" {
