@@ -11,7 +11,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // multiSelectItem implements list.Item for the multiselect component
@@ -26,9 +25,11 @@ func (i multiSelectItem) FilterValue() string { return i.title }
 func (i multiSelectItem) Title() string       { return i.title }
 func (i multiSelectItem) Description() string { return i.description }
 
-// Custom item delegate for multiselect
-type multiSelectDelegate struct {
-	parent *MultiSelect
+// Custom delegate for multiselect with checkbox functionality
+type multiSelectDelegate struct{}
+
+func newMultiSelectDelegate() multiSelectDelegate {
+	return multiSelectDelegate{}
 }
 
 func (d multiSelectDelegate) Height() int                             { return 1 }
@@ -40,28 +41,24 @@ func (d multiSelectDelegate) Render(w io.Writer, m list.Model, index int, listIt
 		return
 	}
 
-	var checkbox string
+	checkbox := unselectedStyle.Render("[ ]")
 	if i.selected {
 		checkbox = selectedStyle.Render("[✓]")
-	} else {
-		checkbox = unselectedStyle.Render("[ ]")
 	}
 
-	str := checkbox + " " + i.title
+	title := i.title
 	if i.description != "" {
-		str += helpStyle.Render(" - " + i.description)
+		title += helpStyle.Render(" - " + i.description)
 	}
 
-	fn := blurredStyle.Render
+	content := checkbox + " " + title
 	if index == m.Index() {
-		fn = func(s ...string) string {
-			return focusedStyle.Render("> " + strings.Join(s, " "))
-		}
+		content = focusedStyle.Render("> " + content)
 	} else {
-		str = "  " + str
+		content = "  " + content
 	}
 
-	fmt.Fprint(w, fn(str))
+	fmt.Fprint(w, content)
 }
 
 // MultiSelect represents a multiple-choice selection prompt using bubbles list
@@ -104,7 +101,7 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 		}
 	}
 
-	delegate := multiSelectDelegate{parent: ms}
+	delegate := newMultiSelectDelegate()
 	// Calculate height: exact number of items needed, max 20 for scrolling
 	listHeight := min(len(options), 20)
 	l := list.New(items, delegate, 80, listHeight)
@@ -114,8 +111,7 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	l.SetShowPagination(false) // Disable pagination, use scrolling instead
 	l.SetFilteringEnabled(false)
 
-	// Custom styles
-	l.Styles.Title = lipgloss.NewStyle()
+	// Custom styles - using existing styles from models.go
 	l.Styles.PaginationStyle = helpStyle
 	l.Styles.HelpStyle = helpStyle
 

@@ -9,8 +9,53 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/help"
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+// keyMap defines key bindings for the questionnaire
+type keyMap struct {
+	Enter key.Binding
+	Quit  key.Binding
+	Up    key.Binding
+	Down  key.Binding
+	Space key.Binding
+}
+
+func (k keyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Enter, k.Quit}
+}
+
+func (k keyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Up, k.Down, k.Space},
+		{k.Enter, k.Quit},
+	}
+}
+
+var keys = keyMap{
+	Enter: key.NewBinding(
+		key.WithKeys("enter"),
+		key.WithHelp("enter", "continue"),
+	),
+	Quit: key.NewBinding(
+		key.WithKeys("ctrl+c"),
+		key.WithHelp("ctrl+c", "cancel"),
+	),
+	Up: key.NewBinding(
+		key.WithKeys("up", "k"),
+		key.WithHelp("↑/k", "up"),
+	),
+	Down: key.NewBinding(
+		key.WithKeys("down", "j"),
+		key.WithHelp("↓/j", "down"),
+	),
+	Space: key.NewBinding(
+		key.WithKeys(" "),
+		key.WithHelp("space", "select"),
+	),
+}
 
 // questionnaireModel handles multiple questions
 type questionnaireModel struct {
@@ -21,6 +66,7 @@ type questionnaireModel struct {
 	err             error
 	width           int
 	height          int
+	help            help.Model
 }
 
 func newQuestionnaireModel(questions []*Question) *questionnaireModel {
@@ -29,6 +75,7 @@ func newQuestionnaireModel(questions []*Question) *questionnaireModel {
 		answers:   make(map[string]interface{}),
 		width:     80,
 		height:    24,
+		help:      help.New(),
 	}
 }
 
@@ -134,16 +181,10 @@ func (m *questionnaireModel) View() string {
 		b.WriteString(current.Prompt.Render())
 	}
 
-	// Footer instructions
+	// Footer help
 	b.WriteString("\n\n")
-	instructions := "Press Enter to continue, Ctrl+C to cancel"
-	if isMultiSelect(m.questions[m.currentQuestion].Prompt) {
-		instructions = "Use ↑↓ to navigate, Space to select, Enter to continue, Ctrl+C to cancel"
-	} else if isSelect(m.questions[m.currentQuestion].Prompt) {
-		instructions = "Use ↑↓ to navigate, Enter to continue, Ctrl+C to cancel"
-	}
-
-	b.WriteString(footerStyle.Render(instructions))
+	helpView := m.help.View(keys)
+	b.WriteString(helpView)
 
 	return b.String()
 }

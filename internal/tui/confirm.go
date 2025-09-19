@@ -6,12 +6,10 @@ package tui
 
 import (
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // confirmItem implements list.Item for the confirm component
@@ -24,29 +22,13 @@ func (i confirmItem) FilterValue() string { return i.title }
 func (i confirmItem) Title() string       { return i.title }
 func (i confirmItem) Description() string { return "" }
 
-// Custom item delegate for confirm
-type confirmDelegate struct{}
-
-func (d confirmDelegate) Height() int                             { return 1 }
-func (d confirmDelegate) Spacing() int                            { return 0 }
-func (d confirmDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d confirmDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(confirmItem)
-	if !ok {
-		return
-	}
-
-	str := i.title
-	fn := blurredStyle.Render
-	if index == m.Index() {
-		fn = func(s ...string) string {
-			return focusedStyle.Render("> " + strings.Join(s, " "))
-		}
-	} else {
-		str = "  " + str
-	}
-
-	fmt.Fprint(w, fn(str))
+// Simple delegate that uses built-in list styling
+func newConfirmDelegate() list.DefaultDelegate {
+	d := list.NewDefaultDelegate()
+	d.Styles.SelectedTitle = focusedStyle
+	d.Styles.NormalTitle = blurredStyle
+	d.ShowDescription = false
+	return d
 }
 
 // Confirm represents a yes/no confirmation prompt using bubbles list
@@ -70,7 +52,7 @@ func NewConfirm(message string, defaultValue bool) *Confirm {
 		selectedIndex = 0 // "Yes" (index 0)
 	}
 
-	l := list.New(items, confirmDelegate{}, 20, 3) // Slightly larger height to ensure both options show
+	l := list.New(items, newConfirmDelegate(), 20, 3) // Slightly larger height to ensure both options show
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
@@ -78,8 +60,7 @@ func NewConfirm(message string, defaultValue bool) *Confirm {
 	l.SetFilteringEnabled(false)
 	l.Select(selectedIndex)
 
-	// Custom styles
-	l.Styles.Title = lipgloss.NewStyle()
+	// Custom styles - using existing styles from models.go
 	l.Styles.PaginationStyle = helpStyle
 	l.Styles.HelpStyle = helpStyle
 
