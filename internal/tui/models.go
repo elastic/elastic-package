@@ -237,3 +237,11 @@ func DefaultKibanaVersionConditionValue() string {
 	v, _ := ver.SetPrerelease("")
 	return "^" + v.String()
 }
+
+// Compile-time interface checks to ensure all prompt types implement the Prompt interface
+var (
+	_ Prompt = &Input{}
+	_ Prompt = &Select{}
+	_ Prompt = &Confirm{}
+	_ Prompt = &MultiSelect{}
+)
