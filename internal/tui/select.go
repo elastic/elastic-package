@@ -36,7 +36,7 @@ func (d selectDelegate) Render(w io.Writer, m list.Model, index int, listItem li
 		return
 	}
 
-	str := fmt.Sprintf("%s", i.title)
+	str := i.title
 	if i.description != "" {
 		str += helpStyle.Render(" - " + i.description)
 	}
@@ -141,7 +141,7 @@ func (s *Select) Render() string {
 	b.WriteString(style.Render(s.message))
 
 	if s.defaultValue != "" {
-		b.WriteString(helpStyle.Render(fmt.Sprintf(" (%s)", s.defaultValue)))
+		b.WriteString(helpStyle.Render(" (" + s.defaultValue + ")"))
 	}
 	b.WriteString("\n")
 

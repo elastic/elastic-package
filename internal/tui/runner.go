@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // questionnaireModel handles multiple questions
@@ -113,16 +112,21 @@ func (m *questionnaireModel) View() string {
 
 	var b strings.Builder
 
-	// Header with progress
-	progress := fmt.Sprintf("Question %d of %d", m.currentQuestion+1, len(m.questions))
-	currentHeaderStyle := headerStyle.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderBottom(true).
-		Width(m.width).
-		Align(lipgloss.Center)
+	// Display previous questions and their answers
+	for i := 0; i < m.currentQuestion; i++ {
+		question := m.questions[i]
+		if answer, exists := m.answers[question.Name]; exists {
+			answerStr := m.formatAnswer(answer)
+			questionLine := fmt.Sprintf("? %s: %s", question.Prompt.Message(), answerStr)
+			b.WriteString(blurredStyle.Render(questionLine))
+			b.WriteString("\n")
+		}
+	}
 
-	b.WriteString(currentHeaderStyle.Render(progress))
-	b.WriteString("\n\n")
+	// Add spacing if there were previous questions
+	if m.currentQuestion > 0 {
+		b.WriteString("\n")
+	}
 
 	// Current question
 	if m.currentQuestion < len(m.questions) {
@@ -142,6 +146,26 @@ func (m *questionnaireModel) View() string {
 	b.WriteString(footerStyle.Render(instructions))
 
 	return b.String()
+}
+
+// formatAnswer formats an answer for display in the previous questions summary
+func (m *questionnaireModel) formatAnswer(answer interface{}) string {
+	switch v := answer.(type) {
+	case string:
+		return v
+	case bool:
+		if v {
+			return "Yes"
+		}
+		return "No"
+	case []string:
+		if len(v) == 0 {
+			return "(none selected)"
+		}
+		return strings.Join(v, ", ")
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func isMultiSelect(prompt Prompt) bool {
