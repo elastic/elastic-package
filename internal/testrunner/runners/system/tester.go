@@ -1620,6 +1620,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	if expectedDatasets == nil {
+		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
 		if r.pkgManifest.Type == "input" {
 			if scenario.policyTemplateInput == otelCollectorInputName {
