@@ -70,7 +70,7 @@ func NewConfirm(message string, defaultValue bool) *Confirm {
 		selectedIndex = 0 // "Yes" (index 0)
 	}
 
-	l := list.New(items, confirmDelegate{}, 20, 2)
+	l := list.New(items, confirmDelegate{}, 20, 3) // Slightly larger height to ensure both options show
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)

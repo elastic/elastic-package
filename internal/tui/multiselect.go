@@ -109,7 +109,7 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	listHeight := min(len(options), 20)
 	l := list.New(items, delegate, 80, listHeight)
 	l.SetShowStatusBar(false)
-	l.SetShowTitle(false) 
+	l.SetShowTitle(false)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false) // Disable pagination, use scrolling instead
 	l.SetFilteringEnabled(false)
