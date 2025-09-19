@@ -943,6 +943,7 @@ func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecation
 }
 
 type scenarioTest struct {
+	// dataStream is the name of the target data stream where documents are indexed
 	dataStream          string
 	indexTemplateName   string
 	policyTemplateName  string
@@ -1068,7 +1069,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.kibanaDataStream = ds
 
 	scenario.indexTemplateName = r.buildIndexTemplateName(ds, config)
-	scenario.dataStream = r.buildDataStreamName(scenario.indexTemplateName, scenario.policyTemplateInput, ds.Namespace)
+	scenario.dataStream = r.buildDataStreamName(scenario.policyTemplateInput, ds, config)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1235,6 +1236,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	return &scenario, nil
 }
 
+// buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
+// when the package data stream is added to the policy.
 func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *testConfig) string {
 	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
@@ -1252,15 +1255,24 @@ func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *tes
 	return indexTemplateName
 }
 
-func (r *tester) buildDataStreamName(indexTemplateName, policyTemplateInput, namespace string) string {
+func (r *tester) buildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, config *testConfig) string {
+	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			dataStreamDataset = dataset
+		}
+	}
 	if r.pkgManifest.Type == "input" && policyTemplateInput == otelCollectorInputName {
-		indexTemplateName = fmt.Sprintf("%s.%s", indexTemplateName, otelSuffixDataset)
+		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
 	}
 
 	dataStreamName := fmt.Sprintf(
-		"%s-%s",
-		indexTemplateName,
-		namespace,
+		"%s-%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+		ds.Namespace,
 	)
 	return dataStreamName
 }
