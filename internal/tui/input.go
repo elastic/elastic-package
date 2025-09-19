@@ -37,10 +37,10 @@ func NewInput(message, defaultValue string) *Input {
 	}
 }
 
-func (i *Input) Message() string         { return i.message }
-func (i *Input) Default() interface{}    { return i.defaultValue }
-func (i *Input) SetError(err string)     { i.error = err }
-func (i *Input) SetFocused(focused bool) { 
+func (i *Input) Message() string      { return i.message }
+func (i *Input) Default() interface{} { return i.defaultValue }
+func (i *Input) SetError(err string)  { i.error = err }
+func (i *Input) SetFocused(focused bool) {
 	i.focused = focused
 	if focused {
 		i.textInput.Focus()

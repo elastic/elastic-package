@@ -305,7 +305,6 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 
 		logger.Infof("Creating agent policy")
 		_, err = createAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
-
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}

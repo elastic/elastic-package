@@ -74,7 +74,7 @@ func NewConfirm(message string, defaultValue bool) *Confirm {
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
-	l.SetShowPagination(false)  // Disable pagination to show all options
+	l.SetShowPagination(false) // Disable pagination to show all options
 	l.SetFilteringEnabled(false)
 	l.Select(selectedIndex)
 

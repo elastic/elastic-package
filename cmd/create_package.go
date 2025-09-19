@@ -70,10 +70,12 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	})
 
 	// Create categories multi-select
-	categoriesMultiSelect := tui.NewMultiSelect("Categories:", []string{"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
+	categoriesMultiSelect := tui.NewMultiSelect("Categories:", []string{
+		"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
 		"datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue",
 		"monitoring", "network", "notification", "os_system", "productivity", "security", "support",
-		"ticketing", "version_control", "web"}, []string{"custom"})
+		"ticketing", "version_control", "web",
+	}, []string{"custom"})
 	categoriesMultiSelect.SetPageSize(50)
 
 	// Create owner type select with description

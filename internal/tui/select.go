@@ -76,11 +76,11 @@ func NewSelect(message string, options []string, defaultValue string) *Select {
 		}
 	}
 
-	l := list.New(items, selectDelegate{}, 50, len(options))
+	l := list.New(items, selectDelegate{}, 50, len(options)+1)
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
-	l.SetShowPagination(false)  // Disable pagination to show all options
+	l.SetShowPagination(false) // Disable pagination to show all options
 	l.SetFilteringEnabled(false)
 	l.Select(selectedIndex)
 
@@ -110,7 +110,7 @@ func (s *Select) Value() interface{} {
 	return s.defaultValue
 }
 
-func (s *Select) SetDescription(fn func(string, int) string) { 
+func (s *Select) SetDescription(fn func(string, int) string) {
 	s.description = fn
 	// Update items with descriptions
 	items := make([]list.Item, len(s.options))

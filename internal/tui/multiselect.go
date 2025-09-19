@@ -105,11 +105,11 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	}
 
 	delegate := multiSelectDelegate{parent: ms}
-	l := list.New(items, delegate, 80, min(len(options), 15))  // Show up to 15 options at once
+	l := list.New(items, delegate, 80, min(len(options), 30)) // Show up to 30 options at once
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
-	l.SetShowPagination(false)  // Disable pagination, use scrolling instead
+	l.SetShowPagination(false) // Disable pagination, use scrolling instead
 	l.SetFilteringEnabled(false)
 
 	// Custom styles
@@ -121,15 +121,15 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	return ms
 }
 
-func (m *MultiSelect) Message() string                            { return m.message }
-func (m *MultiSelect) Default() interface{}                       { return m.defaultValue }
-func (m *MultiSelect) SetError(err string)                        { m.error = err }
-func (m *MultiSelect) SetFocused(focused bool)                    { m.focused = focused }
-func (m *MultiSelect) SetPageSize(size int)                       { 
+func (m *MultiSelect) Message() string         { return m.message }
+func (m *MultiSelect) Default() interface{}    { return m.defaultValue }
+func (m *MultiSelect) SetError(err string)     { m.error = err }
+func (m *MultiSelect) SetFocused(focused bool) { m.focused = focused }
+func (m *MultiSelect) SetPageSize(size int) {
 	m.list.SetHeight(size)
 }
 
-func (m *MultiSelect) SetDescription(fn func(string, int) string) { 
+func (m *MultiSelect) SetDescription(fn func(string, int) string) {
 	m.description = fn
 	// Update items with descriptions
 	items := make([]list.Item, len(m.options))
@@ -166,7 +166,7 @@ func (m *MultiSelect) Update(msg tea.Msg) (Prompt, tea.Cmd) {
 			// Toggle selection for current item
 			currentIndex := m.list.Index()
 			m.selected[currentIndex] = !m.selected[currentIndex]
-			
+
 			// Update the item to reflect the new selection state
 			if item, ok := m.list.SelectedItem().(multiSelectItem); ok {
 				item.selected = m.selected[currentIndex]

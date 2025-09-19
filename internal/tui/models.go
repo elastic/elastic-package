@@ -34,22 +34,22 @@ type Validator func(interface{}) error
 
 // ANSI 16 color constants
 const (
-	ansiBlack        = "0"
-	ansiRed          = "1"
-	ansiGreen        = "2"
-	ansiYellow       = "3"
-	ansiBlue         = "4"
-	ansiMagenta      = "5"
-	ansiCyan         = "6"
-	ansiWhite        = "7"
-	ansiBrightBlack  = "8"  // Gray
-	ansiBrightRed    = "9"
-	ansiBrightGreen  = "10"
-	ansiBrightYellow = "11"
-	ansiBrightBlue   = "12"
+	ansiBlack         = "0"
+	ansiRed           = "1"
+	ansiGreen         = "2"
+	ansiYellow        = "3"
+	ansiBlue          = "4"
+	ansiMagenta       = "5"
+	ansiCyan          = "6"
+	ansiWhite         = "7"
+	ansiBrightBlack   = "8" // Gray
+	ansiBrightRed     = "9"
+	ansiBrightGreen   = "10"
+	ansiBrightYellow  = "11"
+	ansiBrightBlue    = "12"
 	ansiBrightMagenta = "13"
-	ansiBrightCyan   = "14"
-	ansiBrightWhite  = "15"
+	ansiBrightCyan    = "14"
+	ansiBrightWhite   = "15"
 )
 
 // colorSupported checks if color output is supported based on environment variables
@@ -66,16 +66,6 @@ func colorSupported() bool {
 		return false
 	case term == "dumb":
 		return false
-	case strings.Contains(term, "color"):
-		return true
-	case strings.Contains(term, "xterm"):
-		return true
-	case strings.Contains(term, "screen"):
-		return true
-	case strings.Contains(term, "tmux"):
-		return true
-	case term == "linux":
-		return true
 	default:
 		// Default to supporting color for most modern terminals
 		return true
@@ -92,14 +82,14 @@ func getColor(ansiColor string) lipgloss.Color {
 
 // Styles for consistent UI using ANSI 16 colors
 var (
-	focusedStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightMagenta))  // Was 205 (bright magenta) -> ANSI 13
-	blurredStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 240 (dark gray) -> ANSI 8
-	errorStyle      = lipgloss.NewStyle().Foreground(getColor(ansiBrightRed))      // Was 196 (bright red) -> ANSI 9
-	helpStyle       = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 241 (dark gray) -> ANSI 8
-	selectedStyle   = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true) // Was 46 (bright green) -> ANSI 10
-	unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 240 (dark gray) -> ANSI 8
-	headerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)  // Was 86 (cyan) -> ANSI 14
-	footerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true) // Was 241 (dark gray) -> ANSI 8
+	focusedStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightMagenta))
+	blurredStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+	errorStyle      = lipgloss.NewStyle().Foreground(getColor(ansiBrightRed))
+	helpStyle       = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+	selectedStyle   = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true)
+	unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+	headerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)
+	footerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true)
 )
 
 // ComposeValidators combines multiple validators
