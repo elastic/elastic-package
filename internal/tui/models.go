@@ -86,17 +86,42 @@ func getColor(ansiColor string) lipgloss.Color {
 	return lipgloss.Color(ansiColor)
 }
 
-// Styles for consistent UI using ANSI 16 colors
+// Styles for consistent UI using ANSI 16 colors with NO_COLOR support
 var (
-	focusedStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightMagenta))
-	blurredStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
-	errorStyle      = lipgloss.NewStyle().Foreground(getColor(ansiBrightRed))
-	helpStyle       = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
-	selectedStyle   = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true)
-	unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
-	headerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)
-	footerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true)
+	focusedStyle    lipgloss.Style
+	blurredStyle    lipgloss.Style
+	errorStyle      lipgloss.Style
+	helpStyle       lipgloss.Style
+	selectedStyle   lipgloss.Style
+	unselectedStyle lipgloss.Style
+	headerStyle     lipgloss.Style
+	footerStyle     lipgloss.Style
 )
+
+// Initialize styles based on color support
+func init() {
+	if colorSupported() {
+		// Color mode: use colors
+		focusedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightMagenta)).Bold(true)
+		blurredStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+		errorStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightRed))
+		helpStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+		selectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true)
+		unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
+		headerStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)
+		footerStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true)
+	} else {
+		// NO_COLOR mode: use text formatting only
+		focusedStyle = lipgloss.NewStyle().Bold(true)
+		blurredStyle = lipgloss.NewStyle()
+		errorStyle = lipgloss.NewStyle().Bold(true)
+		helpStyle = lipgloss.NewStyle()
+		selectedStyle = lipgloss.NewStyle().Bold(true)
+		unselectedStyle = lipgloss.NewStyle()
+		headerStyle = lipgloss.NewStyle().Bold(true)
+		footerStyle = lipgloss.NewStyle().Italic(true)
+	}
+}
 
 // ComposeValidators combines multiple validators
 func ComposeValidators(validators ...ValidatorFunc) ValidatorFunc {

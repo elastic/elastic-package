@@ -6,6 +6,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -22,13 +23,28 @@ func (i confirmItem) FilterValue() string { return i.title }
 func (i confirmItem) Title() string       { return i.title }
 func (i confirmItem) Description() string { return "" }
 
-// Simple delegate that uses built-in list styling
-func newConfirmDelegate() list.DefaultDelegate {
-	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = focusedStyle
-	d.Styles.NormalTitle = blurredStyle
-	d.ShowDescription = false
-	return d
+// Custom delegate with explicit selection indicator
+type confirmDelegate struct{}
+
+func (d confirmDelegate) Height() int                             { return 1 }
+func (d confirmDelegate) Spacing() int                            { return 0 }
+func (d confirmDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d confirmDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(confirmItem)
+	if !ok {
+		return
+	}
+
+	str := i.title
+	
+	// Always show selection indicator, even in NO_COLOR mode
+	if index == m.Index() {
+		str = focusedStyle.Render("> " + str)
+	} else {
+		str = blurredStyle.Render("  " + str)
+	}
+
+	fmt.Fprint(w, str)
 }
 
 // Confirm represents a yes/no confirmation prompt using bubbles list
@@ -52,7 +68,7 @@ func NewConfirm(message string, defaultValue bool) *Confirm {
 		selectedIndex = 0 // "Yes" (index 0)
 	}
 
-	l := list.New(items, newConfirmDelegate(), 20, 3) // Slightly larger height to ensure both options show
+	l := list.New(items, confirmDelegate{}, 20, 3) // Slightly larger height to ensure both options show
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)

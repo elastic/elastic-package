@@ -5,6 +5,8 @@
 package tui
 
 import (
+	"fmt"
+	"io"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -21,14 +23,31 @@ func (i selectItem) FilterValue() string { return i.title }
 func (i selectItem) Title() string       { return i.title }
 func (i selectItem) Description() string { return i.description }
 
-// Simple delegate that uses built-in list styling
-func newSelectDelegate() list.DefaultDelegate {
-	d := list.NewDefaultDelegate()
-	d.Styles.SelectedTitle = focusedStyle
-	d.Styles.SelectedDesc = helpStyle
-	d.Styles.NormalTitle = blurredStyle
-	d.Styles.NormalDesc = helpStyle
-	return d
+// Custom delegate with explicit selection indicator
+type selectDelegate struct{}
+
+func (d selectDelegate) Height() int                             { return 1 }
+func (d selectDelegate) Spacing() int                            { return 0 }
+func (d selectDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d selectDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(selectItem)
+	if !ok {
+		return
+	}
+
+	str := i.title
+	if i.description != "" {
+		str += helpStyle.Render(" - " + i.description)
+	}
+
+	// Always show selection indicator, even in NO_COLOR mode
+	if index == m.Index() {
+		str = focusedStyle.Render("> " + str)
+	} else {
+		str = blurredStyle.Render("  " + str)
+	}
+
+	fmt.Fprint(w, str)
 }
 
 // Select represents a single-choice selection prompt using bubbles list
@@ -54,7 +73,7 @@ func NewSelect(message string, options []string, defaultValue string) *Select {
 		}
 	}
 
-	l := list.New(items, newSelectDelegate(), 50, len(options)+1)
+	l := list.New(items, selectDelegate{}, 50, len(options)+1)
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
