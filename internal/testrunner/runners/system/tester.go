@@ -1068,7 +1068,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.kibanaDataStream = ds
 
 	scenario.indexTemplateName = r.buildIndexTemplateName(ds, config)
-	scenario.dataStream = r.buildDataStreamName(scenario.indexTemplateName, ds.Namespace, policyTemplate)
+	scenario.dataStream = r.buildDataStreamName(scenario.indexTemplateName, scenario.policyTemplateInput, ds.Namespace)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1252,8 +1252,8 @@ func (r *tester) buildIndexTemplateName(ds kibana.PackageDataStream, config *tes
 	return indexTemplateName
 }
 
-func (r *tester) buildDataStreamName(indexTemplateName, namespace string, policyTemplate packages.PolicyTemplate) string {
-	if r.pkgManifest.Type == "input" && policyTemplate.Input == otelCollectorInputName {
+func (r *tester) buildDataStreamName(indexTemplateName, policyTemplateInput, namespace string) string {
+	if r.pkgManifest.Type == "input" && policyTemplateInput == otelCollectorInputName {
 		indexTemplateName = fmt.Sprintf("%s.%s", indexTemplateName, otelSuffixDataset)
 	}
 
