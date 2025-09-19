@@ -105,9 +105,11 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	}
 
 	delegate := multiSelectDelegate{parent: ms}
-	l := list.New(items, delegate, 80, min(len(options), 30)) // Show up to 30 options at once
+	// Calculate height: exact number of items needed, max 20 for scrolling
+	listHeight := min(len(options), 20)
+	l := list.New(items, delegate, 80, listHeight)
 	l.SetShowStatusBar(false)
-	l.SetShowTitle(false)
+	l.SetShowTitle(false) 
 	l.SetShowHelp(false)
 	l.SetShowPagination(false) // Disable pagination, use scrolling instead
 	l.SetFilteringEnabled(false)
@@ -126,7 +128,9 @@ func (m *MultiSelect) Default() interface{}    { return m.defaultValue }
 func (m *MultiSelect) SetError(err string)     { m.error = err }
 func (m *MultiSelect) SetFocused(focused bool) { m.focused = focused }
 func (m *MultiSelect) SetPageSize(size int) {
-	m.list.SetHeight(size)
+	// Ensure the size doesn't exceed our max of 20 and isn't larger than options
+	adjustedSize := min(size, min(len(m.options), 20))
+	m.list.SetHeight(adjustedSize)
 }
 
 func (m *MultiSelect) SetDescription(fn func(string, int) string) {
@@ -146,6 +150,9 @@ func (m *MultiSelect) SetDescription(fn func(string, int) string) {
 		}
 	}
 	m.list.SetItems(items)
+	// Recalculate height after setting items
+	listHeight := min(len(m.options), 20)
+	m.list.SetHeight(listHeight)
 }
 
 func (m *MultiSelect) Value() interface{} {
