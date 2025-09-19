@@ -115,15 +115,13 @@ func (m *questionnaireModel) View() string {
 
 	// Header with progress
 	progress := fmt.Sprintf("Question %d of %d", m.currentQuestion+1, len(m.questions))
-	headerStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("86")).
+	currentHeaderStyle := headerStyle.
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderBottom(true).
 		Width(m.width).
 		Align(lipgloss.Center)
 
-	b.WriteString(headerStyle.Render(progress))
+	b.WriteString(currentHeaderStyle.Render(progress))
 	b.WriteString("\n\n")
 
 	// Current question
@@ -141,9 +139,6 @@ func (m *questionnaireModel) View() string {
 		instructions = "Use ↑↓ to navigate, Enter to continue, Ctrl+C to cancel"
 	}
 
-	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		Italic(true)
 	b.WriteString(footerStyle.Render(instructions))
 
 	return b.String()

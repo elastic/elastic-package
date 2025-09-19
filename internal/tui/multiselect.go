@@ -105,16 +105,17 @@ func NewMultiSelect(message string, options []string, defaultValue []string) *Mu
 	}
 
 	delegate := multiSelectDelegate{parent: ms}
-	l := list.New(items, delegate, 80, min(len(options), 10))
+	l := list.New(items, delegate, 80, min(len(options), 15))  // Show up to 15 options at once
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)  // Disable pagination, use scrolling instead
 	l.SetFilteringEnabled(false)
 
 	// Custom styles
 	l.Styles.Title = lipgloss.NewStyle()
-	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	l.Styles.PaginationStyle = helpStyle
+	l.Styles.HelpStyle = helpStyle
 
 	ms.list = l
 	return ms

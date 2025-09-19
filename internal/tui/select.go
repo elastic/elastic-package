@@ -80,13 +80,14 @@ func NewSelect(message string, options []string, defaultValue string) *Select {
 	l.SetShowStatusBar(false)
 	l.SetShowTitle(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)  // Disable pagination to show all options
 	l.SetFilteringEnabled(false)
 	l.Select(selectedIndex)
 
 	// Custom styles
 	l.Styles.Title = lipgloss.NewStyle()
-	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	l.Styles.PaginationStyle = helpStyle
+	l.Styles.HelpStyle = helpStyle
 
 	return &Select{
 		message:      message,

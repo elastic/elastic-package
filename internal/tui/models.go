@@ -6,6 +6,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -31,14 +32,74 @@ type Prompt interface {
 // Validator function type for validation
 type Validator func(interface{}) error
 
-// Styles for consistent UI
+// ANSI 16 color constants
+const (
+	ansiBlack        = "0"
+	ansiRed          = "1"
+	ansiGreen        = "2"
+	ansiYellow       = "3"
+	ansiBlue         = "4"
+	ansiMagenta      = "5"
+	ansiCyan         = "6"
+	ansiWhite        = "7"
+	ansiBrightBlack  = "8"  // Gray
+	ansiBrightRed    = "9"
+	ansiBrightGreen  = "10"
+	ansiBrightYellow = "11"
+	ansiBrightBlue   = "12"
+	ansiBrightMagenta = "13"
+	ansiBrightCyan   = "14"
+	ansiBrightWhite  = "15"
+)
+
+// colorSupported checks if color output is supported based on environment variables
+func colorSupported() bool {
+	// Check NO_COLOR environment variable (https://no-color.org/)
+	if os.Getenv("NO_COLOR") != "" {
+		return false
+	}
+
+	// Check TERM environment variable
+	term := os.Getenv("TERM")
+	switch {
+	case term == "":
+		return false
+	case term == "dumb":
+		return false
+	case strings.Contains(term, "color"):
+		return true
+	case strings.Contains(term, "xterm"):
+		return true
+	case strings.Contains(term, "screen"):
+		return true
+	case strings.Contains(term, "tmux"):
+		return true
+	case term == "linux":
+		return true
+	default:
+		// Default to supporting color for most modern terminals
+		return true
+	}
+}
+
+// getColor returns the color if colors are supported, empty string otherwise
+func getColor(ansiColor string) lipgloss.Color {
+	if !colorSupported() {
+		return lipgloss.Color("")
+	}
+	return lipgloss.Color(ansiColor)
+}
+
+// Styles for consistent UI using ANSI 16 colors
 var (
-	focusedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	blurredStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	errorStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	helpStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	selectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("46")).Bold(true) // Bright green, bold
-	unselectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))           // Gray
+	focusedStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightMagenta))  // Was 205 (bright magenta) -> ANSI 13
+	blurredStyle    = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 240 (dark gray) -> ANSI 8
+	errorStyle      = lipgloss.NewStyle().Foreground(getColor(ansiBrightRed))      // Was 196 (bright red) -> ANSI 9
+	helpStyle       = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 241 (dark gray) -> ANSI 8
+	selectedStyle   = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true) // Was 46 (bright green) -> ANSI 10
+	unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))    // Was 240 (dark gray) -> ANSI 8
+	headerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)  // Was 86 (cyan) -> ANSI 14
+	footerStyle     = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true) // Was 241 (dark gray) -> ANSI 8
 )
 
 // ComposeValidators combines multiple validators
