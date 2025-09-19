@@ -12,7 +12,6 @@ import (
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
-	"github.com/elastic/elastic-package/internal/surveyext"
 	"github.com/elastic/elastic-package/internal/tui"
 )
 
@@ -58,7 +57,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
 
-	validator := surveyext.Validator{Cwd: "."}
+	validator := tui.Validator{Cwd: "."}
 
 	// Create license select with description
 	licenseSelect := tui.NewSelect("License:", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
@@ -124,7 +123,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		},
 		{
 			Name:     "kibana_version",
-			Prompt:   tui.NewInput("Kibana version constraint:", surveyext.DefaultKibanaVersionConditionValue()),
+			Prompt:   tui.NewInput("Kibana version constraint:", tui.DefaultKibanaVersionConditionValue()),
 			Validate: tui.ComposeValidators(tui.Required, validator.Constraint),
 		},
 		{

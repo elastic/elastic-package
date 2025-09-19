@@ -15,7 +15,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
-	"github.com/elastic/elastic-package/internal/surveyext"
 	"github.com/elastic/elastic-package/internal/tui"
 )
 
@@ -199,7 +198,7 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 }
 
 func getInitialTUIQuestionsForVersion(specVersion *semver.Version) []*tui.Question {
-	validator := surveyext.Validator{Cwd: "."}
+	validator := tui.Validator{Cwd: "."}
 	qs := []*tui.Question{
 		{
 			Name:     "name",

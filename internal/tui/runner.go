@@ -198,7 +198,7 @@ func Ask(questions []*Question, answers interface{}) error {
 }
 
 // AskOne runs a single question
-func AskOne(prompt Prompt, answer interface{}, validators ...Validator) error {
+func AskOne(prompt Prompt, answer interface{}, validators ...ValidatorFunc) error {
 	question := &Question{
 		Name:   "answer",
 		Prompt: prompt,

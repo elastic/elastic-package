@@ -5,19 +5,25 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/elastic/elastic-package/internal/install"
 )
 
 // Question represents a single prompt question
 type Question struct {
 	Name     string
 	Prompt   Prompt
-	Validate Validator
+	Validate ValidatorFunc
 }
 
 // Prompt interface for different prompt types
@@ -29,8 +35,8 @@ type Prompt interface {
 	Default() interface{}
 }
 
-// Validator function type for validation
-type Validator func(interface{}) error
+// ValidatorFunc function type for validation
+type ValidatorFunc func(interface{}) error
 
 // ANSI 16 color constants
 const (
@@ -93,7 +99,7 @@ var (
 )
 
 // ComposeValidators combines multiple validators
-func ComposeValidators(validators ...Validator) Validator {
+func ComposeValidators(validators ...ValidatorFunc) ValidatorFunc {
 	return func(val interface{}) error {
 		for _, validator := range validators {
 			if err := validator(val); err != nil {
@@ -117,4 +123,117 @@ func Required(val interface{}) error {
 		}
 	}
 	return nil
+}
+
+// Validation patterns
+var (
+	githubOwnerRegexp = regexp.MustCompile(`^(([a-zA-Z0-9-_]+)|([a-zA-Z0-9-_]+\/[a-zA-Z0-9-_]+))$`)
+
+	packageNameRegexp    = regexp.MustCompile(`^[a-z0-9_]+$`)
+	dataStreamNameRegexp = regexp.MustCompile(`^([a-z0-9]{2}|[a-z0-9][a-z0-9_]+[a-z0-9])$`)
+)
+
+// Validator struct for package and data stream validation
+type Validator struct {
+	Cwd string
+}
+
+// PackageDoesNotExist function checks if the package hasn't been already created.
+func (v Validator) PackageDoesNotExist(val interface{}) error {
+	baseDir, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+	_, err := os.Stat(filepath.Join(v.Cwd, baseDir))
+	if err == nil {
+		return fmt.Errorf(`package "%s" already exists`, baseDir)
+	}
+	return nil
+}
+
+// DataStreamDoesNotExist function checks if the package doesn't contain the data stream.
+func (v Validator) DataStreamDoesNotExist(val interface{}) error {
+	name, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	dataStreamDir := filepath.Join(v.Cwd, "data_stream", name)
+	_, err := os.Stat(dataStreamDir)
+	if err == nil {
+		return fmt.Errorf(`data stream "%s" already exists`, name)
+	}
+	return nil
+}
+
+// Semver function checks if the value is a correct semver.
+func (v Validator) Semver(val interface{}) error {
+	ver, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+	_, err := semver.NewVersion(ver)
+	if err != nil {
+		return fmt.Errorf("can't parse value as proper semver: %w", err)
+	}
+	return nil
+}
+
+// Constraint function checks if the value is a correct version constraint.
+func (v Validator) Constraint(val interface{}) error {
+	c, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+	_, err := semver.NewConstraint(c)
+	if err != nil {
+		return fmt.Errorf("can't parse value as proper constraint: %w", err)
+	}
+	return nil
+}
+
+// GithubOwner function checks if the Github owner is valid (team or user)
+func (v Validator) GithubOwner(val interface{}) error {
+	githubOwner, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !githubOwnerRegexp.MatchString(githubOwner) {
+		return fmt.Errorf("value doesn't match the regular expression (organization/group or username): %s", githubOwnerRegexp.String())
+	}
+	return nil
+}
+
+// PackageName validates package names
+func (v Validator) PackageName(val interface{}) error {
+	packageName, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !packageNameRegexp.MatchString(packageName) {
+		return fmt.Errorf("value doesn't match the regular expression (package name): %s", packageNameRegexp.String())
+	}
+	return nil
+}
+
+// DataStreamName validates data stream names
+func (v Validator) DataStreamName(val interface{}) error {
+	dataStreamFolderName, ok := val.(string)
+	if !ok {
+		return errors.New("string type expected")
+	}
+
+	if !dataStreamNameRegexp.MatchString(dataStreamFolderName) {
+		return fmt.Errorf("value doesn't match the regular expression (datastream name): %s", dataStreamNameRegexp.String())
+	}
+	return nil
+}
+
+// DefaultKibanaVersionConditionValue function returns a constraint
+func DefaultKibanaVersionConditionValue() string {
+	ver := semver.MustParse(install.DefaultStackVersion)
+	v, _ := ver.SetPrerelease("")
+	return "^" + v.String()
 }
