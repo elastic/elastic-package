@@ -946,6 +946,7 @@ type scenarioTest struct {
 	dataStream          string
 	indexTemplateName   string
 	policyTemplateName  string
+	policyTemplateInput string
 	kibanaDataStream    kibana.PackageDataStream
 	syntheticEnabled    bool
 	docs                []common.MapStr
@@ -1009,6 +1010,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+	scenario.policyTemplateInput = policyTemplate.Input
 
 	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
@@ -1610,7 +1612,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		if ds := r.testFolder.DataStream; ds != "" {
 			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
 		} else {
+			// If there is no data stream, then these packages are input packages and
+			// it is used the policy template name as part of the dataset
 			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				expectedDataset += "." + otelSuffixDataset
+			}
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
