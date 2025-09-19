@@ -10,6 +10,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -17,6 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/surveyext"
 	"github.com/elastic/elastic-package/internal/tui"
 )
+
+var semver3_2_0 = semver.MustParse("3.2.0")
 
 const createDataStreamLongDescription = `Use this command to create a new data stream.
 
@@ -52,29 +55,13 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("data-streams are not supported in input packages")
 	}
 
-	validator := surveyext.Validator{Cwd: "."}
-	qs := []*tui.Question{
-		{
-			Name:     "name",
-			Prompt:   tui.NewInput("Data stream name:", "new_data_stream"),
-			Validate: tui.ComposeValidators(tui.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
-		},
-		{
-			Name:     "title",
-			Prompt:   tui.NewInput("Data stream title:", "New Data Stream"),
-			Validate: tui.Required,
-		},
-		{
-			Name:     "type",
-			Prompt:   tui.NewSelect("Type:", []string{"logs", "metrics"}, "logs"),
-			Validate: tui.Required,
-		},
-		{
-			Name:     "subobjects",
-			Prompt:   tui.NewConfirm("Enable creation of subobjects for fields with dots in their names?", false),
-			Validate: tui.Required,
-		},
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
+
+	qs := getInitialTUIQuestionsForVersion(sv)
+
 	var answers newDataStreamAnswers
 	err = tui.Ask(qs, &answers)
 	if err != nil {
@@ -152,7 +139,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot)
+	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
 	err = archetype.CreateDataStream(descriptor)
 	if err != nil {
 		return fmt.Errorf("can't create new data stream: %w", err)
@@ -162,14 +149,14 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string) archetype.DataStreamDescriptor {
+func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, packageRoot string, specVersion *semver.Version) archetype.DataStreamDescriptor {
 	manifest := packages.DataStreamManifest{
 		Name:  answers.Name,
 		Title: answers.Title,
 		Type:  answers.Type,
 	}
 
-	if !answers.Subobjects {
+	if !specVersion.LessThan(semver3_2_0) && !answers.Subobjects {
 		manifest.Elasticsearch = &packages.Elasticsearch{
 			IndexTemplate: &packages.ManifestIndexTemplate{
 				Mappings: &packages.ManifestMappings{
@@ -209,4 +196,35 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 		Manifest:    manifest,
 		PackageRoot: packageRoot,
 	}
+}
+
+func getInitialTUIQuestionsForVersion(specVersion *semver.Version) []*tui.Question {
+	validator := surveyext.Validator{Cwd: "."}
+	qs := []*tui.Question{
+		{
+			Name:     "name",
+			Prompt:   tui.NewInput("Data stream name:", "new_data_stream"),
+			Validate: tui.ComposeValidators(tui.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
+		},
+		{
+			Name:     "title",
+			Prompt:   tui.NewInput("Data stream title:", "New Data Stream"),
+			Validate: tui.Required,
+		},
+		{
+			Name:     "type",
+			Prompt:   tui.NewSelect("Type:", []string{"logs", "metrics"}, "logs"),
+			Validate: tui.Required,
+		},
+	}
+
+	if !specVersion.LessThan(semver3_2_0) {
+		qs = append(qs, &tui.Question{
+			Name:     "subobjects",
+			Prompt:   tui.NewConfirm("Enable creation of subobjects for fields with dots in their names?", false),
+			Validate: tui.Required,
+		})
+	}
+
+	return qs
 }
