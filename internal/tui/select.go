@@ -6,17 +6,59 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// Select represents a single-choice selection prompt
+// selectItem implements list.Item for the select component
+type selectItem struct {
+	title       string
+	description string
+}
+
+func (i selectItem) FilterValue() string { return i.title }
+func (i selectItem) Title() string       { return i.title }
+func (i selectItem) Description() string { return i.description }
+
+// Custom item delegate for select
+type selectDelegate struct{}
+
+func (d selectDelegate) Height() int                             { return 1 }
+func (d selectDelegate) Spacing() int                            { return 0 }
+func (d selectDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d selectDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(selectItem)
+	if !ok {
+		return
+	}
+
+	str := fmt.Sprintf("%s", i.title)
+	if i.description != "" {
+		str += helpStyle.Render(" - " + i.description)
+	}
+
+	fn := blurredStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return focusedStyle.Render("> " + strings.Join(s, " "))
+		}
+	} else {
+		str = "  " + str
+	}
+
+	fmt.Fprint(w, fn(str))
+}
+
+// Select represents a single-choice selection prompt using bubbles list
 type Select struct {
 	message      string
 	options      []string
 	defaultValue string
-	selected     int
+	list         list.Model
 	focused      bool
 	error        string
 	description  func(string, int) string
@@ -24,45 +66,67 @@ type Select struct {
 
 // NewSelect creates a new select prompt
 func NewSelect(message string, options []string, defaultValue string) *Select {
-	selected := 0
+	items := make([]list.Item, len(options))
+	selectedIndex := 0
+
 	for i, opt := range options {
+		items[i] = selectItem{title: opt}
 		if opt == defaultValue {
-			selected = i
-			break
+			selectedIndex = i
 		}
 	}
+
+	l := list.New(items, selectDelegate{}, 50, len(options))
+	l.SetShowStatusBar(false)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(false)
+	l.Select(selectedIndex)
+
+	// Custom styles
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 
 	return &Select{
 		message:      message,
 		options:      options,
 		defaultValue: defaultValue,
-		selected:     selected,
+		list:         l,
 		focused:      true,
 	}
 }
 
-func (s *Select) Message() string                            { return s.message }
-func (s *Select) Default() interface{}                       { return s.defaultValue }
-func (s *Select) Value() interface{}                         { return s.options[s.selected] }
-func (s *Select) SetError(err string)                        { s.error = err }
-func (s *Select) SetFocused(focused bool)                    { s.focused = focused }
-func (s *Select) SetDescription(fn func(string, int) string) { s.description = fn }
+func (s *Select) Message() string         { return s.message }
+func (s *Select) Default() interface{}    { return s.defaultValue }
+func (s *Select) SetError(err string)     { s.error = err }
+func (s *Select) SetFocused(focused bool) { s.focused = focused }
+
+func (s *Select) Value() interface{} {
+	if item, ok := s.list.SelectedItem().(selectItem); ok {
+		return item.title
+	}
+	return s.defaultValue
+}
+
+func (s *Select) SetDescription(fn func(string, int) string) { 
+	s.description = fn
+	// Update items with descriptions
+	items := make([]list.Item, len(s.options))
+	for i, opt := range s.options {
+		desc := ""
+		if fn != nil {
+			desc = fn(opt, i)
+		}
+		items[i] = selectItem{title: opt, description: desc}
+	}
+	s.list.SetItems(items)
+}
 
 func (s *Select) Update(msg tea.Msg) (Prompt, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "up", "k":
-			if s.selected > 0 {
-				s.selected--
-			}
-		case "down", "j":
-			if s.selected < len(s.options)-1 {
-				s.selected++
-			}
-		}
-	}
-	return s, nil
+	var cmd tea.Cmd
+	s.list, cmd = s.list.Update(msg)
+	return s, cmd
 }
 
 func (s *Select) Render() string {
@@ -80,36 +144,13 @@ func (s *Select) Render() string {
 	}
 	b.WriteString("\n")
 
-	// Options
-	for i, option := range s.options {
-		prefix := "  "
-		if i == s.selected {
-			if s.focused {
-				prefix = focusedStyle.Render("> ")
-			} else {
-				prefix = "> "
-			}
-		}
-
-		optionText := option
-		if s.description != nil {
-			if desc := s.description(option, i); desc != "" {
-				optionText += helpStyle.Render(" - " + desc)
-			}
-		}
-
-		if i == s.selected && s.focused {
-			b.WriteString(focusedStyle.Render(prefix + optionText))
-		} else {
-			b.WriteString(prefix + optionText)
-		}
-		b.WriteString("\n")
-	}
+	// List
+	b.WriteString(s.list.View())
 
 	// Error message
 	if s.error != "" {
-		b.WriteString(errorStyle.Render("✗ " + s.error))
 		b.WriteString("\n")
+		b.WriteString(errorStyle.Render("✗ " + s.error))
 	}
 
 	return b.String()

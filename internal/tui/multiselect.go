@@ -6,55 +6,146 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
-// MultiSelect represents a multiple-choice selection prompt
+// multiSelectItem implements list.Item for the multiselect component
+type multiSelectItem struct {
+	title       string
+	description string
+	selected    bool
+	index       int
+}
+
+func (i multiSelectItem) FilterValue() string { return i.title }
+func (i multiSelectItem) Title() string       { return i.title }
+func (i multiSelectItem) Description() string { return i.description }
+
+// Custom item delegate for multiselect
+type multiSelectDelegate struct {
+	parent *MultiSelect
+}
+
+func (d multiSelectDelegate) Height() int                             { return 1 }
+func (d multiSelectDelegate) Spacing() int                            { return 0 }
+func (d multiSelectDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
+func (d multiSelectDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
+	i, ok := listItem.(multiSelectItem)
+	if !ok {
+		return
+	}
+
+	var checkbox string
+	if i.selected {
+		checkbox = selectedStyle.Render("[✓]")
+	} else {
+		checkbox = unselectedStyle.Render("[ ]")
+	}
+
+	str := checkbox + " " + i.title
+	if i.description != "" {
+		str += helpStyle.Render(" - " + i.description)
+	}
+
+	fn := blurredStyle.Render
+	if index == m.Index() {
+		fn = func(s ...string) string {
+			return focusedStyle.Render("> " + strings.Join(s, " "))
+		}
+	} else {
+		str = "  " + str
+	}
+
+	fmt.Fprint(w, fn(str))
+}
+
+// MultiSelect represents a multiple-choice selection prompt using bubbles list
 type MultiSelect struct {
 	message      string
 	options      []string
 	defaultValue []string
-	selected     []bool
-	cursor       int
+	selected     map[int]bool
+	list         list.Model
 	focused      bool
 	error        string
 	description  func(string, int) string
-	pageSize     int
-	scrollOffset int
 }
 
 // NewMultiSelect creates a new multi-select prompt
 func NewMultiSelect(message string, options []string, defaultValue []string) *MultiSelect {
-	selected := make([]bool, len(options))
-
-	// Mark default values as selected
-	for _, defaultVal := range defaultValue {
-		for i, opt := range options {
-			if opt == defaultVal {
-				selected[i] = true
-				break
-			}
-		}
-	}
-
-	return &MultiSelect{
+	ms := &MultiSelect{
 		message:      message,
 		options:      options,
 		defaultValue: defaultValue,
-		selected:     selected,
+		selected:     make(map[int]bool),
 		focused:      true,
-		pageSize:     10, // Default page size
 	}
+
+	items := make([]list.Item, len(options))
+	for i, opt := range options {
+		// Check if this option is in the default values
+		isSelected := false
+		for _, defaultVal := range defaultValue {
+			if opt == defaultVal {
+				isSelected = true
+				ms.selected[i] = true
+				break
+			}
+		}
+		items[i] = multiSelectItem{
+			title:    opt,
+			selected: isSelected,
+			index:    i,
+		}
+	}
+
+	delegate := multiSelectDelegate{parent: ms}
+	l := list.New(items, delegate, 80, min(len(options), 10))
+	l.SetShowStatusBar(false)
+	l.SetShowTitle(false)
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(false)
+
+	// Custom styles
+	l.Styles.Title = lipgloss.NewStyle()
+	l.Styles.PaginationStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	l.Styles.HelpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+
+	ms.list = l
+	return ms
 }
 
 func (m *MultiSelect) Message() string                            { return m.message }
 func (m *MultiSelect) Default() interface{}                       { return m.defaultValue }
 func (m *MultiSelect) SetError(err string)                        { m.error = err }
 func (m *MultiSelect) SetFocused(focused bool)                    { m.focused = focused }
-func (m *MultiSelect) SetDescription(fn func(string, int) string) { m.description = fn }
-func (m *MultiSelect) SetPageSize(size int)                       { m.pageSize = size }
+func (m *MultiSelect) SetPageSize(size int)                       { 
+	m.list.SetHeight(size)
+}
+
+func (m *MultiSelect) SetDescription(fn func(string, int) string) { 
+	m.description = fn
+	// Update items with descriptions
+	items := make([]list.Item, len(m.options))
+	for i, opt := range m.options {
+		desc := ""
+		if fn != nil {
+			desc = fn(opt, i)
+		}
+		items[i] = multiSelectItem{
+			title:       opt,
+			description: desc,
+			selected:    m.selected[i],
+			index:       i,
+		}
+	}
+	m.list.SetItems(items)
+}
 
 func (m *MultiSelect) Value() interface{} {
 	var result []string
@@ -70,30 +161,25 @@ func (m *MultiSelect) Update(msg tea.Msg) (Prompt, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "up", "k":
-			if m.cursor > 0 {
-				m.cursor--
-				m.updateScroll()
-			}
-		case "down", "j":
-			if m.cursor < len(m.options)-1 {
-				m.cursor++
-				m.updateScroll()
-			}
 		case " ":
-			// Toggle selection
-			m.selected[m.cursor] = !m.selected[m.cursor]
+			// Toggle selection for current item
+			currentIndex := m.list.Index()
+			m.selected[currentIndex] = !m.selected[currentIndex]
+			
+			// Update the item to reflect the new selection state
+			if item, ok := m.list.SelectedItem().(multiSelectItem); ok {
+				item.selected = m.selected[currentIndex]
+				items := m.list.Items()
+				items[currentIndex] = item
+				m.list.SetItems(items)
+			}
+			return m, nil
 		}
 	}
-	return m, nil
-}
 
-func (m *MultiSelect) updateScroll() {
-	if m.cursor < m.scrollOffset {
-		m.scrollOffset = m.cursor
-	} else if m.cursor >= m.scrollOffset+m.pageSize {
-		m.scrollOffset = m.cursor - m.pageSize + 1
-	}
+	var cmd tea.Cmd
+	m.list, cmd = m.list.Update(msg)
+	return m, cmd
 }
 
 func (m *MultiSelect) Render() string {
@@ -117,73 +203,22 @@ func (m *MultiSelect) Render() string {
 		b.WriteString("\n")
 	}
 
-	// Calculate visible range
-	start := m.scrollOffset
-	end := start + m.pageSize
-	if end > len(m.options) {
-		end = len(m.options)
-	}
-
-	// Show scroll indicator if needed
-	if start > 0 {
-		b.WriteString(helpStyle.Render("  ↑ more options above"))
-		b.WriteString("\n")
-	}
-
-	// Options
-	for i := start; i < end; i++ {
-		prefix := "  "
-		var checkbox, optionText string
-
-		// Better visual indicators for selection
-		if m.selected[i] {
-			checkbox = selectedStyle.Render("[✓]")
-			optionText = selectedStyle.Render(m.options[i])
-		} else {
-			checkbox = unselectedStyle.Render("[ ]")
-			optionText = m.options[i]
-		}
-
-		// Handle cursor highlighting
-		if i == m.cursor {
-			if m.focused {
-				prefix = focusedStyle.Render("> ")
-				// Make the cursor line more prominent
-				if m.selected[i] {
-					checkbox = focusedStyle.Render("[✓]")
-					optionText = focusedStyle.Render(m.options[i])
-				} else {
-					checkbox = focusedStyle.Render("[ ]")
-					optionText = focusedStyle.Render(m.options[i])
-				}
-			} else {
-				prefix = "> "
-			}
-		}
-
-		// Add description if available
-		if m.description != nil {
-			if desc := m.description(m.options[i], i); desc != "" {
-				optionText += helpStyle.Render(" - " + desc)
-			}
-		}
-
-		line := prefix + checkbox + " " + optionText
-		b.WriteString(line)
-		b.WriteString("\n")
-	}
-
-	// Show scroll indicator if needed
-	if end < len(m.options) {
-		b.WriteString(helpStyle.Render("  ↓ more options below"))
-		b.WriteString("\n")
-	}
+	// List
+	b.WriteString(m.list.View())
 
 	// Error message
 	if m.error != "" {
-		b.WriteString(errorStyle.Render("✗ " + m.error))
 		b.WriteString("\n")
+		b.WriteString(errorStyle.Render("✗ " + m.error))
 	}
 
 	return b.String()
+}
+
+// min helper function for Go versions that don't have it built-in
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

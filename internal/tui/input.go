@@ -8,25 +8,31 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// Input represents a text input prompt
+// Input represents a text input prompt using bubbles textinput
 type Input struct {
 	message      string
 	defaultValue string
-	value        string
-	cursor       int
+	textInput    textinput.Model
 	focused      bool
 	error        string
 }
 
 // NewInput creates a new input prompt
 func NewInput(message, defaultValue string) *Input {
+	ti := textinput.New()
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Width = 50
+	ti.Prompt = "> "
+
 	return &Input{
 		message:      message,
 		defaultValue: defaultValue,
-		value:        "", // Start with empty value
+		textInput:    ti,
 		focused:      true,
 	}
 }
@@ -34,49 +40,28 @@ func NewInput(message, defaultValue string) *Input {
 func (i *Input) Message() string         { return i.message }
 func (i *Input) Default() interface{}    { return i.defaultValue }
 func (i *Input) SetError(err string)     { i.error = err }
-func (i *Input) SetFocused(focused bool) { i.focused = focused }
+func (i *Input) SetFocused(focused bool) { 
+	i.focused = focused
+	if focused {
+		i.textInput.Focus()
+	} else {
+		i.textInput.Blur()
+	}
+}
 
 // Value returns the current value or default if empty
 func (i *Input) Value() interface{} {
-	if strings.TrimSpace(i.value) == "" && i.defaultValue != "" {
+	value := strings.TrimSpace(i.textInput.Value())
+	if value == "" && i.defaultValue != "" {
 		return i.defaultValue
 	}
-	return i.value
+	return value
 }
 
 func (i *Input) Update(msg tea.Msg) (Prompt, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "left":
-			if i.cursor > 0 {
-				i.cursor--
-			}
-		case "right":
-			if i.cursor < len(i.value) {
-				i.cursor++
-			}
-		case "home":
-			i.cursor = 0
-		case "end":
-			i.cursor = len(i.value)
-		case "backspace":
-			if i.cursor > 0 {
-				i.value = i.value[:i.cursor-1] + i.value[i.cursor:]
-				i.cursor--
-			}
-		case "delete":
-			if i.cursor < len(i.value) {
-				i.value = i.value[:i.cursor] + i.value[i.cursor+1:]
-			}
-		default:
-			if len(msg.String()) == 1 {
-				i.value = i.value[:i.cursor] + msg.String() + i.value[i.cursor:]
-				i.cursor++
-			}
-		}
-	}
-	return i, nil
+	var cmd tea.Cmd
+	i.textInput, cmd = i.textInput.Update(msg)
+	return i, cmd
 }
 
 func (i *Input) Render() string {
@@ -95,21 +80,7 @@ func (i *Input) Render() string {
 	b.WriteString("\n")
 
 	// Input field
-	displayValue := i.value
-	if i.focused && i.cursor <= len(displayValue) {
-		// Add cursor
-		if i.cursor == len(displayValue) {
-			displayValue += "_"
-		} else {
-			displayValue = displayValue[:i.cursor] + "_" + displayValue[i.cursor+1:]
-		}
-	}
-
-	if i.focused {
-		b.WriteString(focusedStyle.Render("> " + displayValue))
-	} else {
-		b.WriteString(blurredStyle.Render("  " + displayValue))
-	}
+	b.WriteString(i.textInput.View())
 
 	// Error message
 	if i.error != "" {
