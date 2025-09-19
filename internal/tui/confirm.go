@@ -37,7 +37,7 @@ func (d confirmDelegate) Render(w io.Writer, m list.Model, index int, listItem l
 
 	str := i.title
 
-	// Always show selection indicator, even in NO_COLOR mode
+	// Show selection indicator
 	if index == m.Index() {
 		str = focusedStyle.Render("> " + str)
 	} else {

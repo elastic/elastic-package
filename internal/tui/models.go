@@ -94,8 +94,6 @@ var (
 	helpStyle       lipgloss.Style
 	selectedStyle   lipgloss.Style
 	unselectedStyle lipgloss.Style
-	headerStyle     lipgloss.Style
-	footerStyle     lipgloss.Style
 )
 
 // Initialize styles based on color support
@@ -108,8 +106,6 @@ func init() {
 		helpStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
 		selectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightGreen)).Bold(true)
 		unselectedStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack))
-		headerStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightCyan)).Bold(true)
-		footerStyle = lipgloss.NewStyle().Foreground(getColor(ansiBrightBlack)).Italic(true)
 	} else {
 		// NO_COLOR mode: use text formatting only
 		focusedStyle = lipgloss.NewStyle().Bold(true)
@@ -118,8 +114,6 @@ func init() {
 		helpStyle = lipgloss.NewStyle()
 		selectedStyle = lipgloss.NewStyle().Bold(true)
 		unselectedStyle = lipgloss.NewStyle()
-		headerStyle = lipgloss.NewStyle().Bold(true)
-		footerStyle = lipgloss.NewStyle().Italic(true)
 	}
 }
 

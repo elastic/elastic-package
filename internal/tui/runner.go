@@ -228,16 +228,6 @@ func (m *questionnaireModel) formatAnswer(answer interface{}) string {
 	}
 }
 
-func isMultiSelect(prompt Prompt) bool {
-	_, ok := prompt.(*MultiSelect)
-	return ok
-}
-
-func isSelect(prompt Prompt) bool {
-	_, ok := prompt.(*Select)
-	return ok
-}
-
 // Ask runs multiple questions and stores answers in the provided struct
 func Ask(questions []*Question, answers interface{}) error {
 	model := newQuestionnaireModel(questions)
