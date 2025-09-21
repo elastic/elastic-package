@@ -113,7 +113,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	service := dockerComposeDeployedService{
 		ymlPaths:        ymlPaths,
-		project:         svcInfo.Project(),
+		project:         svcInfo.ProjectName(),
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
 		configDir:       configDir,

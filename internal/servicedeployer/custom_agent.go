@@ -108,7 +108,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 
 	service := dockerComposeDeployedService{
 		ymlPaths: ymlPaths,
-		project:  svcInfo.Project(),
+		project:  svcInfo.ProjectName(),
 		variant: ServiceVariant{
 			Name: dockerCustomAgentName,
 			Env:  env,

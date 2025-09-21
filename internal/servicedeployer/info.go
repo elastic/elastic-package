@@ -98,7 +98,7 @@ func (sc *ServiceInfo) Aliases() map[string]interface{} {
 	return m
 }
 
-// Project returns the project identifier for the service.
-func (sc *ServiceInfo) Project() string {
+// ProjectName returns the project name for the service.
+func (sc *ServiceInfo) ProjectName() string {
 	return fmt.Sprintf("elastic-package-service-%s", sc.Test.RunID)
 }
