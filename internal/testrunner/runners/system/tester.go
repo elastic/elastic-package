@@ -145,6 +145,7 @@ var (
 type fieldValidationMethod int
 
 const (
+	// Required to allow setting `fields` as an option via environment variable
 	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
@@ -1644,14 +1645,18 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
-	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-			Details: errs.Error(),
-		})
+	if r.isTestUsingOTELCollectorInput(scenario) {
+		logger.Debug("Skip field validation for OTEL Collector input")
+	} else {
+		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+				Details: errs.Error(),
+			})
+		}
 	}
 
-	if r.fieldValidationMethod == mappingsMethod {
+	if r.isTestUsingOTELCollectorInput(scenario) || r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1775,6 +1780,19 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	}
 
 	return r.validateTestScenario(ctx, result, scenario, config)
+}
+
+func (r *tester) isTestUsingOTELCollectorInput(scenario *scenarioTest) bool {
+	// Just supported for input packages currently
+	if r.pkgManifest.Type != "input" {
+		return false
+	}
+
+	if scenario.policyTemplateInput != otelCollectorInputName {
+		return false
+	}
+
+	return true
 }
 
 func dumpScenarioDocs(docs any) error {
