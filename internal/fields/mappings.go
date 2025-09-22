@@ -544,7 +544,7 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 			}
 		case any:
 			// Validate each setting/parameter of the mapping
-			err := v.ValidateMappingParameter(currentPath, preview[key], value)
+			err := v.validateMappingParameter(currentPath, preview[key], value)
 			if err != nil {
 				errs = append(errs, err)
 			}
@@ -645,7 +645,7 @@ func (v *MappingValidator) validateMappingObject(currentPath string, previewValu
 	return v.compareMappings(currentPath, true, previewField, actualField, dynamicTemplates)
 }
 
-func (v *MappingValidator) ValidateMappingParameter(currentPath string, previewValue, actualValue any) error {
+func (v *MappingValidator) validateMappingParameter(currentPath string, previewValue, actualValue any) error {
 	// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
 	// In the case of `flattened` types in preview, the actual value should also be `flattened` and there should not be any other
 	// mapping under that object.
