@@ -642,7 +642,6 @@ func (v *MappingValidator) validateMappingObject(currentPath string, previewValu
 	if !ok {
 		return multierror.Error{fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath)}
 	}
-	logger.Debugf("> Validating mapping for field %q map[string]any", currentPath)
 	return v.compareMappings(currentPath, true, previewField, actualField, dynamicTemplates)
 }
 
