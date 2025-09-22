@@ -546,7 +546,7 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 			// Validate each setting/parameter of the mapping
 			err := v.ValidateMappingParameter(currentPath, preview[key], value)
 			if err != nil {
-				errs = append(errs, multierror.Error{err}...)
+				errs = append(errs, err)
 			}
 		}
 	}
