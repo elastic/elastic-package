@@ -696,13 +696,6 @@ The following settings are available per profile:
   Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
   which enables all subscription features for 30 days.  Defaults to "trial".
 
-## Custom Kibana Configuration
-
-You can provide custom Kibana configuration by creating a `kibana-custom.yml` file in your profile directory.
-The custom configuration will be automatically appended to the base configuration when the file exists.
-
-See [Custom Kibana Configuration](docs/howto/custom_kibana_config.md) for detailed instructions.
-
 ## Useful environment variables
 
 There are available some environment variables that could be used to change some of the
