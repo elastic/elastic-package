@@ -61,7 +61,7 @@ func BootUp(ctx context.Context, options Options) error {
 	}
 
 	if found {
-		fmt.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
+		options.Printer.Printf("Custom build packages directory found: %s\n", buildPackagesPath)
 		err = copyUniquePackages(buildPackagesPath, stackPackagesDir.PackagesDir())
 		if err != nil {
 			return fmt.Errorf("copying package contents failed: %w", err)
@@ -95,7 +95,7 @@ func BootUp(ctx context.Context, options Options) error {
 		// elastic-agent failed.
 		if onlyElasticAgentFailed(ctx, options) && !errors.Is(err, context.Canceled) {
 			sleepTime := 2 * time.Second
-			fmt.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
+			options.Printer.Printf("Elastic Agent failed to start, trying again in %s.\n", sleepTime)
 			select {
 			case <-time.After(sleepTime):
 				err = dockerComposeUp(ctx, options)
