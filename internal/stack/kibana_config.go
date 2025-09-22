@@ -33,11 +33,7 @@ func kibanaConfigWithCustomContent(profile *profile.Profile) func(resource.Conte
 			return fmt.Errorf("failed to write base kibana config: %w", err)
 		}
 
-		// Check if custom config is enabled and exists
-		if profile.Config(configKibanaCustomConfigEnabled, "false") == "false" {
-			return nil // No custom config needed
-		}
-
+		// Check if custom config file exists
 		customConfigPath := profile.Path(KibanaCustomConfigFile)
 		customConfigData, err := os.ReadFile(customConfigPath)
 		if os.IsNotExist(err) {

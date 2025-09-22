@@ -13,19 +13,13 @@ You can provide additional Kibana configuration that will be appended to the bas
 
 ## Setup
 
-1. Enable custom configuration in your profile:
-   ```bash
-   # Edit ~/.elastic-package/profiles/default/config.yml
-   stack.kibana_custom_config_enabled: true
-   ```
-
-2. Create your custom configuration file:
+1. Create your custom configuration file:
    ```bash
    # Create ~/.elastic-package/profiles/default/kibana-custom.yml
    touch ~/.elastic-package/profiles/default/kibana-custom.yml
    ```
 
-3. Add your custom configuration:
+2. Add your custom configuration:
    ```yaml
    # Example custom configuration
    logging.loggers:
@@ -142,9 +136,9 @@ monitoring.ui.container.elasticsearch.enabled: true
 ## Troubleshooting
 
 ### Configuration Not Applied
-- Ensure `stack.kibana_custom_config_enabled: true` is set in your profile's `config.yml`
 - Verify the `kibana-custom.yml` file exists in your profile directory
 - Check that the YAML syntax is valid
+- Ensure the file is in the correct location: `~/.elastic-package/profiles/{profile_name}/kibana-custom.yml`
 
 ### Template Errors
 - Use `{{ fact "variable_name" }}` syntax for template variables
@@ -168,7 +162,7 @@ You can have different custom configurations for different profiles:
 ~/.elastic-package/profiles/production/kibana-custom.yml
 ```
 
-Each profile can enable or disable custom configuration independently.
+Custom configuration is automatically detected and applied for each profile when the `kibana-custom.yml` file exists.
 
 ## Best Practices
 
