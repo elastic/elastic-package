@@ -4,5 +4,5 @@
 
 Check you have Podman configured [following the migration guide](https://podman-desktop.io/docs/migrating-from-docker/managing-docker-compatibility)
 
-- [Podman Official Documentation](https://docs.podman.io/)
-- [Podman vs Docker Comparison](https://podman.io/getting-started/)
+- [Podman Getting Started](https://podman.io/get-started)
+- [Podman Docs](https://podman.io/docs)
