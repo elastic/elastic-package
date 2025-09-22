@@ -535,8 +535,20 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates)
-		errs = append(errs, fieldErrs...)
+		switch value.(type) {
+		case map[string]any:
+			// current value is an object and it requires to validate all its elements
+			objectErrs := v.validateMappingObject(currentPath, preview[key], value, dynamicTemplates)
+			if len(objectErrs) > 0 {
+				errs = append(errs, objectErrs...)
+			}
+		case any:
+			// Validate each setting/parameter of the mapping
+			err := v.ValidateMappingParameter(currentPath, preview[key], value)
+			if err != nil {
+				errs = append(errs, multierror.Error{err}...)
+			}
+		}
 	}
 	if len(errs) == 0 {
 		return nil
@@ -619,24 +631,6 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 	}
 
 	return fmt.Errorf("no template matching for path: %q", currentPath)
-}
-
-// validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
-// in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any) multierror.Error {
-	var errs multierror.Error
-	switch actualValue.(type) {
-	case map[string]any:
-		// there could be other objects nested under this key/path
-		errs = v.validateMappingObject(currentPath, previewValue, actualValue, dynamicTemplates)
-	case any:
-		// Validate each setting/parameter of the mapping
-		err := v.ValidateMappingParameter(currentPath, previewValue, actualValue)
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errs
 }
 
 func (v *MappingValidator) validateMappingObject(currentPath string, previewValue, actualValue any, dynamicTemplates []map[string]any) multierror.Error {
