@@ -1596,13 +1596,12 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
-	// Validate fields in docs
-	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	expectedDatasets, err := r.expectedDatasets(scenario, config)
 	if err != nil {
 		return nil, err
 	}
 
+	// Validate fields in docs
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
