@@ -610,12 +610,11 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		}
 
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
-		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
-		if errs != nil {
+		errs := v.validateMappingObject(currentPath, template.mapping, definition, []map[string]any{}, true)
+		if len(errs) > 0 {
 			// Look for another dynamic template
 			continue
 		}
-
 		return nil
 	}
 
@@ -629,45 +628,56 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 	switch actualValue.(type) {
 	case map[string]any:
 		// there could be other objects nested under this key/path
-		previewField, ok := previewValue.(map[string]any)
-		if !ok {
-			errs = append(errs, fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath))
-		}
-		actualField, ok := actualValue.(map[string]any)
-		if !ok {
-			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
-		}
-		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)...)
+		errs = v.validateMappingObject(currentPath, previewValue, actualValue, dynamicTemplates, couldBeParametersDefinition)
 	case any:
 		// Validate each setting/parameter of the mapping
-		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
-		if previewValue == actualValue {
-			return nil
-		}
-		// Get the string representation of the types via JSON Marshalling
-		previewData, err := json.Marshal(previewValue)
+		err := v.ValidateMappingParameter(currentPath, previewValue, actualValue)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("error marshalling preview value %s (path: %s): %w", previewValue, currentPath, err))
-			return errs
+			errs = append(errs, err)
 		}
-
-		actualData, err := json.Marshal(actualValue)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error marshalling actual value %s (path: %s): %w", actualValue, currentPath, err))
-			return errs
-		}
-
-		// Strings from `json.Marshal` include double quotes, so they need to be removed (e.g. "\"float\"")
-		previewDataString := strings.ReplaceAll(string(previewData), "\"", "")
-		actualDataString := strings.ReplaceAll(string(actualData), "\"", "")
-		// exceptions related to numbers
-		// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
-		if isNumberTypeField(previewDataString, actualDataString) {
-			logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", previewDataString, actualDataString)
-			return nil
-		}
-
-		errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData)))
 	}
 	return errs
+}
+
+func (v *MappingValidator) validateMappingObject(currentPath string, previewValue, actualValue any, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
+	previewField, ok := previewValue.(map[string]any)
+	if !ok {
+		return multierror.Error{fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath)}
+	}
+	actualField, ok := actualValue.(map[string]any)
+	if !ok {
+		return multierror.Error{fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath)}
+	}
+	return v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)
+}
+
+func (v *MappingValidator) ValidateMappingParameter(currentPath string, previewValue, actualValue any) error {
+	// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
+	// In the case of `flattened` types in preview, the actual value should also be `flattened` and there should not be any other
+	// mapping under that object.
+	if previewValue == actualValue {
+		return nil
+	}
+	// Get the string representation of the types via JSON Marshalling
+	previewData, err := json.Marshal(previewValue)
+	if err != nil {
+		return fmt.Errorf("error marshalling preview value %s (path: %s): %w", previewValue, currentPath, err)
+	}
+
+	actualData, err := json.Marshal(actualValue)
+	if err != nil {
+		return fmt.Errorf("error marshalling actual value %s (path: %s): %w", actualValue, currentPath, err)
+	}
+
+	// Strings from `json.Marshal` include double quotes, so they need to be removed (e.g. "\"float\"")
+	previewDataString := strings.ReplaceAll(string(previewData), "\"", "")
+	actualDataString := strings.ReplaceAll(string(actualData), "\"", "")
+	// exceptions related to numbers
+	// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
+	if isNumberTypeField(previewDataString, actualDataString) {
+		logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", previewDataString, actualDataString)
+		return nil
+	}
+
+	return fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData))
 }
