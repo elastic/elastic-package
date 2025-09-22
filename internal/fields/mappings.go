@@ -535,7 +535,7 @@ func (v *MappingValidator) validateObjectProperties(path string, containsMultifi
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates, true)
+		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates)
 		errs = append(errs, fieldErrs...)
 	}
 	if len(errs) == 0 {
@@ -610,7 +610,7 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		}
 
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
-		errs := v.validateMappingObject(currentPath, template.mapping, definition, []map[string]any{}, true)
+		errs := v.validateMappingObject(currentPath, template.mapping, definition, []map[string]any{})
 		if len(errs) > 0 {
 			// Look for another dynamic template
 			continue
@@ -623,12 +623,12 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 
 // validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
 // in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
+func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	switch actualValue.(type) {
 	case map[string]any:
 		// there could be other objects nested under this key/path
-		errs = v.validateMappingObject(currentPath, previewValue, actualValue, dynamicTemplates, couldBeParametersDefinition)
+		errs = v.validateMappingObject(currentPath, previewValue, actualValue, dynamicTemplates)
 	case any:
 		// Validate each setting/parameter of the mapping
 		err := v.ValidateMappingParameter(currentPath, previewValue, actualValue)
@@ -639,7 +639,7 @@ func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actu
 	return errs
 }
 
-func (v *MappingValidator) validateMappingObject(currentPath string, previewValue, actualValue any, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
+func (v *MappingValidator) validateMappingObject(currentPath string, previewValue, actualValue any, dynamicTemplates []map[string]any) multierror.Error {
 	previewField, ok := previewValue.(map[string]any)
 	if !ok {
 		return multierror.Error{fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath)}
@@ -649,7 +649,7 @@ func (v *MappingValidator) validateMappingObject(currentPath string, previewValu
 		return multierror.Error{fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath)}
 	}
 	logger.Debugf("> Validating mapping for field %q map[string]any", currentPath)
-	return v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)
+	return v.compareMappings(currentPath, true, previewField, actualField, dynamicTemplates)
 }
 
 func (v *MappingValidator) ValidateMappingParameter(currentPath string, previewValue, actualValue any) error {
