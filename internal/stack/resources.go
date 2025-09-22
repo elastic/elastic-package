@@ -65,16 +65,15 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled                = "stack.apm_enabled"
-	configGeoIPDir                  = "stack.geoip_dir"
-	configKibanaHTTP2Enabled        = "stack.kibana_http2_enabled"
-	configKibanaCustomConfigEnabled = "stack.kibana_custom_config_enabled"
-	configLogsDBEnabled             = "stack.logsdb_enabled"
-	configLogstashEnabled           = "stack.logstash_enabled"
-	configSelfMonitorEnabled        = "stack.self_monitor_enabled"
-	configElasticEPRProxyTo         = "stack.epr.proxy_to"
-	configElasticEPRURL             = "stack.epr.base_url"
-	configElasticSubscription       = "stack.elastic_subscription"
+	configAPMEnabled          = "stack.apm_enabled"
+	configGeoIPDir            = "stack.geoip_dir"
+	configKibanaHTTP2Enabled  = "stack.kibana_http2_enabled"
+	configLogsDBEnabled       = "stack.logsdb_enabled"
+	configLogstashEnabled     = "stack.logstash_enabled"
+	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
+	configElasticEPRProxyTo   = "stack.epr.proxy_to"
+	configElasticEPRURL       = "stack.epr.base_url"
+	configElasticSubscription = "stack.elastic_subscription"
 )
 
 var (

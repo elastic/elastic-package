@@ -34,7 +34,3 @@
 
 ## Set license subscription
 # stack.elastic_subscription: "basic"
-
-## Custom Kibana Configuration
-# Enable custom kibana.yml configuration file
-# stack.kibana_custom_config_enabled: true
