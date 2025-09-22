@@ -695,6 +695,10 @@ The following settings are available per profile:
 * `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
   Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
   which enables all subscription features for 30 days.  Defaults to "trial".
+* `stack.kibana_custom_config_enabled` can be set to true to enable custom Kibana configuration.
+  When enabled, you can create a `kibana-custom.yml` file in your profile directory with additional
+  Kibana settings that will be appended to the base configuration. Defaults to false.
+  See [Custom Kibana Configuration](docs/howto/custom_kibana_config.md) for details.
 
 ## Useful environment variables
 
