@@ -1598,49 +1598,9 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	// Validate fields in docs
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
-	var expectedDatasets []string
-	for _, pipeline := range r.pipelines {
-		var esIngestPipeline map[string]any
-		err := yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
-		if err != nil {
-			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
-		}
-		processors, _ := esIngestPipeline["processors"].([]any)
-		for _, p := range processors {
-			processor, ok := p.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("unexpected processor %+v", p)
-			}
-			if reroute, ok := processor["reroute"]; ok {
-				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
-					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
-				}
-			}
-		}
-	}
-
-	if expectedDatasets == nil {
-		// get dataset directly from package policy added when preparing the scenario
-		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
-		if r.pkgManifest.Type == "input" {
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				expectedDataset += "." + otelSuffixDataset
-			}
-		}
-		expectedDatasets = []string{expectedDataset}
-	}
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				dataset += "." + otelSuffixDataset
-			}
-			expectedDatasets = append(expectedDatasets, dataset)
-		}
+	expectedDatasets, err := r.expectedDatasets(scenario, config)
+	if err != nil {
+		return nil, err
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
@@ -1747,6 +1707,56 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	return result.WithSuccess()
+}
+
+func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([]string, error) {
+	// when reroute processors are used, expectedDatasets should be set depends on the processor config
+	var expectedDatasets []string
+	for _, pipeline := range r.pipelines {
+		var esIngestPipeline map[string]any
+		err := yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+		}
+		processors, _ := esIngestPipeline["processors"].([]any)
+		for _, p := range processors {
+			processor, ok := p.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("unexpected processor %+v", p)
+			}
+			if reroute, ok := processor["reroute"]; ok {
+				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
+					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
+				}
+			}
+		}
+	}
+
+	if expectedDatasets == nil {
+		// get dataset directly from package policy added when preparing the scenario
+		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
+		if r.pkgManifest.Type == "input" {
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				expectedDataset += "." + otelSuffixDataset
+			}
+		}
+		expectedDatasets = []string{expectedDataset}
+	}
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				dataset += "." + otelSuffixDataset
+			}
+			expectedDatasets = append(expectedDatasets, dataset)
+		}
+	}
+
+	return expectedDatasets, nil
 }
 
 func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
