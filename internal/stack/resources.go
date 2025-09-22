@@ -38,6 +38,9 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
+	// KibanaCustomConfigFile is the custom kibana config file.
+	KibanaCustomConfigFile = "kibana-custom.yml"
+
 	// LogstashConfigFile is the logstash config file.
 	LogstashConfigFile = "logstash.conf"
 
@@ -62,15 +65,16 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled          = "stack.apm_enabled"
-	configGeoIPDir            = "stack.geoip_dir"
-	configKibanaHTTP2Enabled  = "stack.kibana_http2_enabled"
-	configLogsDBEnabled       = "stack.logsdb_enabled"
-	configLogstashEnabled     = "stack.logstash_enabled"
-	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
-	configElasticEPRProxyTo   = "stack.epr.proxy_to"
-	configElasticEPRURL       = "stack.epr.base_url"
-	configElasticSubscription = "stack.elastic_subscription"
+	configAPMEnabled                = "stack.apm_enabled"
+	configGeoIPDir                  = "stack.geoip_dir"
+	configKibanaHTTP2Enabled        = "stack.kibana_http2_enabled"
+	configKibanaCustomConfigEnabled = "stack.kibana_custom_config_enabled"
+	configLogsDBEnabled             = "stack.logsdb_enabled"
+	configLogstashEnabled           = "stack.logstash_enabled"
+	configSelfMonitorEnabled        = "stack.self_monitor_enabled"
+	configElasticEPRProxyTo         = "stack.epr.proxy_to"
+	configElasticEPRURL             = "stack.epr.base_url"
+	configElasticSubscription       = "stack.elastic_subscription"
 )
 
 var (
@@ -196,7 +200,21 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})
-	resources := append([]resource.Resource{}, stackResources...)
+	// Create kibana resource with custom config support
+	kibanaResource := &resource.File{
+		Path:    KibanaConfigFile,
+		Content: kibanaConfigWithCustomContent(profile),
+	}
+
+	// Replace the kibana resource in stackResources with our custom one
+	resources := make([]resource.Resource, 0, len(stackResources))
+	for _, res := range stackResources {
+		if file, ok := res.(*resource.File); ok && file.Path == KibanaConfigFile {
+			resources = append(resources, kibanaResource)
+		} else {
+			resources = append(resources, res)
+		}
+	}
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
 	resourceManager.RegisterProvider(CertsFolder, &resource.FileProvider{
