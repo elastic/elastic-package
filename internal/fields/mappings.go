@@ -310,7 +310,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
-	errs := compareFieldDefinitionWithECS(currentPath, found, definition)
+	errs := compareFieldDefinitionWithECS(found, definition)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -323,7 +323,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	return nil
 }
 
-func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) multierror.Error {
+func compareFieldDefinitionWithECS(ecs *FieldDefinition, actual map[string]any) multierror.Error {
 	var errs multierror.Error
 	actualType := mappingParameter("type", actual)
 	if ecs.Type != actualType {
@@ -497,7 +497,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, preview, actual, dynamicTemplates)
+	propertiesErrs := v.validateObjectProperties(path, containsMultifield, preview, actual, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -505,7 +505,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -648,6 +648,7 @@ func (v *MappingValidator) validateMappingObject(currentPath string, previewValu
 	if !ok {
 		return multierror.Error{fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath)}
 	}
+	logger.Debugf("> Validating mapping for field %q map[string]any", currentPath)
 	return v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)
 }
 
