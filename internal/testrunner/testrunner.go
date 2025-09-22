@@ -72,8 +72,6 @@ type Tester interface {
 	Parallel() bool
 }
 
-type TesterFactory func(TestFolder) (Tester, error)
-
 // TestRunner is the interface test runners that require a global initialization must implement.
 type TestRunner interface {
 	// Type returns the test runner's type.

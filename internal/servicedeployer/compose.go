@@ -76,7 +76,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
 		ymlPaths: d.ymlPaths,
-		project:  fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
+		project:  svcInfo.ProjectName(),
 		variant:  d.variant,
 		env: []string{
 			fmt.Sprintf("%s=%s", serviceLogsDirEnv, svcInfo.Logs.Folder.Local),
@@ -84,7 +84,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		},
 	}
 
-	p, err := compose.NewProject(service.project, service.ymlPaths...)
+	p, err := service.Project()
 	if err != nil {
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
@@ -114,9 +114,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	}
 
 	opts := compose.CommandOptions{
-		Env: append(
-			service.env,
-			d.variant.Env...),
+		Env:       service.Env(),
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
@@ -194,17 +192,29 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	return &service, nil
 }
 
+// Project returns the project for the deployed service.
+func (s *dockerComposeDeployedService) Project() (*compose.Project, error) {
+	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	if err != nil {
+		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
+	}
+	return p, nil
+}
+
+// Env returns a copy of the full env for the deployed service including any variant env.
+func (s *dockerComposeDeployedService) Env() []string {
+	return append(s.env[:len(s.env):len(s.env)], s.variant.Env...)
+}
+
 // Signal sends a signal to the service.
 func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string) error {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := s.Project()
 	if err != nil {
 		return fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...),
+		Env:       s.Env(),
 		ExtraArgs: []string{"-s", signal},
 	}
 	if s.svcInfo.Name != "" {
@@ -220,15 +230,13 @@ func (s *dockerComposeDeployedService) Signal(ctx context.Context, signal string
 
 // ExitCode returns true if the service is exited and its exit code.
 func (s *dockerComposeDeployedService) ExitCode(ctx context.Context, service string) (bool, int, error) {
-	p, err := compose.NewProject(s.project, s.ymlPaths...)
+	p, err := s.Project()
 	if err != nil {
 		return false, -1, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
 	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...),
+		Env: s.Env(),
 	}
 
 	return p.ServiceExitCode(ctx, service, opts)
@@ -261,9 +269,7 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 	}
 
 	opts := compose.CommandOptions{
-		Env: append(
-			s.env,
-			s.variant.Env...),
+		Env: s.Env(),
 	}
 
 	extraArgs := []string{}
