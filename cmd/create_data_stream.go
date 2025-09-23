@@ -202,17 +202,17 @@ func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*tui.Que
 	qs := []*tui.Question{
 		{
 			Name:     "name",
-			Prompt:   tui.NewInput("Data stream name:", "new_data_stream"),
+			Prompt:   tui.NewInput("Data stream name", "new_data_stream"),
 			Validate: tui.ComposeValidators(tui.Required, validator.DataStreamDoesNotExist, validator.DataStreamName),
 		},
 		{
 			Name:     "title",
-			Prompt:   tui.NewInput("Data stream title:", "New Data Stream"),
+			Prompt:   tui.NewInput("Data stream title", "New Data Stream"),
 			Validate: tui.Required,
 		},
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Type:", []string{"logs", "metrics"}, "logs"),
+			Prompt:   tui.NewSelect("Type", []string{"logs", "metrics"}, "logs"),
 			Validate: tui.Required,
 		},
 	}

@@ -56,6 +56,9 @@ type Confirm struct {
 	error        string
 }
 
+// compile time check that Confirm implements Prompt interface
+var _ Prompt = &Confirm{}
+
 // NewConfirm creates a new confirm prompt
 func NewConfirm(message string, defaultValue bool) *Confirm {
 	items := []list.Item{

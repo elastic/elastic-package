@@ -73,6 +73,9 @@ type MultiSelect struct {
 	description  func(string, int) string
 }
 
+// compile time check that MultiSelect implements Prompt interface
+var _ Prompt = &MultiSelect{}
+
 // NewMultiSelect creates a new multi-select prompt
 func NewMultiSelect(message string, options []string, defaultValue []string) *MultiSelect {
 	ms := &MultiSelect{

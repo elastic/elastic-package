@@ -21,6 +21,9 @@ type Input struct {
 	error        string
 }
 
+// compile time check that Input implements Prompt interface
+var _ Prompt = &Input{}
+
 // NewInput creates a new input prompt
 func NewInput(message, defaultValue string) *Input {
 	ti := textinput.New()

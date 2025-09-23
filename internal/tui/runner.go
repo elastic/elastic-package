@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // keyMap defines key bindings for the questionnaire
@@ -165,8 +166,8 @@ func (m *questionnaireModel) View() string {
 		question := m.questions[i]
 		if answer, exists := m.answers[question.Name]; exists {
 			answerStr := m.formatAnswer(answer)
-			questionLine := fmt.Sprintf("? %s: %s", question.Prompt.Message(), answerStr)
-			b.WriteString(blurredStyle.Render(questionLine))
+			questionLine := formatPrvAnswer(question.Prompt.Message(), answerStr)
+			b.WriteString(questionLine)
 			b.WriteString("\n")
 		}
 	}
@@ -199,13 +200,20 @@ func (m *questionnaireModel) renderFinalSummary() string {
 		question := m.questions[i]
 		if answer, exists := m.answers[question.Name]; exists {
 			answerStr := m.formatAnswer(answer)
-			questionLine := fmt.Sprintf("? %s: %s", question.Prompt.Message(), answerStr)
+			questionLine := formatPrvAnswer(question.Prompt.Message(), answerStr)
 			b.WriteString(blurredStyle.Render(questionLine))
 			b.WriteString("\n")
 		}
 	}
 
 	return b.String()
+}
+
+func formatPrvAnswer(question, answer string) string {
+	return fmt.Sprintf("%s %s: %s",
+		lipgloss.NewStyle().Foreground(ansiGreen).Render("?"),
+		lipgloss.NewStyle().Foreground(ansiBrightWhite).Bold(true).Render(question),
+		lipgloss.NewStyle().Foreground(ansiBrightCyan).Render(answer))
 }
 
 // formatAnswer formats an answer for display in the previous questions summary

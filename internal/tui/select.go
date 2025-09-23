@@ -61,6 +61,9 @@ type Select struct {
 	description  func(string, int) string
 }
 
+// compile time check that Select implements Prompt interface
+var _ Prompt = &Select{}
+
 // NewSelect creates a new select prompt
 func NewSelect(message string, options []string, defaultValue string) *Select {
 	items := make([]list.Item, len(options))

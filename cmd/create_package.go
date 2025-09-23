@@ -46,7 +46,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	validator := tui.Validator{Cwd: "."}
 
 	// Create license select with description
-	licenseSelect := tui.NewSelect("License:", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
+	licenseSelect := tui.NewSelect("License", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
 	licenseSelect.SetDescription(func(value string, _ int) string {
 		if value == noLicenseValue {
 			return noLicenseOnCreationMessage
@@ -55,7 +55,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	})
 
 	// Create categories multi-select
-	categoriesMultiSelect := tui.NewMultiSelect("Categories:", []string{
+	categoriesMultiSelect := tui.NewMultiSelect("Categories", []string{
 		"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
 		"datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue",
 		"monitoring", "network", "notification", "os_system", "productivity", "security", "support",
@@ -64,7 +64,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	categoriesMultiSelect.SetPageSize(50)
 
 	// Create owner type select with description
-	ownerTypeSelect := tui.NewSelect("Owner type:", []string{"elastic", "partner", "community"}, "elastic")
+	ownerTypeSelect := tui.NewSelect("Owner type", []string{"elastic", "partner", "community"}, "elastic")
 	ownerTypeSelect.SetDescription(func(value string, _ int) string {
 		switch value {
 		case "elastic":
@@ -81,17 +81,17 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	qs := []*tui.Question{
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Package type:", []string{"input", "integration", "content"}, "integration"),
+			Prompt:   tui.NewSelect("Package type", []string{"input", "integration", "content"}, "integration"),
 			Validate: tui.Required,
 		},
 		{
 			Name:     "name",
-			Prompt:   tui.NewInput("Package name:", "new_package"),
+			Prompt:   tui.NewInput("Package name", "new_package"),
 			Validate: tui.ComposeValidators(tui.Required, validator.PackageDoesNotExist, validator.PackageName),
 		},
 		{
 			Name:     "version",
-			Prompt:   tui.NewInput("Version:", "0.0.1"),
+			Prompt:   tui.NewInput("Version", "0.0.1"),
 			Validate: tui.ComposeValidators(tui.Required, validator.Semver),
 		},
 		{
@@ -100,12 +100,12 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		},
 		{
 			Name:     "title",
-			Prompt:   tui.NewInput("Package title:", "New Package"),
+			Prompt:   tui.NewInput("Package title", "New Package"),
 			Validate: tui.Required,
 		},
 		{
 			Name:     "description",
-			Prompt:   tui.NewInput("Description:", "This is a new package."),
+			Prompt:   tui.NewInput("Description", "This is a new package."),
 			Validate: tui.Required,
 		},
 		{
@@ -115,17 +115,17 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		},
 		{
 			Name:     "kibana_version",
-			Prompt:   tui.NewInput("Kibana version constraint:", tui.DefaultKibanaVersionConditionValue()),
+			Prompt:   tui.NewInput("Kibana version constraint", tui.DefaultKibanaVersionConditionValue()),
 			Validate: tui.ComposeValidators(tui.Required, validator.Constraint),
 		},
 		{
 			Name:     "elastic_subscription",
-			Prompt:   tui.NewSelect("Required Elastic subscription:", []string{"basic", "gold", "platinum", "enterprise"}, "basic"),
+			Prompt:   tui.NewSelect("Required Elastic subscription", []string{"basic", "gold", "platinum", "enterprise"}, "basic"),
 			Validate: tui.Required,
 		},
 		{
 			Name:     "github_owner",
-			Prompt:   tui.NewInput("Github owner:", "elastic/integrations"),
+			Prompt:   tui.NewInput("Github owner", "elastic/integrations"),
 			Validate: tui.ComposeValidators(tui.Required, validator.GithubOwner),
 		},
 		{
@@ -146,7 +146,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		inputQs := []*tui.Question{
 			{
 				Name:     "datastream_type",
-				Prompt:   tui.NewSelect("Input Data Stream type:", []string{"logs", "metrics"}, "logs"),
+				Prompt:   tui.NewSelect("Input Data Stream type", []string{"logs", "metrics"}, "logs"),
 				Validate: tui.Required,
 			},
 			{
