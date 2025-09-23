@@ -7,13 +7,12 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
-	"github.com/elastic/elastic-package/internal/surveyext"
+	"github.com/elastic/elastic-package/internal/tui"
 )
 
 const createPackageLongDescription = `Use this command to create a new package.
@@ -44,164 +43,123 @@ type newPackageAnswers struct {
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new package")
 
-	qs := []*survey.Question{
+	validator := tui.Validator{Cwd: "."}
+
+	// Create license select with description
+	licenseSelect := tui.NewSelect("License", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
+	licenseSelect.SetDescription(func(value string, _ int) string {
+		if value == noLicenseValue {
+			return noLicenseOnCreationMessage
+		}
+		return ""
+	})
+
+	// Create categories multi-select
+	categoriesMultiSelect := tui.NewMultiSelect("Categories", []string{
+		"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
+		"datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue",
+		"monitoring", "network", "notification", "os_system", "productivity", "security", "support",
+		"ticketing", "version_control", "web",
+	}, []string{"custom"})
+	categoriesMultiSelect.SetPageSize(50)
+
+	// Create owner type select with description
+	ownerTypeSelect := tui.NewSelect("Owner type", []string{"elastic", "partner", "community"}, "elastic")
+	ownerTypeSelect.SetDescription(func(value string, _ int) string {
+		switch value {
+		case "elastic":
+			return "Owned and supported by Elastic"
+		case "partner":
+			return "Vendor-owned with support from Elastic"
+		case "community":
+			return "Supported by the community"
+		}
+		return ""
+	})
+
+	// Create all questions including conditional ones
+	qs := []*tui.Question{
 		{
-			Name: "type",
-			Prompt: &survey.Select{
-				Message: "Package type:",
-				Options: []string{"input", "integration", "content"},
-				Default: "integration",
-			},
-			Validate: survey.Required,
+			Name:     "type",
+			Prompt:   tui.NewSelect("Package type", []string{"input", "integration", "content"}, "integration"),
+			Validate: tui.Required,
+		},
+		{
+			Name:     "name",
+			Prompt:   tui.NewInput("Package name", "new_package"),
+			Validate: tui.ComposeValidators(tui.Required, validator.PackageDoesNotExist, validator.PackageName),
+		},
+		{
+			Name:     "version",
+			Prompt:   tui.NewInput("Version", "0.0.1"),
+			Validate: tui.ComposeValidators(tui.Required, validator.Semver),
+		},
+		{
+			Name:   "source_license",
+			Prompt: licenseSelect,
+		},
+		{
+			Name:     "title",
+			Prompt:   tui.NewInput("Package title", "New Package"),
+			Validate: tui.Required,
+		},
+		{
+			Name:     "description",
+			Prompt:   tui.NewInput("Description", "This is a new package."),
+			Validate: tui.Required,
+		},
+		{
+			Name:     "categories",
+			Prompt:   categoriesMultiSelect,
+			Validate: tui.Required,
+		},
+		{
+			Name:     "kibana_version",
+			Prompt:   tui.NewInput("Kibana version constraint", tui.DefaultKibanaVersionConditionValue()),
+			Validate: tui.ComposeValidators(tui.Required, validator.Constraint),
+		},
+		{
+			Name:     "elastic_subscription",
+			Prompt:   tui.NewSelect("Required Elastic subscription", []string{"basic", "gold", "platinum", "enterprise"}, "basic"),
+			Validate: tui.Required,
+		},
+		{
+			Name:     "github_owner",
+			Prompt:   tui.NewInput("Github owner", "elastic/integrations"),
+			Validate: tui.ComposeValidators(tui.Required, validator.GithubOwner),
+		},
+		{
+			Name:     "owner_type",
+			Prompt:   ownerTypeSelect,
+			Validate: tui.Required,
 		},
 	}
 
 	var answers newPackageAnswers
-	err := survey.Ask(qs, &answers)
+	err := tui.Ask(qs, &answers)
 	if err != nil {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
 
-	validator := surveyext.Validator{Cwd: "."}
-	qs = []*survey.Question{
-		{
-			Name: "name",
-			Prompt: &survey.Input{
-				Message: "Package name:",
-				Default: "new_package",
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.PackageDoesNotExist, validator.PackageName),
-		},
-		{
-			Name: "version",
-			Prompt: &survey.Input{
-				Message: "Version:",
-				Default: "0.0.1",
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.Semver),
-		},
-		{
-			Name: "source_license",
-			Prompt: &survey.Select{
-				Message: "License:",
-				Options: []string{
-					licenses.Elastic20,
-					licenses.Apache20,
-					noLicenseValue,
-				},
-				Description: func(value string, _ int) string {
-					if value == noLicenseValue {
-						return noLicenseOnCreationMessage
-					}
-					return ""
-				},
-				Default: licenses.Elastic20,
-			},
-		},
-		{
-			Name: "title",
-			Prompt: &survey.Input{
-				Message: "Package title:",
-				Default: "New Package",
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "description",
-			Prompt: &survey.Input{
-				Message: "Description:",
-				Default: "This is a new package.",
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "categories",
-			Prompt: &survey.MultiSelect{
-				Message: "Categories:",
-				Options: []string{"aws", "azure", "cloud", "config_management", "containers", "crm", "custom",
-					"datastore", "elastic_stack", "google_cloud", "kubernetes", "languages", "message_queue",
-					"monitoring", "network", "notification", "os_system", "productivity", "security", "support",
-					"ticketing", "version_control", "web"},
-				Default:  []string{"custom"},
-				PageSize: 50,
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "kibana_version",
-			Prompt: &survey.Input{
-				Message: "Kibana version constraint:",
-				Default: surveyext.DefaultKibanaVersionConditionValue(),
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.Constraint),
-		},
-		{
-			Name: "elastic_subscription",
-			Prompt: &survey.Select{
-				Message: "Required Elastic subscription:",
-				Options: []string{"basic", "gold", "platinum", "enterprise"},
-				Default: "basic",
-			},
-			Validate: survey.Required,
-		},
-		{
-			Name: "github_owner",
-			Prompt: &survey.Input{
-				Message: "Github owner:",
-				Default: "elastic/integrations",
-			},
-			Validate: survey.ComposeValidators(survey.Required, validator.GithubOwner),
-		},
-		{
-			Name: "owner_type",
-			Prompt: &survey.Select{
-				Message: "Owner type:",
-				Options: []string{"elastic", "partner", "community"},
-				Description: func(value string, _ int) string {
-					switch value {
-					case "elastic":
-						return "Owned and supported by Elastic"
-					case "partner":
-						return "Vendor-owned with support from Elastic"
-					case "community":
-						return "Supported by the community"
-					}
-
-					return ""
-				},
-				Default: "elastic",
-			},
-			Validate: survey.Required,
-		},
-	}
-
+	// If input type, ask additional questions
 	if answers.Type == "input" {
-		inputQs := []*survey.Question{
+		inputQs := []*tui.Question{
 			{
-				Name: "datastream_type",
-				Prompt: &survey.Select{
-					Message: "Input Data Stream type:",
-					Options: []string{"logs", "metrics"},
-					Default: "logs",
-				},
-				Validate: survey.Required,
+				Name:     "datastream_type",
+				Prompt:   tui.NewSelect("Input Data Stream type", []string{"logs", "metrics"}, "logs"),
+				Validate: tui.Required,
 			},
 			{
-				Name: "subobjects",
-				Prompt: &survey.Confirm{
-					Message: "Enable creation of subobjects for fields with dots in their names?",
-					Default: false,
-				},
-				Validate: survey.Required,
+				Name:     "subobjects",
+				Prompt:   tui.NewConfirm("Enable creation of subobjects for fields with dots in their names?", false),
+				Validate: tui.Required,
 			},
 		}
 
-		qs = append(qs, inputQs...)
-	}
-
-	err = survey.Ask(qs, &answers)
-	if err != nil {
-		return fmt.Errorf("prompt failed: %w", err)
+		err = tui.Ask(inputQs, &answers)
+		if err != nil {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
@@ -262,7 +220,6 @@ func createPackageDescriptorFromAnswers(answers newPackageAnswers) archetype.Pac
 				Github: answers.GithubOwner,
 				Type:   answers.OwnerType,
 			},
-			License:       answers.ElasticSubscription,
 			Description:   answers.Description,
 			Categories:    answers.Categories,
 			Elasticsearch: elasticsearch,
