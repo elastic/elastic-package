@@ -4,6 +4,8 @@
 
 package servicedeployer
 
+import "fmt"
+
 const (
 	localCACertEnv      = "LOCAL_CA_CERT"
 	serviceLogsDirEnv   = "SERVICE_LOGS_DIR"
@@ -94,4 +96,9 @@ func (sc *ServiceInfo) Aliases() map[string]interface{} {
 		}
 	}
 	return m
+}
+
+// ProjectName returns the project name for the service.
+func (sc *ServiceInfo) ProjectName() string {
+	return fmt.Sprintf("elastic-package-service-%s", sc.Test.RunID)
 }
