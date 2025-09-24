@@ -9,7 +9,7 @@ require (
 	github.com/boumenot/gocover-cobertura v1.4.0
 	github.com/cbroglie/mustache v1.4.0
 	github.com/charmbracelet/bubbles v0.21.0
-	github.com/charmbracelet/bubbletea v1.3.9
+	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creack/pty v1.1.19
 	github.com/dustin/go-humanize v1.0.1
