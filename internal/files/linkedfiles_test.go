@@ -886,3 +886,75 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 		})
 	}
 }
+
+func Test_newLinkedFile(t *testing.T) {
+
+	repoRoot := t.TempDir()
+	repoRootHandle, err := os.OpenRoot(repoRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repoRootHandle.Close() })
+
+	linkFileContent := "../../B/otherFolder/included.txt d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e"
+	includedFileContent := "included file content"
+
+	// /packages/A/folder/link.txt.link
+	// /packages/B/otherFolder/included.txt
+	// included relative to link file: ../../B/otherFolder/included.txt
+
+	err = repoRootHandle.MkdirAll(filepath.Join("packages", "A", "folder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repoRootHandle.Create("packages/A/manifest.yml")
+	require.NoError(t, err)
+	fManifestA, err := repoRootHandle.Create("packages/A/manifest.yml")
+	require.NoError(t, err)
+	_, err = fManifestA.WriteString(`name: A
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestA.Close())
+
+	fLink, err := repoRootHandle.Create("packages/A/folder/link.txt.link")
+	require.NoError(t, err)
+	_, err = fLink.WriteString(linkFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fLink.Close())
+
+	err = repoRootHandle.MkdirAll(filepath.Join("packages", "B", "otherFolder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repoRootHandle.Create("packages/B/manifest.yml")
+	require.NoError(t, err)
+	fManifestB, err := repoRootHandle.Create("packages/B/manifest.yml")
+	require.NoError(t, err)
+	_, err = fManifestB.WriteString(`name: B
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestB.Close())
+
+	fIncluded, err := repoRootHandle.Create("packages/B/otherFolder/included.txt")
+	require.NoError(t, err)
+	_, err = fIncluded.WriteString(includedFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fIncluded.Close())
+
+	l, err := newLinkedFile(repoRootHandle, fLink.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, l)
+
+	assert.Equal(t, filepath.Join(repoRoot, "packages/A/folder"), l.WorkDir)
+
+	assert.Equal(t, "folder/link.txt.link", l.LinkFilePath)
+	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", l.LinkChecksum)
+	assert.Equal(t, "A", l.LinkPackageName)
+
+	assert.Equal(t, "../../B/otherFolder/included.txt", l.IncludedFilePath)
+	assert.Equal(t, "1c14ca1eae312a58c08085436fd5dcd0c02451d3cdc8e4e4a1cc1415a6b4c6d0", l.IncludedFileContentsChecksum)
+	assert.Equal(t, "B", l.IncludedPackageName)
+	assert.False(t, l.UpToDate)
+}
