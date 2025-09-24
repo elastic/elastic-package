@@ -167,21 +167,20 @@ func (lfs *LinksFS) ListLinkedFilesByPackage() ([]PackageLinks, error) {
 }
 
 // A Link represents a linked file.
-// It contains the path to the link file, the checksum of the link file,
-// the path to the included file, and the checksum of the included file contents.
-// It also contains a boolean indicating whether the link is up to date.
+// A linked file is a file with the ".link" extension that contains a reference to another file in an other package.
+// The link file contains the relative path to the included file and an optional checksum of the included file contents.
 type Link struct {
-	WorkDir string
+	WorkDir string // WorkDir is the path to the directory containing the link file. This is where the copy of the included file will be placed.
 
-	LinkFilePath    string
+	LinkFilePath    string // LinkFilePath is the relative path of the linked file and the package root
 	LinkChecksum    string
-	LinkPackageName string
+	LinkPackageName string // Package where the link file is located
 
-	IncludedFilePath             string
-	IncludedFileContentsChecksum string
-	IncludedPackageName          string
+	IncludedFilePath             string // IncludedFilePath is the path to the included file, this is the content of the link file
+	IncludedFileContentsChecksum string // IncludedFileContentsChecksum is the checksum of the included file contents, this is the second field in the link file
+	IncludedPackageName          string // IncludedPackageName is the package where the included file is located
 
-	UpToDate bool
+	UpToDate bool // UpToDate indicates whether the content of the included file matches the checksum in the link file
 }
 
 // NewLinkedFile creates a new Link from the given link file path.
