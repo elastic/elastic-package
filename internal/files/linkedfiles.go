@@ -183,66 +183,80 @@ type Link struct {
 	UpToDate bool // UpToDate indicates whether the content of the included file matches the checksum in the link file
 }
 
-// NewLinkedFile creates a new Link from the given link file path.
-func newLinkedFile(root *os.Root, linkFilePath string) (Link, error) {
-	var l Link
-	l.WorkDir = filepath.Dir(linkFilePath)
-	if linkPackageRoot, _, _ := packages.FindPackageRootFrom(l.WorkDir); linkPackageRoot != "" {
-		l.LinkPackageName = filepath.Base(linkPackageRoot)
+// newLinkedFile creates a new Link struct from the given absolute path to a link file.
+// root is the repository root, used to validate paths and access files securely
+func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
+
+	workDir := filepath.Dir(linkFilePath)
+
+	// validate that workDir is within the package root
+	linkPackageRoot, ok, err := packages.FindPackageRootFrom(workDir)
+	if err != nil || !ok {
+		return nil, fmt.Errorf("could not find package root: %w", err)
+	}
+	linkPackageName := filepath.Base(linkPackageRoot)
+
+	linkFileRelativePath, err := filepath.Rel(linkPackageRoot, linkFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("could not get relative path: %w", err)
 	}
 
+	// read the content of the .link file, extract the included file path and checksum
 	firstLine, err := readFirstLine(linkFilePath)
 	if err != nil {
-		return Link{}, err
+		return nil, err
 	}
-	l.LinkFilePath, err = filepath.Rel(l.WorkDir, linkFilePath)
-	if err != nil {
-		return Link{}, fmt.Errorf("could not get relative path: %w", err)
-	}
-
 	fields := strings.Fields(firstLine)
 	if len(fields) == 0 {
-		return Link{}, fmt.Errorf("link file %s is empty or has no valid content", linkFilePath)
+		return nil, fmt.Errorf("link file %s is empty or has no valid content", linkFilePath)
+	} else if len(fields) > 2 {
+		return nil, fmt.Errorf("link file %s has invalid format: expected 1 or 2 fields, got %d", linkFilePath, len(fields))
 	}
-	if len(fields) > 2 {
-		return Link{}, fmt.Errorf("link file %s has invalid format: expected 1 or 2 fields, got %d", linkFilePath, len(fields))
-	}
-	l.IncludedFilePath = fields[0]
+	includedFileRelPath := fields[0]
+	// having the checksum is optional
+	var linkfileChecksum string
 	if len(fields) == 2 {
-		l.LinkChecksum = fields[1]
+		linkfileChecksum = fields[1]
 	}
 
-	pathName := filepath.Clean(filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath)))
+	// pathname represents the absolute path to the included file which content we want to copy to the link file
+	// resolves the path of the included file relative to the link file
+	includedFilePath := filepath.Clean(filepath.Join(workDir, filepath.FromSlash(includedFileRelPath)))
 
-	// Store the original absolute path for package root detection
-	originalAbsPath := pathName
-
-	// Convert to relative path for secure access of target file
-	if filepath.IsAbs(pathName) {
-		pathName, err = filepath.Rel(root.Name(), pathName)
+	// get relative path of the included file from the root (packages root or repository root)
+	includedFilePathRelFromRoot, err := filepath.Rel(repoRoot.Name(), includedFilePath)
 		if err != nil {
-			return Link{}, fmt.Errorf("could not get relative path: %w", err)
+		return nil, fmt.Errorf("could not get relative path: %w", err)
 		}
+	// check the file exists
+	if _, err := repoRoot.Stat(includedFilePathRelFromRoot); err != nil {
+		return nil, err
 	}
 
-	if _, err := root.Stat(pathName); err != nil {
-		return Link{}, err
-	}
-
-	cs, err := getLinkedFileChecksumFromRoot(root, pathName)
+	// check if checksum is updated
+	cs, err := getLinkedFileChecksumFromRoot(repoRoot, includedFilePathRelFromRoot)
 	if err != nil {
-		return Link{}, fmt.Errorf("could not collect file %s: %w", l.IncludedFilePath, err)
-	}
-	if l.LinkChecksum == cs {
-		l.UpToDate = true
-	}
-	l.IncludedFileContentsChecksum = cs
-
-	if includedPackageRoot, _, _ := packages.FindPackageRootFrom(filepath.Dir(originalAbsPath)); includedPackageRoot != "" {
-		l.IncludedPackageName = filepath.Base(includedPackageRoot)
+		return nil, fmt.Errorf("could not collect file %s: %w", includedFilePathRelFromRoot, err)
 	}
 
-	return l, nil
+	checksumUpdated := cs == linkfileChecksum
+
+	includedPackageRoot, ok, err := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
+	if err != nil || !ok {
+		return nil, fmt.Errorf("could not find included package root: %w", err)
+	}
+	includedPackageName := filepath.Base(includedPackageRoot)
+
+	return &Link{
+		WorkDir:                      workDir,
+		LinkFilePath:                 linkFileRelativePath,
+		LinkChecksum:                 linkfileChecksum,
+		LinkPackageName:              linkPackageName,
+		IncludedFilePath:             includedFileRelPath,
+		IncludedFileContentsChecksum: cs,
+		IncludedPackageName:          includedPackageName,
+		UpToDate:                     checksumUpdated,
+	}, nil
 }
 
 // updateChecksum function updates the checksum of the linked file.
@@ -328,7 +342,7 @@ func listLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
 		if err != nil {
 			return nil, fmt.Errorf("could not initialize linked file %s: %w", f, err)
 		}
-		links[i] = l
+		links[i] = *l
 	}
 
 	return links, nil
