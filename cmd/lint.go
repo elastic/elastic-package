@@ -12,6 +12,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
@@ -45,7 +46,18 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
-	readmeFiles, err := docs.AreReadmesUpToDate()
+
+	repoRoot, err := files.FindRepositoryRootDirectory()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
+	linksFilePath, err := docs.LinksDefinitionsFilePath(repoRoot)
+	if err != nil {
+		return fmt.Errorf("locating links file failed: %w", err)
+	}
+
+	readmeFiles, err := docs.AreReadmesUpToDate(linksFilePath)
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {

@@ -18,15 +18,13 @@ import (
 func TestGenerateReadme(t *testing.T) {
 	cases := []struct {
 		title                  string
-		packageRoot            string
 		filename               string
 		readmeTemplateContents string
 		expected               string
 	}{
 		{
-			title:       "Pure markdown",
-			packageRoot: t.TempDir(),
-			filename:    "README.md",
+			title:    "Pure markdown",
+			filename: "README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package`,
@@ -35,9 +33,8 @@ Introduction to the package`,
 Introduction to the package`,
 		},
 		{
-			title:       "Generated headers",
-			packageRoot: t.TempDir(),
-			filename:    "README.md",
+			title:    "Generated headers",
+			filename: "README.md",
 			readmeTemplateContents: `
 {{- generatedHeader }}
 # README
@@ -49,7 +46,6 @@ Introduction to the package`,
 		},
 		{
 			title:                  "Static README",
-			packageRoot:            t.TempDir(),
 			filename:               "README.md",
 			readmeTemplateContents: "",
 			expected:               "",
@@ -57,10 +53,12 @@ Introduction to the package`,
 	}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
+
+			dir := t.TempDir()
+			err := createReadmeFile(dir, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme(c.filename, c.packageRoot)
+			rendered, isTemplate, err := generateReadme(c.filename, "", dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -84,7 +82,7 @@ func TestRenderReadmeWithLinks(t *testing.T) {
 		packageRoot            string
 		templatePath           string
 		readmeTemplateContents string
-		linksMap               linkMap
+		linksMap               *linkMap
 		expected               string
 	}{
 		{
