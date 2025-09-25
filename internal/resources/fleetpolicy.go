@@ -7,6 +7,7 @@ package resources
 import (
 	"errors"
 	"fmt"
+	"os"
 	"slices"
 	"strings"
 
@@ -41,6 +42,9 @@ type FleetAgentPolicy struct {
 
 	// PackagePolicies
 	PackagePolicies []FleetPackagePolicy
+
+	// RepoPath is the root of the repository.
+	RepoRoot *os.Root
 }
 
 type FleetPackagePolicy struct {

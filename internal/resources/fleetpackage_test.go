@@ -12,7 +12,9 @@ import (
 
 	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
 )
@@ -46,12 +48,18 @@ func TestPackageLifecycle(t *testing.T) {
 				t.FailNow()
 			}
 
+			repoRoot, err := files.FindRepositoryRoot()
+			require.NoError(t, err)
+
+			packageRootPath := filepath.Join(repoRoot.Name(), "test", "packages", "parallel", c.name)
+
 			fleetPackage := FleetPackage{
-				RootPath: filepath.Join("..", "..", "test", "packages", "parallel", c.name),
+				RootPath: packageRootPath,
+				RepoRoot: repoRoot,
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
-			_, err := manager.Apply(resource.Resources{&fleetPackage})
+			_, err = manager.Apply(resource.Resources{&fleetPackage})
 			assert.NoError(t, err)
 			assertPackageInstalled(t, kibanaClient, "installed", c.name)
 

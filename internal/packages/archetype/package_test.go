@@ -38,11 +38,15 @@ func TestPackage(t *testing.T) {
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
-	tempDir := makeInRepoBuildTempDir(t)
-	err := createPackageInDir(pd, tempDir)
+	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
 
-	checkPackage(t, filepath.Join(tempDir, pd.Manifest.Name), valid)
+	linksFilePath := ""
+	packagesDir := filepath.Join(repoRoot.Name(), "packages")
+	err = createPackageInDir(pd, packagesDir)
+	require.NoError(t, err)
+
+	checkPackage(t, repoRoot, linksFilePath, filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -92,9 +96,9 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, packageRoot string) error {
-	buildDir := makeInRepoBuildTempDir(t)
-	_, err := docs.UpdateReadmes(packageRoot, buildDir)
+func buildPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot string) error {
+	buildDir := t.TempDir()
+	_, err := docs.UpdateReadmes(linksFilePath, packageRoot, buildDir)
 	if err != nil {
 		return err
 	}
@@ -102,12 +106,13 @@ func buildPackage(t *testing.T, packageRoot string) error {
 	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
 		PackageRoot: packageRoot,
 		BuildDir:    buildDir,
+		RepoRoot:    repoRoot,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, packageRoot string, valid bool) {
-	err := buildPackage(t, packageRoot)
+func checkPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot string, valid bool) {
+	err := buildPackage(t, repoRoot, linksFilePath, packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return
@@ -139,23 +144,4 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 			}
 		})
 	}
-}
-
-// makeInRepoBuildTempDir mimicks t.TempDir(), but creates the directory inside the current
-// directory.
-// FIXME: It should be possible to use t.TempDir(), but conflicts with links resolution, as
-// t.TempDir() creates the directory out of the repository. We should refactor links resolution
-// so it can write files out of the repository.
-// https://github.com/elastic/elastic-package/issues/2797
-func makeInRepoBuildTempDir(t *testing.T) string {
-	t.Helper()
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	dir, err := os.MkdirTemp(cwd, "_build-test-*")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		assert.NoError(t, err)
-	})
-	return dir
 }
