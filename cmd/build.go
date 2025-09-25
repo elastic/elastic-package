@@ -61,7 +61,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	repoRoot, err := files.FindRepositoryRootDirectory()
+	repoRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
