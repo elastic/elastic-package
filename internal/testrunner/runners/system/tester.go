@@ -277,9 +277,15 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+	logger.Debugf("Data stream path: %q", r.dataStreamPath)
+	if r.dataStreamPath != "" {
+		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
+		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
+		// the package manifest instead of the data stream manifest.
+		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
+		if err != nil {
+			return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+		}
 	}
 
 	// If the environment variable is present, it always has preference over the root
@@ -463,7 +469,8 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the package or DataStream manifest
-	if info.Agent.User == "" && (r.pkgManifest.Agent.Privileges.Root || r.dataStreamManifest.Agent.Privileges.Root) {
+	if info.Agent.User == "" && r.agentRequiresRootPrivileges() {
+		logger.Debugf(" >>> Setting agent user to 'root' as defined in the package or data stream manifest")
 		info.Agent.User = "root"
 	}
 
@@ -480,6 +487,16 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	}
 
 	return info, nil
+}
+
+func (r *tester) agentRequiresRootPrivileges() bool {
+	if r.pkgManifest.Agent.Privileges.Root {
+		return true
+	}
+	if r.dataStreamManifest != nil && r.dataStreamManifest.Agent.Privileges.Root {
+		return true
+	}
+	return false
 }
 
 func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
@@ -1000,7 +1017,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
-		policyTemplateName, err = findPolicyTemplateForInput(*r.pkgManifest, *r.dataStreamManifest, config.Input)
+		policyTemplateName, err = findPolicyTemplateForInput(*r.pkgManifest, r.dataStreamManifest, config.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
@@ -1058,7 +1075,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, *r.dataStreamManifest, *config, policyToTest.Namespace)
+	ds, err := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, r.dataStreamManifest, *config, policyToTest.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("could not create package data stream: %w", err)
+	}
 	if r.runTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
@@ -1870,14 +1890,17 @@ func createPackageDatastream(
 	kibanaPolicy kibana.Policy,
 	pkg packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
-	ds packages.DataStreamManifest,
+	ds *packages.DataStreamManifest,
 	config testConfig,
 	suffix string,
-) kibana.PackageDataStream {
+) (kibana.PackageDataStream, error) {
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix), nil
 	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config, suffix)
+	if ds == nil {
+		return kibana.PackageDataStream{}, fmt.Errorf("data stream manifest is required for integration packages")
+	}
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, *ds, config, suffix), nil
 }
 
 func createIntegrationPackageDatastream(
@@ -2033,11 +2056,14 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 // findPolicyTemplateForInput returns the name of the policy_template that
 // applies to the input under test. An error is returned if no policy template
 // matches or if multiple policy templates match and the response is ambiguous.
-func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
+func findPolicyTemplateForInput(pkg packages.PackageManifest, ds *packages.DataStreamManifest, inputName string) (string, error) {
 	if pkg.Type == "input" {
 		return findPolicyTemplateForInputPackage(pkg, inputName)
 	}
-	return findPolicyTemplateForDataStream(pkg, ds, inputName)
+	if ds == nil {
+		return "", errors.New("data stream must be specified for integration packages")
+	}
+	return findPolicyTemplateForDataStream(pkg, *ds, inputName)
 }
 
 func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {

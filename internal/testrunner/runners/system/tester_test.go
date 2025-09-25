@@ -139,7 +139,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		},
 	}
 
-	ds := packages.DataStreamManifest{
+	ds := &packages.DataStreamManifest{
 		Name: dataStreamName,
 		Streams: []packages.Stream{
 			{Input: inputName},
