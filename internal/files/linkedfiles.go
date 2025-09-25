@@ -41,11 +41,6 @@ func CreateLinksFSFromPath(repoRoot *os.Root, workDir string) (*LinksFS, error) 
 		workDir = filepath.Join(repoRoot.Name(), workDir)
 	}
 
-	// root, err := os.OpenRoot(rootPath)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("opening repository root: %w", err)
-	// }
-
 	return NewLinksFS(repoRoot, workDir)
 }
 

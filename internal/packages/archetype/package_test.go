@@ -40,6 +40,7 @@ func TestPackage(t *testing.T) {
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	linksFilePath := ""
 	packagesDir := filepath.Join(repoRoot.Name(), "packages")

@@ -61,6 +61,7 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	linksFilePath := ""
 

@@ -50,6 +50,7 @@ func TestPackageLifecycle(t *testing.T) {
 
 			repoRoot, err := files.FindRepositoryRoot()
 			require.NoError(t, err)
+			defer repoRoot.Close()
 
 			packageRootPath := filepath.Join(repoRoot.Name(), "test", "packages", "parallel", c.name)
 

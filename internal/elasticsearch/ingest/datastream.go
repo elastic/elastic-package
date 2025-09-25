@@ -86,6 +86,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 	if err != nil {
 		return nil, fmt.Errorf("finding repository root failed: %w", err)
 	}
+	defer root.Close()
 
 	linksFS, err := files.CreateLinksFSFromPath(root, elasticsearchPath)
 	if err != nil {

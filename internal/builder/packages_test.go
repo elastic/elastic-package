@@ -36,6 +36,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	// Should not attempt to copy, just return nil
 	err = copyLicenseTextFile(repoRoot, licensePath)
@@ -50,6 +51,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 func TestCopyLicenseTextFile_CopiesFromRepo(t *testing.T) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	licensePath := filepath.Join(repoRoot.Name(), "LICENSE.txt")
 	err = os.WriteFile(licensePath, []byte("repo license"), 0644)
@@ -69,6 +71,7 @@ func TestCopyLicenseTextFile_CopiesFromRepo(t *testing.T) {
 func TestCopyLicenseTextFile_NoRepoLicense_ReturnsNil(t *testing.T) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	destDir := t.TempDir()
 	destLicensePath := filepath.Join(destDir, "LICENSE.txt")
@@ -83,6 +86,7 @@ func TestCopyLicenseTextFile_NoRepoLicense_ReturnsNil(t *testing.T) {
 func TestCopyLicenseTextFile_EnvOverridesLicenseName(t *testing.T) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	customLicenseName := "CUSTOM_LICENSE.txt"
 	customLicensePath := filepath.Join(repoRoot.Name(), customLicenseName)
@@ -104,6 +108,7 @@ func TestCopyLicenseTextFile_EnvOverridesLicenseName(t *testing.T) {
 func TestCopyLicenseTextFile_ErrorCopyingFile(t *testing.T) {
 	repoRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	licensePath := filepath.Join(repoRoot.Name(), "LICENSE.txt")
 	err = os.WriteFile(licensePath, []byte("repo license"), 0644)

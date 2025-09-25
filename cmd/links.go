@@ -61,6 +61,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
+	defer repoRoot.Close()
 
 	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
 	if err != nil {
@@ -105,6 +106,7 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
+	defer repoRoot.Close()
 
 	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
 	if err != nil {
@@ -151,6 +153,7 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
+	defer repoRoot.Close()
 
 	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
 	if err != nil {

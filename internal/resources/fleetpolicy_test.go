@@ -34,6 +34,7 @@ func TestRequiredProviderFleetPolicy(t *testing.T) {
 func TestPolicyLifecycle(t *testing.T) {
 	repoRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
+	defer repoRoot.Close()
 
 	cases := []struct {
 		title           string

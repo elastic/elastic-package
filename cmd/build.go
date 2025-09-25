@@ -65,6 +65,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repoRoot.Close()
 
 	linksFilePath, err := docs.LinksDefinitionsFilePath(repoRoot)
 	if err != nil {

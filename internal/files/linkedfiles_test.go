@@ -522,6 +522,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	// Create LinksFS
 	root, err := os.OpenRoot(repoDir)
 	require.NoError(t, err)
+	defer root.Close()
 
 	// Get the relative path from repo root to work directory
 	relWorkDir, err := filepath.Rel(repoDir, workDir)
