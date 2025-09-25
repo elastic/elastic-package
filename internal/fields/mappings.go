@@ -310,7 +310,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 		return multierror.Error{fmt.Errorf("field definition not found")}
 	}
 
-	errs := compareFieldDefinitionWithECS(currentPath, found, definition)
+	errs := compareFieldDefinitionWithECS(found, definition)
 	if len(errs) > 0 {
 		return errs
 	}
@@ -323,7 +323,7 @@ func (v *MappingValidator) validateMappingInECSSchema(currentPath string, defini
 	return nil
 }
 
-func compareFieldDefinitionWithECS(currentPath string, ecs *FieldDefinition, actual map[string]any) multierror.Error {
+func compareFieldDefinitionWithECS(ecs *FieldDefinition, actual map[string]any) multierror.Error {
 	var errs multierror.Error
 	actualType := mappingParameter("type", actual)
 	if ecs.Type != actualType {
@@ -497,7 +497,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	}
 
 	// Compare and validate the elements under "properties": objects or fields and its parameters
-	propertiesErrs := v.validateObjectProperties(path, false, containsMultifield, preview, actual, dynamicTemplates)
+	propertiesErrs := v.validateObjectProperties(path, containsMultifield, preview, actual, dynamicTemplates)
 	errs = append(errs, propertiesErrs...)
 	if len(errs) == 0 {
 		return nil
@@ -505,7 +505,7 @@ func (v *MappingValidator) compareMappings(path string, couldBeParametersDefinit
 	return errs.Unique()
 }
 
-func (v *MappingValidator) validateObjectProperties(path string, couldBeParametersDefinition, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
+func (v *MappingValidator) validateObjectProperties(path string, containsMultifield bool, preview, actual map[string]any, dynamicTemplates []map[string]any) multierror.Error {
 	var errs multierror.Error
 	for key, value := range actual {
 		if containsMultifield && key == "fields" {
@@ -535,8 +535,20 @@ func (v *MappingValidator) validateObjectProperties(path string, couldBeParamete
 			continue
 		}
 
-		fieldErrs := v.validateObjectMappingAndParameters(preview[key], value, currentPath, dynamicTemplates, true)
-		errs = append(errs, fieldErrs...)
+		switch value.(type) {
+		case map[string]any:
+			// current value is an object and it requires to validate all its elements
+			objectErrs := v.validateMappingObject(currentPath, preview[key], value, dynamicTemplates)
+			if len(objectErrs) > 0 {
+				errs = append(errs, objectErrs...)
+			}
+		case any:
+			// Validate each setting/parameter of the mapping
+			err := v.validateMappingParameter(currentPath, preview[key], value)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
 	}
 	if len(errs) == 0 {
 		return nil
@@ -610,64 +622,56 @@ func (v *MappingValidator) matchingWithDynamicTemplates(currentPath string, defi
 		}
 
 		// Check that all parameters match (setting no dynamic templates to avoid recursion)
-		errs := v.validateObjectMappingAndParameters(template.mapping, definition, currentPath, []map[string]any{}, true)
-		if errs != nil {
+		errs := v.validateMappingObject(currentPath, template.mapping, definition, []map[string]any{})
+		if len(errs) > 0 {
 			// Look for another dynamic template
 			continue
 		}
-
 		return nil
 	}
 
 	return fmt.Errorf("no template matching for path: %q", currentPath)
 }
 
-// validateObjectMappingAndParameters validates the current object or field parameter (currentPath) comparing the values
-// in the actual mapping with the values in the preview mapping.
-func (v *MappingValidator) validateObjectMappingAndParameters(previewValue, actualValue any, currentPath string, dynamicTemplates []map[string]any, couldBeParametersDefinition bool) multierror.Error {
-	var errs multierror.Error
-	switch actualValue.(type) {
-	case map[string]any:
-		// there could be other objects nested under this key/path
-		previewField, ok := previewValue.(map[string]any)
-		if !ok {
-			errs = append(errs, fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath))
-		}
-		actualField, ok := actualValue.(map[string]any)
-		if !ok {
-			errs = append(errs, fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath))
-		}
-		errs = append(errs, v.compareMappings(currentPath, couldBeParametersDefinition, previewField, actualField, dynamicTemplates)...)
-	case any:
-		// Validate each setting/parameter of the mapping
-		// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
-		if previewValue == actualValue {
-			return nil
-		}
-		// Get the string representation of the types via JSON Marshalling
-		previewData, err := json.Marshal(previewValue)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error marshalling preview value %s (path: %s): %w", previewValue, currentPath, err))
-			return errs
-		}
-
-		actualData, err := json.Marshal(actualValue)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("error marshalling actual value %s (path: %s): %w", actualValue, currentPath, err))
-			return errs
-		}
-
-		// Strings from `json.Marshal` include double quotes, so they need to be removed (e.g. "\"float\"")
-		previewDataString := strings.ReplaceAll(string(previewData), "\"", "")
-		actualDataString := strings.ReplaceAll(string(actualData), "\"", "")
-		// exceptions related to numbers
-		// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
-		if isNumberTypeField(previewDataString, actualDataString) {
-			logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", previewDataString, actualDataString)
-			return nil
-		}
-
-		errs = append(errs, fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData)))
+func (v *MappingValidator) validateMappingObject(currentPath string, previewValue, actualValue any, dynamicTemplates []map[string]any) multierror.Error {
+	previewField, ok := previewValue.(map[string]any)
+	if !ok {
+		return multierror.Error{fmt.Errorf("unexpected type in preview mappings for path: %q", currentPath)}
 	}
-	return errs
+	actualField, ok := actualValue.(map[string]any)
+	if !ok {
+		return multierror.Error{fmt.Errorf("unexpected type in actual mappings for path: %q", currentPath)}
+	}
+	return v.compareMappings(currentPath, true, previewField, actualField, dynamicTemplates)
+}
+
+func (v *MappingValidator) validateMappingParameter(currentPath string, previewValue, actualValue any) error {
+	// If a mapping exist in both preview and actual, they should be the same. But forcing to compare each parameter just in case
+	// In the case of `flattened` types in preview, the actual value should also be `flattened` and there should not be any other
+	// mapping under that object.
+	if previewValue == actualValue {
+		return nil
+	}
+	// Get the string representation of the types via JSON Marshalling
+	previewData, err := json.Marshal(previewValue)
+	if err != nil {
+		return fmt.Errorf("error marshalling preview value %s (path: %s): %w", previewValue, currentPath, err)
+	}
+
+	actualData, err := json.Marshal(actualValue)
+	if err != nil {
+		return fmt.Errorf("error marshalling actual value %s (path: %s): %w", actualValue, currentPath, err)
+	}
+
+	// Strings from `json.Marshal` include double quotes, so they need to be removed (e.g. "\"float\"")
+	previewDataString := strings.ReplaceAll(string(previewData), "\"", "")
+	actualDataString := strings.ReplaceAll(string(actualData), "\"", "")
+	// exceptions related to numbers
+	// https://github.com/elastic/elastic-package/blob/8cc126ae5015dd336b22901c365e8c98db4e7c15/internal/fields/validate.go#L1234-L1247
+	if isNumberTypeField(previewDataString, actualDataString) {
+		logger.Debugf("Allowed number fields with different types (preview %s - actual %s)", previewDataString, actualDataString)
+		return nil
+	}
+
+	return fmt.Errorf("unexpected value found in mapping for field %q: preview mappings value (%s) different from the actual mappings value (%s)", currentPath, string(previewData), string(actualData))
 }
