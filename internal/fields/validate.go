@@ -154,6 +154,8 @@ type Validator struct {
 
 	disabledNormalization bool
 
+	enabledOTELValidation bool
+
 	injectFieldsOptions InjectFieldsOptions
 }
 
@@ -242,6 +244,14 @@ func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
 func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	return func(v *Validator) error {
 		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
+// WithOTELValidation configures the validator to enable or disable OpenTelemetry specific validation.
+func WithOTELValidation(otelValidation bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledOTELValidation = otelValidation
 		return nil
 	}
 }
@@ -559,7 +569,15 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	errs := v.validateDocumentValues(body)
-	errs = append(errs, v.validateMapElement("", body, body)...)
+
+	// If package uses OpenTelemetry Collector, skip field validation and just
+	// validate document values (datasets).
+	if !v.enabledOTELValidation {
+		errs = append(errs, v.validateMapElement("", body, body)...)
+	} else {
+		logger.Debug("Skipping fields validation for OpenTelemetry Collector package")
+	}
+
 	if len(errs) == 0 {
 		return nil
 	}

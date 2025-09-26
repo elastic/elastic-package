@@ -1612,20 +1612,17 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
 
-	if r.isTestUsingOTELCollectorInput(scenario) {
-		logger.Debug("Skip field validation for OTEL Collector input")
-	} else {
-		if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-				Details: errs.Error(),
-			})
-		}
+	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+		return result.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Details: errs.Error(),
+		})
 	}
 
 	if r.isTestUsingOTELCollectorInput(scenario) || r.fieldValidationMethod == mappingsMethod {
