@@ -8,14 +8,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
+	"time"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/wait"
 )
+
+const assetsPresentTimeout = time.Minute
 
 type tester struct {
 	testFolder       testrunner.TestFolder
@@ -124,58 +130,73 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	if err != nil {
 		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err))
 	}
-	installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
-	if err != nil {
-		return result.WithError(fmt.Errorf("cannot get installed package %q: %w", manifest.Name, err))
-	}
-	installedAssets := installedPackage.Assets()
 
-	// No Elasticsearch asset is created when an Input package is installed through the API.
-	// This would require to create a Agent policy and add that input package to the Agent policy.
-	// As those input packages could have some required fields, it would also require to add
-	// configuration files as in system tests to fill those fields.
-	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
-	// support for Elasticsearch assets in input packages.
-	// Related issue: https://github.com/elastic/elastic-package/issues/1623
-	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
-	if err != nil {
-		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
-	}
+	var results []testrunner.TestResult
+	_, err = wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
+		if err != nil {
+			results, err = result.WithError(fmt.Errorf("cannot get installed package %q: %w", manifest.Name, err))
+			return false, err
+		}
+		installedAssets := installedPackage.Assets()
 
-	results := make([]testrunner.TestResult, 0, len(expectedAssets))
-	for _, e := range expectedAssets {
-		rc := testrunner.NewResultComposer(testrunner.TestResult{
-			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    r.testFolder.Package,
-			DataStream: e.DataStream,
-			TestType:   TestType,
-		})
+		installedTags, err := r.kibanaClient.ExportSavedObjects(ctx, kibana.ExportSavedObjectsRequest{Type: "tag"})
+		if err != nil {
+			results, err = result.WithError(fmt.Errorf("cannot get installed tags: %w", err))
+			return false, err
+		}
 
-		var tr []testrunner.TestResult
-		if !findActualAsset(installedAssets, e) {
-			tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  "could not find expected asset",
-				Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.ID, formatAssetsAsString(installedAssets)),
+		// No Elasticsearch asset is created when an Input package is installed through the API.
+		// This would require to create a Agent policy and add that input package to the Agent policy.
+		// As those input packages could have some required fields, it would also require to add
+		// configuration files as in system tests to fill those fields.
+		// In these tests, mainly it is required to test Kibana assets, therefore it is not added
+		// support for Elasticsearch assets in input packages.
+		// Related issue: https://github.com/elastic/elastic-package/issues/1623
+		expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
+		if err != nil {
+			results, err = result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
+			return false, err
+		}
+
+		results = make([]testrunner.TestResult, 0, len(expectedAssets))
+		success := true
+		for _, e := range expectedAssets {
+			rc := testrunner.NewResultComposer(testrunner.TestResult{
+				Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.IDOrName()),
+				Package:    r.testFolder.Package,
+				DataStream: e.DataStream,
+				TestType:   TestType,
 			})
-		} else {
-			tr, _ = rc.WithSuccess()
-		}
-		result := tr[0]
-		if r.withCoverage && e.SourcePath != "" {
-			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
-			if err != nil {
+
+			tr, _ := rc.WithSuccess()
+			if !findActualAsset(installedAssets, installedTags, e) {
 				tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
-					Reason:  "could not generate test coverage",
-					Details: fmt.Sprintf("could not generate test coverage for asset in %s: %v", e.SourcePath, err),
+					Reason:  "could not find expected asset",
+					Details: fmt.Sprintf("could not find %s asset \"%s\". Assets loaded:\n%s", e.Type, e.IDOrName(), formatAssetsAsString(installedAssets, installedTags)),
 				})
-				result = tr[0]
+				success = false
 			}
+			result := tr[0]
+			if r.withCoverage && e.SourcePath != "" {
+				result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
+				if err != nil {
+					tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
+						Reason:  "could not generate test coverage",
+						Details: fmt.Sprintf("could not generate test coverage for asset in %s: %v", e.SourcePath, err),
+					})
+					result = tr[0]
+				}
+				success = false
+			}
+
+			results = append(results, result)
 		}
 
-		results = append(results, result)
-	}
+		return success, nil
+	}, time.Second, assetsPresentTimeout)
 
-	return results, nil
+	return results, err
 }
 
 func (r *tester) TearDown(ctx context.Context) error {
@@ -191,20 +212,67 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset) bool {
+func findActualAsset(actualAssets []packages.Asset, savedObjects []common.MapStr, expectedAsset packages.Asset) bool {
 	for _, a := range actualAssets {
 		if a.Type == expectedAsset.Type && a.ID == expectedAsset.ID {
 			return true
 		}
 	}
 
+	if expectedAsset.Type == "tag" && expectedAsset.ID == "" {
+		// If we haven't found the asset, and it is a tag, it could be some of the shared
+		// tags defined in tags.yml, whose id can be unpredictable, so check by name.
+		if len(actualAssets) == 0 {
+			// If there are no assets, the tag may not be installed, so assume it would have been.
+			// TODO: More accurately we should check if any of the listed objects in `tags.yml` is present.
+			return true
+		}
+		for _, so := range savedObjects {
+			soType, _ := so.GetValue("type")
+			if soType, ok := soType.(string); !ok || soType != "tag" {
+				continue
+			}
+
+			name, _ := so.GetValue("attributes.name")
+			if name, ok := name.(string); ok && name == expectedAsset.Name {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 
-func formatAssetsAsString(assets []packages.Asset) string {
+func formatAssetsAsString(assets []packages.Asset, savedObjects []common.MapStr) string {
 	var sb strings.Builder
 	for _, asset := range assets {
-		sb.WriteString(fmt.Sprintf("- %s\n", asset.String()))
+		fmt.Fprintf(&sb, "- %s\n", asset.String())
+	}
+	for _, so := range savedObjects {
+		idValue, _ := so.GetValue("id")
+		id, ok := idValue.(string)
+		if !ok {
+			continue
+		}
+		soTypeValue, _ := so.GetValue("type")
+		soType, ok := soTypeValue.(string)
+		if !ok {
+			continue
+		}
+
+		// Avoid repeating.
+		if slices.ContainsFunc(assets, func(a packages.Asset) bool {
+			return a.Type == packages.AssetType(soType) && a.ID == id
+		}) {
+			continue
+		}
+
+		name, _ := so.GetValue("attributes.name")
+		if name, ok := name.(string); ok && name != "" {
+			fmt.Fprintf(&sb, "- %s (name: %q, type: %s)\n", id, name, soType)
+		} else {
+			fmt.Fprintf(&sb, "- %s (type: %s)\n", id, soType)
+		}
 	}
 	return sb.String()
 }
