@@ -574,8 +574,6 @@ func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	// validate document values (datasets).
 	if !v.enabledOTELValidation {
 		errs = append(errs, v.validateMapElement("", body, body)...)
-	} else {
-		logger.Debug("Skipping fields validation for OpenTelemetry Collector package")
 	}
 
 	if len(errs) == 0 {
