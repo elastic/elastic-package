@@ -145,6 +145,7 @@ var (
 type fieldValidationMethod int
 
 const (
+	// Required to allow setting `fields` as an option via environment variable
 	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
@@ -1629,6 +1630,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -1641,7 +1643,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if r.fieldValidationMethod == mappingsMethod {
+	if r.isTestUsingOTELCollectorInput(scenario) || r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1817,6 +1819,19 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
+func (r *tester) isTestUsingOTELCollectorInput(scenario *scenarioTest) bool {
+	// Just supported for input packages currently
+	if r.pkgManifest.Type != "input" {
+		return false
+	}
+
+	if scenario.policyTemplateInput != otelCollectorInputName {
+		return false
+	}
+
+	return true
+}
+
 func dumpScenarioDocs(docs any) error {
 	timestamp := time.Now().Format("20060102150405")
 	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
@@ -1983,16 +1998,14 @@ func createInputPackageDatastream(
 			PolicyTemplate: policyTemplate.Name,
 			Enabled:        true,
 			Vars:           kibana.Vars{},
+			Type:           policyTemplate.Input,
 		},
 	}
-
-	streamInput := policyTemplate.Input
-	r.Inputs[0].Type = streamInput
 
 	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			ID:      fmt.Sprintf("%s-%s.%s", policyTemplate.Input, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
