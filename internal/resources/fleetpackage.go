@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/go-resource"
@@ -23,6 +24,9 @@ type FleetPackage struct {
 
 	// RootPath is the root of the package source to install.
 	RootPath string
+
+	// RepoPath is the root of the repository.
+	RepoRoot *os.Root
 
 	// Absent is set to true to indicate that the package should not be installed.
 	Absent bool
@@ -59,6 +63,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		Kibana:         provider.Client,
 		RootPath:       f.RootPath,
 		SkipValidation: true,
+		RepoRoot:       f.RepoRoot,
 	})
 }
 
