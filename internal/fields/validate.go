@@ -602,7 +602,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			}
 
 			str, ok := valueToString(value, v.disabledNormalization)
-			exists := stringInArray(str, renderedExpectedDatasets)
+			exists := slices.Contains(renderedExpectedDatasets, str)
 			if !ok || !exists {
 				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
 					datasetField, v.expectedDatasets, value)
@@ -611,18 +611,6 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 		}
 	}
 	return errs
-}
-
-func stringInArray(target string, arr []string) bool {
-	// Check if target is part of the array
-	found := false
-	for _, item := range arr {
-		if item == target {
-			found = true
-			break
-		}
-	}
-	return found
 }
 
 func valueToString(value any, disabledNormalization bool) (string, bool) {
