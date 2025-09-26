@@ -147,7 +147,7 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 			return nil, fmt.Errorf("unexpected dynamic template format found for %q", templateName)
 		}
 
-		matchAttributeDefined := false
+		isMatchAttributeDefined := false
 		isRuntime := false
 		for setting, value := range contents {
 			switch setting {
@@ -161,7 +161,7 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 					return nil, fmt.Errorf("invalid type for \"match_pattern\": %T", value)
 				}
 				aDynamicTemplate.matchPattern = s
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 			case "match":
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
@@ -169,30 +169,30 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 					return nil, fmt.Errorf("failed to check match setting: %w", err)
 				}
 				aDynamicTemplate.match = values
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 			case "unmatch":
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check unmatch setting: %w", err)
 				}
 				aDynamicTemplate.unmatch = values
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 			case "path_match":
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check path_match setting: %w", err)
 				}
 				aDynamicTemplate.pathMatch = values
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 			case "path_unmatch":
 				values, err := parseDynamicTemplateParameter(value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to check path_unmatch setting: %w", err)
 				}
 				aDynamicTemplate.unpathMatch = values
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 			case "match_mapping_type", "unmatch_mapping_type":
-				matchAttributeDefined = true
+				isMatchAttributeDefined = true
 				// Do nothing
 				// These parameters require to check the original type (before the document is ingested)
 				// but the dynamic template just contains the type from the `mapping` field
@@ -204,7 +204,7 @@ func parseDynamicTemplates(rawDynamicTemplates []map[string]any) ([]dynamicTempl
 		if isRuntime {
 			continue
 		}
-		if !matchAttributeDefined {
+		if !isMatchAttributeDefined {
 			continue
 		}
 		dynamicTemplates = append(dynamicTemplates, aDynamicTemplate)
