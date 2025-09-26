@@ -1014,8 +1014,6 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.policyTemplateInput = policyTemplate.Input
 
-	scenario.policyTemplateInput = policyTemplate.Input
-
 	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kibana policies: %w", err)
