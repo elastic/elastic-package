@@ -20,10 +20,16 @@ import (
 )
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
+
+	repoRoot, err := files.FindRepositoryRoot()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repoRoot.Close() })
+
 	manager := resource.NewManager()
-	_, err := manager.Apply(resource.Resources{
+	_, err = manager.Apply(resource.Resources{
 		&FleetAgentPolicy{
-			Name: "test-policy",
+			Name:     "test-policy",
+			RepoRoot: repoRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -34,7 +40,7 @@ func TestRequiredProviderFleetPolicy(t *testing.T) {
 func TestPolicyLifecycle(t *testing.T) {
 	repoRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
-	defer repoRoot.Close()
+	t.Cleanup(func() { _ = repoRoot.Close() })
 
 	cases := []struct {
 		title           string

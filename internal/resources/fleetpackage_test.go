@@ -21,9 +21,15 @@ import (
 
 func TestRequiredProvider(t *testing.T) {
 	manager := resource.NewManager()
-	_, err := manager.Apply(resource.Resources{
+
+	repoRoot, err := files.FindRepositoryRoot()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repoRoot.Close() })
+
+	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
 			RootPath: "../../test/packages/parallel/nginx",
+			RepoRoot: repoRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -78,15 +84,20 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 		t.FailNow()
 	}
 
+	repoRoot, err := files.FindRepositoryRoot()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repoRoot.Close() })
+
 	fleetPackage := FleetPackage{
 		RootPath: "../../test/packages/parallel/system",
 		Absent:   true,
+		RepoRoot: repoRoot,
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
 
 	// Try to uninstall the package, it should not be installed.
-	_, err := manager.Apply(resource.Resources{&fleetPackage})
+	_, err = manager.Apply(resource.Resources{&fleetPackage})
 	assert.NoError(t, err)
 	assertPackageInstalled(t, kibanaClient, "installed", "system")
 

@@ -6,6 +6,7 @@ package policy
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -28,6 +29,7 @@ type tester struct {
 	coverageType       string
 
 	resourcesManager *resources.Manager
+	repoRoot         *os.Root
 }
 
 // Ensures that runner implements testrunner.Tester interface
@@ -42,6 +44,7 @@ type PolicyTesterOptions struct {
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
+	RepoRoot           *os.Root
 }
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
@@ -54,6 +57,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		repoRoot:           options.RepoRoot,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -121,6 +125,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 				DataStreamVars: testConfig.DataStream.Vars,
 			},
 		},
+		RepoRoot: r.repoRoot,
 	}
 	resources := resource.Resources{&policy}
 	_, testErr := manager.ApplyCtx(ctx, resources)
