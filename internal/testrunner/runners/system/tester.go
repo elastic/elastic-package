@@ -1617,16 +1617,16 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
+	logger.Info("Validating test case...")
 	expectedDatasets, err := r.expectedDatasets(scenario, config)
 	if err != nil {
 		return nil, err
 	}
 
-	if r.isTestUsingOTELCollectorInput(scenario) {
+	if r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) {
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
-	// Validate fields in docs
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -1634,7 +1634,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
-		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario)),
+		// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
+		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -1647,7 +1648,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if r.isTestUsingOTELCollectorInput(scenario) || r.fieldValidationMethod == mappingsMethod {
+	if !r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1704,7 +1705,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplateInput, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1823,13 +1824,13 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
-func (r *tester) isTestUsingOTELCollectorInput(scenario *scenarioTest) bool {
+func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
 	// Just supported for input packages currently
 	if r.pkgManifest.Type != "input" {
 		return false
 	}
 
-	if scenario.policyTemplateInput != otelCollectorInputName {
+	if policyTemplateInput != otelCollectorInputName {
 		return false
 	}
 
@@ -2162,7 +2163,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream string, syntheticEnabled bool) error {
+func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {
 	if config.SkipTransformValidation {
 		return nil
 	}
@@ -2216,6 +2217,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 			fields.WithDisableNormalization(syntheticEnabled),
+			// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
