@@ -168,9 +168,11 @@ func (lfs *LinksFS) ListLinkedFilesByPackage() ([]PackageLinks, error) {
 type Link struct {
 	WorkDir string // WorkDir is the path to the directory containing the link file. This is where the copy of the included file will be placed.
 
-	LinkFilePath    string // LinkFilePath is the relative path of the linked file and the package root
+	LinkFilePath    string // LinkFilePath is the absolute path of the linked file
 	LinkChecksum    string
 	LinkPackageName string // Package where the link file is located
+
+	TargetRelPath string // TargetRelPath is the relative path to the target file, this will be the path where the content of the file is copied to
 
 	IncludedFilePath             string // IncludedFilePath is the path to the included file, this is the content of the link file
 	IncludedFileContentsChecksum string // IncludedFileContentsChecksum is the checksum of the included file contents, this is the second field in the link file
@@ -247,13 +249,14 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 
 	return &Link{
 		WorkDir:                      workDir,
-		LinkFilePath:                 linkFileRelativePath,
+		LinkFilePath:                 linkFilePath,
 		LinkChecksum:                 linkfileChecksum,
 		LinkPackageName:              linkPackageName,
 		IncludedFilePath:             includedFileRelPath,
 		IncludedFileContentsChecksum: cs,
 		IncludedPackageName:          includedPackageName,
 		UpToDate:                     checksumUpdated,
+		TargetRelPath:                strings.TrimSuffix(linkFileRelativePath, linkExtension),
 	}, nil
 }
 
@@ -270,7 +273,7 @@ func (l *Link) updateChecksum() (bool, error) {
 		return false, fmt.Errorf("checksum is empty for included file %s", l.IncludedFilePath)
 	}
 	newContent := fmt.Sprintf("%v %v", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
-	if err := writeFile(filepath.Join(l.WorkDir, l.LinkFilePath), []byte(newContent)); err != nil {
+	if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
 		return false, fmt.Errorf("could not update checksum for link file %s: %w", l.LinkFilePath, err)
 	}
 	l.LinkChecksum = l.IncludedFileContentsChecksum
@@ -278,22 +281,9 @@ func (l *Link) updateChecksum() (bool, error) {
 	return true, nil
 }
 
-// TargetFilePath returns the path where the linked file should be written.
-// If workDir is provided, it uses that as the base directory, otherwise uses the link's WorkDir.
-func (l *Link) TargetFilePath(workDir ...string) string {
-	targetFilePath := filepath.FromSlash(strings.TrimSuffix(l.LinkFilePath, linkExtension))
-	wd := l.WorkDir
-	if len(workDir) > 0 {
-		wd = workDir[0]
-	}
-	return filepath.Join(wd, targetFilePath)
-}
-
-// includeLinkedFiles function includes linked files from the source
-// directory to the target directory.
+// includeLinkedFiles function includes linked files from the source directory to the target directory.
 // It returns a slice of Link structs representing the included files.
 // It also updates the checksum of the linked files.
-// Both directories must be relative to the root.
 func includeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
 	links, err := listLinkedFiles(root, fromDir)
 	if err != nil {
@@ -303,7 +293,10 @@ func includeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
 		if _, err := l.updateChecksum(); err != nil {
 			return nil, fmt.Errorf("could not update checksum for file %s: %w", l.LinkFilePath, err)
 		}
-		targetFilePath := l.TargetFilePath(toDir)
+		// targetFilePath is the path where the content of the file is copied to
+		targetFilePath := filepath.Join(toDir, l.TargetRelPath)
+
+		// from l.IncludedFilePath, we just need the path name without .link suffix and to be relative to the toDir instead of the package root
 		if err := copyFromRoot(
 			root,
 			filepath.Join(l.WorkDir, filepath.FromSlash(l.IncludedFilePath)),
@@ -479,7 +472,7 @@ func linkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, er
 			packageName != l.IncludedPackageName {
 			continue
 		}
-		byPackageMap[l.LinkPackageName] = append(byPackageMap[l.LinkPackageName], filepath.Join(l.WorkDir, l.LinkFilePath))
+		byPackageMap[l.LinkPackageName] = append(byPackageMap[l.LinkPackageName], l.LinkFilePath)
 	}
 
 	var packages []string

@@ -217,7 +217,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("including linked files failed: %w", err)
 	}
 	for _, l := range links {
-		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
+		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
 	}
 
 	if options.CreateZip {

@@ -7,7 +7,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -74,7 +73,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	for _, f := range linkedFiles {
 		if !f.UpToDate {
-			cmd.Printf("%s is outdated.\n", filepath.Join(f.WorkDir, f.LinkFilePath))
+			cmd.Printf("%s is outdated.\n", f.LinkFilePath)
 		}
 	}
 	if len(linkedFiles) > 0 {
