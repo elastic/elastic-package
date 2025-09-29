@@ -76,12 +76,13 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 	var logsPath string
 	if options.Output != "" {
-		err := os.RemoveAll(options.Output)
+		logsPath = filepath.Join(options.Output, "logs")
+
+		err := os.RemoveAll(logsPath)
 		if err != nil {
 			return nil, fmt.Errorf("can't remove output location: %w", err)
 		}
 
-		logsPath = filepath.Join(options.Output, "logs")
 		err = os.MkdirAll(logsPath, 0755)
 		if err != nil {
 			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
