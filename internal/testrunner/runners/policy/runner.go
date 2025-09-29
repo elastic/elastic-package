@@ -7,6 +7,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,6 +23,7 @@ const (
 )
 
 type runner struct {
+	repoRoot        *os.Root
 	packageRootPath string
 	kibanaClient    *kibana.Client
 
@@ -157,6 +159,7 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
 		RootPath: r.packageRootPath,
+		RepoRoot: r.repoRoot,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -25,6 +26,7 @@ type tester struct {
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
+	repoRoot         *os.Root
 }
 
 type AssetTesterOptions struct {
@@ -34,6 +36,7 @@ type AssetTesterOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
+	RepoRoot         *os.Root
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
@@ -44,6 +47,7 @@ func NewAssetTester(options AssetTesterOptions) *tester {
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
+		repoRoot:         options.RepoRoot,
 	}
 
 	manager := resources.NewManager()
@@ -83,6 +87,7 @@ func (r *tester) resources(installedPackage bool) resources.Resources {
 			RootPath: r.packageRootPath,
 			Absent:   !installedPackage,
 			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepoRoot: r.repoRoot,
 		},
 	}
 }
