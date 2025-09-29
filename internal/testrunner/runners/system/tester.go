@@ -1622,6 +1622,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return nil, err
 	}
 
+	if r.isTestUsingOTELCollectorInput(scenario) {
+		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
+	}
+
 	// Validate fields in docs
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
