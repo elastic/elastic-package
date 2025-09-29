@@ -20,21 +20,30 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "logs"
 
-		createAndCheckDataStream(t, pd, dd, true)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, true, repoRoot)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "metrics"
 
-		createAndCheckDataStream(t, pd, dd, true)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, true, repoRoot)
 	})
 	t.Run("missing-type", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = ""
 
-		createAndCheckDataStream(t, pd, dd, false)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, false, repoRoot)
 	})
 }
 
@@ -58,15 +67,11 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 	}
 }
 
-func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool) {
-	repoRoot, err := os.OpenRoot(t.TempDir())
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRoot.Close() })
-
+func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool, repoRoot *os.Root) {
 	linksFilePath := ""
 
 	packagesDir := filepath.Join(repoRoot.Name(), "packages")
-	err = os.MkdirAll(packagesDir, 0o755)
+	err := os.MkdirAll(packagesDir, 0o755)
 	require.NoError(t, err)
 	err = os.Chdir(packagesDir)
 	require.NoError(t, err)
