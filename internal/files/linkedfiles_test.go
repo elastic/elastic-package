@@ -895,7 +895,7 @@ func Test_newLinkedFile(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repoRootHandle.Close() })
 
-	linkFileContent := "../../B/otherFolder/included.txt d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e"
+	linkFileContent := fmt.Sprintf("%s d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", filepath.Join("..", "..", "B", "otherFolder", "included.txt"))
 	includedFileContent := "included file content"
 
 	// /packages/A/folder/link.txt.link
