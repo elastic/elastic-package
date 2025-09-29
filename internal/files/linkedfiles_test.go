@@ -902,7 +902,7 @@ func Test_newLinkedFile(t *testing.T) {
 	// /packages/B/otherFolder/included.txt
 	// included relative to link file: ../../B/otherFolder/included.txt
 
-	err = repoRootHandle.MkdirAll(filepath.Join("packages", "A", "folder"), 0755)
+	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "A", "folder"), 0755)
 	require.NoError(t, err)
 
 	// required to identify a package root
@@ -923,7 +923,7 @@ type: integration
 	require.NoError(t, err)
 	require.NoError(t, fLink.Close())
 
-	err = repoRootHandle.MkdirAll(filepath.Join("packages", "B", "otherFolder"), 0755)
+	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "B", "otherFolder"), 0755)
 	require.NoError(t, err)
 
 	// required to identify a package root
