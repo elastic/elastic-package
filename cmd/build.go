@@ -99,6 +99,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		CreateZip:      createZip,
 		SignPackage:    signPackage,
 		SkipValidation: skipValidation,
+		RepoRoot:       repoRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
