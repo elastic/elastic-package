@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -82,11 +83,17 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
+	repoRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
 		Kibana:         kibanaClient,
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
+		RepoRoot:       repoRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

@@ -5,6 +5,7 @@
 package stream
 
 import (
+	"os"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -25,6 +26,7 @@ type Options struct {
 	PackageRootPath string
 	Variant         string
 	Profile         *profile.Profile
+	RepoRoot        *os.Root
 }
 
 type ClientOptions struct {
@@ -105,5 +107,11 @@ func WithPerformCleanup(p bool) OptionFunc {
 func WithTimestampField(t string) OptionFunc {
 	return func(opts *Options) {
 		opts.TimestampField = t
+	}
+}
+
+func WithRepoRoot(r *os.Root) OptionFunc {
+	return func(opts *Options) {
+		opts.RepoRoot = r
 	}
 }

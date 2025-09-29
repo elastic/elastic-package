@@ -25,6 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -302,6 +303,11 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	repoRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return err
@@ -336,6 +342,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyDryRun(rallyDryRun),
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
+		rally.WithRepoRoot(repoRoot),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)
@@ -473,6 +480,11 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	repoRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return err
@@ -507,6 +519,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithESAPI(esClient.API),
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
+		stream.WithRepoRoot(repoRoot),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))
