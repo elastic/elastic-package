@@ -24,6 +24,9 @@ func TestDataStream(t *testing.T) {
 		require.NoError(t, err)
 
 		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
@@ -34,6 +37,9 @@ func TestDataStream(t *testing.T) {
 		require.NoError(t, err)
 
 		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 	t.Run("missing-type", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
@@ -44,6 +50,9 @@ func TestDataStream(t *testing.T) {
 		require.NoError(t, err)
 
 		createAndCheckDataStream(t, pd, dd, false, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 }
 
