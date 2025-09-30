@@ -221,6 +221,7 @@ type tester struct {
 	dataStreamManifest *packages.DataStreamManifest
 	withCoverage       bool
 	coverageType       string
+	dumpPrefix         string
 
 	serviceStateFilePath string
 
@@ -253,6 +254,7 @@ type SystemTesterOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
+	DumpPrefix       string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -705,7 +707,6 @@ func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config
 	logger.Debugf("Using config: %q", testConfig.Name())
 
 	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
-
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
 		return partial, err
@@ -1817,32 +1818,26 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 		return results, nil
 	}
 
-	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
-		err := dumpScenarioDocs(scenario.docs)
+	var dumpPath string
+	switch {
+	case r.dumpPrefix != "":
+		dumpPath = fmt.Sprintf("%s-%s.json", r.dumpPrefix, time.Now().Format("20060102150405"))
+	case os.Getenv(dumpScenarioDocsEnv) != "":
+		dumpPath = filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", time.Now().Format("20060102150405")))
+	}
+	var dumpErr error
+	if dumpPath != "" {
+		err := dumpScenarioDocs(scenario.docs, dumpPath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
+			dumpErr = fmt.Errorf("failed to dump scenario docs: %w", err)
 		}
 	}
 
-	return r.validateTestScenario(ctx, result, scenario, config)
+	results, err := r.validateTestScenario(ctx, result, scenario, config)
+	return results, errors.Join(err, dumpErr)
 }
 
-func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
-	// Just supported for input packages currently
-	if r.pkgManifest.Type != "input" {
-		return false
-	}
-
-	if policyTemplateInput != otelCollectorInputName {
-		return false
-	}
-
-	return true
-}
-
-func dumpScenarioDocs(docs any) error {
-	timestamp := time.Now().Format("20060102150405")
-	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
+func dumpScenarioDocs(docs any, path string) error {
 	f, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("failed to create dump file: %w", err)
@@ -1858,6 +1853,19 @@ func dumpScenarioDocs(docs any) error {
 		return fmt.Errorf("failed to encode docs: %w", err)
 	}
 	return nil
+}
+
+func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
+	// Just supported for input packages currently
+	if r.pkgManifest.Type != "input" {
+		return false
+	}
+
+	if policyTemplateInput != otelCollectorInputName {
+		return false
+	}
+
+	return true
 }
 
 func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) (*kibana.Agent, error) {

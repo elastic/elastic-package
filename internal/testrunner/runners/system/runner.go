@@ -40,6 +40,7 @@ type runner struct {
 	generateTestResult bool
 	withCoverage       bool
 	coverageType       string
+	dumpPrefix         string
 
 	configFilePath string
 	runSetup       bool
@@ -78,6 +79,7 @@ type SystemTestRunnerOptions struct {
 	DeferCleanup       time.Duration
 	WithCoverage       bool
 	CoverageType       string
+	DumpPrefix         string
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
@@ -100,6 +102,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		repositoryRoot:     options.RepositoryRoot,
+		dumpPrefix:         options.DumpPrefix,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -265,6 +268,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					GlobalTestConfig:   r.globalTestConfig,
 					WithCoverage:       r.withCoverage,
 					CoverageType:       r.coverageType,
+					DumpPrefix:         r.dumpPrefix,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(

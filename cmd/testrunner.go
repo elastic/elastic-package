@@ -421,6 +421,8 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
 
+	cmd.Flags().String(cobraext.TestDumpPrefixFlagName, "", cobraext.TestDumpPrefixFlagDescription)
+
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
 
@@ -474,6 +476,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	testCoverageFormat, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.TestCoverageFormatFlagName)
+	}
+
+	dumpPrefix, err := cmd.Flags().GetString(cobraext.TestDumpPrefixFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TestDumpPrefixFlagName)
 	}
 
 	if !slices.Contains(testrunner.CoverageFormatsList(), testCoverageFormat) {
@@ -585,6 +592,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
 		RepositoryRoot:     repositoryRoot,
+		DumpPrefix:         dumpPrefix,
 	})
 
 	logger.Debugf("Running suite...")
