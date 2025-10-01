@@ -6,9 +6,11 @@ package packages
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -243,6 +245,9 @@ type TransformDefinition struct {
 	Source struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
+	Dest struct {
+		Pipeline string `config:"pipeline" yaml:"pipeline"`
+	} `config:"dest" yaml:"dest"`
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
@@ -414,6 +419,53 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
+// ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)
+// file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
+// by adding the package version defined in the package manifest.
+func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("could not read package manifest: %w", err)
+	}
+
+	if manifest.Version == "" {
+		return nil, TransformDefinition{}, fmt.Errorf("package version is not defined in the package manifest")
+	}
+
+	t := template.New(filepath.Base(transformPath))
+	t, err = t.Funcs(template.FuncMap{
+		"IngestPipelineName": func(pipelineName string) (string, error) {
+			return fmt.Sprintf("%s-%s", manifest.Version, pipelineName), nil
+		},
+	}).ParseFiles(transformPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("parsing transform template failed (path: %s): %w", transformPath, err)
+	}
+
+	var rendered bytes.Buffer
+	err = t.Execute(&rendered, nil)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("executing template failed: %w", err)
+	}
+	cfg, err := yaml.NewConfig(rendered.Bytes(), ucfg.PathSep("."))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("reading file failed (path: %s): %w", transformPath, err)
+	}
+
+	var definition TransformDefinition
+	err = cfg.Unpack(&definition)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("failed to parse transform file \"%s\": %w", transformPath, err)
+	}
+
+	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
+	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("destination ingest pipeline file %s not found: %w", pipelineFileName, err)
+	}
+	return rendered.Bytes(), definition, nil
+}
+
 // ReadTransformsFromPackageRoot looks for transforms in the given package root.
 func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 	files, err := filepath.Glob(filepath.Join(packageRoot, "elasticsearch", "transform", "*", "transform.yml"))
@@ -423,15 +475,9 @@ func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 
 	var transforms []Transform
 	for _, file := range files {
-		cfg, err := yaml.NewConfigWithFile(file, ucfg.PathSep("."))
+		_, definition, err := ReadTransformDefinitionFile(file, packageRoot)
 		if err != nil {
-			return nil, fmt.Errorf("reading file failed (path: %s): %w", file, err)
-		}
-
-		var definition TransformDefinition
-		err = cfg.Unpack(&definition)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse transform file \"%s\": %w", file, err)
+			return nil, fmt.Errorf("failed reading transform definition file %q: %w", file, err)
 		}
 
 		transforms = append(transforms, Transform{
