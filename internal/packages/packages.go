@@ -458,6 +458,10 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 		return nil, TransformDefinition{}, fmt.Errorf("failed to parse transform file \"%s\": %w", transformPath, err)
 	}
 
+	if definition.Dest.Pipeline == "" {
+		return rendered.Bytes(), definition, nil
+	}
+
 	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
 	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
 	if err != nil {
