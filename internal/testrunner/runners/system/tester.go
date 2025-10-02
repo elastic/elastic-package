@@ -278,7 +278,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	logger.Debugf("Data stream path: %q", r.dataStreamPath)
 	if r.dataStreamPath != "" {
 		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
 		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
@@ -471,7 +470,6 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the package or DataStream manifest
 	if info.Agent.User == "" && r.agentRequiresRootPrivileges() {
-		logger.Debugf(" >>> Setting agent user to 'root' as defined in the package or data stream manifest")
 		info.Agent.User = "root"
 	}
 
