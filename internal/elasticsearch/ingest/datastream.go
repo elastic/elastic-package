@@ -82,7 +82,13 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	linksFS, err := files.CreateLinksFSFromPath(elasticsearchPath)
+	root, err := files.FindRepositoryRoot()
+	if err != nil {
+		return nil, fmt.Errorf("finding repository root failed: %w", err)
+	}
+	defer root.Close()
+
+	linksFS, err := files.CreateLinksFSFromPath(root, elasticsearchPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating links filesystem failed: %w", err)
 	}

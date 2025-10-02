@@ -97,17 +97,17 @@ func TestListLinkedFiles(t *testing.T) {
 	require.Len(t, linkedFiles, 2) // Expect exactly 2 link files in testdata
 
 	// Verify first file (outdated.yml.link) - should be outdated (no checksum)
-	assert.Equal(t, "outdated.yml.link", linkedFiles[0].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[0].LinkFilePath, "outdated.yml.link"))
 	assert.Empty(t, linkedFiles[0].LinkChecksum) // No checksum = outdated
-	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetFilePath(""))
+	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[0].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[0].IncludedFileContentsChecksum)
 	assert.False(t, linkedFiles[0].UpToDate)
 
 	// Verify second file (uptodate.yml.link) - should be up-to-date (has matching checksum)
-	assert.Equal(t, "uptodate.yml.link", linkedFiles[1].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[1].LinkFilePath, "uptodate.yml.link"))
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[1].LinkChecksum)
-	assert.Equal(t, "uptodate.yml", linkedFiles[1].TargetFilePath(""))
+	assert.Equal(t, "uptodate.yml", linkedFiles[1].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[1].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[1].IncludedFileContentsChecksum)
 	assert.True(t, linkedFiles[1].UpToDate)
@@ -171,9 +171,9 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	assert.Len(t, linkedFiles, 1) // Expect exactly 1 outdated file (outdated.yml.link)
 
 	// Verify the outdated file details
-	assert.Equal(t, "outdated.yml.link", linkedFiles[0].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[0].LinkFilePath, "outdated.yml.link"))
 	assert.Empty(t, linkedFiles[0].LinkChecksum) // No checksum indicates outdated
-	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetFilePath(""))
+	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[0].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[0].IncludedFileContentsChecksum)
 	assert.False(t, linkedFiles[0].UpToDate)
@@ -293,12 +293,12 @@ func TestIncludeLinkedFiles(t *testing.T) {
 	require.Equal(t, 1, len(linkedFiles)) // Expect 1 linked file to be processed
 
 	// Verify the target file was created in the destination directory
-	assert.FileExists(t, linkedFiles[0].TargetFilePath(toDir))
+	assert.FileExists(t, filepath.Join(toDir, linkedFiles[0].TargetRelPath))
 
 	// Verify the copied file has identical content to the original included file
 	equal, err := filesEqual(
 		filepath.Join(linkedFiles[0].WorkDir, filepath.FromSlash(linkedFiles[0].IncludedFilePath)),
-		linkedFiles[0].TargetFilePath(toDir),
+		filepath.Join(toDir, linkedFiles[0].TargetRelPath),
 	)
 	assert.NoError(t, err)
 	assert.True(t, equal, "files should be equal after copying")
@@ -522,6 +522,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	// Create LinksFS
 	root, err := os.OpenRoot(repoDir)
 	require.NoError(t, err)
+	defer root.Close()
 
 	// Get the relative path from repo root to work directory
 	relWorkDir, err := filepath.Rel(repoDir, workDir)
@@ -885,4 +886,76 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_newLinkedFile(t *testing.T) {
+
+	repoRoot := t.TempDir()
+	repoRootHandle, err := os.OpenRoot(repoRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repoRootHandle.Close() })
+
+	linkFileContent := fmt.Sprintf("%s d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", filepath.Join("..", "..", "B", "otherFolder", "included.txt"))
+	includedFileContent := "included file content"
+
+	// /packages/A/folder/link.txt.link
+	// /packages/B/otherFolder/included.txt
+	// included relative to link file: ../../B/otherFolder/included.txt
+
+	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "A", "folder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repoRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	require.NoError(t, err)
+	fManifestA, err := repoRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	require.NoError(t, err)
+	_, err = fManifestA.WriteString(`name: A
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestA.Close())
+
+	fLink, err := repoRootHandle.Create(filepath.Join("packages", "A", "folder", "link.txt.link"))
+	require.NoError(t, err)
+	_, err = fLink.WriteString(linkFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fLink.Close())
+
+	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "B", "otherFolder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repoRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	require.NoError(t, err)
+	fManifestB, err := repoRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	require.NoError(t, err)
+	_, err = fManifestB.WriteString(`name: B
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestB.Close())
+
+	fIncluded, err := repoRootHandle.Create(filepath.Join("packages", "B", "otherFolder", "included.txt"))
+	require.NoError(t, err)
+	_, err = fIncluded.WriteString(includedFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fIncluded.Close())
+
+	l, err := newLinkedFile(repoRootHandle, fLink.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, l)
+
+	assert.Equal(t, filepath.Join(repoRoot, filepath.Join("packages", "A", "folder")), l.WorkDir)
+
+	assert.True(t, strings.HasSuffix(l.LinkFilePath, filepath.Join("folder", "link.txt.link")))
+	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", l.LinkChecksum)
+	assert.Equal(t, "A", l.LinkPackageName)
+
+	assert.Equal(t, filepath.Join("..", "..", "B", "otherFolder", "included.txt"), l.IncludedFilePath)
+	assert.Equal(t, "1c14ca1eae312a58c08085436fd5dcd0c02451d3cdc8e4e4a1cc1415a6b4c6d0", l.IncludedFileContentsChecksum)
+	assert.Equal(t, "B", l.IncludedPackageName)
+	assert.False(t, l.UpToDate)
 }

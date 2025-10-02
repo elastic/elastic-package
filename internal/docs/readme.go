@@ -33,7 +33,7 @@ const (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate() ([]ReadmeFile, error) {
+func AreReadmesUpToDate(linksFilePath string) ([]ReadmeFile, error) {
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return nil, fmt.Errorf("package root not found: %w", err)
@@ -47,7 +47,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, diff, err := isReadmeUpToDate(fileName, packageRoot)
+		ok, diff, err := isReadmeUpToDate(fileName, linksFilePath, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
@@ -65,10 +65,10 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	return readmeFiles, nil
 }
 
-func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
+func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -99,7 +99,7 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
+func UpdateReadmes(linksFilePath, packageRoot, buildDir string) ([]string, error) {
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
@@ -108,7 +108,7 @@ func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
 	var targets []string
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, packageRoot, buildDir)
+		target, err := updateReadme(fileName, linksFilePath, packageRoot, buildDir)
 		if err != nil {
 			return nil, fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
@@ -120,10 +120,10 @@ func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
 	return targets, nil
 }
 
-func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
+func updateReadme(fileName, linksFilePath, packageRoot, buildDir string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,7 @@ func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+func generateReadme(fileName, linksFilePath, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -160,7 +160,7 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	linksMap, err := readLinksMap()
+	linksMap, err := readLinksMap(linksFilePath)
 	if err != nil {
 		return nil, false, err
 	}
@@ -184,7 +184,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap *linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)

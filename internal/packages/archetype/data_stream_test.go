@@ -5,6 +5,7 @@
 package archetype
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -19,21 +20,39 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "logs"
 
-		createAndCheckDataStream(t, pd, dd, true)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "metrics"
 
-		createAndCheckDataStream(t, pd, dd, true)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 	t.Run("missing-type", func(t *testing.T) {
 		pd := createPackageDescriptorForTest("integration", "^7.13.0")
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = ""
 
-		createAndCheckDataStream(t, pd, dd, false)
+		repoRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+
+		createAndCheckDataStream(t, pd, dd, false, repoRoot)
+
+		err = repoRoot.Close()
+		require.NoError(t, err)
 	})
 }
 
@@ -57,16 +76,21 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 	}
 }
 
-func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool) {
-	tempDir := makeInRepoBuildTempDir(t)
-	err := createPackageInDir(pd, tempDir)
+func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool, repoRoot *os.Root) {
+	linksFilePath := ""
+
+	packagesDir := filepath.Join(repoRoot.Name(), "packages")
+	err := os.MkdirAll(packagesDir, 0o755)
 	require.NoError(t, err)
 
-	packageRoot := filepath.Join(tempDir, pd.Manifest.Name)
+	err = createPackageInDir(pd, packagesDir)
+	require.NoError(t, err)
+
+	packageRoot := filepath.Join(packagesDir, pd.Manifest.Name)
 	dd.PackageRoot = packageRoot
 
 	err = CreateDataStream(dd)
 	require.NoError(t, err)
 
-	checkPackage(t, packageRoot, valid)
+	checkPackage(t, repoRoot, linksFilePath, packageRoot, valid)
 }
