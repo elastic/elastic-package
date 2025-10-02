@@ -176,6 +176,26 @@ latest:
 			expectedError:        true,
 			expectedErrorMessage: "destination ingest pipeline file my-pipeline.yml not found:",
 		},
+		"ingest_pipeline name empty": {
+			packageManifest: `
+name: test-package
+version: 1.2.3
+`,
+			createIngestPipelineFile: false,
+			ingestPipelineName:       "my-pipeline",
+			transformManifest: `
+source:
+  index: "logs-package.dataset"
+dest:
+  index: "logs-package_latest-index-1"
+  pipeline: "{{ IngestPipelineName "" }}"
+latest:
+  unique_key:
+    - event.dataset
+`,
+			expectedError:        true,
+			expectedErrorMessage: "error calling IngestPipelineName: ingest pipeline name is not define",
+		},
 	}
 
 	for name, tc := range cases {
