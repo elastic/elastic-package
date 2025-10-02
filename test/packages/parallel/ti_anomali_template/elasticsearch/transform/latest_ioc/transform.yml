@@ -9,10 +9,10 @@ source:
 # us that ability in order to prevent having duplicate IoC data and prevent query
 # time field type conflicts.
 dest:
-  index: "logs-ti_anomali_latest.threatstream-2"
+  index: "logs-ti_anomali_template_latest.threatstream-2"
   pipeline: '{{ IngestPipelineName "transform" }}'
   aliases:
-    - alias: "logs-ti_anomali_latest.threatstream"
+    - alias: "logs-ti_anomali_template_latest.threatstream"
       move_on_creation: true
 latest:
   unique_key:
