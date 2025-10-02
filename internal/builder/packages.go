@@ -218,6 +218,11 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
 	}
 
+	err = resolveTransformDefinitions(destinationDir)
+	if err != nil {
+		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
+	}
+
 	if options.CreateZip {
 		return buildZippedPackage(ctx, options, destinationDir)
 	}
