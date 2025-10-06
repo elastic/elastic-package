@@ -2604,6 +2604,8 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 		filepath.Join(r.packageRootPath, "fields", "*.yml"),
 		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "manifest.yml"),
 		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
+		filepath.Join(r.packageRootPath, "elasticsearch", "transform", "*", "*.yml"),
+		filepath.Join(r.packageRootPath, "elasticsearch", "transform", "*", "fields", "*.yml"),
 	}
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)

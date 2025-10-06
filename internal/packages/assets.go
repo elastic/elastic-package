@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
@@ -39,25 +41,37 @@ func newAssetTypeWithFolder(typeName AssetType, folderName string) assetTypeFold
 var (
 	AssetTypeElasticsearchIndexTemplate  = newAssetType("index_template")
 	AssetTypeElasticsearchIngestPipeline = newAssetType("ingest_pipeline")
-
-	AssetTypeKibanaSavedSearch   = newAssetType("search")
-	AssetTypeKibanaVisualization = newAssetType("visualization")
-	AssetTypeKibanaDashboard     = newAssetType("dashboard")
-	AssetTypeKibanaMap           = newAssetType("map")
-	AssetTypeKibanaLens          = newAssetType("lens")
-	AssetTypeSecurityRule        = newAssetTypeWithFolder("security-rule", "security_rule")
+	AssetTypeKibanaDashboard             = newAssetType("dashboard")
+	AssetTypeKibanaLens                  = newAssetType("lens")
+	AssetTypeKibanaMap                   = newAssetType("map")
+	AssetTypeKibanaSavedSearch           = newAssetType("search")
+	AssetTypeKibanaTag                   = newAssetType("tag")
+	AssetTypeKibanaVisualization         = newAssetType("visualization")
+	AssetTypeSecurityRule                = newAssetTypeWithFolder("security-rule", "security_rule")
 )
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
 type Asset struct {
 	ID         string    `json:"id"`
 	Type       AssetType `json:"type"`
+	Name       string
 	DataStream string
 	SourcePath string
 }
 
+// IDOrName returns the ID if set, or the Name if not.
+func (asset Asset) IDOrName() string {
+	if asset.ID != "" {
+		return asset.ID
+	}
+	return asset.Name
+}
+
 // String method returns a string representation of the asset
 func (asset Asset) String() string {
+	if asset.ID == "" && asset.Name != "" {
+		return fmt.Sprintf("%q (type: %s)", asset.Name, asset.Type)
+	}
 	return fmt.Sprintf("%s (type: %s)", asset.ID, asset.Type)
 }
 
@@ -67,6 +81,12 @@ func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not load kibana assets: %w", err)
 	}
+
+	tags, err := loadKibanaTags(pkgRootPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not load kibana tags: %w", err)
+	}
+	assets = append(assets, tags...)
 
 	a, err := loadElasticsearchAssets(pkgRootPath)
 	if err != nil {
@@ -85,10 +105,11 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 
 		assetTypes = []assetTypeFolder{
 			AssetTypeKibanaDashboard,
-			AssetTypeKibanaVisualization,
-			AssetTypeKibanaSavedSearch,
-			AssetTypeKibanaMap,
 			AssetTypeKibanaLens,
+			AssetTypeKibanaMap,
+			AssetTypeKibanaSavedSearch,
+			AssetTypeKibanaTag,
+			AssetTypeKibanaVisualization,
 			AssetTypeSecurityRule,
 		}
 
@@ -109,6 +130,34 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 		return nil, errs
 	}
 
+	return assets, nil
+}
+
+func loadKibanaTags(pkgRootPath string) ([]Asset, error) {
+	tagsFilePath := filepath.Join(pkgRootPath, "kibana", "tags.yml")
+	tagsFile, err := os.ReadFile(tagsFilePath)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading tags file failed: %w", err)
+	}
+
+	type tag struct {
+		Text string `yaml:"text"`
+	}
+	var tags []tag
+	err = yaml.Unmarshal(tagsFile, &tags)
+	if err != nil {
+		return nil, fmt.Errorf("parsing tags file failed: %w", err)
+	}
+
+	assets := make([]Asset, len(tags))
+	for i, tag := range tags {
+		assets[i].Name = tag.Text
+		assets[i].Type = AssetTypeKibanaTag.typeName
+		assets[i].SourcePath = tagsFilePath
+	}
 	return assets, nil
 }
 
