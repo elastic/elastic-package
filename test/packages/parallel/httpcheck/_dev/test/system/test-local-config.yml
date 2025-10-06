@@ -1,8 +1,7 @@
-skip:
-  reason: Not supported system tests with input type otelcol.
-  link: https://github.com/elastic/elastic-package/issues/2835
 service: web
 vars:
   period: 1s
   endpoints:
     - http://{{Hostname}}:{{Port}}
+assert:
+  min_count: 150

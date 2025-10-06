@@ -145,6 +145,7 @@ var (
 type fieldValidationMethod int
 
 const (
+	// Required to allow setting `fields` as an option via environment variable
 	fieldsMethod fieldValidationMethod = iota
 	mappingsMethod
 )
@@ -277,7 +278,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	logger.Debugf("Data stream path: %q", r.dataStreamPath)
 	if r.dataStreamPath != "" {
 		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
 		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
@@ -470,7 +470,6 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	// If user is defined in the configuration file, it has preference
 	// and it should not be overwritten by the value in the package or DataStream manifest
 	if info.Agent.User == "" && r.agentRequiresRootPrivileges() {
-		logger.Debugf(" >>> Setting agent user to 'root' as defined in the package or data stream manifest")
 		info.Agent.User = "root"
 	}
 
@@ -1616,12 +1615,16 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 }
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
+	logger.Info("Validating test case...")
 	expectedDatasets, err := r.expectedDatasets(scenario, config)
 	if err != nil {
 		return nil, err
 	}
 
-	// Validate fields in docs
+	if r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) {
+		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
+	}
+
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -1629,6 +1632,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
+		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -1641,7 +1646,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if r.fieldValidationMethod == mappingsMethod {
+	if !r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1698,7 +1703,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplateInput, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1815,6 +1820,19 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	}
 
 	return r.validateTestScenario(ctx, result, scenario, config)
+}
+
+func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
+	// Just supported for input packages currently
+	if r.pkgManifest.Type != "input" {
+		return false
+	}
+
+	if policyTemplateInput != otelCollectorInputName {
+		return false
+	}
+
+	return true
 }
 
 func dumpScenarioDocs(docs any) error {
@@ -1983,16 +2001,14 @@ func createInputPackageDatastream(
 			PolicyTemplate: policyTemplate.Name,
 			Enabled:        true,
 			Vars:           kibana.Vars{},
+			Type:           policyTemplate.Input,
 		},
 	}
-
-	streamInput := policyTemplate.Input
-	r.Inputs[0].Type = streamInput
 
 	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			ID:      fmt.Sprintf("%s-%s.%s", policyTemplate.Input, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
@@ -2145,7 +2161,7 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream string, syntheticEnabled bool) error {
+func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {
 	if config.SkipTransformValidation {
 		return nil
 	}
@@ -2199,6 +2215,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 			fields.WithDisableNormalization(syntheticEnabled),
+			// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
