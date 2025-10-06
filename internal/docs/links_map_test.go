@@ -141,7 +141,7 @@ func TestLinksDefinitionsFilePath(t *testing.T) {
 		defaultFilePath := filepath.Join(repoRoot.Name(), linksMapFileNameDefault)
 
 		_, err = os.Stat(defaultFilePath)
-		require.True(t, os.IsNotExist(err))
+		require.ErrorIs(t, err, os.ErrNotExist)
 
 		path, err := LinksDefinitionsFilePath(repoRoot)
 		require.NoError(t, err)

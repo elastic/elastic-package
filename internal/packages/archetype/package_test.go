@@ -98,8 +98,10 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 }
 
 func buildPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot string) error {
-	buildDir := t.TempDir()
-	_, err := docs.UpdateReadmes(linksFilePath, packageRoot, buildDir)
+	buildDir := filepath.Join(repoRoot.Name(), "build")
+	err := os.MkdirAll(buildDir, 0o755)
+	require.NoError(t, err)
+	_, err = docs.UpdateReadmes(linksFilePath, packageRoot, buildDir)
 	if err != nil {
 		return err
 	}
