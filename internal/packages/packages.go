@@ -422,6 +422,7 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 // ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)
 // file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
 // by adding the package version defined in the package manifest.
+// It fails if the referenced destination pipeline doesn't exist.
 func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
 	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
@@ -432,8 +433,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 		return nil, TransformDefinition{}, fmt.Errorf("package version is not defined in the package manifest")
 	}
 
-	t := template.New(filepath.Base(transformPath))
-	t, err = t.Funcs(template.FuncMap{
+	t, err := template.New(filepath.Base(transformPath)).Funcs(template.FuncMap{
 		"IngestPipelineName": func(pipelineName string) (string, error) {
 			if pipelineName == "" {
 				return "", fmt.Errorf("ingest pipeline name is not defined")
