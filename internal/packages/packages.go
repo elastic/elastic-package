@@ -465,12 +465,53 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 		return rendered.Bytes(), definition, nil
 	}
 
+	// Is it using the Ingest pipeline defined in the package (elasticsearch/ingest_pipeline/<version>-<pipeline>.yml)?
+	// <version>-<pipeline>.yml
+	// example: 0.1.0-pipeline_extract_metadata
+
 	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
 	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
-	if err != nil {
-		return nil, TransformDefinition{}, fmt.Errorf("destination ingest pipeline file %s not found: %w", pipelineFileName, err)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, TransformDefinition{}, fmt.Errorf("checking for destination ingest pipeline file %s: %w", pipelineFileName, err)
 	}
-	return rendered.Bytes(), definition, nil
+	if err == nil {
+		return rendered.Bytes(), definition, nil
+	}
+
+	// Is it using the Ingest pipeline from any data stream (data_stream/*/elasticsearch/pipeline/*.yml)?
+	// <data_stream>-<version>-<data_stream_pipeline>.yml
+	// example: metrics-aws_billing.cur-0.1.0-pipeline_extract_metadata
+	dataStreamPaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding data streams: %w", err)
+	}
+
+	for _, dataStreamPath := range dataStreamPaths {
+		matched, err := filepath.Glob(filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", "*.yml"))
+		if err != nil {
+			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamPath, err)
+		}
+		dataStreamName := filepath.Base(dataStreamPath)
+		for _, pipelinePath := range matched {
+			dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+			expectedSuffix := fmt.Sprintf("-%s.%s-%s-%s.yml", manifest.Name, dataStreamName, manifest.Version, dataStreamPipelineName)
+			if strings.HasSuffix(pipelineFileName, expectedSuffix) {
+				return rendered.Bytes(), definition, nil
+			}
+		}
+	}
+	pipelinePaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data streams: %w", err)
+	}
+	for _, pipelinePath := range pipelinePaths {
+		dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+		if strings.HasSuffix(pipelineFileName, fmt.Sprintf("-%s-%s.yml", manifest.Version, dataStreamPipelineName)) {
+			return rendered.Bytes(), definition, nil
+		}
+	}
+
+	return nil, TransformDefinition{}, fmt.Errorf("destination ingest pipeline file %s not found: incorrect version used in pipeline or unknown pipeline", pipelineFileName)
 }
 
 // ReadTransformsFromPackageRoot looks for transforms in the given package root.

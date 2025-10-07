@@ -101,21 +101,23 @@ func TestReadTransformDefinitionFile(t *testing.T) {
 	t.Parallel()
 
 	cases := map[string]struct {
-		packageManifest          string
-		transformManifest        string
-		createIngestPipelineFile bool
-		ingestPipelineName       string
-		expectedError            bool
-		expectedErrorMessage     string
-		expectedTransform        string
+		packageManifest                    string
+		transformManifest                  string
+		createIngestPipelineFile           bool
+		createIngestPipelineFileDatastream bool
+		ingestPipelineName                 string
+		expectedError                      bool
+		expectedErrorMessage               string
+		expectedTransform                  string
 	}{
 		"valid transform manifest with package version": {
 			packageManifest: `
 name: test-package
 version: 1.2.3
 `,
-			createIngestPipelineFile: true,
-			ingestPipelineName:       "my-pipeline",
+			createIngestPipelineFile:           true,
+			createIngestPipelineFileDatastream: false,
+			ingestPipelineName:                 "my-pipeline",
 			transformManifest: `
 source:
   index: "logs-package.dataset"
@@ -142,7 +144,9 @@ latest:
 			packageManifest: `
 name: test-package
 `,
-			ingestPipelineName: "my-pipeline",
+			createIngestPipelineFile:           false,
+			createIngestPipelineFileDatastream: false,
+			ingestPipelineName:                 "my-pipeline",
 			transformManifest: `
 source:
   index: "logs-package.dataset"
@@ -161,8 +165,9 @@ latest:
 name: test-package
 version: 1.2.3
 `,
-			createIngestPipelineFile: false,
-			ingestPipelineName:       "my-pipeline",
+			createIngestPipelineFile:           false,
+			createIngestPipelineFileDatastream: false,
+			ingestPipelineName:                 "my-pipeline",
 			transformManifest: `
 source:
   index: "logs-package.dataset"
@@ -174,15 +179,16 @@ latest:
     - event.dataset
 `,
 			expectedError:        true,
-			expectedErrorMessage: "destination ingest pipeline file my-pipeline.yml not found:",
+			expectedErrorMessage: "destination ingest pipeline file my-pipeline.yml not found: incorrect version used in pipeline or unknown pipeline",
 		},
 		"ingest_pipeline name empty": {
 			packageManifest: `
 name: test-package
 version: 1.2.3
 `,
-			createIngestPipelineFile: false,
-			ingestPipelineName:       "my-pipeline",
+			createIngestPipelineFile:           false,
+			createIngestPipelineFileDatastream: false,
+			ingestPipelineName:                 "my-pipeline",
 			transformManifest: `
 source:
   index: "logs-package.dataset"
@@ -194,7 +200,37 @@ latest:
     - event.dataset
 `,
 			expectedError:        true,
-			expectedErrorMessage: "error calling ingestPipelineName: ingest pipeline name is not define",
+			expectedErrorMessage: "error calling ingestPipelineName: ingest pipeline name is empty",
+		},
+		"ingest_pipeline exists on data stream": {
+			packageManifest: `
+name: test-package
+version: 1.2.3
+`,
+			createIngestPipelineFile:           false,
+			createIngestPipelineFileDatastream: true,
+			ingestPipelineName:                 "my-pipeline",
+			transformManifest: `
+source:
+  index: "logs-package.dataset"
+dest:
+  index: "logs-package_latest-index-1"
+  pipeline: "logs-test_package.test-{{ ingestPipelineName "my-pipeline" }}"
+latest:
+  unique_key:
+    - event.dataset
+`,
+			expectedError: false,
+			expectedTransform: `
+source:
+  index: "logs-package.dataset"
+dest:
+  index: "logs-package_latest-index-1"
+  pipeline: "logs-test_package.test-1.2.3-my-pipeline"
+latest:
+  unique_key:
+    - event.dataset
+`,
 		},
 	}
 
@@ -209,6 +245,15 @@ latest:
 			// Optionally create an ingest pipeline file
 			if tc.createIngestPipelineFile {
 				ingestPipelineDir := filepath.Join(packageDir, "elasticsearch", "ingest_pipeline")
+				err = os.MkdirAll(ingestPipelineDir, 0755)
+				require.NoError(t, err)
+				ingestPipelinePath := filepath.Join(ingestPipelineDir, tc.ingestPipelineName+".yml")
+				err = os.WriteFile(ingestPipelinePath, []byte(`---\nprocessors: {}\n`), 0644)
+				require.NoError(t, err)
+			}
+
+			if tc.createIngestPipelineFileDatastream {
+				ingestPipelineDir := filepath.Join(packageDir, "data_stream", "test", "elasticsearch", "ingest_pipeline")
 				err = os.MkdirAll(ingestPipelineDir, 0755)
 				require.NoError(t, err)
 				ingestPipelinePath := filepath.Join(ingestPipelineDir, tc.ingestPipelineName+".yml")
