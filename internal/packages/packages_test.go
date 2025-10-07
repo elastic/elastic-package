@@ -121,7 +121,7 @@ source:
   index: "logs-package.dataset"
 dest:
   index: "logs-package_latest-index-1"
-  pipeline: "{{ IngestPipelineName "my-pipeline" }}"
+  pipeline: "{{ ingestPipelineName "my-pipeline" }}"
 latest:
   unique_key:
     - event.dataset
@@ -148,7 +148,7 @@ source:
   index: "logs-package.dataset"
 dest:
   index: "logs-package_latest-index-1"
-  pipeline: "{{ IngestPipelineName "my-pipeline" }}"
+  pipeline: "{{ ingestPipelineName "my-pipeline" }}"
 latest:
   unique_key:
     - event.dataset
@@ -168,7 +168,7 @@ source:
   index: "logs-package.dataset"
 dest:
   index: "logs-package_latest-index-1"
-  pipeline: "{{ IngestPipelineName "my-pipeline" }}"
+  pipeline: "{{ ingestPipelineName "my-pipeline" }}"
 latest:
   unique_key:
     - event.dataset
@@ -188,13 +188,13 @@ source:
   index: "logs-package.dataset"
 dest:
   index: "logs-package_latest-index-1"
-  pipeline: "{{ IngestPipelineName "" }}"
+  pipeline: "{{ ingestPipelineName "" }}"
 latest:
   unique_key:
     - event.dataset
 `,
 			expectedError:        true,
-			expectedErrorMessage: "error calling IngestPipelineName: ingest pipeline name is not define",
+			expectedErrorMessage: "error calling ingestPipelineName: ingest pipeline name is not define",
 		},
 	}
 

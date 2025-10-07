@@ -10,7 +10,7 @@ source:
 # time field type conflicts.
 dest:
   index: "logs-ti_anomali_template_latest.threatstream-2"
-  pipeline: '{{ IngestPipelineName "transform" }}'
+  pipeline: '{{ ingestPipelineName "transform" }}'
   aliases:
     - alias: "logs-ti_anomali_template_latest.threatstream"
       move_on_creation: true
