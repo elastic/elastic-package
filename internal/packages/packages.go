@@ -10,12 +10,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"text/template"
 
 	yamlv3 "gopkg.in/yaml.v3"
 
