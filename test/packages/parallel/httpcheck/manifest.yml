@@ -26,12 +26,11 @@ icons:
     size: 32x32
     type: image/svg+xml
 policy_templates:
-  - name: check
+  - name: httpcheckreceiver
     type: metrics
     title: HTTP Check
     description: Perform HTTP checks and collect its results.
     input: otelcol
-    otelcol_dataset: httpcheckreceiver
     template_path: input.yml.hbs
     vars:
       - name: period
@@ -68,10 +67,6 @@ policy_templates:
         multi: true
         required: false
         show_user: false
-elasticsearch:
-  index_template:
-    mappings:
-      subobjects: false
 owner:
   github: elastic/ecosystem
   type: elastic
