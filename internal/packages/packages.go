@@ -436,7 +436,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 	t, err := template.New(filepath.Base(transformPath)).Funcs(template.FuncMap{
 		"ingestPipelineName": func(pipelineName string) (string, error) {
 			if pipelineName == "" {
-				return "", fmt.Errorf("ingest pipeline name is not defined")
+				return "", fmt.Errorf("ingest pipeline name is empty")
 			}
 			return fmt.Sprintf("%s-%s", manifest.Version, pipelineName), nil
 		},
