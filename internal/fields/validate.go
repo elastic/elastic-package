@@ -154,6 +154,8 @@ type Validator struct {
 
 	disabledNormalization bool
 
+	enabledOTELValidation bool
+
 	injectFieldsOptions InjectFieldsOptions
 }
 
@@ -242,6 +244,14 @@ func WithDisableNormalization(disabledNormalization bool) ValidatorOption {
 func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	return func(v *Validator) error {
 		v.injectFieldsOptions = options
+		return nil
+	}
+}
+
+// WithOTELValidation configures the validator to enable or disable OpenTelemetry specific validation.
+func WithOTELValidation(otelValidation bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledOTELValidation = otelValidation
 		return nil
 	}
 }
@@ -559,7 +569,13 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	errs := v.validateDocumentValues(body)
-	errs = append(errs, v.validateMapElement("", body, body)...)
+
+	// If package uses OpenTelemetry Collector, skip field validation and just
+	// validate document values (datasets).
+	if !v.enabledOTELValidation {
+		errs = append(errs, v.validateMapElement("", body, body)...)
+	}
+
 	if len(errs) == 0 {
 		return nil
 	}
@@ -602,7 +618,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			}
 
 			str, ok := valueToString(value, v.disabledNormalization)
-			exists := stringInArray(str, renderedExpectedDatasets)
+			exists := slices.Contains(renderedExpectedDatasets, str)
 			if !ok || !exists {
 				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
 					datasetField, v.expectedDatasets, value)
@@ -611,18 +627,6 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 		}
 	}
 	return errs
-}
-
-func stringInArray(target string, arr []string) bool {
-	// Check if target is part of the array
-	found := false
-	for _, item := range arr {
-		if item == target {
-			found = true
-			break
-		}
-	}
-	return found
 }
 
 func valueToString(value any, disabledNormalization bool) (string, bool) {
