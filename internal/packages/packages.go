@@ -102,19 +102,19 @@ func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
 
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name                  string   `config:"name" json:"name" yaml:"name"`
-	Type                  string   `config:"type" json:"type" yaml:"type"`
-	Title                 string   `config:"title" json:"title" yaml:"title"`
-	Description           string   `config:"description" json:"description" yaml:"description"`
-	Multi                 bool     `config:"multi" json:"multi" yaml:"multi"`
-	Required              bool     `config:"required" json:"required" yaml:"required"`
-	Secret                bool     `config:"secret" json:"secret" yaml:"secret"`
-	ShowUser              bool     `config:"show_user" json:"show_user" yaml:"show_user"`
-	HideInDeploymentModes []string `config:"hide_in_deployment_modes" json:"hide_in_deployment_modes" yaml:"hide_in_deployment_modes"`
-	UrlAllowedSchemes     []string `config:"url_allowed_schemes" json:"url_allowed_schemes" yaml:"url_allowed_schemes"`
-	MinDuration           string   `config:"min_duration" json:"min_duration" yaml:"min_duration"`
-	MaxDuration           string   `config:"max_duration" json:"max_duration" yaml:"max_duration"`
-	Default               VarValue `config:"default" json:"default" yaml:"default"`
+	Name                  string    `config:"name" json:"name" yaml:"name"`
+	Type                  string    `config:"type" json:"type" yaml:"type"`
+	Title                 string    `config:"title" json:"title" yaml:"title"`
+	Description           string    `config:"description" json:"description" yaml:"description"`
+	Multi                 bool      `config:"multi" json:"multi" yaml:"multi"`
+	Required              bool      `config:"required" json:"required" yaml:"required"`
+	Secret                bool      `config:"secret" json:"secret" yaml:"secret"`
+	ShowUser              bool      `config:"show_user" json:"show_user" yaml:"show_user"`
+	HideInDeploymentModes []string  `config:"hide_in_deployment_modes" json:"hide_in_deployment_modes" yaml:"hide_in_deployment_modes"`
+	UrlAllowedSchemes     []string  `config:"url_allowed_schemes" json:"url_allowed_schemes" yaml:"url_allowed_schemes"`
+	MinDuration           string    `config:"min_duration" json:"min_duration" yaml:"min_duration"`
+	MaxDuration           string    `config:"max_duration" json:"max_duration" yaml:"max_duration"`
+	Default               *VarValue `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
