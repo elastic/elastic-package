@@ -67,11 +67,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	defer repoRoot.Close()
 
-	linksFilePath, err := docs.LinksDefinitionsFilePath(repoRoot)
-	if err != nil {
-		return fmt.Errorf("locating links file failed: %w", err)
-	}
-
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -83,7 +78,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(linksFilePath, packageRoot, buildDir)
+	targets, err := docs.UpdateReadmes(repoRoot, packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}

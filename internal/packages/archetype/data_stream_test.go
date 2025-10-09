@@ -77,7 +77,6 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 }
 
 func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool, repoRoot *os.Root) {
-	linksFilePath := ""
 
 	packagesDir := filepath.Join(repoRoot.Name(), "packages")
 	err := os.MkdirAll(packagesDir, 0o755)
@@ -92,5 +91,5 @@ func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamD
 	err = CreateDataStream(dd)
 	require.NoError(t, err)
 
-	checkPackage(t, repoRoot, linksFilePath, packageRoot, valid)
+	checkPackage(t, repoRoot, packageRoot, valid)
 }

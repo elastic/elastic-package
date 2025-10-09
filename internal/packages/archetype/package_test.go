@@ -42,12 +42,11 @@ func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
 	require.NoError(t, err)
 	defer repoRoot.Close()
 
-	linksFilePath := ""
 	packagesDir := filepath.Join(repoRoot.Name(), "packages")
 	err = createPackageInDir(pd, packagesDir)
 	require.NoError(t, err)
 
-	checkPackage(t, repoRoot, linksFilePath, filepath.Join(packagesDir, pd.Manifest.Name), valid)
+	checkPackage(t, repoRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -97,11 +96,11 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot string) error {
+func buildPackage(t *testing.T, repoRoot *os.Root, packageRoot string) error {
 	buildDir := filepath.Join(repoRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
-	_, err = docs.UpdateReadmes(linksFilePath, packageRoot, buildDir)
+	_, err = docs.UpdateReadmes(repoRoot, packageRoot, buildDir)
 	if err != nil {
 		return err
 	}
@@ -114,8 +113,8 @@ func buildPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot st
 	return err
 }
 
-func checkPackage(t *testing.T, repoRoot *os.Root, linksFilePath, packageRoot string, valid bool) {
-	err := buildPackage(t, repoRoot, linksFilePath, packageRoot)
+func checkPackage(t *testing.T, repoRoot *os.Root, packageRoot string, valid bool) {
+	err := buildPackage(t, repoRoot, packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return

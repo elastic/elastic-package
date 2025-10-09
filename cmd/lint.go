@@ -53,12 +53,12 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	defer repoRoot.Close()
 
-	linksFilePath, err := docs.LinksDefinitionsFilePath(repoRoot)
+	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
-		return fmt.Errorf("locating links file failed: %w", err)
+		return fmt.Errorf("package root not found: %w", err)
 	}
 
-	readmeFiles, err := docs.AreReadmesUpToDate(linksFilePath)
+	readmeFiles, err := docs.AreReadmesUpToDate(repoRoot, packageRoot)
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {

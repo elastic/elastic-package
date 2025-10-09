@@ -16,7 +16,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // ReadmeFile contains file name and status of each readme file.
@@ -33,10 +32,10 @@ const (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate(linksFilePath string) ([]ReadmeFile, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
+func AreReadmesUpToDate(repoRoot *os.Root, packageRoot string) ([]ReadmeFile, error) {
+	linksFilePath, err := linksDefinitionsFilePath(repoRoot)
 	if err != nil {
-		return nil, fmt.Errorf("package root not found: %w", err)
+		return nil, fmt.Errorf("locating links file failed: %w", err)
 	}
 
 	files, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
@@ -99,7 +98,12 @@ func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(linksFilePath, packageRoot, buildDir string) ([]string, error) {
+func UpdateReadmes(repoRoot *os.Root, packageRoot, buildDir string) ([]string, error) {
+	linksFilePath, err := linksDefinitionsFilePath(repoRoot)
+	if err != nil {
+		return nil, fmt.Errorf("locating links file failed: %w", err)
+	}
+
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory entries failed: %w", err)
