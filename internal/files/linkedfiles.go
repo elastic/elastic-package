@@ -20,6 +20,13 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+var (
+	errEmptyWorkDir         = fmt.Errorf("working directory is empty")
+	errInvalidWorkDir       = fmt.Errorf("working directory must be an absolute path or a path relative to the repository root")
+	errInvalidWorkDirNotDir = fmt.Errorf("working directory is not a directory")
+	errFileNotUpToDate      = fmt.Errorf("linked file is not up to date")
+)
+
 const linkExtension = ".link"
 
 // PackageLinks represents linked files grouped by package.
@@ -29,19 +36,34 @@ type PackageLinks struct {
 }
 
 // CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
+//
+// - workDir can be an absolute path or a path relative to the repository root.
+// in both cases, it must point to a directory within the repository.
 func CreateLinksFSFromPath(repoRoot *os.Root, workDir string) (*LinksFS, error) {
 	if workDir == "" {
-		return nil, fmt.Errorf("working directory is empty")
+		return nil, errEmptyWorkDir
 	}
 
-	// If workDir is not absolute, make it relative to the root
-	// This allows using both absolute and relative paths
-	// inside the LinksFS
-	if !filepath.IsAbs(workDir) {
-		workDir = filepath.Join(repoRoot.Name(), workDir)
+	var relWorkDir string
+	if filepath.IsAbs(workDir) {
+		var err error
+		relWorkDir, err = filepath.Rel(repoRoot.Name(), workDir)
+		if err != nil {
+			return nil, fmt.Errorf("unable to find rel path for %s: %w: %w", workDir, errInvalidWorkDir, err)
+		}
+	} else {
+		relWorkDir = workDir
 	}
 
-	return NewLinksFS(repoRoot, workDir)
+	info, err := repoRoot.Stat(relWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to stat %s: %w: %w", relWorkDir, errInvalidWorkDir, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("working directory %s is not a directory: %w", relWorkDir, errInvalidWorkDirNotDir)
+	}
+
+	return &LinksFS{repoRoot: repoRoot, workDir: relWorkDir}, nil
 }
 
 var _ fs.FS = (*LinksFS)(nil)
@@ -54,70 +76,53 @@ var _ fs.FS = (*LinksFS)(nil)
 type LinksFS struct {
 	repoRoot *os.Root // The root of the repository, used to check if paths are within the repository.
 	workDir  string
-	inner    fs.FS
-}
-
-// NewLinksFS creates a new LinksFS. workDir must be an absolute path, or a path relative to
-// the repository root.
-func NewLinksFS(repoRoot *os.Root, workDir string) (*LinksFS, error) {
-	// Ensure workDir is absolute for os.DirFS
-	var absWorkDir string
-	if filepath.IsAbs(workDir) {
-		absWorkDir = workDir
-		relative, err := filepath.Rel(repoRoot.Name(), absWorkDir)
-		if err != nil {
-			return nil, fmt.Errorf("invalid working directory %s: %w", absWorkDir, err)
-		}
-		workDir = relative
-	} else {
-		absWorkDir = filepath.Clean(filepath.Join(repoRoot.Name(), workDir))
-	}
-
-	info, err := repoRoot.Stat(workDir)
-	if err != nil {
-		return nil, fmt.Errorf("invalid working directory %s: %w", absWorkDir, err)
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("working directory %s is not a directory", absWorkDir)
-	}
-
-	return &LinksFS{repoRoot: repoRoot, workDir: absWorkDir, inner: os.DirFS(absWorkDir)}, nil
 }
 
 // Open opens a file in the filesystem.
+//
+// - name can be an absolute path or a path relative to the workDir.
+// If name is absolute, it must be within the workDir.
 func (lfs *LinksFS) Open(name string) (fs.File, error) {
-	// Ensure name is relative for os.DirFS compatibility
-	var relativeName string
+	// innerRoot is the filesystem rooted at the workDir
+	// we use it to check if the file exists in the workDir
+	// and to open non-link files directly
+	innerRoot, err := lfs.repoRoot.OpenRoot(lfs.workDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not open workDir in root: %w", err)
+	}
+	defer innerRoot.Close()
+
+	relName := name
 	if filepath.IsAbs(name) {
 		var err error
-		relativeName, err = filepath.Rel(lfs.workDir, name)
+		relName, err = filepath.Rel(filepath.Join(lfs.repoRoot.Name(), lfs.workDir), name)
 		if err != nil {
 			return nil, fmt.Errorf("could not make name relative to workDir: %w", err)
 		}
-	} else {
-		relativeName = name
+	}
+	_, err = innerRoot.Stat(relName)
+	if err != nil {
+		return nil, fmt.Errorf("file %s not found in workDir %s: %w", relName, lfs.workDir, err)
 	}
 
 	// For non-link files, use the inner filesystem
-	if filepath.Ext(relativeName) != linkExtension {
-		return lfs.inner.Open(relativeName)
+	if filepath.Ext(relName) != linkExtension {
+		return innerRoot.Open(relName)
 	}
 
-	// For link files, construct the absolute path to the link file
-	// Since workDir is expected to be absolute, we can directly join
-	linkFilePath := filepath.Join(lfs.workDir, relativeName)
-
+	linkFilePath := filepath.Join(lfs.repoRoot.Name(), lfs.workDir, relName)
 	l, err := newLinkedFile(lfs.repoRoot, linkFilePath)
 	if err != nil {
 		return nil, err
 	}
 	if !l.UpToDate {
-		return nil, fmt.Errorf("linked file %s is not up to date", relativeName)
+		return nil, fmt.Errorf("%w: file %s", errFileNotUpToDate, relName)
 	}
 
-	// Calculate the included file path relative to the link file's directory
-	linkDir := filepath.Dir(linkFilePath)
-	includedPath := filepath.Join(linkDir, l.IncludedFilePath)
+	// includedPath is the absolute path to the included file referenced at the link file
+	// inside a link file, the path to the included file is relative to the link file location
+	// so we need to join the directory of the link file with the included file path
+	includedPath := filepath.Join(filepath.Dir(linkFilePath), filepath.FromSlash(l.IncludedFilePath))
 
 	// Convert to relative path from repository root for secure access of target file
 	relativePath, err := filepath.Rel(lfs.repoRoot.Name(), includedPath)
@@ -309,26 +314,29 @@ func includeLinkedFiles(root *os.Root, fromDir, toDir string) ([]Link, error) {
 	return links, nil
 }
 
-// listLinkedFiles function returns a slice of Link structs representing linked files.
+// listLinkedFiles returns a slice of Link structs representing linked files
+// within the given directory.
+//
+// - fromDir should be relative to the repository root.
 func listLinkedFiles(root *os.Root, fromDir string) ([]Link, error) {
-	var linkFiles []string
+	var linkFilesPaths []string
 	if err := filepath.Walk(
-		filepath.FromSlash(fromDir),
+		filepath.Join(root.Name(), fromDir),
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
 			if !info.IsDir() && strings.HasSuffix(info.Name(), linkExtension) {
-				linkFiles = append(linkFiles, path)
+				linkFilesPaths = append(linkFilesPaths, path)
 			}
 			return nil
 		}); err != nil {
 		return nil, err
 	}
 
-	links := make([]Link, len(linkFiles))
+	links := make([]Link, len(linkFilesPaths))
 
-	for i, f := range linkFiles {
+	for i, f := range linkFilesPaths {
 		l, err := newLinkedFile(root, filepath.FromSlash(f))
 		if err != nil {
 			return nil, fmt.Errorf("could not initialize linked file %s: %w", f, err)
@@ -454,16 +462,18 @@ func updateLinkedFilesChecksums(root *os.Root, fromDir string) ([]Link, error) {
 
 // linkedFilesByPackageFrom function returns a slice of PackageLinks containing linked files grouped by package.
 // Each PackageLinks contains the package name and a slice of linked file paths.
+//
+// - fromDir should be relative to the repository root.
 func linkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, error) {
 	// we list linked files from all the root directory
 	// to check which ones are linked to the 'fromDir' package
-	links, err := listLinkedFiles(root, root.Name())
+	links, err := listLinkedFiles(root, ".")
 	if err != nil {
 		return nil, fmt.Errorf("listing linked files failed: %w", err)
 	}
 
 	var packageName string
-	if packageRoot, _, _ := packages.FindPackageRootFrom(fromDir); packageRoot != "" {
+	if packageRoot, _, _ := packages.FindPackageRootFrom(filepath.Join(root.Name(), fromDir)); packageRoot != "" {
 		packageName = filepath.Base(packageRoot)
 	}
 	byPackageMap := map[string][]string{}

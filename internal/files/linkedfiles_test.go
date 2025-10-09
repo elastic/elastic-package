@@ -90,8 +90,11 @@ func TestListLinkedFiles(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
+	fromDir, err := filepath.Rel(root.Name(), basePath)
+	require.NoError(t, err)
+
 	// Use the private function directly for testing
-	linkedFiles, err := listLinkedFiles(root, basePath)
+	linkedFiles, err := listLinkedFiles(root, fromDir)
 	require.NoError(t, err)
 	require.NotEmpty(t, linkedFiles)
 	require.Len(t, linkedFiles, 2) // Expect exactly 2 link files in testdata
@@ -161,7 +164,7 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, basePath)
 	require.NoError(t, err)
 
 	// Get all outdated linked files from the test directory
@@ -202,7 +205,7 @@ func TestUpdateLinkedFilesChecksums(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, basePath)
 	require.NoError(t, err)
 
 	// Update checksums for all outdated linked files
@@ -235,8 +238,11 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
+	fromDir, err := filepath.Rel(root.Name(), basePath)
+	require.NoError(t, err)
+
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, fromDir)
 	require.NoError(t, err)
 
 	// Get linked files organized by package
@@ -286,7 +292,7 @@ func TestIncludeLinkedFiles(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Include (copy) all linked files from source to destination using LinksFS
-	linksFS, err := NewLinksFS(root, fromDir)
+	linksFS, err := CreateLinksFSFromPath(root, fromDir)
 	assert.NoError(t, err)
 	linkedFiles, err := linksFS.IncludeLinkedFiles(toDir)
 	assert.NoError(t, err)
@@ -528,7 +534,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	relWorkDir, err := filepath.Rel(repoDir, workDir)
 	require.NoError(t, err)
 
-	lfs, err := NewLinksFS(root, relWorkDir)
+	lfs, err := CreateLinksFSFromPath(root, relWorkDir)
 	require.NoError(t, err)
 
 	// Test opening the linked file - this should work and use the repository root
@@ -566,26 +572,33 @@ func TestLinksFS_Open(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create test files
-	regularFile := filepath.Join(workDir, "regular.txt")
-	err = os.WriteFile(regularFile, []byte("regular content"), 0644)
+	regularFileRel := "regular.txt"
+	regularFileAbs := filepath.Join(workDir, regularFileRel)
+	err = os.WriteFile(regularFileAbs, []byte("regular content"), 0644)
 	require.NoError(t, err)
 
-	includedFile := filepath.Join(workDir, "included.txt")
+	includedFileAbs := filepath.Join(repoDir, "other", "included.txt")
+	err = os.MkdirAll(filepath.Dir(includedFileAbs), 0755)
+	require.NoError(t, err)
 	includedContent := "included content"
-	err = os.WriteFile(includedFile, []byte(includedContent), 0644)
+	err = os.WriteFile(includedFileAbs, []byte(includedContent), 0644)
 	require.NoError(t, err)
 
 	// Create link file with correct checksum
-	linkFile := filepath.Join(workDir, "linked.txt.link")
+	linkFileRel := filepath.Join("packages", "packageB", "linked.txt.link")
+	linkFileAbs := filepath.Join(workDir, linkFileRel)
+	err = os.MkdirAll(filepath.Dir(linkFileAbs), 0755)
+	require.NoError(t, err)
 	hash := sha256.Sum256([]byte(includedContent))
 	checksum := hex.EncodeToString(hash[:])
-	linkContent := fmt.Sprintf("./included.txt %s", checksum)
-	err = os.WriteFile(linkFile, []byte(linkContent), 0644)
+	linkContent := fmt.Sprintf("../../../other/included.txt %s", checksum)
+	err = os.WriteFile(linkFileAbs, []byte(linkContent), 0644)
 	require.NoError(t, err)
 
 	// Create outdated link file (no checksum)
-	outdatedLinkFile := filepath.Join(workDir, "outdated.txt.link")
-	err = os.WriteFile(outdatedLinkFile, []byte("./included.txt"), 0644)
+	outdatedLinkFileRel := "outdated.txt.link"
+	outdatedLinkFileAbs := filepath.Join(workDir, outdatedLinkFileRel)
+	err = os.WriteFile(outdatedLinkFileAbs, []byte("../other/included.txt"), 0644)
 	require.NoError(t, err)
 
 	// Setup LinksFS with absolute workDir
@@ -593,46 +606,49 @@ func TestLinksFS_Open(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
-	lfs, err := NewLinksFS(root, workDir)
+	lfs, err := CreateLinksFSFromPath(root, workDir)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
-		fileName    string
-		expectError bool
-		errorMsg    string
+		fileName    string // filename should be relative to workDir or absolute
+		expectedErr error
 		expectFile  bool
 	}{
 		{
 			name:       "open regular file with relative path",
-			fileName:   "regular.txt",
+			fileName:   regularFileRel,
 			expectFile: true,
 		},
 		{
 			name:       "open regular file with absolute path",
-			fileName:   filepath.Join(workDir, "regular.txt"),
+			fileName:   regularFileAbs,
 			expectFile: true,
 		},
 		{
 			name:       "open up-to-date link file",
-			fileName:   "linked.txt.link",
+			fileName:   linkFileRel,
 			expectFile: true,
 		},
 		{
 			name:       "open up-to-date link file with absolute path",
-			fileName:   filepath.Join(workDir, "linked.txt.link"),
+			fileName:   linkFileAbs,
 			expectFile: true,
 		},
 		{
 			name:        "open outdated link file should fail",
-			fileName:    "outdated.txt.link",
-			expectError: true,
-			errorMsg:    "not up to date",
+			fileName:    outdatedLinkFileRel,
+			expectedErr: errFileNotUpToDate,
+		},
+		{
+			name:        "open outdated link file with absolute pathshould fail",
+			fileName:    outdatedLinkFileAbs,
+			expectedErr: errFileNotUpToDate,
 		},
 		{
 			name:        "open non-existent file should fail",
 			fileName:    "nonexistent.txt",
-			expectError: true,
+			expectedErr: os.ErrNotExist,
 		},
 	}
 
@@ -640,30 +656,27 @@ func TestLinksFS_Open(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			file, err := lfs.Open(tc.fileName)
 
-			if tc.expectError {
-				assert.Error(t, err)
-				if tc.errorMsg != "" {
-					assert.Contains(t, err.Error(), tc.errorMsg)
-				}
-				assert.Nil(t, file)
+			if tc.expectedErr != nil {
+				require.Error(t, err)
+				require.Nil(t, file)
+				assert.ErrorIs(t, err, tc.expectedErr)
 			} else {
+				require.NoError(t, err)
+				require.NotNil(t, file)
+
+				// Verify we can read from the file
+				content, err := io.ReadAll(file)
 				assert.NoError(t, err)
-				assert.NotNil(t, file)
 
-				if file != nil {
-					// Verify we can read from the file
-					content, err := io.ReadAll(file)
-					assert.NoError(t, err)
-
-					// For link files, content should be from the included file
-					if strings.HasSuffix(tc.fileName, ".link") {
-						assert.Equal(t, includedContent, string(content))
-					} else {
-						assert.Equal(t, "regular content", string(content))
-					}
-
-					file.Close()
+				// For link files, content should be from the included file
+				if strings.HasSuffix(tc.fileName, ".link") {
+					assert.Equal(t, includedContent, string(content))
+				} else {
+					assert.Equal(t, "regular content", string(content))
 				}
+
+				file.Close()
+
 			}
 		})
 	}
@@ -707,7 +720,7 @@ func TestLinksFS_RelativeWorkDir(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Use relative path "work" instead of absolute path
-	lfs, err := NewLinksFS(root, "work")
+	lfs, err := CreateLinksFSFromPath(root, "work")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -781,7 +794,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
-	lfs, err := NewLinksFS(root, workDir)
+	lfs, err := CreateLinksFSFromPath(root, workDir)
 	require.NoError(t, err)
 
 	notFoundErrorMsg := "no such file or directory"
@@ -874,7 +887,7 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			lfs, err := NewLinksFS(root, tc.workDir)
+			lfs, err := CreateLinksFSFromPath(root, tc.workDir)
 
 			if tc.expectError {
 				assert.Error(t, err)
