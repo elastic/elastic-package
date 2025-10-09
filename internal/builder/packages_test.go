@@ -38,6 +38,18 @@ func TestFindRepositoryLicense(t *testing.T) {
 		path, err := findRepositoryLicensePath(root, "NON_EXISTENT_LICENSE.txt")
 		require.Error(t, err)
 		assert.Empty(t, path)
+		assert.ErrorIs(t, err, os.ErrNotExist)
+	})
+
+	t.Run("FileOutsideRoot", func(t *testing.T) {
+		root, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+		defer root.Close()
+
+		path, err := findRepositoryLicensePath(root, "../../out.txt")
+		require.Error(t, err)
+		assert.Empty(t, path)
+		assert.ErrorContains(t, err, "path escapes from parent")
 	})
 
 }

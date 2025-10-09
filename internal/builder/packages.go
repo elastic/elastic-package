@@ -374,17 +374,16 @@ func createBuildDirectory(dirs ...string) (string, error) {
 //
 // Parameters:
 //
-//	licensePath - the path to the license file.
+//	repositoryLicenseTextFileName - the relative path to the license file from the repository root.
 //
 // Returns:
 //
-//	string - the license file path if found.
+//	string - the license file absolute path if found.
 //	error  - an error if the license file does not exist.
 func findRepositoryLicensePath(repoRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
-	path := filepath.Join(repoRoot.Name(), repositoryLicenseTextFileName)
-	if _, err := os.Stat(path); err != nil {
+	if _, err := repoRoot.Stat(repositoryLicenseTextFileName); err != nil {
 		return "", fmt.Errorf("failed to find repository license: %w", err)
 	}
-
+	path := filepath.Join(repoRoot.Name(), repositoryLicenseTextFileName)
 	return path, nil
 }
