@@ -63,7 +63,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		defer repoRoot.Close()
 
 		licensePathRel := filepath.Join("LICENSE.txt")
-		err = repoRoot.WriteFile(licensePathRel, []byte("existing license"), 0644)
+		err = os.WriteFile(filepath.Join(repoRoot.Name(), licensePathRel), []byte("existing license"), 0644)
 		require.NoError(t, err)
 
 		// Should not attempt to copy, just return nil
@@ -71,7 +71,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		assert.NoError(t, err)
 
 		// License file should remain unchanged
-		content, err := repoRoot.ReadFile(licensePathRel)
+		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), licensePathRel))
 		require.NoError(t, err)
 		assert.Equal(t, "existing license", string(content))
 
@@ -83,16 +83,16 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		require.NoError(t, err)
 		defer repoRoot.Close()
 
-		licensePathRel := filepath.Join("LICENSE.txt")
-		err = repoRoot.WriteFile(licensePathRel, []byte("existing license"), 0644)
+		licensePath := filepath.Join(repoRoot.Name(), "LICENSE.txt")
+		err = os.WriteFile(licensePath, []byte("existing license"), 0644)
 		require.NoError(t, err)
 
 		// Should not attempt to copy, just return nil
-		err = copyLicenseTextFile(repoRoot, filepath.Join(repoRoot.Name(), licensePathRel))
+		err = copyLicenseTextFile(repoRoot, licensePath)
 		assert.NoError(t, err)
 
 		// License file should remain unchanged
-		content, err := repoRoot.ReadFile(licensePathRel)
+		content, err := os.ReadFile(licensePath)
 		require.NoError(t, err)
 		assert.Equal(t, "existing license", string(content))
 
@@ -127,13 +127,13 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		defer repoRoot.Close()
 
 		// original license file path
-		err = repoRoot.WriteFile(licenseTextFileName, []byte("repo license"), 0644)
+		err = os.WriteFile(filepath.Join(repoRoot.Name(), licenseTextFileName), []byte("repo license"), 0644)
 		require.NoError(t, err)
 
 		err = copyLicenseTextFile(repoRoot, "REPO_LICENSE.txt")
 		assert.NoError(t, err)
 
-		content, err := repoRoot.ReadFile("REPO_LICENSE.txt")
+		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), "REPO_LICENSE.txt"))
 		require.NoError(t, err)
 		assert.Equal(t, "repo license", string(content))
 	})
@@ -144,7 +144,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		defer repoRoot.Close()
 
 		// original license file path
-		err = repoRoot.WriteFile("CUSTOM_LICENSE.txt", []byte("repo license"), 0644)
+		err = os.WriteFile(filepath.Join(repoRoot.Name(), "CUSTOM_LICENSE.txt"), []byte("repo license"), 0644)
 		require.NoError(t, err)
 
 		t.Setenv(repositoryLicenseEnv, "CUSTOM_LICENSE.txt")
@@ -152,7 +152,7 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		err = copyLicenseTextFile(repoRoot, "REPO_LICENSE.txt")
 		assert.NoError(t, err)
 
-		content, err := repoRoot.ReadFile("REPO_LICENSE.txt")
+		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), "REPO_LICENSE.txt"))
 		require.NoError(t, err)
 		assert.Equal(t, "repo license", string(content))
 	})
