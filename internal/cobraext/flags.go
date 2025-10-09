@@ -133,8 +133,21 @@ const (
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailFastFlagName                  = "fail-fast"
-	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
+	FailFastFlagName        = "fail-fast"
+	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
+
+	FilterInputFlagName        = "input"
+	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+
+	FilterCodeOwnerFlagName        = "code-owner"
+	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
+
+	FilterKibanaVersionFlagName        = "kibana-version"
+	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
+
+	FilterCategoriesFlagName        = "category"
+	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
