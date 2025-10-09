@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -35,12 +34,9 @@ func setupFormatCommand() *cobraext.Command {
 func formatCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Format the package")
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return errors.New("package root not found")
 	}
 
 	ff, err := cmd.Flags().GetBool(cobraext.FailFastFlagName)

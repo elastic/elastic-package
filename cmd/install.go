@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -72,12 +71,8 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	if zipPathFile == "" && packageRootPath == "" {
-		var found bool
 		var err error
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
+		packageRootPath, err = packages.FindPackageRoot()
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}

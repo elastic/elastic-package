@@ -137,10 +137,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -292,12 +289,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	var packageRootPath string
-	var found bool
 	if len(packageName) == 0 {
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
+		packageRootPath, err = packages.FindPackageRoot()
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
@@ -472,10 +465,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchStreamTimestampFieldFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -585,10 +575,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

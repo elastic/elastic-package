@@ -193,7 +193,10 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 	workDir := filepath.Dir(linkFilePath)
 
 	var linkPackageName string
-	linkPackageRoot, _, _ := packages.FindPackageRootFrom(workDir)
+	linkPackageRoot, err := packages.FindPackageRootFrom(workDir)
+	if err != nil {
+		return nil, fmt.Errorf("could not find package root for link file %s: %w", linkFilePath, err)
+	}
 	if linkPackageRoot != "" {
 		linkPackageName = filepath.Base(linkPackageRoot)
 	} else {
@@ -245,7 +248,10 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 	}
 
 	var includedPackageName string
-	includedPackageRoot, _, _ := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
+	includedPackageRoot, err := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
+	if err != nil {
+		return nil, fmt.Errorf("could not find package root for included file %s: %w", includedFilePath, err)
+	}
 	if includedPackageRoot != "" {
 		includedPackageName = filepath.Base(includedPackageRoot)
 	}
@@ -471,7 +477,11 @@ func linkedFilesByPackageFrom(root *os.Root, fromDir string) ([]PackageLinks, er
 	}
 
 	var packageName string
-	if packageRoot, _, _ := packages.FindPackageRootFrom(filepath.Join(root.Name(), fromDir)); packageRoot != "" {
+	packageRoot, err := packages.FindPackageRootFrom(filepath.Join(root.Name(), fromDir))
+	if err != nil {
+		return nil, fmt.Errorf("finding package root failed: %w", err)
+	}
+	if packageRoot != "" {
 		packageName = filepath.Base(packageRoot)
 	}
 	byPackageMap := map[string][]string{}

@@ -498,6 +498,19 @@ func TestNewLinkedFileRejectsPathTraversal(t *testing.T) {
 	}
 }
 
+func createPackageStructure(t *testing.T, dirs ...string) string {
+
+	packageDir := filepath.Join(dirs...)
+	err := os.MkdirAll(packageDir, 0755)
+	require.NoError(t, err)
+
+	manifestFile := filepath.Join(packageDir, "manifest.yml")
+	err = os.WriteFile(manifestFile, []byte("version: '1.0'\ntype: integration\n"), 0644)
+	require.NoError(t, err)
+
+	return packageDir
+}
+
 func TestLinksFSSecurityIsolation(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -506,10 +519,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	// Create a working directory inside repo
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "testpackage")
 
 	// Create a valid included file in the repo
 	includedFile := filepath.Join(workDir, "included.txt")
@@ -567,9 +577,7 @@ func TestLinksFS_Open(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create test files
 	regularFileRel := "regular.txt"
@@ -577,12 +585,16 @@ func TestLinksFS_Open(t *testing.T) {
 	err = os.WriteFile(regularFileAbs, []byte("regular content"), 0644)
 	require.NoError(t, err)
 
+	createPackageStructure(t, repoDir, "other")
+
 	includedFileAbs := filepath.Join(repoDir, "other", "included.txt")
 	err = os.MkdirAll(filepath.Dir(includedFileAbs), 0755)
 	require.NoError(t, err)
 	includedContent := "included content"
 	err = os.WriteFile(includedFileAbs, []byte(includedContent), 0644)
 	require.NoError(t, err)
+
+	createPackageStructure(t, repoDir, "packages", "packageB")
 
 	// Create link file with correct checksum
 	linkFileRel := filepath.Join("packages", "packageB", "linked.txt.link")
@@ -691,9 +703,7 @@ func TestLinksFS_RelativeWorkDir(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create test files
 	regularFile := filepath.Join(workDir, "regular.txt")
@@ -770,9 +780,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create link file that points to non-existent file (this will fail security check)
 	brokenLinkFile := filepath.Join(workDir, "broken.txt.link")

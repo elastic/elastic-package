@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -35,10 +34,7 @@ func setupUninstallCommand() *cobraext.Command {
 }
 
 func uninstallCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

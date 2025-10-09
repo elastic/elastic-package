@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -74,10 +73,7 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
