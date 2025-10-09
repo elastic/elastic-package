@@ -224,7 +224,7 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 		linkfileChecksum = fields[1]
 	}
 
-	// pathname represents the absolute path to the included file which content we want to copy to the link file
+	// includedFilePath represents the absolute path to the included file which content we want to copy to the link file
 	// resolves the path of the included file relative to the link file
 	includedFilePath := filepath.Clean(filepath.Join(workDir, filepath.FromSlash(includedFileRelPath)))
 
