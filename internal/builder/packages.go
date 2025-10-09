@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/magefile/mage/sh"
 
@@ -298,8 +297,22 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 // If the file does not exist in the package, it looks for a license file in the repository root directory.
 // If a license file is found in the repository, it copies it to the package directory.
 func copyLicenseTextFile(repoRoot *os.Root, licensePath string) error {
+
+	// check licensePath is within the repository
+	relPath := filepath.Clean(licensePath)
+	if filepath.IsAbs(licensePath) {
+		var err error
+		relPath, err = filepath.Rel(repoRoot.Name(), licensePath)
+		if err != nil {
+			return fmt.Errorf("failed to get relative path for licensePath (%s) from repoRoot (%s): %w", licensePath, repoRoot.Name(), err)
+		}
+	} else {
+		// if relative path, make it relative to the repo root
+		licensePath = filepath.Join(repoRoot.Name(), licensePath)
+	}
+
 	// if the given path exist, skip copying
-	info, err := os.Stat(licensePath)
+	info, err := repoRoot.Stat(relPath)
 	if err == nil && !info.IsDir() {
 		logger.Debug("License file in the package will be used")
 		return nil
@@ -311,15 +324,6 @@ func copyLicenseTextFile(repoRoot *os.Root, licensePath string) error {
 	// if the given path exist but is a directory, return an error
 	if info != nil && info.IsDir() {
 		return fmt.Errorf("license path (%s) is a directory", licensePath)
-	}
-
-	// Ensure licensePath is inside the repoRoot
-	rel, err := filepath.Rel(repoRoot.Name(), licensePath)
-	if err != nil {
-		return fmt.Errorf("failed to get relative path for licensePath (%s) from repoRoot (%s): %w", licensePath, repoRoot.Name(), err)
-	}
-	if strings.HasPrefix(rel, "..") {
-		return fmt.Errorf("licensePath (%s) is outside of the repoRoot (%s)", licensePath, repoRoot.Name())
 	}
 
 	// lookup for the license file in the repository
