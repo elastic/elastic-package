@@ -5,10 +5,14 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -42,58 +46,179 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating filter options failed: %w", err)
 	}
 
-	fmt.Println(opts.String())
+	pkgs, err := listPackages(opts)
+	if err != nil {
+		return fmt.Errorf("listing packages failed: %w", err)
+	}
+
+	filteredPackages, err := filterPackages(opts, pkgs)
+	if err != nil {
+		return fmt.Errorf("filtering packages failed: %w", err)
+	}
+
+	fmt.Print("[")
+	for _, pkg := range filteredPackages {
+		fmt.Printf("%s, ", pkg.Name)
+	}
+	fmt.Println("\b\b]")
 
 	return nil
 }
 
+func listPackages(opts *filterOptions) ([]packages.PackageManifest, error) {
+	root, found, err := packages.FindIntegrationRoot()
+	if err != nil {
+		return nil, fmt.Errorf("can't find integration root: %w", err)
+	}
+	if !found {
+		return nil, errors.New("integration root not found")
+	}
+
+	pkgs, err := packages.ListPackages(root)
+	if err != nil {
+		return nil, fmt.Errorf("listing packages failed: %w", err)
+	}
+
+	return pkgs, nil
+}
+
 type filterOptions struct {
-	input         string
-	codeOwner     string
-	kibanaVersion string
-	categories    string
+	inputs         []string
+	codeOwners     []string
+	kibanaVersions []string
+	categories     []string
 }
 
 func fromFlags(cmd *cobra.Command) (*filterOptions, error) {
+	opts := &filterOptions{}
+
 	input, err := cmd.Flags().GetString(cobraext.FilterInputFlagName)
 	if err != nil {
 		return nil, cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
+	}
+	if input != "" {
+		opts.inputs = strings.Split(input, ",")
 	}
 
 	codeOwner, err := cmd.Flags().GetString(cobraext.FilterCodeOwnerFlagName)
 	if err != nil {
 		return nil, cobraext.FlagParsingError(err, cobraext.FilterCodeOwnerFlagName)
 	}
+	if codeOwner != "" {
+		opts.codeOwners = strings.Split(codeOwner, ",")
+	}
 
 	kibanaVersion, err := cmd.Flags().GetString(cobraext.FilterKibanaVersionFlagName)
 	if err != nil {
 		return nil, cobraext.FlagParsingError(err, cobraext.FilterKibanaVersionFlagName)
+	}
+	if kibanaVersion != "" {
+		opts.kibanaVersions = strings.Split(kibanaVersion, ",")
 	}
 
 	categories, err := cmd.Flags().GetString(cobraext.FilterCategoriesFlagName)
 	if err != nil {
 		return nil, cobraext.FlagParsingError(err, cobraext.FilterCategoriesFlagName)
 	}
+	if categories != "" {
+		opts.categories = strings.Split(categories, ",")
+	}
 
-	return &filterOptions{
-		input:         input,
-		codeOwner:     codeOwner,
-		kibanaVersion: kibanaVersion,
-		categories:    categories,
-	}, nil
+	return opts, nil
 }
 
 func (o *filterOptions) String() string {
-	return fmt.Sprintf("input: %s, codeOwner: %s, kibanaVersion: %s, categories: %s", o.input, o.codeOwner, o.kibanaVersion, o.categories)
+	return fmt.Sprintf("input: %s, codeOwner: %s, kibanaVersion: %s, categories: %s", o.inputs, o.codeOwners, o.kibanaVersions, o.categories)
 }
 
 func (o *filterOptions) Validate() error {
-	if o.input == "" && o.codeOwner == "" && o.kibanaVersion == "" && o.categories == "" {
+	validator := tui.Validator{Cwd: "."}
+
+	if len(o.inputs) == 0 && len(o.codeOwners) == 0 && len(o.kibanaVersions) == 0 && len(o.categories) == 0 {
 		return fmt.Errorf("at least one flag must be provided")
 	}
 
-	if _, err := semver.NewConstraint(o.kibanaVersion); err != nil {
-		return fmt.Errorf("invalid kibana version: %w", err)
+	if len(o.kibanaVersions) > 0 {
+		for _, version := range o.kibanaVersions {
+			if err := validator.Constraint(version); err != nil {
+				return fmt.Errorf("invalid kibana version: %w", err)
+			}
+		}
 	}
+
+	if len(o.codeOwners) > 0 {
+		for _, owner := range o.codeOwners {
+			if err := validator.GithubOwner(owner); err != nil {
+				return fmt.Errorf("invalid code owner: %w", err)
+			}
+		}
+	}
+
 	return nil
+}
+
+func (o *filterOptions) Filter(pkg packages.PackageManifest) bool {
+	codeOwner := pkg.Owner.Github
+	// kibanaVersion := pkg.Conditions.Kibana.Version
+	categories := pkg.Categories
+	inputs := []string{}
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		if policyTemplate.Input != "" {
+			inputs = append(inputs, policyTemplate.Input)
+		}
+
+		for _, input := range policyTemplate.Inputs {
+			inputs = append(inputs, input.Type)
+		}
+	}
+
+	if len(o.inputs) > 0 {
+		exists := false
+		for _, input := range inputs {
+			if slices.Contains(o.inputs, input) {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			return false
+		}
+	}
+
+	if len(o.codeOwners) > 0 {
+		if !slices.Contains(o.codeOwners, codeOwner) {
+			return false
+		}
+	}
+
+	if len(o.categories) > 0 {
+		exists := false
+		for _, category := range categories {
+			if slices.Contains(o.categories, category) {
+				exists = true
+				break
+			}
+		}
+
+		if !exists {
+			return false
+		}
+	}
+
+	return true
+}
+
+func filterPackages(opts *filterOptions, pkgs []packages.PackageManifest) ([]packages.PackageManifest, error) {
+	var filteredPackages []packages.PackageManifest
+
+	for _, pkg := range pkgs {
+		if !opts.Filter(pkg) {
+			continue
+		}
+
+		filteredPackages = append(filteredPackages, pkg)
+	}
+
+	return filteredPackages, nil
 }
