@@ -244,8 +244,6 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 		return nil, fmt.Errorf("could not collect file %s: %w", includedFilePathRelFromRoot, err)
 	}
 
-	checksumUpdated := cs == linkfileChecksum
-
 	var includedPackageName string
 	includedPackageRoot, _, _ := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
 	if includedPackageRoot != "" {
@@ -260,7 +258,7 @@ func newLinkedFile(repoRoot *os.Root, linkFilePath string) (*Link, error) {
 		IncludedFilePath:             includedFileRelPath,
 		IncludedFileContentsChecksum: cs,
 		IncludedPackageName:          includedPackageName,
-		UpToDate:                     checksumUpdated,
+		UpToDate:                     cs == linkfileChecksum,
 		TargetRelPath:                strings.TrimSuffix(linkFileRelativePath, linkExtension),
 	}, nil
 }
