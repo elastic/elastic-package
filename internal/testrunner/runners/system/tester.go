@@ -41,40 +41,75 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
-const (
-	checkFieldsBody = `{
-		"fields": ["*"],
-		"runtime_mappings": {
-		  "my_ignored": {
-			"type": "keyword",
-			"script": {
-			  "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
-			}
-		  }
-		},
-		"aggs": {
-		  "all_ignored": {
-			"filter": {
-			  "exists": {
-				"field": "_ignored"
-			  }
-			},
-			"aggs": {
-			  "ignored_fields": {
-				"terms": {
-				  "size": 100,
-				  "field": "my_ignored"
-				}
-			  },
-			  "ignored_docs": {
-				"top_hits": {
-				  "size": 5
-				}
-			  }
-			}
-		  }
+const FieldsQuery = `{
+  "fields": [
+    "*"
+  ],
+  "runtime_mappings": {
+    "my_ignored": {
+      "type": "keyword",
+      "script": {
+        "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
+      }
+    }
+  },
+  "aggs": {
+    "all_ignored": {
+      "filter": {
+        "exists": {
+          "field": "_ignored"
+        }
+      },
+      "aggs": {
+        "ignored_fields": {
+          "terms": {
+            "size": 100,
+            "field": "my_ignored"
+          }
+        },
+        "ignored_docs": {
+          "top_hits": {
+            "size": 5
+          }
+        }
+      }
+    }
+  }
+}`
+
+type FieldsQueryResult struct {
+	Hits struct {
+		Total struct {
+			Value int
 		}
-	  }`
+		Hits []struct {
+			Source common.MapStr `json:"_source"`
+			Fields common.MapStr `json:"fields"`
+		}
+	}
+	Aggregations struct {
+		AllIgnored struct {
+			DocCount      int `json:"doc_count"`
+			IgnoredFields struct {
+				Buckets []struct {
+					Key string `json:"key"`
+				} `json:"buckets"`
+			} `json:"ignored_fields"`
+			IgnoredDocs struct {
+				Hits struct {
+					Hits []common.MapStr `json:"hits"`
+				} `json:"hits"`
+			} `json:"ignored_docs"`
+		} `json:"all_ignored"`
+	} `json:"aggregations"`
+	Error *struct {
+		Type   string
+		Reason string
+	}
+	Status int
+}
+
+const (
 	DevDeployDir = "_dev/deploy"
 
 	// TestType defining system tests
@@ -764,7 +799,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		r.esAPI.Search.WithSort("@timestamp:asc"),
 		r.esAPI.Search.WithSize(elasticsearchQuerySize),
 		r.esAPI.Search.WithSource("true"),
-		r.esAPI.Search.WithBody(strings.NewReader(checkFieldsBody)),
+		r.esAPI.Search.WithBody(strings.NewReader(FieldsQuery)),
 		r.esAPI.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
@@ -781,38 +816,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
 	}
 
-	var results struct {
-		Hits struct {
-			Total struct {
-				Value int
-			}
-			Hits []struct {
-				Source common.MapStr `json:"_source"`
-				Fields common.MapStr `json:"fields"`
-			}
-		}
-		Aggregations struct {
-			AllIgnored struct {
-				DocCount      int `json:"doc_count"`
-				IgnoredFields struct {
-					Buckets []struct {
-						Key string `json:"key"`
-					} `json:"buckets"`
-				} `json:"ignored_fields"`
-				IgnoredDocs struct {
-					Hits struct {
-						Hits []common.MapStr `json:"hits"`
-					} `json:"hits"`
-				} `json:"ignored_docs"`
-			} `json:"all_ignored"`
-		} `json:"aggregations"`
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
+	var results FieldsQueryResult
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return nil, fmt.Errorf("could not decode search results response: %w", err)
 	}
