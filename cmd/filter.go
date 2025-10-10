@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -35,8 +34,6 @@ func setupFilterCommand() *cobraext.Command {
 }
 
 func filterCommandAction(cmd *cobra.Command, args []string) error {
-	cmd.Println("Filter the package")
-
 	opts, err := fromFlags(cmd)
 	if err != nil {
 		return fmt.Errorf("getting filter options failed: %w", err)
@@ -46,40 +43,32 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating filter options failed: %w", err)
 	}
 
-	pkgs, err := listPackages(opts)
+	root, err := packages.MustFindIntegrationRoot()
+	if err != nil {
+		return fmt.Errorf("can't find integration root: %w", err)
+	}
+
+	pkgs, err := packages.ReadAllPackageManifests(root)
 	if err != nil {
 		return fmt.Errorf("listing packages failed: %w", err)
 	}
 
-	filteredPackages, err := filterPackages(opts, pkgs)
+	filtered, err := opts.Filter(pkgs)
 	if err != nil {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	fmt.Print("[")
-	for _, pkg := range filteredPackages {
-		fmt.Printf("%s, ", pkg.Name)
+	if len(filtered) == 0 {
+		return fmt.Errorf("no packages found")
+	} else {
+		fmt.Print("[")
+		for _, pkg := range filtered {
+			fmt.Printf("%s, ", pkg.Name)
+		}
+		fmt.Println("\b\b]")
 	}
-	fmt.Println("\b\b]")
 
 	return nil
-}
-
-func listPackages(opts *filterOptions) ([]packages.PackageManifest, error) {
-	root, found, err := packages.FindIntegrationRoot()
-	if err != nil {
-		return nil, fmt.Errorf("can't find integration root: %w", err)
-	}
-	if !found {
-		return nil, errors.New("integration root not found")
-	}
-
-	pkgs, err := packages.ListPackages(root)
-	if err != nil {
-		return nil, fmt.Errorf("listing packages failed: %w", err)
-	}
-
-	return pkgs, nil
 }
 
 type filterOptions struct {
@@ -157,7 +146,7 @@ func (o *filterOptions) Validate() error {
 	return nil
 }
 
-func (o *filterOptions) Filter(pkg packages.PackageManifest) bool {
+func (o *filterOptions) Check(pkg packages.PackageManifest) bool {
 	codeOwner := pkg.Owner.Github
 	// kibanaVersion := pkg.Conditions.Kibana.Version
 	categories := pkg.Categories
@@ -206,17 +195,21 @@ func (o *filterOptions) Filter(pkg packages.PackageManifest) bool {
 		}
 	}
 
+	// TODO: check kibana version
+	if len(o.kibanaVersions) > 0 {
+		panic("not implemented")
+	}
+
 	return true
 }
 
-func filterPackages(opts *filterOptions, pkgs []packages.PackageManifest) ([]packages.PackageManifest, error) {
+func (o *filterOptions) Filter(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error) {
 	var filteredPackages []packages.PackageManifest
 
 	for _, pkg := range pkgs {
-		if !opts.Filter(pkg) {
+		if !o.Check(pkg) {
 			continue
 		}
-
 		filteredPackages = append(filteredPackages, pkg)
 	}
 

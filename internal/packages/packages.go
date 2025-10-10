@@ -331,6 +331,19 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 	return "", false, nil
 }
 
+// MustFindIntegrationRoot finds and returns the path to the root folder of a package from the working directory.
+// It fails with an error if the package root can't be found.
+func MustFindIntegrationRoot() (string, error) {
+	root, found, err := FindIntegrationRoot()
+	if err != nil {
+		return "", fmt.Errorf("locating integration root failed: %w", err)
+	}
+	if !found {
+		return "", errors.New("integration root not found")
+	}
+	return root, nil
+}
+
 // FindIntegrationRoot finds and returns the path to the root folder of a package from the working directory.
 func FindIntegrationRoot() (string, bool, error) {
 	workDir, err := os.Getwd()
@@ -450,6 +463,25 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 		return nil, fmt.Errorf("unpacking package manifest failed (path: %s): %w", path, err)
 	}
 	return &m, nil
+}
+
+// ReadAllPackageManifests reads all the package manifests in the given root directory.
+func ReadAllPackageManifests(root string) ([]PackageManifest, error) {
+	files, err := filepath.Glob(filepath.Join(root, "packages", "*", PackageManifestFile))
+	if err != nil {
+		return nil, fmt.Errorf("failed matching files with package manifests: %w", err)
+	}
+
+	var packages []PackageManifest
+	for _, file := range files {
+		manifest, err := ReadPackageManifest(file)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read package manifest: %w", err)
+		}
+		packages = append(packages, *manifest)
+	}
+
+	return packages, nil
 }
 
 // ReadTransformsFromPackageRoot looks for transforms in the given package root.
