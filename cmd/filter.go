@@ -27,13 +27,16 @@ func setupFilterCommand() *cobraext.Command {
 		RunE:  filterCommandAction,
 	}
 
+	// add filter flags to the command (input, code owner, kibana version, categories)
 	filter.SetFilterFlags(cmd)
+
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func filterCommandAction(cmd *cobra.Command, args []string) error {
-	filters, err := filter.Parse(cmd)
-	if err != nil {
+	filters := filter.NewFilter()
+
+	if err := filters.Parse(cmd); err != nil {
 		return fmt.Errorf("getting filter options failed: %w", err)
 	}
 

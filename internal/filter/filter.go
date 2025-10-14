@@ -64,34 +64,33 @@ func SetFilterFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP(cobraext.FilterCategoriesFlagName, "", "", cobraext.FilterCategoriesFlagDescription)
 }
 
-func Parse(cmd *cobra.Command) (*Filter, error) {
-	filter := &Filter{}
+func (f *Filter) Parse(cmd *cobra.Command) error {
 
 	input, err := cmd.Flags().GetString(cobraext.FilterInputFlagName)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
+		return cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
 	}
-	filter.Inputs = splitAndTrim(input, ",")
+	f.Inputs = splitAndTrim(input, ",")
 
 	codeOwner, err := cmd.Flags().GetString(cobraext.FilterCodeOwnerFlagName)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.FilterCodeOwnerFlagName)
+		return cobraext.FlagParsingError(err, cobraext.FilterCodeOwnerFlagName)
 	}
-	filter.CodeOwners = splitAndTrim(codeOwner, ",")
+	f.CodeOwners = splitAndTrim(codeOwner, ",")
 
 	kibanaVersion, err := cmd.Flags().GetString(cobraext.FilterKibanaVersionFlagName)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.FilterKibanaVersionFlagName)
+		return cobraext.FlagParsingError(err, cobraext.FilterKibanaVersionFlagName)
 	}
-	filter.KibanaVersions = splitAndTrim(kibanaVersion, ",")
+	f.KibanaVersions = splitAndTrim(kibanaVersion, ",")
 
 	categories, err := cmd.Flags().GetString(cobraext.FilterCategoriesFlagName)
 	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.FilterCategoriesFlagName)
+		return cobraext.FlagParsingError(err, cobraext.FilterCategoriesFlagName)
 	}
-	filter.Categories = splitAndTrim(categories, ",")
+	f.Categories = splitAndTrim(categories, ",")
 
-	return filter, nil
+	return nil
 }
 
 func (f *Filter) String() string {
@@ -104,14 +103,6 @@ func (f *Filter) String() string {
 
 func (f *Filter) Validate() error {
 	validator := tui.Validator{Cwd: "."}
-
-	if len(f.Inputs) == 0 &&
-		len(f.CodeOwners) == 0 &&
-		len(f.KibanaVersions) == 0 &&
-		len(f.Categories) == 0 {
-		// No filters provided, return an error
-		return fmt.Errorf("at least one flag must be provided")
-	}
 
 	if len(f.KibanaVersions) > 0 {
 		for version := range f.KibanaVersions {
