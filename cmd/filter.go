@@ -5,7 +5,10 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"slices"
 	"strings"
 
@@ -58,17 +61,27 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	if len(filtered) == 0 {
-		return fmt.Errorf("no packages found")
-	} else {
-		fmt.Print("[")
-		for _, pkg := range filtered {
-			fmt.Printf("%s, ", pkg.Name)
-		}
-		fmt.Println("\b\b]")
+	if err := printPkgList(filtered, os.Stdout); err != nil {
+		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
 	return nil
+}
+
+func printPkgList(pkgs []packages.PackageManifest, w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+
+	if len(pkgs) == 0 {
+		return nil
+	}
+
+	names := []string{}
+	for _, pkg := range pkgs {
+		names = append(names, pkg.Name)
+	}
+
+	return enc.Encode(names)
 }
 
 type filterOptions struct {
