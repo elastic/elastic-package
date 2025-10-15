@@ -20,7 +20,6 @@ import (
 )
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
-
 	repositoryRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repositoryRoot.Close() })

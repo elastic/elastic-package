@@ -499,7 +499,6 @@ func TestNewLinkedFileRejectsPathTraversal(t *testing.T) {
 }
 
 func createPackageStructure(t *testing.T, dirs ...string) string {
-
 	packageDir := filepath.Join(dirs...)
 	err := os.MkdirAll(packageDir, 0755)
 	require.NoError(t, err)
@@ -909,7 +908,7 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 	}
 }
 
-func Test_newLinkedFile(t *testing.T) {
+func TestNewLinkedFile(t *testing.T) {
 
 	repositoryRoot := t.TempDir()
 	repositoryRootHandle, err := os.OpenRoot(repositoryRoot)
