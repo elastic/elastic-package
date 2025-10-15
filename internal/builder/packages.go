@@ -378,7 +378,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	return buildDir, nil
 }
 
-// findRepositoryLicensePath checks if a license file exists at the specified path.
+// findRepositoryLicensePath checks if a license file exists at the specified path and its not empty.
 // If the file exists, it returns the path; otherwise, it returns an error indicating
 // that the repository license could not be found.
 //
@@ -391,8 +391,12 @@ func createBuildDirectory(dirs ...string) (string, error) {
 //	string - the license file absolute path if found.
 //	error  - an error if the license file does not exist.
 func findRepositoryLicensePath(repositoryRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
-	if _, err := repositoryRoot.Stat(repositoryLicenseTextFileName); err != nil {
+	bytes, err := repositoryRoot.ReadFile(repositoryLicenseTextFileName)
+	if err != nil {
 		return "", fmt.Errorf("failed to find repository license: %w", err)
+	}
+	if len(bytes) == 0 {
+		return "", fmt.Errorf("repository license file is empty")
 	}
 	path := filepath.Join(repositoryRoot.Name(), repositoryLicenseTextFileName)
 	return path, nil
