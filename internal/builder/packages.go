@@ -302,7 +302,6 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 // If the file does not exist in the package, it looks for a license file in the repository root directory.
 // If a license file is found in the repository, it copies it to the package directory.
 func copyLicenseTextFile(repositoryRoot *os.Root, licensePath string) error {
-
 	// check licensePath is within the repository
 	relPath := filepath.Clean(licensePath)
 	if filepath.IsAbs(licensePath) {
@@ -316,7 +315,7 @@ func copyLicenseTextFile(repositoryRoot *os.Root, licensePath string) error {
 		licensePath = filepath.Join(repositoryRoot.Name(), licensePath)
 	}
 
-	// if the given path exist, skip copying
+	// if the given path exists, skip copying
 	info, err := repositoryRoot.Stat(relPath)
 	if err == nil && !info.IsDir() {
 		logger.Debug("License file in the package will be used")
@@ -326,7 +325,7 @@ func copyLicenseTextFile(repositoryRoot *os.Root, licensePath string) error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("can't check license path (%s): %w", licensePath, err)
 	}
-	// if the given path exist but is a directory, return an error
+	// if the given path exists, but is a directory, return an error
 	if info != nil && info.IsDir() {
 		return fmt.Errorf("license path (%s) is a directory", licensePath)
 	}
