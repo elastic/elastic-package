@@ -34,36 +34,37 @@ func setupFilterCommand() *cobraext.Command {
 }
 
 func filterCommandAction(cmd *cobra.Command, args []string) error {
-	filters := filter.NewFilter()
-
-	if err := filters.Parse(cmd); err != nil {
-		return fmt.Errorf("getting filter options failed: %w", err)
-	}
-
-	if err := filters.Validate(); err != nil {
-		return fmt.Errorf("validating filter options failed: %w", err)
-	}
-
-	root, err := packages.MustFindIntegrationRoot()
-	if err != nil {
-		return fmt.Errorf("can't find integration root: %w", err)
-	}
-
-	pkgs, err := packages.ReadAllPackageManifests(root)
-	if err != nil {
-		return fmt.Errorf("listing packages failed: %w", err)
-	}
-
-	filtered, err := filters.ApplyTo(pkgs)
+	filtered, err := filterPackage(cmd)
 	if err != nil {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	if err := printPkgList(filtered, os.Stdout); err != nil {
+	if err = printPkgList(filtered, os.Stdout); err != nil {
 		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
 	return nil
+}
+
+func filterPackage(cmd *cobra.Command) ([]packages.PackageManifest, error) {
+	var filtered []packages.PackageManifest
+	var err error
+
+	filters := filter.NewFilter()
+
+	if err = filters.Parse(cmd); err != nil {
+		return nil, fmt.Errorf("getting filter options failed: %w", err)
+	}
+
+	if err = filters.Validate(); err != nil {
+		return nil, fmt.Errorf("validating filter options failed: %w", err)
+	}
+
+	if filtered, err = filters.Execute(); err != nil {
+		return nil, fmt.Errorf("filtering packages failed: %w", err)
+	}
+
+	return filtered, nil
 }
 
 func printPkgList(pkgs []packages.PackageManifest, w io.Writer) error {

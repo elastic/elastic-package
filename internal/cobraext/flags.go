@@ -148,6 +148,9 @@ const (
 	FilterCategoriesFlagName        = "category"
 	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
 
+	ForeachExecFlagName        = "exec"
+	ForeachExecFlagDescription = "command to execute for each package (required)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 

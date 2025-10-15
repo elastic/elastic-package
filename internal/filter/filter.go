@@ -183,3 +183,25 @@ func (f *Filter) ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageMan
 
 	return filteredPackages, nil
 }
+
+func (f *Filter) Execute() ([]packages.PackageManifest, error) {
+	var pkgs []packages.PackageManifest
+	var err error
+
+	// Find integrations repository root
+	root, err := packages.MustFindIntegrationRoot()
+	if err != nil {
+		return nil, fmt.Errorf("can't find integration root: %w", err)
+	}
+
+	if pkgs, err = packages.ReadAllPackageManifests(root); err != nil {
+		return nil, fmt.Errorf("listing packages failed: %w", err)
+	}
+
+	// Apply filters and return filtered packages
+	if pkgs, err = f.ApplyTo(pkgs); err != nil {
+		return nil, fmt.Errorf("filtering packages failed: %w", err)
+	}
+
+	return pkgs, nil
+}
