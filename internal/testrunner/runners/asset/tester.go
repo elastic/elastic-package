@@ -84,10 +84,10 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath:       r.packageRootPath,
-			Absent:         !installedPackage,
-			Force:          installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
+			PackageRootPath: r.packageRootPath,
+			Absent:          !installedPackage,
+			Force:           installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }

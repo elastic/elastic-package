@@ -84,11 +84,11 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
-		Kibana:         kibanaClient,
-		RootPath:       packageRootPath,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
-		RepositoryRoot: repositoryRoot,
+		Kibana:          kibanaClient,
+		PackageRootPath: packageRootPath,
+		SkipValidation:  skipValidation,
+		ZipPath:         zipPathFile,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

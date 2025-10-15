@@ -89,12 +89,12 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-		RepositoryRoot: repositoryRoot,
+		PackageRootPath: packageRoot,
+		BuildDir:        buildDir,
+		CreateZip:       createZip,
+		SignPackage:     signPackage,
+		SkipValidation:  skipValidation,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

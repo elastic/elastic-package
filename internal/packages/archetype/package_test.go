@@ -96,32 +96,32 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
+func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string) error {
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
-	_, err = docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
+	_, err = docs.UpdateReadmes(repositoryRoot, packageRootPath, buildDir)
 	if err != nil {
 		return err
 	}
 
 	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		RepositoryRoot: repositoryRoot,
+		PackageRootPath: packageRootPath,
+		BuildDir:        buildDir,
+		RepositoryRoot:  repositoryRoot,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, valid bool) {
-	err := buildPackage(t, repositoryRoot, packageRoot)
+func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string, valid bool) {
+	err := buildPackage(t, repositoryRoot, packageRootPath)
 	if !valid {
 		assert.Error(t, err)
 		return
 	}
 	require.NoError(t, err)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	require.NoError(t, err)
 
 	// Running in subtests because manifest subobjects can be pointers that can panic when dereferenced by assertions.
@@ -135,7 +135,7 @@ func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, val
 
 	if manifest.Type == "integration" {
 		t.Run("integration", func(t *testing.T) {
-			ds, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
+			ds, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
 			require.NoError(t, err)
 			for _, d := range ds {
 				manifest, err := packages.ReadDataStreamManifest(filepath.Join(d, "manifest.yml"))

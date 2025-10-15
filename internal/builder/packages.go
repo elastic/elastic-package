@@ -26,9 +26,9 @@ const licenseTextFileName = "LICENSE.txt"
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
-	PackageRoot    string
-	BuildDir       string
-	RepositoryRoot *os.Root
+	PackageRootPath string
+	BuildDir        string
+	RepositoryRoot  *os.Root
 
 	CreateZip      bool
 	SignPackage    bool
@@ -164,7 +164,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.PackageRoot, options.BuildDir)
+	destinationDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
@@ -176,8 +176,8 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
-	logger.Debugf("Copy package content (source: %s)", options.PackageRoot)
-	err = files.CopyWithoutDev(options.PackageRoot, destinationDir)
+	logger.Debugf("Copy package content (source: %s)", options.PackageRootPath)
+	err = files.CopyWithoutDev(options.PackageRootPath, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
@@ -196,18 +196,18 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRoot, destinationDir)
+	err = resolveExternalFields(options.PackageRootPath, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
-	err = addDynamicMappings(options.PackageRoot, destinationDir)
+	err = addDynamicMappings(options.PackageRootPath, destinationDir)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
 	logger.Debug("Include linked files")
-	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRoot)
+	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -247,7 +247,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 
 func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
+	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
@@ -282,9 +282,9 @@ func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDi
 
 func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	logger.Debug("Sign the package")
-	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRootPath, err)
 	}
 
 	err = files.Sign(zippedPackagePath, files.SignOptions{

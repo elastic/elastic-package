@@ -22,8 +22,8 @@ type FleetPackage struct {
 	// Provider is the name of the provider to use, defaults to "kibana".
 	Provider string
 
-	// RootPath is the root of the package source to install.
-	RootPath string
+	// PackageRootPath is the root of the package source to install.
+	PackageRootPath string
 
 	// RepositoryRoot is the root of the repository.
 	RepositoryRoot *os.Root
@@ -37,7 +37,7 @@ type FleetPackage struct {
 }
 
 func (f *FleetPackage) String() string {
-	return fmt.Sprintf("[FleetPackage:%s:%s]", f.Provider, f.RootPath)
+	return fmt.Sprintf("[FleetPackage:%s:%s]", f.Provider, f.PackageRootPath)
 }
 
 func (f *FleetPackage) provider(ctx resource.Context) (*KibanaProvider, error) {
@@ -60,10 +60,10 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 	}
 
 	return installer.NewForPackage(ctx, installer.Options{
-		Kibana:         provider.Client,
-		RootPath:       f.RootPath,
-		SkipValidation: true,
-		RepositoryRoot: f.RepositoryRoot,
+		Kibana:          provider.Client,
+		PackageRootPath: f.PackageRootPath,
+		SkipValidation:  true,
+		RepositoryRoot:  f.RepositoryRoot,
 	})
 }
 
@@ -73,9 +73,9 @@ func (f *FleetPackage) Get(ctx resource.Context) (current resource.ResourceState
 		return nil, err
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(f.RootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(f.PackageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read manifest from %s: %w", f.RootPath, err)
+		return nil, fmt.Errorf("failed to read manifest from %s: %w", f.PackageRootPath, err)
 	}
 
 	fleetPackage, err := provider.Client.GetPackage(ctx, manifest.Name)
@@ -117,7 +117,7 @@ func (f *FleetPackage) Create(ctx resource.Context) error {
 			}
 
 			// Using uninstallPachage instead of f.uninstall because we want to pass a context without cancellation.
-			uninstallErr = uninstallPackage(context.WithoutCancel(ctx), provider.Client, f.RootPath)
+			uninstallErr = uninstallPackage(context.WithoutCancel(ctx), provider.Client, f.PackageRootPath)
 			if uninstallErr != nil {
 				return fmt.Errorf("failed to uninstall package (%w) after installation failed: %w", uninstallErr, err)
 			}
@@ -134,7 +134,7 @@ func (f *FleetPackage) uninstall(ctx resource.Context) error {
 		return err
 	}
 
-	return uninstallPackage(ctx, provider.Client, f.RootPath)
+	return uninstallPackage(ctx, provider.Client, f.PackageRootPath)
 }
 
 func uninstallPackage(ctx context.Context, client *kibana.Client, rootPath string) error {

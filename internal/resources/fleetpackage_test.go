@@ -28,8 +28,8 @@ func TestRequiredProvider(t *testing.T) {
 
 	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
-			RootPath:       "../../test/packages/parallel/nginx",
-			RepositoryRoot: repositoryRoot,
+			PackageRootPath: "../../test/packages/parallel/nginx",
+			RepositoryRoot:  repositoryRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -61,8 +61,8 @@ func TestPackageLifecycle(t *testing.T) {
 			packageRootPath := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
 
 			fleetPackage := FleetPackage{
-				RootPath:       packageRootPath,
-				RepositoryRoot: repositoryRoot,
+				PackageRootPath: packageRootPath,
+				RepositoryRoot:  repositoryRoot,
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
@@ -89,9 +89,9 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	fleetPackage := FleetPackage{
-		RootPath:       "../../test/packages/parallel/system",
-		Absent:         true,
-		RepositoryRoot: repositoryRoot,
+		PackageRootPath: "../../test/packages/parallel/system",
+		Absent:          true,
+		RepositoryRoot:  repositoryRoot,
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
