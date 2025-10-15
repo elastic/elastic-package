@@ -911,10 +911,10 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 
 func Test_newLinkedFile(t *testing.T) {
 
-	repoRoot := t.TempDir()
-	repoRootHandle, err := os.OpenRoot(repoRoot)
+	repositoryRoot := t.TempDir()
+	repositoryRootHandle, err := os.OpenRoot(repositoryRoot)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRootHandle.Close() })
+	t.Cleanup(func() { _ = repositoryRootHandle.Close() })
 
 	linkFileContent := fmt.Sprintf("%s d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", filepath.Join("..", "..", "B", "otherFolder", "included.txt"))
 	includedFileContent := "included file content"
@@ -923,13 +923,13 @@ func Test_newLinkedFile(t *testing.T) {
 	// /packages/B/otherFolder/included.txt
 	// included relative to link file: ../../B/otherFolder/included.txt
 
-	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "A", "folder"), 0755)
+	err = os.MkdirAll(filepath.Join(repositoryRoot, "packages", "A", "folder"), 0755)
 	require.NoError(t, err)
 
 	// required to identify a package root
-	_, err = repoRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	_, err = repositoryRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
 	require.NoError(t, err)
-	fManifestA, err := repoRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	fManifestA, err := repositoryRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
 	require.NoError(t, err)
 	_, err = fManifestA.WriteString(`name: A
 version: 1.0.0
@@ -938,19 +938,19 @@ type: integration
 	require.NoError(t, err)
 	require.NoError(t, fManifestA.Close())
 
-	fLink, err := repoRootHandle.Create(filepath.Join("packages", "A", "folder", "link.txt.link"))
+	fLink, err := repositoryRootHandle.Create(filepath.Join("packages", "A", "folder", "link.txt.link"))
 	require.NoError(t, err)
 	_, err = fLink.WriteString(linkFileContent)
 	require.NoError(t, err)
 	require.NoError(t, fLink.Close())
 
-	err = os.MkdirAll(filepath.Join(repoRoot, "packages", "B", "otherFolder"), 0755)
+	err = os.MkdirAll(filepath.Join(repositoryRoot, "packages", "B", "otherFolder"), 0755)
 	require.NoError(t, err)
 
 	// required to identify a package root
-	_, err = repoRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	_, err = repositoryRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
 	require.NoError(t, err)
-	fManifestB, err := repoRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	fManifestB, err := repositoryRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
 	require.NoError(t, err)
 	_, err = fManifestB.WriteString(`name: B
 version: 1.0.0
@@ -959,17 +959,17 @@ type: integration
 	require.NoError(t, err)
 	require.NoError(t, fManifestB.Close())
 
-	fIncluded, err := repoRootHandle.Create(filepath.Join("packages", "B", "otherFolder", "included.txt"))
+	fIncluded, err := repositoryRootHandle.Create(filepath.Join("packages", "B", "otherFolder", "included.txt"))
 	require.NoError(t, err)
 	_, err = fIncluded.WriteString(includedFileContent)
 	require.NoError(t, err)
 	require.NoError(t, fIncluded.Close())
 
-	l, err := newLinkedFile(repoRootHandle, fLink.Name())
+	l, err := newLinkedFile(repositoryRootHandle, fLink.Name())
 	require.NoError(t, err)
 	assert.NotNil(t, l)
 
-	assert.Equal(t, filepath.Join(repoRoot, filepath.Join("packages", "A", "folder")), l.WorkDir)
+	assert.Equal(t, filepath.Join(repositoryRoot, filepath.Join("packages", "A", "folder")), l.WorkDir)
 
 	assert.True(t, strings.HasSuffix(l.LinkFilePath, filepath.Join("folder", "link.txt.link")))
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", l.LinkChecksum)

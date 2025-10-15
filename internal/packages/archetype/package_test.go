@@ -38,15 +38,15 @@ func TestPackage(t *testing.T) {
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
-	repoRoot, err := os.OpenRoot(t.TempDir())
+	repositoryRoot, err := os.OpenRoot(t.TempDir())
 	require.NoError(t, err)
-	defer repoRoot.Close()
+	defer repositoryRoot.Close()
 
-	packagesDir := filepath.Join(repoRoot.Name(), "packages")
+	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
 	err = createPackageInDir(pd, packagesDir)
 	require.NoError(t, err)
 
-	checkPackage(t, repoRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
+	checkPackage(t, repositoryRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -96,25 +96,25 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, repoRoot *os.Root, packageRoot string) error {
-	buildDir := filepath.Join(repoRoot.Name(), "build")
+func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
+	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
-	_, err = docs.UpdateReadmes(repoRoot, packageRoot, buildDir)
+	_, err = docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
 	if err != nil {
 		return err
 	}
 
 	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
-		PackageRoot: packageRoot,
-		BuildDir:    buildDir,
-		RepoRoot:    repoRoot,
+		PackageRoot:    packageRoot,
+		BuildDir:       buildDir,
+		RepositoryRoot: repositoryRoot,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, repoRoot *os.Root, packageRoot string, valid bool) {
-	err := buildPackage(t, repoRoot, packageRoot)
+func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, valid bool) {
+	err := buildPackage(t, repositoryRoot, packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return

@@ -256,7 +256,7 @@ func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 		Kibana:         r.options.KibanaClient,
 		RootPath:       r.options.PackageRootPath,
 		SkipValidation: true,
-		RepoRoot:       r.options.RepoRoot,
+		RepositoryRoot: r.options.RepositoryRoot,
 	})
 
 	if err != nil {

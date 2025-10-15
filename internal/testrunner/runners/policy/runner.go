@@ -23,7 +23,7 @@ const (
 )
 
 type runner struct {
-	repoRoot        *os.Root
+	repositoryRoot  *os.Root
 	packageRootPath string
 	kibanaClient    *kibana.Client
 
@@ -50,7 +50,7 @@ type PolicyTestRunnerOptions struct {
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
-	RepoRoot           *os.Root
+	RepositoryRoot     *os.Root
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
@@ -63,7 +63,7 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
-		repoRoot:           options.RepoRoot,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -147,7 +147,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				GlobalTestConfig:   r.globalTestConfig,
 				WithCoverage:       r.withCoverage,
 				CoverageType:       r.coverageType,
-				RepoRoot:           r.repoRoot,
+				RepositoryRoot:     r.repositoryRoot,
 			}))
 
 		}
@@ -161,8 +161,8 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
-		RepoRoot: r.repoRoot,
+		RootPath:       r.packageRootPath,
+		RepositoryRoot: r.repositoryRoot,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

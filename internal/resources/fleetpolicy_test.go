@@ -21,15 +21,15 @@ import (
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRoot.Close() })
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	manager := resource.NewManager()
 	_, err = manager.Apply(resource.Resources{
 		&FleetAgentPolicy{
-			Name:     "test-policy",
-			RepoRoot: repoRoot,
+			Name:           "test-policy",
+			RepositoryRoot: repositoryRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -38,9 +38,9 @@ func TestRequiredProviderFleetPolicy(t *testing.T) {
 }
 
 func TestPolicyLifecycle(t *testing.T) {
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRoot.Close() })
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	cases := []struct {
 		title           string
@@ -54,7 +54,7 @@ func TestPolicyLifecycle(t *testing.T) {
 			packagePolicies: []FleetPackagePolicy{
 				{
 					Name:           "nginx-1",
-					RootPath:       filepath.Join(repoRoot.Name(), "test", "packages", "parallel", "nginx"),
+					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
 					DataStreamName: "stubstatus",
 				},
 			},
@@ -64,12 +64,12 @@ func TestPolicyLifecycle(t *testing.T) {
 			packagePolicies: []FleetPackagePolicy{
 				{
 					Name:           "nginx-1",
-					RootPath:       filepath.Join(repoRoot.Name(), "test", "packages", "parallel", "nginx"),
+					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
 					DataStreamName: "stubstatus",
 				},
 				{
 					Name:           "system-1",
-					RootPath:       filepath.Join(repoRoot.Name(), "test", "packages", "parallel", "system"),
+					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
 					DataStreamName: "process",
 				},
 			},
@@ -79,7 +79,7 @@ func TestPolicyLifecycle(t *testing.T) {
 			packagePolicies: []FleetPackagePolicy{
 				{
 					Name:     "input-1",
-					RootPath: filepath.Join(repoRoot.Name(), "test", "packages", "parallel", "sql_input"),
+					RootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
 				},
 			},
 		},
@@ -100,7 +100,7 @@ func TestPolicyLifecycle(t *testing.T) {
 				Description:     fmt.Sprintf("Test policy for %s", c.title),
 				Namespace:       "eptest",
 				PackagePolicies: c.packagePolicies,
-				RepoRoot:        repoRoot,
+				RepositoryRoot:  repositoryRoot,
 			}
 			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy) })
 
@@ -122,9 +122,9 @@ func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			RootPath: policy.RootPath,
-			Absent:   agentPolicy.Absent,
-			RepoRoot: agentPolicy.RepoRoot,
+			RootPath:       policy.RootPath,
+			Absent:         agentPolicy.Absent,
+			RepositoryRoot: agentPolicy.RepositoryRoot,
 		})
 	}
 	return append(resources, agentPolicy)

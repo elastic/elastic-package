@@ -151,7 +151,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -180,7 +180,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig: globalTestConfig.Asset,
 		WithCoverage:     testCoverage,
 		CoverageType:     testCoverageFormat,
-		RepoRoot:         repoRoot,
+		RepositoryRoot:   repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -489,7 +489,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -578,7 +578,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.System,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
-		RepoRoot:           repoRoot,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	logger.Debugf("Running suite...")
@@ -656,7 +656,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -693,7 +693,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.Policy,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
-		RepoRoot:           repoRoot,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

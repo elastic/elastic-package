@@ -32,8 +32,8 @@ const (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate(repoRoot *os.Root, packageRoot string) ([]ReadmeFile, error) {
-	linksFilePath, err := linksDefinitionsFilePath(repoRoot)
+func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string) ([]ReadmeFile, error) {
+	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("locating links file failed: %w", err)
 	}
@@ -98,8 +98,8 @@ func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(repoRoot *os.Root, packageRoot, buildDir string) ([]string, error) {
-	linksFilePath, err := linksDefinitionsFilePath(repoRoot)
+func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildDir string) ([]string, error) {
+	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("locating links file failed: %w", err)
 	}

@@ -87,9 +87,9 @@ func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
 // It first checks if the environment variable specified by linksMapFilePathEnvVar is set.
 // If set, it verifies that the file exists and returns its path, or an error if not found.
 // If the environment variable is not set, it falls back to the default file path
-// constructed from repoRoot and linksMapFileNameDefault, returning the path if the file exists,
+// constructed from repositoryRoot and linksMapFileNameDefault, returning the path if the file exists,
 // or nil if it does not.
-func linksDefinitionsFilePath(repoRoot *os.Root) (string, error) {
+func linksDefinitionsFilePath(repositoryRoot *os.Root) (string, error) {
 	linksFilePath := os.Getenv(linksMapFilePathEnvVar)
 	if linksFilePath != "" {
 		if _, err := os.Stat(linksFilePath); err != nil {
@@ -99,7 +99,7 @@ func linksDefinitionsFilePath(repoRoot *os.Root) (string, error) {
 		return linksFilePath, nil
 	}
 
-	linksFilePath = filepath.Join(repoRoot.Name(), linksMapFileNameDefault)
+	linksFilePath = filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
 	if _, err := os.Stat(linksFilePath); err != nil {
 		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
 		return "", nil

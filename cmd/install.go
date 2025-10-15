@@ -78,7 +78,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -88,7 +88,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		RootPath:       packageRootPath,
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
-		RepoRoot:       repoRoot,
+		RepositoryRoot: repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

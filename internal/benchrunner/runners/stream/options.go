@@ -26,7 +26,7 @@ type Options struct {
 	PackageRootPath string
 	Variant         string
 	Profile         *profile.Profile
-	RepoRoot        *os.Root
+	RepositoryRoot  *os.Root
 }
 
 type ClientOptions struct {
@@ -110,8 +110,8 @@ func WithTimestampField(t string) OptionFunc {
 	}
 }
 
-func WithRepoRoot(r *os.Root) OptionFunc {
+func WithRepositoryRoot(r *os.Root) OptionFunc {
 	return func(opts *Options) {
-		opts.RepoRoot = r
+		opts.RepositoryRoot = r
 	}
 }

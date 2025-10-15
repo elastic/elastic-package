@@ -58,20 +58,20 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 
 	t.Run("ExistingFile_RelPath", func(t *testing.T) {
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
 		licensePathRel := filepath.Join("LICENSE.txt")
-		err = os.WriteFile(filepath.Join(repoRoot.Name(), licensePathRel), []byte("existing license"), 0644)
+		err = os.WriteFile(filepath.Join(repositoryRoot.Name(), licensePathRel), []byte("existing license"), 0644)
 		require.NoError(t, err)
 
 		// Should not attempt to copy, just return nil
-		err = copyLicenseTextFile(repoRoot, licensePathRel)
+		err = copyLicenseTextFile(repositoryRoot, licensePathRel)
 		assert.NoError(t, err)
 
 		// License file should remain unchanged
-		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), licensePathRel))
+		content, err := os.ReadFile(filepath.Join(repositoryRoot.Name(), licensePathRel))
 		require.NoError(t, err)
 		assert.Equal(t, "existing license", string(content))
 
@@ -79,16 +79,16 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 
 	t.Run("ExistingFile_AbsPath", func(t *testing.T) {
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		licensePath := filepath.Join(repoRoot.Name(), "LICENSE.txt")
+		licensePath := filepath.Join(repositoryRoot.Name(), "LICENSE.txt")
 		err = os.WriteFile(licensePath, []byte("existing license"), 0644)
 		require.NoError(t, err)
 
 		// Should not attempt to copy, just return nil
-		err = copyLicenseTextFile(repoRoot, licensePath)
+		err = copyLicenseTextFile(repositoryRoot, licensePath)
 		assert.NoError(t, err)
 
 		// License file should remain unchanged
@@ -99,11 +99,11 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 	})
 
 	t.Run("ExistingDirectory", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		err = copyLicenseTextFile(repoRoot, ".")
+		err = copyLicenseTextFile(repositoryRoot, ".")
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "is a directory")
 	})
@@ -112,76 +112,76 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		// Using a path that is likely invalid to trigger a stat error
 		invalidPath := string([]byte{0})
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		err = copyLicenseTextFile(repoRoot, invalidPath)
+		err = copyLicenseTextFile(repositoryRoot, invalidPath)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "can't check license path")
 	})
 
 	t.Run("RepoLicenseDefaultFileName", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
 		// original license file path
-		err = os.WriteFile(filepath.Join(repoRoot.Name(), licenseTextFileName), []byte("repo license"), 0644)
+		err = os.WriteFile(filepath.Join(repositoryRoot.Name(), licenseTextFileName), []byte("repo license"), 0644)
 		require.NoError(t, err)
 
-		err = copyLicenseTextFile(repoRoot, "REPO_LICENSE.txt")
+		err = copyLicenseTextFile(repositoryRoot, "REPO_LICENSE.txt")
 		assert.NoError(t, err)
 
-		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), "REPO_LICENSE.txt"))
+		content, err := os.ReadFile(filepath.Join(repositoryRoot.Name(), "REPO_LICENSE.txt"))
 		require.NoError(t, err)
 		assert.Equal(t, "repo license", string(content))
 	})
 
 	t.Run("RepoLicenseCustomFileName", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
 		// original license file path
-		err = os.WriteFile(filepath.Join(repoRoot.Name(), "CUSTOM_LICENSE.txt"), []byte("repo license"), 0644)
+		err = os.WriteFile(filepath.Join(repositoryRoot.Name(), "CUSTOM_LICENSE.txt"), []byte("repo license"), 0644)
 		require.NoError(t, err)
 
 		t.Setenv(repositoryLicenseEnv, "CUSTOM_LICENSE.txt")
 
-		err = copyLicenseTextFile(repoRoot, "REPO_LICENSE.txt")
+		err = copyLicenseTextFile(repositoryRoot, "REPO_LICENSE.txt")
 		assert.NoError(t, err)
 
-		content, err := os.ReadFile(filepath.Join(repoRoot.Name(), "REPO_LICENSE.txt"))
+		content, err := os.ReadFile(filepath.Join(repositoryRoot.Name(), "REPO_LICENSE.txt"))
 		require.NoError(t, err)
 		assert.Equal(t, "repo license", string(content))
 	})
 
 	t.Run("RepoLicenseFileDoesNotExist", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		err = copyLicenseTextFile(repoRoot, "REPO_LICENSE.txt")
+		err = copyLicenseTextFile(repositoryRoot, "REPO_LICENSE.txt")
 		assert.NoError(t, err)
 
-		_, err = repoRoot.Stat("LICENSE.txt")
+		_, err = repositoryRoot.Stat("LICENSE.txt")
 		assert.ErrorIs(t, err, os.ErrNotExist)
 
-		_, err = repoRoot.Stat("REPO_LICENSE.txt")
+		_, err = repositoryRoot.Stat("REPO_LICENSE.txt")
 		assert.ErrorIs(t, err, os.ErrNotExist)
 	})
 
-	t.Run("RepoLicensePathOutsideRepoRoot", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+	t.Run("RepoLicensePathOutsideRepositoryRoot", func(t *testing.T) {
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
 		// Create a LICENSE.txt file in a different temp directory
 		outsideDir := t.TempDir()
 		outsideLicensePath := filepath.Join(outsideDir, "LICENSE.txt")
 
-		err = copyLicenseTextFile(repoRoot, outsideLicensePath)
+		err = copyLicenseTextFile(repositoryRoot, outsideLicensePath)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "path escapes from parent")
 	})

@@ -26,9 +26,9 @@ const licenseTextFileName = "LICENSE.txt"
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
-	PackageRoot string
-	BuildDir    string
-	RepoRoot    *os.Root
+	PackageRoot    string
+	BuildDir       string
+	RepositoryRoot *os.Root
 
 	CreateZip      bool
 	SignPackage    bool
@@ -184,7 +184,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 
 	logger.Debug("Copy license file if needed")
 	destinationLicenseFilePath := filepath.Join(destinationDir, licenseTextFileName)
-	err = copyLicenseTextFile(options.RepoRoot, destinationLicenseFilePath)
+	err = copyLicenseTextFile(options.RepositoryRoot, destinationLicenseFilePath)
 	if err != nil {
 		return "", fmt.Errorf("copying license text file: %w", err)
 	}
@@ -207,7 +207,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Include linked files")
-	linksFS, err := files.CreateLinksFSFromPath(options.RepoRoot, options.PackageRoot)
+	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -301,23 +301,23 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 // If the file already exists in the package, it does nothing.
 // If the file does not exist in the package, it looks for a license file in the repository root directory.
 // If a license file is found in the repository, it copies it to the package directory.
-func copyLicenseTextFile(repoRoot *os.Root, licensePath string) error {
+func copyLicenseTextFile(repositoryRoot *os.Root, licensePath string) error {
 
 	// check licensePath is within the repository
 	relPath := filepath.Clean(licensePath)
 	if filepath.IsAbs(licensePath) {
 		var err error
-		relPath, err = filepath.Rel(repoRoot.Name(), licensePath)
+		relPath, err = filepath.Rel(repositoryRoot.Name(), licensePath)
 		if err != nil {
-			return fmt.Errorf("failed to get relative path for licensePath (%s) from repoRoot (%s): %w", licensePath, repoRoot.Name(), err)
+			return fmt.Errorf("failed to get relative path for licensePath (%s) from repositoryRoot (%s): %w", licensePath, repositoryRoot.Name(), err)
 		}
 	} else {
 		// if relative path, make it relative to the repo root
-		licensePath = filepath.Join(repoRoot.Name(), licensePath)
+		licensePath = filepath.Join(repositoryRoot.Name(), licensePath)
 	}
 
 	// if the given path exist, skip copying
-	info, err := repoRoot.Stat(relPath)
+	info, err := repositoryRoot.Stat(relPath)
 	if err == nil && !info.IsDir() {
 		logger.Debug("License file in the package will be used")
 		return nil
@@ -338,7 +338,7 @@ func copyLicenseTextFile(repoRoot *os.Root, licensePath string) error {
 		repositoryLicenseTextFileName = licenseTextFileName
 	}
 
-	sourceLicensePath, err := findRepositoryLicensePath(repoRoot, repositoryLicenseTextFileName)
+	sourceLicensePath, err := findRepositoryLicensePath(repositoryRoot, repositoryLicenseTextFileName)
 	if !userDefined && errors.Is(err, os.ErrNotExist) {
 		logger.Debug("No license text file is included in package")
 		return nil
@@ -389,10 +389,10 @@ func createBuildDirectory(dirs ...string) (string, error) {
 //
 //	string - the license file absolute path if found.
 //	error  - an error if the license file does not exist.
-func findRepositoryLicensePath(repoRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
-	if _, err := repoRoot.Stat(repositoryLicenseTextFileName); err != nil {
+func findRepositoryLicensePath(repositoryRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
+	if _, err := repositoryRoot.Stat(repositoryLicenseTextFileName); err != nil {
 		return "", fmt.Errorf("failed to find repository license: %w", err)
 	}
-	path := filepath.Join(repoRoot.Name(), repositoryLicenseTextFileName)
+	path := filepath.Join(repositoryRoot.Name(), repositoryLicenseTextFileName)
 	return path, nil
 }

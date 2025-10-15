@@ -44,7 +44,7 @@ type FleetAgentPolicy struct {
 	PackagePolicies []FleetPackagePolicy
 
 	// RepoPath is the root of the repository.
-	RepoRoot *os.Root
+	RepositoryRoot *os.Root
 }
 
 type FleetPackagePolicy struct {

@@ -20,12 +20,12 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "logs"
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
 
-		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+		createAndCheckDataStream(t, pd, dd, true, repositoryRoot)
 
-		err = repoRoot.Close()
+		err = repositoryRoot.Close()
 		require.NoError(t, err)
 	})
 	t.Run("valid-metrics", func(t *testing.T) {
@@ -33,12 +33,12 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = "metrics"
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
 
-		createAndCheckDataStream(t, pd, dd, true, repoRoot)
+		createAndCheckDataStream(t, pd, dd, true, repositoryRoot)
 
-		err = repoRoot.Close()
+		err = repositoryRoot.Close()
 		require.NoError(t, err)
 	})
 	t.Run("missing-type", func(t *testing.T) {
@@ -46,12 +46,12 @@ func TestDataStream(t *testing.T) {
 		dd := createDataStreamDescriptorForTest()
 		dd.Manifest.Type = ""
 
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
 
-		createAndCheckDataStream(t, pd, dd, false, repoRoot)
+		createAndCheckDataStream(t, pd, dd, false, repositoryRoot)
 
-		err = repoRoot.Close()
+		err = repositoryRoot.Close()
 		require.NoError(t, err)
 	})
 }
@@ -76,9 +76,9 @@ func createDataStreamDescriptorForTest() DataStreamDescriptor {
 	}
 }
 
-func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool, repoRoot *os.Root) {
+func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamDescriptor, valid bool, repositoryRoot *os.Root) {
 
-	packagesDir := filepath.Join(repoRoot.Name(), "packages")
+	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
 	err := os.MkdirAll(packagesDir, 0o755)
 	require.NoError(t, err)
 
@@ -91,5 +91,5 @@ func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamD
 	err = CreateDataStream(dd)
 	require.NoError(t, err)
 
-	checkPackage(t, repoRoot, packageRoot, valid)
+	checkPackage(t, repositoryRoot, packageRoot, valid)
 }

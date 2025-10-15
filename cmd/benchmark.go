@@ -296,7 +296,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -335,7 +335,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyDryRun(rallyDryRun),
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
-		rally.WithRepoRoot(repoRoot),
+		rally.WithRepositoryRoot(repositoryRoot),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)
@@ -470,7 +470,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -509,7 +509,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithESAPI(esClient.API),
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
-		stream.WithRepoRoot(repoRoot),
+		stream.WithRepositoryRoot(repositoryRoot),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))

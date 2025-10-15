@@ -30,7 +30,7 @@ type Options struct {
 	PackageName         string
 	PackageVersion      string
 	CorpusAtPath        string
-	RepoRoot            *os.Root
+	RepositoryRoot      *os.Root
 }
 
 type ClientOptions struct {
@@ -121,8 +121,8 @@ func WithRallyCorpusAtPath(c string) OptionFunc {
 	}
 }
 
-func WithRepoRoot(r *os.Root) OptionFunc {
+func WithRepositoryRoot(r *os.Root) OptionFunc {
 	return func(opts *Options) {
-		opts.RepoRoot = r
+		opts.RepositoryRoot = r
 	}
 }

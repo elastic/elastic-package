@@ -22,14 +22,14 @@ import (
 func TestRequiredProvider(t *testing.T) {
 	manager := resource.NewManager()
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRoot.Close() })
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
-			RootPath: "../../test/packages/parallel/nginx",
-			RepoRoot: repoRoot,
+			RootPath:       "../../test/packages/parallel/nginx",
+			RepositoryRoot: repositoryRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -54,15 +54,15 @@ func TestPackageLifecycle(t *testing.T) {
 				t.FailNow()
 			}
 
-			repoRoot, err := files.FindRepositoryRoot()
+			repositoryRoot, err := files.FindRepositoryRoot()
 			require.NoError(t, err)
-			defer repoRoot.Close()
+			defer repositoryRoot.Close()
 
-			packageRootPath := filepath.Join(repoRoot.Name(), "test", "packages", "parallel", c.name)
+			packageRootPath := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
 
 			fleetPackage := FleetPackage{
-				RootPath: packageRootPath,
-				RepoRoot: repoRoot,
+				RootPath:       packageRootPath,
+				RepositoryRoot: repositoryRoot,
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
@@ -84,14 +84,14 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 		t.FailNow()
 	}
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = repoRoot.Close() })
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	fleetPackage := FleetPackage{
-		RootPath: "../../test/packages/parallel/system",
-		Absent:   true,
-		RepoRoot: repoRoot,
+		RootPath:       "../../test/packages/parallel/system",
+		Absent:         true,
+		RepositoryRoot: repositoryRoot,
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})

@@ -46,18 +46,18 @@ func setupLintCommand() *cobraext.Command {
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
 
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
-	defer repoRoot.Close()
+	defer repositoryRoot.Close()
 
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("package root not found: %w", err)
 	}
 
-	readmeFiles, err := docs.AreReadmesUpToDate(repoRoot, packageRoot)
+	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot)
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {

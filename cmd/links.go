@@ -56,13 +56,13 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
-	defer repoRoot.Close()
+	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -101,13 +101,13 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
-	defer repoRoot.Close()
+	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -148,13 +148,13 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repoRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
-	defer repoRoot.Close()
+	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repoRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}

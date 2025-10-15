@@ -38,7 +38,7 @@ type Options struct {
 	RootPath       string // Root path of the package to be installed.
 	ZipPath        string
 	SkipValidation bool
-	RepoRoot       *os.Root // Root of the repository where package source code is located.
+	RepositoryRoot *os.Root // Root of the repository where package source code is located.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -53,7 +53,7 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 	if options.RootPath == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
-	if options.RepoRoot == nil {
+	if options.RepositoryRoot == nil {
 		return nil, errors.New("missing repo root")
 	}
 
@@ -90,7 +90,7 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 		CreateZip:      supportsUploadZip,
 		SignPackage:    false,
 		SkipValidation: options.SkipValidation,
-		RepoRoot:       options.RepoRoot,
+		RepositoryRoot: options.RepositoryRoot,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

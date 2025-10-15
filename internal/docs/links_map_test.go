@@ -91,43 +91,43 @@ func TestRenderLink(t *testing.T) {
 
 func Test_linksDefinitionsFilePath(t *testing.T) {
 	t.Run("env var set and file exists", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		defaultFilePath := filepath.Join(repoRoot.Name(), linksMapFileNameDefault)
-		testFile := filepath.Join(repoRoot.Name(), "custom_links.yml")
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
+		testFile := filepath.Join(repositoryRoot.Name(), "custom_links.yml")
 		require.NoError(t, createLinksFile(testFile))
 		require.NoError(t, createLinksFile(defaultFilePath)) // to ensure default file is ignored
 		t.Setenv(linksMapFilePathEnvVar, testFile)
 
-		path, err := linksDefinitionsFilePath(repoRoot)
+		path, err := linksDefinitionsFilePath(repositoryRoot)
 		require.NoError(t, err)
 		assert.Equal(t, testFile, path)
 	})
 
 	t.Run("env var set but file does not exist", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
+		defer repositoryRoot.Close()
 
-		missingFile := filepath.Join(repoRoot.Name(), "missing_links.yml")
+		missingFile := filepath.Join(repositoryRoot.Name(), "missing_links.yml")
 		t.Setenv(linksMapFilePathEnvVar, missingFile)
 
-		path, err := linksDefinitionsFilePath(repoRoot)
+		path, err := linksDefinitionsFilePath(repositoryRoot)
 		require.Error(t, err)
 		assert.Empty(t, path)
 	})
 
 	t.Run("env var not set, default file exists", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
-		defaultFilePath := filepath.Join(repoRoot.Name(), linksMapFileNameDefault)
+		defer repositoryRoot.Close()
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
 
 		require.NoError(t, createLinksFile(defaultFilePath))
 
-		path, err := linksDefinitionsFilePath(repoRoot)
+		path, err := linksDefinitionsFilePath(repositoryRoot)
 		require.NoError(t, err)
 
 		assert.Equal(t, defaultFilePath, path)
@@ -135,15 +135,15 @@ func Test_linksDefinitionsFilePath(t *testing.T) {
 	})
 
 	t.Run("env var not set, default file does not exist", func(t *testing.T) {
-		repoRoot, err := os.OpenRoot(t.TempDir())
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
-		defer repoRoot.Close()
-		defaultFilePath := filepath.Join(repoRoot.Name(), linksMapFileNameDefault)
+		defer repositoryRoot.Close()
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
 
 		_, err = os.Stat(defaultFilePath)
 		require.ErrorIs(t, err, os.ErrNotExist)
 
-		path, err := linksDefinitionsFilePath(repoRoot)
+		path, err := linksDefinitionsFilePath(repositoryRoot)
 		require.NoError(t, err)
 		assert.Empty(t, path)
 	})
