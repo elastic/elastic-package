@@ -6,6 +6,7 @@ package packages
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"text/template"
 
 	yamlv3 "gopkg.in/yaml.v3"
 
@@ -243,6 +245,9 @@ type TransformDefinition struct {
 	Source struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
+	Dest struct {
+		Pipeline string `config:"pipeline" yaml:"pipeline"`
+	} `config:"dest" yaml:"dest"`
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
@@ -417,6 +422,101 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
+// ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)
+// file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
+// by adding the package version defined in the package manifest.
+// It fails if the referenced destination pipeline doesn't exist.
+func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("could not read package manifest: %w", err)
+	}
+
+	if manifest.Version == "" {
+		return nil, TransformDefinition{}, fmt.Errorf("package version is not defined in the package manifest")
+	}
+
+	t, err := template.New(filepath.Base(transformPath)).Funcs(template.FuncMap{
+		"ingestPipelineName": func(pipelineName string) (string, error) {
+			if pipelineName == "" {
+				return "", fmt.Errorf("ingest pipeline name is empty")
+			}
+			return fmt.Sprintf("%s-%s", manifest.Version, pipelineName), nil
+		},
+	}).ParseFiles(transformPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("parsing transform template failed (path: %s): %w", transformPath, err)
+	}
+
+	var rendered bytes.Buffer
+	err = t.Execute(&rendered, nil)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("executing template failed: %w", err)
+	}
+	cfg, err := yaml.NewConfig(rendered.Bytes(), ucfg.PathSep("."))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("reading file failed (path: %s): %w", transformPath, err)
+	}
+
+	var definition TransformDefinition
+	err = cfg.Unpack(&definition)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("failed to parse transform file \"%s\": %w", transformPath, err)
+	}
+
+	if definition.Dest.Pipeline == "" {
+		return rendered.Bytes(), definition, nil
+	}
+
+	// Is it using the Ingest pipeline defined in the package (elasticsearch/ingest_pipeline/<version>-<pipeline>.yml)?
+	// <version>-<pipeline>.yml
+	// example: 0.1.0-pipeline_extract_metadata
+
+	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
+	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, TransformDefinition{}, fmt.Errorf("checking for destination ingest pipeline file %s: %w", pipelineFileName, err)
+	}
+	if err == nil {
+		return rendered.Bytes(), definition, nil
+	}
+
+	// Is it using the Ingest pipeline from any data stream (data_stream/*/elasticsearch/pipeline/*.yml)?
+	// <data_stream>-<version>-<data_stream_pipeline>.yml
+	// example: metrics-aws_billing.cur-0.1.0-pipeline_extract_metadata
+	dataStreamPaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding data streams: %w", err)
+	}
+
+	for _, dataStreamPath := range dataStreamPaths {
+		matched, err := filepath.Glob(filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", "*.yml"))
+		if err != nil {
+			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamPath, err)
+		}
+		dataStreamName := filepath.Base(dataStreamPath)
+		for _, pipelinePath := range matched {
+			dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+			expectedSuffix := fmt.Sprintf("-%s.%s-%s-%s.yml", manifest.Name, dataStreamName, manifest.Version, dataStreamPipelineName)
+			if strings.HasSuffix(pipelineFileName, expectedSuffix) {
+				return rendered.Bytes(), definition, nil
+			}
+		}
+	}
+	pipelinePaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data streams: %w", err)
+	}
+	for _, pipelinePath := range pipelinePaths {
+		dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+		if strings.HasSuffix(pipelineFileName, fmt.Sprintf("-%s-%s.yml", manifest.Version, dataStreamPipelineName)) {
+			return rendered.Bytes(), definition, nil
+		}
+	}
+
+	return nil, TransformDefinition{}, fmt.Errorf("destination ingest pipeline file %s not found: incorrect version used in pipeline or unknown pipeline", pipelineFileName)
+}
+
 // ReadTransformsFromPackageRoot looks for transforms in the given package root.
 func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 	files, err := filepath.Glob(filepath.Join(packageRoot, "elasticsearch", "transform", "*", "transform.yml"))
@@ -426,15 +526,9 @@ func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 
 	var transforms []Transform
 	for _, file := range files {
-		cfg, err := yaml.NewConfigWithFile(file, ucfg.PathSep("."))
+		_, definition, err := ReadTransformDefinitionFile(file, packageRoot)
 		if err != nil {
-			return nil, fmt.Errorf("reading file failed (path: %s): %w", file, err)
-		}
-
-		var definition TransformDefinition
-		err = cfg.Unpack(&definition)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse transform file \"%s\": %w", file, err)
+			return nil, fmt.Errorf("failed reading transform definition file %q: %w", file, err)
 		}
 
 		transforms = append(transforms, Transform{
