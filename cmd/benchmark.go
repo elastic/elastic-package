@@ -137,6 +137,11 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -201,6 +206,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 			pipeline.WithESAPI(esClient.API),
 			pipeline.WithNumTopProcs(numTopProcs),
 			pipeline.WithFormat(reportFormat),
+			pipeline.WithRepositoryRoot(repositoryRoot),
 		)
 		runner := pipeline.NewPipelineBenchmark(opts)
 

@@ -343,6 +343,11 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -386,6 +391,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:       testCoverageFormat,
 		DeferCleanup:       deferCleanup,
 		GlobalTestConfig:   globalTestConfig.Pipeline,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
