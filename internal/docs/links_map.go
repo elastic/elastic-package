@@ -27,20 +27,20 @@ type linkOptions struct {
 	caption string
 }
 
-func newLinkMap() *linkMap {
-	return &linkMap{
+func newEmptyLinkMap() linkMap {
+	return linkMap{
 		Links: make(map[string]string),
 	}
 }
 
-func (l *linkMap) Get(key string) (string, error) {
+func (l linkMap) Get(key string) (string, error) {
 	if url, ok := l.Links[key]; ok {
 		return url, nil
 	}
 	return "", fmt.Errorf("link key not found: %s", key)
 }
 
-func (l *linkMap) Add(key, value string) error {
+func (l linkMap) Add(key, value string) error {
 	if _, ok := l.Links[key]; ok {
 		return fmt.Errorf("link key already present: %s", key)
 	}
@@ -51,25 +51,25 @@ func (l *linkMap) Add(key, value string) error {
 // readLinksMap reads the links definitions file from the given repository root directory,
 // parses its YAML contents, and returns a populated linkMap. If the links file does not exist,
 // it returns an empty linkMap. Returns an error if locating, reading, or unmarshalling the file fails.
-func readLinksMap(linksFilePath string) (*linkMap, error) {
+func readLinksMap(linksFilePath string) (linkMap, error) {
 	// No links file, return empty map with Links initialized
 	if linksFilePath == "" {
-		return newLinkMap(), nil
+		return newEmptyLinkMap(), nil
 	}
 
 	logger.Debugf("Using links definitions file: %s", linksFilePath)
 	contents, err := os.ReadFile(linksFilePath)
 	if err != nil {
-		return nil, fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
+		return newEmptyLinkMap(), fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
 	}
 
 	var lmap linkMap
 	err = yaml.Unmarshal(contents, &lmap)
 	if err != nil {
-		return nil, err
+		return newEmptyLinkMap(), err
 	}
 
-	return &lmap, nil
+	return lmap, nil
 }
 
 func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {

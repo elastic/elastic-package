@@ -74,7 +74,7 @@ Introduction to the package`,
 }
 
 func TestRenderReadmeWithLinks(t *testing.T) {
-	minimumLinksMap := newLinkMap()
+	minimumLinksMap := newEmptyLinkMap()
 	minimumLinksMap.Add("foo", "http://www.example.com/bar")
 
 	cases := []struct {
@@ -82,7 +82,7 @@ func TestRenderReadmeWithLinks(t *testing.T) {
 		packageRoot            string
 		templatePath           string
 		readmeTemplateContents string
-		linksMap               *linkMap
+		linksMap               linkMap
 		expected               string
 	}{
 		{
@@ -159,7 +159,7 @@ An example event for ` + "`example`" + ` looks as following:
 		},
 	}
 
-	linksMap := newLinkMap()
+	linksMap := newEmptyLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)
@@ -264,7 +264,7 @@ Introduction to the package
 		},
 	}
 
-	linksMap := newLinkMap()
+	linksMap := newEmptyLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)

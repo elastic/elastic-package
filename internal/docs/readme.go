@@ -188,7 +188,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string, linksMap *linkMap) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)

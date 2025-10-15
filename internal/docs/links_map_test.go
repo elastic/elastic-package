@@ -162,7 +162,8 @@ func TestReadLinksMap(t *testing.T) {
 		missingFile := filepath.Join(tmpDir, "missing.yml")
 		lmap, err := readLinksMap(missingFile)
 		require.Error(t, err)
-		assert.Nil(t, lmap)
+		assert.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
 	})
 
 	t.Run("invalid YAML returns error", func(t *testing.T) {
@@ -171,7 +172,8 @@ func TestReadLinksMap(t *testing.T) {
 		require.NoError(t, os.WriteFile(filePath, []byte("not: valid: yaml: ["), 0644))
 		lmap, err := readLinksMap(filePath)
 		require.Error(t, err)
-		assert.Nil(t, lmap)
+		assert.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
 	})
 
 	t.Run("valid YAML returns populated map", func(t *testing.T) {
