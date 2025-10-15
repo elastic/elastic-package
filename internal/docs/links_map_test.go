@@ -89,7 +89,7 @@ func TestRenderLink(t *testing.T) {
 	}
 }
 
-func Test_linksDefinitionsFilePath(t *testing.T) {
+func TestLinksDefinitionsFilePath(t *testing.T) {
 	t.Run("env var set and file exists", func(t *testing.T) {
 		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)

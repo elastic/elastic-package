@@ -187,7 +187,7 @@ type Link struct {
 }
 
 // newLinkedFile creates a new Link struct from the given absolute path to a link file.
-// root is the repository root, used to validate paths and access files securely
+// repositoryRoot is the repository root, used to validate paths and access files securely
 func newLinkedFile(repositoryRoot *os.Root, linkFilePath string) (*Link, error) {
 
 	workDir := filepath.Dir(linkFilePath)
