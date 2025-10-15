@@ -391,9 +391,11 @@ func createBuildDirectory(dirs ...string) (string, error) {
 //	string - the license file absolute path if found.
 //	error  - an error if the license file does not exist.
 func findRepositoryLicensePath(repositoryRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
-	bytes, err := repositoryRoot.ReadFile(repositoryLicenseTextFileName)
+	// root.ReadFile is supported after go1.25,
+	// https://go.dev/doc/go1.25
+	bytes, err := os.ReadFile(filepath.Join(repositoryRoot.Name(), repositoryLicenseTextFileName))
 	if err != nil {
-		return "", fmt.Errorf("failed to find repository license: %w", err)
+		return "", fmt.Errorf("failed to read repository license: %w", err)
 	}
 	if len(bytes) == 0 {
 		return "", fmt.Errorf("repository license file is empty")

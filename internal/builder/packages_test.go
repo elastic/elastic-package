@@ -48,7 +48,7 @@ func TestFindRepositoryLicense(t *testing.T) {
 		path, err := findRepositoryLicensePath(root, filepath.Join("..", "..", "out.txt"))
 		require.Error(t, err)
 		assert.Empty(t, path)
-		assert.ErrorContains(t, err, "path escapes from parent")
+		assert.ErrorIs(t, err, os.ErrNotExist)
 	})
 
 }
