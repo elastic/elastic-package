@@ -14,7 +14,6 @@ import (
 )
 
 func TestFindRepositoryLicense(t *testing.T) {
-
 	t.Run("FileExists", func(t *testing.T) {
 		root, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
@@ -46,7 +45,7 @@ func TestFindRepositoryLicense(t *testing.T) {
 		require.NoError(t, err)
 		defer root.Close()
 
-		path, err := findRepositoryLicensePath(root, "../../out.txt")
+		path, err := findRepositoryLicensePath(root, filepath.Join("..", "..", "out.txt"))
 		require.Error(t, err)
 		assert.Empty(t, path)
 		assert.ErrorContains(t, err, "path escapes from parent")
@@ -57,7 +56,6 @@ func TestFindRepositoryLicense(t *testing.T) {
 func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 
 	t.Run("ExistingFile_RelPath", func(t *testing.T) {
-
 		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
 		defer repositoryRoot.Close()
@@ -78,7 +76,6 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 	})
 
 	t.Run("ExistingFile_AbsPath", func(t *testing.T) {
-
 		repositoryRoot, err := os.OpenRoot(t.TempDir())
 		require.NoError(t, err)
 		defer repositoryRoot.Close()
