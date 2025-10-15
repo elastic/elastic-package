@@ -151,6 +151,9 @@ const (
 	ForeachExecFlagName        = "exec"
 	ForeachExecFlagDescription = "command to execute for each package (required)"
 
+	ForeachPoolSizeFlagName        = "parallel"
+	ForeachPoolSizeFlagDescription = "number of packages to execute in parallel (defaults to serial execution)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 

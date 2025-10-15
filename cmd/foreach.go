@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"sync"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/filter"
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/spf13/cobra"
 )
@@ -31,10 +33,17 @@ func setupForeachCommand() *cobraext.Command {
 
 	filter.SetFilterFlags(cmd)
 
+	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, "p", 1, cobraext.ForeachPoolSizeFlagDescription)
+
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func foreachCommandAction(cmd *cobra.Command, args []string) error {
+	poolSize, err := cmd.Flags().GetInt(cobraext.ForeachPoolSizeFlagName)
+	if err != nil {
+		return fmt.Errorf("getting pool size failed: %w", err)
+	}
+
 	// Find integration root
 	root, err := packages.MustFindIntegrationRoot()
 	if err != nil {
@@ -48,20 +57,51 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Found %d matching package(s)\n", len(filtered))
 
-	// Execute command for each package
+	// Get elastic-package command
+	ep := cmd.Parent()
+	ep.SetArgs(args)
+
+	wg := sync.WaitGroup{}
+	mu := sync.Mutex{}
+	errs := multierror.Error{}
+
+	packageChan := make(chan string, poolSize)
+
+	for range poolSize {
+		wg.Add(1)
+		go func(packageChan <-chan string) {
+			defer wg.Done()
+			for packageName := range packageChan {
+				if err := executeCommand(ep, args, root, packageName); err != nil {
+					mu.Lock()
+					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packageName, err))
+					mu.Unlock()
+				}
+			}
+		}(packageChan)
+	}
+
 	for _, pkg := range filtered {
-		// Get elastic-package command
-		ep := cmd.Parent()
+		packageChan <- pkg.Name
+	}
+	close(packageChan)
 
-		// Set change directory flag to the package directory
-		ep.Flags().Set(cobraext.ChangeDirectoryFlagName, filepath.Join(root, "packages", pkg.Name))
+	wg.Wait()
 
-		ep.SetArgs(args)
+	if errs.Error() != "" {
+		return fmt.Errorf("errors occurred while executing command for packages: \n%s", errs.Error())
+	}
 
-		// Execute command
-		if err := ep.Execute(); err != nil {
-			return fmt.Errorf("executing command for package %s failed: %w", pkg.Name, err)
-		}
+	return nil
+}
+
+func executeCommand(ep *cobra.Command, args []string, root string, packageName string) error {
+	// Set change directory flag to the package directory
+	ep.Flags().Set(cobraext.ChangeDirectoryFlagName, filepath.Join(root, "packages", packageName))
+
+	// Execute command
+	if err := ep.Execute(); err != nil {
+		return fmt.Errorf("executing command for package %s failed: %w", packageName, err)
 	}
 
 	return nil
