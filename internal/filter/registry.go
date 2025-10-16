@@ -21,6 +21,7 @@ type FilterImpl interface {
 var registry = []FilterImpl{
 	initInputFlag(),
 	initCodeOwnerFlag(),
+	initCategoryFlag(),
 }
 
 func SetFilterFlags(cmd *cobra.Command) {
