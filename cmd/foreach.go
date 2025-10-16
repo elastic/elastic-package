@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -17,28 +18,39 @@ const foreachLongDescription = `Execute a command for each package matching the 
 This command combines filtering capabilities with command execution, allowing you to run
 any elastic-package subcommand across multiple packages in a single operation.
 
-The command uses the same filter flags as the 'filter' command (--input, --code-owner, 
---kibana-version, --category) to select packages, then executes the specified subcommand
-for each matched package.`
+The command uses the same filter flags as the 'filter' command to select packages, 
+then executes the specified subcommand for each matched package.`
 
 func setupForeachCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   "foreach [filter-flags] --exec <subcommand> [subcommand-flags]",
+		Use:   "foreach --exec '<subcommand-string>'",
 		Short: "Execute a command for filtered packages",
 		Long:  foreachLongDescription,
 		Example: `  # Run system tests for packages with specific inputs
-  elastic-package foreach --input tcp,udp --exec test system -g`,
+  elastic-package foreach --exec 'test system -g' --input tcp,udp`,
 		RunE: foreachCommandAction,
+		Args: cobra.NoArgs,
 	}
 
+	// Add filter flags
 	filter.SetFilterFlags(cmd)
 
-	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, "p", 1, cobraext.ForeachPoolSizeFlagDescription)
+	// Add pool size flag
+	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, "", 1, cobraext.ForeachPoolSizeFlagDescription)
+
+	// Add exec flag and mark it as required
+	cmd.Flags().StringP(cobraext.ForeachExecFlagName, "", "", cobraext.ForeachExecFlagDescription)
+	cmd.MarkFlagRequired(cobraext.ForeachExecFlagName)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func foreachCommandAction(cmd *cobra.Command, args []string) error {
+	exec, err := cmd.Flags().GetString(cobraext.ForeachExecFlagName)
+	if err != nil {
+		return fmt.Errorf("getting exec failed: %w", err)
+	}
+
 	poolSize, err := cmd.Flags().GetInt(cobraext.ForeachPoolSizeFlagName)
 	if err != nil {
 		return fmt.Errorf("getting pool size failed: %w", err)
@@ -59,7 +71,11 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 
 	// Get elastic-package command
 	ep := cmd.Parent()
-	ep.SetArgs(args)
+
+	// Split the exec command string into arguments and append the command arguments
+	execArgs := strings.Split(exec, " ")
+	newArgs := append(args, execArgs...)
+	ep.SetArgs(newArgs)
 
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
