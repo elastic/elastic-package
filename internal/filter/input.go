@@ -13,7 +13,7 @@ type InputFlag struct {
 	defaultValue string
 
 	// flag specific fields
-	inputs map[string]struct{}
+	values map[string]struct{}
 }
 
 func (f *InputFlag) Register(cmd *cobra.Command) {
@@ -25,7 +25,7 @@ func (f *InputFlag) Parse(cmd *cobra.Command) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
 	}
-	f.inputs = splitAndTrim(input, ",")
+	f.values = splitAndTrim(input, ",")
 	return nil
 }
 
@@ -34,9 +34,9 @@ func (f *InputFlag) Validate() error {
 }
 
 func (f *InputFlag) Matches(pkg packages.PackageManifest) bool {
-	if f.inputs != nil {
+	if f.values != nil {
 		inputs := extractInputs(pkg)
-		if !hasAnyMatch(f.inputs, inputs) {
+		if !hasAnyMatch(f.values, inputs) {
 			return false
 		}
 	}
