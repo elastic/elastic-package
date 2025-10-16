@@ -302,22 +302,12 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 // If the targetLicensePath does not exist, it will look for a source license file in the repository root and copy it to the targetLicensePath.
 // The source license file name can be overridden by setting the REPOSITORY_LICENSE environment variable.
 func copyLicenseTextFile(repositoryRoot *os.Root, targetLicensePath string) error {
-	// targetLicensePath is expected to be either an absolute path or a path relative to the repository root
-	// when allowing builds outside of the repository root, we need to handle this check for targetLicensePath
-	relPath := filepath.Clean(targetLicensePath)
-	if filepath.IsAbs(targetLicensePath) {
-		var err error
-		relPath, err = filepath.Rel(repositoryRoot.Name(), targetLicensePath)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for licensePath (%s) from repositoryRoot (%s): %w", targetLicensePath, repositoryRoot.Name(), err)
-		}
-	} else {
-		// if relative path, make it relative to the repo root
-		targetLicensePath = filepath.Join(repositoryRoot.Name(), targetLicensePath)
+	if !filepath.IsAbs(targetLicensePath) {
+		return fmt.Errorf("target license path (%s) is not an absolute path", targetLicensePath)
 	}
 
 	// if the given path exists, skip copying
-	info, err := repositoryRoot.Stat(relPath)
+	info, err := os.Stat(targetLicensePath)
 	if err == nil && !info.IsDir() {
 		logger.Debug("License file in the package will be used")
 		return nil
