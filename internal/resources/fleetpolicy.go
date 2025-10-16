@@ -7,7 +7,6 @@ package resources
 import (
 	"errors"
 	"fmt"
-	"os"
 	"slices"
 	"strings"
 
@@ -42,9 +41,6 @@ type FleetAgentPolicy struct {
 
 	// PackagePolicies
 	PackagePolicies []FleetPackagePolicy
-
-	// RepoPath is the root of the repository.
-	RepositoryRoot *os.Root
 }
 
 type FleetPackagePolicy struct {
@@ -60,9 +56,9 @@ type FleetPackagePolicy struct {
 	// TemplateName is the policy template to use from the package manifest.
 	TemplateName string
 
-	// RootPath is the root of the source of the package to configure, from it we should
+	// PackageRootPath is the root of the source of the package to configure, from it we should
 	// be able to read the manifest, the data stream manifests and the policy template to use.
-	RootPath string
+	PackageRootPath string
 
 	// DataStreamName is the name of the data stream to configure, for integration packages.
 	DataStreamName string
@@ -160,9 +156,9 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackageDataStream, error) {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.RootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.PackageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.RootPath, err)
+		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.PackageRootPath, err)
 	}
 
 	switch manifest.Type {
@@ -180,9 +176,9 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
 	}
 
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.RootPath, packagePolicy.DataStreamName)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRootPath, packagePolicy.DataStreamName)
 	if err != nil {
-		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.RootPath, err)
+		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRootPath, err)
 	}
 
 	policyTemplateName := packagePolicy.TemplateName

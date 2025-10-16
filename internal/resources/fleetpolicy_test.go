@@ -7,6 +7,7 @@ package resources
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -27,8 +28,7 @@ func TestRequiredProviderFleetPolicy(t *testing.T) {
 	manager := resource.NewManager()
 	_, err = manager.Apply(resource.Resources{
 		&FleetAgentPolicy{
-			Name:           "test-policy",
-			RepositoryRoot: repositoryRoot,
+			Name: "test-policy",
 		},
 	})
 	if assert.Error(t, err) {
@@ -52,9 +52,9 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "one-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:           "nginx-1",
-					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName: "stubstatus",
+					Name:            "nginx-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName:  "stubstatus",
 				},
 			},
 		},
@@ -62,14 +62,14 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "multiple-packages",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:           "nginx-1",
-					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName: "stubstatus",
+					Name:            "nginx-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName:  "stubstatus",
 				},
 				{
-					Name:           "system-1",
-					RootPath:       filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
-					DataStreamName: "process",
+					Name:            "system-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
+					DataStreamName:  "process",
 				},
 			},
 		},
@@ -77,8 +77,8 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "input-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:     "input-1",
-					RootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
+					Name:            "input-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
 				},
 			},
 		},
@@ -99,16 +99,15 @@ func TestPolicyLifecycle(t *testing.T) {
 				Description:     fmt.Sprintf("Test policy for %s", c.title),
 				Namespace:       "eptest",
 				PackagePolicies: c.packagePolicies,
-				RepositoryRoot:  repositoryRoot,
 			}
-			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy) })
+			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy, repositoryRoot) })
 
-			_, err := manager.Apply(withPackageResources(&agentPolicy))
+			_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, true, agentPolicy.ID)
 
 			agentPolicy.Absent = true
-			_, err = manager.Apply(withPackageResources(&agentPolicy))
+			_, err = manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, false, agentPolicy.ID)
 		})
@@ -117,13 +116,13 @@ func TestPolicyLifecycle(t *testing.T) {
 
 // withPackageResources prepares a list of resources that ensures that all required packages are installed
 // before creating the policy.
-func withPackageResources(agentPolicy *FleetAgentPolicy) resource.Resources {
+func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			PackageRootPath: policy.RootPath,
+			PackageRootPath: policy.PackageRootPath,
 			Absent:          agentPolicy.Absent,
-			RepositoryRoot:  agentPolicy.RepositoryRoot,
+			RepositoryRoot:  repostoryRoot,
 		})
 	}
 	return append(resources, agentPolicy)
@@ -144,10 +143,10 @@ func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, pol
 	return false
 }
 
-func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy) {
+func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy, repositoryRoot *os.Root) {
 	t.Helper()
 
 	agentPolicy.Absent = true
-	_, err := manager.Apply(withPackageResources(&agentPolicy))
+	_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
 	assert.NoError(t, err, "cleanup execution")
 }

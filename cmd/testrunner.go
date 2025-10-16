@@ -662,10 +662,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	repositoryRoot, err := files.FindRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("locating repository root failed: %w", err)
-	}
 
 	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
@@ -699,7 +695,6 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.Policy,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
-		RepositoryRoot:     repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
