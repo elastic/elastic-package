@@ -7,16 +7,9 @@ import (
 )
 
 type CategoryFlag struct {
-	name         string
-	description  string
-	shorthand    string
-	defaultValue string
+	FilterFlag
 
 	values map[string]struct{}
-}
-
-func (f *CategoryFlag) Register(cmd *cobra.Command) {
-	cmd.Flags().StringP(f.name, f.shorthand, f.defaultValue, f.description)
 }
 
 func (f *CategoryFlag) Parse(cmd *cobra.Command) error {
@@ -47,9 +40,11 @@ func (f *CategoryFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []pack
 
 func initCategoryFlag() *CategoryFlag {
 	return &CategoryFlag{
-		name:         cobraext.FilterCategoriesFlagName,
-		description:  cobraext.FilterCategoriesFlagDescription,
-		shorthand:    "",
-		defaultValue: "",
+		FilterFlag: FilterFlag{
+			name:         cobraext.FilterCategoriesFlagName,
+			description:  cobraext.FilterCategoriesFlagDescription,
+			shorthand:    "",
+			defaultValue: "",
+		},
 	}
 }

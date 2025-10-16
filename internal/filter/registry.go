@@ -9,29 +9,20 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type FilterImpl interface {
-	Register(cmd *cobra.Command)
-
-	Parse(cmd *cobra.Command) error
-	Validate() error
-	Matches(pkg packages.PackageManifest) bool
-	ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error)
-}
-
-var registry = []FilterImpl{
+var registry = []IFilter{
 	initInputFlag(),
 	initCodeOwnerFlag(),
 	initCategoryFlag(),
 }
 
 func SetFilterFlags(cmd *cobra.Command) {
-	for _, filter := range registry {
-		filter.Register(cmd)
+	for _, filterFlag := range registry {
+		filterFlag.Register(cmd)
 	}
 }
 
 type FilterRegistry struct {
-	filters []FilterImpl
+	filters []IFilter
 }
 
 func NewFilterRegistry() *FilterRegistry {

@@ -10,16 +10,8 @@ import (
 )
 
 type CodeOwnerFlag struct {
-	name         string
-	description  string
-	shorthand    string
-	defaultValue string
-
+	FilterFlag
 	values map[string]struct{}
-}
-
-func (f *CodeOwnerFlag) Register(cmd *cobra.Command) {
-	cmd.Flags().StringP(f.name, f.shorthand, f.defaultValue, f.description)
 }
 
 func (f *CodeOwnerFlag) Parse(cmd *cobra.Command) error {
@@ -65,9 +57,11 @@ func (f *CodeOwnerFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []pac
 
 func initCodeOwnerFlag() *CodeOwnerFlag {
 	return &CodeOwnerFlag{
-		name:         cobraext.FilterCodeOwnerFlagName,
-		description:  cobraext.FilterCodeOwnerFlagDescription,
-		shorthand:    "",
-		defaultValue: "",
+		FilterFlag: FilterFlag{
+			name:         cobraext.FilterCodeOwnerFlagName,
+			description:  cobraext.FilterCodeOwnerFlagDescription,
+			shorthand:    "",
+			defaultValue: "",
+		},
 	}
 }

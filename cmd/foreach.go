@@ -77,6 +77,7 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	newArgs := append(args, execArgs...)
 	ep.SetArgs(newArgs)
 
+	// TODO: Fix the race condition when executing commands in parallel
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
 	errs := multierror.Error{}
@@ -88,7 +89,7 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		go func(packageChan <-chan string) {
 			defer wg.Done()
 			for packageName := range packageChan {
-				if err := executeCommand(ep, args, root, packageName); err != nil {
+				if err := executeCommand(ep, root, packageName); err != nil {
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packageName, err))
 					mu.Unlock()
@@ -111,7 +112,7 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func executeCommand(ep *cobra.Command, args []string, root string, packageName string) error {
+func executeCommand(ep *cobra.Command, root string, packageName string) error {
 	// Set change directory flag to the package directory
 	ep.Flags().Set(cobraext.ChangeDirectoryFlagName, filepath.Join(root, "packages", packageName))
 

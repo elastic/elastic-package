@@ -7,17 +7,10 @@ import (
 )
 
 type InputFlag struct {
-	name         string
-	description  string
-	shorthand    string
-	defaultValue string
+	FilterFlag
 
 	// flag specific fields
 	values map[string]struct{}
-}
-
-func (f *InputFlag) Register(cmd *cobra.Command) {
-	cmd.Flags().StringP(f.name, f.shorthand, f.defaultValue, f.description)
 }
 
 func (f *InputFlag) Parse(cmd *cobra.Command) error {
@@ -54,9 +47,11 @@ func (f *InputFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []package
 
 func initInputFlag() *InputFlag {
 	return &InputFlag{
-		name:         cobraext.FilterInputFlagName,
-		description:  cobraext.FilterInputFlagDescription,
-		shorthand:    "",
-		defaultValue: "",
+		FilterFlag: FilterFlag{
+			name:         cobraext.FilterInputFlagName,
+			description:  cobraext.FilterInputFlagDescription,
+			shorthand:    "",
+			defaultValue: "",
+		},
 	}
 }
