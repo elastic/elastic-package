@@ -1,207 +1,22 @@
 package filter
 
 import (
-	"fmt"
-	"strings"
-
-	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/tui"
 	"github.com/spf13/cobra"
 )
 
-type Filter struct {
-	Inputs         map[string]struct{}
-	CodeOwners     map[string]struct{}
-	KibanaVersions map[string]struct{}
-	Categories     map[string]struct{}
+type FilterFlagImpl interface {
+	Name() string
+	Description() string
+	Shorthand() string
+	DefaultValue() string
 }
 
-func NewFilter() *Filter {
-	return &Filter{
-		Inputs:         make(map[string]struct{}),
-		CodeOwners:     make(map[string]struct{}),
-		KibanaVersions: make(map[string]struct{}),
-		Categories:     make(map[string]struct{}),
-	}
-}
+type FilterImpl interface {
+	FilterFlagImpl
 
-// splitAndTrim splits a string by delimiter and trims whitespace from each element
-func splitAndTrim(s, delimiter string) map[string]struct{} {
-	if s == "" {
-		return nil
-	}
-	parts := strings.Split(s, delimiter)
-	result := make(map[string]struct{}, len(parts))
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed != "" {
-			result[trimmed] = struct{}{}
-		}
-	}
-	return result
-}
-
-// hasAnyMatch checks if any item in the items slice exists in the filters slice
-func hasAnyMatch(filters map[string]struct{}, items []string) bool {
-	if len(filters) == 0 {
-		return true
-	}
-
-	for _, item := range items {
-		if _, ok := filters[item]; ok {
-			return true
-		}
-	}
-
-	return false
-}
-
-func SetFilterFlags(cmd *cobra.Command) {
-	cmd.Flags().StringP(cobraext.FilterInputFlagName, "", "", cobraext.FilterInputFlagDescription)
-	cmd.Flags().StringP(cobraext.FilterCodeOwnerFlagName, "", "", cobraext.FilterCodeOwnerFlagDescription)
-	cmd.Flags().StringP(cobraext.FilterKibanaVersionFlagName, "", "", cobraext.FilterKibanaVersionFlagDescription)
-	cmd.Flags().StringP(cobraext.FilterCategoriesFlagName, "", "", cobraext.FilterCategoriesFlagDescription)
-}
-
-func (f *Filter) Parse(cmd *cobra.Command) error {
-
-	input, err := cmd.Flags().GetString(cobraext.FilterInputFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
-	}
-	f.Inputs = splitAndTrim(input, ",")
-
-	codeOwner, err := cmd.Flags().GetString(cobraext.FilterCodeOwnerFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.FilterCodeOwnerFlagName)
-	}
-	f.CodeOwners = splitAndTrim(codeOwner, ",")
-
-	kibanaVersion, err := cmd.Flags().GetString(cobraext.FilterKibanaVersionFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.FilterKibanaVersionFlagName)
-	}
-	f.KibanaVersions = splitAndTrim(kibanaVersion, ",")
-
-	categories, err := cmd.Flags().GetString(cobraext.FilterCategoriesFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.FilterCategoriesFlagName)
-	}
-	f.Categories = splitAndTrim(categories, ",")
-
-	return nil
-}
-
-func (f *Filter) String() string {
-	return fmt.Sprintf(
-		"input: %s, codeOwner: %s, kibanaVersion: %s, categories: %s",
-		f.Inputs, f.CodeOwners,
-		f.KibanaVersions, f.Categories,
-	)
-}
-
-func (f *Filter) Validate() error {
-	validator := tui.Validator{Cwd: "."}
-
-	if len(f.KibanaVersions) > 0 {
-		for version := range f.KibanaVersions {
-			if err := validator.Constraint(version); err != nil {
-				return fmt.Errorf("invalid kibana version: %w", err)
-			}
-		}
-	}
-
-	if len(f.CodeOwners) > 0 {
-		for ownerName := range f.CodeOwners {
-			if err := validator.GithubOwner(ownerName); err != nil {
-				return fmt.Errorf("invalid code owner: %w", err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func (f *Filter) Matches(pkg packages.PackageManifest) bool {
-	// Check inputs filter
-	if len(f.Inputs) > 0 {
-		inputs := f.extractInputs(pkg)
-		if !hasAnyMatch(f.Inputs, inputs) {
-			return false
-		}
-	}
-
-	// Check code owners filter
-	if len(f.CodeOwners) > 0 {
-		if !hasAnyMatch(f.CodeOwners, []string{pkg.Owner.Github}) {
-			return false
-		}
-	}
-
-	// Check categories filter
-	if len(f.Categories) > 0 {
-		if !hasAnyMatch(f.Categories, pkg.Categories) {
-			return false
-		}
-	}
-
-	// Check kibana version filter
-	if len(f.KibanaVersions) > 0 {
-		// TODO: Implement kibana version filtering
-		// For now, return false to indicate no match
-		return false
-	}
-
-	return true
-}
-
-// extractInputs extracts all input types from package policy templates
-func (f *Filter) extractInputs(pkg packages.PackageManifest) []string {
-	var inputs []string
-	for _, policyTemplate := range pkg.PolicyTemplates {
-		if policyTemplate.Input != "" {
-			inputs = append(inputs, policyTemplate.Input)
-		}
-		for _, input := range policyTemplate.Inputs {
-			inputs = append(inputs, input.Type)
-		}
-	}
-	return inputs
-}
-
-func (f *Filter) ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error) {
-	// Pre-allocate with estimated capacity to reduce reallocations
-	filteredPackages := make([]packages.PackageManifest, 0, len(pkgs))
-
-	for _, pkg := range pkgs {
-		if !f.Matches(pkg) {
-			continue
-		}
-		filteredPackages = append(filteredPackages, pkg)
-	}
-
-	return filteredPackages, nil
-}
-
-func (f *Filter) Execute() ([]packages.PackageManifest, error) {
-	var pkgs []packages.PackageManifest
-	var err error
-
-	// Find integrations repository root
-	root, err := packages.MustFindIntegrationRoot()
-	if err != nil {
-		return nil, fmt.Errorf("can't find integration root: %w", err)
-	}
-
-	if pkgs, err = packages.ReadAllPackageManifests(root); err != nil {
-		return nil, fmt.Errorf("listing packages failed: %w", err)
-	}
-
-	// Apply filters and return filtered packages
-	if pkgs, err = f.ApplyTo(pkgs); err != nil {
-		return nil, fmt.Errorf("filtering packages failed: %w", err)
-	}
-
-	return pkgs, nil
+	Parse(cmd *cobra.Command) error
+	Validate() error
+	Matches(pkg packages.PackageManifest) bool
+	ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error)
 }

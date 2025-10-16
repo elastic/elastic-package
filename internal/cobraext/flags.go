@@ -136,17 +136,20 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
-	FilterInputFlagName        = "input"
-	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+	FilterCategoriesFlagName        = "category"
+	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
 
 	FilterCodeOwnerFlagName        = "code-owner"
 	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
 
+	FilterInputFlagName        = "input"
+	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+
 	FilterKibanaVersionFlagName        = "kibana-version"
 	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
 
-	FilterCategoriesFlagName        = "category"
-	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
+	FilterPackagesFlagName        = "packages"
+	FilterPackagesFlagDescription = "packages to filter by (glob pattern/comma-separated values)"
 
 	ForeachExecFlagName        = "exec"
 	ForeachExecFlagDescription = "command to execute for each package (required)"
