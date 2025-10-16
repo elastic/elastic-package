@@ -5,15 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type FilterFlagImpl interface {
-	Name() string
-	Description() string
-	Shorthand() string
-	DefaultValue() string
-}
-
 type FilterImpl interface {
-	FilterFlagImpl
+	Register(cmd *cobra.Command)
 
 	Parse(cmd *cobra.Command) error
 	Validate() error

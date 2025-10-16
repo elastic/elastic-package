@@ -1,19 +1,20 @@
 package filter
 
 import (
+	"fmt"
+
+	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/spf13/cobra"
 )
 
-var filterRegistry *FilterRegistry = NewFilterRegistry()
-
-func init() {
-	filterRegistry.Register(setupInputFlag())
+var registry = []FilterImpl{
+	initInputFlag(),
 }
 
 func SetFilterFlags(cmd *cobra.Command) {
-	for _, filter := range filterRegistry.filters {
-		cmd.Flags().StringP(filter.Name(), filter.Shorthand(), filter.DefaultValue(), filter.Description())
+	for _, flag := range registry {
+		flag.Register(cmd)
 	}
 }
 
@@ -23,8 +24,32 @@ type FilterRegistry struct {
 
 func NewFilterRegistry() *FilterRegistry {
 	return &FilterRegistry{
-		filters: make([]FilterImpl, 0),
+		filters: registry,
 	}
+}
+
+func (r *FilterRegistry) Parse(cmd *cobra.Command) error {
+	errs := multierror.Error{}
+	for _, filter := range r.filters {
+		if err := filter.Parse(cmd); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if errs.Error() != "" {
+		return fmt.Errorf("error parsing filter options: %s", errs.Error())
+	}
+
+	return nil
+}
+
+func (r *FilterRegistry) Validate() error {
+	for _, filter := range r.filters {
+		if err := filter.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *FilterRegistry) Register(filter FilterImpl) {
@@ -39,11 +64,27 @@ func (r *FilterRegistry) ApplyTo(pkgs []packages.PackageManifest) (filtered []pa
 		if err != nil {
 			return nil, err
 		}
+
+		if filtered == nil {
+			return nil, nil
+		}
+
+		fmt.Printf("Filtered %d packages\n", len(filtered))
 	}
 
 	return filtered, nil
 }
 
-func (r *FilterRegistry) Execute(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
+func (r *FilterRegistry) Execute() (filtered []packages.PackageManifest, err error) {
+	root, err := packages.MustFindIntegrationRoot()
+	if err != nil {
+		return nil, err
+	}
+
+	pkgs, err := packages.ReadAllPackageManifests(root)
+	if err != nil {
+		return nil, err
+	}
+
 	return r.ApplyTo(pkgs)
 }

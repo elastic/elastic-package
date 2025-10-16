@@ -11,29 +11,21 @@ type InputFlag struct {
 	description  string
 	shorthand    string
 	defaultValue string
+
+	// flag specific fields
+	inputs map[string]struct{}
 }
 
-func (f *InputFlag) Name() string {
-	return f.name
-}
-
-func (f *InputFlag) Description() string {
-	return f.description
-}
-
-func (f *InputFlag) Shorthand() string {
-	return f.shorthand
-}
-
-func (f *InputFlag) DefaultValue() string {
-	return f.defaultValue
-}
-
-func (f *InputFlag) AddToCommand(cmd *cobra.Command) *string {
-	return cmd.Flags().StringP(f.Name(), f.Shorthand(), f.DefaultValue(), f.Description())
+func (f *InputFlag) Register(cmd *cobra.Command) {
+	cmd.Flags().StringP(f.name, f.shorthand, f.defaultValue, f.description)
 }
 
 func (f *InputFlag) Parse(cmd *cobra.Command) error {
+	input, err := cmd.Flags().GetString(cobraext.FilterInputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
+	}
+	f.inputs = splitAndTrim(input, ",")
 	return nil
 }
 
@@ -42,14 +34,26 @@ func (f *InputFlag) Validate() error {
 }
 
 func (f *InputFlag) Matches(pkg packages.PackageManifest) bool {
+	if f.inputs != nil {
+		inputs := extractInputs(pkg)
+		if !hasAnyMatch(f.inputs, inputs) {
+			return false
+		}
+	}
 	return true
 }
 
-func (f *InputFlag) ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error) {
-	return pkgs, nil
+func (f *InputFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
+	for _, pkg := range pkgs {
+		if !f.Matches(pkg) {
+			continue
+		}
+		filtered = append(filtered, pkg)
+	}
+	return filtered, nil
 }
 
-func setupInputFlag() *InputFlag {
+func initInputFlag() *InputFlag {
 	return &InputFlag{
 		name:         cobraext.FilterInputFlagName,
 		description:  cobraext.FilterInputFlagDescription,

@@ -50,7 +50,7 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageManifest, error) {
 	var filtered []packages.PackageManifest
 	var err error
 
-	filters := filter.NewFilter()
+	filters := filter.NewFilterRegistry()
 
 	if err = filters.Parse(cmd); err != nil {
 		return nil, fmt.Errorf("getting filter options failed: %w", err)
