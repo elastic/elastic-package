@@ -45,10 +45,9 @@ func (f *InputFlag) Matches(pkg packages.PackageManifest) bool {
 
 func (f *InputFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
 	for _, pkg := range pkgs {
-		if !f.Matches(pkg) {
-			continue
+		if f.Matches(pkg) {
+			filtered = append(filtered, pkg)
 		}
-		filtered = append(filtered, pkg)
 	}
 	return filtered, nil
 }

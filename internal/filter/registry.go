@@ -3,6 +3,7 @@ package filter
 import (
 	"fmt"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/spf13/cobra"
@@ -10,6 +11,7 @@ import (
 
 var registry = []FilterImpl{
 	initInputFlag(),
+	initCodeOwnerFlag(),
 }
 
 func SetFilterFlags(cmd *cobra.Command) {
@@ -52,29 +54,6 @@ func (r *FilterRegistry) Validate() error {
 	return nil
 }
 
-func (r *FilterRegistry) Register(filter FilterImpl) {
-	r.filters = append(r.filters, filter)
-}
-
-func (r *FilterRegistry) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
-	filtered = pkgs
-
-	for _, filter := range r.filters {
-		filtered, err = filter.ApplyTo(filtered)
-		if err != nil {
-			return nil, err
-		}
-
-		if filtered == nil {
-			return nil, nil
-		}
-
-		fmt.Printf("Filtered %d packages\n", len(filtered))
-	}
-
-	return filtered, nil
-}
-
 func (r *FilterRegistry) Execute() (filtered []packages.PackageManifest, err error) {
 	root, err := packages.MustFindIntegrationRoot()
 	if err != nil {
@@ -86,5 +65,14 @@ func (r *FilterRegistry) Execute() (filtered []packages.PackageManifest, err err
 		return nil, err
 	}
 
-	return r.ApplyTo(pkgs)
+	filtered = pkgs
+	for _, filter := range r.filters {
+		filtered, err = filter.ApplyTo(filtered)
+		if err != nil || len(filtered) == 0 {
+			break
+		}
+	}
+
+	logger.Infof("Filtered %d packages\n", len(filtered))
+	return filtered, nil
 }
