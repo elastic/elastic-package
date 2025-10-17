@@ -118,6 +118,16 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 }
 
 func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (string, error) {
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return "", fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+	}
+
 	installedPackages, err := kibanaClient.FindInstalledPackages(ctx)
 	if err != nil {
 		return "", fmt.Errorf("finding installed packages failed: %w", err)
@@ -127,7 +137,17 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (
 		return "", nil
 	}
 
-	packagesPrompt := tui.NewSelect("Which packages would you like to export dashboards from?", installedPackages.Strings(), "")
+	options := installedPackages.Strings()
+	defaultPackage := ""
+	for _, ip := range installedPackages {
+		if ip.Name == m.Name {
+			// set default package to the one matching the package in the current directory
+			defaultPackage = ip.String()
+			break
+		}
+	}
+
+	packagesPrompt := tui.NewSelect("Which packages would you like to export dashboards from?", options, defaultPackage)
 
 	var selectedOption string
 	err = tui.AskOne(packagesPrompt, &selectedOption, tui.Required)
