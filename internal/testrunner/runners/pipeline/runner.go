@@ -35,6 +35,8 @@ type runner struct {
 	coverageType     string
 	deferCleanup     time.Duration
 	globalTestConfig testrunner.GlobalRunnerTestConfig
+
+	repositoryRoot *os.Root
 }
 
 type PipelineTestRunnerOptions struct {
@@ -48,6 +50,7 @@ type PipelineTestRunnerOptions struct {
 	CoverageType       string
 	DeferCleanup       time.Duration
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	RepositoryRoot     *os.Root
 }
 
 func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
@@ -62,6 +65,7 @@ func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 		coverageType:       options.CoverageType,
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 	return &runner
 }
@@ -138,6 +142,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				API:                r.esAPI,
 				TestCaseFile:       caseFile,
 				GlobalTestConfig:   r.globalTestConfig,
+				RepositoryRoot:     r.repositoryRoot,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)

@@ -49,7 +49,7 @@ type RerouteProcessor struct {
 	Namespace []string `yaml:"namespace"`
 }
 
-func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
+func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamPath string, repositoryRoot *os.Root) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, fmt.Errorf("reading data stream manifest failed: %w", err)
@@ -58,7 +58,7 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 	nonce := time.Now().UnixNano()
 
 	mainPipeline := GetPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
-	pipelines, err := LoadIngestPipelineFiles(dataStreamPath, nonce)
+	pipelines, err := LoadIngestPipelineFiles(dataStreamPath, nonce, repositoryRoot)
 	if err != nil {
 		return "", nil, fmt.Errorf("loading ingest pipeline files failed: %w", err)
 	}
@@ -73,7 +73,7 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 // LoadIngestPipelineFiles returns the set of pipelines found in the directory
 // elasticsearch/ingest_pipeline under the provided data stream path. The names
 // of the pipelines are decorated with the provided nonce.
-func LoadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, error) {
+func LoadIngestPipelineFiles(dataStreamPath string, nonce int64, repositoryRoot *os.Root) ([]Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
 	var pipelineFiles []string
@@ -85,7 +85,7 @@ func LoadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
-	linksFS, err := files.CreateLinksFSFromPath(elasticsearchPath)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, elasticsearchPath)
 	if err != nil {
 		return nil, fmt.Errorf("creating links filesystem failed: %w", err)
 	}

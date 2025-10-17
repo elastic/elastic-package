@@ -53,7 +53,8 @@ type tester struct {
 
 	runCompareResults bool
 
-	provider stack.Provider
+	provider       stack.Provider
+	repositoryRoot *os.Root
 }
 
 type PipelineTesterOptions struct {
@@ -67,6 +68,7 @@ type PipelineTesterOptions struct {
 	CoverageType       string
 	TestCaseFile       string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	RepositoryRoot     *os.Root
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -85,6 +87,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		globalTestConfig:   options.GlobalTestConfig,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)
@@ -168,7 +171,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	startTesting := time.Now()
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath, r.repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}

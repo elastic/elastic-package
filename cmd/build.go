@@ -61,6 +61,12 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+	defer repositoryRoot.Close()
+
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -72,7 +78,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(packageRoot, buildDir)
+	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}
@@ -83,11 +89,12 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
+		PackageRootPath: packageRoot,
+		BuildDir:        buildDir,
+		CreateZip:       createZip,
+		SignPackage:     signPackage,
+		SkipValidation:  skipValidation,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

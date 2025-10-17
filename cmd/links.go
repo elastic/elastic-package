@@ -7,7 +7,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -56,8 +55,14 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
+	// Find the repository root to create the links filesystem reference tied to the repository root
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("finding repository root: %w", err)
+	}
+	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -68,7 +73,7 @@ func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	for _, f := range linkedFiles {
 		if !f.UpToDate {
-			cmd.Printf("%s is outdated.\n", filepath.Join(f.WorkDir, f.LinkFilePath))
+			cmd.Printf("%s is outdated.\n", f.LinkFilePath)
 		}
 	}
 	if len(linkedFiles) > 0 {
@@ -95,7 +100,14 @@ func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	// Find the repository root to create the links filesystem reference tied to the repository root
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("finding repository root: %w", err)
+	}
+	defer repositoryRoot.Close()
+
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -135,7 +147,14 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
-	linksFS, err := files.CreateLinksFSFromPath(pwd)
+	// Find the repository root to create the links filesystem reference tied to the repository root
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("finding repository root: %w", err)
+	}
+	defer repositoryRoot.Close()
+
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}

@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -47,12 +46,9 @@ func setupServiceCommand() *cobraext.Command {
 func upCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Boot up the service stack")
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return errors.New("package root not found")
 	}
 
 	var dataStreamPath string

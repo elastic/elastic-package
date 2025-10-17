@@ -156,7 +156,7 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		RootPath: r.packageRootPath,
+		PackageRootPath: r.packageRootPath,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

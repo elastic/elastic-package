@@ -12,7 +12,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/environment"
-	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -28,10 +27,10 @@ type linkOptions struct {
 	caption string
 }
 
-func newLinkMap() linkMap {
-	var links linkMap
-	links.Links = make(map[string]string)
-	return links
+func newEmptyLinkMap() linkMap {
+	return linkMap{
+		Links: make(map[string]string),
+	}
 }
 
 func (l linkMap) Get(key string) (string, error) {
@@ -49,29 +48,28 @@ func (l linkMap) Add(key, value string) error {
 	return nil
 }
 
-func readLinksMap() (linkMap, error) {
-	linksFilePath, err := linksDefinitionsFilePath()
-	if err != nil {
-		return linkMap{}, fmt.Errorf("locating links file failed: %w", err)
-	}
-
-	links := newLinkMap()
+// readLinksMap reads the links definitions file from the given repository root directory,
+// parses its YAML contents, and returns a populated linkMap. If the links file does not exist,
+// it returns an empty linkMap. Returns an error if locating, reading, or unmarshalling the file fails.
+func readLinksMap(linksFilePath string) (linkMap, error) {
+	// No links file, return empty map with Links initialized
 	if linksFilePath == "" {
-		return links, nil
+		return newEmptyLinkMap(), nil
 	}
 
 	logger.Debugf("Using links definitions file: %s", linksFilePath)
 	contents, err := os.ReadFile(linksFilePath)
 	if err != nil {
-		return linkMap{}, fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
+		return newEmptyLinkMap(), fmt.Errorf("readfile failed (path: %s): %w", linksFilePath, err)
 	}
 
-	err = yaml.Unmarshal(contents, &links)
+	var lmap linkMap
+	err = yaml.Unmarshal(contents, &lmap)
 	if err != nil {
-		return linkMap{}, err
+		return newEmptyLinkMap(), err
 	}
 
-	return links, nil
+	return lmap, nil
 }
 
 func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
@@ -85,32 +83,27 @@ func (l linkMap) RenderLink(key string, options linkOptions) (string, error) {
 	return url, nil
 }
 
-// linksDefinitionsFilePath returns the path where links definitions are located or empty string if the file does not exist.
-// If linksMapFilePathEnvVar is defined, it returns the value of that env var.
-func linksDefinitionsFilePath() (string, error) {
-	var err error
-	linksFilePath, ok := os.LookupEnv(linksMapFilePathEnvVar)
-	if ok {
-		_, err = os.Stat(linksFilePath)
-		if err != nil {
+// linksDefinitionsFilePath returns the file path to the links definitions file.
+// It first checks if the environment variable specified by linksMapFilePathEnvVar is set.
+// If set, it verifies that the file exists and returns its path, or an error if not found.
+// If the environment variable is not set, it falls back to the default file path
+// constructed from repositoryRoot and linksMapFileNameDefault, returning the path if the file exists,
+// or nil if it does not.
+func linksDefinitionsFilePath(repositoryRoot *os.Root) (string, error) {
+	linksFilePath := os.Getenv(linksMapFilePathEnvVar)
+	if linksFilePath != "" {
+		if _, err := os.Stat(linksFilePath); err != nil {
 			// if env var is defined, file must exist
 			return "", fmt.Errorf("links definitions file set with %s doesn't exist: %s", linksMapFilePathEnvVar, linksFilePath)
 		}
 		return linksFilePath, nil
 	}
 
-	dir, err := files.FindRepositoryRootDirectory()
-	if err != nil {
-		return "", err
-	}
-
-	linksFilePath = filepath.Join(dir, linksMapFileNameDefault)
-	_, err = os.Stat(linksFilePath)
-	if err != nil {
+	linksFilePath = filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
+	if _, err := os.Stat(linksFilePath); err != nil {
 		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
 		return "", nil
 	}
 
 	return linksFilePath, nil
-
 }
