@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/tui"
 
@@ -70,46 +69,37 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: %s\n", message)
 	}
 
-	if len(dashboardIDs) > 0 {
-		err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs)
-		if err != nil {
-			return fmt.Errorf("dashboards export failed: %w", err)
-		}
-	}
+	// Just query for dashboards if none were provided as flags
+	if len(dashboardIDs) == 0 {
+		if kibanaVersion.BuildFlavor != "serverless" {
+			// This method uses a deprecated API to search for saved objects.
+			// And this API is not available in Serverless environments.
+			dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
+			if err != nil {
+				return fmt.Errorf("prompt for dashboard selection failed: %w", err)
+			}
+		} else {
+			installedPackage, err := promptPackagesInstalled(cmd.Context(), kibanaClient)
+			if err != nil {
+				return fmt.Errorf("prompt for package selection failed: %w", err)
+			}
 
-	stackVersion, err := semver.NewVersion(kibanaVersion.Version())
-	if err != nil {
-		return fmt.Errorf("failed to parse kibana version: %w", err)
-	}
+			if installedPackage == "" {
+				fmt.Println("No installed packages were found in Kibana.")
+				return nil
+			}
 
-	if stackVersion.LessThan(semver.MustParse("8.0.0")) {
-		// This method uses a deprecated API to search for saved objects.
-		// And this API is not available in Serverless environments.
-		dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
-		if err != nil {
-			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
-		}
-	} else {
-		installedPackage, err := promptPackagesInstalled(cmd.Context(), kibanaClient)
-		if err != nil {
-			return fmt.Errorf("prompt for package selection failed: %w", err)
-		}
+			// As it can be installed just one version of a package in Elastic, we can split by '-' to get the name.
+			// This package name will be used to get the data related to a package (kibana.GetPackage).
+			installedPackageName, _, found := strings.Cut(installedPackage, "-")
+			if !found {
+				return fmt.Errorf("invalid package name: %s", installedPackage)
+			}
 
-		if installedPackage == "" {
-			fmt.Println("No installed packages were found in Kibana.")
-			return nil
-		}
-
-		// As it can be installed just one version of a package in Elastic, we can split by '-' to get the name.
-		// This package name will be used to get the data related to a package (kibana.GetPackage).
-		installedPackageName, _, found := strings.Cut(installedPackage, "-")
-		if !found {
-			return fmt.Errorf("invalid package name: %s", installedPackage)
-		}
-
-		dashboardIDs, err = promptPackageDashboardIDs(cmd.Context(), kibanaClient, installedPackageName)
-		if err != nil {
-			return fmt.Errorf("prompt for package dashboard selection failed: %w", err)
+			dashboardIDs, err = promptPackageDashboardIDs(cmd.Context(), kibanaClient, installedPackageName)
+			if err != nil {
+				return fmt.Errorf("prompt for package dashboard selection failed: %w", err)
+			}
 		}
 	}
 
