@@ -58,7 +58,7 @@ Introduction to the package`,
 			err := createReadmeFile(dir, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme(c.filename, "", dir)
+			rendered, isTemplate, err := generateReadme(c.filename, "", dir, dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {

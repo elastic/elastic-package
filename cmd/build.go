@@ -80,16 +80,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
-	if err != nil {
-		return fmt.Errorf("updating files failed: %w", err)
-	}
-
-	for _, target := range targets {
-		fileName := filepath.Base(target)
-		cmd.Printf("%s file rendered: %s\n", fileName, target)
-	}
-
 	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRootPath: packageRoot,
 		BuildDir:        buildDir,
@@ -101,6 +91,17 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
 	}
+
+	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
+	if err != nil {
+		return fmt.Errorf("updating files failed: %w", err)
+	}
+
+	for _, target := range targets {
+		fileName := filepath.Base(target)
+		cmd.Printf("%s file rendered: %s\n", fileName, target)
+	}
+
 	cmd.Printf("Package built: %s\n", target)
 
 	cmd.Println("Done")
