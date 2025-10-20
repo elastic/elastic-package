@@ -17,7 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const findInstalledPackagesPerPage = 1
+const findInstalledPackagesPerPage = 100
 
 var ErrNotSupported error = errors.New("not supported")
 
