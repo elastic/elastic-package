@@ -10,9 +10,10 @@ import (
 )
 
 var registry = []IFilter{
-	initInputFlag(),
-	initCodeOwnerFlag(),
 	initCategoryFlag(),
+	initCodeOwnerFlag(),
+	initInputFlag(),
+	initSpecVersionFlag(),
 }
 
 func SetFilterFlags(cmd *cobra.Command) {

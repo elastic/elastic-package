@@ -151,6 +151,9 @@ const (
 	FilterPackagesFlagName        = "packages"
 	FilterPackagesFlagDescription = "packages to filter by (glob pattern/comma-separated values)"
 
+	FilterSpecVersionFlagName        = "spec-version"
+	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
+
 	ForeachExecFlagName        = "exec"
 	ForeachExecFlagDescription = "command to execute for each package (required)"
 
