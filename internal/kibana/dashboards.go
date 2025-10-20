@@ -33,6 +33,7 @@ func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.Ma
 }
 
 // exportAllDashboards method exports all dashboards using the Kibana APIs without any export details nor including references.
+// The number of exported dashboards depends on the "savedObjects.maxImportExportSize" setting, that by default is 10000.
 func (c *Client) exportAllDashboards(ctx context.Context) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
