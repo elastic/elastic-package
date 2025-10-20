@@ -22,11 +22,7 @@ const findInstalledPackagesPerPage = 100
 var ErrNotSupported error = errors.New("not supported")
 
 type findInstalledPackagesResponse struct {
-	// TODO: Should we remove this Response field?
-	// Assets are here when old packages API is used (with hyphen, before 8.0).
-	Response []InstalledPackage `json:"response"`
-
-	// Assets are here when new packages API is used (with slash, since 8.0).
+	// Installed packages are listed in Items field.
 	Items       []InstalledPackage `json:"items"`
 	Total       int                `json:"total"`
 	SearchAfter []string           `json:"searchAfter"`
@@ -279,11 +275,7 @@ func (c *Client) FindInstalledPackages(ctx context.Context) (InstalledPackages, 
 			break
 		}
 		searchAfter = r.SearchAfter[0]
-		if len(r.Response) > 0 {
-			installed = append(installed, r.Response...)
-		} else {
-			installed = append(installed, r.Items...)
-		}
+		installed = append(installed, r.Items...)
 	}
 	sort.Slice(installed, func(i, j int) bool {
 		return sort.StringsAreSorted([]string{strings.ToLower(installed[i].Name), strings.ToLower(installed[j].Name)})
