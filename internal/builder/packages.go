@@ -26,8 +26,8 @@ const licenseTextFileName = "LICENSE.txt"
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
-	PackageRootPath string
-	BuildDir        string
+	PackageRootPath string // path to the package source content
+	BuildDir        string // directory where all the built packages are placed and zipped packages are stored
 	RepositoryRoot  *os.Root
 
 	CreateZip      bool
@@ -105,12 +105,8 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 	return filepath.Join(buildDir, m.Name, m.Version), nil
 }
 
-// buildPackagesZipPath function locates the target zipped package path.
-func buildPackagesZipPath(packageRoot string) (string, error) {
-	buildDir, err := buildPackagesRootDirectory()
-	if err != nil {
-		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
-	}
+// buildPackagesZipPath function returns the path to zipped built package.
+func buildPackagesZipPath(packageRoot, buildDir string) (string, error) {
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
@@ -164,44 +160,46 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
+	// builtPackageDir is the directory where the built package content is placed
+	// eg. <buildDir>/packages/<package name>/<package version>
+	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
-	logger.Debugf("Build directory: %s\n", destinationDir)
+	logger.Debugf("Build directory: %s\n", builtPackageDir)
 
-	logger.Debugf("Clear target directory (path: %s)", destinationDir)
-	err = files.ClearDir(destinationDir)
+	logger.Debugf("Clear target directory (path: %s)", builtPackageDir)
+	err = files.ClearDir(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
 	logger.Debugf("Copy package content (source: %s)", options.PackageRootPath)
-	err = files.CopyWithoutDev(options.PackageRootPath, destinationDir)
+	err = files.CopyWithoutDev(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
 
 	logger.Debug("Copy license file if needed")
-	destinationLicenseFilePath := filepath.Join(destinationDir, licenseTextFileName)
+	destinationLicenseFilePath := filepath.Join(builtPackageDir, licenseTextFileName)
 	err = copyLicenseTextFile(options.RepositoryRoot, destinationLicenseFilePath)
 	if err != nil {
 		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
 	logger.Debug("Encode dashboards")
-	err = encodeDashboards(destinationDir)
+	err = encodeDashboards(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("encoding dashboards failed: %w", err)
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRootPath, destinationDir)
+	err = resolveExternalFields(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
-	err = addDynamicMappings(options.PackageRootPath, destinationDir)
+	err = addDynamicMappings(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
@@ -212,7 +210,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("creating links filesystem failed: %w", err)
 	}
 
-	links, err := linksFS.IncludeLinkedFiles(destinationDir)
+	links, err := linksFS.IncludeLinkedFiles(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("including linked files failed: %w", err)
 	}
@@ -220,39 +218,40 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
 	}
 
-	err = resolveTransformDefinitions(destinationDir)
+	err = resolveTransformDefinitions(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
 	if options.CreateZip {
-		return buildZippedPackage(ctx, options, destinationDir)
+		return buildZippedPackage(ctx, options, builtPackageDir, options.BuildDir)
 	}
 
 	if options.SkipValidation {
 		logger.Debug("Skip validation of the built package")
-		return destinationDir, nil
+		return builtPackageDir, nil
 	}
 
-	logger.Debugf("Validating built package (path: %s)", destinationDir)
-	errs, skipped := validation.ValidateAndFilterFromPath(destinationDir)
+	logger.Debugf("Validating built package (path: %s)", builtPackageDir)
+	errs, skipped := validation.ValidateAndFilterFromPath(builtPackageDir)
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", errs)
 	}
-	return destinationDir, nil
+	return builtPackageDir, nil
 }
 
-func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDir string) (string, error) {
+// buildZippedPackage function builds the zipped package from the sourcePackageDir and stores it in buildDir.
+func buildZippedPackage(ctx context.Context, options BuildOptions, sourcePackageDir, buildDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
+	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath, buildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(ctx, destinationDir, zippedPackagePath)
+	err = files.Zip(ctx, sourcePackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}

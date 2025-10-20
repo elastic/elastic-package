@@ -72,6 +72,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	// Currently the build directory is placed inside the repository build/ folder.
+	// In the future we might want to make this configurable.
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
