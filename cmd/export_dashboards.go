@@ -21,9 +21,13 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
+const (
+	exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
+
+	newDashboardOption = "New dashboard"
+)
 
 func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Kibana dashboards")
@@ -71,35 +75,9 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	// Just query for dashboards if none were provided as flags
 	if len(dashboardIDs) == 0 {
-		if kibanaVersion.BuildFlavor != "serverless" {
-			// This method uses a deprecated API to search for saved objects.
-			// And this API is not available in Serverless environments.
-			dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
-			if err != nil {
-				return fmt.Errorf("prompt for dashboard selection failed: %w", err)
-			}
-		} else {
-			installedPackage, err := promptPackagesInstalled(cmd.Context(), kibanaClient)
-			if err != nil {
-				return fmt.Errorf("prompt for package selection failed: %w", err)
-			}
-
-			if installedPackage == "" {
-				fmt.Println("No installed packages were found in Kibana.")
-				return nil
-			}
-
-			// As it can be installed just one version of a package in Elastic, we can split by '-' to get the name.
-			// This package name will be used to get the data related to a package (kibana.GetPackage).
-			installedPackageName, _, found := strings.Cut(installedPackage, "-")
-			if !found {
-				return fmt.Errorf("invalid package name: %s", installedPackage)
-			}
-
-			dashboardIDs, err = promptPackageDashboardIDs(cmd.Context(), kibanaClient, installedPackageName)
-			if err != nil {
-				return fmt.Errorf("prompt for package dashboard selection failed: %w", err)
-			}
+		dashboardIDs, err = selectDashboardIds(cmd, kibanaClient, kibanaVersion)
+		if err != nil {
+			return fmt.Errorf("selecting dashboard IDs failed: %w", err)
 		}
 	}
 
@@ -115,6 +93,55 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Done")
 	return nil
+}
+
+// selectDashboardIds prompts the user to select dashboards to export. It handles
+// different flows depending on whether the Kibana instance is a Serverless environment or not.
+// In non-Serverless environments, it prompts directly for dashboard selection.
+// In Serverless environments, it first prompts to select an installed package or choose
+// to export new dashboards, and then prompts for dashboard selection accordingly.
+func selectDashboardIds(cmd *cobra.Command, kibanaClient *kibana.Client, kibanaVersion kibana.VersionInfo) ([]string, error) {
+	if kibanaVersion.BuildFlavor != kibana.ServerlessFlavor {
+		// This method uses a deprecated API to search for saved objects.
+		// And this API is not available in Serverless environments.
+		dashboardIDs, err := promptDashboardIDs(cmd.Context(), kibanaClient)
+		if err != nil {
+			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
+		}
+		return dashboardIDs, nil
+	}
+
+	installedPackage, err := promptPackagesInstalled(cmd.Context(), kibanaClient)
+	if err != nil {
+		return nil, fmt.Errorf("prompt for package selection failed: %w", err)
+	}
+
+	if installedPackage == "" {
+		fmt.Println("No installed packages were found in Kibana.")
+		return nil, nil
+	}
+
+	if installedPackage == newDashboardOption {
+		dashboardIDs, err := promptDashboardIDs(cmd.Context(), kibanaClient)
+		if err != nil {
+			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
+		}
+		return dashboardIDs, nil
+	}
+
+	// As it can be installed just one version of a package in Elastic, we can split by '-' to get the name.
+	// This package name will be used to get the data related to a package (kibana.GetPackage).
+	installedPackageName, _, found := strings.Cut(installedPackage, "-")
+	if !found {
+		return nil, fmt.Errorf("invalid package name: %s", installedPackage)
+	}
+
+	dashboardIDs, err := promptPackageDashboardIDs(cmd.Context(), kibanaClient, installedPackageName)
+	if err != nil {
+		return nil, fmt.Errorf("prompt for package dashboard selection failed: %w", err)
+	}
+
+	return dashboardIDs, nil
 }
 
 func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (string, error) {
@@ -133,11 +160,10 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (
 		return "", fmt.Errorf("finding installed packages failed: %w", err)
 	}
 
-	if len(installedPackages) == 0 {
-		return "", nil
-	}
+	// It always shows an option to export dashboards not related to any package.
+	options := []string{newDashboardOption}
 
-	options := installedPackages.Strings()
+	options = append(options, installedPackages.Strings()...)
 	defaultPackage := ""
 	for _, ip := range installedPackages {
 		if ip.Name == m.Name {

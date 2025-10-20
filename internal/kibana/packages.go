@@ -43,6 +43,15 @@ func (ip *InstalledPackage) String() string {
 	return fmt.Sprintf("%s-%s", ip.Name, ip.Version)
 }
 
+// Strings method returns string representation for a set of installed packages.
+func (ips InstalledPackages) Strings() []string {
+	var entries []string
+	for _, ip := range ips {
+		entries = append(entries, ip.String())
+	}
+	return entries
+}
+
 type PackageAssetResponse struct {
 	ID         string `json:"id"`
 	Type       string `json:"type"`
@@ -54,15 +63,6 @@ type PackageAssetResponse struct {
 
 func (p *PackageAssetResponse) String() string {
 	return fmt.Sprintf("%s (ID: %s, Type: %s)", p.Attributes.Title, p.ID, p.Type)
-}
-
-// Strings method returns string representation for a set of installed packages.
-func (ips InstalledPackages) Strings() []string {
-	var entries []string
-	for _, ip := range ips {
-		entries = append(entries, ip.String())
-	}
-	return entries
 }
 
 // InstallPackage installs the given package in Fleet.

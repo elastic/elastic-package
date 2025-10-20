@@ -61,10 +61,47 @@ func (dso *DashboardSavedObject) String() string {
 // FindDashboards method returns dashboards available in the Kibana instance.
 func (c *Client) FindDashboards(ctx context.Context) (DashboardSavedObjects, error) {
 	logger.Debug("Find dashboards using the Saved Objects API")
+	var foundObjects DashboardSavedObjects
+	var err error
 
+	if c.versionInfo.BuildFlavor == ServerlessFlavor {
+		foundObjects, err = c.findDashboardsServerless(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("can't find dashboards in serverless mode: %w", err)
+		}
+	} else {
+		foundObjects, err = c.findDashboards(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("can't find dashboards: %w", err)
+		}
+	}
+
+	sort.Slice(foundObjects, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(foundObjects[i].Title), strings.ToLower(foundObjects[j].Title)})
+	})
+	return foundObjects, nil
+}
+
+func (c *Client) findDashboardsServerless(ctx context.Context) (DashboardSavedObjects, error) {
+	var foundObjects DashboardSavedObjects
+	allDashboards, err := c.exportAllDashboards(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("can't export all dashboards: %w", err)
+	}
+	for _, dashboard := range allDashboards {
+		dashboardSavedObject, err := dashboardSavedObjectFromMapStr(dashboard)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse dashboard saved object: %w", err)
+		}
+		foundObjects = append(foundObjects, dashboardSavedObject)
+	}
+
+	return foundObjects, nil
+}
+
+func (c *Client) findDashboards(ctx context.Context) (DashboardSavedObjects, error) {
 	var foundObjects DashboardSavedObjects
 	page := 1
-
 	for {
 		r, err := c.findDashboardsNextPage(ctx, page)
 		if err != nil {
@@ -87,9 +124,6 @@ func (c *Client) FindDashboards(ctx context.Context) (DashboardSavedObjects, err
 		page++
 	}
 
-	sort.Slice(foundObjects, func(i, j int) bool {
-		return sort.StringsAreSorted([]string{strings.ToLower(foundObjects[i].Title), strings.ToLower(foundObjects[j].Title)})
-	})
 	return foundObjects, nil
 }
 
@@ -110,6 +144,28 @@ func (c *Client) findDashboardsNextPage(ctx context.Context, page int) (*savedOb
 		return nil, fmt.Errorf("unmarshalling response failed: %w", err)
 	}
 	return &r, nil
+}
+
+func dashboardSavedObjectFromMapStr(data common.MapStr) (DashboardSavedObject, error) {
+	dashboardId, ok := data["id"].(string)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain id field")
+	}
+
+	attributes, ok := data["attributes"].(map[string]any)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain attributes field")
+	}
+
+	dashboardTitle, ok := attributes["title"].(string)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain attributes.title field")
+	}
+
+	return DashboardSavedObject{
+		ID:    dashboardId,
+		Title: dashboardTitle,
+	}, nil
 }
 
 // SetManagedSavedObject method sets the managed property in a saved object.
@@ -152,7 +208,8 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 type ExportSavedObjectsRequest struct {
 	ExcludeExportDetails  bool                              `json:"excludeExportDetails"`
 	IncludeReferencesDeep bool                              `json:"includeReferencesDeep"`
-	Objects               []ExportSavedObjectsRequestObject `json:"objects"`
+	Objects               []ExportSavedObjectsRequestObject `json:"objects,omitempty"`
+	Type                  string                            `json:"type,omitempty"`
 }
 
 type ExportSavedObjectsRequestObject struct {

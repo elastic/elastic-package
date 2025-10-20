@@ -32,6 +32,19 @@ func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.Ma
 	return c.exportWithSavedObjectsAPI(ctx, dashboardIDs)
 }
 
+// exportAllDashboards method exports all dashboards using the Kibana APIs without any export details nor including references.
+func (c *Client) exportAllDashboards(ctx context.Context) ([]common.MapStr, error) {
+	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
+
+	request := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: false,
+		Type:                  "dashboard",
+	}
+
+	return c.ExportSavedObjects(ctx, request)
+}
+
 func (c *Client) exportWithSavedObjectsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
