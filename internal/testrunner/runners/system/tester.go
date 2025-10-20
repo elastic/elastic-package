@@ -2049,17 +2049,24 @@ func createInputPackageDatastream(
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
 	vars := kibana.Vars{}
 	for _, definition := range definitions {
+		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
+		// When using this API parameter, default values are not automatically incorporated into
+		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
+		// This means that our client must include the default values in its request to ensure correct behavior.
 		val := definition.Default
 
 		value, err := values.GetValue(definition.Name)
 		if err == nil {
-			val = packages.VarValue{}
+			val = &packages.VarValue{}
 			val.Unpack(value)
+		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
+			// Do not include nulls for unset variables.
+			continue
 		}
 
 		vars[definition.Name] = kibana.Var{
 			Type:  definition.Type,
-			Value: val,
+			Value: *val,
 		}
 	}
 	return vars

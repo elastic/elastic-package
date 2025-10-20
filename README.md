@@ -39,6 +39,8 @@ Run the `help` command and see available commands:
 elastic-package help
 ```
 
+Some sub-commands are Docker-based, check you also have Docker installed. In case you are using Podman Desktop, check [this guide](./docs/howto/use_podman.md) to make it compatible.
+
 ## Development
 
 Even though the project is "go-gettable", there is the [`Makefile`](./Makefile) present, which can be used to build,
@@ -490,6 +492,8 @@ You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
+You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
+
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
 ### `elastic-package stack down`
@@ -541,6 +545,8 @@ By default the latest released version of the stack is spun up but it is possibl
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
 To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry. Starting with Elastic stack version >= 8.7.0, it is not mandatory to be available local packages in the Package Registry to run the tests.
 
