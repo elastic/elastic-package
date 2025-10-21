@@ -32,20 +32,6 @@ func (c *Client) Export(ctx context.Context, dashboardIDs []string) ([]common.Ma
 	return c.exportWithSavedObjectsAPI(ctx, dashboardIDs)
 }
 
-// exportAllDashboards method exports all dashboards using the Kibana APIs without any export details nor including references.
-// The number of exported dashboards depends on the "savedObjects.maxImportExportSize" setting, that by default is 10000.
-func (c *Client) exportAllDashboards(ctx context.Context) ([]common.MapStr, error) {
-	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
-
-	request := ExportSavedObjectsRequest{
-		ExcludeExportDetails:  true,
-		IncludeReferencesDeep: false,
-		Type:                  "dashboard",
-	}
-
-	return c.ExportSavedObjects(ctx, request)
-}
-
 func (c *Client) exportWithSavedObjectsAPI(ctx context.Context, dashboardIDs []string) ([]common.MapStr, error) {
 	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
 
@@ -106,4 +92,18 @@ func (c *Client) exportWithDashboardsAPI(ctx context.Context, dashboardIDs []str
 		return nil, fmt.Errorf("at least Kibana object returned an error: %w", multiErr)
 	}
 	return exported.Objects, nil
+}
+
+// exportAllDashboards method exports all dashboards using the Kibana APIs without any export details nor including references.
+// The number of exported dashboards depends on the "savedObjects.maxImportExportSize" setting, that by default is 10000.
+func (c *Client) exportAllDashboards(ctx context.Context) ([]common.MapStr, error) {
+	logger.Debug("Export dashboards using the Kibana Saved Objects Export API")
+
+	request := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: false,
+		Type:                  "dashboard",
+	}
+
+	return c.ExportSavedObjects(ctx, request)
 }
