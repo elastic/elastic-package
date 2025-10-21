@@ -22,7 +22,6 @@ const findInstalledPackagesPerPage = 100
 var ErrNotSupported error = errors.New("not supported")
 
 type findInstalledPackagesResponse struct {
-	// Installed packages are listed in Items field.
 	Items       []installedPackage `json:"items"`
 	Total       int                `json:"total"`
 	SearchAfter []string           `json:"searchAfter"`
@@ -302,7 +301,7 @@ func (c *Client) findInstalledPackagesNextPage(ctx context.Context, searchAfter 
 	return &resp, nil
 }
 
-// GetDataFromPackageAssetIDs retrieves data, such as title and description, for the given a list of asset IDs
+// GetDataFromPackageAssetIDs retrieves data, such as the title, for the given a list of asset IDs
 // using the "bulk_assets" Elastic Package Manager API endpoint. Response is sorted by title.
 func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packages.Asset) ([]bulkAssetItemResponse, error) {
 	path := fmt.Sprintf("%s/epm/bulk_assets", FleetAPI)
