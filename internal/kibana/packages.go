@@ -48,16 +48,15 @@ func (ips InstalledPackages) Strings() []string {
 	return entries
 }
 
-type PackageAssetResponse struct {
+type bulkAssetItemResponse struct {
 	ID         string `json:"id"`
 	Type       string `json:"type"`
 	Attributes struct {
-		Description string `json:"description"`
-		Title       string `json:"title"`
+		Title string `json:"title"`
 	} `json:"attributes"`
 }
 
-func (p *PackageAssetResponse) String() string {
+func (p *bulkAssetItemResponse) String() string {
 	return fmt.Sprintf("%s (ID: %s, Type: %s)", p.Attributes.Title, p.ID, p.Type)
 }
 
@@ -305,7 +304,7 @@ func (c *Client) findInstalledPackagesNextPage(ctx context.Context, searchAfter 
 
 // GetDataFromPackageAssetIDs retrieves data, such as title and description, for the given a list of asset IDs
 // using the "bulk_assets" Elastic Package Manager API endpoint. Response is sorted by title.
-func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packages.Asset) ([]PackageAssetResponse, error) {
+func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packages.Asset) ([]bulkAssetItemResponse, error) {
 	path := fmt.Sprintf("%s/epm/bulk_assets", FleetAPI)
 	type request struct {
 		AssetIDs []packages.Asset `json:"assetIds"`
@@ -324,7 +323,7 @@ func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packag
 	}
 
 	type packageAssetsResponse struct {
-		Items []PackageAssetResponse `json:"items"`
+		Items []bulkAssetItemResponse `json:"items"`
 	}
 
 	var resp packageAssetsResponse
