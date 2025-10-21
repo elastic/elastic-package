@@ -187,6 +187,22 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
+	// when CopyWithoutDev is used, .link files are skipped.
+	// Include them before resolving external fields
+	logger.Debug("Include linked files")
+	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRootPath)
+	if err != nil {
+		return "", fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	links, err := linksFS.IncludeLinkedFiles(builtPackageDir)
+	if err != nil {
+		return "", fmt.Errorf("including linked files failed: %w", err)
+	}
+	for _, l := range links {
+		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
+	}
+
 	logger.Debug("Encode dashboards")
 	err = encodeDashboards(builtPackageDir)
 	if err != nil {
@@ -202,20 +218,6 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	err = addDynamicMappings(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
-	}
-
-	logger.Debug("Include linked files")
-	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRootPath)
-	if err != nil {
-		return "", fmt.Errorf("creating links filesystem failed: %w", err)
-	}
-
-	links, err := linksFS.IncludeLinkedFiles(builtPackageDir)
-	if err != nil {
-		return "", fmt.Errorf("including linked files failed: %w", err)
-	}
-	for _, l := range links {
-		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
 	}
 
 	err = resolveTransformDefinitions(builtPackageDir)
