@@ -60,7 +60,10 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	var opts []kibana.ClientOption
-	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
+	}
 	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
