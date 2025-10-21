@@ -197,9 +197,14 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 		Overwrite: true,
 		Objects:   objects,
 	}
-	_, err = c.ImportSavedObjects(ctx, importRequest)
+	resp, err := c.ImportSavedObjects(ctx, importRequest)
 	if err != nil {
 		return fmt.Errorf("failed to import %s %s: %w", savedObjectType, id, err)
+	}
+
+	// Even if no error is returned, we need to check if the import was successful.
+	if !resp.Success {
+		return fmt.Errorf("importing %s %s was not successful", savedObjectType, id)
 	}
 
 	return nil
