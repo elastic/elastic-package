@@ -18,7 +18,12 @@ func (f *InputFlag) Parse(cmd *cobra.Command) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FilterInputFlagName)
 	}
+	if input == "" {
+		return nil
+	}
+
 	f.values = splitAndTrim(input, ",")
+	f.isApplied = true
 	return nil
 }
 

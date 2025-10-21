@@ -17,19 +17,20 @@ type SpecVersionFlag struct {
 }
 
 func (f *SpecVersionFlag) Parse(cmd *cobra.Command) error {
-
-	formatVersion, err := cmd.Flags().GetString(cobraext.FilterSpecVersionFlagName)
+	specVersion, err := cmd.Flags().GetString(cobraext.FilterSpecVersionFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FilterSpecVersionFlagName)
 	}
-
-	constraint, err := semver.NewConstraint(formatVersion)
-	if err != nil {
-		return fmt.Errorf("invalid format version: %s: %w", formatVersion, err)
+	if specVersion == "" {
+		return nil
 	}
 
-	f.constraints = constraint
+	f.constraints, err = semver.NewConstraint(specVersion)
+	if err != nil {
+		return fmt.Errorf("invalid spec version: %s: %w", specVersion, err)
+	}
 
+	f.isApplied = true
 	return nil
 }
 

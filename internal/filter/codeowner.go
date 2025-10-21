@@ -19,12 +19,12 @@ func (f *CodeOwnerFlag) Parse(cmd *cobra.Command) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FilterCodeOwnerFlagName)
 	}
-	f.values = splitAndTrim(codeOwners, ",")
-
-	if err := f.Validate(); err != nil {
-		return err
+	if codeOwners == "" {
+		return nil
 	}
 
+	f.values = splitAndTrim(codeOwners, ",")
+	f.isApplied = true
 	return nil
 }
 

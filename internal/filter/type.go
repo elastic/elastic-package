@@ -12,6 +12,7 @@ type IFilterFlag interface {
 	DefaultValue() string
 
 	Register(cmd *cobra.Command)
+	IsApplied() bool
 }
 
 type IFilter interface {
@@ -28,6 +29,8 @@ type FilterFlag struct {
 	description  string
 	shorthand    string
 	defaultValue string
+
+	isApplied bool
 }
 
 func (f *FilterFlag) Name() string {
@@ -48,4 +51,8 @@ func (f *FilterFlag) DefaultValue() string {
 
 func (f *FilterFlag) Register(cmd *cobra.Command) {
 	cmd.Flags().StringP(f.Name(), f.Shorthand(), f.DefaultValue(), f.Description())
+}
+
+func (f *FilterFlag) IsApplied() bool {
+	return f.isApplied
 }

@@ -17,7 +17,12 @@ func (f *CategoryFlag) Parse(cmd *cobra.Command) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FilterCategoriesFlagName)
 	}
+	if category == "" {
+		return nil
+	}
+
 	f.values = splitAndTrim(category, ",")
+	f.isApplied = true
 	return nil
 }
 

@@ -13,6 +13,7 @@ var registry = []IFilter{
 	initCategoryFlag(),
 	initCodeOwnerFlag(),
 	initInputFlag(),
+	initKibanaVersionFlag(),
 	initSpecVersionFlag(),
 }
 
@@ -28,15 +29,19 @@ type FilterRegistry struct {
 
 func NewFilterRegistry() *FilterRegistry {
 	return &FilterRegistry{
-		filters: registry,
+		filters: []IFilter{},
 	}
 }
 
 func (r *FilterRegistry) Parse(cmd *cobra.Command) error {
 	errs := multierror.Error{}
-	for _, filter := range r.filters {
+	for _, filter := range registry {
 		if err := filter.Parse(cmd); err != nil {
 			errs = append(errs, err)
+		}
+
+		if filter.IsApplied() {
+			r.filters = append(r.filters, filter)
 		}
 	}
 
