@@ -75,15 +75,30 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 	// Just query for dashboards if none were provided as flags
 	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = selectDashboardIds(cmd, kibanaClient, kibanaVersion)
+		packageRoot, err := packages.MustFindPackageRoot()
+		if err != nil {
+			return fmt.Errorf("locating package root failed: %w", err)
+		}
+		m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+		if err != nil {
+			return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		}
+		options := selectDashboardOptions{
+			ctx:            cmd.Context(),
+			kibanaClient:   kibanaClient,
+			kibanaVersion:  kibanaVersion,
+			defaultPackage: m.Name,
+		}
+
+		dashboardIDs, err = selectDashboardIDs(options)
 		if err != nil {
 			return fmt.Errorf("selecting dashboard IDs failed: %w", err)
 		}
-	}
 
-	if len(dashboardIDs) == 0 {
-		fmt.Println("No dashboards were found in Kibana.")
-		return nil
+		if len(dashboardIDs) == 0 {
+			fmt.Println("No dashboards were found in Kibana.")
+			return nil
+		}
 	}
 
 	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs)
@@ -95,23 +110,31 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// selectDashboardIds prompts the user to select dashboards to export. It handles
+type selectDashboardOptions struct {
+	ctx            context.Context
+	cmd            *cobra.Command
+	kibanaClient   *kibana.Client
+	kibanaVersion  kibana.VersionInfo
+	defaultPackage string
+}
+
+// selectDashboardIDs prompts the user to select dashboards to export. It handles
 // different flows depending on whether the Kibana instance is a Serverless environment or not.
 // In non-Serverless environments, it prompts directly for dashboard selection.
 // In Serverless environments, it first prompts to select an installed package or choose
 // to export new dashboards, and then prompts for dashboard selection accordingly.
-func selectDashboardIds(cmd *cobra.Command, kibanaClient *kibana.Client, kibanaVersion kibana.VersionInfo) ([]string, error) {
-	if kibanaVersion.BuildFlavor != kibana.ServerlessFlavor {
+func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
+	if options.kibanaVersion.BuildFlavor != kibana.ServerlessFlavor {
 		// This method uses a deprecated API to search for saved objects.
 		// And this API is not available in Serverless environments.
-		dashboardIDs, err := promptDashboardIDs(cmd.Context(), kibanaClient)
+		dashboardIDs, err := promptDashboardIDsNonServerless(options.ctx, options.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
 		return dashboardIDs, nil
 	}
 
-	installedPackage, err := promptPackagesInstalled(cmd.Context(), kibanaClient)
+	installedPackage, err := promptPackagesInstalled(options.ctx, options.kibanaClient, options.defaultPackage)
 	if err != nil {
 		return nil, fmt.Errorf("prompt for package selection failed: %w", err)
 	}
@@ -122,7 +145,7 @@ func selectDashboardIds(cmd *cobra.Command, kibanaClient *kibana.Client, kibanaV
 	}
 
 	if installedPackage == newDashboardOption {
-		dashboardIDs, err := promptDashboardIDs(cmd.Context(), kibanaClient)
+		dashboardIDs, err := promptDashboardIDsServerless(options.ctx, options.kibanaClient)
 		if err != nil {
 			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
@@ -136,7 +159,7 @@ func selectDashboardIds(cmd *cobra.Command, kibanaClient *kibana.Client, kibanaV
 		return nil, fmt.Errorf("invalid package name: %s", installedPackage)
 	}
 
-	dashboardIDs, err := promptPackageDashboardIDs(cmd.Context(), kibanaClient, installedPackageName)
+	dashboardIDs, err := promptPackageDashboardIDs(options.ctx, options.kibanaClient, installedPackageName)
 	if err != nil {
 		return nil, fmt.Errorf("prompt for package dashboard selection failed: %w", err)
 	}
@@ -144,17 +167,7 @@ func selectDashboardIds(cmd *cobra.Command, kibanaClient *kibana.Client, kibanaV
 	return dashboardIDs, nil
 }
 
-func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (string, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
-	if err != nil {
-		return "", fmt.Errorf("locating package root failed: %w", err)
-	}
-
-	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
-	if err != nil {
-		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
-	}
-
+func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, defaultPackageName string) (string, error) {
 	installedPackages, err := kibanaClient.FindInstalledPackages(ctx)
 	if err != nil {
 		return "", fmt.Errorf("finding installed packages failed: %w", err)
@@ -164,16 +177,16 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client) (
 	options := []string{newDashboardOption}
 
 	options = append(options, installedPackages.Strings()...)
-	defaultPackage := ""
+	defaultOption := ""
 	for _, ip := range installedPackages {
-		if ip.Name == m.Name {
+		if ip.Name == defaultPackageName {
 			// set default package to the one matching the package in the current directory
-			defaultPackage = ip.String()
+			defaultOption = ip.String()
 			break
 		}
 	}
 
-	packagesPrompt := tui.NewSelect("Which packages would you like to export dashboards from?", options, defaultPackage)
+	packagesPrompt := tui.NewSelect("Which packages would you like to export dashboards from?", options, defaultOption)
 
 	var selectedOption string
 	err = tui.AskOne(packagesPrompt, &selectedOption, tui.Required)
@@ -243,12 +256,25 @@ func promptPackageDashboardIDs(ctx context.Context, kibanaClient *kibana.Client,
 	return selectedIDs, nil
 }
 
-func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
+func promptDashboardIDsServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
+	savedDashboards, err := kibanaClient.FindServerlessDashboards(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("finding dashboards failed: %w", err)
+	}
+
+	return promptDashboardIDs(ctx, savedDashboards)
+}
+
+func promptDashboardIDsNonServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
 	savedDashboards, err := kibanaClient.FindDashboards(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}
 
+	return promptDashboardIDs(ctx, savedDashboards)
+}
+
+func promptDashboardIDs(ctx context.Context, savedDashboards kibana.DashboardSavedObjects) ([]string, error) {
 	if len(savedDashboards) == 0 {
 		return []string{}, nil
 	}
@@ -257,7 +283,7 @@ func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]str
 	dashboardsPrompt.SetPageSize(100)
 
 	var selectedOptions []string
-	err = tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
+	err := tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
 	if err != nil {
 		return nil, err
 	}
