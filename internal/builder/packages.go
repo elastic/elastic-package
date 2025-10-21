@@ -106,12 +106,16 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 }
 
 // buildPackagesZipPath function returns the path to zipped built package.
-func buildPackagesZipPath(packageRoot, buildDir string) (string, error) {
+func buildPackagesZipPath(packageRoot string) (string, error) {
+	buildPackagesDir, err := buildPackagesRootDirectory()
+	if err != nil {
+		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
+	}
 	m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
-	return ZippedBuiltPackagePath(buildDir, *m), nil
+	return ZippedBuiltPackagePath(buildPackagesDir, *m), nil
 }
 
 // ZippedBuiltPackagePath function returns the path to zipped built package.
@@ -226,7 +230,7 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	}
 
 	if options.CreateZip {
-		return buildZippedPackage(ctx, options, builtPackageDir, options.BuildDir)
+		return buildZippedPackage(ctx, options, builtPackageDir)
 	}
 
 	if options.SkipValidation {
@@ -245,15 +249,15 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 	return builtPackageDir, nil
 }
 
-// buildZippedPackage function builds the zipped package from the sourcePackageDir and stores it in buildDir.
-func buildZippedPackage(ctx context.Context, options BuildOptions, sourcePackageDir, buildDir string) (string, error) {
+// buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.
+func buildZippedPackage(ctx context.Context, options BuildOptions, builtPackageDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath, buildDir)
+	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(ctx, sourcePackageDir, zippedPackagePath)
+	err = files.Zip(ctx, builtPackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}
