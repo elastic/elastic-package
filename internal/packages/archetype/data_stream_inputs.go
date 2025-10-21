@@ -84,6 +84,7 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 		newVar.MaxDuration = inputVar.MaxDuration
 		newVar.Description = inputVar.Description
 		if inputVar.Default != nil {
+			newVar.Default = &packages.VarValue{}
 			newVar.Default.Unpack(inputVar.Default)
 		}
 		*output = append(*output, newVar)

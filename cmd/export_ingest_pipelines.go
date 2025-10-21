@@ -40,7 +40,10 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 	common.TrimStringSlice(pipelineIDs)
 
 	var opts []elasticsearch.ClientOption
-	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
+	}
 	if tlsSkipVerify {
 		opts = append(opts, elasticsearch.OptionWithSkipTLSVerify())
 	}
