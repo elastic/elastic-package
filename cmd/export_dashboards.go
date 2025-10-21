@@ -112,7 +112,6 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 
 type selectDashboardOptions struct {
 	ctx            context.Context
-	cmd            *cobra.Command
 	kibanaClient   *kibana.Client
 	kibanaVersion  kibana.VersionInfo
 	defaultPackage string
@@ -262,7 +261,7 @@ func promptDashboardIDsServerless(ctx context.Context, kibanaClient *kibana.Clie
 		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}
 
-	return promptDashboardIDs(ctx, savedDashboards)
+	return promptDashboardIDs(savedDashboards)
 }
 
 func promptDashboardIDsNonServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
@@ -271,10 +270,10 @@ func promptDashboardIDsNonServerless(ctx context.Context, kibanaClient *kibana.C
 		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}
 
-	return promptDashboardIDs(ctx, savedDashboards)
+	return promptDashboardIDs(savedDashboards)
 }
 
-func promptDashboardIDs(ctx context.Context, savedDashboards kibana.DashboardSavedObjects) ([]string, error) {
+func promptDashboardIDs(savedDashboards kibana.DashboardSavedObjects) ([]string, error) {
 	if len(savedDashboards) == 0 {
 		return []string{}, nil
 	}
