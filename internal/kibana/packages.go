@@ -23,24 +23,24 @@ var ErrNotSupported error = errors.New("not supported")
 
 type findInstalledPackagesResponse struct {
 	// Installed packages are listed in Items field.
-	Items       []InstalledPackage `json:"items"`
+	Items       []installedPackage `json:"items"`
 	Total       int                `json:"total"`
 	SearchAfter []string           `json:"searchAfter"`
 }
 
-type InstalledPackages []InstalledPackage
-type InstalledPackage struct {
+type installedPackages []installedPackage
+type installedPackage struct {
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
 
 // String method returns string representation for an installed package.
-func (ip *InstalledPackage) String() string {
+func (ip *installedPackage) String() string {
 	return fmt.Sprintf("%s-%s", ip.Name, ip.Version)
 }
 
 // Strings method returns string representation for a set of installed packages.
-func (ips InstalledPackages) Strings() []string {
+func (ips installedPackages) Strings() []string {
 	var entries []string
 	for _, ip := range ips {
 		entries = append(entries, ip.String())
@@ -261,8 +261,8 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 }
 
 // FindInstalledPackages retrieves the current installed packages (name and version). Response is sorted by name.
-func (c *Client) FindInstalledPackages(ctx context.Context) (InstalledPackages, error) {
-	var installed InstalledPackages
+func (c *Client) FindInstalledPackages(ctx context.Context) (installedPackages, error) {
+	var installed installedPackages
 	searchAfter := ""
 
 	for {
