@@ -2,12 +2,16 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/filter"
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/spf13/cobra"
@@ -69,29 +73,28 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Found %d matching package(s)\n", len(filtered))
 
-	// Get elastic-package command
-	ep := cmd.Parent()
-
-	// Split the exec command string into arguments and append the command arguments
-	execArgs := strings.Split(exec, " ")
-	newArgs := append(args, execArgs...)
-	ep.SetArgs(newArgs)
-
 	// TODO: Fix the race condition when executing commands in parallel
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
 	errs := multierror.Error{}
+	successes := 0
 
 	packageChan := make(chan string, poolSize)
 
+	execArgs := strings.Split(exec, " ")
 	for range poolSize {
 		wg.Add(1)
 		go func(packageChan <-chan string) {
 			defer wg.Done()
 			for packageName := range packageChan {
-				if err := executeCommand(ep, root, packageName); err != nil {
+				path := filepath.Join(root, "packages", packageName)
+				if err := executeCommand(execArgs, path); err != nil {
 					mu.Lock()
 					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packageName, err))
+					mu.Unlock()
+				} else {
+					mu.Lock()
+					successes++
 					mu.Unlock()
 				}
 			}
@@ -105,6 +108,9 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 
 	wg.Wait()
 
+	logger.Infof("Successfully executed command for %d packages\n", successes)
+	logger.Infof("Errors occurred while executing command for %d packages\n", len(errs))
+
 	if errs.Error() != "" {
 		return fmt.Errorf("errors occurred while executing command for packages: \n%s", errs.Error())
 	}
@@ -112,13 +118,24 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func executeCommand(ep *cobra.Command, root string, packageName string) error {
-	// Set change directory flag to the package directory
-	ep.Flags().Set(cobraext.ChangeDirectoryFlagName, filepath.Join(root, "packages", packageName))
+func executeCommand(args []string, path string) error {
+	// Look up the elastic-package binary in PATH
+	execPath, err := exec.LookPath("elastic-package")
+	if err != nil {
+		return fmt.Errorf("elastic-package binary not found in PATH: %w", err)
+	}
 
-	// Execute command
-	if err := ep.Execute(); err != nil {
-		return fmt.Errorf("executing command for package %s failed: %w", packageName, err)
+	cmd := exec.Cmd{
+		Path:   execPath,
+		Args:   append([]string{"elastic-package"}, args...),
+		Dir:    path,
+		Stdout: io.Discard,
+		Stderr: os.Stderr,
+		Env:    os.Environ(),
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("executing command for package %s failed: %w", path, err)
 	}
 
 	return nil
