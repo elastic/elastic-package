@@ -186,7 +186,7 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, d
 		}
 	}
 
-	packagesPrompt := tui.NewSelect("Which packages would you like to export dashboards from?", options, defaultOption)
+	packagesPrompt := tui.NewSelect("Which package would you like to export dashboards from?", options, defaultOption)
 
 	var selectedOption string
 	err = tui.AskOne(packagesPrompt, &selectedOption, tui.Required)
