@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/tui"
 
@@ -123,7 +124,11 @@ type selectDashboardOptions struct {
 // In Serverless environments, it first prompts to select an installed package or choose
 // to export new dashboards, and then prompts for dashboard selection accordingly.
 func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
-	if options.kibanaVersion.BuildFlavor != kibana.ServerlessFlavor {
+	kibanaSemver, err := semver.NewVersion(options.kibanaVersion.Number)
+	if err != nil {
+		return nil, fmt.Errorf("parsing Kibana version failed: %w", err)
+	}
+	if options.kibanaVersion.BuildFlavor != kibana.ServerlessFlavor && kibanaSemver.LessThan(semver.MustParse("9.0.0")) {
 		// This method uses a deprecated API to search for saved objects.
 		// Moreover, this API is not available in Serverless environments.
 		savedDashboards, err := options.kibanaClient.FindDashboards(options.ctx)
