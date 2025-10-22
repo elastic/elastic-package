@@ -99,11 +99,10 @@ func linksDefinitionsFilePath(repositoryRoot *os.Root) (string, error) {
 		return linksFilePath, nil
 	}
 
-	linksFilePath = filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
-	if _, err := os.Stat(linksFilePath); err != nil {
+	if _, err := repositoryRoot.Stat(linksMapFileNameDefault); err != nil {
 		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
 		return "", nil
 	}
 
-	return linksFilePath, nil
+	return filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault), nil
 }
