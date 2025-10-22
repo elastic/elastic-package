@@ -257,7 +257,7 @@ func promptPackageDashboardIDs(ctx context.Context, kibanaClient *kibana.Client,
 }
 
 func promptDashboardIDsServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
-	savedDashboards, err := kibanaClient.FindServerlessDashboards(ctx)
+	savedDashboards, err := kibanaClient.FindDashboardsWithExport(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("finding dashboards failed: %w", err)
 	}
