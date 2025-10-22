@@ -172,10 +172,7 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, d
 		return "", fmt.Errorf("finding installed packages failed: %w", err)
 	}
 
-	// First option is always to list all available dashboards even if they are not related
-	// to any package. This is helpful in case the user is working on a new dashboard.
-	options := []string{newDashboardOption}
-
+	options := []string{}
 	options = append(options, installedPackages.Strings()...)
 	defaultOption := ""
 	for _, ip := range installedPackages {
@@ -185,6 +182,9 @@ func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, d
 			break
 		}
 	}
+	// Latest option is always to list all available dashboards even if they are not related
+	// to any package. This is helpful in case the user is working on a new dashboard.
+	options = append(options, newDashboardOption)
 
 	packagesPrompt := tui.NewSelect("Which package would you like to export dashboards from?", options, defaultOption)
 
