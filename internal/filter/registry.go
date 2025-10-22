@@ -14,6 +14,7 @@ var registry = []IFilter{
 	initCodeOwnerFlag(),
 	initInputFlag(),
 	initIntegrationTypeFlag(),
+	initPackageNameFlag(),
 	initSpecVersionFlag(),
 }
 
