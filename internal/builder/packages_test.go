@@ -48,7 +48,7 @@ func TestFindRepositoryLicense(t *testing.T) {
 		path, err := findRepositoryLicensePath(root, filepath.Join("..", "..", "out.txt"))
 		require.Error(t, err)
 		assert.Empty(t, path)
-		assert.ErrorIs(t, err, os.ErrNotExist)
+		assert.ErrorContains(t, err, "path escapes from parent")
 	})
 
 }
@@ -73,16 +73,18 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		require.NoError(t, err)
 		defer repositoryRoot.Close()
 
-		licensePath := filepath.Join(repositoryRoot.Name(), "LICENSE.txt")
-		err = os.WriteFile(licensePath, []byte("existing license"), 0644)
+		filename := "LICENSE.txt"
+
+		err = repositoryRoot.WriteFile(filename, []byte("existing license"), 0644)
 		require.NoError(t, err)
 
+		targetLicensePath := filepath.Join(repositoryRoot.Name(), filename)
 		// Should not attempt to copy, just return nil
-		err = copyLicenseTextFile(repositoryRoot, licensePath)
+		err = copyLicenseTextFile(repositoryRoot, targetLicensePath)
 		assert.NoError(t, err)
 
 		// License file should remain unchanged
-		content, err := os.ReadFile(licensePath)
+		content, err := repositoryRoot.ReadFile(filename)
 		require.NoError(t, err)
 		assert.Equal(t, "existing license", string(content))
 
@@ -122,17 +124,20 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		require.NoError(t, err)
 		defer repositoryRoot.Close()
 
+		filename := "CUSTOM_LICENSE.txt"
+		t.Setenv(repositoryLicenseEnv, filename)
+
+		// target license file path outside the repository root
 		targetLicensePath := filepath.Join(t.TempDir(), "REPO_LICENSE.txt")
 
 		// original license file path
-		err = os.WriteFile(filepath.Join(repositoryRoot.Name(), "CUSTOM_LICENSE.txt"), []byte("repo license"), 0644)
+		err = repositoryRoot.WriteFile(filename, []byte("repo license"), 0644)
 		require.NoError(t, err)
-
-		t.Setenv(repositoryLicenseEnv, "CUSTOM_LICENSE.txt")
 
 		err = copyLicenseTextFile(repositoryRoot, targetLicensePath)
 		assert.NoError(t, err)
 
+		// read outside the repository root
 		content, err := os.ReadFile(targetLicensePath)
 		require.NoError(t, err)
 		assert.Equal(t, "repo license", string(content))
