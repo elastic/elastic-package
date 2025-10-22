@@ -13,6 +13,7 @@ var registry = []IFilter{
 	initCategoryFlag(),
 	initCodeOwnerFlag(),
 	initInputFlag(),
+	initIntegrationTypeFlag(),
 	initSpecVersionFlag(),
 }
 

@@ -142,6 +142,9 @@ const (
 	FilterCodeOwnerFlagName        = "code-owner"
 	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
 
+	FilterIntegrationTypeFlagName        = "integration-type"
+	FilterIntegrationTypeFlagDescription = "integration types to filter by (comma-separated values)"
+
 	FilterInputFlagName        = "input"
 	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
 
