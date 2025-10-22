@@ -26,7 +26,7 @@ const (
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
 
-	newDashboardOption = "Working on a new dashboard (show all available dashboards)"
+	newDashboardOption = "The dashboard is not part of a package (show all available dashboards)"
 )
 
 func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
