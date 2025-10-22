@@ -79,6 +79,6 @@ func (r *FilterRegistry) Execute() (filtered []packages.PackageManifest, err err
 		}
 	}
 
-	logger.Infof("Filtered %d packages\n", len(filtered))
+	logger.Infof("Found %d matching package(s)\n", len(filtered))
 	return filtered, nil
 }

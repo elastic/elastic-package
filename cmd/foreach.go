@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -27,13 +26,13 @@ then executes the specified subcommand for each matched package.`
 
 func setupForeachCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:   "foreach --exec '<subcommand-string>'",
+		Use:   "foreach [flags] -- <SUBCOMMAND>",
 		Short: "Execute a command for filtered packages",
 		Long:  foreachLongDescription,
 		Example: `  # Run system tests for packages with specific inputs
-  elastic-package foreach --exec 'test system -g' --input tcp,udp`,
+  elastic-package foreach --input tcp,udp --parallel 10 -- test system -g`,
 		RunE: foreachCommandAction,
-		Args: cobra.NoArgs,
+		Args: cobra.MinimumNArgs(1),
 	}
 
 	// Add filter flags
@@ -42,19 +41,10 @@ func setupForeachCommand() *cobraext.Command {
 	// Add pool size flag
 	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, "", 1, cobraext.ForeachPoolSizeFlagDescription)
 
-	// Add exec flag and mark it as required
-	cmd.Flags().StringP(cobraext.ForeachExecFlagName, "", "", cobraext.ForeachExecFlagDescription)
-	cmd.MarkFlagRequired(cobraext.ForeachExecFlagName)
-
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func foreachCommandAction(cmd *cobra.Command, args []string) error {
-	exec, err := cmd.Flags().GetString(cobraext.ForeachExecFlagName)
-	if err != nil {
-		return fmt.Errorf("getting exec failed: %w", err)
-	}
-
 	poolSize, err := cmd.Flags().GetInt(cobraext.ForeachPoolSizeFlagName)
 	if err != nil {
 		return fmt.Errorf("getting pool size failed: %w", err)
@@ -71,7 +61,6 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
-	fmt.Printf("Found %d matching package(s)\n", len(filtered))
 
 	// TODO: Fix the race condition when executing commands in parallel
 	wg := sync.WaitGroup{}
@@ -81,22 +70,21 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 
 	packageChan := make(chan string, poolSize)
 
-	execArgs := strings.Split(exec, " ")
 	for range poolSize {
 		wg.Add(1)
 		go func(packageChan <-chan string) {
 			defer wg.Done()
 			for packageName := range packageChan {
 				path := filepath.Join(root, "packages", packageName)
-				if err := executeCommand(execArgs, path); err != nil {
-					mu.Lock()
+				err := executeCommand(args, path)
+
+				mu.Lock()
+				if err != nil {
 					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packageName, err))
-					mu.Unlock()
 				} else {
-					mu.Lock()
 					successes++
-					mu.Unlock()
 				}
+				mu.Unlock()
 			}
 		}(packageChan)
 	}
@@ -127,7 +115,7 @@ func executeCommand(args []string, path string) error {
 
 	cmd := exec.Cmd{
 		Path:   execPath,
-		Args:   append([]string{"elastic-package"}, args...),
+		Args:   append([]string{execPath}, args...),
 		Dir:    path,
 		Stdout: io.Discard,
 		Stderr: os.Stderr,

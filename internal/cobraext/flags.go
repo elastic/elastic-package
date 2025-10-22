@@ -154,9 +154,6 @@ const (
 	FilterSpecVersionFlagName        = "spec-version"
 	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
 
-	ForeachExecFlagName        = "exec"
-	ForeachExecFlagDescription = "command to execute for each package (required)"
-
 	ForeachPoolSizeFlagName        = "parallel"
 	ForeachPoolSizeFlagDescription = "number of packages to execute in parallel (defaults to serial execution)"
 
