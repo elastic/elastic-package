@@ -111,13 +111,21 @@ func (c *Client) findDashboardsNextPage(ctx context.Context, page int) (*savedOb
 }
 
 // FindServerlessDashboards method returns dashboards available in the Kibana instance.
+// These dashboards are retrieved by exporting all dashboards using the Kibana iSaved Objects APIs without any export details nor including references.
+// The number of exported dashboards depends on the "savedObjects.maxImportExportSize" setting, that by default is 10000.
 func (c *Client) FindServerlessDashboards(ctx context.Context) (DashboardSavedObjects, error) {
 	logger.Debug("Find dashboards using the Export Objects API")
-	var foundObjects DashboardSavedObjects
-	allDashboards, err := c.exportAllDashboards(ctx)
+	request := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: false,
+		Type:                  "dashboard",
+	}
+
+	allDashboards, err := c.ExportSavedObjects(ctx, request)
 	if err != nil {
 		return nil, fmt.Errorf("can't export all dashboards: %w", err)
 	}
+	var foundObjects DashboardSavedObjects
 	for _, dashboard := range allDashboards {
 		dashboardSavedObject, err := dashboardSavedObjectFromMapStr(dashboard)
 		if err != nil {
