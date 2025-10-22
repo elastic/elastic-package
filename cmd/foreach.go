@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
+	"strings"
 	"sync"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
@@ -48,6 +50,10 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	poolSize, err := cmd.Flags().GetInt(cobraext.ForeachPoolSizeFlagName)
 	if err != nil {
 		return fmt.Errorf("getting pool size failed: %w", err)
+	}
+
+	if err := validateSubCommand(args[0]); err != nil {
+		return fmt.Errorf("validating sub command failed: %w", err)
 	}
 
 	// Find integration root
@@ -124,6 +130,25 @@ func executeCommand(args []string, path string) error {
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("executing command for package %s failed: %w", path, err)
+	}
+
+	return nil
+}
+
+func validateSubCommand(subCommand string) error {
+	allowedSubCommands := []string{
+		"build",
+		"check",
+		"clean",
+		"format",
+		"install",
+		"lint",
+		"test",
+		"uninstall",
+	}
+
+	if !slices.Contains(allowedSubCommands, subCommand) {
+		return fmt.Errorf("invalid subcommand: %s. Allowed subcommands are: %s", subCommand, strings.Join(allowedSubCommands, ", "))
 	}
 
 	return nil
