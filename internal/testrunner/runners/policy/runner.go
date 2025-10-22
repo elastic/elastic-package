@@ -7,6 +7,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -34,6 +35,8 @@ type runner struct {
 
 	resourcesManager *resources.Manager
 	cleanup          func(context.Context) error
+
+	repositoryRoot *os.Root
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -48,6 +51,7 @@ type PolicyTestRunnerOptions struct {
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
+	RepositoryRoot     *os.Root
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
@@ -60,6 +64,7 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -157,6 +162,7 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
 		PackageRootPath: r.packageRootPath,
+		RepositoryRoot:  r.repositoryRoot,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

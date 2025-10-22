@@ -54,7 +54,7 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
 	if options.RepositoryRoot == nil {
-		return nil, errors.New("missing repo root")
+		return nil, errors.New("missing repository root")
 	}
 
 	version, err := kibanaVersion(options.Kibana)
