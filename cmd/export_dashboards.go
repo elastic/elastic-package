@@ -125,8 +125,13 @@ type selectDashboardOptions struct {
 func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
 	if options.kibanaVersion.BuildFlavor != kibana.ServerlessFlavor {
 		// This method uses a deprecated API to search for saved objects.
-		// And this API is not available in Serverless environments.
-		dashboardIDs, err := promptDashboardIDsNonServerless(options.ctx, options.kibanaClient)
+		// Moreover, this API is not available in Serverless environments.
+		savedDashboards, err := options.kibanaClient.FindDashboards(options.ctx)
+		if err != nil {
+			return nil, fmt.Errorf("finding dashboards failed: %w", err)
+		}
+
+		dashboardIDs, err := promptDashboardIDs(savedDashboards)
 		if err != nil {
 			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
@@ -144,7 +149,12 @@ func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
 	}
 
 	if installedPackage == newDashboardOption {
-		dashboardIDs, err := promptDashboardIDsServerless(options.ctx, options.kibanaClient)
+		savedDashboards, err := options.kibanaClient.FindDashboardsWithExport(options.ctx)
+		if err != nil {
+			return nil, fmt.Errorf("finding dashboards failed: %w", err)
+		}
+
+		dashboardIDs, err := promptDashboardIDs(savedDashboards)
 		if err != nil {
 			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
 		}
@@ -254,24 +264,6 @@ func promptPackageDashboardIDs(ctx context.Context, kibanaClient *kibana.Client,
 	}
 
 	return selectedIDs, nil
-}
-
-func promptDashboardIDsServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
-	savedDashboards, err := kibanaClient.FindDashboardsWithExport(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("finding dashboards failed: %w", err)
-	}
-
-	return promptDashboardIDs(savedDashboards)
-}
-
-func promptDashboardIDsNonServerless(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
-	savedDashboards, err := kibanaClient.FindDashboards(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("finding dashboards failed: %w", err)
-	}
-
-	return promptDashboardIDs(savedDashboards)
 }
 
 func promptDashboardIDs(savedDashboards kibana.DashboardSavedObjects) ([]string, error) {
