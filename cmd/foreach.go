@@ -95,8 +95,8 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		}(packageChan)
 	}
 
-	for _, pkg := range filtered {
-		packageChan <- pkg.Name
+	for pkgName := range filtered {
+		packageChan <- pkgName
 	}
 	close(packageChan)
 

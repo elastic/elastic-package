@@ -31,9 +31,9 @@ func (f *InputFlag) Validate() error {
 	return nil
 }
 
-func (f *InputFlag) Matches(pkg packages.PackageManifest) bool {
+func (f *InputFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
 	if f.values != nil {
-		inputs := extractInputs(pkg)
+		inputs := extractInputs(pkgManifest)
 		if !hasAnyMatch(f.values, inputs) {
 			return false
 		}
@@ -41,10 +41,12 @@ func (f *InputFlag) Matches(pkg packages.PackageManifest) bool {
 	return true
 }
 
-func (f *InputFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
-	for _, pkg := range pkgs {
-		if f.Matches(pkg) {
-			filtered = append(filtered, pkg)
+func (f *InputFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error) {
+	filtered := make(map[string]packages.PackageManifest, len(pkgs))
+
+	for pkgName, pkgManifest := range pkgs {
+		if f.Matches(pkgName, pkgManifest) {
+			filtered[pkgName] = pkgManifest
 		}
 	}
 	return filtered, nil

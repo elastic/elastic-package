@@ -148,6 +148,10 @@ const (
 	FilterKibanaVersionFlagName        = "kibana-version"
 	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
 
+	FilterOutputPackageNameFlagName        = "output-package-name"
+	FilterOutputPackageNameFlagShorthand   = "p"
+	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
+
 	FilterPackagesFlagName        = "packages"
 	FilterPackagesFlagDescription = "packages to filter by (glob pattern/comma-separated values)"
 

@@ -20,8 +20,9 @@ type IFilter interface {
 
 	Parse(cmd *cobra.Command) error
 	Validate() error
-	Matches(pkg packages.PackageManifest) bool
-	ApplyTo(pkgs []packages.PackageManifest) ([]packages.PackageManifest, error)
+	ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error)
+	// pkgDirName is the directory name of the package in package root
+	Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool
 }
 
 type FilterFlag struct {

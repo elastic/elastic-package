@@ -40,17 +40,19 @@ func (f *SpecVersionFlag) Validate() error {
 	return nil
 }
 
-func (f *SpecVersionFlag) Matches(pkg packages.PackageManifest) bool {
+func (f *SpecVersionFlag) Matches(pkgName string, pkg packages.PackageManifest) bool {
 	// assuming the package spec version in manifest.yml is a valid semver
 	pkgVersion, _ := semver.NewVersion(pkg.SpecVersion)
 
 	return f.constraints.Check(pkgVersion)
 }
 
-func (f *SpecVersionFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
-	for _, pkg := range pkgs {
-		if f.Matches(pkg) {
-			filtered = append(filtered, pkg)
+func (f *SpecVersionFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (filtered map[string]packages.PackageManifest, err error) {
+	filtered = make(map[string]packages.PackageManifest, len(pkgs))
+
+	for pkgName, pkg := range pkgs {
+		if f.Matches(pkgName, pkg) {
+			filtered[pkgName] = pkg
 		}
 	}
 	return filtered, nil

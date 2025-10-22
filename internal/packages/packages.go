@@ -471,19 +471,20 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 }
 
 // ReadAllPackageManifests reads all the package manifests in the given root directory.
-func ReadAllPackageManifests(root string) ([]PackageManifest, error) {
+func ReadAllPackageManifests(root string) (map[string]PackageManifest, error) {
 	files, err := filepath.Glob(filepath.Join(root, "packages", "*", PackageManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed matching files with package manifests: %w", err)
 	}
 
-	var packages []PackageManifest
+	packages := make(map[string]PackageManifest, len(files))
 	for _, file := range files {
 		manifest, err := ReadPackageManifest(file)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read package manifest: %w", err)
 		}
-		packages = append(packages, *manifest)
+
+		packages[filepath.Base(filepath.Dir(file))] = *manifest
 	}
 
 	return packages, nil

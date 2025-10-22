@@ -60,25 +60,25 @@ func (r *FilterRegistry) Validate() error {
 	return nil
 }
 
-func (r *FilterRegistry) Execute() (filtered []packages.PackageManifest, err error) {
+func (r *FilterRegistry) Execute() (filtered map[string]packages.PackageManifest, errors multierror.Error) {
 	root, err := packages.MustFindIntegrationRoot()
 	if err != nil {
-		return nil, err
+		return nil, multierror.Error{err}
 	}
 
 	pkgs, err := packages.ReadAllPackageManifests(root)
 	if err != nil {
-		return nil, err
+		return nil, multierror.Error{err}
 	}
 
 	filtered = pkgs
 	for _, filter := range r.filters {
 		filtered, err = filter.ApplyTo(filtered)
 		if err != nil || len(filtered) == 0 {
-			break
+			errors = append(errors, err)
 		}
 	}
 
 	logger.Infof("Found %d matching package(s)\n", len(filtered))
-	return filtered, nil
+	return filtered, errors
 }

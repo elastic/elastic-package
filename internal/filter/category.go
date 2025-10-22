@@ -30,17 +30,18 @@ func (f *CategoryFlag) Validate() error {
 	return nil
 }
 
-func (f *CategoryFlag) Matches(pkg packages.PackageManifest) bool {
-	return hasAnyMatch(f.values, pkg.Categories)
+func (f *CategoryFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
+	return hasAnyMatch(f.values, pkgManifest.Categories)
 }
 
-func (f *CategoryFlag) ApplyTo(pkgs []packages.PackageManifest) (filtered []packages.PackageManifest, err error) {
-	for _, pkg := range pkgs {
-		if f.Matches(pkg) {
-			filtered = append(filtered, pkg)
+func (f *CategoryFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error) {
+	filtered := make(map[string]packages.PackageManifest, len(pkgs))
+	for pkgDirName, pkgManifest := range pkgs {
+		if f.Matches(pkgDirName, pkgManifest) {
+			filtered[pkgDirName] = pkgManifest
 		}
 	}
-	return filtered, err
+	return filtered, nil
 }
 
 func initCategoryFlag() *CategoryFlag {
