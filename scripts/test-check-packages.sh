@@ -76,12 +76,12 @@ run_system_benchmark() {
   local benchmark_filename=""
   local benchmark_name=""
 
-  for benchmark_file_path in $(find "${package_path}/_dev/benchmark/system/" -maxdepth 1 -mindepth 1 -type f -name "*.yml" ) ; do
+  while IFS= read -r -d '' benchmark_file_path; do
       benchmark_filename="$(basename "${benchmark_file_path}")"
       benchmark_name="${benchmark_filename%.*}"
       echo "--- Run system benchmarks for package ${package_name} - ${benchmark_name}"
       elastic-package benchmark system -C "$package_path" --benchmark "${benchmark_name}" -v --defer-cleanup 1s
-  done
+  done < <(find "${package_path}/_dev/benchmark/system/" -maxdepth 1 -mindepth 1 -type f -name "*.yml" -print0)
 }
 
 run_serverless_tests() {
