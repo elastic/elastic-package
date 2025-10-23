@@ -90,24 +90,27 @@ func TestListLinkedFiles(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
+	fromDir, err := filepath.Rel(root.Name(), basePath)
+	require.NoError(t, err)
+
 	// Use the private function directly for testing
-	linkedFiles, err := listLinkedFiles(root, basePath)
+	linkedFiles, err := listLinkedFiles(root, fromDir)
 	require.NoError(t, err)
 	require.NotEmpty(t, linkedFiles)
 	require.Len(t, linkedFiles, 2) // Expect exactly 2 link files in testdata
 
 	// Verify first file (outdated.yml.link) - should be outdated (no checksum)
-	assert.Equal(t, "outdated.yml.link", linkedFiles[0].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[0].LinkFilePath, "outdated.yml.link"))
 	assert.Empty(t, linkedFiles[0].LinkChecksum) // No checksum = outdated
-	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetFilePath(""))
+	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[0].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[0].IncludedFileContentsChecksum)
 	assert.False(t, linkedFiles[0].UpToDate)
 
 	// Verify second file (uptodate.yml.link) - should be up-to-date (has matching checksum)
-	assert.Equal(t, "uptodate.yml.link", linkedFiles[1].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[1].LinkFilePath, "uptodate.yml.link"))
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[1].LinkChecksum)
-	assert.Equal(t, "uptodate.yml", linkedFiles[1].TargetFilePath(""))
+	assert.Equal(t, "uptodate.yml", linkedFiles[1].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[1].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[1].IncludedFileContentsChecksum)
 	assert.True(t, linkedFiles[1].UpToDate)
@@ -161,7 +164,7 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, basePath)
 	require.NoError(t, err)
 
 	// Get all outdated linked files from the test directory
@@ -171,9 +174,9 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	assert.Len(t, linkedFiles, 1) // Expect exactly 1 outdated file (outdated.yml.link)
 
 	// Verify the outdated file details
-	assert.Equal(t, "outdated.yml.link", linkedFiles[0].LinkFilePath)
+	assert.True(t, strings.HasSuffix(linkedFiles[0].LinkFilePath, "outdated.yml.link"))
 	assert.Empty(t, linkedFiles[0].LinkChecksum) // No checksum indicates outdated
-	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetFilePath(""))
+	assert.Equal(t, "outdated.yml", linkedFiles[0].TargetRelPath)
 	assert.Equal(t, "./included.yml", linkedFiles[0].IncludedFilePath)
 	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", linkedFiles[0].IncludedFileContentsChecksum)
 	assert.False(t, linkedFiles[0].UpToDate)
@@ -202,7 +205,7 @@ func TestUpdateLinkedFilesChecksums(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, basePath)
 	require.NoError(t, err)
 
 	// Update checksums for all outdated linked files
@@ -235,8 +238,11 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
+	fromDir, err := filepath.Rel(root.Name(), basePath)
+	require.NoError(t, err)
+
 	// Create LinksFS
-	linksFS, err := NewLinksFS(root, basePath)
+	linksFS, err := CreateLinksFSFromPath(root, fromDir)
 	require.NoError(t, err)
 
 	// Get linked files organized by package
@@ -286,19 +292,19 @@ func TestIncludeLinkedFiles(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Include (copy) all linked files from source to destination using LinksFS
-	linksFS, err := NewLinksFS(root, fromDir)
+	linksFS, err := CreateLinksFSFromPath(root, fromDir)
 	assert.NoError(t, err)
 	linkedFiles, err := linksFS.IncludeLinkedFiles(toDir)
 	assert.NoError(t, err)
 	require.Equal(t, 1, len(linkedFiles)) // Expect 1 linked file to be processed
 
 	// Verify the target file was created in the destination directory
-	assert.FileExists(t, linkedFiles[0].TargetFilePath(toDir))
+	assert.FileExists(t, filepath.Join(toDir, linkedFiles[0].TargetRelPath))
 
 	// Verify the copied file has identical content to the original included file
 	equal, err := filesEqual(
 		filepath.Join(linkedFiles[0].WorkDir, filepath.FromSlash(linkedFiles[0].IncludedFilePath)),
-		linkedFiles[0].TargetFilePath(toDir),
+		filepath.Join(toDir, linkedFiles[0].TargetRelPath),
 	)
 	assert.NoError(t, err)
 	assert.True(t, equal, "files should be equal after copying")
@@ -492,6 +498,18 @@ func TestNewLinkedFileRejectsPathTraversal(t *testing.T) {
 	}
 }
 
+func createPackageStructure(t *testing.T, dirs ...string) string {
+	packageDir := filepath.Join(dirs...)
+	err := os.MkdirAll(packageDir, 0755)
+	require.NoError(t, err)
+
+	manifestFile := filepath.Join(packageDir, "manifest.yml")
+	err = os.WriteFile(manifestFile, []byte("version: '1.0'\ntype: integration\n"), 0644)
+	require.NoError(t, err)
+
+	return packageDir
+}
+
 func TestLinksFSSecurityIsolation(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -500,10 +518,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	// Create a working directory inside repo
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "testpackage")
 
 	// Create a valid included file in the repo
 	includedFile := filepath.Join(workDir, "included.txt")
@@ -522,12 +537,13 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	// Create LinksFS
 	root, err := os.OpenRoot(repoDir)
 	require.NoError(t, err)
+	defer root.Close()
 
 	// Get the relative path from repo root to work directory
 	relWorkDir, err := filepath.Rel(repoDir, workDir)
 	require.NoError(t, err)
 
-	lfs, err := NewLinksFS(root, relWorkDir)
+	lfs, err := CreateLinksFSFromPath(root, relWorkDir)
 	require.NoError(t, err)
 
 	// Test opening the linked file - this should work and use the repository root
@@ -560,31 +576,40 @@ func TestLinksFS_Open(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create test files
-	regularFile := filepath.Join(workDir, "regular.txt")
-	err = os.WriteFile(regularFile, []byte("regular content"), 0644)
+	regularFileRel := "regular.txt"
+	regularFileAbs := filepath.Join(workDir, regularFileRel)
+	err = os.WriteFile(regularFileAbs, []byte("regular content"), 0644)
 	require.NoError(t, err)
 
-	includedFile := filepath.Join(workDir, "included.txt")
-	includedContent := "included content"
-	err = os.WriteFile(includedFile, []byte(includedContent), 0644)
+	createPackageStructure(t, repoDir, "other")
+
+	includedFileAbs := filepath.Join(repoDir, "other", "included.txt")
+	err = os.MkdirAll(filepath.Dir(includedFileAbs), 0755)
 	require.NoError(t, err)
+	includedContent := "included content"
+	err = os.WriteFile(includedFileAbs, []byte(includedContent), 0644)
+	require.NoError(t, err)
+
+	createPackageStructure(t, repoDir, "packages", "packageB")
 
 	// Create link file with correct checksum
-	linkFile := filepath.Join(workDir, "linked.txt.link")
+	linkFileRel := filepath.Join("packages", "packageB", "linked.txt.link")
+	linkFileAbs := filepath.Join(workDir, linkFileRel)
+	err = os.MkdirAll(filepath.Dir(linkFileAbs), 0755)
+	require.NoError(t, err)
 	hash := sha256.Sum256([]byte(includedContent))
 	checksum := hex.EncodeToString(hash[:])
-	linkContent := fmt.Sprintf("./included.txt %s", checksum)
-	err = os.WriteFile(linkFile, []byte(linkContent), 0644)
+	linkContent := fmt.Sprintf("../../../other/included.txt %s", checksum)
+	err = os.WriteFile(linkFileAbs, []byte(linkContent), 0644)
 	require.NoError(t, err)
 
 	// Create outdated link file (no checksum)
-	outdatedLinkFile := filepath.Join(workDir, "outdated.txt.link")
-	err = os.WriteFile(outdatedLinkFile, []byte("./included.txt"), 0644)
+	outdatedLinkFileRel := "outdated.txt.link"
+	outdatedLinkFileAbs := filepath.Join(workDir, outdatedLinkFileRel)
+	err = os.WriteFile(outdatedLinkFileAbs, []byte("../other/included.txt"), 0644)
 	require.NoError(t, err)
 
 	// Setup LinksFS with absolute workDir
@@ -592,46 +617,49 @@ func TestLinksFS_Open(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
-	lfs, err := NewLinksFS(root, workDir)
+	lfs, err := CreateLinksFSFromPath(root, workDir)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name        string
-		fileName    string
-		expectError bool
-		errorMsg    string
+		fileName    string // filename should be relative to workDir or absolute
+		expectedErr error
 		expectFile  bool
 	}{
 		{
 			name:       "open regular file with relative path",
-			fileName:   "regular.txt",
+			fileName:   regularFileRel,
 			expectFile: true,
 		},
 		{
 			name:       "open regular file with absolute path",
-			fileName:   filepath.Join(workDir, "regular.txt"),
+			fileName:   regularFileAbs,
 			expectFile: true,
 		},
 		{
 			name:       "open up-to-date link file",
-			fileName:   "linked.txt.link",
+			fileName:   linkFileRel,
 			expectFile: true,
 		},
 		{
 			name:       "open up-to-date link file with absolute path",
-			fileName:   filepath.Join(workDir, "linked.txt.link"),
+			fileName:   linkFileAbs,
 			expectFile: true,
 		},
 		{
 			name:        "open outdated link file should fail",
-			fileName:    "outdated.txt.link",
-			expectError: true,
-			errorMsg:    "not up to date",
+			fileName:    outdatedLinkFileRel,
+			expectedErr: errFileNotUpToDate,
+		},
+		{
+			name:        "open outdated link file with absolute pathshould fail",
+			fileName:    outdatedLinkFileAbs,
+			expectedErr: errFileNotUpToDate,
 		},
 		{
 			name:        "open non-existent file should fail",
 			fileName:    "nonexistent.txt",
-			expectError: true,
+			expectedErr: os.ErrNotExist,
 		},
 	}
 
@@ -639,30 +667,27 @@ func TestLinksFS_Open(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			file, err := lfs.Open(tc.fileName)
 
-			if tc.expectError {
-				assert.Error(t, err)
-				if tc.errorMsg != "" {
-					assert.Contains(t, err.Error(), tc.errorMsg)
-				}
-				assert.Nil(t, file)
+			if tc.expectedErr != nil {
+				require.Error(t, err)
+				require.Nil(t, file)
+				assert.ErrorIs(t, err, tc.expectedErr)
 			} else {
+				require.NoError(t, err)
+				require.NotNil(t, file)
+
+				// Verify we can read from the file
+				content, err := io.ReadAll(file)
 				assert.NoError(t, err)
-				assert.NotNil(t, file)
 
-				if file != nil {
-					// Verify we can read from the file
-					content, err := io.ReadAll(file)
-					assert.NoError(t, err)
-
-					// For link files, content should be from the included file
-					if strings.HasSuffix(tc.fileName, ".link") {
-						assert.Equal(t, includedContent, string(content))
-					} else {
-						assert.Equal(t, "regular content", string(content))
-					}
-
-					file.Close()
+				// For link files, content should be from the included file
+				if strings.HasSuffix(tc.fileName, ".link") {
+					assert.Equal(t, includedContent, string(content))
+				} else {
+					assert.Equal(t, "regular content", string(content))
 				}
+
+				file.Close()
+
 			}
 		})
 	}
@@ -677,9 +702,7 @@ func TestLinksFS_RelativeWorkDir(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create test files
 	regularFile := filepath.Join(workDir, "regular.txt")
@@ -706,7 +729,7 @@ func TestLinksFS_RelativeWorkDir(t *testing.T) {
 	t.Cleanup(func() { _ = root.Close() })
 
 	// Use relative path "work" instead of absolute path
-	lfs, err := NewLinksFS(root, "work")
+	lfs, err := CreateLinksFSFromPath(root, "work")
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -756,9 +779,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	err := os.MkdirAll(repoDir, 0755)
 	require.NoError(t, err)
 
-	workDir := filepath.Join(repoDir, "work")
-	err = os.MkdirAll(workDir, 0755)
-	require.NoError(t, err)
+	workDir := createPackageStructure(t, repoDir, "work")
 
 	// Create link file that points to non-existent file (this will fail security check)
 	brokenLinkFile := filepath.Join(workDir, "broken.txt.link")
@@ -780,7 +801,7 @@ func TestLinksFS_ErrorConditions(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
-	lfs, err := NewLinksFS(root, workDir)
+	lfs, err := CreateLinksFSFromPath(root, workDir)
 	require.NoError(t, err)
 
 	notFoundErrorMsg := "no such file or directory"
@@ -873,7 +894,7 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			lfs, err := NewLinksFS(root, tc.workDir)
+			lfs, err := CreateLinksFSFromPath(root, tc.workDir)
 
 			if tc.expectError {
 				assert.Error(t, err)
@@ -885,4 +906,76 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewLinkedFile(t *testing.T) {
+
+	repositoryRoot := t.TempDir()
+	repositoryRootHandle, err := os.OpenRoot(repositoryRoot)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repositoryRootHandle.Close() })
+
+	linkFileContent := fmt.Sprintf("%s d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", filepath.Join("..", "..", "B", "otherFolder", "included.txt"))
+	includedFileContent := "included file content"
+
+	// /packages/A/folder/link.txt.link
+	// /packages/B/otherFolder/included.txt
+	// included relative to link file: ../../B/otherFolder/included.txt
+
+	err = os.MkdirAll(filepath.Join(repositoryRoot, "packages", "A", "folder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repositoryRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	require.NoError(t, err)
+	fManifestA, err := repositoryRootHandle.Create(filepath.Join("packages", "A", "manifest.yml"))
+	require.NoError(t, err)
+	_, err = fManifestA.WriteString(`name: A
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestA.Close())
+
+	fLink, err := repositoryRootHandle.Create(filepath.Join("packages", "A", "folder", "link.txt.link"))
+	require.NoError(t, err)
+	_, err = fLink.WriteString(linkFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fLink.Close())
+
+	err = os.MkdirAll(filepath.Join(repositoryRoot, "packages", "B", "otherFolder"), 0755)
+	require.NoError(t, err)
+
+	// required to identify a package root
+	_, err = repositoryRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	require.NoError(t, err)
+	fManifestB, err := repositoryRootHandle.Create(filepath.Join("packages", "B", "manifest.yml"))
+	require.NoError(t, err)
+	_, err = fManifestB.WriteString(`name: B
+version: 1.0.0
+type: integration
+`)
+	require.NoError(t, err)
+	require.NoError(t, fManifestB.Close())
+
+	fIncluded, err := repositoryRootHandle.Create(filepath.Join("packages", "B", "otherFolder", "included.txt"))
+	require.NoError(t, err)
+	_, err = fIncluded.WriteString(includedFileContent)
+	require.NoError(t, err)
+	require.NoError(t, fIncluded.Close())
+
+	l, err := newLinkedFile(repositoryRootHandle, fLink.Name())
+	require.NoError(t, err)
+	assert.NotNil(t, l)
+
+	assert.Equal(t, filepath.Join(repositoryRoot, filepath.Join("packages", "A", "folder")), l.WorkDir)
+
+	assert.True(t, strings.HasSuffix(l.LinkFilePath, filepath.Join("folder", "link.txt.link")))
+	assert.Equal(t, "d709feed45b708c9548a18ca48f3ad4f41be8d3f691f83d7417ca902a20e6c1e", l.LinkChecksum)
+	assert.Equal(t, "A", l.LinkPackageName)
+
+	assert.Equal(t, filepath.Join("..", "..", "B", "otherFolder", "included.txt"), l.IncludedFilePath)
+	assert.Equal(t, "1c14ca1eae312a58c08085436fd5dcd0c02451d3cdc8e4e4a1cc1415a6b4c6d0", l.IncludedFileContentsChecksum)
+	assert.Equal(t, "B", l.IncludedPackageName)
+	assert.False(t, l.UpToDate)
 }

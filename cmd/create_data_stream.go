@@ -37,12 +37,12 @@ type newDataStreamAnswers struct {
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
 
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
+			return errors.New("package root not found, you can only create new data stream in the package context")
+		}
 		return fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return errors.New("package root not found, you can only create new data stream in the package context")
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
