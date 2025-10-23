@@ -206,6 +206,9 @@ func (r *runner) setUp(ctx context.Context) error {
 		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
+		if err := r.deleteDataStream(ctx, r.runtimeDataStream); err != nil {
+			return fmt.Errorf("error deleting data in data stream: %w", err)
+		}
 		return nil
 	}
 
@@ -364,6 +367,24 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 		return fmt.Errorf("failed to delete data stream docs for data stream %s: %s", dataStream, resp.String())
 	}
 
+	return nil
+}
+
+func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
+	resp, err := r.options.ESAPI.Indices.DeleteDataStream([]string{dataStream},
+		r.options.ESAPI.Indices.DeleteDataStream.WithContext(ctx),
+	)
+	if err != nil {
+		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		// Data stream doesn't exist, there was nothing to do.
+		return nil
+	}
+	if resp.IsError() {
+		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
+	}
 	return nil
 }
 
