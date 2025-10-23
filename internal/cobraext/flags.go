@@ -209,6 +209,9 @@ const (
 	TestCoverageFormatFlagName        = "coverage-format"
 	TestCoverageFormatFlagDescription = "set format for coverage reports: %s"
 
+	TestDumpPrefixFlagName        = "dump-docs"
+	TestDumpPrefixFlagDescription = "prefix for system test document output dump file"
+
 	VariantFlagName        = "variant"
 	VariantFlagDescription = "service variant"
 
