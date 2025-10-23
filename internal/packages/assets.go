@@ -50,10 +50,12 @@ var (
 
 // Asset represents a package asset to be loaded into Kibana or Elasticsearch.
 type Asset struct {
-	ID         string    `json:"id"`
-	Type       AssetType `json:"type"`
-	DataStream string
-	SourcePath string
+	ID   string    `json:"id"`
+	Type AssetType `json:"type"`
+
+	// These fields are not expected to be part of responses from APIs
+	DataStream string `json:"-"`
+	SourcePath string `json:"-"`
 }
 
 // String method returns a string representation of the asset

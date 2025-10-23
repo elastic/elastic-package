@@ -19,6 +19,8 @@ type VersionInfo struct {
 	BuildFlavor   string `json:"build_flavor"`
 }
 
+const ServerlessFlavor = "serverless"
+
 func (v VersionInfo) Version() string {
 	if v.BuildSnapshot {
 		return fmt.Sprintf("%s%s", v.Number, SNAPSHOT_SUFFIX)
