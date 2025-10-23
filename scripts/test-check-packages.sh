@@ -176,7 +176,7 @@ for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
       pipeline_benchmark|use_pipeline_tests)
         run_pipeline_benchmark "${package_to_test}" "$d"
         ;;
-      system_benchmark)
+      system_benchmark*)
         run_system_benchmark "${package_to_test}" "$d"
         ;;
     esac
