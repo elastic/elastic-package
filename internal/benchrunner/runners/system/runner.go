@@ -180,6 +180,14 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
+	if r.scenario.Version == "" {
+		r.scenario.Version = pkgManifest.Version
+	}
+
+	if r.scenario.Package == "" {
+		r.scenario.Package = pkgManifest.Name
+	}
+
 	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, dataStreamManifest)
 	if err != nil {
 		return err
