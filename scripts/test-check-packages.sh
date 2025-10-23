@@ -171,7 +171,6 @@ for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   package_to_test=$(basename "${d}")
 
   if [ "${PACKAGE_TEST_TYPE}" == "benchmarks" ]; then
-    # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
     case "${package_to_test}" in
       pipeline_benchmark|use_pipeline_tests)
         run_pipeline_benchmark "${package_to_test}" "$d"
@@ -179,6 +178,14 @@ for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
       system_benchmark*)
         run_system_benchmark "${package_to_test}" "$d"
         ;;
+      rally_benchmark)
+        # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
+        # rally benchmarks require to install esrally tool in the host. 
+        echo "Skipping rally_benchmark tests. esrally tool needs to be installed in the system."
+        ;;
+      *)
+        echo "Unknown benchmark package: ${package_to_test}"
+        exit 1
     esac
     continue
   fi
