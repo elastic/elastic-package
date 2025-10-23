@@ -26,8 +26,9 @@ const licenseTextFileName = "LICENSE.txt"
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
-	PackageRoot string
-	BuildDir    string
+	PackageRootPath string // path to the package source content
+	BuildDir        string // directory where all the built packages are placed and zipped packages are stored
+	RepositoryRoot  *os.Root
 
 	CreateZip      bool
 	SignPackage    bool
@@ -104,9 +105,9 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 	return filepath.Join(buildDir, m.Name, m.Version), nil
 }
 
-// buildPackagesZipPath function locates the target zipped package path.
+// buildPackagesZipPath function returns the path to zipped built package.
 func buildPackagesZipPath(packageRoot string) (string, error) {
-	buildDir, err := buildPackagesRootDirectory()
+	buildPackagesDir, err := buildPackagesRootDirectory()
 	if err != nil {
 		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 	}
@@ -114,7 +115,7 @@ func buildPackagesZipPath(packageRoot string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
-	return ZippedBuiltPackagePath(buildDir, *m), nil
+	return ZippedBuiltPackagePath(buildPackagesDir, *m), nil
 }
 
 // ZippedBuiltPackagePath function returns the path to zipped built package.
@@ -163,89 +164,100 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 
 // BuildPackage function builds the package.
 func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
-	destinationDir, err := BuildPackagesDirectory(options.PackageRoot, options.BuildDir)
+	// builtPackageDir is the directory where the built package content is placed
+	// eg. <buildDir>/packages/<package name>/<package version>
+	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
-	logger.Debugf("Build directory: %s\n", destinationDir)
+	logger.Debugf("Build directory: %s\n", builtPackageDir)
 
-	logger.Debugf("Clear target directory (path: %s)", destinationDir)
-	err = files.ClearDir(destinationDir)
+	logger.Debugf("Clear target directory (path: %s)", builtPackageDir)
+	err = files.ClearDir(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
-	logger.Debugf("Copy package content (source: %s)", options.PackageRoot)
-	err = files.CopyWithoutDev(options.PackageRoot, destinationDir)
+	logger.Debugf("Copy package content (source: %s)", options.PackageRootPath)
+	err = files.CopyWithoutDev(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
 
 	logger.Debug("Copy license file if needed")
-	err = copyLicenseTextFile(filepath.Join(destinationDir, licenseTextFileName))
+	destinationLicenseFilePath := filepath.Join(builtPackageDir, licenseTextFileName)
+	err = copyLicenseTextFile(options.RepositoryRoot, destinationLicenseFilePath)
 	if err != nil {
 		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
+	// when CopyWithoutDev is used, .link files are skipped.
+	// Include them before resolving external fields
+	logger.Debug("Include linked files")
+	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRootPath)
+	if err != nil {
+		return "", fmt.Errorf("creating links filesystem failed: %w", err)
+	}
+
+	links, err := linksFS.IncludeLinkedFiles(builtPackageDir)
+	if err != nil {
+		return "", fmt.Errorf("including linked files failed: %w", err)
+	}
+	for _, l := range links {
+		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
+	}
+
 	logger.Debug("Encode dashboards")
-	err = encodeDashboards(destinationDir)
+	err = encodeDashboards(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("encoding dashboards failed: %w", err)
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRoot, destinationDir)
+	err = resolveExternalFields(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
-	err = addDynamicMappings(options.PackageRoot, destinationDir)
+	err = addDynamicMappings(options.PackageRootPath, builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
-	logger.Debug("Include linked files")
-	linksFS, err := files.CreateLinksFSFromPath(options.PackageRoot)
+	err = resolveTransformDefinitions(builtPackageDir)
 	if err != nil {
-		return "", fmt.Errorf("creating links filesystem failed: %w", err)
-	}
-
-	links, err := linksFS.IncludeLinkedFiles(destinationDir)
-	if err != nil {
-		return "", fmt.Errorf("including linked files failed: %w", err)
-	}
-	for _, l := range links {
-		logger.Debugf("Linked file included (path: %s)", l.TargetFilePath(destinationDir))
+		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
 	if options.CreateZip {
-		return buildZippedPackage(ctx, options, destinationDir)
+		return buildZippedPackage(ctx, options, builtPackageDir)
 	}
 
 	if options.SkipValidation {
 		logger.Debug("Skip validation of the built package")
-		return destinationDir, nil
+		return builtPackageDir, nil
 	}
 
-	logger.Debugf("Validating built package (path: %s)", destinationDir)
-	errs, skipped := validation.ValidateAndFilterFromPath(destinationDir)
+	logger.Debugf("Validating built package (path: %s)", builtPackageDir)
+	errs, skipped := validation.ValidateAndFilterFromPath(builtPackageDir)
 	if skipped != nil {
 		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
 		return "", fmt.Errorf("invalid content found in built package: %w", errs)
 	}
-	return destinationDir, nil
+	return builtPackageDir, nil
 }
 
-func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDir string) (string, error) {
+// buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.
+func buildZippedPackage(ctx context.Context, options BuildOptions, builtPackageDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRoot)
+	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(ctx, destinationDir, zippedPackagePath)
+	err = files.Zip(ctx, builtPackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}
@@ -275,9 +287,9 @@ func buildZippedPackage(ctx context.Context, options BuildOptions, destinationDi
 
 func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	logger.Debug("Sign the package")
-	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRoot)
+	m, err := packages.ReadPackageManifestFromPackageRoot(options.PackageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", options.PackageRootPath, err)
 	}
 
 	err = files.Sign(zippedPackagePath, files.SignOptions{
@@ -290,19 +302,39 @@ func signZippedPackage(options BuildOptions, zippedPackagePath string) error {
 	return nil
 }
 
-func copyLicenseTextFile(licensePath string) error {
-	_, err := os.Stat(licensePath)
-	if err == nil {
+// copyLicenseTextFile checks the targetLicencePath and copies the license file from the repository root if needed.
+// If the targetLicensePath already exists, it will skip copying.
+// If the targetLicensePath does not exist, it will look for a source license file in the repository root and copy it to the targetLicensePath.
+// The source license file name can be overridden by setting the REPOSITORY_LICENSE environment variable.
+func copyLicenseTextFile(repositoryRoot *os.Root, targetLicensePath string) error {
+	if !filepath.IsAbs(targetLicensePath) {
+		return fmt.Errorf("target license path (%s) is not an absolute path", targetLicensePath)
+	}
+
+	// if the given path exists, skip copying
+	info, err := os.Stat(targetLicensePath)
+	if err == nil && !info.IsDir() {
 		logger.Debug("License file in the package will be used")
 		return nil
 	}
+	// if the given path does not exist, continue
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("can't check license path (%s): %w", targetLicensePath, err)
+	}
+	// if the given path exists, but is a directory, return an error
+	if info != nil && info.IsDir() {
+		return fmt.Errorf("license path (%s) is a directory", targetLicensePath)
+	}
 
+	// lookup for the license file in the repository
+	// default license name can be overridden by the user
 	repositoryLicenseTextFileName, userDefined := os.LookupEnv(repositoryLicenseEnv)
 	if !userDefined {
 		repositoryLicenseTextFileName = licenseTextFileName
 	}
 
-	sourceLicensePath, err := findRepositoryLicense(repositoryLicenseTextFileName)
+	// sourceLicensePath is an absolute path to the repositoryLicenseTextFileName in the repository root
+	sourceLicensePath, err := findRepositoryLicensePath(repositoryRoot, repositoryLicenseTextFileName)
 	if !userDefined && errors.Is(err, os.ErrNotExist) {
 		logger.Debug("No license text file is included in package")
 		return nil
@@ -312,7 +344,7 @@ func copyLicenseTextFile(licensePath string) error {
 	}
 
 	logger.Infof("License text found in %q will be included in package", sourceLicensePath)
-	err = sh.Copy(licensePath, sourceLicensePath)
+	err = sh.Copy(targetLicensePath, sourceLicensePath)
 	if err != nil {
 		return fmt.Errorf("can't copy license from repository: %w", err)
 	}
@@ -341,17 +373,26 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	return buildDir, nil
 }
 
-func findRepositoryLicense(licenseTextFileName string) (string, error) {
-	dir, err := files.FindRepositoryRootDirectory()
+// findRepositoryLicensePath checks if a license file exists at the specified path and its not empty.
+// If the file exists, it returns the path; otherwise, it returns an error indicating
+// that the repository license could not be found.
+//
+// Parameters:
+//
+//	repositoryLicenseTextFileName - the relative path to the license file from the repository root.
+//
+// Returns:
+//
+//	string - the license file absolute path if found.
+//	error  - an error if the license file does not exist.
+func findRepositoryLicensePath(repositoryRoot *os.Root, repositoryLicenseTextFileName string) (string, error) {
+	bytes, err := repositoryRoot.ReadFile(repositoryLicenseTextFileName)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to read repository license: %w", err)
 	}
-
-	sourceFileName := filepath.Join(dir, licenseTextFileName)
-	_, err = os.Stat(sourceFileName)
-	if err != nil {
-		return "", fmt.Errorf("failed to find repository license: %w", err)
+	if len(bytes) == 0 {
+		return "", fmt.Errorf("repository license file is empty")
 	}
-
-	return sourceFileName, nil
+	path := filepath.Join(repositoryRoot.Name(), repositoryLicenseTextFileName)
+	return path, nil
 }

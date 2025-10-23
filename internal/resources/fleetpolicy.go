@@ -56,9 +56,9 @@ type FleetPackagePolicy struct {
 	// TemplateName is the policy template to use from the package manifest.
 	TemplateName string
 
-	// RootPath is the root of the source of the package to configure, from it we should
+	// PackageRootPath is the root of the source of the package to configure, from it we should
 	// be able to read the manifest, the data stream manifests and the policy template to use.
-	RootPath string
+	PackageRootPath string
 
 	// DataStreamName is the name of the data stream to configure, for integration packages.
 	DataStreamName string
@@ -156,9 +156,9 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackageDataStream, error) {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.RootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.PackageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.RootPath, err)
+		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.PackageRootPath, err)
 	}
 
 	switch manifest.Type {
@@ -176,9 +176,9 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
 	}
 
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.RootPath, packagePolicy.DataStreamName)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRootPath, packagePolicy.DataStreamName)
 	if err != nil {
-		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.RootPath, err)
+		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRootPath, err)
 	}
 
 	policyTemplateName := packagePolicy.TemplateName
@@ -312,17 +312,24 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
 	vars := kibana.Vars{}
 	for _, definition := range definitions {
+		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
+		// When using this API parameter, default values are not automatically incorporated into
+		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
+		// This means that our client must include the default values in its request to ensure correct behavior.
 		val := definition.Default
 
 		value, err := values.GetValue(definition.Name)
 		if err == nil {
-			val = packages.VarValue{}
+			val = &packages.VarValue{}
 			val.Unpack(value)
+		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
+			// Do not include nulls for unset variables.
+			continue
 		}
 
 		vars[definition.Name] = kibana.Var{
 			Type:  definition.Type,
-			Value: val,
+			Value: *val,
 		}
 	}
 	return vars

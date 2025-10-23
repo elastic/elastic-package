@@ -90,93 +90,117 @@ func TestRenderLink(t *testing.T) {
 }
 
 func TestLinksDefinitionsFilePath(t *testing.T) {
-	currentDirectory, _ := os.Getwd()
-	temporalDirecotry := t.TempDir()
+	t.Run("env var set and file exists", func(t *testing.T) {
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+		defer repositoryRoot.Close()
 
-	cases := []struct {
-		title                string
-		createFileFromEnvVar bool
-		createDefaultFile    bool
-		linksFilePath        string
-		expectedErrors       bool
-		expected             string
-	}{
-		{
-			title:                "No env var and no default file",
-			createFileFromEnvVar: false,
-			createDefaultFile:    false,
-			linksFilePath:        "",
-			expectedErrors:       false,
-			expected:             "",
-		},
-		{
-			title:                "No env var - default file",
-			createFileFromEnvVar: false,
-			createDefaultFile:    true,
-			linksFilePath:        "",
-			expectedErrors:       false,
-			expected:             filepath.Join(currentDirectory, "links_table.yml"),
-		},
-		{
-			title:                "Env var defined",
-			createFileFromEnvVar: true,
-			createDefaultFile:    false,
-			linksFilePath:        filepath.Join(temporalDirecotry, "links_table.yml"),
-			expectedErrors:       false,
-			expected:             filepath.Join(temporalDirecotry, "links_table.yml"),
-		},
-		{
-			title:                "Env var defined but just default file exists",
-			createFileFromEnvVar: false,
-			createDefaultFile:    true,
-			linksFilePath:        filepath.Join(temporalDirecotry, "links_table_2.yml"),
-			expectedErrors:       true,
-			expected:             "",
-		},
-	}
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
+		testFile := filepath.Join(repositoryRoot.Name(), "custom_links.yml")
+		require.NoError(t, createLinksFile(testFile))
+		require.NoError(t, createLinksFile(defaultFilePath)) // to ensure default file is ignored
+		t.Setenv(linksMapFilePathEnvVar, testFile)
 
-	createGitFolder()
-	defer removeGitFolder()
+		path, err := linksDefinitionsFilePath(repositoryRoot)
+		require.NoError(t, err)
+		assert.Equal(t, testFile, path)
+	})
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			var err error
-			if c.linksFilePath != "" {
-				err = os.Setenv(linksMapFilePathEnvVar, c.linksFilePath)
-				require.NoError(t, err)
-				defer os.Unsetenv(linksMapFilePathEnvVar)
-			}
+	t.Run("env var set but file does not exist", func(t *testing.T) {
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+		defer repositoryRoot.Close()
 
-			if c.createFileFromEnvVar {
-				err = createLinksFile(c.linksFilePath)
-				defer removeLinksFile(c.linksFilePath)
-				require.NoError(t, err)
-			}
+		missingFile := filepath.Join(repositoryRoot.Name(), "missing_links.yml")
+		t.Setenv(linksMapFilePathEnvVar, missingFile)
 
-			if c.createDefaultFile {
-				err = createLinksFile(linksMapFileNameDefault)
-				require.NoError(t, err)
-				defer removeLinksFile(linksMapFileNameDefault)
-			}
+		path, err := linksDefinitionsFilePath(repositoryRoot)
+		require.Error(t, err)
+		assert.Empty(t, path)
+	})
 
-			path, err := linksDefinitionsFilePath()
+	t.Run("env var not set, default file exists", func(t *testing.T) {
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+		defer repositoryRoot.Close()
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
 
-			if c.expectedErrors {
-				require.Error(t, err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, c.expected, path)
-			}
-		})
-	}
+		require.NoError(t, createLinksFile(defaultFilePath))
+
+		path, err := linksDefinitionsFilePath(repositoryRoot)
+		require.NoError(t, err)
+
+		assert.Equal(t, defaultFilePath, path)
+		assert.Empty(t, os.Getenv(linksMapFilePathEnvVar))
+	})
+
+	t.Run("env var not set, default file does not exist", func(t *testing.T) {
+		repositoryRoot, err := os.OpenRoot(t.TempDir())
+		require.NoError(t, err)
+		defer repositoryRoot.Close()
+		defaultFilePath := filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault)
+
+		_, err = os.Stat(defaultFilePath)
+		require.ErrorIs(t, err, os.ErrNotExist)
+
+		path, err := linksDefinitionsFilePath(repositoryRoot)
+		require.NoError(t, err)
+		assert.Empty(t, path)
+	})
 }
 
-func createGitFolder() error {
-	return os.MkdirAll(".git", os.ModePerm)
-}
+func TestReadLinksMap(t *testing.T) {
+	t.Run("empty path returns empty map", func(t *testing.T) {
+		lmap, err := readLinksMap("")
+		require.NoError(t, err)
+		require.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
+	})
 
-func removeGitFolder() error {
-	return os.RemoveAll(".git")
+	t.Run("non-existent file returns error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		missingFile := filepath.Join(tmpDir, "missing.yml")
+		lmap, err := readLinksMap(missingFile)
+		require.Error(t, err)
+		assert.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
+	})
+
+	t.Run("invalid YAML returns error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "invalid.yml")
+		require.NoError(t, os.WriteFile(filePath, []byte("not: valid: yaml: ["), 0644))
+		lmap, err := readLinksMap(filePath)
+		require.Error(t, err)
+		assert.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
+	})
+
+	t.Run("valid YAML returns populated map", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "links.yml")
+		yamlContent := []byte(`links:
+  intro: http://package-spec.test/intro
+  docs: http://package-spec.test/docs
+`)
+		require.NoError(t, os.WriteFile(filePath, yamlContent, 0644))
+		lmap, err := readLinksMap(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, lmap)
+		assert.Equal(t, "http://package-spec.test/intro", lmap.Links["intro"])
+		assert.Equal(t, "http://package-spec.test/docs", lmap.Links["docs"])
+	})
+
+	t.Run("valid YAML with empty links returns empty map", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "empty.yml")
+		yamlContent := []byte("links: {}\n")
+		require.NoError(t, os.WriteFile(filePath, yamlContent, 0644))
+		lmap, err := readLinksMap(filePath)
+		require.NoError(t, err)
+		require.NotNil(t, lmap)
+		assert.Empty(t, lmap.Links)
+	})
 }
 
 func createLinksFile(filepath string) error {
@@ -186,8 +210,4 @@ func createLinksFile(filepath string) error {
 	}
 	defer file.Close()
 	return nil
-}
-
-func removeLinksFile(filepath string) error {
-	return os.Remove(filepath)
 }

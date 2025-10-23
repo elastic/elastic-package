@@ -25,6 +25,7 @@ import (
 
 type runner struct {
 	profile         *profile.Profile
+	repositoryRoot  *os.Root
 	packageRootPath string
 	kibanaClient    *kibana.Client
 	esAPI           *elasticsearch.API
@@ -55,6 +56,7 @@ var _ testrunner.TestRunner = new(runner)
 type SystemTestRunnerOptions struct {
 	Profile         *profile.Profile
 	PackageRootPath string
+	RepositoryRoot  *os.Root
 	KibanaClient    *kibana.Client
 	API             *elasticsearch.API
 
@@ -97,6 +99,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -283,9 +286,10 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath: r.packageRootPath,
-			Absent:   !opts.installedPackage,
-			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			PackageRootPath: r.packageRootPath,
+			Absent:          !opts.installedPackage,
+			Force:           opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }

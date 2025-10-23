@@ -11,11 +11,53 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+const findInstalledPackagesPerPage = 100
+
 var ErrNotSupported error = errors.New("not supported")
+
+type findInstalledPackagesResponse struct {
+	Items       []installedPackage `json:"items"`
+	Total       int                `json:"total"`
+	SearchAfter []string           `json:"searchAfter"`
+}
+
+type installedPackages []installedPackage
+type installedPackage struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// String method returns string representation for an installed package.
+func (ip *installedPackage) String() string {
+	return fmt.Sprintf("%s-%s", ip.Name, ip.Version)
+}
+
+// Strings method returns string representation for a set of installed packages.
+func (ips installedPackages) Strings() []string {
+	var entries []string
+	for _, ip := range ips {
+		entries = append(entries, ip.String())
+	}
+	return entries
+}
+
+type bulkAssetItemResponse struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		Title string `json:"title"`
+	} `json:"attributes"`
+}
+
+func (p *bulkAssetItemResponse) String() string {
+	return fmt.Sprintf("%s (ID: %s, Type: %s)", p.Attributes.Title, p.ID, p.Type)
+}
 
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
@@ -214,5 +256,81 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 		return resp.Response, nil
 	}
 
+	return resp.Items, nil
+}
+
+// FindInstalledPackages retrieves the current installed packages (name and version). Response is sorted by name.
+func (c *Client) FindInstalledPackages(ctx context.Context) (installedPackages, error) {
+	var installed installedPackages
+	searchAfter := ""
+
+	for {
+		r, err := c.findInstalledPackagesNextPage(ctx, searchAfter)
+		if err != nil {
+			return nil, fmt.Errorf("can't fetch page with results: %w", err)
+		}
+		if len(installed) >= r.Total {
+			break
+		}
+		searchAfter = r.SearchAfter[0]
+		installed = append(installed, r.Items...)
+	}
+	sort.Slice(installed, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(installed[i].Name), strings.ToLower(installed[j].Name)})
+	})
+
+	return installed, nil
+}
+
+// findInstalledPackagesNextPage retrieves the next set of packages after the given searchAfter value.
+func (c *Client) findInstalledPackagesNextPage(ctx context.Context, searchAfter string) (*findInstalledPackagesResponse, error) {
+	path := fmt.Sprintf("%s/epm/packages/installed?perPage=%d&searchAfter=[\"%s\"]", FleetAPI, findInstalledPackagesPerPage, searchAfter)
+	statusCode, respBody, err := c.get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("could not find installed packages; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not find installed packages; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	var resp findInstalledPackagesResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("could not convert installed packages (response) to JSON: %w", err)
+	}
+	return &resp, nil
+}
+
+// GetDataFromPackageAssetIDs retrieves data, such as the title, for the given a list of asset IDs
+// using the "bulk_assets" Elastic Package Manager API endpoint. Response is sorted by title.
+func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packages.Asset) ([]bulkAssetItemResponse, error) {
+	path := fmt.Sprintf("%s/epm/bulk_assets", FleetAPI)
+	type request struct {
+		AssetIDs []packages.Asset `json:"assetIds"`
+	}
+	reqBody, err := json.Marshal(request{AssetIDs: assets})
+	if err != nil {
+		return nil, fmt.Errorf("could not convert assets (request) to JSON: %w", err)
+	}
+	statusCode, respBody, err := c.post(ctx, path, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("could not get assets; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get assets; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	type packageAssetsResponse struct {
+		Items []bulkAssetItemResponse `json:"items"`
+	}
+
+	var resp packageAssetsResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("could not convert get assets (response) to JSON: %w", err)
+	}
+	sort.Slice(resp.Items, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(resp.Items[i].Attributes.Title), strings.ToLower(resp.Items[j].Attributes.Title)})
+	})
 	return resp.Items, nil
 }

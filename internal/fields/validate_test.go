@@ -28,8 +28,8 @@ type packageRootTestFinder struct {
 	packageRootPath string
 }
 
-func (p packageRootTestFinder) FindPackageRoot() (string, bool, error) {
-	return p.packageRootPath, true, nil
+func (p packageRootTestFinder) FindPackageRoot() (string, error) {
+	return p.packageRootPath, nil
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
