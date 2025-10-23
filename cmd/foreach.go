@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package cmd
 
 import (
@@ -68,7 +72,6 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	// TODO: Fix the race condition when executing commands in parallel
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
 	errs := multierror.Error{}
@@ -119,7 +122,7 @@ func executeCommand(args []string, path string) error {
 		return fmt.Errorf("elastic-package binary not found in PATH: %w", err)
 	}
 
-	cmd := exec.Cmd{
+	cmd := &exec.Cmd{
 		Path:   execPath,
 		Args:   append([]string{execPath}, args...),
 		Dir:    path,

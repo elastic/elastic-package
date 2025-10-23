@@ -7,7 +7,7 @@ import (
 )
 
 type IntegrationTypeFlag struct {
-	FilterFlag
+	FilterFlagBase
 
 	// flag specific fields
 	values map[string]struct{}
@@ -52,7 +52,7 @@ func (f *IntegrationTypeFlag) ApplyTo(pkgs map[string]packages.PackageManifest) 
 
 func initIntegrationTypeFlag() *IntegrationTypeFlag {
 	return &IntegrationTypeFlag{
-		FilterFlag: FilterFlag{
+		FilterFlagBase: FilterFlagBase{
 			name:         cobraext.FilterIntegrationTypeFlagName,
 			description:  cobraext.FilterIntegrationTypeFlagDescription,
 			shorthand:    "",

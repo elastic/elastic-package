@@ -10,7 +10,7 @@ import (
 )
 
 type CodeOwnerFlag struct {
-	FilterFlag
+	FilterFlagBase
 	values map[string]struct{}
 }
 
@@ -58,7 +58,7 @@ func (f *CodeOwnerFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[s
 
 func initCodeOwnerFlag() *CodeOwnerFlag {
 	return &CodeOwnerFlag{
-		FilterFlag: FilterFlag{
+		FilterFlagBase: FilterFlagBase{
 			name:         cobraext.FilterCodeOwnerFlagName,
 			description:  cobraext.FilterCodeOwnerFlagDescription,
 			shorthand:    "",

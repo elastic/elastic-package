@@ -10,7 +10,7 @@ import (
 )
 
 type PackageNameFlag struct {
-	FilterFlag
+	FilterFlagBase
 
 	patterns []*regexp.Regexp
 }
@@ -30,7 +30,10 @@ func (f *PackageNameFlag) Parse(cmd *cobra.Command) error {
 		f.patterns = append(f.patterns, regex)
 	}
 
-	f.isApplied = true
+	if len(f.patterns) > 0 {
+		f.isApplied = true
+	}
+
 	return nil
 }
 
@@ -59,7 +62,7 @@ func (f *PackageNameFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map
 
 func initPackageNameFlag() *PackageNameFlag {
 	return &PackageNameFlag{
-		FilterFlag: FilterFlag{
+		FilterFlagBase: FilterFlagBase{
 			name:         cobraext.FilterPackagesFlagName,
 			description:  cobraext.FilterPackagesFlagDescription,
 			shorthand:    "",

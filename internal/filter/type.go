@@ -5,7 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-type IFilterFlag interface {
+// FilterFlag defines the basic interface for filter flags.
+type FilterFlag interface {
 	Name() string
 	Description() string
 	Shorthand() string
@@ -15,17 +16,21 @@ type IFilterFlag interface {
 	IsApplied() bool
 }
 
-type IFilter interface {
-	IFilterFlag
+// Filter extends FilterFlag with filtering capabilities.
+// It defines the interface for filtering packages based on specific criteria.
+type Filter interface {
+	FilterFlag
 
 	Parse(cmd *cobra.Command) error
 	Validate() error
 	ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error)
-	// pkgDirName is the directory name of the package in package root
+	// Matches checks if a package matches the filter criteria.
+	// pkgDirName is the directory name of the package in package root.
 	Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool
 }
 
-type FilterFlag struct {
+// FilterFlagBase provides common functionality for filter flags.
+type FilterFlagBase struct {
 	name         string
 	description  string
 	shorthand    string
@@ -34,26 +39,26 @@ type FilterFlag struct {
 	isApplied bool
 }
 
-func (f *FilterFlag) Name() string {
+func (f *FilterFlagBase) Name() string {
 	return f.name
 }
 
-func (f *FilterFlag) Description() string {
+func (f *FilterFlagBase) Description() string {
 	return f.description
 }
 
-func (f *FilterFlag) Shorthand() string {
+func (f *FilterFlagBase) Shorthand() string {
 	return f.shorthand
 }
 
-func (f *FilterFlag) DefaultValue() string {
+func (f *FilterFlagBase) DefaultValue() string {
 	return f.defaultValue
 }
 
-func (f *FilterFlag) Register(cmd *cobra.Command) {
+func (f *FilterFlagBase) Register(cmd *cobra.Command) {
 	cmd.Flags().StringP(f.Name(), f.Shorthand(), f.DefaultValue(), f.Description())
 }
 
-func (f *FilterFlag) IsApplied() bool {
+func (f *FilterFlagBase) IsApplied() bool {
 	return f.isApplied
 }

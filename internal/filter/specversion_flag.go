@@ -10,7 +10,7 @@ import (
 )
 
 type SpecVersionFlag struct {
-	FilterFlag
+	FilterFlagBase
 
 	// package spec version constraint
 	constraints *semver.Constraints
@@ -41,9 +41,10 @@ func (f *SpecVersionFlag) Validate() error {
 }
 
 func (f *SpecVersionFlag) Matches(pkgName string, pkg packages.PackageManifest) bool {
-	// assuming the package spec version in manifest.yml is a valid semver
-	pkgVersion, _ := semver.NewVersion(pkg.SpecVersion)
-
+	pkgVersion, err := semver.NewVersion(pkg.SpecVersion)
+	if err != nil {
+		return false
+	}
 	return f.constraints.Check(pkgVersion)
 }
 
@@ -60,7 +61,7 @@ func (f *SpecVersionFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (fil
 
 func initSpecVersionFlag() *SpecVersionFlag {
 	return &SpecVersionFlag{
-		FilterFlag: FilterFlag{
+		FilterFlagBase: FilterFlagBase{
 			name:         cobraext.FilterSpecVersionFlagName,
 			description:  cobraext.FilterSpecVersionFlagDescription,
 			shorthand:    "",

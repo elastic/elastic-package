@@ -17,7 +17,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const filterLongDescription = `This command would give you a list of all the packages based on the given query`
+const filterLongDescription = `This command gives you a list of all packages based on the given query`
 
 func setupFilterCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -56,16 +56,13 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func filterPackage(cmd *cobra.Command) (map[string]packages.PackageManifest, error) {
-	var filtered map[string]packages.PackageManifest
-	var err error
-
 	filters := filter.NewFilterRegistry()
 
-	if err = filters.Parse(cmd); err != nil {
+	if err := filters.Parse(cmd); err != nil {
 		return nil, fmt.Errorf("parsing filter options failed: %w", err)
 	}
 
-	if err = filters.Validate(); err != nil {
+	if err := filters.Validate(); err != nil {
 		return nil, fmt.Errorf("validating filter options failed: %w", err)
 	}
 

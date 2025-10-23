@@ -7,7 +7,7 @@ import (
 )
 
 type CategoryFlag struct {
-	FilterFlag
+	FilterFlagBase
 
 	values map[string]struct{}
 }
@@ -46,7 +46,7 @@ func (f *CategoryFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[st
 
 func initCategoryFlag() *CategoryFlag {
 	return &CategoryFlag{
-		FilterFlag: FilterFlag{
+		FilterFlagBase: FilterFlagBase{
 			name:         cobraext.FilterCategoriesFlagName,
 			description:  cobraext.FilterCategoriesFlagDescription,
 			shorthand:    "",

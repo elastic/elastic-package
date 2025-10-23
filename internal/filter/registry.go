@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var registry = []IFilter{
+var registry = []Filter{
 	initCategoryFlag(),
 	initCodeOwnerFlag(),
 	initInputFlag(),
@@ -18,19 +18,22 @@ var registry = []IFilter{
 	initSpecVersionFlag(),
 }
 
+// SetFilterFlags registers all filter flags with the given command.
 func SetFilterFlags(cmd *cobra.Command) {
 	for _, filterFlag := range registry {
 		filterFlag.Register(cmd)
 	}
 }
 
+// FilterRegistry manages a collection of filters for package filtering.
 type FilterRegistry struct {
-	filters []IFilter
+	filters []Filter
 }
 
+// NewFilterRegistry creates a new FilterRegistry instance.
 func NewFilterRegistry() *FilterRegistry {
 	return &FilterRegistry{
-		filters: []IFilter{},
+		filters: []Filter{},
 	}
 }
 
@@ -76,8 +79,12 @@ func (r *FilterRegistry) Execute() (filtered map[string]packages.PackageManifest
 	filtered = pkgs
 	for _, filter := range r.filters {
 		filtered, err = filter.ApplyTo(filtered)
-		if err != nil || len(filtered) == 0 {
+		if err != nil {
 			errors = append(errors, err)
+		}
+
+		if len(filtered) == 0 {
+			break
 		}
 	}
 
