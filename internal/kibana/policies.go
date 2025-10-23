@@ -379,17 +379,3 @@ func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, policyIDs ...
 	}
 	return nil
 }
-
-// DeletePackagePolicy removes the given Package Policy from Fleet.
-func (c *Client) DeletePackagePolicy(ctx context.Context, p PackagePolicy) error {
-	statusCode, respBody, err := c.delete(ctx, path.Join(FleetAPI, "package_policies", p.ID))
-	if err != nil {
-		return fmt.Errorf("could not delete package policy: %w", err)
-	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("could not delete package policy; API status code = %d; response body = %s", statusCode, respBody)
-	}
-
-	return nil
-}
