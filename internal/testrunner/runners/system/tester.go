@@ -1919,7 +1919,7 @@ func CreatePackageDatastream(
 	suffix string,
 ) (kibana.PackageDataStream, error) {
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, cfgVars, cfgDSVars, suffix), nil
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, cfgVars, suffix), nil
 	}
 	if ds == nil {
 		return kibana.PackageDataStream{}, fmt.Errorf("data stream manifest is required for integration packages")
@@ -1991,7 +1991,7 @@ func createInputPackageDatastream(
 	kibanaPolicy *kibana.Policy,
 	pkg *packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
-	cfgVars, cfgDSVars common.MapStr,
+	cfgVars common.MapStr,
 	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
