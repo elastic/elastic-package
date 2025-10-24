@@ -155,8 +155,8 @@ const (
 	FilterOutputPackageNameFlagShorthand   = "p"
 	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
 
-	FilterPackagesFlagName        = "packages"
-	FilterPackagesFlagDescription = "regex pattern to filter packages by"
+	FilterPackagesFlagName        = "package-name"
+	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
 
 	FilterSpecVersionFlagName        = "spec-version"
 	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
