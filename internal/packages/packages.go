@@ -722,21 +722,3 @@ func isIntegrationRepo(path string) (bool, error) {
 
 	return true, nil
 }
-
-func ListPackages(root string) ([]PackageManifest, error) {
-	files, err := filepath.Glob(filepath.Join(root, "packages", "*", PackageManifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("failed matching files with package manifests: %w", err)
-	}
-
-	var packages []PackageManifest
-	for _, file := range files {
-		manifest, err := ReadPackageManifest(file)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read package manifest: %w", err)
-		}
-		packages = append(packages, *manifest)
-	}
-
-	return packages, nil
-}
