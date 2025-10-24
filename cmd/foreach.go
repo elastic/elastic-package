@@ -30,6 +30,20 @@ any elastic-package subcommand across multiple packages in a single operation.
 The command uses the same filter flags as the 'filter' command to select packages, 
 then executes the specified subcommand for each matched package.`
 
+// getAllowedSubCommands returns the list of allowed subcommands for the foreach command.
+func getAllowedSubCommands() []string {
+	return []string{
+		"build",
+		"check",
+		"clean",
+		"format",
+		"install",
+		"lint",
+		"test",
+		"uninstall",
+	}
+}
+
 func setupForeachCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "foreach [flags] -- <SUBCOMMAND>",
@@ -139,19 +153,8 @@ func executeCommand(args []string, path string) error {
 }
 
 func validateSubCommand(subCommand string) error {
-	allowedSubCommands := []string{
-		"build",
-		"check",
-		"clean",
-		"format",
-		"install",
-		"lint",
-		"test",
-		"uninstall",
-	}
-
-	if !slices.Contains(allowedSubCommands, subCommand) {
-		return fmt.Errorf("invalid subcommand: %s. Allowed subcommands are: %s", subCommand, strings.Join(allowedSubCommands, ", "))
+	if !slices.Contains(getAllowedSubCommands(), subCommand) {
+		return fmt.Errorf("invalid subcommand: %s. Allowed subcommands are: %s", subCommand, strings.Join(getAllowedSubCommands(), ", "))
 	}
 
 	return nil
