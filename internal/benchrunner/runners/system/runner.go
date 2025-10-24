@@ -43,8 +43,10 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	// BenchType defining system benchmark/
+	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
+
+	defaultNamespace = "ep"
 )
 
 type runner struct {
@@ -194,7 +196,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		r.scenario.Package = pkgManifest.Name
 	}
 
-	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
+	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, defaultNamespace)
 	if err != nil {
 		return err
 	}
@@ -474,14 +476,14 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 // 	return policy, nil
 // }
 
-func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
+func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest, namespace string) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
 		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
-		Namespace:         "ep",
+		Namespace:         namespace,
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
 
@@ -531,7 +533,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 	}
 
 	pp := kibana.PackagePolicy{
-		Namespace: "ep",
+		Namespace: p.Namespace,
 		PolicyIDs: []string{p.ID},
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
