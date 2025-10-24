@@ -26,13 +26,15 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+
+	// commonHelpers "github.com/elastic/elastic-package/internal/common"
+	// commonHelpers "github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
@@ -41,7 +43,7 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	// BenchType defining system benchmark
+	// BenchType defining system benchmark/
 	BenchType benchrunner.Type = "system"
 )
 
@@ -182,17 +184,26 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	if r.scenario.Version == "" {
 		r.scenario.Version = pkgManifest.Version
+	} else {
+		// If the scenario version is set, override the package manifest version
+		// This is needed to create the policy with the correct version
+		pkgManifest.Version = r.scenario.Version
 	}
 
 	if r.scenario.Package == "" {
 		r.scenario.Package = pkgManifest.Name
 	}
-
-	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, dataStreamManifest)
+	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
 	if err != nil {
 		return err
 	}
 	r.benchPolicy = policy
+
+	// policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, dataStreamManifest)
+	// if err != nil {
+	// 	return err
+	// }
+	// r.benchPolicy = policy
 
 	r.runtimeDataStream = fmt.Sprintf(
 		"%s-%s.%s-%s",
@@ -212,9 +223,6 @@ func (r *runner) setUp(ctx context.Context) error {
 	r.wipeDataStreamHandler = func(ctx context.Context) error {
 		logger.Debugf("deleting data in data stream...")
 		if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
-			return fmt.Errorf("error deleting data in data stream: %w", err)
-		}
-		if err := r.deleteDataStream(ctx, r.runtimeDataStream); err != nil {
 			return fmt.Errorf("error deleting data in data stream: %w", err)
 		}
 		return nil
@@ -378,25 +386,94 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 	return nil
 }
 
-func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
-	resp, err := r.options.ESAPI.Indices.DeleteDataStream([]string{dataStream},
-		r.options.ESAPI.Indices.DeleteDataStream.WithContext(ctx),
-	)
-	if err != nil {
-		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNotFound {
-		// Data stream doesn't exist, there was nothing to do.
-		return nil
-	}
-	if resp.IsError() {
-		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
-	}
-	return nil
-}
+//func (r *runner) deleteDataStream(ctx context.Context, dataStream string) error {
+//	resp, err := r.options.ESAPI.Indices.DeleteDataStream([]string{dataStream},
+//		r.options.ESAPI.Indices.DeleteDataStream.WithContext(ctx),
+//	)
+//	if err != nil {
+//		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
+//	}
+//	defer resp.Body.Close()
+//	if resp.StatusCode == http.StatusNotFound {
+//		// Data stream doesn't exist, there was nothing to do.
+//		return nil
+//	}
+//	if resp.IsError() {
+//		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
+//	}
+//	return nil
+//}
 
-func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest, dataStreamManifest *packages.DataStreamManifest) (*kibana.Policy, error) {
+// func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest, dataStreamManifest *packages.DataStreamManifest) (*kibana.Policy, error) {
+// 	// Configure package (single data stream) via Ingest Manager APIs.
+// 	logger.Debug("creating benchmark policy...")
+// 	benchTime := time.Now().Format("20060102T15:04:05Z")
+// 	p := kibana.Policy{
+// 		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
+// 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
+// 		Namespace:         "ep38915", // fmt.Sprintf("ep%s", commonHelpers.CreateTestRunID()),
+// 		MonitoringEnabled: []string{"logs", "metrics"},
+// 	}
+//
+// 	// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+// 	if r.options.Profile.Config("stack.logstash_enabled", "false") == "true" {
+// 		p.DataOutputID = "fleet-logstash-output"
+// 	}
+//
+// 	policy, err := r.options.KibanaClient.CreatePolicy(ctx, p)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to create benchmark policy: %w", err)
+// 	}
+//
+// 	if r.scenario.PolicyTemplate == "" {
+// 		policyTemplateName, err := system.FindPolicyTemplateForInput(pkgManifest, dataStreamManifest, r.scenario.Input)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
+// 		}
+// 		r.scenario.PolicyTemplate = policyTemplateName
+// 	}
+// 	policyTemplate, err := system.SelectPolicyTemplateByName(pkgManifest.PolicyTemplates, r.scenario.PolicyTemplate)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
+// 	}
+//
+// 	logger.Debug("adding package data stream to benchmark policy...")
+// 	ds, err := system.CreatePackageDatastream(
+// 		policy,
+// 		pkgManifest,
+// 		policyTemplate,
+// 		dataStreamManifest,
+// 		r.scenario.Input,
+// 		r.scenario.Vars,
+// 		r.scenario.DataStream.Vars,
+// 		policy.Namespace)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("could not create package data stream: %w", err)
+// 	}
+//
+// 	if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
+// 		return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+// 	}
+//
+// 	r.deletePolicyHandler = func(ctx context.Context) error {
+// 		var merr multierror.Error
+//
+// 		logger.Debug("deleting benchmark policy...")
+// 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
+// 			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
+// 		}
+//
+// 		if len(merr) > 0 {
+// 			return merr
+// 		}
+//
+// 		return nil
+// 	}
+//
+// 	return policy, nil
+// }
+
+func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
@@ -414,41 +491,21 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 
 	policy, err := r.options.KibanaClient.CreatePolicy(ctx, p)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create benchmark policy: %w", err)
+		return nil, err
 	}
 
-	if r.scenario.PolicyTemplate == "" {
-		policyTemplateName, err := system.FindPolicyTemplateForInput(pkgManifest, dataStreamManifest, r.scenario.Input)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
-		}
-		r.scenario.PolicyTemplate = policyTemplateName
-	}
-	policyTemplate, err := system.SelectPolicyTemplateByName(pkgManifest.PolicyTemplates, r.scenario.PolicyTemplate)
+	packagePolicy, err := r.createPackagePolicy(ctx, pkgManifest, policy)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
-	}
-
-	logger.Debug("adding package data stream to benchmark policy...")
-	ds, err := system.CreatePackageDatastream(
-		policy,
-		pkgManifest,
-		policyTemplate,
-		dataStreamManifest,
-		r.scenario.Input,
-		r.scenario.Vars,
-		r.scenario.DataStream.Vars,
-		policy.Namespace)
-	if err != nil {
-		return nil, fmt.Errorf("could not create package data stream: %w", err)
-	}
-
-	if err := r.options.KibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
-		return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+		return nil, err
 	}
 
 	r.deletePolicyHandler = func(ctx context.Context) error {
 		var merr multierror.Error
+
+		logger.Debug("deleting benchmark package policy...")
+		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
+			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
+		}
 
 		logger.Debug("deleting benchmark policy...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
@@ -460,6 +517,49 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 		}
 
 		return nil
+	}
+
+	return policy, nil
+}
+
+func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
+	logger.Debug("creating package policy...")
+
+	if r.scenario.Version == "" {
+		r.scenario.Version = pkgManifest.Version
+	}
+
+	if r.scenario.Package == "" {
+		r.scenario.Package = pkgManifest.Name
+	}
+
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
+	}
+
+	pp := kibana.PackagePolicy{
+		Namespace: "ep",
+		PolicyIDs: []string{p.ID},
+		Force:     true,
+		Inputs: map[string]kibana.PackagePolicyInput{
+			fmt.Sprintf("%s-%s", r.scenario.PolicyTemplate, r.scenario.Input): {
+				Enabled: true,
+				Vars:    r.scenario.Vars,
+				Streams: map[string]kibana.PackagePolicyStream{
+					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
+						Enabled: true,
+						Vars:    r.scenario.DataStream.Vars,
+					},
+				},
+			},
+		},
+	}
+	pp.Package.Name = pkgManifest.Name
+	pp.Package.Version = r.scenario.Version
+
+	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)
+	if err != nil {
+		return nil, err
 	}
 
 	return policy, nil
