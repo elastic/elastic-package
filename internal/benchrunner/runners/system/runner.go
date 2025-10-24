@@ -193,6 +193,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	if r.scenario.Package == "" {
 		r.scenario.Package = pkgManifest.Name
 	}
+
 	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
 	if err != nil {
 		return err
@@ -554,6 +555,21 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 			},
 		},
 	}
+
+	// All other policy templates and inputs must be disabled,
+	// otherwise Fleet will try to enable them too.
+	// NOTE: This data is retrieved from the local package manifest.
+	for _, policyTemplate := range pkgManifest.PolicyTemplates {
+		for _, input := range policyTemplate.Inputs {
+			if policyTemplate.Name == r.scenario.PolicyTemplate && input.Type == r.scenario.Input {
+				continue
+			}
+			pp.Inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, input.Type)] = kibana.PackagePolicyInput{
+				Enabled: false,
+			}
+		}
+	}
+
 	pp.Package.Name = pkgManifest.Name
 	pp.Package.Version = r.scenario.Version
 
