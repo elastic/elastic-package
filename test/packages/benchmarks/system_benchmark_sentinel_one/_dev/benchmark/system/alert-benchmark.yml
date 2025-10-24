@@ -1,7 +1,7 @@
 ---
 description: Benchmark 100000 alert events ingested
 input: httpjson
-# policy_template: sentinel_one
+policy_template: sentinel_one
 vars:
   url: "http://svc-sentinel_one:8080/"
   api_token: xxxx
