@@ -184,16 +184,17 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
+	// Set default values for scenario fields from package manifest if not set
 	if r.scenario.Version == "" {
 		r.scenario.Version = pkgManifest.Version
-	} else {
-		// If the scenario version is set, override the package manifest version
-		// This is needed to create the policy with the correct version
-		pkgManifest.Version = r.scenario.Version
 	}
 
 	if r.scenario.Package == "" {
 		r.scenario.Package = pkgManifest.Name
+	}
+
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
 	}
 
 	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, defaultNamespace)
@@ -520,18 +521,6 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
 	logger.Debug("creating package policy...")
 
-	if r.scenario.Version == "" {
-		r.scenario.Version = pkgManifest.Version
-	}
-
-	if r.scenario.Package == "" {
-		r.scenario.Package = pkgManifest.Name
-	}
-
-	if r.scenario.PolicyTemplate == "" {
-		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
-	}
-
 	pp := kibana.PackagePolicy{
 		Namespace: p.Namespace,
 		PolicyIDs: []string{p.ID},
@@ -541,7 +530,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 				Enabled: true,
 				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{
-					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
+					fmt.Sprintf("%s.%s", r.scenario.Package, r.scenario.DataStream.Name): {
 						Enabled: true,
 						Vars:    r.scenario.DataStream.Vars,
 					},
@@ -564,7 +553,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 		}
 	}
 
-	pp.Package.Name = pkgManifest.Name
+	pp.Package.Name = r.scenario.Package
 	pp.Package.Version = r.scenario.Version
 
 	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)
