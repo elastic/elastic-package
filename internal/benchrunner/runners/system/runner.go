@@ -26,9 +26,6 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
-
-	// commonHelpers "github.com/elastic/elastic-package/internal/common"
-	// commonHelpers "github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
