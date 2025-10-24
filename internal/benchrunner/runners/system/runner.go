@@ -443,8 +443,10 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 		},
 	}
 
-	// All other policy templates and inputs must be disabled,
-	// otherwise Fleet will try to enable them too.
+	// By default, all policy templates are enabled when creating a package policy.
+	// This could lead to errors if other policy templates have required variables.
+	// Therefore, all other policy templates and inputs must be disabled since here
+	// just the variables for the current input are set.
 	// NOTE: This data is retrieved from the local package manifest.
 	for _, policyTemplate := range pkgManifest.PolicyTemplates {
 		for _, input := range policyTemplate.Inputs {
