@@ -2,17 +2,17 @@ package filter
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/gobwas/glob"
 	"github.com/spf13/cobra"
 )
 
 type PackageNameFlag struct {
 	FilterFlagBase
 
-	patterns []*regexp.Regexp
+	patterns []glob.Glob
 }
 
 func (f *PackageNameFlag) Parse(cmd *cobra.Command) error {
@@ -21,13 +21,13 @@ func (f *PackageNameFlag) Parse(cmd *cobra.Command) error {
 		return cobraext.FlagParsingError(err, cobraext.FilterPackagesFlagName)
 	}
 
-	patternStrings := splitAndTrim(packageNamePatterns, ",")
-	for patternString := range patternStrings {
-		regex, err := regexp.Compile(patternString)
+	patterns := splitAndTrim(packageNamePatterns, ",")
+	for patternString := range patterns {
+		pattern, err := glob.Compile(patternString)
 		if err != nil {
 			return fmt.Errorf("invalid package name pattern: %s: %w", patternString, err)
 		}
-		f.patterns = append(f.patterns, regex)
+		f.patterns = append(f.patterns, pattern)
 	}
 
 	if len(f.patterns) > 0 {
@@ -43,7 +43,7 @@ func (f *PackageNameFlag) Validate() error {
 
 func (f *PackageNameFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
 	for _, pattern := range f.patterns {
-		if pattern.MatchString(pkgDirName) {
+		if pattern.Match(pkgDirName) {
 			return true
 		}
 	}
