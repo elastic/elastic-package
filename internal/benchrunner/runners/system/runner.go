@@ -523,7 +523,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 
 	pp := kibana.PackagePolicy{
 		Namespace: p.Namespace,
-		PolicyIDs: []string{p.ID},
+		PolicyID:  p.ID,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
 			fmt.Sprintf("%s-%s", r.scenario.PolicyTemplate, r.scenario.Input): {

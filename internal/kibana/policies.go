@@ -259,12 +259,11 @@ func (c *Client) AddPackageDataStreamToPolicy(ctx context.Context, r PackageData
 
 // PackagePolicy represents an Package Policy in Fleet.
 type PackagePolicy struct {
-	ID          string   `json:"id,omitempty"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Namespace   string   `json:"namespace"`
-	PolicyIDs   []string `json:"policy_ids,omitempty"`
-	PolicyID    string   `json:"policy_id,omitempty"` // Deprecated: use PolicyIDs
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Namespace   string `json:"namespace"`
+	PolicyID    string `json:"policy_id"`
 	Package     struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
