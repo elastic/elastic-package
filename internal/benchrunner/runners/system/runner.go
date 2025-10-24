@@ -495,29 +495,21 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 		return nil, err
 	}
 
-	packagePolicy, err := r.createPackagePolicy(ctx, pkgManifest, policy)
-	if err != nil {
-		return nil, err
-	}
-
 	r.deletePolicyHandler = func(ctx context.Context) error {
-		var merr multierror.Error
-
-		logger.Debug("deleting benchmark package policy...")
-		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
-		}
-
+		// Package policy deletion is handled when deleting this policy.
+		// Setting here the deletion handler ensures that if package policy creation fails,
+		// no orphaned package policies are left behind.
 		logger.Debug("deleting benchmark policy...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
-		}
-
-		if len(merr) > 0 {
-			return merr
+			return fmt.Errorf("error cleaning up benchmark policy: %w", err)
 		}
 
 		return nil
+	}
+
+	_, err = r.createPackagePolicy(ctx, pkgManifest, policy)
+	if err != nil {
+		return nil, err
 	}
 
 	return policy, nil
