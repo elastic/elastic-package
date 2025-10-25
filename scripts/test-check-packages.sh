@@ -71,8 +71,17 @@ export SERVERLESS=${SERVERLESS:-"false"}
 run_system_benchmark() {
   local package_name="$1"
   local package_path="$2"
-  echo "--- Run system benchmarks for package ${package_name}"
-  elastic-package benchmark system -C "$package_path" --benchmark logs-benchmark -v --defer-cleanup 1s
+
+  local benchmark_file_path=""
+  local benchmark_filename=""
+  local benchmark_name=""
+
+  while IFS= read -r -d '' benchmark_file_path; do
+      benchmark_filename="$(basename "${benchmark_file_path}")"
+      benchmark_name="${benchmark_filename%.*}"
+      echo "--- Run system benchmarks for package ${package_name} - ${benchmark_name}"
+      elastic-package benchmark system -C "$package_path" --benchmark "${benchmark_name}" -v --defer-cleanup 1s
+  done < <(find "${package_path}/_dev/benchmark/system/" -maxdepth 1 -mindepth 1 -type f -name "*.yml" -print0)
 }
 
 run_serverless_tests() {
@@ -162,14 +171,21 @@ for d in test/packages/${PACKAGE_TEST_TYPE}/${PACKAGE_UNDER_TEST}/; do
   package_to_test=$(basename "${d}")
 
   if [ "${PACKAGE_TEST_TYPE}" == "benchmarks" ]; then
-    # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
     case "${package_to_test}" in
       pipeline_benchmark|use_pipeline_tests)
         run_pipeline_benchmark "${package_to_test}" "$d"
         ;;
-      system_benchmark)
+      system_benchmark*)
         run_system_benchmark "${package_to_test}" "$d"
         ;;
+      rally_benchmark)
+        # FIXME: There are other packages in test/packages/benchmarks folder that are not tested like rally_benchmark
+        # rally benchmarks require to install esrally tool in the host. 
+        echo "Skipping rally_benchmark tests. esrally tool needs to be installed in the system."
+        ;;
+      *)
+        echo "Unknown benchmark package: ${package_to_test}"
+        exit 1
     esac
     continue
   fi
