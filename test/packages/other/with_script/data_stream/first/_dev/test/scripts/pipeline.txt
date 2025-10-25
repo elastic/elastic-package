@@ -1,0 +1,74 @@
+[external_stack] skip 'Skipping non-external stack test.'
+
+date START
+
+# Bring up a stack and check that we get the expected output.
+stack_up 8.19.3
+! stderr .
+stdout 'Local package-registry will serve packages from these sources'
+
+# Unfortunately due to constraints imposed by elastic-package, the path to
+# the pipeline cannot be within this file. This is due to the use of links
+# filesystems.
+
+# Install the data stream's pipeline.
+install_pipelines ${DATA_STREAM_ROOT}
+! stderr .
+stdout '^installed pipelines in '${DATA_STREAM}' with nonce'
+
+# Run a simulation with the data.
+simulate ${DATA_STREAM_ROOT} default data.json
+cmp stdout want.json
+! stderr .
+
+# Uninstall pipelines.
+uninstall_pipelines ${DATA_STREAM_ROOT}
+! stderr .
+stdout '^uninstalled pipelines in '${DATA_STREAM}
+
+# Put logs in the work directory check for existence.
+dump_logs -since ${START} .
+exists ${WORK}/logs/elastic-agent.log
+exists ${WORK}/logs/elasticsearch.log
+exists ${WORK}/logs/fleet-server.log
+exists ${WORK}/logs/kibana.log
+exists ${WORK}/logs/package-registry.log
+
+# Then take it down again.
+stack_down
+! stdout .
+! stderr .
+
+-- config.yml --
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default
+-- profiles/default/profile.json --
+{
+  "name": "default",
+  "date_created": "2025-09-15T03:46:37.979361939Z",
+  "version": "1"
+}
+-- stack/development/pin --
+This file is required to make the stack/development directory exist to prevent compose from failing.
+-- data.json --
+{
+	"message": "World!"
+}
+{
+	"message": "from testscript"
+}
+-- want.json --
+{
+	"event": {
+		"original": "World!"
+	},
+	"hello": "World!"
+}
+{
+	"event": {
+		"original": "from testscript"
+	},
+	"hello": "from testscript"
+}
