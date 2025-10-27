@@ -54,14 +54,14 @@ steps:
         artifact_paths:
           - "TEST-unit-windows.xml"
 
-      # - label: ":macos: Run unit tests"
-      #   key: unit-tests-mac-arm
-      #   command: ".buildkite/scripts/unit_tests_macos_arm.sh"
-      #   agents:
-      #     provider: "orka"
-      #     imagePrefix: "${MACOS_ARM_AGENT_IMAGE}"
-      #   artifact_paths:
-      #     - "build/test-results/*.xml"
+      - label: ":macos: Run unit tests"
+        key: unit-tests-mac-arm
+        command: ".buildkite/scripts/unit_tests_macos_arm.sh"
+        agents:
+          provider: "orka"
+          imagePrefix: "${MACOS_ARM_AGENT_IMAGE}"
+        artifact_paths:
+          - "build/test-results/*.xml"
 
   - wait: ~
     continue_on_failure: true
