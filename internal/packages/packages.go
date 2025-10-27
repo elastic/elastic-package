@@ -204,6 +204,11 @@ type PackageManifest struct {
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
 }
 
+type PackageDirNameAndManifest struct {
+	DirName  string
+	Manifest *PackageManifest
+}
+
 type ManifestIndexTemplate struct {
 	IngestPipeline *ManifestIngestPipeline `config:"ingest_pipeline" json:"ingest_pipeline" yaml:"ingest_pipeline"`
 	Mappings       *ManifestMappings       `config:"mappings" json:"mappings" yaml:"mappings"`
@@ -471,20 +476,24 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 }
 
 // ReadAllPackageManifests reads all the package manifests in the given root directory.
-func ReadAllPackageManifests(root string) (map[string]PackageManifest, error) {
+func ReadAllPackageManifests(root string) ([]PackageDirNameAndManifest, error) {
 	files, err := filepath.Glob(filepath.Join(root, "packages", "*", PackageManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("failed matching files with package manifests: %w", err)
 	}
 
-	packages := make(map[string]PackageManifest, len(files))
+	packages := make([]PackageDirNameAndManifest, 0, len(files))
 	for _, file := range files {
+		dirName := filepath.Base(filepath.Dir(file))
 		manifest, err := ReadPackageManifest(file)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read package manifest: %w", err)
 		}
 
-		packages[filepath.Base(filepath.Dir(file))] = *manifest
+		packages = append(packages, PackageDirNameAndManifest{
+			DirName:  dirName,
+			Manifest: manifest,
+		})
 	}
 
 	return packages, nil

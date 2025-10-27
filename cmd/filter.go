@@ -55,7 +55,7 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func filterPackage(cmd *cobra.Command) (map[string]packages.PackageManifest, error) {
+func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, error) {
 	filters := filter.NewFilterRegistry()
 
 	if err := filters.Parse(cmd); err != nil {
@@ -74,7 +74,7 @@ func filterPackage(cmd *cobra.Command) (map[string]packages.PackageManifest, err
 	return filtered, nil
 }
 
-func printPkgList(pkgs map[string]packages.PackageManifest, printPackageName bool, w io.Writer) error {
+func printPkgList(pkgs []packages.PackageDirNameAndManifest, printPackageName bool, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
 	if len(pkgs) == 0 {
@@ -83,12 +83,12 @@ func printPkgList(pkgs map[string]packages.PackageManifest, printPackageName boo
 
 	names := make([]string, 0, len(pkgs))
 	if printPackageName {
-		for _, pkgManifest := range pkgs {
-			names = append(names, pkgManifest.Name)
+		for _, pkg := range pkgs {
+			names = append(names, pkg.Manifest.Name)
 		}
 	} else {
-		for pkgDirName := range pkgs {
-			names = append(names, pkgDirName)
+		for _, pkg := range pkgs {
+			names = append(names, pkg.DirName)
 		}
 	}
 

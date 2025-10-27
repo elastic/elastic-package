@@ -41,20 +41,20 @@ func (f *PackageNameFlag) Validate() error {
 	return nil
 }
 
-func (f *PackageNameFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
+func (f *PackageNameFlag) Matches(dirName string, manifest *packages.PackageManifest) bool {
 	for _, pattern := range f.patterns {
-		if pattern.Match(pkgDirName) {
+		if pattern.Match(dirName) {
 			return true
 		}
 	}
 	return false
 }
 
-func (f *PackageNameFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error) {
-	filtered := make(map[string]packages.PackageManifest, len(pkgs))
-	for pkgDirName, pkgManifest := range pkgs {
-		if f.Matches(pkgDirName, pkgManifest) {
-			filtered[pkgDirName] = pkgManifest
+func (f *PackageNameFlag) ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]packages.PackageDirNameAndManifest, error) {
+	filtered := make([]packages.PackageDirNameAndManifest, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if f.Matches(pkg.DirName, pkg.Manifest) {
+			filtered = append(filtered, pkg)
 		}
 	}
 	return filtered, nil

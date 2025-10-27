@@ -30,21 +30,20 @@ func (f *IntegrationTypeFlag) Validate() error {
 	return nil
 }
 
-func (f *IntegrationTypeFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
+func (f *IntegrationTypeFlag) Matches(dirName string, manifest *packages.PackageManifest) bool {
 	if f.values != nil {
-		if !hasAnyMatch(f.values, []string{pkgManifest.Type}) {
+		if !hasAnyMatch(f.values, []string{manifest.Type}) {
 			return false
 		}
 	}
 	return true
 }
 
-func (f *IntegrationTypeFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error) {
-	filtered := make(map[string]packages.PackageManifest, len(pkgs))
-
-	for pkgName, pkgManifest := range pkgs {
-		if f.Matches(pkgName, pkgManifest) {
-			filtered[pkgName] = pkgManifest
+func (f *IntegrationTypeFlag) ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]packages.PackageDirNameAndManifest, error) {
+	filtered := make([]packages.PackageDirNameAndManifest, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if f.Matches(pkg.DirName, pkg.Manifest) {
+			filtered = append(filtered, pkg)
 		}
 	}
 	return filtered, nil

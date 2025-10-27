@@ -38,10 +38,9 @@ func hasAnyMatch(filters map[string]struct{}, items []string) bool {
 }
 
 // extractInputs extracts all input types from package policy templates
-func extractInputs(pkg packages.PackageManifest) []string {
-	var inputs []string
+func extractInputs(manifest *packages.PackageManifest) []string {
 	uniqueInputs := make(map[string]struct{})
-	for _, policyTemplate := range pkg.PolicyTemplates {
+	for _, policyTemplate := range manifest.PolicyTemplates {
 		if policyTemplate.Input != "" {
 			uniqueInputs[policyTemplate.Input] = struct{}{}
 		}
@@ -51,6 +50,7 @@ func extractInputs(pkg packages.PackageManifest) []string {
 		}
 	}
 
+	inputs := make([]string, 0, len(uniqueInputs))
 	for input := range uniqueInputs {
 		inputs = append(inputs, input)
 	}

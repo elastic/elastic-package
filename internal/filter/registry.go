@@ -65,7 +65,7 @@ func (r *FilterRegistry) Validate() error {
 	return nil
 }
 
-func (r *FilterRegistry) Execute() (filtered map[string]packages.PackageManifest, errors multierror.Error) {
+func (r *FilterRegistry) Execute() (filtered []packages.PackageDirNameAndManifest, errors multierror.Error) {
 	root, err := packages.MustFindIntegrationRoot()
 	if err != nil {
 		return nil, multierror.Error{err}

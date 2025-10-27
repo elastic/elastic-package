@@ -23,10 +23,10 @@ type Filter interface {
 
 	Parse(cmd *cobra.Command) error
 	Validate() error
-	ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error)
+	ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]packages.PackageDirNameAndManifest, error)
 	// Matches checks if a package matches the filter criteria.
-	// pkgDirName is the directory name of the package in package root.
-	Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool
+	// dirName is the directory name of the package in package root.
+	Matches(dirName string, manifest *packages.PackageManifest) bool
 }
 
 // FilterFlagBase provides common functionality for filter flags.

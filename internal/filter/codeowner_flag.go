@@ -42,15 +42,15 @@ func (f *CodeOwnerFlag) Validate() error {
 	return nil
 }
 
-func (f *CodeOwnerFlag) Matches(pkgDirName string, pkgManifest packages.PackageManifest) bool {
-	return hasAnyMatch(f.values, []string{pkgManifest.Owner.Github})
+func (f *CodeOwnerFlag) Matches(dirName string, manifest *packages.PackageManifest) bool {
+	return hasAnyMatch(f.values, []string{manifest.Owner.Github})
 }
 
-func (f *CodeOwnerFlag) ApplyTo(pkgs map[string]packages.PackageManifest) (map[string]packages.PackageManifest, error) {
-	filtered := make(map[string]packages.PackageManifest, len(pkgs))
-	for pkgDirName, pkgManifest := range pkgs {
-		if f.Matches(pkgDirName, pkgManifest) {
-			filtered[pkgDirName] = pkgManifest
+func (f *CodeOwnerFlag) ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]packages.PackageDirNameAndManifest, error) {
+	filtered := make([]packages.PackageDirNameAndManifest, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		if f.Matches(pkg.DirName, pkg.Manifest) {
+			filtered = append(filtered, pkg)
 		}
 	}
 	return filtered, nil
