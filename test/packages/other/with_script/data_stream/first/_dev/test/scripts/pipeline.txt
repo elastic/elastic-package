@@ -7,10 +7,6 @@ stack_up 8.19.3
 ! stderr .
 stdout 'Local package-registry will serve packages from these sources'
 
-# Unfortunately due to constraints imposed by elastic-package, the path to
-# the pipeline cannot be within this file. This is due to the use of links
-# filesystems.
-
 # Install the data stream's pipeline.
 install_pipelines ${DATA_STREAM_ROOT}
 ! stderr .
