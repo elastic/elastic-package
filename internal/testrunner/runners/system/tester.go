@@ -153,9 +153,12 @@ var (
 				{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 					excludes: []*regexp.Regexp{
+						// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+						// This is excluded because the awss3 input incorrectly complains about missing Records fields in s3:TestEvent messages.
+						// See https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html#notification-content-structure-examples.
+						regexp.MustCompile(`state changed .* \(HEALTHY->DEGRADED\): .* the message is an invalid S3 notification: missing Records field`),
 					},
 				},
 				{
