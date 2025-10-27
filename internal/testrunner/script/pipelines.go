@@ -42,8 +42,10 @@ func installPipelines(ts *testscript.TestScript, neg bool, args []string) {
 
 	name := flg.Arg(0)
 	path := ts.MkAbs(name)
+	root, err := os.OpenRoot("/")
+	ts.Check(err)
 
-	_, err := os.Stat(filepath.Join(path, filepath.FromSlash("elasticsearch/ingest_pipeline")))
+	_, err = os.Stat(filepath.Join(path, filepath.FromSlash("elasticsearch/ingest_pipeline")))
 	ts.Check(err)
 
 	stk, ok := stacks[*profName]
@@ -59,7 +61,7 @@ func installPipelines(ts *testscript.TestScript, neg bool, args []string) {
 	}
 
 	nonce := time.Now().UnixNano()
-	pipes, err := ingest.LoadIngestPipelineFiles(path, nonce)
+	pipes, err := ingest.LoadIngestPipelineFiles(path, nonce, root)
 	ts.Check(decoratedWith("loading pipelines", err))
 
 	ts.Check(decoratedWith("installing pipelines", ingest.InstallPipelinesInElasticsearch(ctx, stk.es.API, pipes)))

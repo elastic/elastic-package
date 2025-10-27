@@ -636,13 +636,12 @@ func getTestRunnerScriptCommand() *cobra.Command {
 
 func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run script tests for the package")
-	var ok bool
-	pkgRoot, ok, err := packages.FindPackageRoot()
+	pkgRoot, err := packages.FindPackageRoot()
 	if err != nil {
+		if err == packages.ErrPackageRootNotFound {
+			return errors.New("package root not found")
+		}
 		return fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !ok {
-		return errors.New("package root not found")
 	}
 	pkg := filepath.Base(pkgRoot)
 	cmd.Printf("--- Test results for package: %s - START ---\n", pkg)

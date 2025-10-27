@@ -108,13 +108,12 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	}
 	var pkgRoot, currVersion, prevVersion string
 	if len(dirs) == 0 {
-		var ok bool
-		pkgRoot, ok, err = packages.FindPackageRoot()
+		pkgRoot, err = packages.FindPackageRoot()
 		if err != nil {
+			if err == packages.ErrPackageRootNotFound {
+				return errors.New("package root not found")
+			}
 			return fmt.Errorf("locating package root failed: %w", err)
-		}
-		if !ok {
-			return errors.New("package root not found")
 		}
 		dirs, err = datastreams(cmd, pkgRoot)
 		if err != nil {
@@ -303,9 +302,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-			RootPath: pkgRoot,
-			Absent:   true,
-			Force:    true,
+			PackageRootPath: pkgRoot,
+			Absent:          true,
+			Force:           true,
 		}})
 
 		if stk.external {
