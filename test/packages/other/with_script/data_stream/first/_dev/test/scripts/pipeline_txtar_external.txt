@@ -8,19 +8,19 @@ use_stack -profile ${CONFIG_PROFILES}/default
 cmpenv stdout want_use.json
 
 # Install the data stream's pipeline.
-install_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+install_pipelines -profile ${CONFIG_PROFILES}/default ${WORK}
 ! stderr .
-stdout '^installed pipelines in '${DATA_STREAM}' with nonce'
+stdout '^installed pipelines in .* with nonce'
 
 # Run a simulation with the data.
-simulate -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT} default data.json
+simulate -profile ${CONFIG_PROFILES}/default ${WORK} default data.json
 ! stderr .
 cmp stdout want.json
 
 # Uninstall pipelines.
-uninstall_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+uninstall_pipelines -profile ${CONFIG_PROFILES}/default ${WORK}
 ! stderr .
-stdout '^uninstalled pipelines in '${DATA_STREAM}
+stdout '^uninstalled pipelines in'
 
 # Put logs in the work directory check for existence.
 dump_logs -profile ${CONFIG_PROFILES}/default -since ${START}
@@ -51,6 +51,22 @@ stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
 {
 	"message": "from testscript"
 }
+-- elasticsearch/ingest_pipeline/default.yml --
+---
+description: Test pipeline.
+processors:
+  - set:
+      field: hello
+      value: '{{{message}}}'
+      ignore_empty_value: true
+  - rename:
+      field: message
+      target_field: event.original
+      ignore_missing: true
+on_failure:
+  - set:
+      field: error.message
+      value: '{{{ _ingest.on_failure_message }}}'
 -- want.json --
 {
 	"event": {
