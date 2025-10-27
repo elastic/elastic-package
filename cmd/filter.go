@@ -11,10 +11,11 @@ import (
 	"os"
 	"slices"
 
+	"github.com/spf13/cobra"
+
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/filter"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/spf13/cobra"
 )
 
 const filterLongDescription = `This command gives you a list of all packages based on the given query`
