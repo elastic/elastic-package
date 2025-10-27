@@ -62,7 +62,7 @@ resources using selected cloud provider and use them for testing (e.g. observe a
 
 Sample `main.tf` definition:
 
-```
+```hcl
 variable "TEST_RUN_ID" {
   default = "detached"
 }
@@ -97,7 +97,7 @@ For example, if a `SQS queue` is configured in terraform and if the `queue_url` 
 
 Sample Terraform definition
 
-```
+```hcl
 resource "aws_sqs_queue" "test" {
 
 }
@@ -109,7 +109,7 @@ output "queue_url"{
 
 Sample system test config
 
-``` yaml
+```yaml
 data_stream:
   vars:
     period: 5m
@@ -122,7 +122,7 @@ data_stream:
 
 For complex outputs from terraform you can use `{{TF_OUTPUT_root_key.nested_key}}`
 
-```
+```hcl
 output "root_key"{
   value = someoutput.nested_key_value
 }
@@ -143,7 +143,7 @@ output "root_key"{
   }
 }
 ```
-``` yaml
+```yaml
 data_stream:
   vars:
     queue_url: '{{TF_OUTPUT_root_key.nested_key}}'
@@ -303,9 +303,13 @@ Placeholders used in the `<scenario>.yml` must be enclosed in `{{` and `}}` deli
 
 Once the configuration is defined as described in the previous section, you are ready to run system benchmarks for a package.
 
-First you must deploy the Elastic Stack. 
+First, build your package (if you have local changes) and deploy the Elastic Stack.
 
-```
+```shell
+# Build the package first if you've made local modifications.
+# This step is required before starting the Elastic stack when testing local changes.
+elastic-package build
+
 elastic-package stack up -d
 ```
 
@@ -388,9 +392,23 @@ elastic-package benchmark system --benchmark logs-benchmark -v
 Done
 ```
 
+To re-run the system benchmark with local changes, follow these steps:
+1. Uninstall the package to ensure your latest local changes are used:
+```shell
+elastic-package uninstall
+```
+2. Build the package with your changes:
+```shell
+elastic-package build
+```
+3. Restart the Package Registry service to load the updated package:
+```shell
+elastic-package stack up -d --services package-registry
+```
+
 Finally, when you are done running the benchmark, bring down the Elastic Stack. 
 
-```
+```shell
 elastic-package stack down
 ```
 
@@ -421,6 +439,6 @@ The collected metrics include the following node stats: `nodes.*.breakers`, `nod
 
 Ingest pipelines metrics are only collected at the end since its own collection would affect the benchmark results.
 
-You can see a sample collected metric [here](./sample_metric.json)
+You can see a sample collected metric [here](./sample_metric.json).
 
 Additionally, if the `reindex-to-metricstore` flag is used, the data generated during the benchmark will be sent to the metricstore into an index called `bench-reindex-{datastream}-{testRunID}` for further analysis. The events will be enriched with metadata related to the benchmark run.
