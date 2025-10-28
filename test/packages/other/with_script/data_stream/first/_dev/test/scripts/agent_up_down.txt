@@ -44,6 +44,8 @@ profile:
 }
 -- stack/development/pin --
 This file is required to make the stack/development directory exist to prevent compose from failing.
+-- tmp/service_logs/pin --
+This file is required to make the tmp/service_logs directory exist to prevent compose from failing in CI.
 -- hello_service/docker-compose.yml --
 version: '3.8'
 services:
