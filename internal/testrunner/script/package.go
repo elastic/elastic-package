@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"os"
 
 	"github.com/rogpeppe/go-internal/testscript"
 
@@ -23,6 +24,8 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	if pkgRoot == "" {
 		ts.Fatalf("PKG_ROOT is not set")
 	}
+	root, err := os.OpenRoot(pkgRoot)
+	ts.Check(err)
 	pkg := ts.Getenv("PKG")
 	if pkg == "" {
 		ts.Fatalf("PKG is not set")
@@ -55,10 +58,11 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
-	_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
+	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 		PackageRootPath: pkgRoot,
 		Absent:          false,
 		Force:           true,
+		RepositoryRoot:  root,
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
@@ -72,6 +76,8 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	if pkgRoot == "" {
 		ts.Fatalf("PKG_ROOT is not set")
 	}
+	root, err := os.OpenRoot(pkgRoot)
+	ts.Check(err)
 	pkg := ts.Getenv("PKG")
 	if pkg == "" {
 		ts.Fatalf("PKG is not set")
@@ -104,10 +110,11 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
-	_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
+	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 		PackageRootPath: pkgRoot,
 		Absent:          true,
 		Force:           true,
+		RepositoryRoot:  root, // Apparently not required, but adding for safety.
 	}})
 	ts.Check(decoratedWith("removing package resources", err))
 
