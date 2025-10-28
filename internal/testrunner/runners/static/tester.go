@@ -167,7 +167,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithOTELValidation(isTestUsingOTELCollectorInput(pkgManifest)),
+		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
@@ -237,7 +237,7 @@ func (r tester) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
 
-func isTestUsingOTELCollectorInput(manifest *packages.PackageManifest) bool {
+func isTestUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
 	if manifest.Type != "input" {
 		return false
 	}

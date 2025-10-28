@@ -1,10 +1,10 @@
 format_version: 3.4.0
 name: otel_http_server
-title: "HTTP Server following OTEL Semconv"
+title: "HTTP Server following OTel Semconv"
 version: 0.0.1
 source:
   license: "Elastic-2.0"
-description: "This package provides dashboards for HTTP server metrics that follow OTEL Semantic Conventions."
+description: "This package provides dashboards for HTTP server metrics that follow OTel Semantic Conventions."
 type: content
 categories:
   - web

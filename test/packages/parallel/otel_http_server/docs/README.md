@@ -1,4 +1,4 @@
-# HTTP Server following OTEL Semconv
+# HTTP Server following OTel Semconv
 
 This package includes dashboards for data collected from HTTP Servers following
-OTEL Semconv.
+OTel Semconv.
