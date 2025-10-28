@@ -242,6 +242,8 @@ func isTestUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
 		return false
 	}
 
+	// We are not testing an specific policy template here, assume this is an OTel package
+	// if at least one policy template has an "otelcol" input.
 	if !slices.ContainsFunc(manifest.PolicyTemplates, func(t packages.PolicyTemplate) bool {
 		return t.Input == "otelcol"
 	}) {
