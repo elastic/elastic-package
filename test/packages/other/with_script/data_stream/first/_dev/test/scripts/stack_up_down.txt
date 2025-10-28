@@ -24,12 +24,13 @@ profile:
 }
 -- stack/development/pin --
 This file is required to make the stack/development directory exist to prevent compose from failing.
+-- tmp/service_logs/pin --
+This file is required to make the tmp/service_logs directory exist to prevent compose from failing in CI.
 -- want_up.pattern --
 Elasticsearch host: https://127\.0\.0\.1:9200
 Kibana host: https://127\.0\.0\.1:5601
 Username: elastic
 Password: changeme
-Custom build packages directory found: .*/elastic/elastic-package/build/packages
-Local package-registry will serve packages from these sources:
+(?:Custom build packages directory found: .*/elastic/elastic-package/build/packages
+)?Local package-registry will serve packages from these sources:
 - Proxy to https://epr\.elastic\.co
-- Local directory .*/elastic/elastic-package/build/packages
