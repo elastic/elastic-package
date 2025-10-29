@@ -329,7 +329,7 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 
 // isEmpty checks if the value is empty. It is considered empty if it is the zero value,
 // or for values for length, if it is zero. Values in ignoreValues are not counted for
-// the total lenght when present in lists.
+// the total length when present in lists.
 func isEmpty(v any, ignoreValues []any) bool {
 	switch v := v.(type) {
 	case nil:
