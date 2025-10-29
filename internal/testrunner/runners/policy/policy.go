@@ -170,6 +170,12 @@ var policyEntryFilters = []policyEntryFilter{
 			{name: "data_stream.elasticsearch", onlyIfEmpty: true},
 		}},
 	}},
+
+	// Fields present since 9.3.0.
+	{name: "inputs", elementsEntries: []policyEntryFilter{
+		{name: "meta.package.policy_template"},
+		{name: "meta.package.release"},
+	}},
 }
 
 var uniqueOtelComponentIDReplace = policyEntryReplace{
@@ -321,6 +327,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 	return policyMap, nil
 }
 
+// isEmpty checks if the value is empty. It is considered empty if it is the zero value,
+// or for values for length, if it is zero. Values in ignoreValues are not counted for
+// the total lenght when present in lists.
 func isEmpty(v any, ignoreValues []any) bool {
 	switch v := v.(type) {
 	case nil:
