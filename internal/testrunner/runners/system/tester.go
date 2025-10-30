@@ -1629,7 +1629,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return nil, err
 	}
 
-	if r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) {
+	if r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) {
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
@@ -1640,8 +1640,8 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
-		// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
-		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput)),
+		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -1654,7 +1654,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if !r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
+	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1830,7 +1830,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
-func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
+func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool {
 	// Just supported for input packages currently
 	if r.pkgManifest.Type != "input" {
 		return false
@@ -2232,8 +2232,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 			fields.WithDisableNormalization(syntheticEnabled),
-			// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
-			fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(policyTemplateInput)),
+			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)

@@ -172,7 +172,7 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 }
 
-var uniqueOtelComponentIDReplace = policyEntryReplace{
+var uniqueOTelComponentIDReplace = policyEntryReplace{
 	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
 	replace: "$1$2/componentid-%s:$4",
 }
@@ -203,10 +203,10 @@ var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|pr
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
-	// Replacement of the OTEL component IDs needs to be done before unmarshalling the YAML.
-	// The OTEL IDs are keys in maps, and using the policyEntryFilter with memberReplace does
+	// Replacement of the OTel component IDs needs to be done before unmarshalling the YAML.
+	// The OTel IDs are keys in maps, and using the policyEntryFilter with memberReplace does
 	// not ensure to keep the same ordering.
-	policy = replaceOtelComponentIDs(policy)
+	policy = replaceOTelComponentIDs(policy)
 
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
@@ -222,9 +222,9 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 	return yaml.Marshal(policyMap)
 }
 
-// replaceOtelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
+// replaceOTelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
 // It also replaces references to those IDs in service.extensions and service.pipelines.
-func replaceOtelComponentIDs(policy []byte) []byte {
+func replaceOTelComponentIDs(policy []byte) []byte {
 	replacementsDone := map[string]string{}
 
 	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
@@ -233,16 +233,16 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 		var section strings.Builder
 		for scanner.Scan() {
 			line := scanner.Text()
-			if uniqueOtelComponentIDReplace.regexp.MatchString(line) {
-				originalOtelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
+			if uniqueOTelComponentIDReplace.regexp.MatchString(line) {
+				originalOTelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
 
-				replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
+				replacement := fmt.Sprintf(uniqueOTelComponentIDReplace.replace, strconv.Itoa(count))
 				count++
-				line = uniqueOtelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
+				line = uniqueOTelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
 
 				// store the otel ID replaced without the space indentation and the colon to be replaced later
 				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				replacementsDone[originalOtelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
+				replacementsDone[originalOTelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
 			}
 			section.WriteString(line + "\n")
 		}
