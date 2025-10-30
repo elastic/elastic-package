@@ -12,6 +12,7 @@ import (
 type Options struct {
 	DaemonMode   bool
 	StackVersion string
+	AgentVersion string
 
 	Services []string
 

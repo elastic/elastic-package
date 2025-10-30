@@ -107,6 +107,11 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+			}
+
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
@@ -133,6 +138,7 @@ func setupStackCommand() *cobraext.Command {
 				Services:     services,
 				Profile:      profile,
 				Printer:      cmd,
+				AgentVersion: agentVersion,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
