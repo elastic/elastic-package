@@ -227,4 +227,7 @@ const (
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
+
+	AgentVersionFlagName        = "agent-version"
+	AgentVersionFlagDescription = "Elastic Agent version to be used in the stack"
 )
