@@ -135,10 +135,10 @@ func setupStackCommand() *cobraext.Command {
 			err = provider.BootUp(cmd.Context(), stack.Options{
 				DaemonMode:   daemonMode,
 				StackVersion: stackVersion,
+				AgentVersion: agentVersion,
 				Services:     services,
 				Profile:      profile,
 				Printer:      cmd,
-				AgentVersion: agentVersion,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
@@ -152,6 +152,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
 	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 	upCommand.Flags().StringSliceP(cobraext.StackUserParameterFlagName, cobraext.StackUserParameterFlagShorthand, nil, cobraext.StackUserParameterDescription)
 
