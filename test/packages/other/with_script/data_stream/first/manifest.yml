@@ -1,0 +1,31 @@
+title: Test
+release: experimental
+type: logs
+streams:
+  - input: tcp
+    title: logs
+    description: Collect logs
+    template_path: hits.yml.hbs
+    vars:
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - forwarded
+      - name: tcp_host
+        type: text
+        title: TCP host to listen on
+        multi: false
+        required: true
+        show_user: true
+        default: localhost
+      - name: tcp_port
+        type: integer
+        title: TCP port to listen on
+        multi: false
+        required: true
+        show_user: true
+        default: 9511
