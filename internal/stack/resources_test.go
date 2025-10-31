@@ -48,7 +48,8 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	require.Equal(t, expectedGeoipPath, v)
 
 	// Now, apply resources and check that the variable has been used.
-	err = applyResources(p, "8.6.1")
+	stackVersion := "8.6.1"
+	err = applyResources(p, stackVersion, stackVersion)
 	require.NoError(t, err)
 
 	d, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
