@@ -133,8 +133,37 @@ const (
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailFastFlagName                  = "fail-fast"
-	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
+	FailFastFlagName        = "fail-fast"
+	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
+
+	FilterCategoriesFlagName        = "category"
+	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
+
+	FilterCodeOwnerFlagName        = "code-owner"
+	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
+
+	FilterIntegrationTypeFlagName        = "integration-type"
+	FilterIntegrationTypeFlagDescription = "integration types to filter by (comma-separated values)"
+
+	FilterInputFlagName        = "input"
+	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+
+	FilterKibanaVersionFlagName        = "kibana-version"
+	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
+
+	FilterOutputPackageNameFlagName        = "output-package-name"
+	FilterOutputPackageNameFlagShorthand   = "p"
+	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
+
+	FilterPackagesFlagName        = "package-name"
+	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
+
+	FilterSpecVersionFlagName        = "spec-version"
+	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
+
+	ForeachPoolSizeFlagName        = "parallel"
+	ForeachPoolSizeFlagDescription = "number of packages to execute in parallel (defaults to serial execution)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
