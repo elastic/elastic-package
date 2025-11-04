@@ -10,7 +10,7 @@ integrations stack issues.
 
 ## Introduction
 
-The script testing system is build on the Go testscript package with extensions
+The script testing system is built on the Go testscript package with extensions
 provided to allow scripting of stack and integration operations such as
 bringing up a stack, installing packages and running agents. For example, using
 these commands it is possible to express a system test as described in the
@@ -33,45 +33,45 @@ the [testscript package documentation](https://pkg.go.dev/github.com/rogpeppe/go
 The test script command provides additional commands to aid in interacting with
 a stack, starting agents and services and validating results.
 
-- `sleep`: sleep for a duration (Go `time.Duration` parse syntax)
-- `date`: print the current time in RFC3339, optionally setting a variable with the value
-- `GET`: perform an HTTP GET request, emitting the response body to stdout
-- `POST`: perform an HTTP POST request, emitting the response body to stdout
-- `match_file`: perform a grep pattern match between a pattern file and a data file
+- `sleep <duration>`: sleep for a duration (Go `time.Duration` parse syntax)
+- `date [<ENV_VAR_NAME>]`: print the current time in RFC3339, optionally setting a variable with the value
+- `GET [-json] <url>`: perform an HTTP GET request, emitting the response body to stdout and optionally formatting indented JSON
+- `POST [-json] [-content <content-type>] <body-path> <url>`: perform an HTTP POST request, emitting the response body to stdout and optionally formatting indented JSON
+- `match_file <pattern_file_path> <data_path>`: perform a grep pattern match between a pattern file and a data file
 
 - stack commands:
-  - `stack_up`: bring up a version of the Elastic stack
-  - `use_stack`: use a running Elastic stack
-  - `stack_down`: take down a started Elastic stack
-  - `dump_logs`: dump the logs from the stack into a directory
-  - `get_policy`: print the details for a policy
+  - `stack_up [-profile <profile>] [-provider <provider>] [-timeout <duration>] <stack-version>`: bring up a version of the Elastic stack
+  - `use_stack [-profile <profile>] [-timeout <duration>]`: use a running Elastic stack
+  - `stack_down [-profile <profile>] [-provider <provider>] [-timeout <duration>]`: take down a started Elastic stack
+  - `dump_logs [-profile <profile>] [-provider <provider>] [-timeout <duration>] [-since <RFC3339 time>] [<dirpath>]`: dump the logs from the stack into a directory
+  - `get_policy [-profile <profile>] [-timeout <duration>] <policy_name>`: print the details for a policy
 
 - agent commands:
-  - `install_agent`: install an Elastic Agent policy
-  - `uninstall_agent`: remove an installed Elastic Agent policy
+  - `install_agent [-profile <profile>] [-timeout <duration>] [<network_name_label>]`: install an Elastic Agent policy, setting the environment variable named in the positional argument
+  - `uninstall_agent [-profile <profile>] [-timeout <duration>]`: remove an installed Elastic Agent policy
 
 - package commands:
-  - `add_package`: add the current package's assets
-  - `remove_package`: remove assets for the current package
-  - `add_package_zip`: add assets from a Zip-packaged integration package
-  - `remove_package_zip`: remove assets for Zip-packaged integration package
-  - `upgrade_package_latest`: upgrade the current package or another named package to the latest version
+  - `add_package [-profile <profile>] [-timeout <duration>]`: add the current package's assets
+  - `remove_package [-profile <profile>] [-timeout <duration>]`: remove assets for the current package
+  - `add_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: add assets from a Zip-packaged integration package
+  - `remove_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: remove assets for Zip-packaged integration package
+  - `upgrade_package_latest [-profile <profile>] [-timeout <duration>] [<package_name>]`: upgrade the current package or another named package to the latest version
 
 - data stream commands:
-  - `add_data_stream`: add a data stream policy
-  - `remove_data_stream`: remove a data stream policy
-  - `get_docs`: get documents from a data stream
+  - `add_data_stream [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>`: add a data stream policy, setting the environment variable named in the positional argument
+  - `remove_data_stream [-profile <profile>] [-timeout <duration>] <data_stream_name>`: remove a data stream policy
+  - `get_docs [-profile <profile>] [-timeout <duration>] [<data_stream>]`: get documents from a data stream
 
 - docker commands:
-  - `docker_up`: start a docker service
-  - `docker_down`: stop a started docker service and print the docker logs to stdout
-  - `docker_signal`: send a signal to a running docker service
-  - `docker_wait_exit`: wait for a docker service to exit 
+  - `docker_up [-profile <profile>] [-timeout <duration>] <dir>`: start a docker service defined in the provided directory
+  - `docker_down [-timeout <duration>] <name>`: stop a started docker service and print the docker logs to stdout
+  - `docker_signal [-timeout <duration>] <name> <signal>`: send a signal to a running docker service
+  - `docker_wait_exit [-timeout <duration>] <name>`: wait for a docker service to exit 
 
 - pipeline commands:
-  - `install_pipelines`: install ingest pipelines from a path
-  - `simulate`: run a pipeline test
-  - `uninstall_pipelines`: remove installed ingest pipelines
+  - `install_pipelines [-profile <profile>] [-timeout <duration>] <path_to_data_stream>`: install ingest pipelines from a path
+  - `simulate [-profile <profile>] [-timeout <duration>] <path_to_data_stream> <pipeline> <path_to_data>`: run a pipeline test, printing the result as pretty-printed JSON to standard output
+  - `uninstall_pipelines [-profile <profile>] [-timeout <duration>] <path_to_data_stream>`: remove installed ingest pipelines
 
 
 ## Environment variables
