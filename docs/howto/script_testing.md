@@ -80,8 +80,9 @@ a stack, starting agents and services and validating results.
 - `CONFIG_ROOT`: the `elastic-package` configuration root path
 - `CONFIG_PROFILES`: the `elastic-package` profiles configuration root path
 - `HOME`: the user's home directory path
-- `PKG`: the name of the running package
-- `PKG_ROOT`: the path to the root of the running package
+- `PACKAGE_NAME`: the name of the running package
+- `PACKAGE_BASE`: the basename of the path to the root of the running package
+- `PACKAGE_ROOT`: the path to the root of the running package
 - `CURRENT_VERSION`: the current version of the package
 - `PREVIOUS_VERSION`: the previous version of the package
 - `DATA_STREAM`: the name of the data stream
@@ -107,24 +108,24 @@ As an example, a basic system test could be expressed as follows.
 [!exec:jq] skip 'Skipping test requiring absent jq command'
 
 # Register running stack.
-use_stack -profile ${CONFIG_PROFILES}/default
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 
 # Install an agent.
-install_agent -profile ${CONFIG_PROFILES}/default NETWORK_NAME
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE} NETWORK_NAME
 
 # Bring up a docker container.
 #
 # The service is described in the test-hits/docker-compose.yml below with
 # its logs in test-hits/logs/generated.log.
-docker_up -profile ${CONFIG_PROFILES}/default -network ${NETWORK_NAME} test-hits
+docker_up -profile ${CONFIG_PROFILES}/${PROFILE} -network ${NETWORK_NAME} test-hits
 
 # Add the package resources.
-add_package -profile ${CONFIG_PROFILES}/default
+add_package -profile ${CONFIG_PROFILES}/${PROFILE}
 
 # Add the data stream.
 #
 # The configuration for the test is described in test_config.yaml below.
-add_data_stream -profile ${CONFIG_PROFILES}/default test_config.yaml DATA_STREAM_NAME
+add_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
 
 # Start the service.
 docker_signal test-hits SIGHUP
@@ -133,7 +134,7 @@ docker_signal test-hits SIGHUP
 docker_wait_exit -timeout 5m test-hits
 
 # Check that we can see our policy.
-get_policy -profile ${CONFIG_PROFILES}/default -timeout 1m ${DATA_STREAM_NAME}
+get_policy -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m ${DATA_STREAM_NAME}
 cp stdout got_policy.json
 exec jq '.name=="'${DATA_STREAM_NAME}'"' got_policy.json
 stdout true

@@ -63,7 +63,7 @@ cp stdout got_docs.json
 # Let's upgrade!
 upgrade_package_latest -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
-stdout 'upgraded package '${PKG}' from version '${CURRENT_VERSION@R}
+stdout 'upgraded package '${PACKAGE_NAME}' from version '${CURRENT_VERSION@R}
 
 # Remove the data stream.
 remove_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
@@ -72,7 +72,7 @@ cmpenv stdout want_remove_data_stream.text
 
 # Uninstall the agent.
 uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m 
-stdout '^deleted agent policies for '${PKG}/${DATA_STREAM}
+stdout '^deleted agent policies for '${PACKAGE_NAME}/${DATA_STREAM}
 ! stderr .
 
 # Remove the package resources.
@@ -128,6 +128,6 @@ data_stream:
 -- want_data_stream_name.pattern --
 logs-with_script\.first-[0-9]+
 -- want_add_data_stream.text --
-added ${DATA_STREAM_NAME} data stream policy templates for ${PKG}/${DATA_STREAM}
+added ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}
 -- want_remove_data_stream.text --
-removed ${DATA_STREAM_NAME} data stream policy templates for ${PKG}/${DATA_STREAM}
+removed ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}

@@ -218,8 +218,13 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 				e.Setenv("CONFIG_PROFILES", loc.ProfileDir())
 				e.Setenv("HOME", home)
 				if pkgRoot != "" {
-					e.Setenv("PKG", filepath.Base(pkgRoot))
-					e.Setenv("PKG_ROOT", pkgRoot)
+					m, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+					if err != nil {
+						return err
+					}
+					e.Setenv("PACKAGE_NAME", m.Name)
+					e.Setenv("PACKAGE_BASE", filepath.Base(pkgRoot))
+					e.Setenv("PACKAGE_ROOT", pkgRoot)
 				}
 				if currVersion != "" {
 					e.Setenv("CURRENT_VERSION", currVersion)
