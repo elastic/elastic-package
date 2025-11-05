@@ -111,6 +111,10 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
+			if agentVersion == "" {
+				// If agent version is not specified, use the stack version as default
+				agentVersion = stackVersion
+			}
 
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
@@ -152,7 +156,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
-	upCommand.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
+	upCommand.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 	upCommand.Flags().StringSliceP(cobraext.StackUserParameterFlagName, cobraext.StackUserParameterFlagShorthand, nil, cobraext.StackUserParameterDescription)
 
@@ -212,6 +216,10 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
+			if agentVersion == "" {
+				// If agent version is not specified, use the stack version as default
+				agentVersion = stackVersion
+			}
 
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
@@ -228,7 +236,7 @@ func setupStackCommand() *cobraext.Command {
 		},
 	}
 	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
-	updateCommand.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
+	updateCommand.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
