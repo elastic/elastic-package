@@ -1,17 +1,17 @@
 [!external_stack] skip 'Skipping external stack test.'
 
 # Register stack and check that we get the expected output.
-use_stack -profile ${CONFIG_PROFILES}/default
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 cmpenv stdout want_use.json
 
 # Install an agent.
-install_agent -profile ${CONFIG_PROFILES}/default
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 cmp stdout want_agent_up.text
 
 # Bring up a docker container and check that we get the expected output.
-docker_up -profile ${CONFIG_PROFILES}/default hello_service
+docker_up -profile ${CONFIG_PROFILES}/${PROFILE} hello_service
 ! stderr .
 cp stdout got_up.text
 match_file want_up.pattern got_up.text 
@@ -22,14 +22,14 @@ docker_down hello_service
 cmp stdout want_down.text
 
 # Uninstall the agent.
-uninstall_agent -profile ${CONFIG_PROFILES}/default
+uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 stdout '^deleted agent policies for '${PKG}/${DATA_STREAM}
 
 # Then attempt to take it down again.
-! stack_down -profile ${CONFIG_PROFILES}/default
+! stack_down -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stdout .
-stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/'${PROFILE}'$'
 
 -- hello_service/docker-compose.yml --
 version: '3.8'
@@ -45,7 +45,7 @@ services:
 	"elasticsearch_username": "elastic",
 	"elasticsearch_password": "changeme",
 	"kibana_host": "https://127.0.0.1:5601",
-	"ca_cert_file": "${CONFIG_PROFILES}/default/certs/ca-cert.pem"
+	"ca_cert_file": "${CONFIG_PROFILES}/${PROFILE}/certs/ca-cert.pem"
 }
 -- want_up.pattern --
 deployed elastic-package-service-[0-9]+:hello_service-1

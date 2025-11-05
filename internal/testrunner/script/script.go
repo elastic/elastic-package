@@ -29,6 +29,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/resources"
@@ -40,6 +41,10 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("could not find home: %w", err)
+	}
+	config, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("could read configuration: %w", err)
 	}
 	loc, err := locations.NewLocationManager()
 	if err != nil {
@@ -208,6 +213,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 				"get_policy":             getPolicyCommand,
 			},
 			Setup: func(e *testscript.Env) error {
+				e.Setenv("PROFILE", config.CurrentProfile())
 				e.Setenv("CONFIG_ROOT", loc.RootDir())
 				e.Setenv("CONFIG_PROFILES", loc.ProfileDir())
 				e.Setenv("HOME", home)
