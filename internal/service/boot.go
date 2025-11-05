@@ -30,6 +30,7 @@ type Options struct {
 	DevDeployDir       string
 	DataStreamRootPath string
 	StackVersion       string
+	AgentVersion       string
 
 	Variant string
 }
@@ -45,6 +46,7 @@ func BootUp(ctx context.Context, options Options) error {
 		Variant:                options.Variant,
 		StackVersion:           options.StackVersion,
 		DeployIndependentAgent: false,
+		AgentVersion:           options.AgentVersion,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("No service defined.")

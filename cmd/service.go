@@ -82,6 +82,7 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		DataStreamRootPath: dataStreamPath,
 		Variant:            variantFlag,
 		StackVersion:       stackVersion.Version(),
+		AgentVersion:       stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("up command failed: %w", err)

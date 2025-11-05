@@ -218,6 +218,7 @@ type tester struct {
 
 	dataStreamPath     string
 	stackVersion       kibana.VersionInfo
+	agentVersion       string
 	locationManager    *locations.LocationManager
 	resourcesManager   *resources.Manager
 	pkgManifest        *packages.PackageManifest
@@ -246,6 +247,8 @@ type SystemTesterOptions struct {
 	GenerateTestResult bool
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
+
+	AgentVersion string
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -281,6 +284,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
 		runIndependentElasticAgent: true,
+		agentVersion:               options.AgentVersion,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -459,6 +463,7 @@ func (r *tester) createAgentOptions(policyName, deployerName string) agentdeploy
 		DevDeployDir:       DevDeployDir,
 		Type:               agentdeployer.TypeTest,
 		StackVersion:       r.stackVersion.Version(),
+		AgentVersion:       r.agentVersion,
 		PackageName:        r.testFolder.Package,
 		DataStream:         r.testFolder.DataStream,
 		PolicyName:         policyName,

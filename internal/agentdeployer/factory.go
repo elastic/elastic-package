@@ -29,6 +29,7 @@ type FactoryOptions struct {
 	DevDeployDir       string
 	Type               string
 	StackVersion       string
+	AgentVersion       string
 	PolicyName         string
 
 	DeployerName string
@@ -62,6 +63,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			DataStream:   options.DataStream,
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,
+			AgentVersion: options.AgentVersion,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
@@ -72,6 +74,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		opts := KubernetesAgentDeployerOptions{
 			Profile:      options.Profile,
 			StackVersion: options.StackVersion,
+			AgentVersion: options.AgentVersion,
 			PolicyName:   options.PolicyName,
 			DataStream:   options.DataStream,
 			RunSetup:     options.RunSetup,

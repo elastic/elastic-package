@@ -420,6 +420,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
+	cmd.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -449,6 +450,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
+	}
+
+	agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 	}
 
 	generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -585,6 +591,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
 		RepositoryRoot:     repositoryRoot,
+		AgentVersion:       agentVersion,
 	})
 
 	logger.Debugf("Running suite...")

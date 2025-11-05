@@ -39,6 +39,7 @@ type CustomAgentDeployer struct {
 	dockerComposeFile string
 	stackVersion      string
 	policyName        string
+	agentVersion      string
 
 	runTearDown  bool
 	runTestsOnly bool
@@ -49,6 +50,7 @@ type CustomAgentDeployerOptions struct {
 	DockerComposeFile string
 	StackVersion      string
 	PolicyName        string
+	AgentVersion      string
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -62,6 +64,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
+		agentVersion:      options.AgentVersion,
 		policyName:        options.PolicyName,
 		runTearDown:       options.RunTearDown,
 		runTestsOnly:      options.RunTestsOnly,
@@ -72,7 +75,7 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Warn("DEPRECATED - setting up service using Docker Compose service deployer")
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion))
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(d.agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}

@@ -313,6 +313,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 		Profile:                r.options.Profile,
 		Type:                   servicedeployer.TypeBench,
 		StackVersion:           stackVersion.Version(),
+		AgentVersion:           stackVersion.Version(),
 		DeployIndependentAgent: false,
 	}
 	serviceDeployer, err := servicedeployer.Factory(opts)

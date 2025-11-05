@@ -33,6 +33,7 @@ type runner struct {
 
 	dataStreams    []string
 	serviceVariant string
+	agentVersion   string
 
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	failOnMissingTests bool
@@ -59,6 +60,7 @@ type SystemTestRunnerOptions struct {
 	RepositoryRoot  *os.Root
 	KibanaClient    *kibana.Client
 	API             *elasticsearch.API
+	AgentVersion    string
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -100,6 +102,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		repositoryRoot:     options.RepositoryRoot,
+		agentVersion:       options.AgentVersion,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -265,6 +268,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					GlobalTestConfig:   r.globalTestConfig,
 					WithCoverage:       r.withCoverage,
 					CoverageType:       r.coverageType,
+					AgentVersion:       r.agentVersion,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(

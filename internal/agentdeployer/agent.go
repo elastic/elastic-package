@@ -46,6 +46,7 @@ var staticSource = resource.NewSourceFS(static)
 type DockerComposeAgentDeployer struct {
 	profile      *profile.Profile
 	stackVersion string
+	agentVersion string
 
 	policyName string
 
@@ -61,6 +62,7 @@ type DockerComposeAgentDeployer struct {
 type DockerComposeAgentDeployerOptions struct {
 	Profile      *profile.Profile
 	StackVersion string
+	AgentVersion string
 	PolicyName   string
 
 	PackageName string
@@ -88,6 +90,7 @@ func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerC
 	return &DockerComposeAgentDeployer{
 		profile:      options.Profile,
 		stackVersion: options.StackVersion,
+		agentVersion: options.AgentVersion,
 		packageName:  options.PackageName,
 		dataStream:   options.DataStream,
 		policyName:   options.PolicyName,
@@ -101,7 +104,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion))
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(d.agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -281,7 +284,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		stackVersion = version
 	}
 
-	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)
+	agentImage, err := selectElasticAgentImage(d.agentVersion, agentInfo.Agent.BaseImage)
 	if err != nil {
 		return "", nil
 	}
@@ -321,8 +324,8 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	return customAgentDir, nil
 }
 
-func selectElasticAgentImage(stackVersion, agentBaseImage string) (string, error) {
-	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithStackVersion(stackVersion))
+func selectElasticAgentImage(agentVersion, agentBaseImage string) (string, error) {
+	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}
