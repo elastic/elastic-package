@@ -142,8 +142,8 @@ const (
 	FilterCodeOwnerFlagName        = "code-owner"
 	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
 
-	FilterIntegrationTypeFlagName        = "integration-type"
-	FilterIntegrationTypeFlagDescription = "integration types to filter by (comma-separated values)"
+	FilterPackageTypeFlagName        = "package-type"
+	FilterPackageTypeFlagDescription = "package types to filter by (comma-separated values)"
 
 	FilterInputFlagName        = "input"
 	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
@@ -155,14 +155,14 @@ const (
 	FilterOutputPackageNameFlagShorthand   = "p"
 	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
 
-	FilterPackagesFlagName        = "package-name"
+	FilterPackagesFlagName        = "packages"
 	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
 
 	FilterSpecVersionFlagName        = "spec-version"
 	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
 
 	ForeachPoolSizeFlagName        = "parallel"
-	ForeachPoolSizeFlagDescription = "number of packages to execute in parallel (defaults to serial execution)"
+	ForeachPoolSizeFlagDescription = "Number of subcommands to execute in parallel (defaults to serial execution)"
 
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"

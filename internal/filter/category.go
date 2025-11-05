@@ -14,7 +14,7 @@ import (
 type CategoryFlag struct {
 	FilterFlagBase
 
-	values map[string]struct{}
+	values []string
 }
 
 func (f *CategoryFlag) Parse(cmd *cobra.Command) error {
@@ -26,7 +26,8 @@ func (f *CategoryFlag) Parse(cmd *cobra.Command) error {
 		return nil
 	}
 
-	f.values = splitAndTrim(category, ",")
+	categories := splitAndTrim(category, ",")
+	f.values = categories
 	f.isApplied = true
 	return nil
 }

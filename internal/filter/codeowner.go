@@ -16,7 +16,7 @@ import (
 
 type CodeOwnerFlag struct {
 	FilterFlagBase
-	values map[string]struct{}
+	values []string
 }
 
 func (f *CodeOwnerFlag) Parse(cmd *cobra.Command) error {
@@ -37,7 +37,7 @@ func (f *CodeOwnerFlag) Validate() error {
 	validator := tui.Validator{Cwd: "."}
 
 	if f.values != nil {
-		for value := range f.values {
+		for _, value := range f.values {
 			if err := validator.GithubOwner(value); err != nil {
 				return fmt.Errorf("invalid code owner: %s: %w", value, err)
 			}

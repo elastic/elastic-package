@@ -5,6 +5,8 @@
 package filter
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
@@ -12,11 +14,7 @@ import (
 
 // FilterFlag defines the basic interface for filter flags.
 type FilterFlag interface {
-	Name() string
-	Description() string
-	Shorthand() string
-	DefaultValue() string
-
+	String() string
 	Register(cmd *cobra.Command)
 	IsApplied() bool
 }
@@ -44,24 +42,12 @@ type FilterFlagBase struct {
 	isApplied bool
 }
 
-func (f *FilterFlagBase) Name() string {
-	return f.name
-}
-
-func (f *FilterFlagBase) Description() string {
-	return f.description
-}
-
-func (f *FilterFlagBase) Shorthand() string {
-	return f.shorthand
-}
-
-func (f *FilterFlagBase) DefaultValue() string {
-	return f.defaultValue
+func (f *FilterFlagBase) String() string {
+	return fmt.Sprintf("name=%s defaultValue=%s applied=%v", f.name, f.defaultValue, f.isApplied)
 }
 
 func (f *FilterFlagBase) Register(cmd *cobra.Command) {
-	cmd.Flags().StringP(f.Name(), f.Shorthand(), f.DefaultValue(), f.Description())
+	cmd.Flags().StringP(f.name, f.shorthand, f.defaultValue, f.description)
 }
 
 func (f *FilterFlagBase) IsApplied() bool {

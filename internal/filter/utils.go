@@ -5,35 +5,36 @@
 package filter
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // splitAndTrim splits a string by delimiter and trims whitespace from each element
-func splitAndTrim(s, delimiter string) map[string]struct{} {
+func splitAndTrim(s, delimiter string) []string {
 	if s == "" {
 		return nil
 	}
 	parts := strings.Split(s, delimiter)
-	result := make(map[string]struct{}, len(parts))
+	result := make([]string, 0, len(parts))
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
 		if trimmed != "" {
-			result[trimmed] = struct{}{}
+			result = append(result, trimmed)
 		}
 	}
 	return result
 }
 
 // hasAnyMatch checks if any item in the items slice exists in the filters slice
-func hasAnyMatch(filters map[string]struct{}, items []string) bool {
+func hasAnyMatch(filters []string, items []string) bool {
 	if len(filters) == 0 {
 		return true
 	}
 
 	for _, item := range items {
-		if _, ok := filters[item]; ok {
+		if slices.Contains(filters, item) {
 			return true
 		}
 	}

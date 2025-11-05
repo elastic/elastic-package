@@ -15,7 +15,7 @@ type InputFlag struct {
 	FilterFlagBase
 
 	// flag specific fields
-	values map[string]struct{}
+	values []string
 }
 
 func (f *InputFlag) Parse(cmd *cobra.Command) error {

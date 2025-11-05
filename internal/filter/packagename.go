@@ -27,7 +27,7 @@ func (f *PackageNameFlag) Parse(cmd *cobra.Command) error {
 	}
 
 	patterns := splitAndTrim(packageNamePatterns, ",")
-	for patternString := range patterns {
+	for _, patternString := range patterns {
 		pattern, err := glob.Compile(patternString)
 		if err != nil {
 			return fmt.Errorf("invalid package name pattern: %s: %w", patternString, err)

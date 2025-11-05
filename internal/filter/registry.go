@@ -18,8 +18,8 @@ var registry = []Filter{
 	initCategoryFlag(),
 	initCodeOwnerFlag(),
 	initInputFlag(),
-	initIntegrationTypeFlag(),
 	initPackageNameFlag(),
+	initPackageTypeFlag(),
 	initSpecVersionFlag(),
 }
 
@@ -83,6 +83,7 @@ func (r *FilterRegistry) Execute() (filtered []packages.PackageDirNameAndManifes
 
 	filtered = pkgs
 	for _, filter := range r.filters {
+		logger.Infof("Applying for %d packages", len(filtered))
 		filtered, err = filter.ApplyTo(filtered)
 		if err != nil {
 			errors = append(errors, err)
