@@ -3,12 +3,12 @@
 [!exec:jq] skip 'Skipping test requiring absent jq command'
 
 # Register stack and check that we get the expected output.
-use_stack -profile ${CONFIG_PROFILES}/default
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 cmpenv stdout want_use.json
 
 # Install an agent.
-install_agent -profile ${CONFIG_PROFILES}/default NETWORK_NAME
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE} NETWORK_NAME
 ! stderr .
 cmp stdout want_agent_up.text
 # Check the network name is valid.
@@ -16,17 +16,17 @@ exec echo ${NETWORK_NAME}
 stdout 'elastic-package-agent-with_script-first-[0-9]+_default'
 
 # Bring up a docker container and check that we get the expected output.
-docker_up -profile ${CONFIG_PROFILES}/default -network ${NETWORK_NAME} test-hits
+docker_up -profile ${CONFIG_PROFILES}/${PROFILE} -network ${NETWORK_NAME} test-hits
 ! stderr .
 cp stdout got_up.text
 match_file want_up.pattern got_up.text 
 
 # Add the package resources.
-add_package -profile ${CONFIG_PROFILES}/default
+add_package -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 
 # Add the data stream.
-add_data_stream -profile ${CONFIG_PROFILES}/default test_config.yaml DATA_STREAM_NAME
+add_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
 ! stderr .
 cmpenv stdout want_add_data_stream.text
 exec echo ${DATA_STREAM_NAME}
@@ -35,7 +35,7 @@ match_file want_data_stream_name.pattern got_data_stream_name.text
 
 # Check that no policy exists yet.
 # No timeout so we do only a single poll.
-get_policy -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_NAME}
+get_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
 stdout 'not found'
 
 # Start the service.
@@ -45,7 +45,7 @@ docker_signal test-hits SIGHUP
 docker_wait_exit -timeout 5m test-hits
 
 # Check that we can see our policy.
-get_policy -profile ${CONFIG_PROFILES}/default -timeout 1m ${DATA_STREAM_NAME}
+get_policy -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m ${DATA_STREAM_NAME}
 cp stdout got_policy.json
 exec jq '.name=="'${DATA_STREAM_NAME}'"' got_policy.json
 stdout true
@@ -57,32 +57,32 @@ cp stdout got_down.text
 match_file want_down.pattern got_down.text
 
 # Get documents from the data stream.
-get_docs -profile ${CONFIG_PROFILES}/default -want 10 -timeout 5m ${DATA_STREAM_NAME}
+get_docs -profile ${CONFIG_PROFILES}/${PROFILE} -want 10 -timeout 5m ${DATA_STREAM_NAME}
 cp stdout got_docs.json
 
 # Let's upgrade!
-upgrade_package_latest -profile ${CONFIG_PROFILES}/default
+upgrade_package_latest -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 stdout 'upgraded package '${PKG}' from version '${CURRENT_VERSION@R}
 
 # Remove the data stream.
-remove_data_stream -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_NAME}
+remove_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
 ! stderr .
 cmpenv stdout want_remove_data_stream.text
 
 # Uninstall the agent.
-uninstall_agent -profile ${CONFIG_PROFILES}/default -timeout 1m 
+uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m 
 stdout '^deleted agent policies for '${PKG}/${DATA_STREAM}
 ! stderr .
 
 # Remove the package resources.
-remove_package -profile ${CONFIG_PROFILES}/default
+remove_package -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 
 # Then attempt to take the stack down even though we don't own it.
-! stack_down -profile ${CONFIG_PROFILES}/default
+! stack_down -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stdout .
-stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/'${PROFILE}'$'
 
 -- test-hits/docker-compose.yml --
 version: '2.3'
@@ -110,7 +110,7 @@ ntpd[2959]: ntpd gelit-r tatno
 	"elasticsearch_username": "elastic",
 	"elasticsearch_password": "changeme",
 	"kibana_host": "https://127.0.0.1:5601",
-	"ca_cert_file": "${CONFIG_PROFILES}/default/certs/ca-cert.pem"
+	"ca_cert_file": "${CONFIG_PROFILES}/${PROFILE}/certs/ca-cert.pem"
 }
 -- want_up.pattern --
 deployed elastic-package-service-[0-9]+:test-hits-1

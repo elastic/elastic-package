@@ -3,27 +3,27 @@
 date START
 
 # Register stack and check that we get the expected output.
-use_stack -profile ${CONFIG_PROFILES}/default
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 cmpenv stdout want_use.json
 
 # Install the data stream's pipeline.
-install_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+install_pipelines -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_ROOT}
 ! stderr .
 stdout '^installed pipelines in '${DATA_STREAM}' with nonce'
 
 # Run a simulation with the data.
-simulate -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT} default data.json
+simulate -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_ROOT} default data.json
 ! stderr .
 cmp stdout want.json
 
 # Uninstall pipelines.
-uninstall_pipelines -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_ROOT}
+uninstall_pipelines -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_ROOT}
 ! stderr .
 stdout '^uninstalled pipelines in '${DATA_STREAM}
 
 # Put logs in the work directory check for existence.
-dump_logs -profile ${CONFIG_PROFILES}/default -since ${START}
+dump_logs -profile ${CONFIG_PROFILES}/${PROFILE} -since ${START}
 exists ${WORK}/logs/elastic-agent.log
 exists ${WORK}/logs/elasticsearch.log
 exists ${WORK}/logs/fleet-server.log
@@ -31,9 +31,9 @@ exists ${WORK}/logs/kibana.log
 exists ${WORK}/logs/package-registry.log
 
 # Then attempt to take it down again.
-! stack_down -profile ${CONFIG_PROFILES}/default
+! stack_down -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stdout .
-stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/'${PROFILE}'$'
 
 -- want_use.json --
 {
@@ -42,7 +42,7 @@ stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/default$'
 	"elasticsearch_username": "elastic",
 	"elasticsearch_password": "changeme",
 	"kibana_host": "https://127.0.0.1:5601",
-	"ca_cert_file": "${CONFIG_PROFILES}/default/certs/ca-cert.pem"
+	"ca_cert_file": "${CONFIG_PROFILES}/${PROFILE}/certs/ca-cert.pem"
 }
 -- data.json --
 {
