@@ -20,15 +20,15 @@ import (
 func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkgRoot := ts.Getenv("PKG_ROOT")
+	pkgRoot := ts.Getenv("PACKAGE_ROOT")
 	if pkgRoot == "" {
-		ts.Fatalf("PKG_ROOT is not set")
+		ts.Fatalf("PACKAGE_ROOT is not set")
 	}
 	root, err := os.OpenRoot(pkgRoot)
 	ts.Check(err)
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)
@@ -72,15 +72,15 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkgRoot := ts.Getenv("PKG_ROOT")
+	pkgRoot := ts.Getenv("PACKAGE_ROOT")
 	if pkgRoot == "" {
-		ts.Fatalf("PKG_ROOT is not set")
+		ts.Fatalf("PACKAGE_ROOT is not set")
 	}
 	root, err := os.OpenRoot(pkgRoot)
 	ts.Check(err)
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)
@@ -124,9 +124,9 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 func upgradePackageLatest(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)
@@ -184,9 +184,9 @@ func upgradePackageLatest(ts *testscript.TestScript, neg bool, args []string) {
 func addPackageZip(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)
@@ -228,9 +228,9 @@ func addPackageZip(ts *testscript.TestScript, neg bool, args []string) {
 func removePackageZip(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)

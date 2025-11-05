@@ -22,13 +22,13 @@ import (
 func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkgRoot := ts.Getenv("PKG_ROOT")
+	pkgRoot := ts.Getenv("PACKAGE_ROOT")
 	if pkgRoot == "" {
-		ts.Fatalf("PKG_ROOT is not set")
+		ts.Fatalf("PACKAGE_ROOT is not set")
 	}
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 	ds := ts.Getenv("DATA_STREAM")
 	if ds == "" {
@@ -158,9 +158,9 @@ func doKibanaAgent(ctx context.Context, cli *kibana.Client, fn func(a kibana.Age
 func uninstallAgent(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 	ds := ts.Getenv("DATA_STREAM")
 	if ds == "" {

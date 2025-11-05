@@ -25,9 +25,9 @@ var errPolicyNotFound = errors.New("not found")
 func getPolicyCommand(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
-	pkg := ts.Getenv("PKG")
+	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
-		ts.Fatalf("PKG is not set")
+		ts.Fatalf("PACKAGE_NAME is not set")
 	}
 	ds := ts.Getenv("DATA_STREAM")
 	if ds == "" {

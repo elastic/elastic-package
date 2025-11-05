@@ -24,7 +24,7 @@ cmp stdout want_down.text
 # Uninstall the agent.
 uninstall_agent
 ! stderr .
-stdout '^deleted agent policies for '${PKG}/${DATA_STREAM}
+stdout '^deleted agent policies for '${PACKAGE_NAME}/${DATA_STREAM}
 
 # Take down stack.
 stack_down
