@@ -208,10 +208,16 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+			}
+
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion: stackVersion,
 				Profile:      profile,
 				Printer:      cmd,
+				AgentVersion: agentVersion,
 			})
 			if err != nil {
 				return fmt.Errorf("failed updating the stack images: %w", err)
@@ -222,6 +228,7 @@ func setupStackCommand() *cobraext.Command {
 		},
 	}
 	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	updateCommand.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",

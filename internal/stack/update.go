@@ -13,7 +13,7 @@ import (
 
 // Update pulls down the most recent versions of the Docker images.
 func Update(ctx context.Context, options Options) error {
-	err := applyResources(options.Profile, options.StackVersion)
+	err := applyResources(options.Profile, options.StackVersion, options.AgentVersion)
 	if err != nil {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}
