@@ -198,6 +198,13 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 
 	// Even if no error is returned, we need to check if the import was successful.
 	if !resp.Success {
+		if len(resp.Errors) > 0 {
+			var errorMessages []string
+			for _, importError := range resp.Errors {
+				errorMessages = append(errorMessages, fmt.Sprintf("ID: %s, Type: %s, Error: %v", importError.ID, importError.Type, importError.Error))
+			}
+			return fmt.Errorf("importing %s %s was not successful: %s", savedObjectType, id, strings.Join(errorMessages, "; "))
+		}
 		return fmt.Errorf("importing %s %s was not successful", savedObjectType, id)
 	}
 
