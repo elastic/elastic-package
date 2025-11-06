@@ -483,6 +483,7 @@ func (r *tester) createServiceOptions(variantName, deployerName string) serviced
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
+		AgentVersion:           r.agentVersion,
 		RunTearDown:            r.runTearDown,
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,
