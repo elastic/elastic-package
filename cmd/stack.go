@@ -31,6 +31,8 @@ var availableServices = map[string]struct{}{
 
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
+Use --agent-version to specify a different version for the Elastic Agent from the stack.
+
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
@@ -42,6 +44,8 @@ For details on how to connect the service with the Elastic stack, see the [servi
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
+
+Use --agent-version to specify a different version for the Elastic Agent from the stack.
 
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
