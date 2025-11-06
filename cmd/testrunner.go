@@ -420,7 +420,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
-	cmd.Flags().StringP(cobraext.AgentVersionFlagName, "", install.DefaultStackVersion, cobraext.AgentVersionFlagDescription)
+	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -450,11 +450,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	failOnMissing, err := cmd.Flags().GetBool(cobraext.FailOnMissingFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.FailOnMissingFlagName)
-	}
-
-	agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 	}
 
 	generateTestResult, err := cmd.Flags().GetBool(cobraext.GenerateTestResultFlagName)
@@ -545,6 +540,18 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Kibana client: %w", err)
+	}
+
+	agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+	}
+	if agentVersion == "" {
+		stackVersion, err := kibanaClient.Version()
+		if err != nil {
+			return fmt.Errorf("can't get stack version: %w", err)
+		}
+		agentVersion = stackVersion.Version()
 	}
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
