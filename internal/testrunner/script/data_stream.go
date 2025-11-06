@@ -23,7 +23,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
 
-func addDataStream(ts *testscript.TestScript, neg bool, args []string) {
+func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
 	pkgRoot := ts.Getenv("PACKAGE_ROOT")
@@ -58,7 +58,7 @@ func addDataStream(ts *testscript.TestScript, neg bool, args []string) {
 	timeout := flg.Duration("timeout", 0, "timeout (zero or lower indicates no timeout)")
 	ts.Check(flg.Parse(args))
 	if flg.NArg() != 2 {
-		ts.Fatalf("usage: add_data_stream [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>")
+		ts.Fatalf("usage: add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>")
 	}
 
 	cfgPath := ts.MkAbs(flg.Arg(0))
@@ -120,7 +120,7 @@ func addDataStream(ts *testscript.TestScript, neg bool, args []string) {
 	fmt.Fprintf(ts.Stdout(), "added %s data stream policy templates for %s/%s\n", dsName, pkg, ds)
 }
 
-func removeDataStream(ts *testscript.TestScript, neg bool, args []string) {
+func removePackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	clearStdStreams(ts)
 
 	pkg := ts.Getenv("PACKAGE_NAME")
@@ -146,7 +146,7 @@ func removeDataStream(ts *testscript.TestScript, neg bool, args []string) {
 	timeout := flg.Duration("timeout", 0, "timeout (zero or lower indicates no timeout)")
 	ts.Check(flg.Parse(args))
 	if flg.NArg() != 1 {
-		ts.Fatalf("usage: remove_data_stream [-profile <profile>] [-timeout <duration>] <data_stream_name>")
+		ts.Fatalf("usage: remove_package_policy [-profile <profile>] [-timeout <duration>] <data_stream_name>")
 	}
 
 	dsName := flg.Arg(0)
