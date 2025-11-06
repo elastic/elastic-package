@@ -6,9 +6,11 @@ package filter
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -18,6 +20,7 @@ var registry = []Filter{
 	initCategoryFlag(),
 	initCodeOwnerFlag(),
 	initInputFlag(),
+	initPackageDirNameFlag(),
 	initPackageNameFlag(),
 	initPackageTypeFlag(),
 	initSpecVersionFlag(),
@@ -25,6 +28,9 @@ var registry = []Filter{
 
 // SetFilterFlags registers all filter flags with the given command.
 func SetFilterFlags(cmd *cobra.Command) {
+	cmd.Flags().IntP(cobraext.FilterDepthFlagName, cobraext.FilterDepthFlagShorthand, cobraext.FilterDepthFlagDefault, cobraext.FilterDepthFlagDescription)
+	cmd.Flags().StringP(cobraext.FilterExcludeDirFlagName, "", "", cobraext.FilterExcludeDirFlagDescription)
+
 	for _, filterFlag := range registry {
 		filterFlag.Register(cmd)
 	}
@@ -32,13 +38,17 @@ func SetFilterFlags(cmd *cobra.Command) {
 
 // FilterRegistry manages a collection of filters for package filtering.
 type FilterRegistry struct {
-	filters []Filter
+	filters     []Filter
+	depth       int
+	excludeDirs string
 }
 
 // NewFilterRegistry creates a new FilterRegistry instance.
-func NewFilterRegistry() *FilterRegistry {
+func NewFilterRegistry(depth int, excludeDirs string) *FilterRegistry {
 	return &FilterRegistry{
-		filters: []Filter{},
+		filters:     []Filter{},
+		depth:       depth,
+		excludeDirs: excludeDirs,
 	}
 }
 
@@ -71,12 +81,12 @@ func (r *FilterRegistry) Validate() error {
 }
 
 func (r *FilterRegistry) Execute() (filtered []packages.PackageDirNameAndManifest, errors multierror.Error) {
-	root, err := packages.MustFindIntegrationRoot()
+	currentDir, err := os.Getwd()
 	if err != nil {
-		return nil, multierror.Error{err}
+		return nil, multierror.Error{fmt.Errorf("getting current directory failed: %w", err)}
 	}
 
-	pkgs, err := packages.ReadAllPackageManifests(root)
+	pkgs, err := packages.ReadAllPackageManifestsFromRepo(currentDir, r.depth, r.excludeDirs)
 	if err != nil {
 		return nil, multierror.Error{err}
 	}

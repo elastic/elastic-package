@@ -30,9 +30,6 @@ const (
 	// DataStreamManifestFile is the name of the data stream's manifest file.
 	DataStreamManifestFile = "manifest.yml"
 
-	// GoModFile is the name of the go.mod file.
-	GoModFile = "go.mod"
-
 	defaultPipelineName = "default"
 
 	dataStreamTypeLogs       = "logs"
@@ -206,6 +203,7 @@ type PackageManifest struct {
 
 type PackageDirNameAndManifest struct {
 	DirName  string
+	Path     string
 	Manifest *PackageManifest
 }
 
@@ -341,54 +339,6 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 	return "", false, nil
 }
 
-// MustFindIntegrationRoot finds and returns the path to the root folder of a package from the working directory.
-// It fails with an error if the package root can't be found.
-func MustFindIntegrationRoot() (string, error) {
-	root, found, err := FindIntegrationRoot()
-	if err != nil {
-		return "", fmt.Errorf("locating integration root failed: %w", err)
-	}
-	if !found {
-		return "", errors.New("integration root not found")
-	}
-	return root, nil
-}
-
-// FindIntegrationRoot finds and returns the path to the root folder of a package from the working directory.
-func FindIntegrationRoot() (string, bool, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", false, fmt.Errorf("locating working directory failed: %w", err)
-	}
-	return FindIntegrationRootFrom(workDir)
-}
-
-// IntegrationRoot function returns the root directory of the integrations
-func FindIntegrationRootFrom(fromDir string) (string, bool, error) {
-	rootDir := filepath.VolumeName(fromDir) + string(filepath.Separator)
-
-	dir := fromDir
-	for dir != "." {
-		path := filepath.Join(dir, GoModFile)
-		fileInfo, err := os.Stat(path)
-		if err == nil && !fileInfo.IsDir() {
-			ok, err := isIntegrationRepo(path)
-			if err != nil {
-				return "", false, fmt.Errorf("verifying integration repo failed (path: %s): %w", path, err)
-			}
-			if ok {
-				return dir, true, nil
-			}
-		}
-
-		if dir == rootDir {
-			break
-		}
-		dir = filepath.Dir(dir)
-	}
-	return fromDir, true, nil
-}
-
 // FindDataStreamRootForPath finds and returns the path to the root folder of a data stream.
 func FindDataStreamRootForPath(workDir string) (string, bool, error) {
 	dir := workDir
@@ -475,25 +425,82 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
-// ReadAllPackageManifests reads all the package manifests in the given root directory.
-func ReadAllPackageManifests(root string) ([]PackageDirNameAndManifest, error) {
-	files, err := filepath.Glob(filepath.Join(root, "packages", "*", PackageManifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("failed matching files with package manifests: %w", err)
+// ReadAllPackageManifestsFromRepo reads all the package manifests in the given directory.
+// It recursively searches for manifest.yml files up to the specified depth.
+// - depth: maximum depth to search (1 = current dir + immediate sub dirs)
+// - excludeDirs: comma-separated list of directory names to exclude (always excludes .git)
+func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
+	// Parse exclude directories
+	excludeMap := map[string]bool{
+		".git": true, // Always exclude .git
+	}
+	if excludeDirs != "" {
+		for dir := range strings.SplitSeq(excludeDirs, ",") {
+			excludeMap[strings.TrimSpace(dir)] = true
+		}
 	}
 
-	packages := make([]PackageDirNameAndManifest, 0, len(files))
-	for _, file := range files {
-		dirName := filepath.Base(filepath.Dir(file))
-		manifest, err := ReadPackageManifest(file)
+	var packages []PackageDirNameAndManifest
+	searchRootDepth := strings.Count(searchRoot, string(filepath.Separator))
+
+	err := filepath.WalkDir(searchRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil, fmt.Errorf("failed to read package manifest: %w", err)
+			return err
+		}
+
+		// Calculate current depth relative to search root
+		currentDepth := strings.Count(path, string(filepath.Separator)) - searchRootDepth
+
+		// If it's a directory, check if we should skip it
+		if d.IsDir() {
+			dirName := d.Name()
+
+			// Skip excluded directories
+			if excludeMap[dirName] {
+				return filepath.SkipDir
+			}
+
+			// Skip if we've exceeded the depth limit (but allow processing the current level)
+			if currentDepth > depth {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		// Check if this is a manifest file
+		if d.Name() != PackageManifestFile {
+			return nil
+		}
+
+		// Validate it's a package manifest
+		ok, err := isPackageManifest(path)
+		if err != nil {
+			// Log the error but continue searching
+			return nil
+		}
+		if !ok {
+			return nil
+		}
+
+		// Extract directory name (just the package directory name, not the full path)
+		dirName := filepath.Base(filepath.Dir(path))
+		manifest, err := ReadPackageManifest(path)
+		if err != nil {
+			return fmt.Errorf("failed to read package manifest (path: %s): %w", path, err)
 		}
 
 		packages = append(packages, PackageDirNameAndManifest{
 			DirName:  dirName,
 			Manifest: manifest,
+			Path:     filepath.Dir(path),
 		})
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed walking directory tree: %w", err)
 	}
 
 	return packages, nil
@@ -714,20 +721,4 @@ func isDataStreamManifest(path string) (bool, error) {
 	return m.Title != "" &&
 			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),
 		nil
-}
-func isIntegrationRepo(path string) (bool, error) {
-	modFile, err := os.ReadFile(path)
-	if err != nil {
-		return false, fmt.Errorf("reading go.mod file failed: %w", err)
-	}
-
-	content := string(modFile)
-	content = strings.SplitN(content, "\n", 2)[0]
-	content = strings.TrimSpace(content)
-
-	if !strings.HasSuffix(content, "github.com/elastic/integrations") {
-		return false, fmt.Errorf("integration root %s is not an elastic-package integration", path)
-	}
-
-	return true, nil
 }

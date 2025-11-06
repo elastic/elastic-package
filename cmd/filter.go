@@ -32,8 +32,9 @@ func setupFilterCommand() *cobraext.Command {
 	// add filter flags to the command (input, code owner, kibana version, categories)
 	filter.SetFilterFlags(cmd)
 
-	// add the output package name flag to the command
-	cmd.Flags().BoolP(cobraext.FilterOutputPackageNameFlagName, cobraext.FilterOutputPackageNameFlagShorthand, false, cobraext.FilterOutputPackageNameFlagDescription)
+	// add the output package name and absolute path flags to the command
+	cmd.Flags().BoolP(cobraext.FilterOutputPackageNameFlagName, "", false, cobraext.FilterOutputPackageNameFlagDescription)
+	cmd.Flags().BoolP(cobraext.FilterOutputAbsolutePathFlagName, "", false, cobraext.FilterOutputAbsolutePathFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -49,7 +50,12 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting output package name flag failed: %w", err)
 	}
 
-	if err = printPkgList(filtered, printPackageName, os.Stdout); err != nil {
+	outputAbsolutePath, err := cmd.Flags().GetBool("output-absolute-path")
+	if err != nil {
+		return fmt.Errorf("getting output absolute path flag failed: %w", err)
+	}
+
+	if err = printPkgList(filtered, printPackageName, outputAbsolutePath, os.Stdout); err != nil {
 		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
@@ -57,7 +63,17 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, error) {
-	filters := filter.NewFilterRegistry()
+	depth, err := cmd.Flags().GetInt(cobraext.FilterDepthFlagName)
+	if err != nil {
+		return nil, fmt.Errorf("getting depth flag failed: %w", err)
+	}
+
+	excludeDirs, err := cmd.Flags().GetString(cobraext.FilterExcludeDirFlagName)
+	if err != nil {
+		return nil, fmt.Errorf("getting exclude-dir flag failed: %w", err)
+	}
+
+	filters := filter.NewFilterRegistry(depth, excludeDirs)
 
 	if err := filters.Parse(cmd); err != nil {
 		return nil, fmt.Errorf("parsing filter options failed: %w", err)
@@ -75,7 +91,7 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, er
 	return filtered, nil
 }
 
-func printPkgList(pkgs []packages.PackageDirNameAndManifest, printPackageName bool, w io.Writer) error {
+func printPkgList(pkgs []packages.PackageDirNameAndManifest, printPackageName bool, outputAbsolutePath bool, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
 	if len(pkgs) == 0 {
@@ -86,6 +102,10 @@ func printPkgList(pkgs []packages.PackageDirNameAndManifest, printPackageName bo
 	if printPackageName {
 		for _, pkg := range pkgs {
 			names = append(names, pkg.Manifest.Name)
+		}
+	} else if outputAbsolutePath {
+		for _, pkg := range pkgs {
+			names = append(names, pkg.Path)
 		}
 	} else {
 		for _, pkg := range pkgs {

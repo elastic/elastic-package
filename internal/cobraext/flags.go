@@ -136,24 +136,29 @@ const (
 	FailFastFlagName        = "fail-fast"
 	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
 
-	FilterCategoriesFlagName        = "category"
+	FilterCategoriesFlagName        = "categories"
 	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
 
-	FilterCodeOwnerFlagName        = "code-owner"
+	FilterCodeOwnerFlagName        = "code-owners"
 	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
 
-	FilterPackageTypeFlagName        = "package-type"
+	FilterPackageTypeFlagName        = "package-types"
 	FilterPackageTypeFlagDescription = "package types to filter by (comma-separated values)"
 
-	FilterInputFlagName        = "input"
+	FilterInputFlagName        = "inputs"
 	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
 
 	FilterKibanaVersionFlagName        = "kibana-version"
 	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
 
+	FilterOutputAbsolutePathFlagName        = "output-absolute-path"
+	FilterOutputAbsolutePathFlagDescription = "output the absolute path of the package"
+
 	FilterOutputPackageNameFlagName        = "output-package-name"
-	FilterOutputPackageNameFlagShorthand   = "p"
 	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
+
+	FilterPackageDirNameFlagName        = "package-dirs"
+	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"
 
 	FilterPackagesFlagName        = "packages"
 	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
@@ -161,7 +166,16 @@ const (
 	FilterSpecVersionFlagName        = "spec-version"
 	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
 
+	FilterDepthFlagName        = "depth"
+	FilterDepthFlagDescription = "maximum depth to search for packages (default: 2)"
+	FilterDepthFlagDefault     = 2
+	FilterDepthFlagShorthand   = "d"
+
+	FilterExcludeDirFlagName        = "exclude-dirs"
+	FilterExcludeDirFlagDescription = "comma-separated list of directories to exclude from search"
+
 	ForeachPoolSizeFlagName        = "parallel"
+	ForeachPoolSizeFlagShorthand   = "p"
 	ForeachPoolSizeFlagDescription = "Number of subcommands to execute in parallel (defaults to serial execution)"
 
 	GenerateTestResultFlagName        = "generate"

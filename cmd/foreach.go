@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -20,7 +19,6 @@ import (
 	"github.com/elastic/elastic-package/internal/filter"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 const foreachLongDescription = `Execute a command for each package matching the given filter criteria.
@@ -60,7 +58,7 @@ func setupForeachCommand() *cobraext.Command {
 	filter.SetFilterFlags(cmd)
 
 	// Add pool size flag
-	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, "", 1, cobraext.ForeachPoolSizeFlagDescription)
+	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, cobraext.ForeachPoolSizeFlagShorthand, 1, cobraext.ForeachPoolSizeFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -75,12 +73,6 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating sub command failed: %w", err)
 	}
 
-	// Find integration root
-	root, err := packages.MustFindIntegrationRoot()
-	if err != nil {
-		return fmt.Errorf("can't find integration root: %w", err)
-	}
-
 	// reuse filterPackage from cmd/filter.go
 	filtered, err := filterPackage(cmd)
 	if err != nil {
@@ -92,31 +84,30 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 	errs := multierror.Error{}
 	successes := 0
 
-	packageChan := make(chan string, poolSize)
+	packagePathChan := make(chan string, poolSize)
 
 	for range poolSize {
 		wg.Add(1)
-		go func(packageChan <-chan string) {
+		go func(packagePathChan <-chan string) {
 			defer wg.Done()
-			for packageName := range packageChan {
-				path := filepath.Join(root, "packages", packageName)
-				err := executeCommand(args, path)
+			for packagePath := range packagePathChan {
+				err := executeCommand(args, packagePath)
 
 				mu.Lock()
 				if err != nil {
-					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packageName, err))
+					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packagePath, err))
 				} else {
 					successes++
 				}
 				mu.Unlock()
 			}
-		}(packageChan)
+		}(packagePathChan)
 	}
 
 	for _, pkg := range filtered {
-		packageChan <- pkg.DirName
+		packagePathChan <- pkg.Path
 	}
-	close(packageChan)
+	close(packagePathChan)
 
 	wg.Wait()
 
