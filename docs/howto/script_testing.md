@@ -56,10 +56,8 @@ a stack, starting agents and services and validating results.
   - `add_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: add assets from a Zip-packaged integration package
   - `remove_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: remove assets for Zip-packaged integration package
   - `upgrade_package_latest [-profile <profile>] [-timeout <duration>] [<package_name>]`: upgrade the current package or another named package to the latest version
-
-- data stream commands:
-  - `add_data_stream [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>`: add a data stream policy, setting the environment variable named in the positional argument
-  - `remove_data_stream [-profile <profile>] [-timeout <duration>] <data_stream_name>`: remove a data stream policy
+  - `add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>`: add a package policy, setting the environment variable named in the positional argument
+  - `remove_package_policy [-profile <profile>] [-timeout <duration>] <data_stream_name>`: remove a package policy
   - `get_docs [-profile <profile>] [-timeout <duration>] [<data_stream>]`: get documents from a data stream
 
 - docker commands:
@@ -125,7 +123,7 @@ add_package -profile ${CONFIG_PROFILES}/${PROFILE}
 # Add the data stream.
 #
 # The configuration for the test is described in test_config.yaml below.
-add_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
+add_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
 
 # Start the service.
 docker_signal test-hits SIGHUP
@@ -145,17 +143,17 @@ docker_down test-hits
 stdout '"total_lines":10'
 
 # Get documents from the data stream.
-get_docs -profile ${CONFIG_PROFILES}/default -want 10 -timeout 5m ${DATA_STREAM_NAME}
+get_docs -profile ${CONFIG_PROFILES}/${PROFILE} -want 10 -timeout 5m ${DATA_STREAM_NAME}
 cp stdout got_docs.json
 
 # Remove the data stream.
-remove_data_stream -profile ${CONFIG_PROFILES}/default ${DATA_STREAM_NAME}
+remove_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
 
 # Uninstall the agent.
-uninstall_agent -profile ${CONFIG_PROFILES}/default -timeout 1m 
+uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m 
 
 # Remove the package resources.
-remove_package -profile ${CONFIG_PROFILES}/default
+remove_package -profile ${CONFIG_PROFILES}/${PROFILE}
 
 -- test-hits/docker-compose.yml --
 version: '2.3'

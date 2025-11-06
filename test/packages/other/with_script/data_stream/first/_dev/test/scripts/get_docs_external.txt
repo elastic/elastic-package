@@ -26,9 +26,9 @@ add_package -profile ${CONFIG_PROFILES}/${PROFILE}
 ! stderr .
 
 # Add the data stream.
-add_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
+add_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
 ! stderr .
-cmpenv stdout want_add_data_stream.text
+cmpenv stdout want_add_package_policy.text
 exec echo ${DATA_STREAM_NAME}
 cp stdout got_data_stream_name.text
 match_file want_data_stream_name.pattern got_data_stream_name.text
@@ -66,9 +66,9 @@ upgrade_package_latest -profile ${CONFIG_PROFILES}/${PROFILE}
 stdout 'upgraded package '${PACKAGE_NAME}' from version '${CURRENT_VERSION@R}
 
 # Remove the data stream.
-remove_data_stream -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
+remove_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
 ! stderr .
-cmpenv stdout want_remove_data_stream.text
+cmpenv stdout want_remove_package_policy.text
 
 # Uninstall the agent.
 uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m 
@@ -127,7 +127,7 @@ data_stream:
     tcp_port: 9999
 -- want_data_stream_name.pattern --
 logs-with_script\.first-[0-9]+
--- want_add_data_stream.text --
+-- want_add_package_policy.text --
 added ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}
--- want_remove_data_stream.text --
+-- want_remove_package_policy.text --
 removed ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}
