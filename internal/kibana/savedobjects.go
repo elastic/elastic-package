@@ -203,7 +203,7 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 			for _, importError := range resp.Errors {
 				errorMessages = append(errorMessages, fmt.Sprintf("ID: %s, Type: %s, Error: %v", importError.ID, importError.Type, importError.Error))
 			}
-			return fmt.Errorf("importing %s %s was not successful: %s", savedObjectType, id, strings.Join(errorMessages, "; "))
+			return fmt.Errorf("failed to import one or more saved objects: %s", strings.Join(errorMessages, "; "))
 		}
 		return fmt.Errorf("importing %s %s was not successful", savedObjectType, id)
 	}
