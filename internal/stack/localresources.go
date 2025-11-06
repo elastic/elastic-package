@@ -50,7 +50,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion, agentVersion st
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_version":        stackVersion,
+		"agent_version":        agentVersion,
 		"agent_image":          imageRefs.ElasticAgent,
 		"logstash_image":       imageRefs.Logstash,
 		"isready_image":        imageRefs.IsReady,
