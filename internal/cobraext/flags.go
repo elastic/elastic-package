@@ -154,8 +154,10 @@ const (
 	FilterOutputAbsolutePathFlagName        = "output-absolute-path"
 	FilterOutputAbsolutePathFlagDescription = "output the absolute path of the package"
 
-	FilterOutputPackageNameFlagName        = "output-package-name"
-	FilterOutputPackageNameFlagDescription = "print the package name instead of the directory name in the output"
+	FilterOutputFlagName        = "output"
+	FilterOutputFlagDescription = "select the output format (pkgname, dirname, absolute-path)"
+	FilterOutputFlagDefault     = "dirname"
+	FilterOutputFlagShorthand   = "o"
 
 	FilterPackageDirNameFlagName        = "package-dirs"
 	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"

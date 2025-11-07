@@ -6,11 +6,65 @@ package filter
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
+
+type OutputFormat string
+
+const (
+	OutputFormatPackageName   OutputFormat = "pkgname"
+	OutputFormatDirectoryName OutputFormat = "dirname"
+	OutputFormatAbsolutePath  OutputFormat = "absolute"
+)
+
+func OutputFormatsList() []OutputFormat {
+	return []OutputFormat{OutputFormatPackageName, OutputFormatDirectoryName, OutputFormatAbsolutePath}
+}
+
+func (o OutputFormat) String() string {
+	return string(o)
+}
+
+func NewOutputFormat(s string) (OutputFormat, error) {
+	switch s {
+	case string(OutputFormatPackageName):
+		return OutputFormatPackageName, nil
+	case string(OutputFormatDirectoryName):
+		return OutputFormatDirectoryName, nil
+	case string(OutputFormatAbsolutePath):
+		return OutputFormatAbsolutePath, nil
+	}
+	return "", fmt.Errorf("invalid output format: %s", s)
+}
+
+func (o OutputFormat) ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]string, error) {
+	// if no packages are found, return an empty slice
+	if len(pkgs) == 0 {
+		return nil, nil
+	}
+
+	// apply the output format to the packages
+	output := make([]string, 0, len(pkgs))
+	for _, pkg := range pkgs {
+		switch o {
+		case OutputFormatPackageName:
+			output = append(output, pkg.Manifest.Name)
+		case OutputFormatDirectoryName:
+			output = append(output, pkg.DirName)
+		case OutputFormatAbsolutePath:
+			output = append(output, pkg.Path)
+		}
+	}
+
+	// sort the output
+	slices.Sort(output)
+
+	return output, nil
+}
 
 // FilterFlag defines the basic interface for filter flags.
 type FilterFlag interface {

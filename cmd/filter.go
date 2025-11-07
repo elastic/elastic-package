@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"slices"
 
 	"github.com/spf13/cobra"
 
@@ -33,8 +32,7 @@ func setupFilterCommand() *cobraext.Command {
 	filter.SetFilterFlags(cmd)
 
 	// add the output package name and absolute path flags to the command
-	cmd.Flags().BoolP(cobraext.FilterOutputPackageNameFlagName, "", false, cobraext.FilterOutputPackageNameFlagDescription)
-	cmd.Flags().BoolP(cobraext.FilterOutputAbsolutePathFlagName, "", false, cobraext.FilterOutputAbsolutePathFlagDescription)
+	cmd.Flags().StringP(cobraext.FilterOutputFlagName, cobraext.FilterOutputFlagShorthand, cobraext.FilterOutputFlagDefault, cobraext.FilterOutputFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -45,17 +43,17 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	printPackageName, err := cmd.Flags().GetBool(cobraext.FilterOutputPackageNameFlagName)
+	outputFormatStr, err := cmd.Flags().GetString(cobraext.FilterOutputFlagName)
 	if err != nil {
-		return fmt.Errorf("getting output package name flag failed: %w", err)
+		return fmt.Errorf("getting output format flag failed: %w", err)
 	}
 
-	outputAbsolutePath, err := cmd.Flags().GetBool("output-absolute-path")
+	outputFormat, err := filter.NewOutputFormat(outputFormatStr)
 	if err != nil {
-		return fmt.Errorf("getting output absolute path flag failed: %w", err)
+		return fmt.Errorf("invalid output format: %w", err)
 	}
 
-	if err = printPkgList(filtered, printPackageName, outputAbsolutePath, os.Stdout); err != nil {
+	if err = printPkgList(filtered, outputFormat, os.Stdout); err != nil {
 		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
@@ -91,28 +89,14 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, er
 	return filtered, nil
 }
 
-func printPkgList(pkgs []packages.PackageDirNameAndManifest, printPackageName bool, outputAbsolutePath bool, w io.Writer) error {
+func printPkgList(pkgs []packages.PackageDirNameAndManifest, outputFormat filter.OutputFormat, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
-	if len(pkgs) == 0 {
-		return nil
+
+	names, err := outputFormat.ApplyTo(pkgs)
+	if err != nil {
+		return fmt.Errorf("applying output format failed: %w", err)
 	}
 
-	names := make([]string, 0, len(pkgs))
-	if printPackageName {
-		for _, pkg := range pkgs {
-			names = append(names, pkg.Manifest.Name)
-		}
-	} else if outputAbsolutePath {
-		for _, pkg := range pkgs {
-			names = append(names, pkg.Path)
-		}
-	} else {
-		for _, pkg := range pkgs {
-			names = append(names, pkg.DirName)
-		}
-	}
-
-	slices.Sort(names)
 	return enc.Encode(names)
 }
