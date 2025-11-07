@@ -176,7 +176,7 @@ func (g *GeminiProvider) GenerateResponse(ctx context.Context, prompt string, to
 	if resp.StatusCode != http.StatusOK {
 		var errBody bytes.Buffer
 		io.Copy(&errBody, resp.Body)
-		return nil, fmt.Errorf("gemini API returned status %d: &s", resp.StatusCode, errBody.String())
+		return nil, fmt.Errorf("gemini API returned status %d: %s", resp.StatusCode, errBody.String())
 	}
 
 	// Parse response

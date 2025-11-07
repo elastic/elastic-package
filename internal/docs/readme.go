@@ -149,7 +149,7 @@ func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 }
 
 // GenerateReadme will generate the readme from the template readme file at `filename`,
-// and return a version will template functions and links inserted.
+// and return a version with template functions and links inserted.
 func GenerateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)

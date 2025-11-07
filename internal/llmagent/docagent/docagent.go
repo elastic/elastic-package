@@ -83,10 +83,9 @@ func NewDocumentationAgent(provider providers.LLMProvider, packageRoot string, t
 	if targetDocFile == "" {
 		return nil, fmt.Errorf("targetDocFile cannot be empty")
 	}
-	// Create tools for package operations
+
 	packageTools := tools.PackageTools(packageRoot)
 
-	// Load the MCP tools
 	servers := mcptools.LoadTools()
 	if servers != nil {
 		for _, srv := range servers.Servers {
@@ -96,7 +95,6 @@ func NewDocumentationAgent(provider providers.LLMProvider, packageRoot string, t
 		}
 	}
 
-	// Create the agent
 	llmAgent := framework.NewAgent(provider, packageTools)
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)

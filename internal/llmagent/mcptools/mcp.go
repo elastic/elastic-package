@@ -33,8 +33,8 @@ type MCPServer struct {
 	Url     *string            `json:"url"`
 	Headers *map[string]string `json:"headers"`
 
-	session *mcp.ClientSession
-	Tools   []providers.Tool
+	session *mcp.ClientSession `json:"-"`
+	Tools   []providers.Tool   `json:"-"`
 }
 
 // MCPJson represents the MCP configuration file structure.
