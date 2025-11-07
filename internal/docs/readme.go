@@ -68,7 +68,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := GenerateReadme(fileName, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -123,7 +123,7 @@ func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
 func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := GenerateReadme(fileName, packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,9 @@ func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+// GenerateReadme will generate the readme from the template readme file at `filename`,
+// and return a version will template functions and links inserted.
+func GenerateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {

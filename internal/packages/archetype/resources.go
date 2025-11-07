@@ -51,3 +51,8 @@ var dataStreamElasticsearchIngestPipelineTemplate string
 
 //go:embed _static/dataStream-manifest.yml.tmpl
 var dataStreamManifestTemplate string
+
+// GetPackageDocsReadmeTemplate returns the embedded README template content
+func GetPackageDocsReadmeTemplate() string {
+	return packageDocsReadme
+}

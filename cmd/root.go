@@ -37,6 +37,7 @@ var commands = []*cobraext.Command{
 	setupStatusCommand(),
 	setupTestCommand(),
 	setupUninstallCommand(),
+	setupUpdateCommand(),
 	setupVersionCommand(),
 }
 

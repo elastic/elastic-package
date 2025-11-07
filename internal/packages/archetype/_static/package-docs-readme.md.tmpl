@@ -38,7 +38,7 @@ Elastic Agent must be installed. For more details, check the Elastic Agent [inst
 
 Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-{{/* If agentless is available for this integration, we'll want to include that here as well.
+{{/* If agentless is available for this integration, Include the below section. You can determine if agentless is available for this integration by checking the `manifest.yml` file, and looking for the existance of "policy_templates.deployment_modes.agentless.enabled": "true".
 ### Agentless deployment
 
 Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
@@ -92,10 +92,10 @@ To include a sample event from `sample_event.json`, uncomment and use:
 */}}
 
 ### Inputs used
-{{/* All inputs used by this package will be automatically listed here. */}}
+{{/* All inputs used by this package will be automatically listed here. Do not modify this section. */}}
 {{ inputDocs }}
 
 ### API usage
-{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information */}}
+{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information. For integrations that do not use APIs, do not include this section. */}}
 These APIs are used with this integration:
 * ...
