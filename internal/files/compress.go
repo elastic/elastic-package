@@ -6,7 +6,6 @@ package files
 
 import (
 	"archive/zip"
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,7 +13,7 @@ import (
 )
 
 // Zip function creates the .zip archive from the source path (built package content).
-func Zip(ctx context.Context, sourcePath, destinationFile string) error {
+func Zip(sourcePath, destinationFile string) error {
 	out, err := os.Create(destinationFile)
 	if err != nil {
 		return err

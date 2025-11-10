@@ -6,7 +6,6 @@ package files
 
 import (
 	"archive/zip"
-	"context"
 	"io/fs"
 	"io/ioutil"
 	"path"
@@ -22,7 +21,7 @@ func TestZip(t *testing.T) {
 	destinationName := "packagename-1.0.0"
 	destinationFile := filepath.Join(t.TempDir(), destinationName+".zip")
 
-	err := Zip(context.Background(), sourcePath, destinationFile)
+	err := Zip(sourcePath, destinationFile)
 	require.NoError(t, err)
 
 	reader, err := zip.OpenReader(destinationFile)
