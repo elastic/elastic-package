@@ -23,7 +23,7 @@ func TestGetDocPath(t *testing.T) {
 			packageRoot:   "/test/package",
 			targetDocFile: "README.md",
 			wantErr:       false,
-			expectedPath:  "/test/package/_dev/build/docs/README.md",
+			expectedPath:  filepath.Join("/test/package", "_dev", "build", "docs", "README.md"),
 		},
 		{
 			name:          "empty package root",

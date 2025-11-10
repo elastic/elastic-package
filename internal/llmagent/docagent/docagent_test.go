@@ -6,6 +6,8 @@ package docagent
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,15 +37,30 @@ func TestNewDocumentationAgent(t *testing.T) {
 		provider      providers.LLMProvider
 		packageRoot   string
 		targetDocFile string
+		setupFunc     func(*testing.T) string // Returns packageRoot path
 		expectError   bool
 		errorContains string
 	}{
 		{
 			name:          "valid parameters",
 			provider:      &mockProvider{},
-			packageRoot:   "../../testdata/test_packages/nginx",
 			targetDocFile: "README.md",
-			expectError:   false,
+			setupFunc: func(t *testing.T) string {
+				// Create temporary directory with minimal manifest.yml
+				tmpDir := t.TempDir()
+				manifestContent := `format_version: "3.0.0"
+name: test
+title: Test Package
+version: "1.0.0"
+type: integration
+`
+				manifestPath := filepath.Join(tmpDir, "manifest.yml")
+				if err := os.WriteFile(manifestPath, []byte(manifestContent), 0o644); err != nil {
+					t.Fatalf("Failed to create test manifest: %v", err)
+				}
+				return tmpDir
+			},
+			expectError: false,
 		},
 		{
 			name:          "nil provider",
@@ -73,18 +90,20 @@ func TestNewDocumentationAgent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			agent, err := NewDocumentationAgent(tt.provider, tt.packageRoot, tt.targetDocFile, nil)
+			packageRoot := tt.packageRoot
+			if tt.setupFunc != nil {
+				packageRoot = tt.setupFunc(t)
+			}
+
+			agent, err := NewDocumentationAgent(tt.provider, packageRoot, tt.targetDocFile, nil)
 
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorContains)
 				assert.Nil(t, agent)
 			} else {
-				if err != nil {
-					// Some valid test cases might fail due to missing test data
-					// This is acceptable for this test
-					t.Skipf("Skipping valid case due to test environment: %v", err)
-				}
+				require.NoError(t, err)
+				require.NotNil(t, agent)
 			}
 		})
 	}
