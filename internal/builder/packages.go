@@ -257,6 +257,7 @@ func buildZippedPackage(ctx context.Context, options BuildOptions, builtPackageD
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
+	logger.Debugf("Compress using archives.Zip (destination: %s)", zippedPackagePath)
 	err = files.Zip(ctx, builtPackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
