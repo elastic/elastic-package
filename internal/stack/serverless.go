@@ -27,7 +27,7 @@ const (
 	paramServerlessProjectType = "serverless_project_type"
 	ParamServerlessFleetURL    = "serverless_fleet_url"
 
-	ParamServerlessLocalStackVersion = "serverless_local_stack_version"
+	ParamServerlessLocalAgentVersion = "serverless_local_agent_version"
 
 	configRegion          = "stack.serverless.region"
 	configProjectType     = "stack.serverless.type"
@@ -90,7 +90,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	config.ElasticsearchPassword = project.Credentials.Password
 
 	// add stack version set in command line
-	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
+	config.Parameters[ParamServerlessLocalAgentVersion] = options.AgentVersion
 
 	// Store config now in case fails initialization or other requests,
 	// so it can be destroyed later

@@ -53,7 +53,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return err
 	}
 	// TODO: Migrate from serverless variables.
-	config.Parameters[ParamServerlessLocalStackVersion] = options.StackVersion
+	config.Parameters[ParamServerlessLocalAgentVersion] = options.AgentVersion
 
 	config, err = p.setupFleet(ctx, config, options)
 	if err != nil {
