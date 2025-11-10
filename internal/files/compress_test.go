@@ -7,7 +7,7 @@ package files
 import (
 	"archive/zip"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"testing"
@@ -46,7 +46,7 @@ func TestZip(t *testing.T) {
 				return
 			}
 
-			expectedContent, err := ioutil.ReadFile(filePath)
+			expectedContent, err := os.ReadFile(filePath)
 			require.NoError(t, err)
 
 			foundContent, err := fs.ReadFile(reader, destinationPath)
