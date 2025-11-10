@@ -5,6 +5,7 @@
 package files
 
 import (
+	"archive/zip"
 	"context"
 	"fmt"
 	"os"
@@ -12,8 +13,6 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/logger"
-
-	"github.com/mholt/archives"
 )
 
 // Zip function creates the .zip archive from the source path (built package content).
@@ -41,29 +40,21 @@ func Zip(ctx context.Context, sourcePath, destinationFile string) error {
 		return fmt.Errorf("can't create a work directory (path: %s): %w", workDir, err)
 	}
 
-	filenames := map[string]string{
-		workDir: folderName,
-	}
-
-	files, err := archives.FilesFromDisk(ctx, nil, filenames)
-	if err != nil {
-		return fmt.Errorf("failed to get files from disk: %w", err)
-	}
-
 	out, err := os.Create(destinationFile)
 	if err != nil {
 		return err
 	}
 	defer out.Close()
 
-	z := archives.Zip{
-		SelectiveCompression: true,
-		ContinueOnError:      false,
-	}
-
-	err = z.Archive(ctx, out, files)
+	z := zip.NewWriter(out)
+	err = z.AddFS(os.DirFS(tempDir))
 	if err != nil {
-		return fmt.Errorf("can't archive source directory (source path: %s): %w", sourcePath, err)
+		return fmt.Errorf("failed to add built folder to package zip: %w", err)
+	}
+	// No need to z.Flush() because z.Close() already does it.
+	err = z.Close()
+	if err != nil {
+		return fmt.Errorf("failed to write data to zip file: %w", err)
 	}
 	return nil
 }
