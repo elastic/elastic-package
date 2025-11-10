@@ -154,7 +154,7 @@ type Validator struct {
 
 	disabledNormalization bool
 
-	enabledOTELValidation bool
+	enabledOTelValidation bool
 
 	injectFieldsOptions InjectFieldsOptions
 }
@@ -248,21 +248,21 @@ func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	}
 }
 
-// WithOTELValidation configures the validator to enable or disable OpenTelemetry specific validation.
-func WithOTELValidation(otelValidation bool) ValidatorOption {
+// WithOTelValidation configures the validator to enable or disable OpenTelemetry specific validation.
+func WithOTelValidation(otelValidation bool) ValidatorOption {
 	return func(v *Validator) error {
-		v.enabledOTELValidation = otelValidation
+		v.enabledOTelValidation = otelValidation
 		return nil
 	}
 }
 
 type packageRootFinder interface {
-	FindPackageRoot() (string, bool, error)
+	FindPackageRoot() (string, error)
 }
 
 type packageRoot struct{}
 
-func (p packageRoot) FindPackageRoot() (string, bool, error) {
+func (p packageRoot) FindPackageRoot() (string, error) {
 	return packages.FindPackageRoot()
 }
 
@@ -288,13 +288,14 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
-		packageRoot, found, err := finder.FindPackageRoot()
+		packageRoot, err := finder.FindPackageRoot()
 		if err != nil {
+			if errors.Is(err, packages.ErrPackageRootNotFound) {
+				return nil, errors.New("package root not found and dependency management is enabled")
+			}
 			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
-		if !found {
-			return nil, errors.New("package root not found and dependency management is enabled")
-		}
+
 		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
@@ -572,7 +573,7 @@ func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 
 	// If package uses OpenTelemetry Collector, skip field validation and just
 	// validate document values (datasets).
-	if !v.enabledOTELValidation {
+	if !v.enabledOTelValidation {
 		errs = append(errs, v.validateMapElement("", body, body)...)
 	}
 

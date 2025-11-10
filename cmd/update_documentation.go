@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -201,12 +200,9 @@ func createLLMProvider(cmd *cobra.Command, profile *profile.Profile) (providers.
 }
 
 func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
-	packageRoot, found, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return errors.New("package root not found, you can only update documentation in the package context")
 	}
 
 	// Check for non-interactive flag

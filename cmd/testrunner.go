@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -145,12 +146,14 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
@@ -177,6 +180,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig: globalTestConfig.Asset,
 		WithCoverage:     testCoverage,
 		CoverageType:     testCoverageFormat,
+		RepositoryRoot:   repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -235,10 +239,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -342,10 +343,12 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -388,6 +391,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		CoverageType:       testCoverageFormat,
 		DeferCleanup:       deferCleanup,
 		GlobalTestConfig:   globalTestConfig.Pipeline,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -486,12 +490,14 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	runSetup, err := cmd.Flags().GetBool(cobraext.SetupFlagName)
@@ -578,6 +584,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.System,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	logger.Debugf("Running suite...")
@@ -651,12 +658,14 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
@@ -691,6 +700,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.Policy,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
+		RepositoryRoot:     repositoryRoot,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

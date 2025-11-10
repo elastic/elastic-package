@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -33,10 +34,11 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana         *kibana.Client
-	RootPath       string
-	ZipPath        string
-	SkipValidation bool
+	Kibana          *kibana.Client
+	PackageRootPath string // Root path of the package to be installed.
+	ZipPath         string
+	SkipValidation  bool
+	RepositoryRoot  *os.Root // Root of the repository where package source code is located.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -48,8 +50,11 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 	if options.Kibana == nil {
 		return nil, errors.New("missing kibana client")
 	}
-	if options.RootPath == "" && options.ZipPath == "" {
+	if options.PackageRootPath == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
+	}
+	if options.RepositoryRoot == nil {
+		return nil, errors.New("missing repository root")
 	}
 
 	version, err := kibanaVersion(options.Kibana)
@@ -81,10 +86,11 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 	}
 
 	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
-		PackageRoot:    options.RootPath,
-		CreateZip:      supportsUploadZip,
-		SignPackage:    false,
-		SkipValidation: options.SkipValidation,
+		PackageRootPath: options.PackageRootPath,
+		CreateZip:       supportsUploadZip,
+		SignPackage:     false,
+		SkipValidation:  options.SkipValidation,
+		RepositoryRoot:  options.RepositoryRoot,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

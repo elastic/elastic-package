@@ -1,5 +1,5 @@
 env:
-  SETUP_GVM_VERSION: 'v0.5.1' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
+  SETUP_GVM_VERSION: 'v0.6.0' # https://github.com/andrewkroh/gvm/issues/44#issuecomment-1013231151
   GH_CLI_VERSION: "2.29.0"
   JQ_VERSION: "1.7"
   # Agent images used in pipeline steps

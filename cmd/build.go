@@ -61,18 +61,38 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+	defer repositoryRoot.Close()
+
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	// Currently the build directory is placed inside the repository build/ folder.
+	// In the future we might want to make this configurable.
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(packageRoot, buildDir)
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
+		PackageRootPath: packageRoot,
+		BuildDir:        buildDir,
+		CreateZip:       createZip,
+		SignPackage:     signPackage,
+		SkipValidation:  skipValidation,
+		RepositoryRoot:  repositoryRoot,
+	})
+	if err != nil {
+		return fmt.Errorf("building package failed: %w", err)
+	}
+
+	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}
@@ -82,16 +102,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
-	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-	})
-	if err != nil {
-		return fmt.Errorf("building package failed: %w", err)
-	}
 	cmd.Printf("Package built: %s\n", target)
 
 	cmd.Println("Done")

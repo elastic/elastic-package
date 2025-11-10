@@ -6,6 +6,7 @@ package packages
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"text/template"
 
 	yamlv3 "gopkg.in/yaml.v3"
 
@@ -102,19 +104,19 @@ func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
 
 // Variable is an instance of configuration variable (named, typed).
 type Variable struct {
-	Name                  string   `config:"name" json:"name" yaml:"name"`
-	Type                  string   `config:"type" json:"type" yaml:"type"`
-	Title                 string   `config:"title" json:"title" yaml:"title"`
-	Description           string   `config:"description" json:"description" yaml:"description"`
-	Multi                 bool     `config:"multi" json:"multi" yaml:"multi"`
-	Required              bool     `config:"required" json:"required" yaml:"required"`
-	Secret                bool     `config:"secret" json:"secret" yaml:"secret"`
-	ShowUser              bool     `config:"show_user" json:"show_user" yaml:"show_user"`
-	HideInDeploymentModes []string `config:"hide_in_deployment_modes" json:"hide_in_deployment_modes" yaml:"hide_in_deployment_modes"`
-	UrlAllowedSchemes     []string `config:"url_allowed_schemes" json:"url_allowed_schemes" yaml:"url_allowed_schemes"`
-	MinDuration           string   `config:"min_duration" json:"min_duration" yaml:"min_duration"`
-	MaxDuration           string   `config:"max_duration" json:"max_duration" yaml:"max_duration"`
-	Default               VarValue `config:"default" json:"default" yaml:"default"`
+	Name                  string    `config:"name" json:"name" yaml:"name"`
+	Type                  string    `config:"type" json:"type" yaml:"type"`
+	Title                 string    `config:"title" json:"title" yaml:"title"`
+	Description           string    `config:"description" json:"description" yaml:"description"`
+	Multi                 bool      `config:"multi" json:"multi" yaml:"multi"`
+	Required              bool      `config:"required" json:"required" yaml:"required"`
+	Secret                bool      `config:"secret" json:"secret" yaml:"secret"`
+	ShowUser              bool      `config:"show_user" json:"show_user" yaml:"show_user"`
+	HideInDeploymentModes []string  `config:"hide_in_deployment_modes" json:"hide_in_deployment_modes" yaml:"hide_in_deployment_modes"`
+	UrlAllowedSchemes     []string  `config:"url_allowed_schemes" json:"url_allowed_schemes" yaml:"url_allowed_schemes"`
+	MinDuration           string    `config:"min_duration" json:"min_duration" yaml:"min_duration"`
+	MaxDuration           string    `config:"max_duration" json:"max_duration" yaml:"max_duration"`
+	Default               *VarValue `config:"default" json:"default" yaml:"default"`
 }
 
 // Input is a single input configuration.
@@ -243,6 +245,9 @@ type TransformDefinition struct {
 	Source struct {
 		Index []string `config:"index" yaml:"index"`
 	} `config:"source" yaml:"source"`
+	Dest struct {
+		Pipeline string `config:"pipeline" yaml:"pipeline"`
+	} `config:"dest" yaml:"dest"`
 	Meta struct {
 		FleetTransformVersion string `config:"fleet_transform_version" yaml:"fleet_transform_version"`
 	} `config:"_meta" yaml:"_meta"`
@@ -281,27 +286,30 @@ func (t *Transform) HasSource(name string) (bool, error) {
 // MustFindPackageRoot finds and returns the path to the root folder of a package.
 // It fails with an error if the package root can't be found.
 func MustFindPackageRoot() (string, error) {
-	root, found, err := FindPackageRoot()
+	root, err := FindPackageRoot()
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return "", errors.New("package root not found")
 	}
 	return root, nil
 }
 
 // FindPackageRoot finds and returns the path to the root folder of a package from the working directory.
-func FindPackageRoot() (string, bool, error) {
+func FindPackageRoot() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, fmt.Errorf("locating working directory failed: %w", err)
+		return "", fmt.Errorf("locating working directory failed: %w", err)
 	}
 	return FindPackageRootFrom(workDir)
 }
 
+var (
+	ErrPackageRootNotFound = errors.New("package root not found")
+)
+
 // FindPackageRootFrom finds and returns the path to the root folder of a package from a given directory.
-func FindPackageRootFrom(fromDir string) (string, bool, error) {
+//
+// - fromDir should be an absolute path to a directory.
+func FindPackageRootFrom(fromDir string) (string, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
 	rootDir := filepath.VolumeName(fromDir) + string(filepath.Separator)
@@ -313,10 +321,10 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isPackageManifest(path)
 			if err != nil {
-				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
+				return "", fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
 			}
 			if ok {
-				return dir, true, nil
+				return dir, nil
 			}
 		}
 
@@ -325,7 +333,7 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	return "", false, nil
+	return "", ErrPackageRootNotFound
 }
 
 // FindDataStreamRootForPath finds and returns the path to the root folder of a data stream.
@@ -414,6 +422,101 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
+// ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)
+// file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
+// by adding the package version defined in the package manifest.
+// It fails if the referenced destination pipeline doesn't exist.
+func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("could not read package manifest: %w", err)
+	}
+
+	if manifest.Version == "" {
+		return nil, TransformDefinition{}, fmt.Errorf("package version is not defined in the package manifest")
+	}
+
+	t, err := template.New(filepath.Base(transformPath)).Funcs(template.FuncMap{
+		"ingestPipelineName": func(pipelineName string) (string, error) {
+			if pipelineName == "" {
+				return "", fmt.Errorf("ingest pipeline name is empty")
+			}
+			return fmt.Sprintf("%s-%s", manifest.Version, pipelineName), nil
+		},
+	}).ParseFiles(transformPath)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("parsing transform template failed (path: %s): %w", transformPath, err)
+	}
+
+	var rendered bytes.Buffer
+	err = t.Execute(&rendered, nil)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("executing template failed: %w", err)
+	}
+	cfg, err := yaml.NewConfig(rendered.Bytes(), ucfg.PathSep("."))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("reading file failed (path: %s): %w", transformPath, err)
+	}
+
+	var definition TransformDefinition
+	err = cfg.Unpack(&definition)
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("failed to parse transform file \"%s\": %w", transformPath, err)
+	}
+
+	if definition.Dest.Pipeline == "" {
+		return rendered.Bytes(), definition, nil
+	}
+
+	// Is it using the Ingest pipeline defined in the package (elasticsearch/ingest_pipeline/<version>-<pipeline>.yml)?
+	// <version>-<pipeline>.yml
+	// example: 0.1.0-pipeline_extract_metadata
+
+	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
+	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, TransformDefinition{}, fmt.Errorf("checking for destination ingest pipeline file %s: %w", pipelineFileName, err)
+	}
+	if err == nil {
+		return rendered.Bytes(), definition, nil
+	}
+
+	// Is it using the Ingest pipeline from any data stream (data_stream/*/elasticsearch/pipeline/*.yml)?
+	// <data_stream>-<version>-<data_stream_pipeline>.yml
+	// example: metrics-aws_billing.cur-0.1.0-pipeline_extract_metadata
+	dataStreamPaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding data streams: %w", err)
+	}
+
+	for _, dataStreamPath := range dataStreamPaths {
+		matched, err := filepath.Glob(filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", "*.yml"))
+		if err != nil {
+			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamPath, err)
+		}
+		dataStreamName := filepath.Base(dataStreamPath)
+		for _, pipelinePath := range matched {
+			dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+			expectedSuffix := fmt.Sprintf("-%s.%s-%s-%s.yml", manifest.Name, dataStreamName, manifest.Version, dataStreamPipelineName)
+			if strings.HasSuffix(pipelineFileName, expectedSuffix) {
+				return rendered.Bytes(), definition, nil
+			}
+		}
+	}
+	pipelinePaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
+	if err != nil {
+		return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data streams: %w", err)
+	}
+	for _, pipelinePath := range pipelinePaths {
+		dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
+		if strings.HasSuffix(pipelineFileName, fmt.Sprintf("-%s-%s.yml", manifest.Version, dataStreamPipelineName)) {
+			return rendered.Bytes(), definition, nil
+		}
+	}
+
+	return nil, TransformDefinition{}, fmt.Errorf("destination ingest pipeline file %s not found: incorrect version used in pipeline or unknown pipeline", pipelineFileName)
+}
+
 // ReadTransformsFromPackageRoot looks for transforms in the given package root.
 func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 	files, err := filepath.Glob(filepath.Join(packageRoot, "elasticsearch", "transform", "*", "transform.yml"))
@@ -423,15 +526,9 @@ func ReadTransformsFromPackageRoot(packageRoot string) ([]Transform, error) {
 
 	var transforms []Transform
 	for _, file := range files {
-		cfg, err := yaml.NewConfigWithFile(file, ucfg.PathSep("."))
+		_, definition, err := ReadTransformDefinitionFile(file, packageRoot)
 		if err != nil {
-			return nil, fmt.Errorf("reading file failed (path: %s): %w", file, err)
-		}
-
-		var definition TransformDefinition
-		err = cfg.Unpack(&definition)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse transform file \"%s\": %w", file, err)
+			return nil, fmt.Errorf("failed reading transform definition file %q: %w", file, err)
 		}
 
 		transforms = append(transforms, Transform{

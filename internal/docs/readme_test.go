@@ -18,15 +18,13 @@ import (
 func TestGenerateReadme(t *testing.T) {
 	cases := []struct {
 		title                  string
-		packageRoot            string
 		filename               string
 		readmeTemplateContents string
 		expected               string
 	}{
 		{
-			title:       "Pure markdown",
-			packageRoot: t.TempDir(),
-			filename:    "README.md",
+			title:    "Pure markdown",
+			filename: "README.md",
 			readmeTemplateContents: `
 # README
 Introduction to the package`,
@@ -35,9 +33,8 @@ Introduction to the package`,
 Introduction to the package`,
 		},
 		{
-			title:       "Generated headers",
-			packageRoot: t.TempDir(),
-			filename:    "README.md",
+			title:    "Generated headers",
+			filename: "README.md",
 			readmeTemplateContents: `
 {{- generatedHeader }}
 # README
@@ -49,7 +46,6 @@ Introduction to the package`,
 		},
 		{
 			title:                  "Static README",
-			packageRoot:            t.TempDir(),
 			filename:               "README.md",
 			readmeTemplateContents: "",
 			expected:               "",
@@ -57,10 +53,12 @@ Introduction to the package`,
 	}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
+
+			dir := t.TempDir()
+			err := createReadmeFile(dir, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := GenerateReadme(c.filename, c.packageRoot)
+			rendered, isTemplate, err := GenerateReadme(c.filename, "", dir, dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -76,7 +74,7 @@ Introduction to the package`,
 }
 
 func TestRenderReadmeWithLinks(t *testing.T) {
-	minimumLinksMap := newLinkMap()
+	minimumLinksMap := newEmptyLinkMap()
 	minimumLinksMap.Add("foo", "http://www.example.com/bar")
 
 	cases := []struct {
@@ -161,7 +159,7 @@ An example event for ` + "`example`" + ` looks as following:
 		},
 	}
 
-	linksMap := newLinkMap()
+	linksMap := newEmptyLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)
@@ -266,7 +264,7 @@ Introduction to the package
 		},
 	}
 
-	linksMap := newLinkMap()
+	linksMap := newEmptyLinkMap()
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)

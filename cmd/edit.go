@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -59,12 +60,15 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	common.TrimStringSlice(dashboardIDs)
 
 	var opts []kibana.ClientOption
-	tlsSkipVerify, _ := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
+	}
 	if tlsSkipVerify {
 		opts = append(opts, kibana.TLSSkipVerify())
 	}
 
-	allowSnapshot, _ := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
+	allowSnapshot, err := cmd.Flags().GetBool(cobraext.AllowSnapshotFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.AllowSnapshotFlagName)
 	}
@@ -93,9 +97,26 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
+		// Not mandatory to get the package name here, but it would be helpful for users
+		// to select by default the package where they are located if any.
+		defaultPackage := ""
+		packageRoot, err := packages.MustFindPackageRoot()
+		if err == nil {
+			m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+			if err != nil {
+				return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+			}
+			defaultPackage = m.Name
+		}
+		selectOptions := selectDashboardOptions{
+			ctx:            cmd.Context(),
+			kibanaClient:   kibanaClient,
+			kibanaVersion:  kibanaVersion,
+			defaultPackage: defaultPackage,
+		}
+		dashboardIDs, err = selectDashboardIDs(selectOptions)
 		if err != nil {
-			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
+			return fmt.Errorf("selecting dashboard IDs failed: %w", err)
 		}
 
 		if len(dashboardIDs) == 0 {
