@@ -38,7 +38,7 @@ func TestZip(t *testing.T) {
 		require.NoError(t, err)
 
 		t.Run(filePath, func(t *testing.T) {
-			destinationPath := path.Join(destinationName, relPath)
+			destinationPath := path.Join(destinationName, filepath.ToSlash(relPath))
 			if d.IsDir() {
 				stat, err := fs.Stat(reader, destinationPath)
 				require.NoError(t, err)
