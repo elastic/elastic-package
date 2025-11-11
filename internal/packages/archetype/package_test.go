@@ -108,7 +108,7 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, workDir, packageRootPat
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
 
-	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
+	_, err = builder.BuildPackage(builder.BuildOptions{
 		WorkDir:         cwd,
 		PackageRootPath: packageRootPath,
 		BuildDir:        buildDir,

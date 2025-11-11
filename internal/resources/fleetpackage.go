@@ -62,7 +62,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		return nil, err
 	}
 
-	return installer.NewForPackage(ctx, installer.Options{
+	return installer.NewForPackage(installer.Options{
 		Kibana:          provider.Client,
 		WorkDir:         f.WorkDir,
 		PackageRootPath: f.PackageRootPath,
