@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-func processAgentContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, agentName string) {
+func processAgentContainerLogs(ctx context.Context, workDir string, p *compose.Project, opts compose.CommandOptions, agentName string) {
 	content, err := p.Logs(ctx, opts)
 	if err != nil {
 		logger.Errorf("can't export service logs: %v", err)
@@ -27,14 +27,14 @@ func processAgentContainerLogs(ctx context.Context, p *compose.Project, opts com
 		return
 	}
 
-	err = writeAgentContainerLogs(agentName, content)
+	err = writeAgentContainerLogs(workDir, agentName, content)
 	if err != nil {
 		logger.Errorf("can't write service container logs: %v", err)
 	}
 }
 
-func writeAgentContainerLogs(agentName string, content []byte) error {
-	buildDir, err := builder.BuildDirectory()
+func writeAgentContainerLogs(workDir string, agentName string, content []byte) error {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return fmt.Errorf("locating build directory failed: %w", err)
 	}

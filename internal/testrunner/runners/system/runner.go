@@ -25,6 +25,7 @@ import (
 
 type runner struct {
 	profile         *profile.Profile
+	workDir         string
 	repositoryRoot  *os.Root
 	packageRootPath string
 	kibanaClient    *kibana.Client
@@ -55,6 +56,7 @@ var _ testrunner.TestRunner = new(runner)
 
 type SystemTestRunnerOptions struct {
 	Profile         *profile.Profile
+	WorkDir         string
 	PackageRootPath string
 	RepositoryRoot  *os.Root
 	KibanaClient    *kibana.Client
@@ -82,6 +84,7 @@ type SystemTestRunnerOptions struct {
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
+		workDir:            options.WorkDir,
 		packageRootPath:    options.PackageRootPath,
 		kibanaClient:       options.KibanaClient,
 		esAPI:              options.API,
@@ -250,6 +253,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				logger.Debugf("System runner: data stream %q config file %q variant %q", t.DataStream, config, variant)
 				tester, err := NewSystemTester(SystemTesterOptions{
 					Profile:            r.profile,
+					WorkDir:            r.workDir,
 					PackageRootPath:    r.packageRootPath,
 					KibanaClient:       r.kibanaClient,
 					API:                r.esAPI,
@@ -286,6 +290,7 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
+			WorkDir:         r.workDir,
 			PackageRootPath: r.packageRootPath,
 			Absent:          !opts.installedPackage,
 			Force:           opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.

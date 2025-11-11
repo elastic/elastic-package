@@ -23,6 +23,7 @@ const (
 )
 
 type runner struct {
+	workDir         string
 	packageRootPath string
 	profile         *profile.Profile
 	esAPI           *elasticsearch.API
@@ -40,6 +41,7 @@ type runner struct {
 }
 
 type PipelineTestRunnerOptions struct {
+	WorkDir            string
 	Profile            *profile.Profile
 	PackageRootPath    string
 	API                *elasticsearch.API
@@ -66,6 +68,7 @@ func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
 		repositoryRoot:     options.RepositoryRoot,
+		workDir:            options.WorkDir,
 	}
 	return &runner
 }
@@ -133,6 +136,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		for _, caseFile := range testCaseFiles {
 			t, err := NewPipelineTester(PipelineTesterOptions{
 				TestFolder:         folder,
+				WorkDir:            r.workDir,
 				PackageRootPath:    r.packageRootPath,
 				GenerateTestResult: r.generateTestResult,
 				WithCoverage:       r.withCoverage,

@@ -75,8 +75,8 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-func WriteCoverage(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) error {
-	report, err := createCoverageReport(packageRootPath, packageName, packageType, testType, results, format)
+func WriteCoverage(workDir, packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) error {
+	report, err := createCoverageReport(packageRootPath, workDir, packageName, packageType, testType, results, format)
 	if err != nil {
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
@@ -84,15 +84,15 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 		return fmt.Errorf("coverage not found for test type %s", testType)
 	}
 
-	err = writeCoverageReportFile(report, packageName, string(testType))
+	err = writeCoverageReportFile(workDir, report, packageName, string(testType))
 	if err != nil {
 		return fmt.Errorf("can't write test coverage report file: %w", err)
 	}
 	return nil
 }
 
-func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (CoverageReport, error) {
-	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results, format)
+func createCoverageReport(packageRootPath, workDir, packageName, packageType string, testType TestType, results []TestResult, format string) (CoverageReport, error) {
+	details, err := collectTestCoverageDetails(packageRootPath, workDir, packageName, packageType, testType, results, format)
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
@@ -101,13 +101,13 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	return details.coverage, nil
 }
 
-func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (*testCoverageDetails, error) {
+func collectTestCoverageDetails(packageRootPath, workDir, packageName, packageType string, testType TestType, results []TestResult, format string) (*testCoverageDetails, error) {
 	withoutTests, err := findDataStreamsWithoutTests(packageRootPath, testType)
 	if err != nil {
 		return nil, fmt.Errorf("can't find data streams without tests: %w", err)
 	}
 
-	emptyCoverage, err := GenerateBasePackageCoverageReport(packageName, packageRootPath, format)
+	emptyCoverage, err := GenerateBasePackageCoverageReport(packageName, workDir, packageRootPath, format)
 	if err != nil {
 		return nil, fmt.Errorf("can't generate initial base coverage report: %w", err)
 	}
@@ -177,8 +177,8 @@ func verifyTestExpected(packageRootPath string, dataStreamName string, testType 
 	return true, nil
 }
 
-func writeCoverageReportFile(report CoverageReport, packageName, testType string) error {
-	dest, err := testCoverageReportsDir()
+func writeCoverageReportFile(workDir string, report CoverageReport, packageName, testType string) error {
+	dest, err := testCoverageReportsDir(workDir)
 	if err != nil {
 		return fmt.Errorf("could not determine test coverage reports folder: %w", err)
 	}
@@ -205,8 +205,8 @@ func writeCoverageReportFile(report CoverageReport, packageName, testType string
 	return nil
 }
 
-func testCoverageReportsDir() (string, error) {
-	buildDir, err := builder.BuildDirectory()
+func testCoverageReportsDir(workDir string) (string, error) {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}

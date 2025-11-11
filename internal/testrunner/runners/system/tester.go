@@ -195,6 +195,7 @@ var validationMethods = map[string]fieldValidationMethod{
 
 type tester struct {
 	profile            *profile.Profile
+	workDir            string
 	testFolder         testrunner.TestFolder
 	packageRootPath    string
 	generateTestResult bool
@@ -241,6 +242,7 @@ type tester struct {
 
 type SystemTesterOptions struct {
 	Profile            *profile.Profile
+	WorkDir            string
 	TestFolder         testrunner.TestFolder
 	PackageRootPath    string
 	GenerateTestResult bool
@@ -265,6 +267,7 @@ type SystemTesterOptions struct {
 func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r := tester{
 		profile:                    options.Profile,
+		workDir:                    options.WorkDir,
 		testFolder:                 options.TestFolder,
 		packageRootPath:            options.PackageRootPath,
 		generateTestResult:         options.GenerateTestResult,
@@ -454,6 +457,7 @@ type resourcesOptions struct {
 func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.profile,
+		WorkDir:            r.workDir,
 		PackageRootPath:    r.packageRootPath,
 		DataStreamRootPath: r.dataStreamPath,
 		DevDeployDir:       DevDeployDir,
@@ -1633,7 +1637,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),
@@ -2227,7 +2231,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		}
 
 		transformRootPath := filepath.Dir(transform.Path)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
+		fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
@@ -2623,5 +2627,5 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
 	}
 
-	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)
+	return testrunner.GenerateBaseFileCoverageReportGlob(r.workDir, pkgName, patterns, r.coverageType, true)
 }

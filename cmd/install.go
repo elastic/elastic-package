@@ -73,21 +73,27 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
 
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
 	if zipPathFile == "" && packageRootPath == "" {
 		var err error
-		packageRootPath, err = packages.FindPackageRoot()
+		packageRootPath, err = packages.FindPackageRoot(cwd)
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
 		Kibana:          kibanaClient,
+		WorkDir:         cwd,
 		PackageRootPath: packageRootPath,
 		SkipValidation:  skipValidation,
 		ZipPath:         zipPathFile,

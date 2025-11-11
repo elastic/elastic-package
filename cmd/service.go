@@ -45,8 +45,12 @@ func setupServiceCommand() *cobraext.Command {
 
 func upCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Boot up the service stack")
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

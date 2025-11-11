@@ -14,6 +14,7 @@ import (
 
 // Options contains benchmark runner options.
 type Options struct {
+	WorkDir         string
 	ESAPI           *elasticsearch.API
 	KibanaClient    *kibana.Client
 	DeferCleanup    time.Duration
@@ -35,6 +36,12 @@ func NewOptions(fns ...OptionFunc) Options {
 		fn(&opts)
 	}
 	return opts
+}
+
+func WithWorkDir(workDir string) OptionFunc {
+	return func(opts *Options) {
+		opts.WorkDir = workDir
+	}
 }
 
 func WithESAPI(api *elasticsearch.API) OptionFunc {

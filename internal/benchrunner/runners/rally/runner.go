@@ -487,6 +487,7 @@ func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(ctx, installer.Options{
 		Kibana:          r.options.KibanaClient,
+		WorkDir:         r.options.WorkDir,
 		PackageRootPath: r.options.PackageRootPath,
 		SkipValidation:  true,
 		RepositoryRoot:  r.options.RepositoryRoot,

@@ -61,26 +61,32 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	packageRoot, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	// Currently the build directory is placed inside the repository build/ folder.
 	// In the future we might want to make this configurable.
-	buildDir, err := builder.BuildDirectory()
+	buildDir, err := builder.BuildDirectory(cwd)
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
 	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
+		WorkDir:         cwd,
 		PackageRootPath: packageRoot,
 		BuildDir:        buildDir,
 		CreateZip:       createZip,
@@ -92,7 +98,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("building package failed: %w", err)
 	}
 
-	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
+	targets, err := docs.UpdateReadmes(repositoryRoot, cwd, packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}

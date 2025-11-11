@@ -42,10 +42,12 @@ var terraformDeployerDockerfileContent string
 
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
+	workDir        string
 	definitionsDir string
 }
 
 type TerraformServiceDeployerOptions struct {
+	WorkDir        string
 	DefinitionsDir string
 }
 
@@ -89,6 +91,7 @@ func addTerraformOutputs(svcInfo *ServiceInfo) error {
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
+		workDir:        opts.WorkDir,
 		definitionsDir: opts.DefinitionsDir,
 	}, nil
 }
@@ -117,6 +120,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
 		configDir:       configDir,
+		workDir:         tsd.workDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -157,7 +161,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, tsd.workDir, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}

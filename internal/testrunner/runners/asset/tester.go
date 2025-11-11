@@ -20,6 +20,7 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
+	workDir          string
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
@@ -31,6 +32,7 @@ type tester struct {
 
 type AssetTesterOptions struct {
 	TestFolder       testrunner.TestFolder
+	WorkDir          string
 	PackageRootPath  string
 	KibanaClient     *kibana.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
@@ -42,6 +44,7 @@ type AssetTesterOptions struct {
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
 		testFolder:       options.TestFolder,
+		workDir:          options.WorkDir,
 		packageRootPath:  options.PackageRootPath,
 		kibanaClient:     options.KibanaClient,
 		globalTestConfig: options.GlobalTestConfig,
@@ -84,6 +87,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
+			WorkDir:         r.workDir,
 			PackageRootPath: r.packageRootPath,
 			Absent:          !installedPackage,
 			Force:           installedPackage, // Force re-installation, in case there are code changes in the same package version.
@@ -167,7 +171,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		}
 		result := tr[0]
 		if r.withCoverage && e.SourcePath != "" {
-			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
+			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), r.workDir, e.SourcePath, r.coverageType, true)
 			if err != nil {
 				tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 					Reason:  "could not generate test coverage",

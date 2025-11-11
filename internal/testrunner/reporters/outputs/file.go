@@ -25,8 +25,8 @@ const (
 	ReportOutputFile testrunner.TestReportOutput = "file"
 )
 
-func reportToFile(pkg, report string, testType testrunner.TestType, format testrunner.TestReportFormat) error {
-	dest, err := testReportsDir()
+func reportToFile(pkg, workDir string, report string, testType testrunner.TestType, format testrunner.TestReportFormat) error {
+	dest, err := testReportsDir(workDir)
 	if err != nil {
 		return fmt.Errorf("could not determine test reports folder: %w", err)
 	}
@@ -54,8 +54,8 @@ func reportToFile(pkg, report string, testType testrunner.TestType, format testr
 }
 
 // testReportsDir returns the location of the directory to store test reports.
-func testReportsDir() (string, error) {
-	buildDir, err := builder.BuildDirectory()
+func testReportsDir(workDir string) (string, error) {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}

@@ -307,6 +307,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 	logger.Debug("Setting up service...")
 	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
+		WorkDir:                r.options.WorkDir,
 		PackageRootPath:        r.options.PackageRootPath,
 		DevDeployDir:           devDeployDir,
 		Variant:                r.options.Variant,

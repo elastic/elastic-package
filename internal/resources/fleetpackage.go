@@ -22,6 +22,9 @@ type FleetPackage struct {
 	// Provider is the name of the provider to use, defaults to "kibana".
 	Provider string
 
+	// WorkDir is the current working directory.
+	WorkDir string
+
 	// PackageRootPath is the root of the package source to install.
 	PackageRootPath string
 
@@ -61,6 +64,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 
 	return installer.NewForPackage(ctx, installer.Options{
 		Kibana:          provider.Client,
+		WorkDir:         f.WorkDir,
 		PackageRootPath: f.PackageRootPath,
 		SkipValidation:  true,
 		RepositoryRoot:  f.RepositoryRoot,

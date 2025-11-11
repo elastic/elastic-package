@@ -35,6 +35,7 @@ type Installer interface {
 // Options are the parameters used to build an installer.
 type Options struct {
 	Kibana          *kibana.Client
+	WorkDir         string
 	PackageRootPath string // Root path of the package to be installed.
 	ZipPath         string
 	SkipValidation  bool
@@ -86,6 +87,7 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 	}
 
 	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
+		WorkDir:         options.WorkDir,
 		PackageRootPath: options.PackageRootPath,
 		CreateZip:       supportsUploadZip,
 		SignPackage:     false,

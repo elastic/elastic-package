@@ -24,6 +24,7 @@ import (
 // DockerComposeServiceDeployer knows how to deploy a service defined via
 // a Docker Compose file.
 type DockerComposeServiceDeployer struct {
+	workDir  string
 	profile  *profile.Profile
 	ymlPaths []string
 	variant  ServiceVariant
@@ -35,6 +36,7 @@ type DockerComposeServiceDeployer struct {
 }
 
 type DockerComposeServiceDeployerOptions struct {
+	WorkDir  string
 	Profile  *profile.Profile
 	YmlPaths []string
 	Variant  ServiceVariant
@@ -55,6 +57,7 @@ type dockerComposeDeployedService struct {
 	variant   ServiceVariant
 	env       []string
 	configDir string
+	workDir   string
 }
 
 var _ ServiceDeployer = new(DockerComposeServiceDeployer)
@@ -62,6 +65,7 @@ var _ ServiceDeployer = new(DockerComposeServiceDeployer)
 // NewDockerComposeServiceDeployer returns a new instance of a DockerComposeServiceDeployer.
 func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions) (*DockerComposeServiceDeployer, error) {
 	return &DockerComposeServiceDeployer{
+		workDir:                options.WorkDir,
 		profile:                options.Profile,
 		ymlPaths:               options.YmlPaths,
 		variant:                options.Variant,
@@ -75,6 +79,7 @@ func NewDockerComposeServiceDeployer(options DockerComposeServiceDeployerOptions
 func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Debug("setting up service using Docker Compose service deployer")
 	service := dockerComposeDeployedService{
+		workDir:  d.workDir,
 		ymlPaths: d.ymlPaths,
 		project:  svcInfo.ProjectName(),
 		variant:  d.variant,
@@ -132,7 +137,7 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	if err != nil {
 		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, d.workDir, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
@@ -285,7 +290,7 @@ func (s *dockerComposeDeployedService) TearDown(ctx context.Context) error {
 		return fmt.Errorf("could not stop service using Docker Compose: %w", err)
 	}
 
-	processServiceContainerLogs(ctx, p, opts, s.svcInfo.Name)
+	processServiceContainerLogs(ctx, p, opts, s.workDir, s.svcInfo.Name)
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,
@@ -307,7 +312,7 @@ func (s *dockerComposeDeployedService) SetInfo(ctxt ServiceInfo) error {
 	return nil
 }
 
-func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, serviceName string) {
+func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts compose.CommandOptions, workDir, serviceName string) {
 	content, err := p.Logs(ctx, opts)
 	if err != nil {
 		logger.Errorf("can't export service logs: %v", err)
@@ -319,14 +324,14 @@ func processServiceContainerLogs(ctx context.Context, p *compose.Project, opts c
 		return
 	}
 
-	err = writeServiceContainerLogs(serviceName, content)
+	err = writeServiceContainerLogs(workDir, serviceName, content)
 	if err != nil {
 		logger.Errorf("can't write service container logs: %v", err)
 	}
 }
 
-func writeServiceContainerLogs(serviceName string, content []byte) error {
-	buildDir, err := builder.BuildDirectory()
+func writeServiceContainerLogs(workDir, serviceName string, content []byte) error {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return fmt.Errorf("locating build directory failed: %w", err)
 	}

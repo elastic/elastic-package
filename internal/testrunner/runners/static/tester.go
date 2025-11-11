@@ -22,6 +22,7 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
+	workDir          string
 	packageRootPath  string
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
@@ -29,6 +30,7 @@ type tester struct {
 }
 
 type StaticTesterOptions struct {
+	WorkDir          string
 	TestFolder       testrunner.TestFolder
 	PackageRootPath  string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
@@ -39,6 +41,7 @@ type StaticTesterOptions struct {
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
 		testFolder:       options.TestFolder,
+		workDir:          options.WorkDir,
 		packageRootPath:  options.PackageRootPath,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
@@ -149,7 +152,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	}
 
 	if r.withCoverage {
-		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
+		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), r.workDir, sampleEventPath, r.coverageType, true)
 		if err != nil {
 			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
 			return results
@@ -162,7 +165,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),

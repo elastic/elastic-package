@@ -45,6 +45,7 @@ var staticSource = resource.NewSourceFS(static)
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
 	profile      *profile.Profile
+	workDir      string
 	stackVersion string
 
 	policyName string
@@ -60,6 +61,7 @@ type DockerComposeAgentDeployer struct {
 
 type DockerComposeAgentDeployerOptions struct {
 	Profile      *profile.Profile
+	WorkDir      string
 	StackVersion string
 	PolicyName   string
 
@@ -79,6 +81,7 @@ type dockerComposeDeployedAgent struct {
 	project   string
 	env       []string
 	configDir string
+	workDir   string
 }
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
@@ -87,6 +90,7 @@ var _ DeployedAgent = new(dockerComposeDeployedAgent)
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
 	return &DockerComposeAgentDeployer{
 		profile:      options.Profile,
+		workDir:      options.WorkDir,
 		stackVersion: options.StackVersion,
 		packageName:  options.PackageName,
 		dataStream:   options.DataStream,
@@ -131,6 +135,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		project:   composeProjectName,
 		env:       env,
 		configDir: configDir,
+		workDir:   d.workDir,
 	}
 
 	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
@@ -185,7 +190,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(ctx, p, compose.CommandOptions{
+		processAgentContainerLogs(ctx, d.workDir, p, compose.CommandOptions{
 			Env: opts.Env,
 		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
@@ -426,7 +431,7 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	}
 
 	opts := compose.CommandOptions{Env: s.env}
-	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
+	processAgentContainerLogs(ctx, s.workDir, p, opts, s.agentInfo.Name)
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,

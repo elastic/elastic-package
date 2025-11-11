@@ -23,6 +23,7 @@ const (
 )
 
 type runner struct {
+	workDir         string
 	packageRootPath string
 	kibanaClient    *kibana.Client
 
@@ -43,6 +44,7 @@ type runner struct {
 var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
+	WorkDir            string
 	KibanaClient       *kibana.Client
 	PackageRootPath    string
 	DataStreams        []string
@@ -56,6 +58,7 @@ type PolicyTestRunnerOptions struct {
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
+		workDir:            options.WorkDir,
 		packageRootPath:    options.PackageRootPath,
 		kibanaClient:       options.KibanaClient,
 		dataStreams:        options.DataStreams,
@@ -140,6 +143,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 		for _, test := range tests {
 			testers = append(testers, NewPolicyTester(PolicyTesterOptions{
+				WorkDir:            r.workDir,
 				PackageRootPath:    r.packageRootPath,
 				TestFolder:         folder,
 				KibanaClient:       r.kibanaClient,
@@ -161,6 +165,7 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
+		WorkDir:         r.workDir,
 		PackageRootPath: r.packageRootPath,
 		RepositoryRoot:  r.repositoryRoot,
 	}

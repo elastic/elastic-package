@@ -45,7 +45,7 @@ func BootUp(ctx context.Context, options Options) error {
 	}
 	printUserConfig(options.Printer, config)
 
-	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory()
+	buildPackagesPath, found, err := builder.FindBuildPackagesDirectory(options.WorkDir)
 	if err != nil {
 		return fmt.Errorf("finding build packages directory failed: %w", err)
 	}
