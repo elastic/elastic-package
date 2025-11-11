@@ -252,7 +252,7 @@ func (r *runner) installPackage(ctx context.Context) error {
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
-	installer, err := installer.NewForPackage(ctx, installer.Options{
+	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:          r.options.KibanaClient,
 		PackageRootPath: r.options.PackageRootPath,
 		SkipValidation:  true,
