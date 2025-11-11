@@ -127,7 +127,7 @@ func buildPackagesRootDirectory(workDir string) (string, error) {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(builtPackagesDir)
+		buildDir, err = createBuildDirectory(workDir, builtPackagesDir)
 		if err != nil {
 			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
