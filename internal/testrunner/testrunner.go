@@ -123,6 +123,12 @@ type TestResult struct {
 
 	// Coverage details in Cobertura format (optional).
 	Coverage CoverageReport
+
+	// Elastic Stack version
+	ElasticStackVersion string
+
+	// ElasticPackage version
+	ElasticPackageVersion string
 }
 
 // ResultComposer wraps a TestResult and provides convenience methods for

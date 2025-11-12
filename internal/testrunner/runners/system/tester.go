@@ -38,6 +38,7 @@ import (
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
+	"github.com/elastic/elastic-package/internal/version"
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
@@ -640,10 +641,12 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 
 func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	return testrunner.NewResultComposer(testrunner.TestResult{
-		TestType:   TestType,
-		Name:       name,
-		Package:    r.testFolder.Package,
-		DataStream: r.testFolder.DataStream,
+		TestType:              TestType,
+		Name:                  name,
+		Package:               r.testFolder.Package,
+		DataStream:            r.testFolder.DataStream,
+		ElasticStackVersion:   r.stackVersion.Version(),
+		ElasticPackageVersion: version.String(),
 	})
 }
 
@@ -920,12 +923,14 @@ func (r *tester) checkDeprecationWarnings(stackVersion *semver.Version, warnings
 			details = fmt.Sprintf("%s (index: %s)", details, warning.index)
 		}
 		tr := testrunner.TestResult{
-			TestType:       TestType,
-			Name:           "Deprecation warnings - " + configName,
-			Package:        r.testFolder.Package,
-			DataStream:     r.testFolder.DataStream,
-			FailureMsg:     warning.Message,
-			FailureDetails: details,
+			TestType:              TestType,
+			Name:                  "Deprecation warnings - " + configName,
+			Package:               r.testFolder.Package,
+			DataStream:            r.testFolder.DataStream,
+			FailureMsg:            warning.Message,
+			FailureDetails:        details,
+			ElasticStackVersion:   r.stackVersion.Version(),
+			ElasticPackageVersion: version.String(),
 		}
 		results = append(results, tr)
 	}
@@ -2514,10 +2519,12 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 		err = r.anyErrorMessages(f.Name(), startTesting, patternsContainer.patterns)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr := testrunner.TestResult{
-				TestType:   TestType,
-				Name:       fmt.Sprintf("(%s logs - %s)", patternsContainer.containerName, configName),
-				Package:    r.testFolder.Package,
-				DataStream: r.testFolder.DataStream,
+				TestType:              TestType,
+				Name:                  fmt.Sprintf("(%s logs - %s)", patternsContainer.containerName, configName),
+				Package:               r.testFolder.Package,
+				DataStream:            r.testFolder.DataStream,
+				ElasticStackVersion:   r.stackVersion.Version(),
+				ElasticPackageVersion: version.String(),
 			}
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
@@ -2551,10 +2558,12 @@ func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time,
 		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
 		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
 			tr := testrunner.TestResult{
-				TestType:   TestType,
-				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
-				Package:    r.testFolder.Package,
-				DataStream: r.testFolder.DataStream,
+				TestType:              TestType,
+				Name:                  fmt.Sprintf("(%s logs)", patternsContainer.containerName),
+				Package:               r.testFolder.Package,
+				DataStream:            r.testFolder.DataStream,
+				ElasticStackVersion:   r.stackVersion.Version(),
+				ElasticPackageVersion: version.String(),
 			}
 			tr.FailureMsg = e.Error()
 			tr.FailureDetails = e.Details
