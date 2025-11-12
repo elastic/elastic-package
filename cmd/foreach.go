@@ -6,12 +6,8 @@ package cmd
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -49,7 +45,7 @@ func setupForeachCommand() *cobraext.Command {
 		Short: "Execute a command for filtered packages",
 		Long:  foreachLongDescription,
 		Example: `  # Run system tests for packages with specific inputs
-  elastic-package foreach --input tcp,udp --parallel 10 -- test system -g`,
+  elastic-package foreach --input tcp,udp -- test system -g`,
 		RunE: foreachCommandAction,
 		Args: cobra.MinimumNArgs(1),
 	}
@@ -57,18 +53,10 @@ func setupForeachCommand() *cobraext.Command {
 	// Add filter flags
 	filter.SetFilterFlags(cmd)
 
-	// Add pool size flag
-	cmd.Flags().IntP(cobraext.ForeachPoolSizeFlagName, cobraext.ForeachPoolSizeFlagShorthand, 1, cobraext.ForeachPoolSizeFlagDescription)
-
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
 func foreachCommandAction(cmd *cobra.Command, args []string) error {
-	poolSize, err := cmd.Flags().GetInt(cobraext.ForeachPoolSizeFlagName)
-	if err != nil {
-		return fmt.Errorf("getting pool size failed: %w", err)
-	}
-
 	if err := validateSubCommand(args[0]); err != nil {
 		return fmt.Errorf("validating sub command failed: %w", err)
 	}
@@ -79,66 +67,21 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}
 
-	wg := sync.WaitGroup{}
-	mu := sync.Mutex{}
-	errs := multierror.Error{}
-	successes := 0
-
-	packagePathChan := make(chan string, poolSize)
-
-	for range poolSize {
-		wg.Add(1)
-		go func(packagePathChan <-chan string) {
-			defer wg.Done()
-			for packagePath := range packagePathChan {
-				err := executeCommand(args, packagePath)
-
-				mu.Lock()
-				if err != nil {
-					errs = append(errs, fmt.Errorf("executing command for package %s failed: %w", packagePath, err))
-				} else {
-					successes++
-				}
-				mu.Unlock()
-			}
-		}(packagePathChan)
-	}
+	errors := multierror.Error{}
 
 	for _, pkg := range filtered {
-		packagePathChan <- pkg.Path
-	}
-	close(packagePathChan)
-
-	wg.Wait()
-
-	logger.Infof("Successfully executed command for %d packages\n", successes)
-	logger.Infof("Errors occurred while executing command for %d packages\n", len(errs))
-
-	if errs.Error() != "" {
-		return fmt.Errorf("errors occurred while executing command for packages: \n%s", errs.Error())
+		rootCmd := cmd.Root()
+		rootCmd.SetArgs(append(args, "--change-directory", pkg.Path))
+		if err := rootCmd.Execute(); err != nil {
+			errors = append(errors, err)
+		}
 	}
 
-	return nil
-}
+	logger.Infof("Successfully executed command for %d packages", len(filtered)-len(errors))
 
-func executeCommand(args []string, path string) error {
-	// Look up the elastic-package binary in PATH
-	execPath, err := exec.LookPath("elastic-package")
-	if err != nil {
-		return fmt.Errorf("elastic-package binary not found in PATH: %w", err)
-	}
-
-	cmd := &exec.Cmd{
-		Path:   execPath,
-		Args:   append([]string{execPath}, args...),
-		Dir:    path,
-		Stdout: io.Discard,
-		Stderr: os.Stderr,
-		Env:    os.Environ(),
-	}
-
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("executing command for package %s failed: %w", path, err)
+	if errors.Error() != "" {
+		logger.Errorf("Errors occurred for %d packages", len(errors))
+		return fmt.Errorf("errors occurred while executing command for packages: \n%s", errors.Error())
 	}
 
 	return nil
@@ -146,7 +89,7 @@ func executeCommand(args []string, path string) error {
 
 func validateSubCommand(subCommand string) error {
 	if !slices.Contains(getAllowedSubCommands(), subCommand) {
-		return fmt.Errorf("invalid subcommand: %s. Allowed subcommands are: %s", subCommand, strings.Join(getAllowedSubCommands(), ", "))
+		return fmt.Errorf("invalid subcommand: %s. Allowed subcommands are: [%s]", subCommand, strings.Join(getAllowedSubCommands(), ", "))
 	}
 
 	return nil
