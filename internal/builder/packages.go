@@ -5,7 +5,6 @@
 package builder
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -165,7 +164,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 type readmeUpdaterFunc func(repositoryRoot *os.Root, packageRoot string, buildDir string) error
 
 // BuildPackage function builds the package.
-func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readmeUpdaterFunc) (string, error) {
+func BuildPackage(options BuildOptions, readmeUpdater readmeUpdaterFunc) (string, error) {
 	// builtPackageDir is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
 	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
@@ -237,11 +236,7 @@ func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readm
 	}
 
 	if options.CreateZip {
-		target, err := buildZippedPackage(ctx, options, builtPackageDir)
-		if err != nil {
-			return "", err
-		}
-		return target, nil
+		return buildZippedPackage(options, builtPackageDir)
 	}
 
 	if options.SkipValidation {
@@ -261,14 +256,15 @@ func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readm
 }
 
 // buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.
-func buildZippedPackage(ctx context.Context, options BuildOptions, builtPackageDir string) (string, error) {
+func buildZippedPackage(options BuildOptions, builtPackageDir string) (string, error) {
 	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(ctx, builtPackageDir, zippedPackagePath)
+	logger.Debugf("Compress using archives.Zip (destination: %s)", zippedPackagePath)
+	err = files.Zip(builtPackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}

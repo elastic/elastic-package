@@ -79,7 +79,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
+	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRootPath: packageRoot,
 		BuildDir:        buildDir,
 		CreateZip:       createZip,
