@@ -273,18 +273,18 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	// TODO: Include these settings more explicitly in `config`.
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
-	agentVersion := d.agentVersion
+	stackVersion := d.stackVersion
 	if config.Provider != stack.ProviderCompose {
 		kibanaHost = config.KibanaHost
 	}
 	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
 		fleetURL = url
 	}
-	if version, ok := config.Parameters[stack.ParamServerlessLocalAgentVersion]; ok && version != "" {
-		agentVersion = version
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
+		stackVersion = version
 	}
 
-	agentImage, err := selectElasticAgentImage(agentVersion, agentInfo.Agent.BaseImage)
+	agentImage, err := selectElasticAgentImage(d.agentVersion, agentInfo.Agent.BaseImage)
 	if err != nil {
 		return "", nil
 	}
@@ -298,7 +298,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		"pid_mode":               agentInfo.Agent.PidMode,
 		"ports":                  strings.Join(agentInfo.Agent.Ports, ","),
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
-		"agent_version":          agentVersion,
+		"stack_version":          stackVersion,
 		"fleet_url":              fleetURL,
 		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,

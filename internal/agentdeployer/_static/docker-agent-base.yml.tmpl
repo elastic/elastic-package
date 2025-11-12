@@ -3,14 +3,14 @@
 {{- $pid_mode := fact "pid_mode" -}}
 {{- $ports := fact "ports" -}}
 {{- $dockerfile_hash := fact "dockerfile_hash" -}}
-{{- $agent_version := fact "agent_version" }}
+{{- $stack_version := fact "stack_version" }}
 {{- $agent_image := fact "agent_image" }}
 {{- $enrollment_token := fact "enrollment_token" }}
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
     {{ if ne $dockerfile_hash "" }}
-    image: "elastic-package-test-elastic-agent:{{ $agent_version }}-{{ $dockerfile_hash }}"
+    image: "elastic-package-test-elastic-agent:{{ $stack_version }}-{{ $dockerfile_hash }}"
     build:
       context: .
       args:

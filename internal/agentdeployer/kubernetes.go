@@ -195,7 +195,7 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
 		fleetURL = url
 	}
-	if version, ok := config.Parameters[stack.ParamServerlessLocalAgentVersion]; ok && version != "" {
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
 		agentVersion = version
 	}
 
@@ -212,7 +212,7 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 		}
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
