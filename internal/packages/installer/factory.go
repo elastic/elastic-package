@@ -85,15 +85,15 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	target, _, err := builder.BuildPackage(ctx, builder.BuildOptions{
+	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
 		PackageRootPath: options.PackageRootPath,
 		CreateZip:       supportsUploadZip,
 		SignPackage:     false,
 		SkipValidation:  options.SkipValidation,
 		RepositoryRoot:  options.RepositoryRoot,
-	}, func(repositoryRoot *os.Root, packageRootPath, buildDir string) ([]string, error) {
+	}, func(repositoryRoot *os.Root, packageRootPath, buildDir string) error {
 		// noop readme updater
-		return nil, nil
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

@@ -162,35 +162,35 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-type readmeUpdaterFunc func(repositoryRoot *os.Root, packageRoot string, buildDir string) ([]string, error)
+type readmeUpdaterFunc func(repositoryRoot *os.Root, packageRoot string, buildDir string) error
 
 // BuildPackage function builds the package.
-func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readmeUpdaterFunc) (string, []string, error) {
+func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readmeUpdaterFunc) (string, error) {
 	// builtPackageDir is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
 	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("can't locate build directory: %w", err)
+		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	logger.Debugf("Build directory: %s\n", builtPackageDir)
 
 	logger.Debugf("Clear target directory (path: %s)", builtPackageDir)
 	err = files.ClearDir(builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("clearing package contents failed: %w", err)
+		return "", fmt.Errorf("clearing package contents failed: %w", err)
 	}
 
 	logger.Debugf("Copy package content (source: %s)", options.PackageRootPath)
 	err = files.CopyWithoutDev(options.PackageRootPath, builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("copying package contents failed: %w", err)
+		return "", fmt.Errorf("copying package contents failed: %w", err)
 	}
 
 	logger.Debug("Copy license file if needed")
 	destinationLicenseFilePath := filepath.Join(builtPackageDir, licenseTextFileName)
 	err = copyLicenseTextFile(options.RepositoryRoot, destinationLicenseFilePath)
 	if err != nil {
-		return "", nil, fmt.Errorf("copying license text file: %w", err)
+		return "", fmt.Errorf("copying license text file: %w", err)
 	}
 
 	// when CopyWithoutDev is used, .link files are skipped.
@@ -198,12 +198,12 @@ func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readm
 	logger.Debug("Include linked files")
 	linksFS, err := files.CreateLinksFSFromPath(options.RepositoryRoot, options.PackageRootPath)
 	if err != nil {
-		return "", nil, fmt.Errorf("creating links filesystem failed: %w", err)
+		return "", fmt.Errorf("creating links filesystem failed: %w", err)
 	}
 
 	links, err := linksFS.IncludeLinkedFiles(builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("including linked files failed: %w", err)
+		return "", fmt.Errorf("including linked files failed: %w", err)
 	}
 	for _, l := range links {
 		logger.Debugf("Linked file included (path: %s)", l.TargetRelPath)
@@ -212,41 +212,41 @@ func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readm
 	logger.Debug("Encode dashboards")
 	err = encodeDashboards(builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("encoding dashboards failed: %w", err)
+		return "", fmt.Errorf("encoding dashboards failed: %w", err)
 	}
 
 	logger.Debug("Resolve external fields")
 	err = resolveExternalFields(options.PackageRootPath, builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("resolving external fields failed: %w", err)
+		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
 
 	err = addDynamicMappings(options.PackageRootPath, builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("adding dynamic mappings: %w", err)
+		return "", fmt.Errorf("adding dynamic mappings: %w", err)
 	}
 
 	err = resolveTransformDefinitions(builtPackageDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("resolving transform manifests failed: %w", err)
+		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	updatedReadmesTargets, err := readmeUpdater(options.RepositoryRoot, options.PackageRootPath, options.BuildDir)
+	err = readmeUpdater(options.RepositoryRoot, options.PackageRootPath, options.BuildDir)
 	if err != nil {
-		return "", nil, fmt.Errorf("updating readme files failed: %w", err)
+		return "", fmt.Errorf("updating readme files failed: %w", err)
 	}
 
 	if options.CreateZip {
 		target, err := buildZippedPackage(ctx, options, builtPackageDir)
 		if err != nil {
-			return "", nil, err
+			return "", err
 		}
-		return target, updatedReadmesTargets, nil
+		return target, nil
 	}
 
 	if options.SkipValidation {
 		logger.Debug("Skip validation of the built package")
-		return builtPackageDir, nil, nil
+		return builtPackageDir, nil
 	}
 
 	logger.Debugf("Validating built package (path: %s)", builtPackageDir)
@@ -255,9 +255,9 @@ func BuildPackage(ctx context.Context, options BuildOptions, readmeUpdater readm
 		logger.Infof("Skipped errors: %v", skipped)
 	}
 	if errs != nil {
-		return "", nil, fmt.Errorf("invalid content found in built package: %w", errs)
+		return "", fmt.Errorf("invalid content found in built package: %w", errs)
 	}
-	return builtPackageDir, updatedReadmesTargets, nil
+	return builtPackageDir, nil
 }
 
 // buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.

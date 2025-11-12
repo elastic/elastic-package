@@ -7,7 +7,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -80,7 +79,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	target, updatedReadmeTargets, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRootPath: packageRoot,
 		BuildDir:        buildDir,
 		CreateZip:       createZip,
@@ -90,11 +89,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}, docs.UpdateReadmes)
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
-	}
-
-	for _, target := range updatedReadmeTargets {
-		fileName := filepath.Base(target)
-		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
 	cmd.Printf("Package built: %s\n", target)
