@@ -370,7 +370,12 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 	)
 	table.Header("Service", "Version", "Status", "Image Build Date", "VCS Ref")
 	for _, service := range servicesStatus {
-		table.Append(service.Name, service.Version, service.Status, formatTime(service.Labels.BuildDate), truncate(service.Labels.VCSRef, 10))
+		var buildDate, vcsRef string
+		if service.Labels != nil {
+			buildDate = formatTime(service.Labels.BuildDate)
+			vcsRef = truncate(service.Labels.VCSRef, 10)
+		}
+		table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef)
 	}
 	table.Render()
 }
