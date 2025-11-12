@@ -12,6 +12,7 @@ import (
 
 	"github.com/magefile/mage/sh"
 
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -32,6 +33,7 @@ type BuildOptions struct {
 	CreateZip      bool
 	SignPackage    bool
 	SkipValidation bool
+	UpdateReadmes  bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -161,10 +163,8 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 	return "", false, nil
 }
 
-type readmeUpdaterFunc func(repositoryRoot *os.Root, packageRoot string, buildDir string) error
-
 // BuildPackage function builds the package.
-func BuildPackage(options BuildOptions, readmeUpdater readmeUpdaterFunc) (string, error) {
+func BuildPackage(options BuildOptions) (string, error) {
 	// builtPackageDir is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
 	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
@@ -230,9 +230,11 @@ func BuildPackage(options BuildOptions, readmeUpdater readmeUpdaterFunc) (string
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	err = readmeUpdater(options.RepositoryRoot, options.PackageRootPath, options.BuildDir)
-	if err != nil {
-		return "", fmt.Errorf("updating readme files failed: %w", err)
+	if options.UpdateReadmes {
+		err = docs.UpdateReadmes(options.RepositoryRoot, options.PackageRootPath, builtPackageDir)
+		if err != nil {
+			return "", fmt.Errorf("updating readme files failed: %w", err)
+		}
 	}
 
 	if options.CreateZip {

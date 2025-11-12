@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -105,7 +104,8 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string)
 		PackageRootPath: packageRootPath,
 		BuildDir:        buildDir,
 		RepositoryRoot:  repositoryRoot,
-	}, docs.UpdateReadmes)
+		UpdateReadmes:   true,
+	})
 	return err
 }
 

@@ -14,7 +14,6 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -100,7 +99,7 @@ func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildDir string) error {
+func UpdateReadmes(repositoryRoot *os.Root, packageRoot, packageBuildRoot string) error {
 	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
 		return fmt.Errorf("locating links file failed: %w", err)
@@ -113,7 +112,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildDir string) error 
 
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, linksFilePath, packageRoot, buildDir)
+		target, err := updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot)
 		if err != nil {
 			return fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
@@ -129,13 +128,8 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildDir string) error 
 
 // updateReadme function updates a single readme file using a defined template file.
 // It writes the rendered file to both the package directory and the package build directory.
-func updateReadme(fileName, linksFilePath, packageRoot, buildDir string) (string, error) {
+func updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
-
-	packageBuildRoot, err := builder.BuildPackagesDirectory(packageRoot, buildDir)
-	if err != nil {
-		return "", fmt.Errorf("package build root not found: %w", err)
-	}
 
 	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot)
 	if err != nil {

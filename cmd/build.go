@@ -12,7 +12,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -86,7 +85,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		SignPackage:     signPackage,
 		SkipValidation:  skipValidation,
 		RepositoryRoot:  repositoryRoot,
-	}, docs.UpdateReadmes)
+		UpdateReadmes:   true,
+	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
 	}
