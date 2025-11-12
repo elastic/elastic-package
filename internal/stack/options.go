@@ -10,9 +10,9 @@ import (
 
 // Options defines available image booting options.
 type Options struct {
-	DaemonMode   bool
-	StackVersion string
-	AgentVersion string
+	DaemonMode           bool
+	StackVersion         string
+	OverrideAgentVersion string
 
 	Services []string
 

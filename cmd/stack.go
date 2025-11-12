@@ -115,10 +115,6 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
-			if agentVersion == "" {
-				// If agent version is not specified, use the stack version as default
-				agentVersion = stackVersion
-			}
 
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
@@ -141,12 +137,12 @@ func setupStackCommand() *cobraext.Command {
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
 			err = provider.BootUp(cmd.Context(), stack.Options{
-				DaemonMode:   daemonMode,
-				StackVersion: stackVersion,
-				AgentVersion: agentVersion,
-				Services:     services,
-				Profile:      profile,
-				Printer:      cmd,
+				DaemonMode:           daemonMode,
+				StackVersion:         stackVersion,
+				OverrideAgentVersion: agentVersion,
+				Services:             services,
+				Profile:              profile,
+				Printer:              cmd,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
@@ -220,16 +216,12 @@ func setupStackCommand() *cobraext.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
-			if agentVersion == "" {
-				// If agent version is not specified, use the stack version as default
-				agentVersion = stackVersion
-			}
 
 			err = provider.Update(cmd.Context(), stack.Options{
-				StackVersion: stackVersion,
-				Profile:      profile,
-				Printer:      cmd,
-				AgentVersion: agentVersion,
+				StackVersion:         stackVersion,
+				Profile:              profile,
+				Printer:              cmd,
+				OverrideAgentVersion: agentVersion,
 			})
 			if err != nil {
 				return fmt.Errorf("failed updating the stack images: %w", err)

@@ -20,7 +20,7 @@ type localServicesManager struct {
 }
 
 func (m *localServicesManager) start(ctx context.Context, options Options, config Config) error {
-	err := applyLocalResources(m.profile, options.StackVersion, options.AgentVersion, config)
+	err := applyLocalResources(m.profile, options.StackVersion, options.OverrideAgentVersion, config)
 	if err != nil {
 		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}

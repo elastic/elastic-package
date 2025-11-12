@@ -216,15 +216,15 @@ type tester struct {
 
 	pipelines []ingest.Pipeline
 
-	dataStreamPath     string
-	stackVersion       kibana.VersionInfo
-	agentVersion       string
-	locationManager    *locations.LocationManager
-	resourcesManager   *resources.Manager
-	pkgManifest        *packages.PackageManifest
-	dataStreamManifest *packages.DataStreamManifest
-	withCoverage       bool
-	coverageType       string
+	dataStreamPath       string
+	stackVersion         kibana.VersionInfo
+	overrideAgentVersion string
+	locationManager      *locations.LocationManager
+	resourcesManager     *resources.Manager
+	pkgManifest          *packages.PackageManifest
+	dataStreamManifest   *packages.DataStreamManifest
+	withCoverage         bool
+	coverageType         string
 
 	serviceStateFilePath string
 
@@ -248,7 +248,7 @@ type SystemTesterOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
-	AgentVersion string
+	OverrideAgentVersion string
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -284,7 +284,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
 		runIndependentElasticAgent: true,
-		agentVersion:               options.AgentVersion,
+		overrideAgentVersion:       options.OverrideAgentVersion,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -457,20 +457,20 @@ type resourcesOptions struct {
 
 func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
-		Profile:            r.profile,
-		PackageRootPath:    r.packageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Type:               agentdeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
-		AgentVersion:       r.agentVersion,
-		PackageName:        r.testFolder.Package,
-		DataStream:         r.testFolder.DataStream,
-		PolicyName:         policyName,
-		DeployerName:       deployerName,
-		RunTearDown:        r.runTearDown,
-		RunTestsOnly:       r.runTestsOnly,
-		RunSetup:           r.runSetup,
+		Profile:              r.profile,
+		PackageRootPath:      r.packageRootPath,
+		DataStreamRootPath:   r.dataStreamPath,
+		DevDeployDir:         DevDeployDir,
+		Type:                 agentdeployer.TypeTest,
+		StackVersion:         r.stackVersion.Version(),
+		OverrideAgentVersion: r.overrideAgentVersion,
+		PackageName:          r.testFolder.Package,
+		DataStream:           r.testFolder.DataStream,
+		PolicyName:           policyName,
+		DeployerName:         deployerName,
+		RunTearDown:          r.runTearDown,
+		RunTestsOnly:         r.runTestsOnly,
+		RunSetup:             r.runSetup,
 	}
 }
 
@@ -483,7 +483,7 @@ func (r *tester) createServiceOptions(variantName, deployerName string) serviced
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
-		AgentVersion:           r.agentVersion,
+		OverrideAgentVersion:   r.overrideAgentVersion,
 		RunTearDown:            r.runTearDown,
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,

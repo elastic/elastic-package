@@ -39,7 +39,13 @@ var (
 
 // applyLocalResources creates the local resources needed to run system tests when the stack
 // is not local.
-func applyLocalResources(profile *profile.Profile, stackVersion, agentVersion string, config Config) error {
+func applyLocalResources(profile *profile.Profile, stackVersion, overrideAgentVersion string, config Config) error {
+
+	agentVersion := stackVersion
+	if overrideAgentVersion != "" {
+		agentVersion = overrideAgentVersion
+	}
+
 	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)

@@ -25,11 +25,11 @@ import (
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
-	profile        *profile.Profile
-	definitionsDir string
-	stackVersion   string
-	agentVersion   string
-	policyName     string
+	profile              *profile.Profile
+	definitionsDir       string
+	stackVersion         string
+	overrideAgentVersion string
+	policyName           string
 
 	deployIndependentAgent bool
 
@@ -39,11 +39,11 @@ type KubernetesServiceDeployer struct {
 }
 
 type KubernetesServiceDeployerOptions struct {
-	Profile        *profile.Profile
-	DefinitionsDir string
-	StackVersion   string
-	AgentVersion   string
-	PolicyName     string
+	Profile              *profile.Profile
+	DefinitionsDir       string
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	DeployIndependentAgent bool
 
@@ -120,7 +120,7 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 		profile:                opts.Profile,
 		definitionsDir:         opts.DefinitionsDir,
 		stackVersion:           opts.StackVersion,
-		agentVersion:           opts.AgentVersion,
+		overrideAgentVersion:   opts.OverrideAgentVersion,
 		policyName:             opts.PolicyName,
 		runSetup:               opts.RunSetup,
 		runTestsOnly:           opts.RunTestsOnly,
@@ -149,7 +149,13 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.agentVersion, ksd.policyName)
+
+		agentVersion := ksd.stackVersion
+		if ksd.overrideAgentVersion != "" {
+			agentVersion = ksd.overrideAgentVersion
+		}
+
+		err = installElasticAgentInCluster(ctx, ksd.profile, agentVersion, ksd.policyName)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}

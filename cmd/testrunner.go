@@ -546,13 +546,6 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 	}
-	if agentVersion == "" {
-		stackVersion, err := kibanaClient.Version()
-		if err != nil {
-			return fmt.Errorf("can't get stack version: %w", err)
-		}
-		agentVersion = stackVersion.Version()
-	}
 
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
@@ -580,25 +573,25 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:            profile,
-		PackageRootPath:    packageRootPath,
-		KibanaClient:       kibanaClient,
-		API:                esClient.API,
-		ESClient:           esClient,
-		ConfigFilePath:     configFileFlag,
-		RunSetup:           runSetup,
-		RunTearDown:        runTearDown,
-		RunTestsOnly:       runTestsOnly,
-		DataStreams:        dataStreams,
-		ServiceVariant:     variantFlag,
-		FailOnMissingTests: failOnMissing,
-		GenerateTestResult: generateTestResult,
-		DeferCleanup:       deferCleanup,
-		GlobalTestConfig:   globalTestConfig.System,
-		WithCoverage:       testCoverage,
-		CoverageType:       testCoverageFormat,
-		RepositoryRoot:     repositoryRoot,
-		AgentVersion:       agentVersion,
+		Profile:              profile,
+		PackageRootPath:      packageRootPath,
+		KibanaClient:         kibanaClient,
+		API:                  esClient.API,
+		ESClient:             esClient,
+		ConfigFilePath:       configFileFlag,
+		RunSetup:             runSetup,
+		RunTearDown:          runTearDown,
+		RunTestsOnly:         runTestsOnly,
+		DataStreams:          dataStreams,
+		ServiceVariant:       variantFlag,
+		FailOnMissingTests:   failOnMissing,
+		GenerateTestResult:   generateTestResult,
+		DeferCleanup:         deferCleanup,
+		GlobalTestConfig:     globalTestConfig.System,
+		WithCoverage:         testCoverage,
+		CoverageType:         testCoverageFormat,
+		RepositoryRoot:       repositoryRoot,
+		OverrideAgentVersion: agentVersion,
 	})
 
 	logger.Debugf("Running suite...")

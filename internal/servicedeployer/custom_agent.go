@@ -35,22 +35,22 @@ var dockerCustomAgentDockerfileContent []byte
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type CustomAgentDeployer struct {
-	profile           *profile.Profile
-	dockerComposeFile string
-	stackVersion      string
-	policyName        string
-	agentVersion      string
+	profile              *profile.Profile
+	dockerComposeFile    string
+	stackVersion         string
+	policyName           string
+	overrideAgentVersion string
 
 	runTearDown  bool
 	runTestsOnly bool
 }
 
 type CustomAgentDeployerOptions struct {
-	Profile           *profile.Profile
-	DockerComposeFile string
-	StackVersion      string
-	PolicyName        string
-	AgentVersion      string
+	Profile              *profile.Profile
+	DockerComposeFile    string
+	StackVersion         string
+	PolicyName           string
+	OverrideAgentVersion string
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -61,13 +61,13 @@ var _ ServiceDeployer = new(CustomAgentDeployer)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
-		profile:           options.Profile,
-		dockerComposeFile: options.DockerComposeFile,
-		stackVersion:      options.StackVersion,
-		agentVersion:      options.AgentVersion,
-		policyName:        options.PolicyName,
-		runTearDown:       options.RunTearDown,
-		runTestsOnly:      options.RunTestsOnly,
+		profile:              options.Profile,
+		dockerComposeFile:    options.DockerComposeFile,
+		stackVersion:         options.StackVersion,
+		overrideAgentVersion: options.OverrideAgentVersion,
+		policyName:           options.PolicyName,
+		runTearDown:          options.RunTearDown,
+		runTestsOnly:         options.RunTestsOnly,
 	}, nil
 }
 
@@ -75,7 +75,12 @@ func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDep
 func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (DeployedService, error) {
 	logger.Warn("DEPRECATED - setting up service using Docker Compose service deployer")
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(d.agentVersion))
+	agentVersion := d.stackVersion
+	if d.overrideAgentVersion != "" {
+		agentVersion = d.overrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}

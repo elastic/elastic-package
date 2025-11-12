@@ -25,12 +25,12 @@ import (
 type Options struct {
 	Profile *profile.Profile
 
-	ServiceName        string
-	PackageRootPath    string
-	DevDeployDir       string
-	DataStreamRootPath string
-	StackVersion       string
-	AgentVersion       string
+	ServiceName          string
+	PackageRootPath      string
+	DevDeployDir         string
+	DataStreamRootPath   string
+	StackVersion         string
+	OverrideAgentVersion string
 
 	Variant string
 }
@@ -46,7 +46,7 @@ func BootUp(ctx context.Context, options Options) error {
 		Variant:                options.Variant,
 		StackVersion:           options.StackVersion,
 		DeployIndependentAgent: false,
-		AgentVersion:           options.AgentVersion,
+		OverrideAgentVersion:   options.OverrideAgentVersion,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("No service defined.")
