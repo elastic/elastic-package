@@ -86,7 +86,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
-	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
+	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:          kibanaClient,
 		PackageRootPath: packageRootPath,
 		SkipValidation:  skipValidation,

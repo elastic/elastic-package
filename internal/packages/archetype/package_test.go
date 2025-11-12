@@ -105,7 +105,7 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string)
 		return err
 	}
 
-	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
+	_, err = builder.BuildPackage(builder.BuildOptions{
 		PackageRootPath: packageRootPath,
 		BuildDir:        buildDir,
 		RepositoryRoot:  repositoryRoot,
