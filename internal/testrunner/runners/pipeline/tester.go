@@ -37,6 +37,7 @@ import (
 var serverlessDisableCompareResults = environment.WithElasticPackagePrefix("SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS")
 
 type tester struct {
+	workDir            string
 	profile            *profile.Profile
 	deferCleanup       time.Duration
 	esAPI              *elasticsearch.API
@@ -58,6 +59,7 @@ type tester struct {
 }
 
 type PipelineTesterOptions struct {
+	WorkDir            string
 	Profile            *profile.Profile
 	DeferCleanup       time.Duration
 	API                *elasticsearch.API
@@ -77,6 +79,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 	}
 
 	r := tester{
+		workDir:            options.WorkDir,
 		profile:            options.Profile,
 		packageRootPath:    options.PackageRootPath,
 		esAPI:              options.API,
@@ -347,7 +350,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 		fields.WithStringNumberFields(tc.config.StringNumberFields),
 	)
-	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, dsPath, validatorOptions...)
 	if err != nil {
 		return rc.WithErrorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
 	}

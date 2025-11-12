@@ -85,7 +85,7 @@ func reportSingle(report reporters.Reportable) error {
 
 // reportsDir returns the location of the directory to store reports.
 func reportsDir() (string, error) {
-	buildDir, err := builder.BuildDirectory()
+	buildDir, err := builder.BuildDirectory(".")
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}

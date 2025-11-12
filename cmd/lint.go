@@ -45,19 +45,23 @@ func setupLintCommand() *cobraext.Command {
 
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	packageRoot, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("package root not found: %w", err)
 	}
 
-	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot)
+	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, cwd, packageRoot)
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {
@@ -73,7 +77,11 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

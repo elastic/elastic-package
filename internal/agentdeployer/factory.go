@@ -23,6 +23,7 @@ const (
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
 	Profile *profile.Profile
+	WorkDir string
 
 	PackageRootPath    string
 	DataStreamRootPath string
@@ -56,6 +57,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		}
 		opts := DockerComposeAgentDeployerOptions{
 			Profile:      options.Profile,
+			WorkDir:      options.WorkDir,
 			StackVersion: options.StackVersion,
 			PackageName:  options.PackageName,
 			PolicyName:   options.PolicyName,
@@ -85,6 +87,7 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
+		WorkDir:            options.WorkDir,
 		DataStreamRootPath: options.DataStreamRootPath,
 		DevDeployDir:       options.DevDeployDir,
 		PackageRootPath:    options.PackageRootPath,

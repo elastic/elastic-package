@@ -96,11 +96,16 @@ func editDashboardsCmd(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: %s\n", message)
 	}
 
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
 	if len(dashboardIDs) == 0 {
 		// Not mandatory to get the package name here, but it would be helpful for users
 		// to select by default the package where they are located if any.
 		defaultPackage := ""
-		packageRoot, err := packages.MustFindPackageRoot()
+		packageRoot, err := packages.MustFindPackageRoot(cwd)
 		if err == nil {
 			m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 			if err != nil {

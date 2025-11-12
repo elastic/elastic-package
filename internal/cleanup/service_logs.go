@@ -36,10 +36,10 @@ func ServiceLogs() (string, error) {
 }
 
 // ServiceLogsIndependentAgent function removes service logs from temporary directory for independent agents in `~/.elastic-package`.
-func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
+func ServiceLogsIndependentAgents(profile *profile.Profile, workDir string) (string, error) {
 	logger.Debug("Clean all service logs from independent Elastic Agents")
 
-	packageRootPath, err := packages.MustFindPackageRoot()
+	packageRootPath, err := packages.MustFindPackageRoot(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}

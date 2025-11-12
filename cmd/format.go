@@ -33,8 +33,12 @@ func setupFormatCommand() *cobraext.Command {
 
 func formatCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Format the package")
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

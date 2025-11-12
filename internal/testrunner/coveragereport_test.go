@@ -86,7 +86,7 @@ func TestCreateCoverageReport(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			report, err := createCoverageReport(tt.rootPath, tt.packageName, tt.packageType, tt.testType, tt.results, tt.coverageFormat)
+			report, err := createCoverageReport(tt.rootPath, workDir, tt.packageName, tt.packageType, tt.testType, tt.results, tt.coverageFormat)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, report)
 		})

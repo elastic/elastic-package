@@ -20,8 +20,8 @@ import (
 
 // GenerateBasePackageCoverageReport generates a coverage report where all files under the root path are
 // marked as not covered. It ignores files under _dev directories.
-func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (CoverageReport, error) {
-	repoPath, err := files.FindRepositoryRootDirectory()
+func GenerateBasePackageCoverageReport(pkgName, workDir, rootPath, format string) (CoverageReport, error) {
+	repoPath, err := files.FindRepositoryRootDirectory(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
@@ -68,8 +68,8 @@ func GenerateBasePackageCoverageReport(pkgName, rootPath, format string) (Covera
 }
 
 // GenerateBaseFileCoverageReport generates a coverage report for a given file, where all the file is marked as covered or uncovered.
-func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) (CoverageReport, error) {
-	repoPath, err := files.FindRepositoryRootDirectory()
+func GenerateBaseFileCoverageReport(pkgName, workDir, path, format string, covered bool) (CoverageReport, error) {
+	repoPath, err := files.FindRepositoryRootDirectory(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
@@ -79,8 +79,8 @@ func GenerateBaseFileCoverageReport(pkgName, path, format string, covered bool) 
 
 // GenerateBaseFileCoverageReport generates a coverage report for all the files matching any of the given patterns. The complete
 // files are marked as fully covered or uncovered depending on the given value.
-func GenerateBaseFileCoverageReportGlob(pkgName string, patterns []string, format string, covered bool) (CoverageReport, error) {
-	repoPath, err := files.FindRepositoryRootDirectory()
+func GenerateBaseFileCoverageReportGlob(workDir string, pkgName string, patterns []string, format string, covered bool) (CoverageReport, error) {
+	repoPath, err := files.FindRepositoryRootDirectory(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}

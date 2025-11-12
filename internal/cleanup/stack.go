@@ -17,10 +17,10 @@ import (
 )
 
 // Stack function removes built package used by the Package Registry image.
-func Stack() (string, error) {
+func Stack(workDir string) (string, error) {
 	logger.Debug("Clean built packages from the development stack")
 
-	packageRoot, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}

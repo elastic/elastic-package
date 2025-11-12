@@ -19,6 +19,7 @@ const (
 )
 
 type runner struct {
+	workDir          string
 	packageRootPath  string
 	kibanaClient     *kibana.Client
 	globalTestConfig testrunner.GlobalRunnerTestConfig
@@ -28,6 +29,7 @@ type runner struct {
 }
 
 type AssetTestRunnerOptions struct {
+	WorkDir          string
 	PackageRootPath  string
 	KibanaClient     *kibana.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
@@ -38,6 +40,7 @@ type AssetTestRunnerOptions struct {
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
+		workDir:          options.WorkDir,
 		packageRootPath:  options.PackageRootPath,
 		kibanaClient:     options.KibanaClient,
 		globalTestConfig: options.GlobalTestConfig,
@@ -68,6 +71,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	_, pkg := filepath.Split(r.packageRootPath)
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
+			WorkDir:          r.workDir,
 			PackageRootPath:  r.packageRootPath,
 			KibanaClient:     r.kibanaClient,
 			TestFolder:       testrunner.TestFolder{Package: pkg},

@@ -39,7 +39,12 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	target, err := cleanup.Build()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	target, err := cleanup.Build(cwd)
 	if err != nil {
 		return fmt.Errorf("can't clean build resources: %w", err)
 	}
@@ -48,7 +53,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Build resources removed: %s\n", target)
 	}
 
-	target, err = cleanup.Stack()
+	target, err = cleanup.Stack(cwd)
 	if err != nil {
 		return fmt.Errorf("can't clean the development stack: %w", err)
 	}
@@ -64,7 +69,7 @@ func cleanCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Temporary service logs removed: %s\n", target)
 	}
 
-	target, err = cleanup.ServiceLogsIndependentAgents(profile)
+	target, err = cleanup.ServiceLogsIndependentAgents(profile, cwd)
 	if err != nil {
 		return fmt.Errorf("can't clean temporary service logs: %w", err)
 	}

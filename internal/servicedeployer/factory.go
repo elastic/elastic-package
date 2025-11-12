@@ -21,6 +21,7 @@ const (
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
+	WorkDir string
 	Profile *profile.Profile
 
 	PackageRootPath        string
@@ -84,6 +85,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
 			opts := DockerComposeServiceDeployerOptions{
+				WorkDir:                options.WorkDir,
 				Profile:                options.Profile,
 				YmlPaths:               []string{dockerComposeYMLPath},
 				Variant:                sv,
@@ -105,6 +107,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
 
 		opts := CustomAgentDeployerOptions{
+			WorkDir:           options.WorkDir,
 			Profile:           options.Profile,
 			DockerComposeFile: customAgentCfgYMLPath,
 			StackVersion:      options.StackVersion,
@@ -120,6 +123,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := TerraformServiceDeployerOptions{
+				WorkDir:        options.WorkDir,
 				DefinitionsDir: serviceDeployerPath,
 			}
 			return NewTerraformServiceDeployer(opts)

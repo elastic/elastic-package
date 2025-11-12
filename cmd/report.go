@@ -83,8 +83,14 @@ func getBenchReportCommand() *cobra.Command {
 			if err != nil {
 				return cobraext.FlagParsingError(err, cobraext.ReportOutputPathFlagName)
 			}
+
+			cwd, err := cobraext.Getwd(cmd)
+			if err != nil {
+				return err
+			}
+
 			if reportOutputPath == "" {
-				dest, err := resultsDir()
+				dest, err := resultsDir(cwd)
 				if err != nil {
 					return fmt.Errorf("could not determine benchmark reports folder: %w", err)
 				}
@@ -160,8 +166,8 @@ func getBenchReportCommand() *cobra.Command {
 }
 
 // resultsDir returns the location of the directory to store reports.
-func resultsDir() (string, error) {
-	buildDir, err := builder.BuildDirectory()
+func resultsDir(workDir string) (string, error) {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}

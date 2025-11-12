@@ -86,7 +86,7 @@ func TestListLinkedFiles(t *testing.T) {
 	basePath := filepath.Join(wd, "testdata", "links")
 
 	// Find the repository root to create a secure os.Root context
-	root, err := FindRepositoryRoot()
+	root, err := FindRepositoryRoot(wd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
@@ -159,7 +159,7 @@ func TestAreLinkedFilesUpToDate(t *testing.T) {
 	basePath := filepath.Join(wd, filepath.FromSlash("testdata/links"))
 
 	// Find the repository root to create a secure os.Root context
-	root, err := FindRepositoryRoot()
+	root, err := FindRepositoryRoot(wd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
@@ -234,7 +234,7 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	basePath := filepath.Join(wd, "testdata", "links")
 
 	// Find the repository root to create a secure os.Root context
-	root, err := FindRepositoryRoot()
+	root, err := FindRepositoryRoot(wd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 

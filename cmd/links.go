@@ -6,7 +6,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -51,18 +50,18 @@ func getLinksCheckCommand() *cobra.Command {
 
 func linksCheckCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Check for linked files changes\n")
-	pwd, err := os.Getwd()
+	cwd, err := cobraext.Getwd(cmd)
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, cwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -95,19 +94,19 @@ func getLinksUpdateCommand() *cobra.Command {
 
 func linksUpdateCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Printf("Update linked files checksums if needed.\n")
-	pwd, err := os.Getwd()
+	cwd, err := cobraext.Getwd(cmd)
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, cwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}
@@ -142,19 +141,19 @@ func linksListCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.PackagesFlagName)
 	}
 
-	pwd, err := os.Getwd()
+	cwd, err := cobraext.Getwd(cmd)
 	if err != nil {
 		return fmt.Errorf("reading current working directory failed: %w", err)
 	}
 
 	// Find the repository root to create the links filesystem reference tied to the repository root
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("finding repository root: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, pwd)
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, cwd)
 	if err != nil {
 		return fmt.Errorf("creating links filesystem failed: %w", err)
 	}

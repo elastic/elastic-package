@@ -21,8 +21,8 @@ import (
 
 // Dashboards method exports selected dashboards with references objects. All Kibana objects are saved to local files
 // in appropriate directories.
-func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs []string) error {
-	packageRoot, err := packages.MustFindPackageRoot()
+func Dashboards(ctx context.Context, kibanaClient *kibana.Client, workDir string, dashboardsIDs []string) error {
+	packageRoot, err := packages.MustFindPackageRoot(workDir)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

@@ -260,15 +260,17 @@ type packageRootFinder interface {
 	FindPackageRoot() (string, error)
 }
 
-type packageRoot struct{}
+type packageRoot struct {
+	Cwd string
+}
 
 func (p packageRoot) FindPackageRoot() (string, error) {
-	return packages.FindPackageRoot()
+	return packages.FindPackageRoot(p.Cwd)
 }
 
 // CreateValidatorForDirectory function creates a validator for the directory.
-func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
-	p := packageRoot{}
+func CreateValidatorForDirectory(workDir string, fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+	p := packageRoot{Cwd: workDir}
 	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, p, opts...)
 }
 

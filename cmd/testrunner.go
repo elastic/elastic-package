@@ -146,12 +146,16 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -175,6 +179,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
+		WorkDir:          cwd,
 		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
 		GlobalTestConfig: globalTestConfig.Asset,
@@ -188,7 +193,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerStaticCommand() *cobra.Command {
@@ -239,7 +244,11 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -263,6 +272,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := static.NewStaticTestRunner(static.StaticTestRunnerOptions{
+		WorkDir:            cwd,
 		PackageRootPath:    packageRootPath,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
@@ -276,7 +286,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerPipelineCommand() *cobra.Command {
@@ -343,12 +353,16 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
-	packageRootPath, err := packages.FindPackageRoot()
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -382,6 +396,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 
 	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
 		Profile:            profile,
+		WorkDir:            cwd,
 		PackageRootPath:    packageRootPath,
 		API:                esClient.API,
 		DataStreams:        dataStreams,
@@ -399,7 +414,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerSystemCommand() *cobra.Command {
@@ -490,12 +505,17 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
 	}
 
-	packageRootPath, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -568,6 +588,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:            profile,
+		WorkDir:            cwd,
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
 		API:                esClient.API,
@@ -593,7 +614,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = processResults(results, runner.Type(), reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(results, runner.Type(), reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		return fmt.Errorf("failed to process results: %w", err)
 	}
@@ -658,12 +679,17 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRootPath, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -692,6 +718,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
+		WorkDir:            cwd,
 		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
 		DataStreams:        dataStreams,
@@ -708,10 +735,10 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
+func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, workDir, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Package != results[j].Package {
 			return results[i].Package < results[j].Package
@@ -730,12 +757,12 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		return fmt.Errorf("error formatting test report: %w", err)
 	}
 
-	if err := testrunner.WriteReport(packageName, testType, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+	if err := testrunner.WriteReport(packageName, workDir, testType, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 		return fmt.Errorf("error writing test report: %w", err)
 	}
 
 	if testCoverage {
-		err := testrunner.WriteCoverage(packageRootPath, packageName, packageType, testType, results, testCoverageFormat)
+		err := testrunner.WriteCoverage(workDir, packageRootPath, packageName, packageType, testType, results, testCoverageFormat)
 		if err != nil {
 			return fmt.Errorf("error writing test coverage: %w", err)
 		}

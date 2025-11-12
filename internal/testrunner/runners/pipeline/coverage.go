@@ -40,7 +40,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 	// and a default.yml pipeline).
 	basePath := filepath.Dir(options.PackageRootPath)
 
-	repositoryRootDir, err := files.FindRepositoryRootDirectory()
+	repositoryRootDir, err := files.FindRepositoryRootDirectory(options.WorkDir)
 	if err != nil {
 		return nil, err
 	}

@@ -35,6 +35,7 @@ var dockerCustomAgentDockerfileContent []byte
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type CustomAgentDeployer struct {
+	workDir           string
 	profile           *profile.Profile
 	dockerComposeFile string
 	stackVersion      string
@@ -45,6 +46,7 @@ type CustomAgentDeployer struct {
 }
 
 type CustomAgentDeployerOptions struct {
+	WorkDir           string
 	Profile           *profile.Profile
 	DockerComposeFile string
 	StackVersion      string
@@ -59,6 +61,7 @@ var _ ServiceDeployer = new(CustomAgentDeployer)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
+		workDir:           options.WorkDir,
 		profile:           options.Profile,
 		dockerComposeFile: options.DockerComposeFile,
 		stackVersion:      options.StackVersion,
@@ -114,6 +117,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Env:  env,
 		},
 		configDir: configDir,
+		workDir:   d.workDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -171,7 +175,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	if err != nil {
 		processServiceContainerLogs(ctx, p, compose.CommandOptions{
 			Env: opts.Env,
-		}, svcInfo.Name)
+		}, d.workDir, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 

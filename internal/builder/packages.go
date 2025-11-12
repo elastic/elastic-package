@@ -25,6 +25,7 @@ const licenseTextFileName = "LICENSE.txt"
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
 type BuildOptions struct {
+	WorkDir         string // current working directory
 	PackageRootPath string // path to the package source content
 	BuildDir        string // directory where all the built packages are placed and zipped packages are stored
 	RepositoryRoot  *os.Root
@@ -35,13 +36,13 @@ type BuildOptions struct {
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
-func BuildDirectory() (string, error) {
-	buildDir, found, err := findBuildDirectory()
+func BuildDirectory(workDir string) (string, error) {
+	buildDir, found, err := findBuildDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
-		buildDir, err = createBuildDirectory()
+		buildDir, err = createBuildDirectory(workDir)
 		if err != nil {
 			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
@@ -49,13 +50,7 @@ func BuildDirectory() (string, error) {
 	return buildDir, nil
 }
 
-func findBuildDirectory() (string, bool, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", false, fmt.Errorf("can't locate build directory: %w", err)
-	}
-
-	dir := workDir
+func findBuildDirectory(dir string) (string, bool, error) {
 	// required for multi platform support
 	root := fmt.Sprintf("%s%c", filepath.VolumeName(dir), os.PathSeparator)
 	for dir != "." {
@@ -75,9 +70,12 @@ func findBuildDirectory() (string, bool, error) {
 
 // BuildPackagesDirectory function locates the target build directory for the package.
 // It is in the form <buildDir>/packages/<package name>/<package version>.
-func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error) {
+func BuildPackagesDirectory(workDir string, packageRoot string, buildDir string) (string, error) {
 	if buildDir == "" {
-		d, err := buildPackagesRootDirectory()
+		if workDir == "" {
+			return "", fmt.Errorf("working directory required to find build directory")
+		}
+		d, err := buildPackagesRootDirectory(workDir)
 		if err != nil {
 			return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 		}
@@ -105,8 +103,8 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 }
 
 // buildPackagesZipPath function returns the path to zipped built package.
-func buildPackagesZipPath(packageRoot string) (string, error) {
-	buildPackagesDir, err := buildPackagesRootDirectory()
+func buildPackagesZipPath(packageRoot string, workDir string) (string, error) {
+	buildPackagesDir, err := buildPackagesRootDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build packages root directory: %w", err)
 	}
@@ -122,13 +120,13 @@ func ZippedBuiltPackagePath(buildDir string, m packages.PackageManifest) string 
 	return filepath.Join(buildDir, fmt.Sprintf("%s-%s.zip", m.Name, m.Version))
 }
 
-func buildPackagesRootDirectory() (string, error) {
-	buildDir, found, err := FindBuildPackagesDirectory()
+func buildPackagesRootDirectory(workDir string) (string, error) {
+	buildDir, found, err := FindBuildPackagesDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
 	if !found {
-		buildDir, err = createBuildDirectory(builtPackagesDir)
+		buildDir, err = createBuildDirectory(workDir, builtPackagesDir)
 		if err != nil {
 			return "", fmt.Errorf("can't create new build directory: %w", err)
 		}
@@ -137,8 +135,8 @@ func buildPackagesRootDirectory() (string, error) {
 }
 
 // FindBuildPackagesDirectory function locates the target build directory for packages.
-func FindBuildPackagesDirectory() (string, bool, error) {
-	buildDir, found, err := findBuildDirectory()
+func FindBuildPackagesDirectory(workDir string) (string, bool, error) {
+	buildDir, found, err := findBuildDirectory(workDir)
 	if err != nil {
 		return "", false, err
 	}
@@ -165,7 +163,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 func BuildPackage(options BuildOptions) (string, error) {
 	// builtPackageDir is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
-	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
+	builtPackageDir, err := BuildPackagesDirectory(options.WorkDir, options.PackageRootPath, options.BuildDir)
 	if err != nil {
 		return "", fmt.Errorf("can't locate build directory: %w", err)
 	}
@@ -251,7 +249,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 // buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.
 func buildZippedPackage(options BuildOptions, builtPackageDir string) (string, error) {
 	logger.Debug("Build zipped package")
-	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
+	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath, options.WorkDir)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
@@ -352,8 +350,8 @@ func copyLicenseTextFile(repositoryRoot *os.Root, targetLicensePath string) erro
 	return nil
 }
 
-func createBuildDirectory(dirs ...string) (string, error) {
-	dir, err := files.FindRepositoryRootDirectory()
+func createBuildDirectory(workDir string, dirs ...string) (string, error) {
+	dir, err := files.FindRepositoryRootDirectory(workDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return "", errors.New("package can be only built inside of a Git repository (.git folder is used as reference point)")
 	}

@@ -33,7 +33,7 @@ func (p packageRootTestFinder) FindPackageRoot() (string, error) {
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs", WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "../../test/packages/parallel/aws/data_stream/elb_logs", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -45,7 +45,7 @@ func TestValidate_NoWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/sns", WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "../../test/packages/parallel/aws/data_stream/sns", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -55,7 +55,7 @@ func TestValidate_WithWildcardFields(t *testing.T) {
 }
 
 func TestValidate_WithFlattenedFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -66,7 +66,7 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 }
 
 func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -85,7 +85,7 @@ func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
 }
 
 func TestValidate_DisabledParent(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -98,7 +98,7 @@ func TestValidate_DisabledParent(t *testing.T) {
 }
 
 func TestValidate_EnabledNotMappedError(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -115,7 +115,7 @@ func TestValidate_EnabledNotMappedError(t *testing.T) {
 }
 
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithNumericKeywordFields([]string{
 			"foo.code", // Contains a number.
 			"foo.pid",  // Contains an array of numbers.
@@ -133,7 +133,7 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 }
 
 func TestValidate_WithStringNumberFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithStringNumberFields([]string{
 			"foo.count",  // Contains a number as string.
 			"foo.metric", // Contains a floating number as string.
@@ -186,7 +186,7 @@ func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 }
 
 func TestValidate_constantKeyword(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "testdata", WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -200,7 +200,7 @@ func TestValidate_constantKeyword(t *testing.T) {
 }
 
 func TestValidate_ipAddress(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithEnabledAllowedIPCheck(), WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "testdata", WithEnabledAllowedIPCheck(), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -215,7 +215,7 @@ func TestValidate_ipAddress(t *testing.T) {
 }
 
 func TestValidate_undefinedArrayOfObjects(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -226,7 +226,7 @@ func TestValidate_undefinedArrayOfObjects(t *testing.T) {
 }
 
 func TestValidate_WithSpecVersion(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 
 	e := readSampleEvent(t, "testdata/invalid-array-normalization.json")
@@ -239,7 +239,7 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 	require.Empty(t, errs)
 
 	// Check now that this validation was only enabled for 2.0.0.
-	validator, err = CreateValidatorForDirectory("testdata", WithSpecVersion("1.99.99"), WithDisabledDependencyManagement())
+	validator, err = CreateValidatorForDirectory(".", "testdata", WithSpecVersion("1.99.99"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 
 	e = readSampleEvent(t, "testdata/invalid-array-normalization.json")
@@ -248,7 +248,7 @@ func TestValidate_WithSpecVersion(t *testing.T) {
 }
 
 func TestValidate_ExpectedEventType(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "testdata", WithSpecVersion("2.0.0"), WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -337,7 +337,7 @@ func TestValidate_ExpectedEventType(t *testing.T) {
 }
 
 func TestValidate_ExpectedDatasets(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("testdata",
+	validator, err := CreateValidatorForDirectory(".", "testdata",
 		WithSpecVersion("2.0.0"),
 		WithExpectedDatasets([]string{"apache.status"}),
 		WithDisabledDependencyManagement(),
@@ -992,7 +992,7 @@ func TestCompareKeys(t *testing.T) {
 }
 
 func TestValidateGeoPoint(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/other/fields_tests/data_stream/first", WithDisabledDependencyManagement())
+	validator, err := CreateValidatorForDirectory(".", "../../test/packages/other/fields_tests/data_stream/first", WithDisabledDependencyManagement())
 
 	require.NoError(t, err)
 	require.NotNil(t, validator)
