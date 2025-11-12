@@ -7,7 +7,7 @@
     "template": {
       "settings": {
         "index": {
-          "default_pipeline": "logs-apache.error-1.3.6"
+          "default_pipeline": "logs-apache.error-1.8.2"
         }
       },
       "mappings": {
@@ -411,6 +411,9 @@
           },
           "event": {
             "properties": {
+              "created": {
+                "type": "date"
+              },
               "kind": {
                 "ignore_above": 1024,
                 "type": "keyword"

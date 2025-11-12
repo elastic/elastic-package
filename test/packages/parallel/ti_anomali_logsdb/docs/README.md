@@ -137,7 +137,6 @@ An example event for `threatstream` looks as following:
         }
     }
 }
-
 ```
 
 **Exported fields**

@@ -35,6 +35,7 @@ type ClusterStateRequest = esapi.ClusterStateRequest
 // clientOptions are used to configure a client.
 type clientOptions struct {
 	address  string
+	apiKey   string
 	username string
 	password string
 
@@ -46,6 +47,13 @@ type clientOptions struct {
 }
 
 type ClientOption func(*clientOptions)
+
+// OptionWithAPIKey sets the API key to be used by the client for authentication.
+func OptionWithAPIKey(apiKey string) ClientOption {
+	return func(opts *clientOptions) {
+		opts.apiKey = apiKey
+	}
+}
 
 // OptionWithAddress sets the address to be used by the client.
 func OptionWithAddress(address string) ClientOption {
@@ -109,6 +117,7 @@ func NewConfig(customOptions ...ClientOption) (elasticsearch.Config, error) {
 
 	config := elasticsearch.Config{
 		Addresses: []string{options.address},
+		APIKey:    options.apiKey,
 		Username:  options.username,
 		Password:  options.password,
 	}
@@ -145,6 +154,10 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode == http.StatusGone {
+		// We are in a managed deployment, API not available, assume healthy.
+		return nil
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("failed to check cluster health: %s", resp.String())
 	}
@@ -176,30 +189,35 @@ func (client *Client) CheckHealth(ctx context.Context) error {
 	return nil
 }
 
-// IsFailureStoreAvailable checks if the failure store is available.
-func (client *Client) IsFailureStoreAvailable(ctx context.Context) (bool, error) {
-	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	request, err := http.NewRequest(http.MethodGet, "/_search?failure_store=only", nil)
-	if err != nil {
-		return false, fmt.Errorf("failed to create search request: %w", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
+type Info struct {
+	Name        string `json:"name"`
+	ClusterName string `json:"cluster_name"`
+	ClusterUUID string `json:"cluster_uuid"`
+	Version     struct {
+		Number      string `json:"number"`
+		BuildFlavor string `json:"build_flavor"`
+	} `json:"version"`
+}
 
-	resp, err := client.Transport.Perform(request)
+// Info gets cluster information and metadata.
+func (client *Client) Info(ctx context.Context) (*Info, error) {
+	resp, err := client.Client.Info(client.Client.Info.WithContext(ctx))
 	if err != nil {
-		return false, fmt.Errorf("failed to perform search request: %w", err)
+		return nil, fmt.Errorf("error getting cluster info: %w", err)
 	}
 	defer resp.Body.Close()
 
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return true, nil
-	case http.StatusBadRequest:
-		// Error expected when using an unrecognized parameter.
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected status code received: %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get cluster info: %s", resp.String())
 	}
+
+	var info Info
+	err = json.NewDecoder(resp.Body).Decode(&info)
+	if err != nil {
+		return nil, fmt.Errorf("error decoding cluster info: %w", err)
+	}
+
+	return &info, nil
 }
 
 // redHealthCause tries to identify the cause of a cluster in red state. This could be
@@ -278,4 +296,101 @@ func (client *Client) redHealthCause(ctx context.Context) (string, error) {
 		return "", errors.New("no causes found")
 	}
 	return strings.Join(causes, ", "), nil
+}
+
+type Mappings struct {
+	Properties       json.RawMessage `json:"properties"`
+	DynamicTemplates json.RawMessage `json:"dynamic_templates"`
+}
+
+func (c *Client) SimulateIndexTemplate(ctx context.Context, indexTemplateName string) (*Mappings, error) {
+	resp, err := c.Indices.SimulateTemplate(
+		c.Indices.SimulateTemplate.WithContext(ctx),
+		c.Indices.SimulateTemplate.WithName(indexTemplateName),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", indexTemplateName, err)
+	}
+	defer resp.Body.Close()
+	if resp.IsError() {
+		return nil, fmt.Errorf("error getting mapping: %s", resp)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	type indexTemplateSimulated struct {
+		// Settings json.RawMessage       `json:"settings"`
+		Mappings Mappings `json:"mappings"`
+	}
+
+	type previewTemplate struct {
+		Template indexTemplateSimulated `json:"template"`
+	}
+
+	var preview previewTemplate
+
+	if err := json.Unmarshal(body, &preview); err != nil {
+		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	// In case there are no dynamic templates, set an empty array
+	if string(preview.Template.Mappings.DynamicTemplates) == "" {
+		preview.Template.Mappings.DynamicTemplates = []byte("[]")
+	}
+
+	// In case there are no mappings defined, set an empty map
+	if string(preview.Template.Mappings.Properties) == "" {
+		preview.Template.Mappings.Properties = []byte("{}")
+	}
+
+	return &preview.Template.Mappings, nil
+}
+
+func (c *Client) DataStreamMappings(ctx context.Context, dataStreamName string) (*Mappings, error) {
+	mappingResp, err := c.Indices.GetMapping(
+		c.Indices.GetMapping.WithContext(ctx),
+		c.Indices.GetMapping.WithIndex(dataStreamName),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get field mapping for data stream %q: %w", dataStreamName, err)
+	}
+	defer mappingResp.Body.Close()
+	if mappingResp.IsError() {
+		return nil, fmt.Errorf("error getting mapping: %s", mappingResp)
+	}
+	body, err := io.ReadAll(mappingResp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading mapping body: %w", err)
+	}
+
+	mappingsRaw := map[string]struct {
+		Mappings Mappings `json:"mappings"`
+	}{}
+
+	if err := json.Unmarshal(body, &mappingsRaw); err != nil {
+		return nil, fmt.Errorf("error unmarshaling mappings: %w", err)
+	}
+
+	if len(mappingsRaw) != 1 {
+		return nil, fmt.Errorf("exactly 1 mapping was expected, got %d", len(mappingsRaw))
+	}
+
+	var mappingsDefinition Mappings
+	for _, v := range mappingsRaw {
+		mappingsDefinition = v.Mappings
+	}
+
+	// In case there are no dynamic templates, set an empty array
+	if string(mappingsDefinition.DynamicTemplates) == "" {
+		mappingsDefinition.DynamicTemplates = []byte("[]")
+	}
+
+	// In case there are no mappings defined, set an empty map
+	if string(mappingsDefinition.Properties) == "" {
+		mappingsDefinition.Properties = []byte("{}")
+	}
+
+	return &mappingsDefinition, nil
 }

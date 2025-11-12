@@ -66,14 +66,17 @@ test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
 
 test-stack-command-7x:
-	./scripts/test-stack-command.sh 7.17.24-SNAPSHOT
+	./scripts/test-stack-command.sh 7.17.29
 
 # Keeping a test for 8.6 because it has an specific configuration file.
 test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.16.0-54ba7abd-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.7-06f1fb36-SNAPSHOT
+
+test-stack-command-9x:
+	./scripts/test-stack-command.sh 9.3.0-6f40f4f1-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -81,7 +84,10 @@ test-stack-command-with-apm-server:
 test-stack-command-with-self-monitor:
 	SELF_MONITOR_ENABLED=true ./scripts/test-stack-command.sh
 
-test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-with-apm-server
+test-stack-command-with-basic-subscription:
+	ELASTIC_SUBSCRIPTION=basic ./scripts/test-stack-command.sh
+
+test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
 
 test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
 
@@ -109,11 +115,14 @@ test-check-packages-with-custom-agent:
 test-build-zip:
 	./scripts/test-build-zip.sh
 
-test-install-zip:
-	./scripts/test-install-zip.sh
+test-build-install-zip:
+	./scripts/test-build-install-zip.sh
 
-test-install-zip-shellinit:
-	./scripts/test-install-zip.sh -s
+test-build-install-zip-file:
+	./scripts/test-build-install-zip-file.sh
+
+test-build-install-zip-file-shellinit:
+	./scripts/test-build-install-zip-file.sh -s
 
 test-system-test-flags:
 	./scripts/test-system-test-flags.sh
@@ -124,7 +133,7 @@ test-profiles-command:
 test-check-update-version:
 	./scripts/test-check-update-version.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-zip test-check-update-version
+test: test-go test-stack-command test-check-packages test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
 
 check-git-clean:
 	git update-index --really-refresh

@@ -31,14 +31,6 @@ buildkite_pr_branch_build_id() {
     echo "${BUILDKITE_BRANCH}-${BUILDKITE_PIPELINE_SLUG}-${BUILDKITE_BUILD_NUMBER}"
 }
 
-google_cloud_auth() {
-    local keyFile=$1
-
-    gcloud auth activate-service-account --key-file "${keyFile}" 2> /dev/null
-
-    export GOOGLE_APPLICATION_CREDENTIALS=${keyFile}
-}
-
 retry() {
     local retries=$1
     shift
@@ -57,21 +49,6 @@ retry() {
         fi
     done
     return 0
-}
-
-google_cloud_logout_active_account() {
-  local active_account
-  active_account=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || true)
-  if [[ -n "$active_account" && -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]]; then
-    echo "Logging out from GCP for active account"
-    gcloud auth revoke "$active_account" > /dev/null 2>&1
-  else
-    echo "No active GCP accounts found."
-  fi
-  if [ -n "${GOOGLE_APPLICATION_CREDENTIALS+x}" ]; then
-    rm -rf "${GOOGLE_APPLICATION_CREDENTIALS}"
-    unset GOOGLE_APPLICATION_CREDENTIALS
-  fi
 }
 
 running_on_buildkite() {
@@ -97,9 +74,6 @@ prepare_serverless_stack() {
     fi
     create_elastic_package_profile "${profile_name}"
 
-    export EC_API_KEY=${EC_API_KEY_SECRET}
-    export EC_HOST=${EC_HOST_SECRET}
-
     echo "Boot up the Elastic stack"
     # Currently, if STACK_VERSION is not defined, for serverless it will be
     # used as Elastic stack version (for agents) the default version in elastic-package
@@ -122,32 +96,19 @@ prepare_serverless_stack() {
     echo ""
 }
 
-google_cloud_auth_safe_logs() {
-    local gsUtilLocation=""
-    gsUtilLocation=$(mktemp -d -p "${WORKSPACE}" -t "${TMP_FOLDER_TEMPLATE}")
-
-    local secretFileLocation=${gsUtilLocation}/${GOOGLE_CREDENTIALS_FILENAME}
-
-    echo "${PRIVATE_CI_GCS_CREDENTIALS_SECRET}" > "${secretFileLocation}"
-
-    google_cloud_auth "${secretFileLocation}"
-}
-
 upload_safe_logs() {
     local bucket="$1"
     local source="$2"
     local target="$3"
 
-    if ! ls ${source} 2>&1 > /dev/null ; then
-        echo "upload_safe_logs: artifacts files not found, nothing will be archived"
+    if ! ls ${source} > /dev/null 2>&1; then
+        echo "upload_safe_logs: artifacts files not found at ${source}, nothing will be archived"
         return
     fi
 
-    google_cloud_auth_safe_logs
+    gcloud storage cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
 
-    gsutil cp ${source} "gs://${bucket}/buildkite/${REPO_BUILD_TAG}/${target}"
-
-    google_cloud_logout_active_account
+    echo "GCP logout is not required, the BK plugin will do it for us"
 }
 
 clean_safe_logs() {

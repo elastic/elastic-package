@@ -5,13 +5,14 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -34,6 +35,7 @@ func setupInstallCommand() *cobraext.Command {
 	cmd.Flags().StringP(cobraext.ZipPackageFilePathFlagName, cobraext.ZipPackageFilePathFlagShorthand, "", cobraext.ZipPackageFilePathFlagDescription)
 	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
 	cmd.Flags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
+	cmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -57,28 +59,39 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	kibanaClient, err := stack.NewKibanaClientFromProfile(profile)
+	var opts []kibana.ClientOption
+	tlsSkipVerify, err := cmd.Flags().GetBool(cobraext.TLSSkipVerifyFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TLSSkipVerifyFlagName)
+	}
+	if tlsSkipVerify {
+		opts = append(opts, kibana.TLSSkipVerify())
+	}
+
+	kibanaClient, err := stack.NewKibanaClientFromProfile(profile, opts...)
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
 
 	if zipPathFile == "" && packageRootPath == "" {
-		var found bool
 		var err error
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
+		packageRootPath, err = packages.FindPackageRoot()
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kibanaClient,
-		RootPath:       packageRootPath,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
+		Kibana:          kibanaClient,
+		PackageRootPath: packageRootPath,
+		SkipValidation:  skipValidation,
+		ZipPath:         zipPathFile,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

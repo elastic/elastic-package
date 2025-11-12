@@ -99,7 +99,7 @@ with_kubernetes() {
     kind version
     which kind
 
-    retry 5 curl -sSLo "${WORKSPACE}/bin/kubectl" "https://storage.googleapis.com/kubernetes-release/release/${K8S_VERSION}/bin/${platform_type_lowercase}/${arch_type}/kubectl"
+    retry 5 curl -sSLo "${WORKSPACE}/bin/kubectl" "https://dl.k8s.io/release/${K8S_VERSION}/bin/${platform_type_lowercase}/${arch_type}/kubectl"
     chmod +x "${WORKSPACE}/bin/kubectl"
     kubectl version --client
     which kubectl

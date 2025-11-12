@@ -31,7 +31,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -60,6 +60,8 @@ spec:
           access_level: MANAGE_BUILD_AND_READ
         ingest-fp:
           access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
+          access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
 
@@ -77,7 +79,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -123,7 +125,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -152,6 +154,8 @@ spec:
       teams:
         ingest-fp:
           access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
+          access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
 
@@ -169,7 +173,7 @@ metadata:
 spec:
   type: buildkite-pipeline
   owner: group:ingest-fp
-  system: buildkite
+  system: platform-ingest
   implementation:
     apiVersion: buildkite.elastic.dev/v1
     kind: Pipeline
@@ -202,6 +206,8 @@ spec:
             SERVERLESS_PROJECT: observability
       teams:
         ingest-fp:
+          access_level: MANAGE_BUILD_AND_READ
+        observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
         everyone:
           access_level: BUILD_AND_READ

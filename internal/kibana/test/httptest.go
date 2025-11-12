@@ -5,11 +5,14 @@
 package test
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"gopkg.in/dnaeon/go-vcr.v3/cassette"
 	"gopkg.in/dnaeon/go-vcr.v3/recorder"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -36,20 +39,40 @@ func NewClient(t *testing.T, recordFileName string) *kibana.Client {
 		return rec.GetDefaultClient()
 	}
 
-	address := os.Getenv(stack.KibanaHostEnv)
-	if address == "" {
-		address = "https://127.0.0.1:5601"
-	}
-	client, err := kibana.NewClient(
-		kibana.Address(address),
-		kibana.Password(os.Getenv(stack.ElasticsearchPasswordEnv)),
-		kibana.Username(os.Getenv(stack.ElasticsearchUsernameEnv)),
-		kibana.CertificateAuthority(os.Getenv(stack.CACertificateEnv)),
+	options, err := clientOptionsForRecord(recordFileName)
+	require.NoError(t, err)
 
+	options = append(options,
 		kibana.HTTPClientSetup(setupHTTPClient),
 		kibana.RetryMax(0),
 	)
+
+	client, err := kibana.NewClient(options...)
 	require.NoError(t, err)
 
 	return client
+}
+
+func clientOptionsForRecord(recordFileName string) ([]kibana.ClientOption, error) {
+	const defaultAddress = "https://127.0.0.1:5601"
+	_, err := os.Stat(cassette.New(recordFileName).File)
+	if errors.Is(err, os.ErrNotExist) {
+		address := os.Getenv(stack.KibanaHostEnv)
+		if address == "" {
+			address = defaultAddress
+		}
+		return []kibana.ClientOption{
+			kibana.Address(address),
+			kibana.Password(os.Getenv(stack.ElasticsearchPasswordEnv)),
+			kibana.Username(os.Getenv(stack.ElasticsearchUsernameEnv)),
+			kibana.CertificateAuthority(os.Getenv(stack.CACertificateEnv)),
+		}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if record file name exists %s: %w", recordFileName, err)
+	}
+	options := []kibana.ClientOption{
+		kibana.Address(defaultAddress),
+	}
+	return options, nil
 }

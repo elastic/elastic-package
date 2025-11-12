@@ -99,7 +99,7 @@ func createProfile(options Options, resources []resource.Resource) error {
 		"profile_path":  profileDir,
 	})
 
-	os.MkdirAll(profileDir, 0755)
+	os.MkdirAll(profileDir, 0o755)
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: profileDir,
 	})
@@ -237,9 +237,14 @@ func LoadProfile(profileName string) (*Profile, error) {
 		return nil, fmt.Errorf("error finding stack dir location: %w", err)
 	}
 
-	profile, err := loadProfile(loc.ProfileDir(), profileName)
+	return LoadProfileFrom(loc.ProfileDir(), profileName)
+}
+
+// LoadProfile loads an existing profile from the provided directory.
+func LoadProfileFrom(dir, profileName string) (*Profile, error) {
+	profile, err := loadProfile(dir, profileName)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	err = profile.migrate(currentVersion)

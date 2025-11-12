@@ -138,6 +138,12 @@ const (
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
+	PackagesFlagName        = "packages"
+	PackagesFlagDescription = "whether to return packages names or complete paths for the linked files found"
+
+	IngestPipelineIDsFlagName        = "id"
+	IngestPipelineIDsFlagDescription = "Elasticsearch ingest pipeline IDs (comma-separated values)"
+
 	ProfileFlagName        = "profile"
 	ProfileFlagDescription = "select a profile to use for the stack configuration. Can also be set with %s"
 
@@ -148,7 +154,7 @@ const (
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
 
 	ReportFormatFlagName        = "report-format"
-	ReportFormatFlagDescription = "format of test report"
+	ReportFormatFlagDescription = "format of test report, eg: human, xUnit"
 
 	ReportFullFlagName        = "full"
 	ReportFullFlagDescription = "whether to show the full report or a summary"
@@ -221,21 +227,4 @@ const (
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
-
-	// To be removed promote commands flags
-	DirectionFlagName        = "direction"
-	DirectionFlagDescription = "promotion direction"
-
-	NewestOnlyFlagName        = "newest-only"
-	NewestOnlyFlagDescription = "promote newest packages and remove old ones"
-
-	PromotedPackagesFlagName        = "packages"
-	PromotedPackagesFlagDescription = "packages to be promoted (comma-separated values: apache-1.2.3,nginx-5.6.7)"
-
-	// To be removed publish commands flags
-	ForkFlagName        = "fork"
-	ForkFlagDescription = "use fork mode (set to \"false\" if user can't fork the storage repository)"
-
-	SkipPullRequestFlagName        = "skip-pull-request"
-	SkipPullRequestFlagDescription = "skip opening a new pull request"
 )

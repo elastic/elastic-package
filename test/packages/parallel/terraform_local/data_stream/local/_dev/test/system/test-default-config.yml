@@ -1,0 +1,8 @@
+wait_for_data_timeout: 1m
+data_stream:
+  vars:
+    paths:
+      - "{{ SERVICE_LOGS_DIR }}/file-{{ TEST_RUN_ID }}.log"
+      - "{{ SERVICE_LOGS_DIR }}/file_vars.log"
+assert:
+  hit_count: 2

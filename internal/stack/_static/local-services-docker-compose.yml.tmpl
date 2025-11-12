@@ -1,0 +1,116 @@
+services:
+{{- $fleet_server_managed := fact "fleet_server_managed" }}
+{{- if eq $fleet_server_managed "true" }}
+  {{- $fleet_healthcheck_success_checks := 3 -}}
+  {{- $fleet_healthcheck_waiting_time := 1 -}}
+  {{- $version := fact "agent_version" -}}
+  {{- if semverLessThan $version "8.0.0" -}}
+    {{- $fleet_healthcheck_success_checks = 10 -}}
+    {{- $fleet_healthcheck_waiting_time = 2 -}}
+  {{- end }}
+  fleet-server:
+    image: "{{ fact "agent_image" }}"
+    healthcheck:
+      test: "bash /healthcheck.sh {{ $fleet_healthcheck_success_checks }} {{ $fleet_healthcheck_waiting_time }}"
+      start_period: 60s
+      interval: 5s
+    hostname: docker-fleet-server
+    environment:
+    - "ELASTICSEARCH_HOST={{ fact "elasticsearch_host" }}"
+    - "FLEET_SERVER_CERT=/etc/ssl/fleet-server/cert.pem"
+    - "FLEET_SERVER_CERT_KEY=/etc/ssl/fleet-server/key.pem"
+    - "FLEET_SERVER_ELASTICSEARCH_HOST={{ fact "elasticsearch_host" }}"
+    - "FLEET_SERVER_ENABLE=1"
+    - "FLEET_SERVER_HOST=0.0.0.0"
+    - "FLEET_SERVER_SERVICE_TOKEN={{ fact "fleet_service_token" }}"
+    - "FLEET_SERVER_POLICY={{ fact "fleet_server_policy" }}"
+    - "FLEET_URL={{ fact "fleet_url" }}"
+    - "KIBANA_FLEET_HOST={{ fact "kibana_host" }}"
+    - "KIBANA_FLEET_SERVICE_TOKEN={{ fact "fleet_service_token" }}"
+    - "KIBANA_FLEET_SERVER_POLICY={{ fact "fleet_server_policy" }}"
+    - "KIBANA_FLEET_SETUP=1"
+    - "KIBANA_HOST={{ fact "kibana_host" }}"
+    volumes:
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem:ro"
+    - "../certs/fleet-server:/etc/ssl/fleet-server:ro"
+    - "./fleet-server-healthcheck.sh:/healthcheck.sh:ro"
+    ports:
+    - "127.0.0.1:8220:8220"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+  fleet-server_is_ready:
+    image: "{{ fact "isready_image" }}"
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+{{- end }}
+
+  elastic-agent:
+    image: "{{ fact "agent_image" }}"
+{{- if eq $fleet_server_managed "true" }}
+    depends_on:
+      fleet-server:
+        condition: service_healthy
+{{- end }}
+    healthcheck:
+      test: "elastic-agent status"
+      timeout: 2s
+      start_period: 360s
+      retries: 180
+      interval: 5s
+    hostname: docker-fleet-agent
+    env_file: "./elastic-agent.env"
+    cap_drop:
+    - ALL
+    volumes:
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /tmp/service_logs/
+    # Mount service_logs under /run too as a testing workaround for the journald input (see elastic-package#1235).
+    - type: bind
+      source: ../../../tmp/service_logs/
+      target: /run/service_logs/
+    - "../certs/ca-cert.pem:/etc/ssl/certs/elastic-package.pem"
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
+
+  elastic-agent_is_ready:
+    image: "{{ fact "isready_image" }}"
+    depends_on:
+      elastic-agent:
+        condition: service_healthy
+
+{{ $logstash_enabled := fact "logstash_enabled" }}
+{{ if eq $logstash_enabled "true" }}
+  logstash:
+    build:
+      dockerfile: "./Dockerfile.logstash"
+      args:
+        IMAGE: "{{ fact "logstash_image" }}"
+    healthcheck:
+      test: bin/logstash -t
+      start_period: 120s
+      interval: 60s
+      timeout: 60s
+      retries: 5
+    volumes:
+      - "../certs/logstash:/usr/share/logstash/config/certs"
+    ports:
+       - "127.0.0.1:5044:5044"
+       - "127.0.0.1:9600:9600"
+    environment:
+      - XPACK_MONITORING_ENABLED=false
+      - ELASTIC_API_KEY={{ fact "api_key" }}
+      - ELASTIC_USER={{ fact "username" }}
+      - ELASTIC_PASSWORD={{ fact "password" }}
+      - ELASTIC_HOSTS={{ fact "elasticsearch_host" }}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  logstash_is_ready:
+    image: "{{ fact "isready_image" }}"
+    depends_on:
+      logstash:
+        condition: service_healthy
+{{ end }}

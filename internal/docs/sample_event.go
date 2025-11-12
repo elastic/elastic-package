@@ -5,6 +5,7 @@
 package docs
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -54,7 +55,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 			stripDataStreamFolderSuffix(dataStreamName)))
 	}
 	builder.WriteString("```json\n")
-	builder.Write(formatted)
+	builder.Write(bytes.TrimSpace(formatted))
 	builder.WriteString("\n```")
 	return builder.String(), nil
 }

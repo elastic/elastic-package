@@ -16,6 +16,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -28,6 +29,8 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/buildmanifest"
 )
+
+const externalFieldAppendedTag = "ecs_component"
 
 var (
 	semver2_0_0 = semver.MustParse("2.0.0")
@@ -135,7 +138,12 @@ type Validator struct {
 	expectedDatasets []string
 
 	defaultNumericConversion bool
-	numericKeywordFields     map[string]struct{}
+
+	// fields that store keywords, but can be received as numeric types.
+	numericKeywordFields []string
+
+	// fields that store numbers, but can be received as strings.
+	stringNumberFields []string
 
 	disabledDependencyManagement bool
 
@@ -145,6 +153,8 @@ type Validator struct {
 	enabledImportAllECSSchema bool
 
 	disabledNormalization bool
+
+	enabledOTelValidation bool
 
 	injectFieldsOptions InjectFieldsOptions
 }
@@ -176,10 +186,16 @@ func WithDefaultNumericConversion() ValidatorOption {
 // while defined as keyword or constant_keyword.
 func WithNumericKeywordFields(fields []string) ValidatorOption {
 	return func(v *Validator) error {
-		v.numericKeywordFields = make(map[string]struct{}, len(fields))
-		for _, field := range fields {
-			v.numericKeywordFields[field] = struct{}{}
-		}
+		v.numericKeywordFields = common.StringSlicesUnion(v.numericKeywordFields, fields)
+		return nil
+	}
+}
+
+// WithStringNumberFields configures the validator to accept specific fields to have fields defined as numbers
+// as their string representation.
+func WithStringNumberFields(fields []string) ValidatorOption {
+	return func(v *Validator) error {
+		v.stringNumberFields = common.StringSlicesUnion(v.stringNumberFields, fields)
 		return nil
 	}
 }
@@ -232,13 +248,21 @@ func WithInjectFieldsOptions(options InjectFieldsOptions) ValidatorOption {
 	}
 }
 
+// WithOTelValidation configures the validator to enable or disable OpenTelemetry specific validation.
+func WithOTelValidation(otelValidation bool) ValidatorOption {
+	return func(v *Validator) error {
+		v.enabledOTelValidation = otelValidation
+		return nil
+	}
+}
+
 type packageRootFinder interface {
-	FindPackageRoot() (string, bool, error)
+	FindPackageRoot() (string, error)
 }
 
 type packageRoot struct{}
 
-func (p packageRoot) FindPackageRoot() (string, bool, error) {
+func (p packageRoot) FindPackageRoot() (string, error) {
 	return packages.FindPackageRoot()
 }
 
@@ -264,13 +288,14 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
-		packageRoot, found, err := finder.FindPackageRoot()
+		packageRoot, err := finder.FindPackageRoot()
 		if err != nil {
+			if errors.Is(err, packages.ErrPackageRootNotFound) {
+				return nil, errors.New("package root not found and dependency management is enabled")
+			}
 			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
-		if !found {
-			return nil, errors.New("package root not found and dependency management is enabled")
-		}
+
 		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
@@ -434,8 +459,9 @@ func appendECSMappingMultifields(schema []FieldDefinition, prefix string) []Fiel
 			match: ecsPathWithMultifieldsMatch,
 			definitions: []FieldDefinition{
 				{
-					Name: "text",
-					Type: "match_only_text",
+					Name:     "text",
+					Type:     "match_only_text",
+					External: externalFieldAppendedTag,
 				},
 			},
 		},
@@ -535,9 +561,7 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 	var c common.MapStr
 	err := json.Unmarshal(body, &c)
 	if err != nil {
-		var errs multierror.Error
-		errs = append(errs, fmt.Errorf("unmarshalling document body failed: %w", err))
-		return errs
+		return multierror.Error{fmt.Errorf("unmarshalling document body failed: %w", err)}
 	}
 
 	return v.ValidateDocumentMap(c)
@@ -546,11 +570,17 @@ func (v *Validator) ValidateDocumentBody(body json.RawMessage) multierror.Error 
 // ValidateDocumentMap validates the provided document as common.MapStr.
 func (v *Validator) ValidateDocumentMap(body common.MapStr) multierror.Error {
 	errs := v.validateDocumentValues(body)
-	errs = append(errs, v.validateMapElement("", body, body)...)
+
+	// If package uses OpenTelemetry Collector, skip field validation and just
+	// validate document values (datasets).
+	if !v.enabledOTelValidation {
+		errs = append(errs, v.validateMapElement("", body, body)...)
+	}
+
 	if len(errs) == 0 {
 		return nil
 	}
-	return errs
+	return errs.Unique()
 }
 
 var datasetFieldNames = []string{
@@ -589,7 +619,7 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 			}
 
 			str, ok := valueToString(value, v.disabledNormalization)
-			exists := stringInArray(str, renderedExpectedDatasets)
+			exists := slices.Contains(renderedExpectedDatasets, str)
 			if !ok || !exists {
 				err := fmt.Errorf("field %q should have value in %q, it has \"%v\"",
 					datasetField, v.expectedDatasets, value)
@@ -598,18 +628,6 @@ func (v *Validator) validateDocumentValues(body common.MapStr) multierror.Error 
 		}
 	}
 	return errs
-}
-
-func stringInArray(target string, arr []string) bool {
-	// Check if target is part of the array
-	found := false
-	for _, item := range arr {
-		if item == target {
-			found = true
-			break
-		}
-	}
-	return found
 }
 
 func valueToString(value any, disabledNormalization bool) (string, bool) {
@@ -650,16 +668,24 @@ func (v *Validator) validateMapElement(root string, elem common.MapStr, doc comm
 				errs = append(errs, err...)
 			}
 		default:
+			if skipLeafOfObject(root, name, v.specVersion, v.Schema) {
+				// Till some versions we skip some validations on leaf of objects, check if it is the case.
+				break
+			}
+
 			err := v.validateScalarElement(key, val, doc)
 			if err != nil {
-				errs = append(errs, err)
+				errs = append(errs, err...)
 			}
 		}
 	}
-	return errs
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+	return nil
 }
 
-func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) error {
+func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr) multierror.Error {
 	if key == "" {
 		return nil // root key is always valid
 	}
@@ -669,31 +695,29 @@ func (v *Validator) validateScalarElement(key string, val any, doc common.MapStr
 		switch {
 		case skipValidationForField(key):
 			return nil // generic field, let's skip validation for now
+		case isFlattenedSubfield(key, v.Schema):
+			return nil // flattened subfield, it will be stored as member of the flattened ancestor.
 		case isArrayOfObjects(val):
-			return fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)
+			return multierror.Error{fmt.Errorf(`field %q is used as array of objects, expected explicit definition with type group or nested`, key)}
 		case couldBeMultifield(key, v.Schema):
-			return fmt.Errorf(`field %q is undefined, could be a multifield`, key)
+			return multierror.Error{fmt.Errorf(`field %q is undefined, could be a multifield`, key)}
+		case !isParentEnabled(key, v.Schema):
+			return nil // parent mapping is disabled
 		default:
-			return fmt.Errorf(`field %q is undefined`, key)
+			return multierror.Error{fmt.Errorf(`field %q is undefined`, key)}
 		}
-	}
-
-	// Convert numeric keyword fields to string for validation.
-	_, found := v.numericKeywordFields[key]
-	if (found || v.defaultNumericConversion) && isNumericKeyword(*definition, val) {
-		val = convertNumericKeyword(val)
 	}
 
 	if !v.disabledNormalization {
 		err := v.validateExpectedNormalization(*definition, val)
 		if err != nil {
-			return fmt.Errorf("field %q is not normalized as expected: %w", key, err)
+			return multierror.Error{fmt.Errorf("field %q is not normalized as expected: %w", key, err)}
 		}
 	}
 
-	err := v.parseElementValue(key, *definition, val, doc)
-	if err != nil {
-		return fmt.Errorf("parsing field value failed: %w", err)
+	errs := v.parseElementValue(key, *definition, val, doc)
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
@@ -799,41 +823,6 @@ func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (com
 	return newDoc, multifields, nil
 }
 
-// isNumericKeyword is used to identify values that can be numbers in the documents, but are ingested
-// as keywords.
-func isNumericKeyword(definition FieldDefinition, val any) bool {
-	var isNumber bool
-	switch val := val.(type) {
-	case bool, []bool, float64, []float64:
-		isNumber = true
-	case []any:
-		isNumber = true
-	loop:
-		for _, v := range val {
-			switch v.(type) {
-			case bool, float64:
-			default:
-				isNumber = false
-				break loop
-			}
-		}
-	}
-	return isNumber && (definition.Type == "keyword" || definition.Type == "constant_keyword")
-}
-
-func convertNumericKeyword(val any) any {
-	switch val := val.(type) {
-	case []any:
-		converted := make([]any, len(val))
-		for i, e := range val {
-			converted[i] = convertNumericKeyword(e)
-		}
-		return converted
-	default:
-		return fmt.Sprintf("%q", val)
-	}
-}
-
 // skipValidationForField skips field validation (field presence) of special fields. The special fields are present
 // in every (most?) documents collected by Elastic Agent, but aren't defined in any integration in `fields.yml` files.
 // FIXME https://github.com/elastic/elastic-package/issues/147
@@ -847,6 +836,37 @@ func skipValidationForField(key string) bool {
 		isFieldFamilyMatching("event.module", key) // field is deprecated
 }
 
+// skipLeafOfObject checks if the element is a child of an object that was skipped in some previous
+// version of the spec. This is relevant in documents that store fields without subobjects.
+func skipLeafOfObject(root, name string, specVersion semver.Version, schema []FieldDefinition) bool {
+	// We are only skipping validation of these fields on versions older than 3.0.1.
+	if !specVersion.LessThan(semver3_0_1) {
+		return false
+	}
+
+	// If it doesn't contain a dot in the name, we have traversed its parent, if any.
+	if !strings.Contains(name, ".") {
+		return false
+	}
+
+	key := name
+	if root != "" {
+		key = root + "." + name
+	}
+	_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
+		// Don't look for ancestors beyond root, these objects have been already traversed.
+		if len(key) < len(root) {
+			return false
+		}
+		if !slices.Contains([]string{"group", "object", "nested", "flattened"}, def.Type) {
+			return false
+		}
+		return true
+	})
+
+	return ancestor != nil
+}
+
 func isFieldFamilyMatching(family, key string) bool {
 	return key == family || strings.HasPrefix(key, family+".")
 }
@@ -857,20 +877,25 @@ func isFieldTypeFlattened(key string, fieldDefinitions []FieldDefinition) bool {
 }
 
 func couldBeMultifield(key string, fieldDefinitions []FieldDefinition) bool {
-	lastDotIndex := strings.LastIndex(key, ".")
-	if lastDotIndex < 0 {
-		// Field at the root level cannot be a multifield.
-		return false
-	}
-	parentKey := key[:lastDotIndex]
-	parent := FindElementDefinition(parentKey, fieldDefinitions)
+	parent := findParentElementDefinition(key, fieldDefinitions)
 	if parent == nil {
 		// Parent is not defined, so not sure what this can be.
 		return false
 	}
 	switch parent.Type {
-	case "", "group", "nested", "group-nested", "object":
+	case "", "group", "nested", "object":
 		// Objects cannot have multifields.
+		return false
+	}
+	return true
+}
+
+// isParentEnabled returns true by default unless the parent field exists and enabled is set false
+// This is needed in order to correctly validate the fields that should not be mapped
+// because parent field mapping was disabled
+func isParentEnabled(key string, fieldDefinitions []FieldDefinition) bool {
+	parent := findParentElementDefinition(key, fieldDefinitions)
+	if parent != nil && parent.Enabled != nil && !*parent.Enabled {
 		return false
 	}
 	return true
@@ -890,8 +915,16 @@ func isArrayOfObjects(val any) bool {
 	return false
 }
 
-func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []FieldDefinition) *FieldDefinition {
-	for _, def := range FieldDefinitions {
+func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
+	_, ancestor := findAncestorElementDefinition(key, schema, func(_ string, def *FieldDefinition) bool {
+		return def.Type == "flattened"
+	})
+
+	return ancestor != nil
+}
+
+func findElementDefinitionForRoot(root, searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	for _, def := range fieldDefinitions {
 		key := strings.TrimLeft(root+"."+def.Name, ".")
 		if compareKeys(key, def, searchedKey) {
 			return &def
@@ -907,12 +940,51 @@ func findElementDefinitionForRoot(root, searchedKey string, FieldDefinitions []F
 			return fd
 		}
 	}
+
+	if root == "" {
+		// No definition found, check if the parent is an object with object type.
+		parent := findParentElementDefinition(searchedKey, fieldDefinitions)
+		if parent != nil && parent.Type == "object" && parent.ObjectType != "" {
+			fd := *parent
+			fd.Name = searchedKey
+			fd.Type = parent.ObjectType
+			fd.ObjectType = ""
+			return &fd
+		}
+	}
+
 	return nil
 }
 
 // FindElementDefinition is a helper function used to find the fields definition in the schema.
 func FindElementDefinition(searchedKey string, fieldDefinitions []FieldDefinition) *FieldDefinition {
 	return findElementDefinitionForRoot("", searchedKey, fieldDefinitions)
+}
+
+func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition) *FieldDefinition {
+	lastDotIndex := strings.LastIndex(key, ".")
+	if lastDotIndex < 0 {
+		// Field at the root level cannot be a multifield.
+		return nil
+	}
+	parentKey := key[:lastDotIndex]
+	return FindElementDefinition(parentKey, fieldDefinitions)
+}
+
+func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinition, cond func(string, *FieldDefinition) bool) (string, *FieldDefinition) {
+	for strings.Contains(key, ".") {
+		i := strings.LastIndex(key, ".")
+		key = key[:i]
+		ancestor := FindElementDefinition(key, fieldDefinitions)
+		if ancestor == nil {
+			continue
+		}
+		if cond(key, ancestor) {
+			return key, ancestor
+		}
+	}
+
+	return "", nil
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain
@@ -1014,13 +1086,25 @@ func validSubField(def FieldDefinition, extraPart string) bool {
 
 // parseElementValue checks that the value stored in a field matches the field definition. For
 // arrays it checks it for each Element.
-func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
-	err := v.parseAllElementValues(key, definition, val, doc)
+func (v *Validator) parseElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+	// Validate types first for each element, so other checks don't need to worry about types.
+	var errs multierror.Error
+	err := forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
 	if err != nil {
-		return err
+		errs = append(errs, err...)
 	}
 
-	return forEachElementValue(key, definition, val, doc, v.parseSingleElementValue)
+	// Perform validations that need to be done on several fields at the same time.
+	allElementsErr := v.parseAllElementValues(key, definition, val, doc)
+	if allElementsErr != nil {
+		errs = append(errs, allElementsErr)
+	}
+
+	if len(errs) > 0 {
+		return errs.Unique()
+	}
+
+	return nil
 }
 
 // parseAllElementValues performs validations that must be done for all elements at once in
@@ -1029,11 +1113,7 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 	switch definition.Type {
 	case "constant_keyword", "keyword", "text":
 		if !v.specVersion.LessThan(semver2_0_0) {
-			strings, err := valueToStringsSlice(val)
-			if err != nil {
-				return fmt.Errorf("field %q value \"%v\" (%T): %w", key, val, val, err)
-			}
-			if err := ensureExpectedEventType(key, strings, definition, doc); err != nil {
+			if err := ensureExpectedEventType(key, val, definition, doc); err != nil {
 				return err
 			}
 		}
@@ -1042,9 +1122,21 @@ func (v *Validator) parseAllElementValues(key string, definition FieldDefinition
 }
 
 // parseSingeElementValue performs validations on individual values of each element.
-func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) error {
-	invalidTypeError := func() error {
-		return fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)
+func (v *Validator) parseSingleElementValue(key string, definition FieldDefinition, val any, doc common.MapStr) multierror.Error {
+	invalidTypeError := func() multierror.Error {
+		return multierror.Error{fmt.Errorf("field %q's Go type, %T, does not match the expected field type: %s (field value: %v)", key, val, definition.Type, val)}
+	}
+
+	stringValue := func() (string, bool) {
+		switch val := val.(type) {
+		case string:
+			return val, true
+		case bool, float64:
+			if v.defaultNumericConversion || slices.Contains(v.numericKeywordFields, key) {
+				return fmt.Sprintf("%v", val), true
+			}
+		}
+		return "", false
 	}
 
 	switch definition.Type {
@@ -1052,33 +1144,33 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	// values stored in this field should be this one.
 	// If a pattern is provided, it checks if the value matches.
 	case "constant_keyword":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
 
 		if err := ensureConstantKeywordValueMatches(key, valStr, definition.Value); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Normal text fields should be of type string.
 	// If a pattern is provided, it checks if the value matches.
 	case "keyword", "text":
-		valStr, valid := val.(string)
+		valStr, valid := stringValue()
 		if !valid {
 			return invalidTypeError()
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 		if err := ensureAllowedValues(key, valStr, definition); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 	// Dates are expected to be formatted as strings or as seconds or milliseconds
 	// since epoch.
@@ -1087,12 +1179,12 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		switch val := val.(type) {
 		case string:
 			if err := ensurePatternMatches(key, val, definition.Pattern); err != nil {
-				return err
+				return multierror.Error{err}
 			}
 		case float64:
 			// date as seconds or milliseconds since epoch
 			if definition.Pattern != "" {
-				return fmt.Errorf("numeric date in field %q, but pattern defined", key)
+				return multierror.Error{fmt.Errorf("numeric date in field %q, but pattern defined", key)}
 			}
 		default:
 			return invalidTypeError()
@@ -1107,14 +1199,14 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 		}
 
 		if err := ensurePatternMatches(key, valStr, definition.Pattern); err != nil {
-			return err
+			return multierror.Error{err}
 		}
 
 		if v.enabledAllowedIPCheck && !v.isAllowedIPValue(valStr) {
-			return fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/internal/fields/_static/allowed_geo_ips.txt)", valStr)
+			return multierror.Error{fmt.Errorf("the IP %q is not one of the allowed test IPs (see: https://github.com/elastic/elastic-package/blob/main/docs/howto/ingest_geoip.md)", valStr)}
 		}
 	// Groups should only contain nested fields, not single values.
-	case "group", "nested":
+	case "group", "nested", "object":
 		switch val := val.(type) {
 		case map[string]any:
 			// This is probably an element from an array of objects,
@@ -1126,7 +1218,7 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			if len(errs) == 0 {
 				return nil
 			}
-			return errs
+			return errs.Unique()
 		case []any:
 			// This can be an array of array of objects. Elasticsearh will probably
 			// flatten this. So even if this is quite unexpected, let's try to handle it.
@@ -1138,11 +1230,33 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 			// The document contains a null, let's consider this like an empty array.
 			return nil
 		default:
-			return fmt.Errorf("field %q is a group of fields, it cannot store values", key)
+			switch {
+			case definition.Type == "object" && definition.ObjectType != "":
+				// This is the leaf element of an object without wildcards in the name, adapt the definition and try again.
+				definition.Name = definition.Name + ".*"
+				definition.Type = definition.ObjectType
+				definition.ObjectType = ""
+				return v.parseSingleElementValue(key, definition, val, doc)
+			case definition.Type == "object" && definition.ObjectType == "":
+				// Legacy mapping, ambiguous definition not allowed by recent versions of the spec, ignore it.
+				return nil
+			}
+
+			return multierror.Error{fmt.Errorf("field %q is a group of fields of type %s, it cannot store values", key, definition.Type)}
 		}
 	// Numbers should have been parsed as float64, otherwise they are not numbers.
 	case "float", "long", "double":
-		if _, valid := val.(float64); !valid {
+		switch val := val.(type) {
+		case float64:
+		case json.Number:
+		case string:
+			if !slices.Contains(v.stringNumberFields, key) {
+				return invalidTypeError()
+			}
+			if _, err := strconv.ParseFloat(val, 64); err != nil {
+				return invalidTypeError()
+			}
+		default:
 			return invalidTypeError()
 		}
 	// All other types are considered valid not blocking validation.
@@ -1153,10 +1267,36 @@ func (v *Validator) parseSingleElementValue(key string, definition FieldDefiniti
 	return nil
 }
 
+// isDocumentation reports whether ip is a reserved address for documentation,
+// according to RFC 5737 (IPv4 Address Blocks Reserved for Documentation), RFC 6676,
+// RFC 3849 (IPv6 Address Prefix Reserved for Documentation) and RFC 9637.
+func isDocumentation(ip net.IP) bool {
+	if ip4 := ip.To4(); ip4 != nil {
+		// Following RFC 5737, Section 3. Documentation Address Blocks which says:
+		//   The blocks 192.0.2.0/24 (TEST-NET-1), 198.51.100.0/24 (TEST-NET-2),
+		//   and 203.0.113.0/24 (TEST-NET-3) are provided for use in
+		//   documentation.
+		// Following RFC 6676, the IPV4 multicast addresses allocated for documentation
+		// purposes are 233.252.0.0/24
+		return ((ip4[0] == 192 && ip4[1] == 0 && ip4[2] == 2) ||
+			(ip4[0] == 198 && ip4[1] == 51 && ip4[2] == 100) ||
+			(ip4[0] == 203 && ip4[1] == 0 && ip4[2] == 113) ||
+			(ip4[0] == 233 && ip4[1] == 252 && ip4[2] == 0))
+	}
+	// Following RFC 3849, Section 2. Documentation IPv6 Address Prefix which
+	// says:
+	//   The prefix allocated for documentation purposes is 2001:DB8::/32
+	// Following RFC 9637, a new address block 3fff::/20 is registered for documentation purposes
+	return len(ip) == net.IPv6len &&
+		(ip[0] == 32 && ip[1] == 1 && ip[2] == 13 && ip[3] == 184) ||
+		(ip[0] == 63 && ip[1] == 255 && ip[2] <= 15)
+}
+
 // isAllowedIPValue checks if the provided IP is allowed for testing
 // The set of allowed IPs are:
 // - private IPs as described in RFC 1918 & RFC 4193
 // - public IPs allowed by MaxMind for testing
+// - Reserved IPs for documentation RFC 5737, RFC 3849, RFC 6676 and RFC 9637
 // - 0.0.0.0 and 255.255.255.255 for IPv4
 // - 0:0:0:0:0:0:0:0 and ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff for IPv6
 func (v *Validator) isAllowedIPValue(s string) bool {
@@ -1173,6 +1313,7 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 	if ip.IsUnspecified() ||
 		ip.IsPrivate() ||
+		isDocumentation(ip) ||
 		ip.IsLoopback() ||
 		ip.IsLinkLocalUnicast() ||
 		ip.IsLinkLocalMulticast() ||
@@ -1186,16 +1327,20 @@ func (v *Validator) isAllowedIPValue(s string) bool {
 
 // forEachElementValue visits a function for each element in the given value if
 // it is an array. If it is not an array, it calls the function with it.
-func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) error) error {
+func forEachElementValue(key string, definition FieldDefinition, val any, doc common.MapStr, fn func(string, FieldDefinition, any, common.MapStr) multierror.Error) multierror.Error {
 	arr, isArray := val.([]any)
 	if !isArray {
 		return fn(key, definition, val, doc)
 	}
+	var errs multierror.Error
 	for _, element := range arr {
 		err := fn(key, definition, element, doc)
 		if err != nil {
-			return err
+			errs = append(errs, err...)
 		}
+	}
+	if len(errs) > 0 {
+		return errs.Unique()
 	}
 	return nil
 }
@@ -1242,12 +1387,10 @@ func ensureAllowedValues(key, value string, definition FieldDefinition) error {
 
 // ensureExpectedEventType validates that the document's `event.type` field is one of the expected
 // one for the given value.
-func ensureExpectedEventType(key string, values []string, definition FieldDefinition, doc common.MapStr) error {
+func ensureExpectedEventType(key string, val any, definition FieldDefinition, doc common.MapStr) error {
 	eventTypeVal, _ := doc.GetValue("event.type")
-	eventTypes, err := valueToStringsSlice(eventTypeVal)
-	if err != nil {
-		return fmt.Errorf("field \"event.type\" value \"%v\" (%T): %w", eventTypeVal, eventTypeVal, err)
-	}
+	eventTypes := valueToStringsSlice(eventTypeVal)
+	values := valueToStringsSlice(val)
 	var expected []string
 	for _, value := range values {
 		expectedForValue := definition.AllowedValues.ExpectedEventTypes(value)
@@ -1266,23 +1409,19 @@ func ensureExpectedEventType(key string, values []string, definition FieldDefini
 	return nil
 }
 
-func valueToStringsSlice(value any) ([]string, error) {
+func valueToStringsSlice(value any) []string {
 	switch v := value.(type) {
 	case nil:
-		return nil, nil
+		return nil
 	case string:
-		return []string{v}, nil
+		return []string{v}
 	case []any:
 		var values []string
 		for _, e := range v {
-			s, ok := e.(string)
-			if !ok {
-				return nil, fmt.Errorf("expected string or array of strings")
-			}
-			values = append(values, s)
+			values = append(values, fmt.Sprintf("%v", e))
 		}
-		return values, nil
+		return values
 	default:
-		return nil, fmt.Errorf("expected string or array of strings")
+		return []string{fmt.Sprintf("%v", v)}
 	}
 }

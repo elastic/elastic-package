@@ -1,0 +1,29 @@
+version: '2.3'
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 80
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/var/log/nginx
+    depends_on:
+      terraform:
+        condition: service_healthy
+  terraform:
+    tty: true
+    stop_grace_period: 5m
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+    environment:
+      - TF_VAR_TEST_RUN_ID=${TEST_RUN_ID:-detached}
+      - TF_VAR_CREATED_DATE=${CREATED_DATE:-unknown}
+      - TF_VAR_BRANCH=${BRANCH_NAME_LOWER_CASE:-unknown}
+      - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
+      - TF_VAR_ENVIRONMENT=${ENVIRONMENT:-unknown}
+      - TF_VAR_REPO=${REPO:-unknown}
+    volumes:
+      - ./tf/:/stage/
+      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/

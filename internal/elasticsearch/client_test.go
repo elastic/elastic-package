@@ -6,7 +6,6 @@ package elasticsearch_test
 
 import (
 	"bytes"
-	"context"
 	"crypto/x509"
 	"encoding/pem"
 	"net/http"
@@ -64,6 +63,11 @@ func TestClusterHealth(t *testing.T) {
 			Record: "./testdata/elasticsearch-8-5-healthy",
 		},
 		{
+			// To reproduce the scenario, start a project in serverless, and
+			// replace the host in the urls with https://127.0.0.1:9200.
+			Record: "./testdata/elasticsearch-serverless-healthy",
+		},
+		{
 			// To reproduce the scenario, start the stack with 8.5 version and
 			// limited disk space. If difficult to reproduce, manually modify
 			// the recording using info from previous changesets.
@@ -74,9 +78,9 @@ func TestClusterHealth(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Record, func(t *testing.T) {
-			client := test.NewClient(t, c.Record)
+			client := test.NewClient(t, c.Record, nil)
 
-			err := client.CheckHealth(context.Background())
+			err := client.CheckHealth(t.Context())
 			if c.Expected != "" {
 				if assert.Error(t, err) {
 					assert.Equal(t, c.Expected, err.Error())
@@ -86,6 +90,13 @@ func TestClusterHealth(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestClusterInfo(t *testing.T) {
+	client := test.NewClient(t, "./testdata/elasticsearch-9-info", nil)
+	info, err := client.Info(t.Context())
+	require.NoError(t, err)
+	assert.Equal(t, "9.0.0-SNAPSHOT", info.Version.Number)
 }
 
 func writeCACertFile(t *testing.T, cert *x509.Certificate) string {

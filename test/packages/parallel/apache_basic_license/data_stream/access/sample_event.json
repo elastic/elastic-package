@@ -1,0 +1,96 @@
+{
+    "@timestamp": "2022-09-08T10:05:46.000Z",
+    "agent": {
+        "ephemeral_id": "62fff331-1942-4ca6-b1f4-7b09d72e4e6b",
+        "id": "488aa68b-25f3-4a6c-aeaf-bbdacf341968",
+        "name": "docker-fleet-agent",
+        "type": "filebeat",
+        "version": "8.3.3"
+    },
+    "apache": {
+        "access": {}
+    },
+    "data_stream": {
+        "dataset": "apache.access",
+        "namespace": "ep",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "1.12.0"
+    },
+    "elastic_agent": {
+        "id": "488aa68b-25f3-4a6c-aeaf-bbdacf341968",
+        "snapshot": false,
+        "version": "8.3.3"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "category": [
+            "web"
+        ],
+        "created": "2022-09-08T10:06:04.881Z",
+        "dataset": "apache.access",
+        "ingested": "2022-09-08T10:06:05Z",
+        "kind": "event",
+        "outcome": "success",
+        "type": [
+            "access"
+        ]
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "docker-fleet-agent",
+        "ip": [
+            "192.168.128.4"
+        ],
+        "mac": [
+            "02:42:c0:a8:80:04"
+        ],
+        "name": "docker-fleet-agent",
+        "os": {
+            "codename": "focal",
+            "family": "debian",
+            "kernel": "5.15.0-43-generic",
+            "name": "Ubuntu",
+            "platform": "ubuntu",
+            "type": "linux",
+            "version": "20.04.4 LTS (Focal Fossa)"
+        }
+    },
+    "http": {
+        "request": {
+            "method": "GET"
+        },
+        "response": {
+            "body": {
+                "bytes": 45
+            },
+            "status_code": 200
+        },
+        "version": "1.1"
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/tmp/service_logs/access.log"
+        },
+        "offset": 0
+    },
+    "source": {
+        "address": "127.0.0.1",
+        "ip": "127.0.0.1"
+    },
+    "tags": [
+        "apache-access"
+    ],
+    "url": {
+        "original": "/",
+        "path": "/"
+    },
+    "user": {
+        "name": "-"
+    }
+}

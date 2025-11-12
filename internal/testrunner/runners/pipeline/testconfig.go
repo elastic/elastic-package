@@ -30,6 +30,10 @@ type testConfig struct {
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
+
+	// StringNumberFields holds a list of fields that have numeric
+	// types but can be ingested as strings.
+	StringNumberFields []string `config:"string_number_fields"`
 }
 
 type multiline struct {

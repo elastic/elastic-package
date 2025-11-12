@@ -9,13 +9,17 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gopkg.in/dnaeon/go-vcr.v3/cassette"
 
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/files"
@@ -39,18 +43,20 @@ func TestDumpInstalledObjects(t *testing.T) {
 		&installedObjectsDumpSuite{
 			// To reproduce the scenario:
 			// - Start the stack with version 7.16.2.
-			// - Install apache package (1.3.4).
+			// - Install apache package (1.3.5).
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-7-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-7-apache-dump-all",
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 		&installedObjectsDumpSuite{
 			// To reproduce the scenario:
 			// - Start the stack with version 8.1.0.
-			// - Install apache package (1.3.6).
+			// - Install apache package (1.8.2).
 			PackageName: "apache",
 			Record:      "./testdata/elasticsearch-8-mock-dump-apache",
 			DumpDir:     "./testdata/elasticsearch-8-apache-dump-all",
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 		&installedObjectsDumpSuite{
 			// To reproduce the scenario:
@@ -60,6 +66,7 @@ func TestDumpInstalledObjects(t *testing.T) {
 			PackageName: "dga",
 			Record:      "./testdata/elasticsearch-8-mock-dump-dga",
 			DumpDir:     "./testdata/elasticsearch-8-dga-dump-all",
+			Matcher:     ingestPipelineRequestMatcher,
 		},
 	}
 
@@ -79,6 +86,9 @@ type installedObjectsDumpSuite struct {
 
 	// DumpDir is where the expected dumped files are stored.
 	DumpDir string
+
+	// Function that helps match an outbound request to a recorded one
+	Matcher cassette.MatcherFunc
 }
 
 func (s *installedObjectsDumpSuite) SetupTest() {
@@ -88,7 +98,7 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 		s.Require().NoError(err)
 
 		dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
-		n, err := dumper.DumpAll(context.Background(), s.DumpDir)
+		n, err := dumper.DumpAll(s.T().Context(), s.DumpDir)
 		s.Require().NoError(err)
 		s.Require().Greater(n, 0)
 	} else {
@@ -97,11 +107,11 @@ func (s *installedObjectsDumpSuite) SetupTest() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpAll() {
-	client := estest.NewClient(s.T(), s.Record)
+	client := estest.NewClient(s.T(), s.Record, s.Matcher)
 
 	outputDir := s.T().TempDir()
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
-	n, err := dumper.DumpAll(context.Background(), outputDir)
+	n, err := dumper.DumpAll(s.T().Context(), outputDir)
 	s.Require().NoError(err)
 
 	filesExpected := countFiles(s.T(), s.DumpDir)
@@ -114,7 +124,7 @@ func (s *installedObjectsDumpSuite) TestDumpAll() {
 }
 
 func (s *installedObjectsDumpSuite) TestDumpSome() {
-	client := estest.NewClient(s.T(), s.Record)
+	client := estest.NewClient(s.T(), s.Record, s.Matcher)
 	dumper := NewInstalledObjectsDumper(client.API, s.PackageName)
 
 	// In a map so order of execution is randomized.
@@ -129,7 +139,7 @@ func (s *installedObjectsDumpSuite) TestDumpSome() {
 	for dir, dumpFunction := range dumpers {
 		s.Run(dir, func() {
 			outputDir := s.T().TempDir()
-			n, err := dumpFunction(context.Background(), outputDir)
+			n, err := dumpFunction(s.T().Context(), outputDir)
 			s.Require().NoError(err)
 
 			expectedDir := subDir(s.T(), s.DumpDir, dir)
@@ -216,4 +226,27 @@ func subDir(t *testing.T, dir, name string) string {
 	require.NoError(t, err)
 
 	return tmpDir
+}
+
+// Ingest Pipelines are requested in bulk and the param values are non-deterministic,
+// which makes matching to recorded requests flaky.
+// This custom cassette matcher helps match pipeline requests, and sends all others to the default matcher.
+func ingestPipelineRequestMatcher(r *http.Request, cr cassette.Request) bool {
+	urlStartPattern := "https://127.0.0.1:9200/_ingest/pipeline/"
+	rSplitUrl := strings.Split(r.URL.String(), urlStartPattern)
+	crSplitUrl := strings.Split(cr.URL, urlStartPattern)
+
+	isURLsPattern := len(rSplitUrl) == 2 && len(crSplitUrl) == 2
+
+	if !isURLsPattern {
+		return cassette.DefaultMatcher(r, cr)
+	}
+
+	rPipelineValues := strings.Split(rSplitUrl[1], ",")
+	crPipelineValues := strings.Split(crSplitUrl[1], ",")
+
+	slices.Sort(rPipelineValues)
+	slices.Sort(crPipelineValues)
+
+	return slices.Equal(rPipelineValues, crPipelineValues)
 }

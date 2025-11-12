@@ -5,7 +5,6 @@
 package resources
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -13,16 +12,24 @@ import (
 
 	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
 )
 
 func TestRequiredProvider(t *testing.T) {
 	manager := resource.NewManager()
-	_, err := manager.Apply(resource.Resources{
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
+
+	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
-			RootPath: "../../test/packages/parallel/nginx",
+			PackageRootPath: "../../test/packages/parallel/nginx",
+			RepositoryRoot:  repositoryRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -47,12 +54,19 @@ func TestPackageLifecycle(t *testing.T) {
 				t.FailNow()
 			}
 
+			repositoryRoot, err := files.FindRepositoryRoot()
+			require.NoError(t, err)
+			defer repositoryRoot.Close()
+
+			packageRootPath := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
+
 			fleetPackage := FleetPackage{
-				RootPath: filepath.Join("..", "..", "test", "packages", "parallel", c.name),
+				PackageRootPath: packageRootPath,
+				RepositoryRoot:  repositoryRoot,
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
-			_, err := manager.Apply(resource.Resources{&fleetPackage})
+			_, err = manager.Apply(resource.Resources{&fleetPackage})
 			assert.NoError(t, err)
 			assertPackageInstalled(t, kibanaClient, "installed", c.name)
 
@@ -70,15 +84,20 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 		t.FailNow()
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = repositoryRoot.Close() })
+
 	fleetPackage := FleetPackage{
-		RootPath: "../../test/packages/parallel/system",
-		Absent:   true,
+		PackageRootPath: "../../test/packages/parallel/system",
+		Absent:          true,
+		RepositoryRoot:  repositoryRoot,
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
 
 	// Try to uninstall the package, it should not be installed.
-	_, err := manager.Apply(resource.Resources{&fleetPackage})
+	_, err = manager.Apply(resource.Resources{&fleetPackage})
 	assert.NoError(t, err)
 	assertPackageInstalled(t, kibanaClient, "installed", "system")
 
@@ -92,7 +111,7 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 func assertPackageInstalled(t *testing.T, client *kibana.Client, expected string, packageName string) bool {
 	t.Helper()
 
-	p, err := client.GetPackage(context.Background(), packageName)
+	p, err := client.GetPackage(t.Context(), packageName)
 	var notFoundError *kibana.ErrPackageNotFound
 	if errors.As(err, &notFoundError) {
 		return assert.Equal(t, expected, "not_installed")

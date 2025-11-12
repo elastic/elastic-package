@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/serverless"
+	"github.com/elastic/elastic-package/internal/wait"
 )
 
 const (
@@ -34,6 +35,9 @@ const (
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
+
+	defaultRetriesDefaultFleetServerPeriod  = 2 * time.Second
+	defaultRetriesDefaultFleetServerTimeout = 10 * time.Second
 )
 
 var allowedProjectTypes = []string{
@@ -47,6 +51,9 @@ type serverlessProvider struct {
 
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
+
+	retriesDefaultFleetServerTimeout time.Duration
+	retriesDefaultFleetServerPeriod  time.Duration
 }
 
 type projectSettings struct {
@@ -103,10 +110,25 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, err
 	}
 
-	config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+	found, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		config.Parameters[ParamServerlessFleetURL], err = project.DefaultFleetServerURL(ctx, sp.kibanaClient)
+		if errors.Is(err, kibana.ErrFleetServerNotFound) {
+			logger.Debug("Fleet Server URL not found yet, retrying...")
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		logger.Debug("Fleet Server found")
+		return true, nil
+	}, sp.retriesDefaultFleetServerPeriod, sp.retriesDefaultFleetServerTimeout)
 	if err != nil {
-		return Config{}, fmt.Errorf("failed to get fleet URL: %w", err)
+		return Config{}, fmt.Errorf("error while waiting for Fleet Server URL: %w", err)
 	}
+	if !found {
+		return Config{}, fmt.Errorf("not found Fleet Server URL after %s", sp.retriesDefaultFleetServerTimeout)
+	}
+
 	project.Endpoints.Fleet = config.Parameters[ParamServerlessFleetURL]
 
 	printUserConfig(options.Printer, config)
@@ -123,7 +145,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	}
 
 	if settings.LogstashEnabled {
-		err = project.AddLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = addLogstashFleetOutput(ctx, sp.kibanaClient)
 		if err != nil {
 			return Config{}, err
 		}
@@ -235,7 +257,14 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
-	return &serverlessProvider{profile, client, nil, nil}, nil
+	return &serverlessProvider{
+		profile:                          profile,
+		client:                           client,
+		elasticsearchClient:              nil,
+		kibanaClient:                     nil,
+		retriesDefaultFleetServerTimeout: defaultRetriesDefaultFleetServerTimeout,
+		retriesDefaultFleetServerPeriod:  defaultRetriesDefaultFleetServerPeriod,
+	}, nil
 }
 
 func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error {
@@ -269,19 +298,13 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
 
-		project, err = sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve latest project created: %w", err)
-		}
-
 		outputID := ""
 		if settings.LogstashEnabled {
 			outputID = serverless.FleetLogstashOutput
 		}
 
 		logger.Infof("Creating agent policy")
-		err = project.CreateAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
-
+		_, err = createAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
@@ -303,7 +326,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 	// Updating the output with ssl certificates created in startLocalServices
 	// The certificates are updated only when a new project is created and logstash is enabled
 	if isNewProject && settings.LogstashEnabled {
-		err = project.UpdateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
+		err = updateLogstashFleetOutput(ctx, sp.profile, sp.kibanaClient)
 		if err != nil {
 			return err
 		}
@@ -322,7 +345,7 @@ func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, e
 }
 
 func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {
-	err := applyServerlessResources(sp.profile, options.StackVersion, config)
+	err := applyLocalResources(sp.profile, options.StackVersion, config)
 	if err != nil {
 		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}
@@ -479,21 +502,6 @@ func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	}
 
 	err := runOnLocalServices(sp.composeProjectName(), serviceStatusFunc)
-	if err != nil {
-		return nil, err
-	}
-
-	return services, nil
-}
-
-func localServiceNames(project string) ([]string, error) {
-	services := []string{}
-	serviceFunc := func(description docker.ContainerDescription) error {
-		services = append(services, description.Config.Labels.ComposeService)
-		return nil
-	}
-
-	err := runOnLocalServices(project, serviceFunc)
 	if err != nil {
 		return nil, err
 	}

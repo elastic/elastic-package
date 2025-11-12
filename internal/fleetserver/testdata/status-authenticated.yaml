@@ -1,0 +1,44 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: localhost:8220
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - ApiKey V2R2NVlKUUJtbFRXZFZHaTB5c1U6aFpqdU1udWpUajZBR1FPUUNRRGdWZw==
+        url: https://localhost:8220/api/status
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 140
+        uncompressed: false
+        body: '{"name":"fleet-server","status":"HEALTHY","version":{"build_hash":"51a602de","build_time":"2025-01-10T18:41:11Z","number":"9.0.0-SNAPSHOT"}}'
+        headers:
+            Content-Length:
+                - "140"
+            Content-Type:
+                - application/json
+            Date:
+                - Mon, 13 Jan 2025 18:43:34 GMT
+            Elastic-Api-Version:
+                - "2023-06-01"
+            X-Request-Id:
+                - 05fcfd8c-470e-4178-91fc-e989f80c3b4c
+        status: 200 OK
+        code: 200
+        duration: 1.763197ms

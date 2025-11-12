@@ -7,7 +7,7 @@ categories: ["network"]
 type: integration
 conditions:
   kibana:
-    version: '^8.0.0'
+    version: '^8.0.0 || ^9.0.0'
 policy_templates:
   - name: testpo
     title: Test

@@ -1,3 +1,4 @@
+/go.mod @elastic/ecosystem
 /.buildkite/ @elastic/ecosystem
 /.github/ @elastic/ecosystem
 

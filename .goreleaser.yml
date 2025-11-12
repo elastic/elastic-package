@@ -1,3 +1,5 @@
+version: 2
+
 builds:
   - ldflags:
       - -X github.com/elastic/elastic-package/internal/version.Tag={{.Tag}}
@@ -7,3 +9,9 @@ builds:
       - darwin
       - linux
       - windows
+
+archives:
+  - format_overrides:
+      - goos: windows
+        formats:
+          - zip

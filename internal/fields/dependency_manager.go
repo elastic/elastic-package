@@ -134,7 +134,29 @@ func parseECSFieldsSchema(content []byte) ([]FieldDefinition, error) {
 		return nil, fmt.Errorf("unmarshalling field body failed: %w", err)
 	}
 
+	// Force to set External as "ecs" in all these fields to be able to distinguish
+	// which fields come from ECS and which ones are loaded from the package directory
+	fields = setExternalAsECS(fields)
+
 	return fields, nil
+}
+
+func setExternalAsECS(fields []FieldDefinition) []FieldDefinition {
+	for i := 0; i < len(fields); i++ {
+		f := &fields[i]
+		f.External = "ecs"
+		if len(f.MultiFields) > 0 {
+			for j := 0; j < len(f.MultiFields); j++ {
+				mf := &f.MultiFields[j]
+				mf.External = "ecs"
+			}
+		}
+		if len(f.Fields) > 0 {
+			f.Fields = setExternalAsECS(f.Fields)
+		}
+	}
+
+	return fields
 }
 
 func asGitReference(reference string) (string, error) {

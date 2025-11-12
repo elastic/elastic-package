@@ -44,15 +44,15 @@ spec:
               value: {{ .fleetURL }}
             # If left empty KIBANA_HOST, KIBANA_FLEET_USERNAME, KIBANA_FLEET_PASSWORD are needed
             - name: FLEET_ENROLLMENT_TOKEN
-              value: ""
+              value: "{{ .enrollmentToken }}"
             - name: FLEET_TOKEN_POLICY_NAME
               value: "{{ .elasticAgentTokenPolicyName }}"
             - name: KIBANA_HOST
               value: {{ .kibanaURL }}
             - name: KIBANA_FLEET_USERNAME
-              value: "elastic"
+              value: {{ .username }}
             - name: KIBANA_FLEET_PASSWORD
-              value: "changeme"
+              value: {{ .password }}
             - name: SSL_CERT_DIR
               value: "/etc/ssl/certs:/etc/ssl/elastic-package"
             - name: NODE_NAME

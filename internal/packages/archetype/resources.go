@@ -20,6 +20,9 @@ var packageDocsReadme string
 //go:embed _static/fields-base.yml.tmpl
 var fieldsBaseTemplate string
 
+//go:embed _static/package-validation.yml.tmpl
+var validationBaseTemplate string
+
 // Images (logo and screenshot)
 
 //go:embed _static/sampleIcon.svg
@@ -29,6 +32,9 @@ var packageImgSampleIcon []byte
 
 //go:embed _static/sampleScreenshot.png.b64
 var packageImgSampleScreenshot string
+
+//go:embed _static/package-sample-event.json.tmpl
+var packageSampleEvent string
 
 // Input Package templates
 

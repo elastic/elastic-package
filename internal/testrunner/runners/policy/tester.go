@@ -113,12 +113,12 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:           testName + "-" + r.testFolder.Package,
-				RootPath:       r.packageRootPath,
-				DataStreamName: r.testFolder.DataStream,
-				InputName:      testConfig.Input,
-				Vars:           testConfig.Vars,
-				DataStreamVars: testConfig.DataStream.Vars,
+				Name:            testName + "-" + r.testFolder.Package,
+				PackageRootPath: r.packageRootPath,
+				DataStreamName:  r.testFolder.DataStream,
+				InputName:       testConfig.Input,
+				Vars:            testConfig.Vars,
+				DataStreamVars:  testConfig.DataStream.Vars,
 			},
 		},
 	}

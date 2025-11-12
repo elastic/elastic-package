@@ -4,24 +4,20 @@ source .buildkite/scripts/tooling.sh
 
 set -euo pipefail
 
+exit_code=0
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" && "${BUILDKITE_STEP_KEY}" == "test-serverless" ]]; then
     echo "--- Take down the Elastic stack"
     # BUILDKITE resets PATH contents in pre-exit hook, but elastic-package
     # is already installed in the test_serverless pipeline step, accessing
     # directly to the binary
-    EC_API_KEY="${EC_API_KEY_SECRET}" EC_HOST="${EC_HOST_SECRET}" "${HOME}"/go/bin/elastic-package stack down -v
+    if ! "${HOME}"/go/bin/elastic-package stack down -v ; then
+        # Ensure that even if this command fails, the script continues
+        exit_code=1
+    fi
 fi
 
 echo "--- Cleanup"
 cleanup
 unset_secrets
 
-# integrations-parallel-gcp
-unset GOOGLE_CREDENTIALS
-unset GCP_PROJECT_ID
-
-# integrations-parallel-aws and intregrations-parallel-aws_logs
-unset ELASTIC_PACKAGE_AWS_ACCESS_KEY
-unset ELASTIC_PACKAGE_AWS_SECRET_KEY
-unset AWS_ACCESS_KEY_ID
-unset AWS_SECRET_ACCESS_KEY
+exit "$exit_code"

@@ -486,11 +486,11 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		RootPath:       r.options.PackageRootPath,
-		SkipValidation: true,
+		Kibana:          r.options.KibanaClient,
+		PackageRootPath: r.options.PackageRootPath,
+		SkipValidation:  true,
+		RepositoryRoot:  r.options.RepositoryRoot,
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)
 	}
@@ -729,7 +729,6 @@ func (r *runner) runGenerator(destDir string) (uint64, error) {
 
 // This seems to be the most performing way to calculate number of lines from an `io.Reader` (see: https://stackoverflow.com/a/52153000)
 func countLine(r io.Reader) (uint64, error) {
-
 	var count uint64
 	const lineBreak = '\n'
 
@@ -956,7 +955,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 	logger.Debug("starting reindexing of data...")
 
-	logger.Debug("getting orignal mappings...")
+	logger.Debug("getting original mappings...")
 	// Get the mapping from the source data stream
 	mappingRes, err := r.options.ESAPI.Indices.GetMapping(
 		r.options.ESAPI.Indices.GetMapping.WithContext(ctx),
@@ -1062,7 +1061,7 @@ func (r *runner) reindexData(ctx context.Context) error {
 
 type searchResponse struct {
 	Error *struct {
-		Reason string `json:"reson"`
+		Reason string `json:"reason"`
 	} `json:"error"`
 	ScrollID string `json:"_scroll_id"`
 	Hits     []struct {

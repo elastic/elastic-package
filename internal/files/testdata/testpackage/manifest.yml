@@ -1,0 +1,20 @@
+format_version: 2.3.0
+name: testpackage
+title: "With Includes Tests"
+version: 0.0.1
+description: "These are tests of field validation with includes."
+type: integration
+categories:
+  - custom
+conditions:
+  kibana.version: "^8.0.0"
+policy_templates:
+  - name: sample
+    title: Sample logs
+    description: Collect sample logs
+    inputs:
+      - type: logfile
+        title: Collect sample logs from instances
+        description: Collecting sample logs
+owner:
+  github: elastic/integrations

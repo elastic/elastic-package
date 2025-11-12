@@ -13,6 +13,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func FindRepositoryRoot() (*os.Root, error) {
+	rootPath, err := FindRepositoryRootDirectory()
+	if err != nil {
+		return nil, fmt.Errorf("root not found: %w", err)
+	}
+
+	// scope any possible operation to the repository folder
+	dirRoot, err := os.OpenRoot(rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not open root: %w", err)
+	}
+
+	return dirRoot, nil
+}
+
 func FindRepositoryRootDirectory() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {

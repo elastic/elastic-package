@@ -10,8 +10,6 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/common"
 )
 
 // FieldDefinition describes a single field with its properties.
@@ -28,11 +26,13 @@ type FieldDefinition struct {
 	MetricType     string            `yaml:"metric_type"`
 	External       string            `yaml:"external"`
 	Index          *bool             `yaml:"index"`
+	Enabled        *bool             `yaml:"enabled"`
 	DocValues      *bool             `yaml:"doc_values"`
 	Normalize      []string          `yaml:"normalize,omitempty"`
 	Fields         FieldDefinitions  `yaml:"fields,omitempty"`
 	MultiFields    []FieldDefinition `yaml:"multi_fields,omitempty"`
 	Reusable       *ReusableConfig   `yaml:"reusable,omitempty"`
+	Runtime        runtimeField      `yaml:"runtime"`
 
 	// disallowAtTopLevel transfers the reusability config from parent groups to nested fields.
 	// It is negated respect to Reusable.TopLevel, so it is disabled by default.
@@ -41,82 +41,6 @@ type FieldDefinition struct {
 
 type ReusableConfig struct {
 	TopLevel bool `yaml:"top_level"`
-}
-
-func (orig *FieldDefinition) Update(fd FieldDefinition) {
-	if fd.Name != "" {
-		orig.Name = fd.Name
-	}
-	if fd.Description != "" {
-		orig.Description = fd.Description
-	}
-	if fd.Type != "" {
-		orig.Type = fd.Type
-	}
-	if fd.ObjectType != "" {
-		orig.ObjectType = fd.ObjectType
-	}
-	if fd.Value != "" {
-		orig.Value = fd.Value
-	}
-	if len(fd.AllowedValues) > 0 {
-		orig.AllowedValues = fd.AllowedValues
-	}
-	if len(fd.ExpectedValues) > 0 {
-		orig.ExpectedValues = fd.ExpectedValues
-	}
-	if fd.Pattern != "" {
-		orig.Pattern = fd.Pattern
-	}
-	if fd.Unit != "" {
-		orig.Unit = fd.Unit
-	}
-	if fd.MetricType != "" {
-		orig.MetricType = fd.MetricType
-	}
-	if fd.External != "" {
-		orig.External = fd.External
-	}
-	if fd.Index != nil {
-		orig.Index = fd.Index
-	}
-	if fd.DocValues != nil {
-		orig.DocValues = fd.DocValues
-	}
-
-	if len(fd.Normalize) > 0 {
-		orig.Normalize = common.StringSlicesUnion(orig.Normalize, fd.Normalize)
-	}
-
-	if len(fd.Fields) > 0 {
-		orig.Fields = updateFields(orig.Fields, fd.Fields)
-	}
-
-	if len(fd.MultiFields) > 0 {
-		orig.MultiFields = updateFields(orig.MultiFields, fd.MultiFields)
-	}
-}
-
-func updateFields(origFields, fields []FieldDefinition) []FieldDefinition {
-	// When a subfield the same name exists, update it. When not, append it.
-	updatedFields := make([]FieldDefinition, len(origFields))
-	copy(updatedFields, origFields)
-	for _, newField := range fields {
-		found := false
-		for i, origField := range origFields {
-			if origField.Name != newField.Name {
-				continue
-			}
-
-			found = true
-			updatedFields[i].Update(newField)
-			break
-		}
-		if !found {
-			updatedFields = append(updatedFields, newField)
-		}
-	}
-	return updatedFields
 }
 
 // FieldDefinitions is an array of FieldDefinition, this can be unmarshalled from

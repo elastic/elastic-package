@@ -18,6 +18,8 @@ Conceptually, running a system test involves the following steps:
 1. Validate mappings are defined for the fields contained in the indexed documents.
 1. Validate that the JSON data types contained `_source` are compatible with
    mappings declared for the field.
+1. Validate mappings generated after ingesting documents are valid according to the definitions installed by the package.
+    - Requires `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD` to be unset or set to `mappings`.
 1. If the Elastic Agent from the stack is not used, unenroll and remove the Elastic Agent as well as the test policies created.
 1. Delete test artifacts and tear down the instance of the package's integration service.
 1. Once the data stream have been system tested, unenroll and remove the Elastic Agent
@@ -67,7 +69,7 @@ or the data stream's level:
 
 `<service deployer>` - a name of the supported service deployer:
 * `docker` - Docker Compose
-* `agent` - Custom `elastic-agent` with Docker Compose
+* `agent` - (Deprecated) Custom `elastic-agent` with Docker Compose
 * `k8s` - Kubernetes
 * `tf` - Terraform
 
@@ -107,6 +109,69 @@ services:
 volumes:
   mysqldata:
 ```
+
+#### Run provisioner tool along with the Docker Compose service deployer
+
+Along with the Docker Compose service deployer, other services could be added in the docker-compose scenario
+to run other provisioner tools. For instance, the following example shows how Terraform could be used with the
+Docker Compose service deployer, but other tools could be used too.
+
+**Please note**: this is not officially supported by `elastic-package`. Package owners are responsible for maintaining
+their own provisioner Dockerfiles and other resources required (e.g. scripts).
+
+There is an example in the [test package `nginx_multiple_services`](../../test/packages/parallel/nginx_multiple_services/).
+
+For that, you need to add another `terraform` service container in the docker-compose scenario as follows:
+```yaml
+version: '2.3'
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 80
+    volumes:
+      - ${SERVICE_LOGS_DIR}:/var/log/nginx
+    depends_on:
+      terraform:
+        condition: service_healthy
+  terraform:
+    tty: true
+    stop_grace_period: 5m
+    build:
+      context: .
+      dockerfile: Dockerfile.terraform
+    environment:
+      - TF_VAR_TEST_RUN_ID=${TEST_RUN_ID:-detached}
+      - TF_VAR_CREATED_DATE=${CREATED_DATE:-unknown}
+      - TF_VAR_BRANCH=${BRANCH_NAME_LOWER_CASE:-unknown}
+      - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
+      - TF_VAR_ENVIRONMENT=${ENVIRONMENT:-unknown}
+      - TF_VAR_REPO=${REPO:-unknown}
+    volumes:
+      - ./tf/:/stage/
+      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
+```
+
+Two other files required are to define this `terraform` service:
+- Dockerfile to build the terraform container.
+- Shellscript to trigger the terraform commands.
+
+Those files are available in the [test package](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/)
+([Dockerfile.terraform](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/Dockerfile.terraform) and
+[terraform.run.sh](../../test/packages/parallel/nginx_multiple_services/data_stream/access_docker_tf/_dev/deploy/docker/terraform.run.sh))
+and they could be used as a basis for other packages.
+
+Along with that docker-compose definition, it is required to add the terraform files (`*.tf`) within the `docker` folder.
+They can be placed in a `tf` folder for convenience.
+
+This terraform container must be used as a helper for the main service defined in the docker-compose to create the required resources for the main service (e.g. `nginx` in the example above).
+In this example, Terraform creates a new file in `/tmp/service_logs` and it is used by the `nginx` service.
+
+Currently, there is no support to use outputs of terraform via this service deployer to set parameters in the test configuration file (variables),
+as it is available in the terraform service deployer.
+
 
 ### Agent service deployer
 
@@ -385,6 +450,45 @@ wget -qO-  https://raw.githubusercontent.com/elastic/elastic-package/main/script
 elastic-package test system --data-streams pod -v # start system tests for the "pod" data stream
 ```
 
+
+### Defining more than one service deployer
+
+Since `elastic-package` v0.113.0, it is allowed to define more than one service deployer in each `_dev/deploy` folder. And each system test
+configuration can choose which service deployer to use among them.
+For instance, a data stream could contain a definition for Docker Compose and a Terraform service deployers.
+
+First, `elastic-package` looks for the corresponding `_dev/folder` to use. It will follow this order, and the first one that exists has
+preference:
+- Deploy folder at Data Stream level: `packages/<package_name>/data_stream/<data_stream_name>/_dev/deploy/`
+- Deploy folder at Package level: `packages/<package_name>/data_stream/<data_stream_name>/_dev/deploy/`
+
+If there is more than one service deployer defined in the deploy folder found, the system test configuration files of the
+required tests must set the `deployer` field to choose which service deployer configure and start for that given test. If that setting
+is not defined and there are more than one service edployer, `elastic-package` will fail with an error since it is not supported
+to run several service deployers at the same time.
+
+Example of system test configuration including `deployer` setting:
+
+```yaml
+deployer: docker
+service: nginx
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/access.log*"
+```
+
+In this example, `elastic-package` looks for a Docker Compose service deployer in the given `_dev/deploy` folder found previously.
+
+Each service deployer folder keep the same format and files as defined in previous sections.
+
+For instance, this allows to test one data stream using different inputs, each input with a different service deployer. One of them could be using
+the Docker Compose service deployer, and another input could be using terraform to create resources in AWS.
+
+You can find an example of a package using this in this [test package](../../test/packages/parallel/nginx_multiple_services/).
+
+
 ### Test case definition
 
 Next, we must define at least one configuration for each data stream that we
@@ -419,7 +523,11 @@ for system tests.
 | agent.provisioning_script.language | string | | Programming language of the provisioning script. Default: `sh`. |
 | agent.provisioning_script.contents | string | | Code to run as a provisioning script to customize the system where the agent will be run. |
 | agent.user | string | | User that runs the Elastic Agent process. |
+| assert.hit_count | integer |  | Exact number of documents to wait for being ingested. |
+| assert.min_count | integer |  | Minimum number of documents to wait for being ingested. |
+| assert.fields_present | []string|  | List of fields that must be present in the documents to stop waiting for new documents. |
 | data_stream.vars | dictionary |  | Data stream level variables to set (i.e. declared in `package_root/data_stream/$data_stream/manifest.yml`). If not specified the defaults from the manifest are used. |
+| deployer | string|  | Name of the service deployer to setup for this system test. Available values: docker, tf or k8s. |
 | ignore_service_error | boolean | no | If `true`, it will ignore any failures in the deployed test services. Defaults to `false`. |
 | input | string | yes | Input type to test (e.g. logfile, httpjson, etc). Defaults to the input used by the first stream in the data stream manifest. |
 | numeric_keyword_fields | []string |  | List of fields to ignore during validation that are mapped as `keyword` in Elasticsearch, but their JSON data type is a number. |
@@ -429,6 +537,7 @@ for system tests.
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
 | skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
+| skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 
@@ -467,7 +576,25 @@ you can use the `input` option to select the stream to test. The first stream
 whose input type matches the `input` value will be tested. By default, the first
 stream declared in the manifest will be tested.
 
-To add an assertion on the number of hits in a given system test, consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
+#### Available assertions to wait for documents
+
+System tests allow to define different conditions to collect data from the integration service and index it into the correct Elasticsearch data stream.
+
+By default, `elastic-package` waits until there are more than zero documents ingested. The exact number of documents to be
+validated in this default scenario depends on how fast the documents are ingested.
+
+There are other 4 options available:
+- Wait for collecting exactly `assert.hit_count` documents into the data stream.
+    - It will fail if the final number of documents ingested into Elasticsearch is different from `assert.hit_count` documents.
+- Wait for collecting at least `assert.min_count` documents into the data stream.
+    - Once there have been `assert.min_count` or more documents ingested, `elastic-package` will proceed to validate the documents.
+    - This could be used to ensure that a wide range of different documents have been ingested into Elasticsearch.
+- Collect data into the data stream until all the fields defined in the list `assert.fields_present` are present in any of the documents.
+    - Each field in that list could be present in different documents.
+
+The following example shows how to add an assertion on the number of hits in a given system test using `assert.hit_count`.
+
+Consider this example from the `httpjson/generic` data stream's `test-expected-hit-count-config.yml`, shown below.
 
 ```yaml
 input: httpjson
@@ -516,6 +643,11 @@ inserts the value of `response_split` from the test configuration into the integ
 
 Returning to `test-expected-hit-count-config.yml`, when `assert.hit_count` is defined and `> 0` the test will assert that the number of hits in the array matches that value and fail when this is not true.
 
+#### Defining new Elastic Agents for a given test
+
+System tests allow to create specific an Elsatic Agent for each test with custom settings or additional software.
+Elastic Agents can be customized by defining the needed `agent.*` settings.
+
 As an example to add settings to create a new Elastic Agent in a given test,
 the`auditd_manager/audtid` data stream's `test-default-config.yml` is shown below:
 
@@ -550,6 +682,7 @@ The `SERVICE_LOGS_DIR` placeholder is not the only one available for use in a da
 | `Port` | int | Alias for `Ports[0]`. Provided as a convenience. |
 | `Logs.Folder.Agent` | string | Path to integration service's logs folder, as addressable by the Agent. |
 | `SERVICE_LOGS_DIR` | string | Alias for `Logs.Folder.Agent`. Provided as a convenience. |
+| `TEST_RUN_ID` | string | Unique identifier for the test run, allows to distinguish each run. Provided as a convenience. |
 
 Placeholders used in the `test-<test_name>-config.yml` must be enclosed in `{{{` and `}}}` delimiters, per Handlebars syntax.
 
@@ -612,7 +745,7 @@ Fleet (along with the Agent Policies) and a new Elastic Agent will be created fo
 file.
 
 These Elastic Agents can be customized adding the required settings for the tests in the test configuration file.
-For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
+For example, the `oracle/memory` data stream's [`test-memory-config.yml`](https://github.com/elastic/elastic-package/blob/19b2d35c0d7aea7357ccfc572398f39812ff08bc/test/packages/parallel/oracle/data_stream/memory/_dev/test/system/test-memory-config.yml) is shown below:
 ```yaml
 vars:
   hosts:
@@ -620,14 +753,20 @@ vars:
 agent:
   runtime: docker
   provisioning_script:
-    language: "bash"
+    language: "sh"
     contents: |
-      apt-get update && apt-get -y install libaio1 wget unzip
+      set -eu
+      if grep wolfi /etc/os-release > /dev/null ; then
+        apk update && apk add libaio wget unzip
+      else
+        apt-get update && apt-get -y install libaio1 wget unzip
+      fi
       mkdir -p /opt/oracle
       cd /opt/oracle
-      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip
-      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip
-      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig
+      wget https://download.oracle.com/otn_software/linux/instantclient/214000/instantclient-basic-linux.x64-21.4.0.0.0dbru.zip && unzip -o instantclient-basic-linux.x64-21.4.0.0.0dbru.zip || exit 1
+      wget https://download.oracle.com/otn_software/linux/instantclient/217000/instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip && unzip -o instantclient-sqlplus-linux.x64-21.7.0.0.0dbru.zip || exit 1
+      mkdir -p /etc/ld.so.conf.d/
+      echo /opt/oracle/instantclient_21_4 > /etc/ld.so.conf.d/oracle-instantclient.conf && ldconfig || exit 1
       cp /opt/oracle/instantclient_21_7/glogin.sql /opt/oracle/instantclient_21_7/libsqlplus.so /opt/oracle/instantclient_21_7/libsqlplusic.so /opt/oracle/instantclient_21_7/sqlplus /opt/oracle/instantclient_21_4/
   pre_start_script:
     language: "sh"
@@ -636,6 +775,9 @@ agent:
       export PATH="${PATH}:/opt/oracle/instantclient_21_7:/opt/oracle/instantclient_21_4"
       cd /opt/oracle/instantclient_21_4
 ```
+
+**IMPORTANT**: The provisioning script must exit with a code different from zero in case any of the commands defined fails.
+That will ensure that the docker build step run by `elastic-package` fails too.
 
 Another example setting capabilities to the agent ([`auditid_manager` test package](https://github.com/elastic/elastic-package/blob/6338a33c255f8753107f61673245ef352fbac0b6/test/packages/parallel/auditd_manager/data_stream/auditd/_dev/test/system/test-default-config.yml)):
 ```yaml

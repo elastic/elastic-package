@@ -28,13 +28,16 @@ const (
 	// like 8.16.0-21bba6f5-SNAPSHOT
 	stackVersion8160 = "8.16.0-00000000-SNAPSHOT"
 
-	elasticAgentImageName               = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentLegacyImageName         = "docker.elastic.co/beats/elastic-agent"
+	elasticAgentImageName               = "docker.elastic.co/elastic-agent/elastic-agent"
 	elasticAgentCompleteLegacyImageName = "docker.elastic.co/beats/elastic-agent-complete"
 	elasticAgentCompleteImageName       = "docker.elastic.co/elastic-agent/elastic-agent-complete"
+	elasticAgentCompleteWolfiImageName  = "docker.elastic.co/elastic-agent/elastic-agent-complete-wolfi"
 	elasticAgentWolfiImageName          = "docker.elastic.co/elastic-agent/elastic-agent-wolfi"
 	elasticsearchImageName              = "docker.elastic.co/elasticsearch/elasticsearch"
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
+	isReadyImageName                    = "tianon/true:multiarch"
 
 	applicationConfigurationYmlFile = "config.yml"
 )
@@ -99,6 +102,7 @@ func (s stack) ImageRefOverridesForVersion(version string) ImageRefs {
 		Elasticsearch: checkImageRefOverride("ELASTICSEARCH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Elasticsearch, "")),
 		Kibana:        checkImageRefOverride("KIBANA_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Kibana, "")),
 		Logstash:      checkImageRefOverride("LOGSTASH_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.Logstash, "")),
+		IsReady:       checkImageRefOverride("ISREADY_IMAGE_REF_OVERRIDE", stringOrDefault(appConfigImageRefs.IsReady, "")),
 	}
 }
 
@@ -108,6 +112,7 @@ type ImageRefs struct {
 	Elasticsearch string `yaml:"elasticsearch"`
 	Kibana        string `yaml:"kibana"`
 	Logstash      string `yaml:"logstash"`
+	IsReady       string `yaml:"is_ready"`
 }
 
 // AsEnv method returns key=value representation of image refs.
@@ -117,6 +122,7 @@ func (ir ImageRefs) AsEnv() []string {
 	vars = append(vars, "ELASTICSEARCH_IMAGE_REF="+ir.Elasticsearch)
 	vars = append(vars, "KIBANA_IMAGE_REF="+ir.Kibana)
 	vars = append(vars, "LOGSTASH_IMAGE_REF="+ir.Logstash)
+	vars = append(vars, "ISREADY_IMAGE_REF="+ir.IsReady)
 	return vars
 }
 
@@ -127,6 +133,7 @@ func (ac *ApplicationConfiguration) StackImageRefs() ImageRefs {
 	refs.Elasticsearch = stringOrDefault(refs.Elasticsearch, fmt.Sprintf("%s:%s", elasticsearchImageName, ac.stackVersion))
 	refs.Kibana = stringOrDefault(refs.Kibana, fmt.Sprintf("%s:%s", kibanaImageName, ac.stackVersion))
 	refs.Logstash = stringOrDefault(refs.Logstash, fmt.Sprintf("%s:%s", logstashImageName, ac.stackVersion))
+	refs.IsReady = stringOrDefault(refs.IsReady, isReadyImageName)
 	return refs
 }
 
@@ -152,30 +159,59 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // This is mandatory as "elastic-agent-complete" is available since 7.15.0-SNAPSHOT.
 func selectElasticAgentImageName(version, agentBaseImage string) string {
 	if version == "" { // as version is optional and can be empty
-		return elasticAgentImageName
+		return elasticAgentWolfiImageName
 	}
 
 	v, err := semver.NewVersion(version)
 	if err != nil {
-		logger.Errorf("stack version not in semver format (value: %s): %v", v, err)
-		return elasticAgentImageName
+		logger.Errorf("stack version not in semver format (value: %s): %v", version, err)
+		return elasticAgentWolfiImageName
 	}
 
+	shouldUseWolfiImage := shouldUseWolfiImages(v)
+
+	switch agentBaseImage {
+	case "systemd":
+		return selectElasticAgentSystemDImageName(v)
+	case "complete":
+		if shouldUseWolfiImage {
+			return elasticAgentCompleteWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	default:
+		if shouldUseWolfiImage {
+			return elasticAgentWolfiImageName
+		}
+		return selectElasticAgentCompleteImageName(v)
+	}
+}
+
+func shouldUseWolfiImages(version *semver.Version) bool {
 	disableWolfiImages := false
 	valueEnv, ok := os.LookupEnv(disableElasticAgentWolfiEnvVar)
 	if ok && strings.ToLower(valueEnv) != "false" {
 		disableWolfiImages = true
 	}
+
+	return !disableWolfiImages && !version.LessThan(elasticAgentWolfiVersion)
+}
+
+func selectElasticAgentCompleteImageName(version *semver.Version) string {
 	switch {
-	case !disableWolfiImages && !v.LessThan(elasticAgentWolfiVersion) && agentBaseImage != "complete":
-		return elasticAgentWolfiImageName
-	case !v.LessThan(elasticAgentCompleteOwnNamespaceVersion):
+	case !version.LessThan(elasticAgentCompleteOwnNamespaceVersion):
 		return elasticAgentCompleteImageName
-	case !v.LessThan(elasticAgentCompleteFirstSupportedVersion):
+	case !version.LessThan(elasticAgentCompleteFirstSupportedVersion):
 		return elasticAgentCompleteLegacyImageName
 	default:
+		return elasticAgentLegacyImageName
+	}
+}
+
+func selectElasticAgentSystemDImageName(version *semver.Version) string {
+	if !version.LessThan(elasticAgentCompleteOwnNamespaceVersion) {
 		return elasticAgentImageName
 	}
+	return elasticAgentLegacyImageName
 }
 
 type configurationOptions struct {

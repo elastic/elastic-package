@@ -5,14 +5,16 @@
 package archetype
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/validation"
 )
 
 func TestPackage(t *testing.T) {
@@ -29,14 +31,22 @@ func TestPackage(t *testing.T) {
 		pd := createPackageDescriptorForTest("input", "^8.9.0")
 		createAndCheckPackage(t, pd, true)
 	})
+	t.Run("content-package", func(t *testing.T) {
+		pd := createPackageDescriptorForTest("content", "^8.16.0")
+		createAndCheckPackage(t, pd, true)
+	})
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
-	tempDir := t.TempDir()
-	err := createPackageInDir(pd, tempDir)
+	repositoryRoot, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+	defer repositoryRoot.Close()
+
+	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
+	err = createPackageInDir(pd, packagesDir)
 	require.NoError(t, err)
 
-	checkPackage(t, filepath.Join(tempDir, pd.Manifest.Name), valid)
+	checkPackage(t, repositoryRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -52,7 +62,9 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			},
 		}
 	}
+	version := "1.2.3"
 	specVersion, err := GetLatestStableSpecVersion()
+	excludeChecks := []string{}
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +74,7 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			Name:        "go_unit_test_package",
 			Title:       "Go Unit Test Package",
 			Type:        packageType,
-			Version:     "1.2.3",
+			Version:     version,
 			Conditions: packages.Conditions{
 				Kibana: packages.KibanaConditions{
 					Version: kibanaVersion,
@@ -79,19 +91,37 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 			Categories:    []string{"aws", "custom"},
 			Elasticsearch: elasticsearch,
 		},
+		ExcludeChecks:       excludeChecks,
 		InputDataStreamType: inputDataStreamType,
 	}
 }
 
-func checkPackage(t *testing.T, packageRoot string, valid bool) {
-	err := validation.ValidateFromPath(packageRoot)
+func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string) error {
+	buildDir := filepath.Join(repositoryRoot.Name(), "build")
+	err := os.MkdirAll(buildDir, 0o755)
+	require.NoError(t, err)
+	_, err = docs.UpdateReadmes(repositoryRoot, packageRootPath, buildDir)
+	if err != nil {
+		return err
+	}
+
+	_, err = builder.BuildPackage(builder.BuildOptions{
+		PackageRootPath: packageRootPath,
+		BuildDir:        buildDir,
+		RepositoryRoot:  repositoryRoot,
+	})
+	return err
+}
+
+func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string, valid bool) {
+	err := buildPackage(t, repositoryRoot, packageRootPath)
 	if !valid {
 		assert.Error(t, err)
 		return
 	}
 	require.NoError(t, err)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	require.NoError(t, err)
 
 	// Running in subtests because manifest subobjects can be pointers that can panic when dereferenced by assertions.
@@ -105,7 +135,7 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 
 	if manifest.Type == "integration" {
 		t.Run("integration", func(t *testing.T) {
-			ds, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
+			ds, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
 			require.NoError(t, err)
 			for _, d := range ds {
 				manifest, err := packages.ReadDataStreamManifest(filepath.Join(d, "manifest.yml"))

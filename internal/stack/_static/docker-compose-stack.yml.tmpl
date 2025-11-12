@@ -28,7 +28,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       kibana:
         condition: service_healthy
@@ -89,7 +89,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       package-registry:
         condition: service_healthy
@@ -103,8 +103,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: "bash /healthcheck.sh {{ $fleet_healthcheck_success_checks }} {{ $fleet_healthcheck_waiting_time }}"
-      start_period: 60s
+      start_period: 360s
       interval: 5s
+      retries: 180
     hostname: docker-fleet-server
     environment:
     - "ELASTICSEARCH_HOST=https://elasticsearch:9200"
@@ -130,7 +131,7 @@ services:
       {{ end }}
 
   fleet-server_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -162,7 +163,7 @@ services:
       target: /run/service_logs/
 
   elastic-agent_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:
         condition: service_healthy
@@ -195,7 +196,7 @@ services:
       - ELASTIC_HOSTS=https://127.0.0.1:9200
 
   logstash_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       logstash:
         condition: service_healthy

@@ -6,6 +6,8 @@ package asset
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -22,6 +24,7 @@ type runner struct {
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
+	repositoryRoot   *os.Root
 }
 
 type AssetTestRunnerOptions struct {
@@ -30,6 +33,7 @@ type AssetTestRunnerOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
+	RepositoryRoot   *os.Root
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
@@ -39,6 +43,7 @@ func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
+		repositoryRoot:   options.RepositoryRoot,
 	}
 	return &runner
 }
@@ -60,14 +65,16 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 }
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
+	_, pkg := filepath.Split(r.packageRootPath)
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
 			PackageRootPath:  r.packageRootPath,
 			KibanaClient:     r.kibanaClient,
-			TestFolder:       testrunner.TestFolder{Package: r.packageRootPath},
+			TestFolder:       testrunner.TestFolder{Package: pkg},
 			GlobalTestConfig: r.globalTestConfig,
 			WithCoverage:     r.withCoverage,
 			CoverageType:     r.coverageType,
+			RepositoryRoot:   r.repositoryRoot,
 		}),
 	}
 	return testers, nil

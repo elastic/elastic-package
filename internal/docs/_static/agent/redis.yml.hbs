@@ -1,0 +1,47 @@
+{{#if hosts}}
+hosts:
+{{#each hosts as |host i|}}
+- {{host}}
+{{/each}}
+{{/if}}
+{{#if username}}
+username: {{username}}
+{{/if}}
+{{#if password}}
+password: {{password}}
+{{/if}}
+{{#if scan_frequency}}
+scan_frequency: {{scan_frequency}}
+{{/if}}
+{{#if timeout}}
+timeout: {{timeout}}
+{{/if}}
+{{#if network}}
+network: {{network}}
+{{/if}}
+{{#if maxconn}}
+maxconn: {{maxconn}}
+{{/if}}
+{{#if tags.length}}
+tags:
+{{#each tags as |tag|}}
+- {{tag}}
+{{/each}}
+{{#if preserve_original_event}}
+- preserve_original_event
+{{/if}}
+{{else}}
+{{#if preserve_original_event}}
+tags:
+- preserve_original_event
+{{/if}}
+{{/if}}
+
+{{#contains "forwarded" tags}}
+publisher_pipeline.disable_host: true
+{{/contains}}
+
+{{#if processors}}
+processors:
+{{processors}}
+{{/if}}

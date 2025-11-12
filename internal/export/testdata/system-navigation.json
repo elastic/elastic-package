@@ -11,5 +11,6 @@
   },
   "id": "system-Navigation-ecs",
   "references": [],
+  "managed": false,
   "type": "visualization"
 }

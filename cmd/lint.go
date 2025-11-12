@@ -5,13 +5,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
@@ -46,7 +46,18 @@ func setupLintCommand() *cobraext.Command {
 func lintCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Lint the package")
 
-	readmeFiles, err := docs.AreReadmesUpToDate()
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+	defer repositoryRoot.Close()
+
+	packageRoot, err := packages.MustFindPackageRoot()
+	if err != nil {
+		return fmt.Errorf("package root not found: %w", err)
+	}
+
+	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot)
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {
@@ -62,10 +73,7 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func validateSourceCommandAction(cmd *cobra.Command, args []string) error {
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

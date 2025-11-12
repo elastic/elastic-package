@@ -9,20 +9,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Policy represents an Agent Policy in Fleet.
 type Policy struct {
-	ID                 string   `json:"id,omitempty"`
-	Name               string   `json:"name"`
-	Description        string   `json:"description"`
-	Namespace          string   `json:"namespace"`
-	Revision           int      `json:"revision,omitempty"`
-	MonitoringEnabled  []string `json:"monitoring_enabled,omitempty"`
-	MonitoringOutputID string   `json:"monitoring_output_id,omitempty"`
-	DataOutputID       string   `json:"data_output_id,omitempty"`
+	ID                   string   `json:"id,omitempty"`
+	Name                 string   `json:"name"`
+	Description          string   `json:"description"`
+	Namespace            string   `json:"namespace"`
+	Revision             int      `json:"revision,omitempty"`
+	MonitoringEnabled    []string `json:"monitoring_enabled,omitempty"`
+	MonitoringOutputID   string   `json:"monitoring_output_id,omitempty"`
+	DataOutputID         string   `json:"data_output_id,omitempty"`
+	IsDefaultFleetServer bool     `json:"is_default_fleet_server,omitempty"`
 }
 
 // DownloadedPolicy represents a policy as returned by the download policy API.
@@ -40,6 +42,9 @@ func (c *Client) CreatePolicy(ctx context.Context, p Policy) (*Policy, error) {
 		return nil, fmt.Errorf("could not create policy: %w", err)
 	}
 
+	if statusCode == http.StatusConflict {
+		return nil, fmt.Errorf("could not create policy: %w", ErrConflict)
+	}
 	if statusCode != http.StatusOK {
 		return nil, fmt.Errorf("could not create policy; API status code = %d; response body = %s", statusCode, respBody)
 	}
@@ -240,7 +245,7 @@ func (c *Client) AddPackageDataStreamToPolicy(ctx context.Context, r PackageData
 		return fmt.Errorf("could not convert policy-package (request) to JSON: %w", err)
 	}
 
-	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
+	statusCode, respBody, err := c.post(ctx, path.Join(FleetAPI, "package_policies"), reqBody)
 	if err != nil {
 		return fmt.Errorf("could not add package to policy: %w", err)
 	}
@@ -285,9 +290,9 @@ func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*Pac
 		return nil, fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
 	}
 
-	statusCode, respBody, err := c.post(ctx, fmt.Sprintf("%s/package_policies", FleetAPI), reqBody)
+	statusCode, respBody, err := c.post(ctx, path.Join(FleetAPI, "package_policies"), reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("could not create package policy (req %s): %w", string(reqBody), err)
+		return nil, fmt.Errorf("could not create package policy (req %s): %w", reqBody, err)
 	}
 
 	if statusCode != http.StatusOK {
@@ -311,9 +316,73 @@ func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*Pac
 	return &p, nil
 }
 
+// ListRawPackagePolicies fetches all the Package Policies in Fleet.
+func (c *Client) ListRawPackagePolicies(ctx context.Context) ([]json.RawMessage, error) {
+	itemsRetrieved := 0
+	currentPage := 1
+	var items []json.RawMessage
+	var resp struct {
+		Items   []json.RawMessage `json:"items"`
+		Total   int               `json:"total"`
+		Page    int               `json:"page"`
+		PerPage int               `json:"perPage"`
+	}
+
+	for finished := false; !finished; finished = itemsRetrieved == resp.Total {
+		statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s?showUpgradeable=true&page=%d", path.Join(FleetAPI, "package_policies"), currentPage))
+		if err != nil {
+			return nil, fmt.Errorf("could not get policies: %w", err)
+		}
+
+		if statusCode != http.StatusOK {
+			return nil, fmt.Errorf("could not get policies; API status code = %d; response body = %s", statusCode, respBody)
+		}
+
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return nil, fmt.Errorf("could not convert policies (response) to JSON: %w", err)
+		}
+
+		itemsRetrieved += len(resp.Items)
+		currentPage += 1
+		items = append(items, resp.Items...)
+	}
+
+	return items, nil
+}
+
+// UpgradePackagePolicyToLatest upgrades the given package in Fleet to the latest available version.
+func (c *Client) UpgradePackagePolicyToLatest(ctx context.Context, policyIDs ...string) error {
+	var req struct {
+		PackagePolicyIds []string `json:"packagePolicyIds"`
+	}
+	req.PackagePolicyIds = policyIDs
+	body, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
+	}
+	statusCode, respBody, err := c.post(ctx, path.Join(FleetAPI, "package_policies/upgrade"), body)
+	if err != nil {
+		return fmt.Errorf("could not create package policy (req %s): %w", body, err)
+	}
+	if statusCode == http.StatusBadRequest {
+		var resp struct {
+			Message string `json:"message"`
+		}
+		err := json.Unmarshal(respBody, &resp)
+		if err != nil {
+			return fmt.Errorf("could not upgrade package: %q", respBody)
+		}
+		return fmt.Errorf("could not upgrade package: %s", resp.Message)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("could not create package policy (req %s); API status code = %d; response body = %s", body, statusCode, respBody)
+	}
+	return nil
+}
+
 // DeletePackagePolicy removes the given Package Policy from Fleet.
 func (c *Client) DeletePackagePolicy(ctx context.Context, p PackagePolicy) error {
-	statusCode, respBody, err := c.delete(ctx, fmt.Sprintf("%s/package_policies/%s", FleetAPI, p.ID))
+	statusCode, respBody, err := c.delete(ctx, path.Join(FleetAPI, "package_policies", p.ID))
 	if err != nil {
 		return fmt.Errorf("could not delete package policy: %w", err)
 	}

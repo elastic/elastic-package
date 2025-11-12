@@ -103,10 +103,20 @@ policy_templates:
     description: Collect logs and metrics from Amazon Elastic Load Balancing service with Elastic Agent
     data_streams:
       - elb_logs
+    inputs:
+      - type: aws/metrics
+        title: Collect ELB metrics
+        description: Collecting ELB metrics using AWS CloudWatch
+        input_group: metrics
   - name: sns
     title: AWS SNS Metrics
     description: Collect metrics from Amazon Simple Notification Service with Elastic Agent
     data_streams:
       - sns
+    inputs:
+      - type: aws/metrics
+        title: Collect SNS metrics
+        description: Collect SNS metrics using AWS CloudWatch
+        input_group: metrics
 owner:
   github: elastic/integrations

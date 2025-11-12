@@ -30,7 +30,7 @@ function withDocker($version) {
 
 function withDockerCompose($version) {
     Write-Host "-- Install Docker Compose $version --"
-    choco install -y docker-compose --version $version
+    choco install -y docker-compose --allow-downgrade --version $version
     setupChocolateyPath
 }
 
@@ -45,7 +45,7 @@ fixCRLF
 
 withGolang $env:GO_VERSION
 withDocker $env:DOCKER_VERSION
-withDockerCompose $env:DOCKER_COMPOSE_VERSION
+withDockerCompose $env:DOCKER_COMPOSE_VERSION.Substring(1)
 
 Write-Host "--- Docker Info"
 docker info
@@ -56,9 +56,18 @@ go mod download -x
 echo "--- Running stack tests"
 $ErrorActionPreference = "Continue" # set +e
 
-# TODO: stack status checks that we can call docker-compose, but we should try a stack up.
+# TODO: stack status checks that we can call docker, but we should try a stack up to try also with docker-compose with a full scenario.
 # stack up doesn't work because we didn't manage to enable the linux engine, and we don't have Windows native images.
-go run . stack status
+echo "Stack Status"
+go run . stack status -v
+echo "Stack up"
+# running this stack up command adds the required files under ~/.elastic-package to run afterwards "elastic-package stack down" successfully
+# that uses docker-compose under the hood
+go run . stack up -v -d
+echo "Stack Status"
+go run . stack status -v
+echo "Stack down"
+go run . stack down -v
 
 $EXITCODE=$LASTEXITCODE
 $ErrorActionPreference = "Stop"

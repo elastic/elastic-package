@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -60,10 +61,8 @@ func (dso *DashboardSavedObject) String() string {
 // FindDashboards method returns dashboards available in the Kibana instance.
 func (c *Client) FindDashboards(ctx context.Context) (DashboardSavedObjects, error) {
 	logger.Debug("Find dashboards using the Saved Objects API")
-
 	var foundObjects DashboardSavedObjects
 	page := 1
-
 	for {
 		r, err := c.findDashboardsNextPage(ctx, page)
 		if err != nil {
@@ -111,6 +110,58 @@ func (c *Client) findDashboardsNextPage(ctx context.Context, page int) (*savedOb
 	return &r, nil
 }
 
+// FindDashboardsWithExport method returns dashboards available in the Kibana instance.
+// These dashboards are retrieved by exporting all dashboards using the Kibana iSaved Objects APIs without any export details nor including references.
+// The number of exported dashboards depends on the "savedObjects.maxImportExportSize" setting, that by default is 10000.
+func (c *Client) FindDashboardsWithExport(ctx context.Context) (DashboardSavedObjects, error) {
+	logger.Debug("Find dashboards using the Export Objects API")
+	request := ExportSavedObjectsRequest{
+		ExcludeExportDetails:  true,
+		IncludeReferencesDeep: false,
+		Type:                  "dashboard",
+	}
+
+	allDashboards, err := c.ExportSavedObjects(ctx, request)
+	if err != nil {
+		return nil, fmt.Errorf("can't export all dashboards: %w", err)
+	}
+	var foundObjects DashboardSavedObjects
+	for _, dashboard := range allDashboards {
+		dashboardSavedObject, err := dashboardSavedObjectFromMapStr(dashboard)
+		if err != nil {
+			return nil, fmt.Errorf("can't parse dashboard saved object: %w", err)
+		}
+		foundObjects = append(foundObjects, dashboardSavedObject)
+	}
+
+	sort.Slice(foundObjects, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(foundObjects[i].Title), strings.ToLower(foundObjects[j].Title)})
+	})
+	return foundObjects, nil
+}
+
+func dashboardSavedObjectFromMapStr(data common.MapStr) (DashboardSavedObject, error) {
+	dashboardId, ok := data["id"].(string)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain id field")
+	}
+
+	attributes, ok := data["attributes"].(map[string]any)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain attributes field")
+	}
+
+	dashboardTitle, ok := attributes["title"].(string)
+	if !ok {
+		return DashboardSavedObject{}, fmt.Errorf("dashboard object does not contain attributes.title field")
+	}
+
+	return DashboardSavedObject{
+		ID:    dashboardId,
+		Title: dashboardTitle,
+	}, nil
+}
+
 // SetManagedSavedObject method sets the managed property in a saved object.
 // For example managed dashboards cannot be edited, and setting managed to false will
 // allow to edit them.
@@ -140,9 +191,21 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 		Overwrite: true,
 		Objects:   objects,
 	}
-	_, err = c.ImportSavedObjects(ctx, importRequest)
+	resp, err := c.ImportSavedObjects(ctx, importRequest)
 	if err != nil {
 		return fmt.Errorf("failed to import %s %s: %w", savedObjectType, id, err)
+	}
+
+	// Even if no error is returned, we need to check if the import was successful.
+	if !resp.Success {
+		if len(resp.Errors) > 0 {
+			var errorMessages []string
+			for _, importError := range resp.Errors {
+				errorMessages = append(errorMessages, fmt.Sprintf("ID: %s, Type: %s, Error: %v", importError.ID, importError.Type, importError.Error))
+			}
+			return fmt.Errorf("failed to import one or more saved objects: %s", strings.Join(errorMessages, "; "))
+		}
+		return fmt.Errorf("importing %s %s was not successful", savedObjectType, id)
 	}
 
 	return nil
@@ -151,7 +214,8 @@ func (c *Client) SetManagedSavedObject(ctx context.Context, savedObjectType stri
 type ExportSavedObjectsRequest struct {
 	ExcludeExportDetails  bool                              `json:"excludeExportDetails"`
 	IncludeReferencesDeep bool                              `json:"includeReferencesDeep"`
-	Objects               []ExportSavedObjectsRequestObject `json:"objects"`
+	Objects               []ExportSavedObjectsRequestObject `json:"objects,omitempty"`
+	Type                  string                            `json:"type,omitempty"`
 }
 
 type ExportSavedObjectsRequestObject struct {
@@ -159,7 +223,7 @@ type ExportSavedObjectsRequestObject struct {
 	Type string `json:"type"`
 }
 
-func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObjectsRequest) ([]map[string]any, error) {
+func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObjectsRequest) ([]common.MapStr, error) {
 	body, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode request: %w", err)
@@ -174,7 +238,7 @@ func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObje
 		return nil, fmt.Errorf("could not export saved objects; API status code = %d; response body = %s", statusCode, string(respBody))
 	}
 
-	var objects []map[string]any
+	var objects []common.MapStr
 	decoder := json.NewDecoder(bytes.NewReader(respBody))
 	for decoder.More() {
 		var object map[string]any
@@ -191,7 +255,7 @@ func (c *Client) ExportSavedObjects(ctx context.Context, request ExportSavedObje
 
 type ImportSavedObjectsRequest struct {
 	Overwrite bool
-	Objects   []map[string]any
+	Objects   []common.MapStr
 }
 
 type ImportSavedObjectsResponse struct {

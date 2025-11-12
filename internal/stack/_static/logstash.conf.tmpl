@@ -9,26 +9,51 @@ input {
 }
 
 {{ $elasticsearch_host := fact "elasticsearch_host" -}}
+{{ $api_key := fact "api_key" -}}
 filter {
   elastic_integration {
     remove_field => ['@version']
     hosts => ["{{ $elasticsearch_host }}"]
+  {{- if eq $api_key "" }}
     username => '{{ fact "username" }}'
     password => '{{ fact "password" }}'
+  {{- else }}
+    api_key => '{{ $api_key }}'
+  {{- end }}
     ssl_enabled => true
     ssl_verification_mode => "none"
   }
 }
 
 output {
-  elasticsearch {
-    hosts => ["{{ $elasticsearch_host }}"]
-    user => '{{ fact "username" }}'
-    password => '{{ fact "password" }}'
-    ssl_enabled => true
-{{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
-    ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
-    document_id => "%{[@metadata][_ingest_document][id]}"
-{{- end }}
+  if [@metadata][_ingest_document][id] {
+    elasticsearch {
+      hosts => ["{{ $elasticsearch_host }}"]
+  {{- if eq $api_key "" }}
+      user => '{{ fact "username" }}'
+      password => '{{ fact "password" }}'
+  {{- else }}
+      api_key => '{{ $api_key }}'
+  {{- end }}
+      ssl_enabled => true
+  {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
+      ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
+      document_id => "%{[@metadata][_ingest_document][id]}"
+  {{- end }}
+    }
+  } else {
+    elasticsearch {
+      hosts => ["{{ $elasticsearch_host }}"]
+  {{- if eq $api_key "" }}
+      user => '{{ fact "username" }}'
+      password => '{{ fact "password" }}'
+  {{- else }}
+      api_key => '{{ $api_key }}'
+  {{- end }}
+      ssl_enabled => true
+  {{- if eq $elasticsearch_host "https://elasticsearch:9200" }}
+      ssl_certificate_authorities => "/usr/share/logstash/config/certs/ca-cert.pem"
+  {{- end }}
+    }
   }
 }

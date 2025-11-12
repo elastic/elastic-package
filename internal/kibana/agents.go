@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/elastic/elastic-package/internal/logger"
@@ -49,7 +50,18 @@ func (a *Agent) String() string {
 
 // ListAgents returns the list of agents enrolled with Fleet.
 func (c *Client) ListAgents(ctx context.Context) ([]Agent, error) {
-	statusCode, respBody, err := c.get(ctx, fmt.Sprintf("%s/agents", FleetAPI))
+	return c.QueryAgents(ctx, "")
+}
+
+// QueryAgents returns the list of agents enrolled with Fleet that satisfy a kibana query.
+func (c *Client) QueryAgents(ctx context.Context, kuery string) ([]Agent, error) {
+	resource := fmt.Sprintf("%s/agents", FleetAPI)
+	if kuery != "" {
+		values := make(url.Values)
+		values.Set("kuery", kuery)
+		resource += "?" + values.Encode()
+	}
+	statusCode, respBody, err := c.get(ctx, resource)
 	if err != nil {
 		return nil, fmt.Errorf("could not list agents: %w", err)
 	}
@@ -59,22 +71,36 @@ func (c *Client) ListAgents(ctx context.Context) ([]Agent, error) {
 	}
 
 	var resp struct {
-		List []Agent `json:"list"`
+		List  []Agent `json:"list"`
+		Items []Agent `json:"items"`
 	}
 
 	if err := json.Unmarshal(respBody, &resp); err != nil {
 		return nil, fmt.Errorf("could not convert list agents (response) to JSON: %w", err)
 	}
 
-	return resp.List, nil
+	switch {
+	case c.semver != nil && c.semver.Major() < 9:
+		return resp.List, nil
+	default:
+		return resp.Items, nil
+	}
 }
 
 // AssignPolicyToAgent assigns the given Policy to the given Agent.
 func (c *Client) AssignPolicyToAgent(ctx context.Context, a Agent, p Policy) error {
 	reqBody := `{ "policy_id": "` + p.ID + `" }`
-
 	path := fmt.Sprintf("%s/agents/%s/reassign", FleetAPI, a.ID)
-	statusCode, respBody, err := c.put(ctx, path, []byte(reqBody))
+
+	var statusCode int
+	var err error
+	var respBody []byte
+	switch {
+	case c.semver != nil && c.semver.Major() < 9:
+		statusCode, respBody, err = c.put(ctx, path, []byte(reqBody))
+	default:
+		statusCode, respBody, err = c.post(ctx, path, []byte(reqBody))
+	}
 	if err != nil {
 		return fmt.Errorf("could not assign policy to agent: %w", err)
 	}
@@ -113,6 +139,7 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 	ticker := time.NewTicker(waitForPolicyAssignedRetryPeriod)
 	defer ticker.Stop()
 
+	logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 	for {
 		agent, err := c.getAgent(ctx, a.ID)
 		if err != nil {
@@ -126,7 +153,6 @@ func (c *Client) waitUntilPolicyAssigned(ctx context.Context, a Agent, p Policy)
 			break
 		}
 
-		logger.Debugf("Wait until the policy (ID: %s, revision: %d) is assigned to the agent (ID: %s)...", p.ID, p.Revision, a.ID)
 		select {
 		case <-ctx.Done():
 			if errors.Is(ctx.Err(), context.DeadlineExceeded) {

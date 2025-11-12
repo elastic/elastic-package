@@ -6,6 +6,7 @@ package fields
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,8 +28,8 @@ type packageRootTestFinder struct {
 	packageRootPath string
 }
 
-func (p packageRootTestFinder) FindPackageRoot() (string, bool, error) {
-	return p.packageRootPath, true, nil
+func (p packageRootTestFinder) FindPackageRoot() (string, error) {
+	return p.packageRootPath, nil
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {
@@ -64,6 +65,55 @@ func TestValidate_WithFlattenedFields(t *testing.T) {
 	require.Empty(t, errs)
 }
 
+func TestValidate_ObjectTypeWithoutWildcard(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+
+	t.Run("no-subobjects", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/no-subobjects.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
+func TestValidate_DisabledParent(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("disabled", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/disabled.json")
+		errs := validator.ValidateDocumentBody(e)
+		require.Empty(t, errs)
+	})
+}
+
+func TestValidate_EnabledNotMappedError(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	t.Run("enabled", func(t *testing.T) {
+		e := readSampleEvent(t, "testdata/enabled_not_mapped.json")
+		errs := validator.ValidateDocumentBody(e)
+		if assert.Len(t, errs, 2) {
+			for i := 0; i < 2; i++ {
+				assert.Contains(t, []string{`field "enabled.id" is undefined`, `field "enabled.status" is undefined`}, errs[i].Error())
+			}
+		}
+	})
+}
+
 func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	validator, err := CreateValidatorForDirectory("testdata",
 		WithNumericKeywordFields([]string{
@@ -78,6 +128,22 @@ func TestValidate_WithNumericKeywordFields(t *testing.T) {
 	require.NotNil(t, validator)
 
 	e := readSampleEvent(t, "testdata/numeric.json")
+	errs := validator.ValidateDocumentBody(e)
+	require.Empty(t, errs)
+}
+
+func TestValidate_WithStringNumberFields(t *testing.T) {
+	validator, err := CreateValidatorForDirectory("testdata",
+		WithStringNumberFields([]string{
+			"foo.count",  // Contains a number as string.
+			"foo.metric", // Contains a floating number as string.
+		}),
+		WithSpecVersion("2.3.0"), // Needed to validate normalization.
+		WithDisabledDependencyManagement())
+	require.NoError(t, err)
+	require.NotNil(t, validator)
+
+	e := readSampleEvent(t, "testdata/stringnumbers.json")
 	errs := validator.ValidateDocumentBody(e)
 	require.Empty(t, errs)
 }
@@ -344,14 +410,6 @@ func Test_parseElementValue(t *testing.T) {
 			},
 		},
 		{
-			key:   "numeric string array to long",
-			value: []any{"123", "42"},
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
-		},
-		{
 			key:   "mixed numbers and strings in number array",
 			value: []any{123, "hi"},
 			definition: FieldDefinition{
@@ -527,15 +585,6 @@ func Test_parseElementValue(t *testing.T) {
 			definition: FieldDefinition{
 				Type: "float",
 			},
-		},
-		// long
-		{
-			key:   "bad long",
-			value: "65537",
-			definition: FieldDefinition{
-				Type: "long",
-			},
-			fail: true,
 		},
 		// allowed values
 		{
@@ -779,14 +828,14 @@ func Test_parseElementValue(t *testing.T) {
 				specVersion:                  test.specVersion,
 			}
 
-			err := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
+			errs := v.parseElementValue(test.key, test.definition, test.value, common.MapStr{})
 			if test.fail {
-				require.Error(t, err)
+				assert.Greater(t, len(errs), 0)
 				if test.assertError != nil {
-					test.assertError(t, err)
+					test.assertError(t, errs)
 				}
 			} else {
-				require.NoError(t, err)
+				assert.Empty(t, errs)
 			}
 		})
 	}
@@ -1030,6 +1079,98 @@ func TestValidateStackVersionsWithEcsMappings(t *testing.T) {
 	}
 }
 
+func TestSkipLeafOfObject(t *testing.T) {
+	schema := []FieldDefinition{
+		{
+			Name: "foo",
+			Type: "keyword",
+		},
+		{
+			Name: "flattened",
+			Type: "flattened",
+		},
+		{
+			Name: "object",
+			Type: "object",
+		},
+		{
+			Name: "nested",
+			Type: "nested",
+		},
+		{
+			Name: "group",
+			Type: "group",
+			Fields: []FieldDefinition{
+				{
+					Name: "subgroup",
+					Type: "object",
+				},
+			},
+		},
+	}
+
+	cases := []struct {
+		name     string
+		version  *semver.Version
+		expected bool
+	}{
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.0"),
+			expected: true,
+		},
+		{
+			name:     "foo.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+		{
+			name:     "subgroup.bar",
+			version:  semver.MustParse("3.0.1"),
+			expected: false,
+		},
+	}
+
+	// Cases we expect to skip depending on the version.
+	okRoots := []string{"flattened", "object", "group", "nested"}
+	for _, root := range okRoots {
+		t.Run("empty root with prefix "+root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject("", root+"."+c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+		t.Run(root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, c.expected, found)
+				})
+			}
+		})
+	}
+
+	// Cases we never expect to skip.
+	notOkRoots := []string{"foo", "notexists", "group.subgroup.other"}
+	for _, root := range notOkRoots {
+		t.Run("not ok "+root, func(t *testing.T) {
+			for _, c := range cases {
+				t.Run(c.name+"_"+c.version.String(), func(t *testing.T) {
+					found := skipLeafOfObject(root, c.name, *c.version, schema)
+					assert.Equal(t, false, found)
+				})
+			}
+		})
+	}
+}
+
 func readTestResults(t *testing.T, path string) (f results) {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -1043,4 +1184,106 @@ func readSampleEvent(t *testing.T, path string) json.RawMessage {
 	c, err := os.ReadFile(path)
 	require.NoError(t, err)
 	return c
+}
+
+func Test_IsAllowedIPValue(t *testing.T) {
+	cases := []struct {
+		title      string
+		ip         string
+		allowedIps []string
+		expected   bool
+	}{
+		{
+			title:    "private ipv4",
+			ip:       "192.168.1.2",
+			expected: true,
+		},
+		{
+			title:    "private ipv4 other range",
+			ip:       "10.2.2.2",
+			expected: true,
+		},
+		{
+			title:    "documentation IPv4",
+			ip:       "192.0.2.10",
+			expected: true,
+		},
+		{
+			title:    "documentation IPv6",
+			ip:       "2001:0DB8:1000:1000:1000:1000:1000:1000",
+			expected: true,
+		},
+		{
+			title:    "unspecified ipv4",
+			ip:       "0.0.0.0",
+			expected: true,
+		},
+		{
+			title:    "unspecified ipv6",
+			ip:       "0:0:0:0:0:0:0:0",
+			expected: true,
+		},
+		{
+			title:    "ip allowed CIDR",
+			ip:       "89.160.20.115",
+			expected: true,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+		{
+			title:    "not valid ipv4",
+			ip:       "216.160.83.57",
+			expected: false,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+		{
+			title:    "not valid ipv6",
+			ip:       "2002:2002:1000:1000:1000:1000:1000:1000",
+			expected: false,
+			allowedIps: []string{
+				"89.160.20.112/28",
+			},
+		},
+		{
+			title:      "valid ipv4 multicast address",
+			ip:         "233.252.0.57",
+			expected:   true,
+			allowedIps: []string{},
+		},
+		{
+			title:      "second range documentation ipv6",
+			ip:         "3fff:0000:0000:0000:0000:1000:1000:1000",
+			expected:   true,
+			allowedIps: []string{},
+		},
+		{
+			title:      "other invalid ipv6",
+			ip:         "3fff:1fff:ffff:ffff:ffff:ffff:ffff:ffff",
+			expected:   false,
+			allowedIps: []string{},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			allowedCIDRs := []*net.IPNet{}
+			for _, cidr := range c.allowedIps {
+				_, cidr, err := net.ParseCIDR(cidr)
+				require.NoError(t, err)
+				allowedCIDRs = append(allowedCIDRs, cidr)
+			}
+			v := Validator{
+				disabledDependencyManagement: true,
+				enabledAllowedIPCheck:        true,
+				allowedCIDRs:                 allowedCIDRs,
+			}
+
+			allowed := v.isAllowedIPValue(c.ip)
+			assert.Equal(t, c.expected, allowed)
+		})
+	}
+
 }

@@ -17,6 +17,10 @@
       value: correct
     - name: ip_address
       type: ip
+    - name: count
+      type: long
+    - name: metric
+      type: double
 - name: container.image.tag
   type: keyword
   normalize:
@@ -88,3 +92,9 @@
     - array
 - name: user.group.id
   type: keyword
+- name: attributes
+  type: object
+  object_type: keyword
+- name: disabled
+  type: object
+  enabled: false

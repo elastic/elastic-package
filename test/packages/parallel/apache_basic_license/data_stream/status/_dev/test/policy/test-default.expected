@@ -1,0 +1,34 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: apache
+      name: test-default-apache_basic_license
+      streams:
+        - data_stream:
+            dataset: apache.status
+            type: metrics
+          hosts:
+            - http://localhost:8080
+          metricsets:
+            - status
+          period: 30s
+          server_status_path: /server-status
+      type: apache/metrics
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - metrics-apache.status-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

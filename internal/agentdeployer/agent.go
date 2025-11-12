@@ -119,7 +119,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		fmt.Sprintf("%s=%s", agentHostnameEnv, d.agentHostname()),
 	)
 
-	configDir, err := d.installDockerCompose(agentInfo)
+	configDir, err := d.installDockerCompose(ctx, agentInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
@@ -233,7 +233,7 @@ func (d *DockerComposeAgentDeployer) agentName() string {
 
 // installDockerCompose creates the files needed to run the custom elastic agent and returns
 // the directory with these files.
-func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (string, error) {
+func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, agentInfo AgentInfo) (string, error) {
 	customAgentDir, err := CreateDeployerDir(d.profile, fmt.Sprintf("docker-agent-%s-%s", d.agentName(), d.agentRunID))
 	if err != nil {
 		return "", fmt.Errorf("failed to create directory for custom agent files: %w", err)
@@ -254,14 +254,31 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 	if err != nil {
 		return "", fmt.Errorf("failed to load config from profile: %w", err)
 	}
+	enrollmentToken := ""
+	if config.ElasticsearchAPIKey != "" {
+		// TODO: Review if this is the correct place to get the enrollment token.
+		kibanaClient, err := stack.NewKibanaClientFromProfile(d.profile)
+		if err != nil {
+			return "", fmt.Errorf("failed to create kibana client: %w", err)
+		}
+		enrollmentToken, err = kibanaClient.GetEnrollmentTokenForPolicyID(ctx, agentInfo.Policy.ID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get enrollment token for policy %q: %w", agentInfo.Policy.Name, err)
+		}
+	}
 
+	// TODO: Include these settings more explicitly in `config`.
 	fleetURL := "https://fleet-server:8220"
 	kibanaHost := "https://kibana:5601"
 	stackVersion := d.stackVersion
-	if config.Provider == stack.ProviderServerless {
-		fleetURL = config.Parameters[stack.ParamServerlessFleetURL]
+	if config.Provider != stack.ProviderCompose {
 		kibanaHost = config.KibanaHost
-		stackVersion = config.Parameters[stack.ParamServerlessLocalStackVersion]
+	}
+	if url, ok := config.Parameters[stack.ParamServerlessFleetURL]; ok {
+		fleetURL = url
+	}
+	if version, ok := config.Parameters[stack.ParamServerlessLocalStackVersion]; ok {
+		stackVersion = version
 	}
 
 	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)
@@ -280,9 +297,10 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(agentInfo AgentInfo) (
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
 		"stack_version":          stackVersion,
 		"fleet_url":              fleetURL,
-		"kibana_host":            kibanaHost,
+		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
+		"enrollment_token":       enrollmentToken,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{

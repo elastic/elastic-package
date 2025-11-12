@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
-	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -26,6 +25,7 @@ import (
 
 type runner struct {
 	profile         *profile.Profile
+	repositoryRoot  *os.Root
 	packageRootPath string
 	kibanaClient    *kibana.Client
 	esAPI           *elasticsearch.API
@@ -36,7 +36,6 @@ type runner struct {
 
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	failOnMissingTests bool
-	checkFailureStore  bool
 	deferCleanup       time.Duration
 	generateTestResult bool
 	withCoverage       bool
@@ -57,6 +56,7 @@ var _ testrunner.TestRunner = new(runner)
 type SystemTestRunnerOptions struct {
 	Profile         *profile.Profile
 	PackageRootPath string
+	RepositoryRoot  *os.Root
 	KibanaClient    *kibana.Client
 	API             *elasticsearch.API
 
@@ -74,7 +74,6 @@ type SystemTestRunnerOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
 	FailOnMissingTests bool
-	CheckFailureStore  bool
 	GenerateTestResult bool
 	DeferCleanup       time.Duration
 	WithCoverage       bool
@@ -95,12 +94,12 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		runTestsOnly:       options.RunTestsOnly,
 		runTearDown:        options.RunTearDown,
 		failOnMissingTests: options.FailOnMissingTests,
-		checkFailureStore:  options.CheckFailureStore,
 		generateTestResult: options.GenerateTestResult,
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -119,7 +118,7 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 
 	// Install the package before creating the policy, so we control exactly what is being
 	// installed.
-	logger.Debug("Installing package...")
+	logger.Info("Installing package...")
 	resourcesOptions := resourcesOptions{
 		// Install it unless we are running the tear down only.
 		installedPackage: !r.runTearDown,
@@ -129,41 +128,13 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 		return fmt.Errorf("can't install the package: %w", err)
 	}
 
-	if r.checkFailureStore {
-		err := r.setupFailureStore(ctx)
-		if err != nil {
-			return fmt.Errorf("can't enable the failure store: %w", err)
-		}
-	}
-
-	return nil
-}
-
-func (r *runner) setupFailureStore(ctx context.Context) error {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
-	if err != nil {
-		return fmt.Errorf("failed to read package manifest: %w", err)
-	}
-
-	indexTemplates, err := ingest.GetIndexTemplatesForPackage(ctx, r.esAPI, manifest.Name)
-	if err != nil {
-		return fmt.Errorf("failed to get index templates for package %s: %w", manifest.Name, err)
-	}
-
-	for _, template := range indexTemplates {
-		err := ingest.EnableFailureStore(ctx, r.esAPI, template.Name(), true)
-		if err != nil {
-			return fmt.Errorf("failed to enable failure store for index template %s: %w", template.Name(), err)
-		}
-	}
-
 	return nil
 }
 
 // TearDownRunner cleans up any global test runner resources. It must be called
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
-	logger.Debug("Uninstalling package...")
+	logger.Info("Uninstalling package...")
 	resourcesOptions := resourcesOptions{
 		// Keep it installed only if we were running setup, or tests only.
 		installedPackage: r.runSetup || r.runTestsOnly,
@@ -294,7 +265,6 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					GlobalTestConfig:   r.globalTestConfig,
 					WithCoverage:       r.withCoverage,
 					CoverageType:       r.coverageType,
-					CheckFailureStore:  r.checkFailureStore,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(
@@ -316,9 +286,10 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath: r.packageRootPath,
-			Absent:   !opts.installedPackage,
-			Force:    opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			PackageRootPath: r.packageRootPath,
+			Absent:          !opts.installedPackage,
+			Force:           opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }
@@ -378,7 +349,6 @@ func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) 
 		if len(variants) == 1 && variants[0] == "" {
 			logger.Debug("No variant mode")
 		}
-		logger.Debugf(">>>>>> number of variants loaded: %d - %q", len(variants), strings.Join(variants, ","))
 	}
 
 	return variants, nil

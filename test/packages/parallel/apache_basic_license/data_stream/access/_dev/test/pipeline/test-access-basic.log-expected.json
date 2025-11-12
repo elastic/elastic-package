@@ -1,0 +1,389 @@
+{
+    "expected": [
+        {
+            "@timestamp": "2016-12-26T14:16:29.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863598691Z",
+                "kind": "event",
+                "original": "::1 - - [26/Dec/2016:16:16:29 +0200] \"GET /favicon.ico HTTP/1.1\" 404 209",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "method": "GET"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 209
+                    },
+                    "status_code": 404
+                },
+                "version": "1.1"
+            },
+            "source": {
+                "address": "::1",
+                "ip": "::1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "url": {
+                "extension": "ico",
+                "original": "/favicon.ico",
+                "path": "/favicon.ico"
+            },
+            "user": {
+                "name": "-"
+            }
+        },
+        {
+            "@timestamp": "2016-12-26T16:22:13.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863610730Z",
+                "kind": "event",
+                "original": "192.168.33.1 - - [26/Dec/2016:16:22:13 +0000] \"GET /hello HTTP/1.1\" 404 499 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0\"",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "method": "GET",
+                    "referrer": "-"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 499
+                    },
+                    "status_code": 404
+                },
+                "version": "1.1"
+            },
+            "source": {
+                "address": "192.168.33.1",
+                "ip": "192.168.33.1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "url": {
+                "original": "/hello",
+                "path": "/hello"
+            },
+            "user": {
+                "name": "-"
+            },
+            "user_agent": {
+                "device": {
+                    "name": "Mac"
+                },
+                "name": "Firefox",
+                "original": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:50.0) Gecko/20100101 Firefox/50.0",
+                "os": {
+                    "full": "Mac OS X 10.12",
+                    "name": "Mac OS X",
+                    "version": "10.12"
+                },
+                "version": "50.0."
+            }
+        },
+        {
+            "@timestamp": "2016-12-26T14:16:48.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863613299Z",
+                "kind": "event",
+                "original": "::1 - - [26/Dec/2016:16:16:48 +0200] \"-\" 408 -",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "response": {
+                    "status_code": 408
+                }
+            },
+            "source": {
+                "address": "::1",
+                "ip": "::1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "user": {
+                "name": "-"
+            }
+        },
+        {
+            "@timestamp": "2017-05-29T19:02:48.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863614844Z",
+                "kind": "event",
+                "original": "172.17.0.1 - - [29/May/2017:19:02:48 +0000] \"GET /stringpatch HTTP/1.1\" 404 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "method": "GET",
+                    "referrer": "-"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 612
+                    },
+                    "status_code": 404
+                },
+                "version": "1.1"
+            },
+            "source": {
+                "address": "172.17.0.1",
+                "ip": "172.17.0.1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "url": {
+                "original": "/stringpatch",
+                "path": "/stringpatch"
+            },
+            "user": {
+                "name": "-"
+            },
+            "user_agent": {
+                "device": {
+                    "name": "Other"
+                },
+                "name": "Firefox Alpha",
+                "original": "Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2",
+                "os": {
+                    "full": "Windows 7",
+                    "name": "Windows",
+                    "version": "7"
+                },
+                "version": "15.0.a2"
+            }
+        },
+        {
+            "@timestamp": "2017-05-29T19:02:48.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863616333Z",
+                "kind": "event",
+                "original": "monitoring-server - - [29/May/2017:19:02:48 +0000] \"GET /status HTTP/1.1\" 200 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "method": "GET",
+                    "referrer": "-"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 612
+                    },
+                    "status_code": 200
+                },
+                "version": "1.1"
+            },
+            "source": {
+                "address": "monitoring-server",
+                "domain": "monitoring-server"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "url": {
+                "original": "/status",
+                "path": "/status"
+            },
+            "user": {
+                "name": "-"
+            },
+            "user_agent": {
+                "device": {
+                    "name": "Other"
+                },
+                "name": "Firefox Alpha",
+                "original": "Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2",
+                "os": {
+                    "full": "Windows 7",
+                    "name": "Windows",
+                    "version": "7"
+                },
+                "version": "15.0.a2"
+            }
+        },
+        {
+            "@timestamp": "2019-02-02T04:38:45.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863617808Z",
+                "kind": "event",
+                "original": "127.0.0.1 - - [02/Feb/2019:05:38:45 +0100] \"-\" 408 152 \"-\" \"-\"",
+                "outcome": "failure",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "referrer": "-"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 152
+                    },
+                    "status_code": 408
+                }
+            },
+            "source": {
+                "address": "127.0.0.1",
+                "ip": "127.0.0.1"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "user": {
+                "name": "-"
+            },
+            "user_agent": {
+                "device": {
+                    "name": "Other"
+                },
+                "name": "Other",
+                "original": "-"
+            }
+        },
+        {
+            "@timestamp": "2017-05-29T19:02:48.000Z",
+            "apache": {
+                "access": {}
+            },
+            "ecs": {
+                "version": "1.12.0"
+            },
+            "event": {
+                "category": [
+                    "web"
+                ],
+                "created": "2020-04-28T11:07:58.223Z",
+                "ingested": "2022-09-08T10:05:05.863619268Z",
+                "kind": "event",
+                "original": "monitoring-server - - [29/May/2017:19:02:48 +0000] \"GET /A%20Beka%20G1%20Howe/029_AND_30/15%20reading%20elephants.mp4 HTTP/1.1\" 200 612 \"-\" \"Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2\" \"-\"",
+                "outcome": "success",
+                "type": [
+                    "access"
+                ]
+            },
+            "http": {
+                "request": {
+                    "method": "GET",
+                    "referrer": "-"
+                },
+                "response": {
+                    "body": {
+                        "bytes": 612
+                    },
+                    "status_code": 200
+                },
+                "version": "1.1"
+            },
+            "source": {
+                "address": "monitoring-server",
+                "domain": "monitoring-server"
+            },
+            "tags": [
+                "preserve_original_event"
+            ],
+            "url": {
+                "extension": "mp4",
+                "original": "/A%20Beka%20G1%20Howe/029_AND_30/15%20reading%20elephants.mp4",
+                "path": "/A Beka G1 Howe/029_AND_30/15 reading elephants.mp4"
+            },
+            "user": {
+                "name": "-"
+            },
+            "user_agent": {
+                "device": {
+                    "name": "Other"
+                },
+                "name": "Firefox Alpha",
+                "original": "Mozilla/5.0 (Windows NT 6.1; rv:15.0) Gecko/20120716 Firefox/15.0a2",
+                "os": {
+                    "full": "Windows 7",
+                    "name": "Windows",
+                    "version": "7"
+                },
+                "version": "15.0.a2"
+            }
+        }
+    ]
+}

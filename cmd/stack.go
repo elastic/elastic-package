@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jedib0t/go-pretty/table"
+	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
+	"github.com/olekukonko/tablewriter/tw"
 
 	"github.com/spf13/cobra"
 
@@ -34,6 +36,8 @@ You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
+You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
+
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
 
 const stackUpLongDescription = `Use this command to boot up the stack locally.
@@ -44,11 +48,18 @@ You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
+You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
+
 To expose local packages in the Package Registry, build them first and boot up the stack from inside of the Git repository containing the package (e.g. elastic/integrations). They will be copied to the development stack (~/.elastic-package/stack/development) and used to build a custom Docker image of the Package Registry. Starting with Elastic stack version >= 8.7.0, it is not mandatory to be available local packages in the Package Registry to run the tests.
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
 
-You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.`
+You can customize your stack using profile settings, see [Elastic Package profiles](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-profiles-1) section. These settings can be also overriden with the --parameter flag. Settings configured this way are not persisted.
+
+There are different providers supported, that can be selected with the --provider flag.
+- compose: Starts a local stack using Docker Compose. This is the default.
+- environment: Prepares an existing stack to be used to test packages. Missing components are started locally using Docker Compose. Environment variables are used to configure the access to the existing Elasticsearch and Kibana instances. You can learn more about this in [this document](./docs/howto/use_existing_stack.md).
+- serverless: Uses Elastic Cloud to start a serverless project. Requires an Elastic Cloud API key. You can learn more about this in [this document](./docs/howto/use_serverless_stack.md).`
 
 const stackShellinitLongDescription = `Use this command to export to the current shell the configuration of the stack managed by elastic-package.
 
@@ -56,6 +67,7 @@ The output of this command is intended to be evaluated by the current shell. For
 
 Relevant environment variables are:
 
+- ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY
 - ELASTIC_PACKAGE_ELASTICSEARCH_HOST
 - ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME
 - ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD
@@ -350,14 +362,17 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		cmd.Printf(" - No service running\n")
 		return
 	}
-	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Service", "Version", "Status", "Image Build Date", "VCS Ref"})
-
+	config := defaultColorizedConfig()
+	config.Settings.Separators.BetweenRows = tw.Off
+	table := tablewriter.NewTable(cmd.OutOrStderr(),
+		tablewriter.WithRenderer(renderer.NewColorized(config)),
+		tablewriter.WithConfig(defaultTableConfig),
+	)
+	table.Header("Service", "Version", "Status", "Image Build Date", "VCS Ref")
 	for _, service := range servicesStatus {
-		t.AppendRow(table.Row{service.Name, service.Version, service.Status, formatTime(service.Labels.BuildDate), truncate(service.Labels.VCSRef, 10)})
+		table.Append(service.Name, service.Version, service.Status, formatTime(service.Labels.BuildDate), truncate(service.Labels.VCSRef, 10))
 	}
-	t.SetStyle(table.StyleRounded)
-	cmd.Println(t.Render())
+	table.Render()
 }
 
 // formatTime returns the given RFC3339 time formated as 2006-01-02T15:04Z.

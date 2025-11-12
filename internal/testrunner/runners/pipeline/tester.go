@@ -53,7 +53,8 @@ type tester struct {
 
 	runCompareResults bool
 
-	provider stack.Provider
+	provider       stack.Provider
+	repositoryRoot *os.Root
 }
 
 type PipelineTesterOptions struct {
@@ -67,9 +68,14 @@ type PipelineTesterOptions struct {
 	CoverageType       string
 	TestCaseFile       string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	RepositoryRoot     *os.Root
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
+	if options.API == nil {
+		return nil, errors.New("missing Elasticsearch client")
+	}
+
 	r := tester{
 		profile:            options.Profile,
 		packageRootPath:    options.PackageRootPath,
@@ -81,6 +87,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		globalTestConfig:   options.GlobalTestConfig,
+		repositoryRoot:     options.RepositoryRoot,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)
@@ -102,10 +109,6 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		if ok && strings.ToLower(v) == "true" {
 			r.runCompareResults = false
 		}
-	}
-
-	if r.esAPI == nil {
-		return nil, errors.New("missing Elasticsearch client")
 	}
 
 	return &r, nil
@@ -168,7 +171,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	startTesting := time.Now()
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.esAPI, dataStreamPath)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath, r.repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
@@ -235,6 +238,15 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 	testingTime := startTesting.Truncate(time.Second)
 
+	statusOptions := stack.Options{
+		Profile: r.profile,
+	}
+	_, err := r.provider.Status(ctx, statusOptions)
+	if err != nil {
+		logger.Debugf("Not checking Elasticsearch logs: %s", err)
+		return nil, nil
+	}
+
 	dumpOptions := stack.DumpOptions{
 		Profile:  r.profile,
 		Services: []string{"elasticsearch"},
@@ -242,7 +254,7 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	}
 	dump, err := r.provider.Dump(ctx, dumpOptions)
 	var notImplementedErr *stack.ErrNotImplemented
-	if errors.As(err, &notImplementedErr) {
+	if errors.As(err, &notImplementedErr) || errors.Is(err, stack.ErrUnavailableStack) {
 		logger.Debugf("Not checking Elasticsearch logs: %s", err)
 		return nil, nil
 	}
@@ -278,7 +290,6 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 
 		return nil
 	})
-
 	if err != nil {
 		return nil, fmt.Errorf("error at parsing logs of elasticseach: %w", err)
 	}
@@ -297,7 +308,6 @@ func (r *tester) checkElasticsearchLogs(ctx context.Context, startTesting time.T
 	}
 
 	return []testrunner.TestResult{tr}, nil
-
 }
 
 func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath string, dsType string, pipeline string, validatorOptions []fields.ValidatorOption) ([]testrunner.TestResult, error) {
@@ -335,6 +345,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	rc.TimeElapsed = time.Since(startTime)
 	validatorOptions = append(slices.Clone(validatorOptions),
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
+		fields.WithStringNumberFields(tc.config.StringNumberFields),
 	)
 	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
 	if err != nil {

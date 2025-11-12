@@ -1,0 +1,12 @@
+deployer: docker
+service: nginx
+wait_for_data_timeout: 2m
+assert:
+  min_count: 50
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/file.log*"
+      - "{{SERVICE_LOGS_DIR}}/access.log*"
+      - "{{SERVICE_LOGS_DIR}}/access-{{TEST_RUN_ID}}.log*"

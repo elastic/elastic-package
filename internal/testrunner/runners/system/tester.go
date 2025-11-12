@@ -5,11 +5,11 @@
 package system
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -41,40 +41,75 @@ import (
 	"github.com/elastic/elastic-package/internal/wait"
 )
 
-const (
-	checkFieldsBody = `{
-		"fields": ["*"],
-		"runtime_mappings": {
-		  "my_ignored": {
-			"type": "keyword",
-			"script": {
-			  "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
-			}
-		  }
-		},
-		"aggs": {
-		  "all_ignored": {
-			"filter": {
-			  "exists": {
-				"field": "_ignored"
-			  }
-			},
-			"aggs": {
-			  "ignored_fields": {
-				"terms": {
-				  "size": 100,
-				  "field": "my_ignored"
-				}
-			  },
-			  "ignored_docs": {
-				"top_hits": {
-				  "size": 5
-				}
-			  }
-			}
-		  }
+const FieldsQuery = `{
+  "fields": [
+    "*"
+  ],
+  "runtime_mappings": {
+    "my_ignored": {
+      "type": "keyword",
+      "script": {
+        "source": "for (def v : params['_fields']._ignored.values) { emit(v); }"
+      }
+    }
+  },
+  "aggs": {
+    "all_ignored": {
+      "filter": {
+        "exists": {
+          "field": "_ignored"
+        }
+      },
+      "aggs": {
+        "ignored_fields": {
+          "terms": {
+            "size": 100,
+            "field": "my_ignored"
+          }
+        },
+        "ignored_docs": {
+          "top_hits": {
+            "size": 5
+          }
+        }
+      }
+    }
+  }
+}`
+
+type FieldsQueryResult struct {
+	Hits struct {
+		Total struct {
+			Value int
 		}
-	  }`
+		Hits []struct {
+			Source common.MapStr `json:"_source"`
+			Fields common.MapStr `json:"fields"`
+		}
+	}
+	Aggregations struct {
+		AllIgnored struct {
+			DocCount      int `json:"doc_count"`
+			IgnoredFields struct {
+				Buckets []struct {
+					Key string `json:"key"`
+				} `json:"buckets"`
+			} `json:"ignored_fields"`
+			IgnoredDocs struct {
+				Hits struct {
+					Hits []common.MapStr `json:"hits"`
+				} `json:"hits"`
+			} `json:"ignored_docs"`
+		} `json:"all_ignored"`
+	} `json:"aggregations"`
+	Error *struct {
+		Type   string
+		Reason string
+	}
+	Status int
+}
+
+const (
 	DevDeployDir = "_dev/deploy"
 
 	// TestType defining system tests
@@ -88,6 +123,9 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout = 10 * time.Minute
+
+	otelCollectorInputName = "otelcol"
+	otelSuffixDataset      = "otel"
 )
 
 type logsRegexp struct {
@@ -115,16 +153,45 @@ var (
 				{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 					excludes: []*regexp.Regexp{
+						// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+						// This is excluded because the awss3 input incorrectly complains about missing Records fields in s3:TestEvent messages.
+						// See https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html#notification-content-structure-examples.
+						regexp.MustCompile(`state changed .* \(HEALTHY->DEGRADED\): .* the message is an invalid S3 notification: missing Records field`),
+					},
+				},
+				{
+					// HTTPJSON template error.
+					includes: regexp.MustCompile(`^error processing response: template: :\d+:\d+: executing "" at <`),
+					excludes: []*regexp.Regexp{
+						// Unfortunate: https://github.com/elastic/beats/issues/34544
+						// See also https://github.com/elastic/beats/pull/39929.
+						regexp.MustCompile(`: map has no entry for key`),
+						regexp.MustCompile(`: can't evaluate field (?:[^ ]+) in type interface`),
 					},
 				},
 			},
 		},
 	}
-	enableIndependentAgents = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	enableIndependentAgentsEnv   = environment.WithElasticPackagePrefix("TEST_ENABLE_INDEPENDENT_AGENT")
+	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
+	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
+	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
 )
+
+type fieldValidationMethod int
+
+const (
+	// Required to allow setting `fields` as an option via environment variable
+	fieldsMethod fieldValidationMethod = iota
+	mappingsMethod
+)
+
+var validationMethods = map[string]fieldValidationMethod{
+	"fields":   fieldsMethod,
+	"mappings": mappingsMethod,
+}
 
 type tester struct {
 	profile            *profile.Profile
@@ -136,6 +203,8 @@ type tester struct {
 	kibanaClient       *kibana.Client
 
 	runIndependentElasticAgent bool
+
+	fieldValidationMethod fieldValidationMethod
 
 	deferCleanup   time.Duration
 	serviceVariant string
@@ -155,7 +224,6 @@ type tester struct {
 	dataStreamManifest *packages.DataStreamManifest
 	withCoverage       bool
 	coverageType       string
-	checkFailureStore  bool
 
 	serviceStateFilePath string
 
@@ -182,13 +250,12 @@ type SystemTesterOptions struct {
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
 
-	DeferCleanup      time.Duration
-	ServiceVariant    string
-	ConfigFileName    string
-	GlobalTestConfig  testrunner.GlobalRunnerTestConfig
-	WithCoverage      bool
-	CoverageType      string
-	CheckFailureStore bool
+	DeferCleanup     time.Duration
+	ServiceVariant   string
+	ConfigFileName   string
+	GlobalTestConfig testrunner.GlobalRunnerTestConfig
+	WithCoverage     bool
+	CoverageType     string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -213,7 +280,6 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		globalTestConfig:           options.GlobalTestConfig,
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
-		checkFailureStore:          options.CheckFailureStore,
 		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
@@ -250,16 +316,32 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
-	if err != nil {
-		return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+	if r.dataStreamPath != "" {
+		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
+		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
+		// the package manifest instead of the data stream manifest.
+		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
+		if err != nil {
+			return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
+		}
 	}
 
 	// If the environment variable is present, it always has preference over the root
 	// privileges value (if any) defined in the manifest file
-	v, ok := os.LookupEnv(enableIndependentAgents)
+	v, ok := os.LookupEnv(enableIndependentAgentsEnv)
 	if ok {
 		r.runIndependentElasticAgent = strings.ToLower(v) == "true"
+	}
+
+	// default method to validate using mappings (along with fields)
+	r.fieldValidationMethod = mappingsMethod
+	v, ok = os.LookupEnv(fieldValidationTestMethodEnv)
+	if ok {
+		method, ok := validationMethods[v]
+		if !ok {
+			return nil, fmt.Errorf("invalid field method option: %s", v)
+		}
+		r.fieldValidationMethod = method
 	}
 
 	return &r, nil
@@ -286,8 +368,13 @@ func (r tester) Parallel() bool {
 
 // Run runs the system tests defined under the given folder
 func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
+	stackConfig, err := stack.LoadConfig(r.profile)
+	if err != nil {
+		return nil, err
+	}
+
 	if !r.runSetup && !r.runTearDown && !r.runTestsOnly {
-		return r.run(ctx)
+		return r.run(ctx, stackConfig)
 	}
 
 	result := r.newResult("(init)")
@@ -315,7 +402,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 	}
 	result = r.newResult(fmt.Sprintf("%s - %s", resultName, testConfig.Name()))
 
-	scenario, err := r.prepareScenario(ctx, testConfig, svcInfo)
+	scenario, err := r.prepareScenario(ctx, testConfig, stackConfig, svcInfo)
 	if r.runSetup && err != nil {
 		tdErr := r.tearDownTest(ctx)
 		if tdErr != nil {
@@ -364,7 +451,7 @@ type resourcesOptions struct {
 	installedPackage bool
 }
 
-func (r *tester) createAgentOptions(policyName string) agentdeployer.FactoryOptions {
+func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:            r.profile,
 		PackageRootPath:    r.packageRootPath,
@@ -375,13 +462,14 @@ func (r *tester) createAgentOptions(policyName string) agentdeployer.FactoryOpti
 		PackageName:        r.testFolder.Package,
 		DataStream:         r.testFolder.DataStream,
 		PolicyName:         policyName,
+		DeployerName:       deployerName,
 		RunTearDown:        r.runTearDown,
 		RunTestsOnly:       r.runTestsOnly,
 		RunSetup:           r.runSetup,
 	}
 }
 
-func (r *tester) createServiceOptions(variantName string) servicedeployer.FactoryOptions {
+func (r *tester) createServiceOptions(variantName, deployerName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:                r.profile,
 		PackageRootPath:        r.packageRootPath,
@@ -394,10 +482,11 @@ func (r *tester) createServiceOptions(variantName string) servicedeployer.Factor
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,
 		DeployIndependentAgent: r.runIndependentElasticAgent,
+		DeployerName:           deployerName,
 	}
 }
 
-func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string, agentManifest packages.Agent) (agentdeployer.AgentInfo, error) {
+func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runID string) (agentdeployer.AgentInfo, error) {
 	var info agentdeployer.AgentInfo
 
 	info.Name = r.testFolder.Package
@@ -417,17 +506,34 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Agent.AgentSettings = config.Agent.AgentSettings
 
 	// If user is defined in the configuration file, it has preference
-	// and it should not be overwritten by the value in the manifest
-	if info.Agent.User == "" && agentManifest.Privileges.Root {
+	// and it should not be overwritten by the value in the package or DataStream manifest
+	if info.Agent.User == "" && r.agentRequiresRootPrivileges() {
 		info.Agent.User = "root"
 	}
 
+	if info.Agent.User == "root" {
+		// Ensure that CAP_CHOWN is present if the user for testing is root
+		if !slices.Contains(info.Agent.LinuxCapabilities, "CAP_CHOWN") {
+			info.Agent.LinuxCapabilities = append(info.Agent.LinuxCapabilities, "CAP_CHOWN")
+		}
+	}
+
 	// This could be removed once package-spec adds this new field
-	if !slices.Contains([]string{"", "default", "complete"}, info.Agent.BaseImage) {
+	if !slices.Contains([]string{"", "default", "complete", "systemd"}, info.Agent.BaseImage) {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("invalid value for agent.base_image: %q", info.Agent.BaseImage)
 	}
 
 	return info, nil
+}
+
+func (r *tester) agentRequiresRootPrivileges() bool {
+	if r.pkgManifest.Agent.Privileges.Root {
+		return true
+	}
+	if r.dataStreamManifest != nil && r.dataStreamManifest.Agent.Privileges.Root {
+		return true
+	}
+	return false
 }
 
 func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
@@ -435,7 +541,12 @@ func (r *tester) createServiceInfo() (servicedeployer.ServiceInfo, error) {
 	svcInfo.Name = r.testFolder.Package
 	svcInfo.Logs.Folder.Local = r.locationManager.ServiceLogDir()
 	svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	svcInfo.Test.RunID = common.CreateTestRunID()
+
+	prefix := ""
+	if v, found := os.LookupEnv(prefixServiceTestRunIDEnv); found && v != "" {
+		prefix = v
+	}
+	svcInfo.Test.RunID = common.CreateTestRunIDWithPrefix(prefix)
 
 	if r.runTearDown || r.runTestsOnly {
 		logger.Debug("Skip creating output directory")
@@ -510,18 +621,18 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 		r.removeAgentHandler = nil
 	}
 
-	if r.deleteTestPolicyHandler != nil {
-		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.deleteTestPolicyHandler = nil
-	}
-
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
 			return err
 		}
 		r.shutdownAgentHandler = nil
+	}
+
+	if r.deleteTestPolicyHandler != nil {
+		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
+			return err
+		}
+		r.deleteTestPolicyHandler = nil
 	}
 
 	return nil
@@ -536,12 +647,12 @@ func (r *tester) newResult(name string) *testrunner.ResultComposer {
 	})
 }
 
-func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err error) {
+func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []testrunner.TestResult, err error) {
 	result := r.newResult("(init)")
 
 	startTesting := time.Now()
 
-	results, err = r.runTestPerVariant(ctx, result, r.configFileName, r.serviceVariant)
+	results, err = r.runTestPerVariant(ctx, stackConfig, result, r.configFileName, r.serviceVariant)
 	if err != nil {
 		return results, err
 	}
@@ -559,11 +670,6 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
-
-	stackConfig, err := stack.LoadConfig(r.profile)
-	if err != nil {
-		return nil, err
-	}
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -588,7 +694,7 @@ func (r *tester) run(ctx context.Context) (results []testrunner.TestResult, err 
 	return results, nil
 }
 
-func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
+func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config, result *testrunner.ResultComposer, cfgFile, variantName string) ([]testrunner.TestResult, error) {
 	svcInfo, err := r.createServiceInfo()
 	if err != nil {
 		return result.WithError(err)
@@ -601,7 +707,7 @@ func (r *tester) runTestPerVariant(ctx context.Context, result *testrunner.Resul
 	}
 	logger.Debugf("Using config: %q", testConfig.Name())
 
-	partial, err := r.runTest(ctx, testConfig, svcInfo)
+	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
 	tdErr := r.tearDownTest(ctx)
 	if err != nil {
@@ -637,7 +743,12 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 			} `json:"mappings"`
 			Settings struct {
 				Index struct {
-					Mode string `json:"mode"`
+					Mode    string `json:"mode"`
+					Mapping struct {
+						Source struct {
+							Mode string `json:"mode"`
+						} `json:"source"`
+					} `json:"mapping"`
 				} `json:"index"`
 			} `json:"settings"`
 		} `json:"template"`
@@ -647,7 +758,8 @@ func isSyntheticSourceModeEnabled(ctx context.Context, api *elasticsearch.API, d
 		return false, fmt.Errorf("could not decode index template simulation response: %w", err)
 	}
 
-	if results.Template.Mappings.Source.Mode == "synthetic" {
+	// in 8.17.2 source mode definition is now under settings object
+	if results.Template.Mappings.Source.Mode == "synthetic" || results.Template.Settings.Index.Mapping.Source.Mode == "synthetic" {
 		return true, nil
 	}
 
@@ -690,7 +802,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		r.esAPI.Search.WithSort("@timestamp:asc"),
 		r.esAPI.Search.WithSize(elasticsearchQuerySize),
 		r.esAPI.Search.WithSource("true"),
-		r.esAPI.Search.WithBody(strings.NewReader(checkFieldsBody)),
+		r.esAPI.Search.WithBody(strings.NewReader(FieldsQuery)),
 		r.esAPI.Search.WithIgnoreUnavailable(true),
 	)
 	if err != nil {
@@ -707,38 +819,7 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 		return nil, fmt.Errorf("failed to search docs for data stream %s: %s", dataStream, resp.String())
 	}
 
-	var results struct {
-		Hits struct {
-			Total struct {
-				Value int
-			}
-			Hits []struct {
-				Source common.MapStr `json:"_source"`
-				Fields common.MapStr `json:"fields"`
-			}
-		}
-		Aggregations struct {
-			AllIgnored struct {
-				DocCount      int `json:"doc_count"`
-				IgnoredFields struct {
-					Buckets []struct {
-						Key string `json:"key"`
-					} `json:"buckets"`
-				} `json:"ignored_fields"`
-				IgnoredDocs struct {
-					Hits struct {
-						Hits []common.MapStr `json:"hits"`
-					} `json:"hits"`
-				} `json:"ignored_docs"`
-			} `json:"all_ignored"`
-		} `json:"aggregations"`
-		Error *struct {
-			Type   string
-			Reason string
-		}
-		Status int
-	}
-
+	var results FieldsQueryResult
 	if err := json.NewDecoder(resp.Body).Decode(&results); err != nil {
 		return nil, fmt.Errorf("could not decode search results response: %w", err)
 	}
@@ -764,113 +845,140 @@ func (r *tester) getDocs(ctx context.Context, dataStream string) (*hits, error) 
 	return &hits, nil
 }
 
-func (r *tester) getFailureStoreDocs(ctx context.Context, dataStream string) ([]failureStoreDocument, error) {
-	query := map[string]any{
-		"query": map[string]any{
-			"bool": map[string]any{
-				// Ignoring failures with error.type version_conflict_engine_exception because there are packages which
-				// explicitly set the _id with the fingerprint processor to avoid duplicates.
-				"must_not": map[string]any{
-					"term": map[string]any{
-						"error.type": "version_conflict_engine_exception",
-					},
-				},
-			},
-		},
-	}
-	body, err := json.Marshal(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode search query: %w", err)
-	}
-	// FIXME: Using the low-level transport till the API SDK supports the failure store.
-	request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("/%s/_search?failure_store=only", dataStream), bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create search request: %w", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
+type deprecationWarning struct {
+	Level   string `json:"level"`
+	Message string `json:"message"`
+	URL     string `json:"url"`
+	Details string `json:"details"`
 
-	resp, err := r.esClient.Transport.Perform(request)
+	ResolveDuringRollingUpgrade bool `json:"resolve_during_rolling_upgrade"`
+
+	index string
+}
+
+func (r *tester) getDeprecationWarnings(ctx context.Context, dataStream string) ([]deprecationWarning, error) {
+	config, err := stack.LoadConfig(r.profile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to perform search request: %w", err)
+		return []deprecationWarning{}, fmt.Errorf("failed to load config from profile: %w", err)
+	}
+	if config.Provider == stack.ProviderServerless {
+		logger.Tracef("Skip deprecation warnings validation in Serverless projects")
+		// In serverless, there is no handler for this request. Ignore this validation.
+		// Example of response: [400 Bad Request] {"error":"no handler found for uri [/metrics-elastic_package_registry.metrics-62481/_migration/deprecations] and method [GET]"}
+		return []deprecationWarning{}, nil
+	}
+	resp, err := r.esAPI.Migration.Deprecations(
+		r.esAPI.Migration.Deprecations.WithContext(ctx),
+		r.esAPI.Migration.Deprecations.WithIndex(dataStream),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	switch {
-	case resp.StatusCode == http.StatusNotFound:
-		// Can happen if the data stream hasn't been created yet.
-		return nil, nil
-	case resp.StatusCode == http.StatusServiceUnavailable:
-		// Index is being created, but no shards are available yet.
-		// See https://github.com/elastic/elasticsearch/issues/65846
-		return nil, nil
-	case resp.StatusCode >= 400:
-		return nil, fmt.Errorf("search request returned status code %d", resp.StatusCode)
+	if resp.StatusCode == http.StatusBadRequest {
+		if config.Provider == stack.ProviderEnvironment {
+			// Ignore errors in provider environment too, in this case it could also be a Serverless project.
+			logger.Tracef("Ignored deprecation warnings bad request code error in provider environment, response: %s", resp.String())
+			return []deprecationWarning{}, nil
+		}
 	}
 
+	if resp.IsError() {
+		return nil, fmt.Errorf("unexpected status code in response: %s", resp.String())
+	}
+
+	// Apart from index_settings, there are also cluster_settings, node_settings and ml_settings.
+	// There is also a data_streams field in the response that is not documented and is empty.
+	// Here we are interested only on warnings on index settings.
 	var results struct {
-		Hits struct {
-			Hits []struct {
-				Source failureStoreDocument `json:"_source"`
-				Fields common.MapStr        `json:"fields"`
-			} `json:"hits"`
-		} `json:"hits"`
+		IndexSettings map[string][]deprecationWarning `json:"index_settings"`
 	}
 	err = json.NewDecoder(resp.Body).Decode(&results)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode search response: %w", err)
+		return nil, fmt.Errorf("cannot decode response: %w", err)
 	}
 
-	var docs []failureStoreDocument
-	for _, hit := range results.Hits.Hits {
-		docs = append(docs, hit.Source)
+	var result []deprecationWarning
+	for index, warnings := range results.IndexSettings {
+		for _, warning := range warnings {
+			warning.index = index
+			result = append(result, warning)
+		}
 	}
+	return result, nil
+}
 
-	return docs, nil
+func (r *tester) checkDeprecationWarnings(stackVersion *semver.Version, warnings []deprecationWarning, configName string) []testrunner.TestResult {
+	var results []testrunner.TestResult
+	for _, warning := range warnings {
+		if ignoredDeprecationWarning(stackVersion, warning) {
+			continue
+		}
+		details := warning.Details
+		if warning.index != "" {
+			details = fmt.Sprintf("%s (index: %s)", details, warning.index)
+		}
+		tr := testrunner.TestResult{
+			TestType:       TestType,
+			Name:           "Deprecation warnings - " + configName,
+			Package:        r.testFolder.Package,
+			DataStream:     r.testFolder.DataStream,
+			FailureMsg:     warning.Message,
+			FailureDetails: details,
+		}
+		results = append(results, tr)
+	}
+	return results
+}
+
+func mustParseConstraint(c string) *semver.Constraints {
+	constraint, err := semver.NewConstraint(c)
+	if err != nil {
+		panic(err)
+	}
+	return constraint
+}
+
+var ignoredWarnings = []struct {
+	constraints *semver.Constraints
+	pattern     *regexp.Regexp
+}{
+	{
+		// This deprecation warning was introduced in 8.17.0 and fixed in Fleet in 8.17.2.
+		// See https://github.com/elastic/kibana/pull/207133
+		// Ignoring it because packages cannot do much about this on these versions.
+		constraints: mustParseConstraint(`>=8.17.0,<8.17.2`),
+		pattern:     regexp.MustCompile(`^Configuring source mode in mappings is deprecated and will be removed in future versions.`),
+	},
+}
+
+func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecationWarning) bool {
+	for _, rule := range ignoredWarnings {
+		if rule.constraints != nil && !rule.constraints.Check(stackVersion) {
+			continue
+		}
+		if rule.pattern.MatchString(warning.Message) {
+			return true
+		}
+	}
+	return false
 }
 
 type scenarioTest struct {
-	dataStream         string
-	policyTemplateName string
-	kibanaDataStream   kibana.PackageDataStream
-	syntheticEnabled   bool
-	docs               []common.MapStr
-	failureStore       []failureStoreDocument
-	ignoredFields      []string
-	degradedDocs       []common.MapStr
-	agent              agentdeployer.DeployedAgent
-	startTestTime      time.Time
-}
-
-type pipelineTrace []string
-
-func (p *pipelineTrace) UnmarshalJSON(d []byte) error {
-	var alias interface{}
-	if err := json.Unmarshal(d, &alias); err != nil {
-		return err
-	}
-	switch v := alias.(type) {
-	case string:
-		*p = append(*p, v)
-	case []any:
-		// asume it is going to be an array of strings
-		for _, value := range v {
-			*p = append(*p, fmt.Sprint(value))
-		}
-	default:
-		return fmt.Errorf("unexpected type found for pipeline_trace: %T", v)
-	}
-	return nil
-}
-
-type failureStoreDocument struct {
-	Error struct {
-		Type          string        `json:"type"`
-		Message       string        `json:"message"`
-		StackTrace    string        `json:"stack_trace"`
-		PipelineTrace pipelineTrace `json:"pipeline_trace"`
-		Pipeline      string        `json:"pipeline"`
-		ProcessorType string        `json:"processor_type"`
-	} `json:"error"`
+	// dataStream is the name of the target data stream where documents are indexed
+	dataStream          string
+	indexTemplateName   string
+	policyTemplateName  string
+	policyTemplateInput string
+	kibanaDataStream    kibana.PackageDataStream
+	syntheticEnabled    bool
+	docs                []common.MapStr
+	deprecationWarnings []deprecationWarning
+	ignoredFields       []string
+	degradedDocs        []common.MapStr
+	agent               agentdeployer.DeployedAgent
+	startTestTime       time.Time
 }
 
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
@@ -891,8 +999,8 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
-func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
-	serviceOptions := r.createServiceOptions(config.ServiceVariantName)
+func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
+	serviceOptions := r.createServiceOptions(config.ServiceVariantName, config.Deployer)
 
 	var err error
 	var serviceStateData ServiceState
@@ -912,24 +1020,301 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 	}
 
 	serviceOptions.DeployIndependentAgent = r.runIndependentElasticAgent
-
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
-		policyTemplateName, err = findPolicyTemplateForInput(*r.pkgManifest, *r.dataStreamManifest, config.Input)
+		policyTemplateName, err = FindPolicyTemplateForInput(r.pkgManifest, r.dataStreamManifest, config.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
 	scenario.policyTemplateName = policyTemplateName
 
-	policyTemplate, err := selectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
+	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
+	scenario.policyTemplateInput = policyTemplate.Input
 
+	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kibana policies: %w", err)
+	}
+
+	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policyToEnrollOrCurrent)
+	if err != nil {
+		return nil, err
+	}
+
+	scenario.agent = agentDeployed
+
+	if agentDeployed != nil {
+		// The Elastic Agent created in `r.setupAgent` needs to be retrieved just after starting it, to ensure
+		// it can be removed and unenrolled if the service fails to start.
+		// This function must also be called after setting the service (r.setupService), since there are other
+		// deployers like custom agents or kubernetes deployer that create new Elastic Agents too that needs to
+		// be retrieved too.
+		_, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
+		if err != nil {
+			return nil, fmt.Errorf("can't check enrolled agents: %w", err)
+		}
+	}
+
+	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policyToEnrollOrCurrent, serviceStateData)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	if serviceOptions.DeployerName == "" && (errors.Is(err, os.ErrNotExist) || service == nil) {
+		// If the service deployer is not defined, it means that the test does not require a service deployer.
+		// Just valid when the deployer setting is not defined in the test config.
+		logger.Debugf("No service deployer defined for this test")
+	}
+
+	// Reload test config with ctx variable substitution.
+	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
+	if err != nil {
+		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
+	}
+
+	// store the time just before adding the Test Policy, this time will be used to check
+	// the agent logs from that time onwards to avoid possible previous errors present in logs
+	scenario.startTestTime = time.Now()
+
+	logger.Debug("adding package data stream to test policy...")
+	ds, err := CreatePackageDatastream(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace)
+	if err != nil {
+		return nil, fmt.Errorf("could not create package data stream: %w", err)
+	}
+	if r.runTearDown {
+		logger.Debug("Skip adding data stream config to policy")
+	} else {
+		if err := r.kibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
+			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
+		}
+	}
+	scenario.kibanaDataStream = ds
+
+	scenario.indexTemplateName = BuildIndexTemplateName(ds, r.pkgManifest.Type, config.Vars)
+	scenario.dataStream = BuildDataStreamName(scenario.policyTemplateInput, ds, r.pkgManifest.Type, config.Vars)
+
+	r.cleanTestScenarioHandler = func(ctx context.Context) error {
+		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
+		err := r.deleteDataStream(ctx, scenario.dataStream)
+		if err != nil {
+			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
+		}
+		return nil
+	}
+
+	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
+	// this "checkEnrolledAgents" call must be duplicated here after creating the service too. This will
+	// ensure to get the right Enrolled Elastic Agent too.
+	agent, err := r.checkEnrolledAgents(ctx, agentInfo, svcInfo)
+	if err != nil {
+		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
+	}
+
+	// FIXME: running per stages does not work when multiple agents are created
+	var origPolicy kibana.Policy
+	if r.runTearDown {
+		origPolicy = serviceStateData.OrigPolicy
+		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
+	} else {
+		// Store previous agent policy assigned to the agent
+		origPolicy = kibana.Policy{
+			ID:       agent.PolicyID,
+			Revision: agent.PolicyRevision,
+		}
+	}
+
+	r.resetAgentPolicyHandler = func(ctx context.Context) error {
+		if r.runSetup {
+			// it should be kept the same policy just when system tests are
+			// triggered with the flags for running spolicyToAssignDatastreamTestsetup stage (--setup)
+			return nil
+		}
+
+		// RunTestOnly step (--no-provision) should also reassign back the previous (original) policy
+		// even with with independent Elastic Agents, since this step creates a new test policy each execution
+		// Moreover, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent && !r.runTestsOnly {
+			return nil
+		}
+
+		logger.Debug("reassigning original policy back to agent...")
+		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *agent, origPolicy); err != nil {
+			return fmt.Errorf("error reassigning original policy to agent: %w", err)
+		}
+		return nil
+	}
+
+	origAgent := agent
+	origLogLevel := ""
+	if r.runTearDown {
+		logger.Debug("Skip assiging log level debug to agent")
+		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
+	} else {
+		logger.Debug("Set Debug log level to agent")
+		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
+		err = r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
+		if err != nil {
+			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
+		}
+	}
+	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
+		if r.runTestsOnly || r.runSetup {
+			return nil
+		}
+
+		// No need to reset agent log level when running independent Elastic Agents
+		// since the Elastic Agent is going to be removed/uninstalled
+		// Morevoer, ensure there is no agent service deployer (deprecated) being used
+		if scenario.agent != nil && r.runIndependentElasticAgent {
+			return nil
+		}
+
+		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
+
+		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
+			return fmt.Errorf("error reassigning original log level to agent: %w", err)
+		}
+		return nil
+	}
+
+	if r.runTearDown {
+		logger.Debug("Skip assigning package data stream to agent")
+	} else {
+		policyWithDataStream, err := r.kibanaClient.GetPolicy(ctx, policyToTest.ID)
+		if err != nil {
+			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
+		}
+
+		logger.Debug("assigning package data stream to agent...")
+		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *agent, *policyWithDataStream); err != nil {
+			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
+		}
+	}
+
+	// Signal to the service that the agent is ready (policy is assigned).
+	if service != nil && config.ServiceNotifySignal != "" {
+		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
+			return nil, fmt.Errorf("failed to notify test service: %w", err)
+		}
+	}
+
+	if r.runTearDown {
+		return &scenario, nil
+	}
+
+	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream)
+
+	// before checking "waitErr" error , it is necessary to check if the service has finished with error
+	// to report it as a test case failed
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(ctx, config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return nil, err
+		}
+		if exited && code > 0 {
+			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
+		}
+	}
+
+	if waitErr != nil {
+		return nil, waitErr
+	}
+
+	// Get deprecation warnings after ensuring that there are ingested docs and thus the
+	// data stream exists.
+	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
+
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
+	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
+	}
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
+
+	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
+	scenario.ignoredFields = hits.IgnoredFields
+	scenario.degradedDocs = hits.DegradedDocs
+
+	if r.runSetup {
+		opts := scenarioStateOpts{
+			origPolicy:    &origPolicy,
+			enrollPolicy:  policyToEnrollOrCurrent,
+			currentPolicy: policyToTest,
+			config:        config,
+			agent:         *origAgent,
+			agentInfo:     agentInfo,
+			svcInfo:       svcInfo,
+		}
+		err = writeScenarioState(opts, r.serviceStateFilePath)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &scenario, nil
+}
+
+// BuildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
+// when the package data stream is added to the policy.
+func BuildIndexTemplateName(ds kibana.PackageDataStream, manType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, cfgVars)
+
+	indexTemplateName := fmt.Sprintf(
+		"%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+	)
+	return indexTemplateName
+}
+
+// BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
+// when the package data stream is added to the policy.
+func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, manType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, cfgVars)
+
+	// Input packages using the otel collector input require to add a specific dataset suffix
+	if manType == "input" && policyTemplateInput == otelCollectorInputName {
+		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
+	}
+
+	dataStreamName := fmt.Sprintf(
+		"%s-%s-%s",
+		ds.Inputs[0].Streams[0].DataStream.Type,
+		dataStreamDataset,
+		ds.Namespace,
+	)
+	return dataStreamName
+}
+
+func getExpectedDatasetForTest(pkgType, dataset string, cfgVars common.MapStr) string {
+	if pkgType == "input" {
+		// Input packages can set `data_stream.dataset` by convention to customize the dataset.
+		v, _ := cfgVars.GetValue("data_stream.dataset")
+		if ds, ok := v.(string); ok && ds != "" {
+			return ds
+		}
+	}
+	return dataset
+}
+
+// createOrGetKibanaPolicies creates the Kibana policies required for testing.
+// It creates two policies, one for enrolling the agent (policyToEnroll) and another one
+// for testing purposes (policyToTest) where the package data stream is added.
+// In case the tester is running with --teardown or --no-provision flags, then the policies
+// are read from the service state file created in the setup stage.
+func (r *tester) createOrGetKibanaPolicies(ctx context.Context, serviceStateData ServiceState, stackConfig stack.Config) (*kibana.Policy, *kibana.Policy, error) {
 	// Configure package (single data stream) via Fleet APIs.
 	testTime := time.Now().Format("20060102T15:04:05Z")
 	var policyToTest, policyCurrent, policyToEnroll *kibana.Policy
+	var err error
+
 	if r.runTearDown || r.runTestsOnly {
 		policyCurrent = &serviceStateData.CurrentPolicy
 		policyToEnroll = &serviceStateData.EnrollPolicy
@@ -949,7 +1334,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 
 		policyToEnroll, err = r.kibanaClient.CreatePolicy(ctx, policyEnroll)
 		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
+			return nil, nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 
@@ -982,12 +1367,16 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 			Namespace:   common.CreateTestRunID(),
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
+		// TODO: Migrate from stack.logstash_enabled to the stack config.
 		if r.profile.Config("stack.logstash_enabled", "false") == "true" {
 			policy.DataOutputID = "fleet-logstash-output"
 		}
+		if stackConfig.OutputID != "" {
+			policy.DataOutputID = stackConfig.OutputID
+		}
 		policyToTest, err = r.kibanaClient.CreatePolicy(ctx, policy)
 		if err != nil {
-			return nil, fmt.Errorf("could not create test policy: %w", err)
+			return nil, nil, fmt.Errorf("could not create test policy: %w", err)
 		}
 	}
 
@@ -1005,281 +1394,18 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, svcInf
 		return nil
 	}
 
-	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
-	policy := policyToEnroll
 	if r.runTearDown || r.runTestsOnly {
-		// required in order to be able select the right agent in `checkEnrolledAgents` when
+		// required to return "policyCurrent" policy in order to be able select the right agent in `checkEnrolledAgents` when
 		// using independent agents or custom/kubernetes agents since policy data is set into `agentInfo` variable`
-		policy = policyCurrent
+		return policyCurrent, policyToTest, nil
 	}
 
-	agentDeployed, agentInfo, err := r.setupAgent(ctx, config, serviceStateData, policy, r.pkgManifest.Agent)
-	if err != nil {
-		return nil, err
-	}
-
-	scenario.agent = agentDeployed
-
-	service, svcInfo, err := r.setupService(ctx, config, serviceOptions, svcInfo, agentInfo, agentDeployed, policy, serviceStateData)
-	if errors.Is(err, os.ErrNotExist) {
-		logger.Debugf("No service deployer defined for this test")
-	} else if err != nil {
-		return nil, err
-	}
-
-	// Reload test config with ctx variable substitution.
-	config, err = newConfig(config.Path, svcInfo, serviceOptions.Variant)
-	if err != nil {
-		return nil, fmt.Errorf("unable to reload system test case configuration: %w", err)
-	}
-
-	// store the time just before adding the Test Policy, this time will be used to check
-	// the agent logs from that time onwards to avoid possible previous errors present in logs
-	scenario.startTestTime = time.Now()
-
-	logger.Debug("adding package data stream to test policy...")
-	ds := createPackageDatastream(*policyToTest, *r.pkgManifest, policyTemplate, *r.dataStreamManifest, *config, policyToTest.Namespace)
-	if r.runTearDown {
-		logger.Debug("Skip adding data stream config to policy")
-	} else {
-		if err := r.kibanaClient.AddPackageDataStreamToPolicy(ctx, ds); err != nil {
-			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
-		}
-	}
-	scenario.kibanaDataStream = ds
-
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
-
-	// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-	dataStreamDataset := ds.Inputs[0].Streams[0].DataStream.Dataset
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
-	}
-	scenario.dataStream = fmt.Sprintf(
-		"%s-%s-%s",
-		ds.Inputs[0].Streams[0].DataStream.Type,
-		dataStreamDataset,
-		ds.Namespace,
-	)
-
-	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		err := r.deleteDataStream(ctx, scenario.dataStream)
-		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
-		}
-		return nil
-	}
-
-	// FIXME: running per stages does not work when multiple agents are created
-	var origPolicy kibana.Policy
-	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
-	// this "checkEnrolledAgents" call to must be located after creating the service.
-	agents, err := checkEnrolledAgents(ctx, r.kibanaClient, agentInfo, svcInfo, r.runIndependentElasticAgent)
-	if err != nil {
-		return nil, fmt.Errorf("can't check enrolled agents: %w", err)
-	}
-	agent := agents[0]
-	logger.Debugf("Selected enrolled agent %q", agent.ID)
-
-	r.removeAgentHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
-			return nil
-		}
-		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
-		if !r.runIndependentElasticAgent && !svcInfo.Agent.Independent {
-			return nil
-		}
-		logger.Debug("removing agent...")
-		err := r.kibanaClient.RemoveAgent(ctx, agent)
-		if err != nil {
-			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
-		}
-		return nil
-	}
-
-	if r.runTearDown {
-		origPolicy = serviceStateData.OrigPolicy
-		logger.Debugf("Got orig policy from file: %q - %q", origPolicy.Name, origPolicy.ID)
-	} else {
-		// Store previous agent policy assigned to the agent
-		origPolicy = kibana.Policy{
-			ID:       agent.PolicyID,
-			Revision: agent.PolicyRevision,
-		}
-	}
-
-	r.resetAgentPolicyHandler = func(ctx context.Context) error {
-		if r.runSetup {
-			// it should be kept the same policy just when system tests are
-			// triggered with the flags for running spolicyToAssignDatastreamTestsetup stage (--setup)
-			return nil
-		}
-		logger.Debug("reassigning original policy back to agent...")
-		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, origPolicy); err != nil {
-			return fmt.Errorf("error reassigning original policy to agent: %w", err)
-		}
-		return nil
-	}
-
-	origAgent := agent
-	origLogLevel := ""
-	if r.runTearDown {
-		logger.Debug("Skip assiging log level debug to agent")
-		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
-	} else {
-		logger.Debug("Set Debug log level to agent")
-		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
-		err = r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
-		if err != nil {
-			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
-		}
-	}
-	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
-		if r.runTestsOnly {
-			return nil
-		}
-		logger.Debugf("reassigning original log level %q back to agent...", origLogLevel)
-
-		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, origLogLevel); err != nil {
-			return fmt.Errorf("error reassigning original log level to agent: %w", err)
-		}
-		return nil
-	}
-
-	if r.runTearDown {
-		logger.Debug("Skip assigning package data stream to agent")
-	} else {
-		policyWithDataStream, err := r.kibanaClient.GetPolicy(ctx, policyToTest.ID)
-		if err != nil {
-			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
-		}
-
-		logger.Debug("assigning package data stream to agent...")
-		if err := r.kibanaClient.AssignPolicyToAgent(ctx, agent, *policyWithDataStream); err != nil {
-			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
-		}
-	}
-
-	// Signal to the service that the agent is ready (policy is assigned).
-	if service != nil && config.ServiceNotifySignal != "" {
-		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
-			return nil, fmt.Errorf("failed to notify test service: %w", err)
-		}
-	}
-
-	if r.runTearDown {
-		return &scenario, nil
-	}
-
-	// Use custom timeout if the service can't collect data immediately.
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if config.WaitForDataTimeout > 0 {
-		waitForDataTimeout = config.WaitForDataTimeout
-	}
-
-	// (TODO in future) Optionally exercise service to generate load.
-	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
-	var hits *hits
-	oldHits := 0
-	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		var err error
-		hits, err = r.getDocs(ctx, scenario.dataStream)
-		if err != nil {
-			return false, err
-		}
-
-		if r.checkFailureStore {
-			failureStore, err := r.getFailureStoreDocs(ctx, scenario.dataStream)
-			if err != nil {
-				return false, fmt.Errorf("failed to check failure store: %w", err)
-			}
-			if n := len(failureStore); n > 0 {
-				// Interrupt loop earlier if there are failures in the document store.
-				logger.Debugf("Found %d hits in the failure store for %s", len(failureStore), scenario.dataStream)
-				return true, nil
-			}
-		}
-
-		if config.Assert.HitCount > 0 {
-			if hits.size() < config.Assert.HitCount {
-				return false, nil
-			}
-
-			ret := hits.size() == oldHits
-			if !ret {
-				oldHits = hits.size()
-				time.Sleep(4 * time.Second)
-			}
-
-			return ret, nil
-		}
-
-		return hits.size() > 0, nil
-	}, 1*time.Second, waitForDataTimeout)
-
-	if service != nil && config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(ctx, config.Service)
-		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
-			return nil, err
-		}
-		if exited && code > 0 {
-			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
-		}
-	}
-
-	if waitErr != nil {
-		return nil, waitErr
-	}
-
-	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find hits in %s data stream", scenario.dataStream)}
-	}
-
-	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
-	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
-	}
-	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
-
-	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
-	scenario.ignoredFields = hits.IgnoredFields
-	scenario.degradedDocs = hits.DegradedDocs
-	if r.checkFailureStore {
-		logger.Debugf("Checking failure store for data stream %s", scenario.dataStream)
-		scenario.failureStore, err = r.getFailureStoreDocs(ctx, scenario.dataStream)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get documents from the failure store for data stream %s: %w", scenario.dataStream, err)
-		}
-		logger.Debugf("Found %d docs in failure store for data stream %s", len(scenario.failureStore), scenario.dataStream)
-	}
-
-	if r.runSetup {
-		opts := scenarioStateOpts{
-			origPolicy:    &origPolicy,
-			enrollPolicy:  policyToEnroll,
-			currentPolicy: policyToTest,
-			config:        config,
-			agent:         origAgent,
-			agentInfo:     agentInfo,
-			svcInfo:       svcInfo,
-		}
-		err = writeScenarioState(opts, r.serviceStateFilePath)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &scenario, nil
+	// policyToEnroll is used in both independent agents and agents created by servicedeployer (custom or kubernetes agents)
+	return policyToEnroll, policyToTest, nil
 }
 
 func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOptions servicedeployer.FactoryOptions, svcInfo servicedeployer.ServiceInfo, agentInfo agentdeployer.AgentInfo, agentDeployed agentdeployer.DeployedAgent, policy *kibana.Policy, state ServiceState) (servicedeployer.DeployedService, servicedeployer.ServiceInfo, error) {
-	logger.Debug("setting up service...")
+	logger.Info("Setting up service...")
 	if r.runTearDown || r.runTestsOnly {
 		svcInfo.Test.RunID = state.ServiceRunID
 		svcInfo.OutputDir = state.ServiceOutputDir
@@ -1291,7 +1417,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		svcInfo.AgentNetworkName = agentInfo.NetworkName
 	}
 
-	// Set the right folder for logs execpt for custom agents that are still deployed using "servicedeployer"
+	// Set the right folder for logs except for custom agents that are still deployed using "servicedeployer"
 	if r.runIndependentElasticAgent && agentDeployed != nil {
 		svcInfo.Logs.Folder.Local = agentInfo.Logs.Folder.Local
 	}
@@ -1308,6 +1434,9 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	if err != nil {
 		return nil, svcInfo, fmt.Errorf("could not create service runner: %w", err)
 	}
+	if serviceDeployer == nil {
+		return nil, svcInfo, nil
+	}
 
 	service, err := serviceDeployer.SetUp(ctx, svcInfo)
 	if err != nil {
@@ -1321,7 +1450,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 		if service == nil {
 			return nil
 		}
-		logger.Debug("tearing down service...")
+		logger.Info("Tearing down service...")
 		if err := service.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down service: %w", err)
 		}
@@ -1332,7 +1461,7 @@ func (r *tester) setupService(ctx context.Context, config *testConfig, serviceOp
 	return service, service.Info(), nil
 }
 
-func (r *tester) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy, agentManifest packages.Agent) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
+func (r *tester) setupAgent(ctx context.Context, config *testConfig, state ServiceState, policy *kibana.Policy) (agentdeployer.DeployedAgent, agentdeployer.AgentInfo, error) {
 	if !r.runIndependentElasticAgent {
 		return nil, agentdeployer.AgentInfo{}, nil
 	}
@@ -1340,13 +1469,13 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 	if r.runTearDown || r.runTestsOnly {
 		agentRunID = state.AgentRunID
 	}
-	logger.Debug("setting up independent Elastic Agent...")
-	agentInfo, err := r.createAgentInfo(policy, config, agentRunID, agentManifest)
+	logger.Info("Setting up independent Elastic Agent...")
+	agentInfo, err := r.createAgentInfo(policy, config, agentRunID)
 	if err != nil {
 		return nil, agentdeployer.AgentInfo{}, err
 	}
 
-	agentOptions := r.createAgentOptions(agentInfo.Policy.Name)
+	agentOptions := r.createAgentOptions(agentInfo.Policy.Name, config.Deployer)
 	agentDeployer, err := agentdeployer.Factory(agentOptions)
 	if err != nil {
 		return nil, agentInfo, fmt.Errorf("could not create agent runner: %w", err)
@@ -1367,7 +1496,7 @@ func (r *tester) setupAgent(ctx context.Context, config *testConfig, state Servi
 		if agentDeployer == nil {
 			return nil
 		}
-		logger.Debug("tearing down agent...")
+		logger.Info("Tearing down agent...")
 		if err := agentDeployed.TearDown(ctx); err != nil {
 			return fmt.Errorf("error tearing down agent: %w", err)
 		}
@@ -1394,60 +1523,130 @@ func (r *tester) createServiceStateDir() error {
 	return nil
 }
 
-func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
-	if err := validateFailureStore(scenario.failureStore); err != nil {
-		return result.WithError(err)
+func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream string) (*hits, error) {
+	// Use custom timeout if the service can't collect data immediately.
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	// Validate fields in docs
-	// when reroute processors are used, expectedDatasets should be set depends on the processor config
-	var expectedDatasets []string
-	for _, pipeline := range r.pipelines {
-		var esIngestPipeline map[string]any
-		err := yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+	if config.Assert.HitCount > elasticsearchQuerySize {
+		return nil, fmt.Errorf("invalid value for assert.hit_count (%d): it must be lower of the maximum query size (%d)", config.Assert.HitCount, elasticsearchQuerySize)
+	}
+
+	if config.Assert.MinCount > elasticsearchQuerySize {
+		return nil, fmt.Errorf("invalid value for assert.min_count (%d): it must be lower of the maximum query size (%d)", config.Assert.MinCount, elasticsearchQuerySize)
+	}
+
+	// (TODO in future) Optionally exercise service to generate load.
+	logger.Debugf("checking for expected data in data stream (%s)...", waitForDataTimeout)
+	var hits *hits
+	oldHits := 0
+	foundFields := map[string]any{}
+	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		var err error
+		hits, err = r.getDocs(ctx, dataStream)
 		if err != nil {
-			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+			return false, err
 		}
-		processors, _ := esIngestPipeline["processors"].([]any)
-		for _, p := range processors {
-			processor, ok := p.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("unexpected processor %+v", p)
+
+		defer func() {
+			oldHits = hits.size()
+		}()
+
+		assertHitCount := func() bool {
+			if config.Assert.HitCount == 0 {
+				// not enabled
+				return true
 			}
-			if reroute, ok := processor["reroute"]; ok {
-				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
-					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
+			if hits.size() < config.Assert.HitCount {
+				return false
+			}
+
+			ret := hits.size() == oldHits
+			if !ret {
+				time.Sleep(4 * time.Second)
+			}
+
+			return ret
+		}()
+
+		assertFieldsPresent := func() bool {
+			if len(config.Assert.FieldsPresent) == 0 {
+				// not enabled
+				return true
+			}
+			if hits.size() == 0 {
+				// At least there should be one document ingested
+				return false
+			}
+			for _, f := range config.Assert.FieldsPresent {
+				if _, found := foundFields[f]; found {
+					continue
 				}
+				found := false
+				for _, d := range hits.Fields {
+					if _, err := d.GetValue(f); err == nil {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return false
+				}
+				logger.Debugf("Found field %q in hits", f)
+				foundFields[f] = struct{}{}
 			}
-		}
+			return true
+		}()
+
+		assertMinCount := func() bool {
+			if config.Assert.MinCount > 0 {
+				return hits.size() >= config.Assert.MinCount
+			}
+			// By default at least one document
+			return hits.size() > 0
+		}()
+
+		return assertFieldsPresent && assertMinCount && assertHitCount, nil
+	}, 1*time.Second, waitForDataTimeout)
+
+	if waitErr != nil {
+		return nil, waitErr
 	}
 
-	if expectedDatasets == nil {
-		var expectedDataset string
-		if ds := r.testFolder.DataStream; ds != "" {
-			expectedDataset = getDataStreamDataset(*r.pkgManifest, *r.dataStreamManifest)
-		} else {
-			expectedDataset = r.pkgManifest.Name + "." + scenario.policyTemplateName
-		}
-		expectedDatasets = []string{expectedDataset}
+	if !passed {
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("could not find the expected hits in %s data stream", dataStream)}
 	}
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			expectedDatasets = append(expectedDatasets, dataset)
-		}
+
+	return hits, nil
+}
+
+func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
+	logger.Info("Validating test case...")
+	expectedDatasets, err := r.expectedDatasets(scenario, config)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) {
+		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
+		fields.WithStringNumberFields(config.StringNumberFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
 	}
+
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
 		return result.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
@@ -1455,7 +1654,34 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	err = validateIgnoredFields(r.stackVersion.Number, scenario, config)
+	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
+		logger.Debug("Performing validation based on mappings")
+		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
+
+		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
+			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
+			fields.WithMappingValidatorDataStream(scenario.dataStream),
+			fields.WithMappingValidatorExceptionFields(exceptionFields),
+		)
+		if err != nil {
+			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
+		}
+
+		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+				Details: errs.Error(),
+			})
+		}
+	}
+
+	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
+	if err != nil {
+		return result.WithErrorf("failed to parse stack version: %w", err)
+	}
+
+	err = validateIgnoredFields(stackVersion, scenario, config)
 	if err != nil {
 		return result.WithError(err)
 	}
@@ -1485,7 +1711,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.kibanaDataStream, scenario.dataStream, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplateInput, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1500,6 +1726,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
+	if results := r.checkDeprecationWarnings(stackVersion, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+		return results, nil
+	}
+
 	if r.withCoverage {
 		coverage, err := r.generateCoverageReport(result.CoveragePackageName())
 		if err != nil {
@@ -1511,7 +1741,57 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
+func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([]string, error) {
+	// when reroute processors are used, expectedDatasets should be set depends on the processor config
+	var expectedDatasets []string
+	for _, pipeline := range r.pipelines {
+		var esIngestPipeline map[string]any
+		err := yaml.Unmarshal(pipeline.Content, &esIngestPipeline)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshalling ingest pipeline content failed: %w", err)
+		}
+		processors, _ := esIngestPipeline["processors"].([]any)
+		for _, p := range processors {
+			processor, ok := p.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("unexpected processor %+v", p)
+			}
+			if reroute, ok := processor["reroute"]; ok {
+				if rerouteP, ok := reroute.(ingest.RerouteProcessor); ok {
+					expectedDatasets = append(expectedDatasets, rerouteP.Dataset...)
+				}
+			}
+		}
+	}
+
+	if expectedDatasets == nil {
+		// get dataset directly from package policy added when preparing the scenario
+		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
+		if r.pkgManifest.Type == "input" {
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				expectedDataset += "." + otelSuffixDataset
+			}
+		}
+		expectedDatasets = []string{expectedDataset}
+	}
+	if r.pkgManifest.Type == "input" {
+		v, _ := config.Vars.GetValue("data_stream.dataset")
+		if dataset, ok := v.(string); ok && dataset != "" {
+			if scenario.policyTemplateInput == otelCollectorInputName {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				dataset += "." + otelSuffixDataset
+			}
+			expectedDatasets = append(expectedDatasets, dataset)
+		}
+	}
+
+	return expectedDatasets, nil
+}
+
+func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) ([]testrunner.TestResult, error) {
 	result := r.newResult(config.Name())
 
 	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
@@ -1521,26 +1801,78 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, svcInfo servic
 		return result.WithSkip(skip)
 	}
 
-	logger.Debugf("running test with configuration '%s'", config.Name())
+	if r.testFolder.DataStream != "" {
+		logger.Infof("Running test for data_stream %q with configuration '%s'", r.testFolder.DataStream, config.Name())
+	} else {
+		logger.Infof("Running test with configuration '%s'", config.Name())
+	}
 
-	scenario, err := r.prepareScenario(ctx, config, svcInfo)
+	scenario, err := r.prepareScenario(ctx, config, stackConfig, svcInfo)
 	if err != nil {
-		return result.WithError(err)
+		// Known issue: do not include this as part of the xUnit results
+		// Example: https://buildkite.com/elastic/integrations/builds/22313#01950431-67a5-4544-a720-6047f5de481b/706-2459
+		var pathErr *fs.PathError
+		if errors.As(err, &pathErr) && pathErr.Op == "fork/exec" && pathErr.Path == "/usr/bin/docker" {
+			return result.WithError(err)
+		}
+		// report all other errors as error entries in the xUnit file
+		results, _ := result.WithError(err)
+		return results, nil
+	}
+
+	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
+		err := dumpScenarioDocs(scenario.docs)
+		if err != nil {
+			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
+		}
 	}
 
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
-func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo, runIndependentElasticAgent bool) ([]kibana.Agent, error) {
+func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool {
+	// Just supported for input packages currently
+	if r.pkgManifest.Type != "input" {
+		return false
+	}
+
+	if policyTemplateInput != otelCollectorInputName {
+		return false
+	}
+
+	return true
+}
+
+func dumpScenarioDocs(docs any) error {
+	timestamp := time.Now().Format("20060102150405")
+	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
+	f, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create dump file: %w", err)
+	}
+	defer f.Close()
+
+	logger.Infof("Dumping scenario documents to %s", path)
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(docs); err != nil {
+		return fmt.Errorf("failed to encode docs: %w", err)
+	}
+	return nil
+}
+
+func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeployer.AgentInfo, svcInfo servicedeployer.ServiceInfo) (*kibana.Agent, error) {
 	var agents []kibana.Agent
 
 	enrolled, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		allAgents, err := client.ListAgents(ctx)
+		allAgents, err := r.kibanaClient.ListAgents(ctx)
 		if err != nil {
 			return false, fmt.Errorf("could not list agents: %w", err)
 		}
 
-		if runIndependentElasticAgent {
+		if r.runIndependentElasticAgent {
 			agents = filterIndependentAgents(allAgents, agentInfo)
 		} else {
 			agents = filterAgents(allAgents, svcInfo)
@@ -1557,29 +1889,54 @@ func checkEnrolledAgents(ctx context.Context, client *kibana.Client, agentInfo a
 	if !enrolled {
 		return nil, errors.New("no agent enrolled in time")
 	}
-	return agents, nil
+
+	agent := agents[0]
+	logger.Debugf("Selected enrolled agent %q", agent.ID)
+
+	r.removeAgentHandler = func(ctx context.Context) error {
+		if r.runTestsOnly {
+			return nil
+		}
+		// When not using independent agents, service deployers like kubernetes or custom agents create new Elastic Agent
+		if !r.runIndependentElasticAgent && !svcInfo.Agent.Independent {
+			return nil
+		}
+		logger.Debug("removing agent...")
+		err := r.kibanaClient.RemoveAgent(ctx, agent)
+		if err != nil {
+			return fmt.Errorf("failed to remove agent %q: %w", agent.ID, err)
+		}
+		return nil
+	}
+
+	return &agent, nil
 }
 
-func createPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
+func CreatePackageDatastream(
+	kibanaPolicy *kibana.Policy,
+	pkg *packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
-	ds packages.DataStreamManifest,
-	config testConfig,
+	ds *packages.DataStreamManifest,
+	cfgName string,
+	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
-) kibana.PackageDataStream {
+) (kibana.PackageDataStream, error) {
 	if pkg.Type == "input" {
-		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, config, suffix)
+		return createInputPackageDatastream(kibanaPolicy, pkg, policyTemplate, cfgVars, cfgDSVars, suffix), nil
 	}
-	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, config, suffix)
+	if ds == nil {
+		return kibana.PackageDataStream{}, fmt.Errorf("data stream manifest is required for integration packages")
+	}
+	return createIntegrationPackageDatastream(kibanaPolicy, pkg, policyTemplate, ds, cfgName, cfgVars, cfgDSVars, suffix), nil
 }
 
 func createIntegrationPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
+	kibanaPolicy *kibana.Policy,
+	pkg *packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
-	ds packages.DataStreamManifest,
-	config testConfig,
+	ds *packages.DataStreamManifest,
+	cfgName string,
+	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
@@ -1598,42 +1955,46 @@ func createIntegrationPackageDatastream(
 	r.Package.Title = pkg.Title
 	r.Package.Version = pkg.Version
 
-	stream := ds.Streams[getDataStreamIndex(config.Input, ds)]
+	stream := ds.Streams[getDataStreamIndex(cfgName, ds)]
 	streamInput := stream.Input
 	r.Inputs[0].Type = streamInput
 
+	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
+	if len(ds.Dataset) > 0 {
+		dataset = ds.Dataset
+	}
 	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, ds.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    ds.Type,
-				Dataset: getDataStreamDataset(pkg, ds),
+				Dataset: dataset,
 			},
 		},
 	}
 
 	// Add dataStream-level vars
-	streams[0].Vars = setKibanaVariables(stream.Vars, config.DataStream.Vars)
+	streams[0].Vars = setKibanaVariables(stream.Vars, cfgDSVars)
 	r.Inputs[0].Streams = streams
 
 	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		r.Inputs[0].Vars = setKibanaVariables(input.Vars, config.Vars)
+		r.Inputs[0].Vars = setKibanaVariables(input.Vars, cfgVars)
 	}
 
 	// Add package-level vars
-	r.Vars = setKibanaVariables(pkg.Vars, config.Vars)
+	r.Vars = setKibanaVariables(pkg.Vars, cfgVars)
 
 	return r
 }
 
 func createInputPackageDatastream(
-	kibanaPolicy kibana.Policy,
-	pkg packages.PackageManifest,
+	kibanaPolicy *kibana.Policy,
+	pkg *packages.PackageManifest,
 	policyTemplate packages.PolicyTemplate,
-	config testConfig,
+	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 ) kibana.PackageDataStream {
 	r := kibana.PackageDataStream{
@@ -1650,16 +2011,14 @@ func createInputPackageDatastream(
 			PolicyTemplate: policyTemplate.Name,
 			Enabled:        true,
 			Vars:           kibana.Vars{},
+			Type:           policyTemplate.Input,
 		},
 	}
-
-	streamInput := policyTemplate.Input
-	r.Inputs[0].Type = streamInput
 
 	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, pkg.Name, policyTemplate.Name),
+			ID:      fmt.Sprintf("%s-%s.%s", policyTemplate.Input, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
@@ -1669,10 +2028,10 @@ func createInputPackageDatastream(
 	}
 
 	// Add policyTemplate-level vars.
-	vars := setKibanaVariables(policyTemplate.Vars, config.Vars)
+	vars := setKibanaVariables(policyTemplate.Vars, cfgVars)
 	if _, found := vars["data_stream.dataset"]; !found {
 		dataStreamDataset := dataset
-		v, _ := config.Vars.GetValue("data_stream.dataset")
+		v, _ := cfgVars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			dataStreamDataset = dataset
 		}
@@ -1693,17 +2052,24 @@ func createInputPackageDatastream(
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
 	vars := kibana.Vars{}
 	for _, definition := range definitions {
+		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
+		// When using this API parameter, default values are not automatically incorporated into
+		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
+		// This means that our client must include the default values in its request to ensure correct behavior.
 		val := definition.Default
 
 		value, err := values.GetValue(definition.Name)
 		if err == nil {
-			val = packages.VarValue{}
+			val = &packages.VarValue{}
 			val.Unpack(value)
+		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
+			// Do not include nulls for unset variables.
+			continue
 		}
 
 		vars[definition.Name] = kibana.Var{
 			Type:  definition.Type,
-			Value: val,
+			Value: *val,
 		}
 	}
 	return vars
@@ -1711,7 +2077,7 @@ func setKibanaVariables(definitions []packages.Variable, values common.MapStr) k
 
 // getDataStreamIndex returns the index of the data stream whose input name
 // matches. Otherwise it returns the 0.
-func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
+func getDataStreamIndex(inputName string, ds *packages.DataStreamManifest) int {
 	for i, s := range ds.Streams {
 		if s.Input == inputName {
 			return i
@@ -1720,24 +2086,20 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 	return 0
 }
 
-func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamManifest) string {
-	if len(ds.Dataset) > 0 {
-		return ds.Dataset
-	}
-	return fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-}
-
-// findPolicyTemplateForInput returns the name of the policy_template that
+// FindPolicyTemplateForInput returns the name of the policy_template that
 // applies to the input under test. An error is returned if no policy template
 // matches or if multiple policy templates match and the response is ambiguous.
-func findPolicyTemplateForInput(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
+func FindPolicyTemplateForInput(pkg *packages.PackageManifest, ds *packages.DataStreamManifest, inputName string) (string, error) {
 	if pkg.Type == "input" {
 		return findPolicyTemplateForInputPackage(pkg, inputName)
+	}
+	if ds == nil {
+		return "", errors.New("data stream must be specified for integration packages")
 	}
 	return findPolicyTemplateForDataStream(pkg, ds, inputName)
 }
 
-func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
+func findPolicyTemplateForDataStream(pkg *packages.PackageManifest, ds *packages.DataStreamManifest, inputName string) (string, error) {
 	if inputName == "" {
 		if len(ds.Streams) == 0 {
 			return "", errors.New("no streams declared in data stream manifest")
@@ -1775,7 +2137,7 @@ func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.D
 	}
 }
 
-func findPolicyTemplateForInputPackage(pkg packages.PackageManifest, inputName string) (string, error) {
+func findPolicyTemplateForInputPackage(pkg *packages.PackageManifest, inputName string) (string, error) {
 	if inputName == "" {
 		if len(pkg.PolicyTemplates) == 0 {
 			return "", errors.New("no policy templates specified for input package")
@@ -1807,7 +2169,7 @@ func findPolicyTemplateForInputPackage(pkg packages.PackageManifest, inputName s
 	}
 }
 
-func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string) (packages.PolicyTemplate, error) {
+func SelectPolicyTemplateByName(policies []packages.PolicyTemplate, name string) (packages.PolicyTemplate, error) {
 	for _, policy := range policies {
 		if policy.Name == name {
 			return policy, nil
@@ -1816,7 +2178,11 @@ func selectPolicyTemplateByName(policies []packages.PolicyTemplate, name string)
 	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
-func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, ds kibana.PackageDataStream, dataStream string, syntheticEnabled bool) error {
+func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {
+	if config.SkipTransformValidation {
+		return nil
+	}
+
 	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
@@ -1836,7 +2202,10 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		// IDs format is: "<type>-<package>.<transform>-<namespace>-<version>"
 		// For instance: "logs-ti_anomali.latest_ioc-default-0.1.0"
 		transformPattern := fmt.Sprintf("%s-%s.%s-*-%s",
-			ds.Inputs[0].Streams[0].DataStream.Type,
+			// It cannot be used "ds.Inputs[0].Streams[0].DataStream.Type" since Fleet
+			// always create the transform with the prefix "logs-"
+			// https://github.com/elastic/kibana/blob/eed02b930ad332ad7261a0a4dff521e36021fb31/x-pack/platform/plugins/shared/fleet/server/services/epm/elasticsearch/transform/install.ts#L855
+			"logs",
 			pkgManifest.Name,
 			transform.Name,
 			transform.Definition.Meta.FleetTransformVersion,
@@ -1863,6 +2232,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 			fields.WithDisableNormalization(syntheticEnabled),
+			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
@@ -1987,33 +2358,9 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), body, 0644)
+	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
-	}
-
-	return nil
-}
-
-func validateFailureStore(failureStore []failureStoreDocument) error {
-	var multiErr multierror.Error
-	for _, doc := range failureStore {
-		// TODO: Move this to the trace log level when available.
-		logger.Debug("Error found in failure store: ", doc.Error.StackTrace)
-		multiErr = append(multiErr,
-			fmt.Errorf("%s: %s (processor: %s, pipelines: %s)",
-				doc.Error.Type,
-				doc.Error.Message,
-				doc.Error.ProcessorType,
-				strings.Join(doc.Error.PipelineTrace, ",")))
-	}
-
-	if len(multiErr) > 0 {
-		multiErr = multiErr.Unique()
-		return testrunner.ErrTestCaseFailed{
-			Reason:  "one or more documents found in the failure store",
-			Details: multiErr.Error(),
-		}
 	}
 
 	return nil
@@ -2039,12 +2386,26 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
-func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, config *testConfig) error {
-	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
-	stackVersion, err := semver.NewVersion(stackVersionString)
-	if err != nil {
-		return fmt.Errorf("failed to parse stack version: %w", err)
+func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator) []string {
+	var allFields []string
+	visited := make(map[string]any)
+	for _, doc := range docs {
+		fields := fieldsValidator.ListExceptionFields(doc)
+		for _, f := range fields {
+			if _, ok := visited[f]; ok {
+				continue
+			}
+			visited[f] = struct{}{}
+			allFields = append(allFields, f)
+		}
 	}
+
+	logger.Tracef("Fields to be skipped validation: %s", strings.Join(allFields, ","))
+	return allFields
+}
+
+func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest, config *testConfig) error {
+	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
 		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		skipIgnoredFields = append(skipIgnoredFields, "event.original")
@@ -2084,6 +2445,14 @@ func validateIgnoredFields(stackVersionString string, scenario *scenarioTest, co
 		}
 	}
 
+	return nil
+}
+
+func validateMappings(ctx context.Context, mappingsValidator *fields.MappingValidator) multierror.Error {
+	multiErr := mappingsValidator.ValidateIndexMappings(ctx)
+	if len(multiErr) > 0 {
+		return multiErr.Unique()
+	}
 	return nil
 }
 

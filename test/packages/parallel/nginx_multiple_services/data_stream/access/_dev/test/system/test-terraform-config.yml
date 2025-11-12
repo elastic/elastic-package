@@ -1,0 +1,7 @@
+deployer: tf
+wait_for_data_timeout: 2m
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/file.log*"

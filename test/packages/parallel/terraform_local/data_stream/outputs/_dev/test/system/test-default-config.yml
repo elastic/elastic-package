@@ -1,0 +1,5 @@
+wait_for_data_timeout: 1m
+data_stream:
+  vars:
+    paths:
+      - '{{TF_OUTPUT_filename}}'

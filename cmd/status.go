@@ -17,6 +17,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/fatih/color"
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/renderer"
 
 	"github.com/spf13/cobra"
 
@@ -162,11 +163,11 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 	if packageName != "" {
 		return status.RemotePackage(packageName, options)
 	}
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return nil, errors.New("no package specified and package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
+			return nil, errors.New("no package specified and package root not found")
+		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
 	return status.LocalPackage(packageRootPath, options)
@@ -225,20 +226,13 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 	for _, change := range p.PendingChanges.Changes {
 		changelogTable = append(changelogTable, formatChangelogEntry(change))
 	}
-	table := tablewriter.NewWriter(w)
-	table.SetHeader([]string{"Type", "Description", "Link"})
-	table.SetHeaderColor(
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
-		twColor(tablewriter.Colors{tablewriter.Bold}),
+	colorCfg := defaultColorizedConfig()
+	table := tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
+		tablewriter.WithConfig(defaultTableConfig),
 	)
-	table.SetColumnColor(
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-	)
-	table.SetRowLine(true)
-	table.AppendBulk(changelogTable)
+	table.Header([]string{"Type", "Description", "Link"})
+	table.Bulk(changelogTable)
 	table.Render()
 }
 
@@ -255,36 +249,24 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 		data := formatManifests("Production", projectType.Name, projectType.Manifests, extraParameters)
 		environmentTable = append(environmentTable, data)
 	}
-
-	bold.Fprintln(w, "Package Versions:")
-	table := tablewriter.NewWriter(w)
 	headers := []string{"Environment", "Version", "Release", "Title", "Description"}
 	headers = append(headers, extraParameters...)
 
-	table.SetHeader(headers)
-
-	headerColors := []tablewriter.Colors{}
-	for i := 0; i < len(headers); i++ {
-		headerColors = append(headerColors, twColor(tablewriter.Colors{tablewriter.Bold}))
+	bold.Fprintln(w, "Package Versions:")
+	colorCfg := defaultColorizedConfig()
+	colorCfg.Column = renderer.Tint{
+		Columns: []renderer.Tint{
+			{FG: renderer.Colors{color.Bold, color.FgCyan}},
+			{FG: renderer.Colors{color.Bold, color.FgRed}},
+		},
 	}
 
-	table.SetHeaderColor(headerColors...)
-
-	columnColors := []tablewriter.Colors{
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgCyanColor}),
-		twColor(tablewriter.Colors{tablewriter.Bold, tablewriter.FgRedColor}),
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-		tablewriter.Colors{},
-	}
-	for i := 0; i < len(extraParameters); i++ {
-		columnColors = append(columnColors, tablewriter.Colors{})
-	}
-
-	table.SetColumnColor(columnColors...)
-
-	table.SetRowLine(true)
-	table.AppendBulk(environmentTable)
+	table := tablewriter.NewTable(w,
+		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
+		tablewriter.WithConfig(defaultTableConfig),
+	)
+	table.Header(headers)
+	table.Bulk(environmentTable)
 	table.Render()
 }
 
@@ -337,14 +319,6 @@ func formatManifest(environment string, serverless string, manifest packages.Pac
 		}
 	}
 	return data
-}
-
-// twColor no-ops the color setting if we don't want to colorize the output
-func twColor(colors tablewriter.Colors) tablewriter.Colors {
-	if color.NoColor {
-		return tablewriter.Colors{}
-	}
-	return colors
 }
 
 // releaseFromVersion returns the human-friendly release level based on semantic versioning conventions.

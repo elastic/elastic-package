@@ -11,18 +11,23 @@ import (
 	"github.com/magefile/mage/sh"
 )
 
+var (
+	defaultFoldersToSkip   = []string{"_dev", "build", ".git"}
+	defaultFileGlobsToSkip = []string{".DS_Store", ".*.swp", "*.link"}
+)
+
 // CopyAll method copies files from the source to the destination skipping empty directories.
 func CopyAll(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{})
+	return CopyWithSkipped(sourcePath, destinationPath, []string{}, []string{})
 }
 
 // CopyWithoutDev method copies files from the source to the destination, but skips _dev directories and empty folders.
 func CopyWithoutDev(sourcePath, destinationPath string) error {
-	return CopyWithSkipped(sourcePath, destinationPath, []string{"_dev", "build", ".git"})
+	return CopyWithSkipped(sourcePath, destinationPath, defaultFoldersToSkip, defaultFileGlobsToSkip)
 }
 
-// CopyWithSkipped method copies files from the source to the destination, but skips selected directories and empty folders.
-func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) error {
+// CopyWithSkipped method copies files from the source to the destination, but skips selected directories, empty folders and selected hidden files.
+func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs, skippedFileGlobs []string) error {
 	return filepath.Walk(sourcePath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -43,6 +48,16 @@ func CopyWithSkipped(sourcePath, destinationPath string, skippedDirs []string) e
 
 		if info.IsDir() {
 			return nil // don't create empty directories inside packages, if the directory is empty, skip it.
+		}
+
+		for _, aGlob := range skippedFileGlobs {
+			matched, err := filepath.Match(aGlob, filepath.Base(relativePath))
+			if err != nil {
+				return err
+			}
+			if matched {
+				return nil
+			}
 		}
 
 		err = os.MkdirAll(filepath.Join(destinationPath, filepath.Dir(relativePath)), 0755)

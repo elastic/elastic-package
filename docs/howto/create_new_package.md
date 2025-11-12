@@ -12,6 +12,8 @@ This will ensure that you're following latest recommendations for the package fo
 
 _Pick the directory where you'd like to create a new package. For integrations, it's: [packages/](https://github.com/elastic/integrations/tree/master/packages)._
 
+_Decide what [package type](./package_types.md) you would like to create._
+
 ### Steps
 
 1. Bootstrap new package using the TUI wizard: `elastic-package create package`.

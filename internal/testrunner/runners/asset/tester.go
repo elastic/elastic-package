@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -25,6 +26,7 @@ type tester struct {
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
+	repositoryRoot   *os.Root
 }
 
 type AssetTesterOptions struct {
@@ -34,6 +36,7 @@ type AssetTesterOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
+	RepositoryRoot   *os.Root
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
@@ -44,6 +47,7 @@ func NewAssetTester(options AssetTesterOptions) *tester {
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
+		repositoryRoot:   options.RepositoryRoot,
 	}
 
 	manager := resources.NewManager()
@@ -80,9 +84,10 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			RootPath: r.packageRootPath,
-			Absent:   !installedPackage,
-			Force:    installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			PackageRootPath: r.packageRootPath,
+			Absent:          !installedPackage,
+			Force:           installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }
@@ -146,7 +151,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	for _, e := range expectedAssets {
 		rc := testrunner.NewResultComposer(testrunner.TestResult{
 			Name:       fmt.Sprintf("%s %s is loaded", e.Type, e.ID),
-			Package:    installedPackage.Name,
+			Package:    r.testFolder.Package,
 			DataStream: e.DataStream,
 			TestType:   TestType,
 		})

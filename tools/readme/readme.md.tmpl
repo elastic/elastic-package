@@ -39,6 +39,8 @@ Run the `help` command and see available commands:
 elastic-package help
 ```
 
+Some sub-commands are Docker-based, check you also have Docker installed. In case you are using Podman Desktop, check [this guide](./docs/howto/use_podman.md) to make it compatible.
+
 ## Development
 
 Even though the project is "go-gettable", there is the [`Makefile`](./Makefile) present, which can be used to build,
@@ -114,7 +116,7 @@ Usually, this process would require the following manual steps:
    go mod tidy
    ```
 4. Push these changes into a branch and create a Pull Request
-    - Creating this PR would automatically trigger a new Jenkins pipeline.
+    - Creating this PR would automatically trigger a new build of the corresponding Buildkite pipeline.
 
 
 ### Testing with Elastic serverless
@@ -206,6 +208,9 @@ The following settings are available per profile:
   the serverless stack provider.
 * `stack.serverless.region` can be used to select the region to use when starting
   serverless projects.
+* `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
+  Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
+  which enables all subscription features for 30 days.  Defaults to "trial".
 
 ## Useful environment variables
 
@@ -225,7 +230,7 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_DATA_HOME`: Custom path to be used for `elastic-package` data directory. By default this is `~/.elastic-package`.
 
 - Related to the build process:
-    - `ELASTIC_PACKAGE_REPOSITORY_LICENSE`: Path to the default repository license.
+    - `ELASTIC_PACKAGE_REPOSITORY_LICENSE`: Path to the default repository license. This path should be relative to the repository root.
     - `ELASTIC_PACKAGE_LINKS_FILE_PATH`: Path to the links table file (e.g. `links_table.yml`) with the link definitions to be used in the build process of a package.
 
 - Related to signing packages:
@@ -236,21 +241,30 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images
       (e.g. `docker.elastic.co/elastic-agent/elastic-agent-complete`). If set to `false`, the Elastic Agent image used for the running agents will be based on the wolfi
-<<<<<<< HEAD
-      images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `true`.
-=======
       images (e.g. `docker.elastic.co/elastic-agent/elastic-agent-wolfi`). Default: `false`.
->>>>>>> upstream/main
+    - `ELASTIC_PACKAGE_TEST_DUMP_SCENARIO_DOCS`. If the variable is set, elastic-package will dump to a file the documents generated
+      by system tests before they are verified. This is useful to know exactly what fields are being verified when investigating
+      issues on this step. Documents are dumped to a file in the system temporary directory. It is disabled by default.
+    - `ELASTIC_PACKAGE_TEST_ENABLE_INDEPENDENT_AGENT`. If the variable is set to false, all system tests defined in the package will use
+      the Elastic Agent started along with the stack. If set to true, a new Elastic Agent will be started and enrolled for each test defined in the
+      package (and unenrolled at the end of each test). Default: `true`.
+    - `ELASTIC_PACKAGE_FIELD_VALIDATION_TEST_METHOD`. This variable can take one of these values: `mappings` or `fields`. If this
+      variable is set to `fields`, then validation of fields will be based on the contents of the documents ingested into Elasticsearch. If this is set to
+      `mappings`, then validation of fields will be based on their mappings generated when the documents are ingested into Elasticsearch as well as
+      the contents of the documents ingested into Elasticsearch.
+      Default option: `mappings`.
 
 - To configure the Elastic stack to be used by `elastic-package`:
     - `ELASTIC_PACKAGE_ELASTICSEARCH_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
-    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch (e.g. elastic)
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
+    - `ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME`: User name to connect to elasticsearch and kibana (e.g. elastic)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD`: Password of that user.
-    - `ELASTIC_PACKAGE_ELASTICSEARCH_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
+    - `ELASTIC_PACKAGE_KIBANA_HOST`: Kibana URL (e.g. https://127.0.0.1:5601)
     - `ELASTIC_PACKAGE_ELASTICSEARCH_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure an external metricstore while running benchmarks (more info at [system benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_benchmarking.md#setting-up-an-external-metricstore) or [rally benchmarking docs](https://github.com/elastic/elastic-package/blob/main/docs/howto/rally_benchmarking.md#setting-up-an-external-metricstore)):
     - `ELASTIC_PACKAGE_ESMETRICSTORE_HOST`: Host of the elasticsearch (e.g. https://127.0.0.1:9200)
+    - `ELASTIC_PACKAGE_ESMETRICSTORE_API_KEY`: API key to connect to elasticsearch and kibana. When set it takes precedence over username and password.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
     - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
@@ -259,7 +273,7 @@ There are available some environment variables that could be used to change some
 ## Release process
 
 This project uses [GoReleaser](https://goreleaser.com/) to release a new version of the application (semver). Release publishing
-is automatically managed by the Jenkins CI ([Jenkinsfile](https://github.com/elastic/elastic-package/blob/main/.ci/Jenkinsfile))
+is automatically managed by the Buildkite CI ([Pipeline](https://github.com/elastic/elastic-package/blob/main/.buildkite/pipeline.yml))
 and it's triggered by Git tags. Release artifacts are available in the [Releases](https://github.com/elastic/elastic-package/releases) section.
 
 ### Steps to create a new release

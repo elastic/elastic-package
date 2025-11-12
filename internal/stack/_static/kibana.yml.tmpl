@@ -4,7 +4,7 @@ server.host: "0.0.0.0"
 {{- $kibana_http2_enabled := fact "kibana_http2_enabled" -}}
 {{- if (and (eq $kibana_http2_enabled "true") (not (semverLessThan $version "8.15.0-SNAPSHOT"))) }}
 server.protocol: http2
-{{ end -}}
+{{- end }}
 server.ssl.enabled: true
 server.ssl.certificate: "/usr/share/kibana/config/certs/cert.pem"
 server.ssl.key: "/usr/share/kibana/config/certs/key.pem"
@@ -41,9 +41,18 @@ xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.fleet_server.hosts: ["{{ fact "fleet_url" }}"]
 
-{{ if and (not (semverLessThan $version "8.7.0")) (semverLessThan $version "8.10.0-SNAPSHOT") }}
-xpack.fleet.enableExperimental: ["experimentalDataStreamSettings"] # Enable experimental toggles in Fleet UI
-{{ end }}
+{{/* Feature flags introduced in 8.3.0 https://github.com/elastic/kibana/pull/130253 */}}
+{{- if (not (semverLessThan $version "8.3.0")) }}
+xpack.fleet.enableExperimental: [
+{{- if and (not (semverLessThan $version "8.7.0")) (semverLessThan $version "8.10.0-SNAPSHOT") }}
+  # Enable experimental toggles in Fleet UI
+  "experimentalDataStreamSettings"
+{{- else if (not (semverLessThan $version "9.2.0-SNAPSHOT")) }}
+  # Support for otelcol input
+  "enableOtelIntegrations"
+{{- end }}
+]
+{{- end }}
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"
 
@@ -101,7 +110,9 @@ xpack.fleet.agentPolicies:
             vars:
               - name: custom
                 value: |
+      {{ if not (semverLessThan $version "8.8.0") }}
                   server:
+      {{ end }}
                     instrumentation:
                       enabled: true
                       hosts: ["http://fleet-server:8200"]
@@ -155,3 +166,7 @@ xpack.fleet.outputs:
         {{ indent $agent_key "        " }}
   {{ end }}
 {{ end }}
+
+{{- if eq $version "9.0.0-SNAPSHOT" }}
+xpack.fleet.internal.registry.kibanaVersionCheckEnabled: false
+{{- end }}

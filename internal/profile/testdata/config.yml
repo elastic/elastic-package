@@ -2,6 +2,7 @@
 stack.geoip_dir: "/home/foo/Documents/ingest-geoip"
 stack.apm_enabled: true
 stack.logstash_enabled: true
+stack.elastic_subscription: basic
 
 # An empty string, should exist, but return empty.
 other.empty: ""

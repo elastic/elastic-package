@@ -7,12 +7,57 @@ package kibana
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
+
+const findInstalledPackagesPerPage = 100
+
+var ErrNotSupported error = errors.New("not supported")
+
+type findInstalledPackagesResponse struct {
+	Items       []installedPackage `json:"items"`
+	Total       int                `json:"total"`
+	SearchAfter []string           `json:"searchAfter"`
+}
+
+type installedPackages []installedPackage
+type installedPackage struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+}
+
+// String method returns string representation for an installed package.
+func (ip *installedPackage) String() string {
+	return fmt.Sprintf("%s-%s", ip.Name, ip.Version)
+}
+
+// Strings method returns string representation for a set of installed packages.
+func (ips installedPackages) Strings() []string {
+	var entries []string
+	for _, ip := range ips {
+		entries = append(entries, ip.String())
+	}
+	return entries
+}
+
+type bulkAssetItemResponse struct {
+	ID         string `json:"id"`
+	Type       string `json:"type"`
+	Attributes struct {
+		Title string `json:"title"`
+	} `json:"attributes"`
+}
+
+func (p *bulkAssetItemResponse) String() string {
+	return fmt.Sprintf("%s (ID: %s, Type: %s)", p.Attributes.Title, p.ID, p.Type)
+}
 
 // InstallPackage installs the given package in Fleet.
 func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
@@ -25,6 +70,47 @@ func (c *Client) InstallPackage(ctx context.Context, name, version string) ([]pa
 	}
 
 	return processResults("install", statusCode, respBody)
+}
+
+// EnsureZipPackageCanBeInstalled checks whether or not it can be installed a package using the upload API.
+// This is intened to be used between 8.7.0 and 8.8.2 stack versions, and it is only safe to be run in those
+// stack versions.
+func (c *Client) EnsureZipPackageCanBeInstalled(ctx context.Context) error {
+	path := fmt.Sprintf("%s/epm/packages", FleetAPI)
+
+	req, err := c.newRequest(ctx, http.MethodPost, path, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/zip")
+	req.Header.Add("elastic-api-version", "2023-10-31")
+
+	statusCode, respBody, err := c.doRequest(req)
+	if err != nil {
+		return fmt.Errorf("could not install zip package: %w", err)
+	}
+	switch statusCode {
+	case http.StatusBadRequest:
+		// If the stack allows to use the upload API, the response is like this one:
+		// {
+		//   "statusCode":400,
+		//   "error":"Bad Request",
+		//   "message":"Error during extraction of package: Error: end of central directory record signature not found. Assumed content type was application/zip, check if this matches the archive type."
+		// }
+		return nil
+	case http.StatusForbidden:
+		var resp struct {
+			Message string `json:"message"`
+		}
+		if err := json.Unmarshal(respBody, &resp); err != nil {
+			return fmt.Errorf("could not unmarhsall response to JSON: %w", err)
+		}
+		if resp.Message == "Requires Enterprise license" {
+			return ErrNotSupported
+		}
+	}
+
+	return fmt.Errorf("unexpected response (status code %d): %s", statusCode, string(respBody))
 }
 
 // InstallZipPackage installs the local zip package in Fleet.
@@ -69,19 +155,29 @@ type FleetPackage struct {
 	Version     string `json:"version"`
 	Type        string `json:"type"`
 	Status      string `json:"status"`
-	SavedObject struct {
+	SavedObject *struct {
 		Attributes struct {
 			InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
 			InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
 			PackageAssets                []packages.Asset `json:"package_assets"`
 		} `json:"attributes"`
 	} `json:"savedObject"`
+	InstallationInfo *struct {
+		InstalledElasticsearchAssets []packages.Asset `json:"installed_es"`
+		InstalledKibanaAssets        []packages.Asset `json:"installed_kibana"`
+	} `json:"installationInfo"`
 }
 
 func (p *FleetPackage) Assets() []packages.Asset {
 	var assets []packages.Asset
-	assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
-	assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+	if p.SavedObject != nil {
+		assets = append(assets, p.SavedObject.Attributes.InstalledElasticsearchAssets...)
+		assets = append(assets, p.SavedObject.Attributes.InstalledKibanaAssets...)
+		return assets
+	}
+	// starting in 9.0.0 "savedObject" fields does not exist in the API response
+	assets = append(assets, p.InstallationInfo.InstalledElasticsearchAssets...)
+	assets = append(assets, p.InstallationInfo.InstalledKibanaAssets...)
 	return assets
 }
 
@@ -132,7 +228,7 @@ func (c *Client) epmPackageUrl(name, version string) string {
 		return fmt.Sprintf("%s/epm/packages/%s", FleetAPI, name)
 	}
 	switch {
-	case c.semver.Major() < 8:
+	case c.semver != nil && c.semver.Major() < 8:
 		return fmt.Sprintf("%s/epm/packages/%s-%s", FleetAPI, name, version)
 	default:
 		return fmt.Sprintf("%s/epm/packages/%s/%s", FleetAPI, name, version)
@@ -160,5 +256,81 @@ func processResults(action string, statusCode int, respBody []byte) ([]packages.
 		return resp.Response, nil
 	}
 
+	return resp.Items, nil
+}
+
+// FindInstalledPackages retrieves the current installed packages (name and version). Response is sorted by name.
+func (c *Client) FindInstalledPackages(ctx context.Context) (installedPackages, error) {
+	var installed installedPackages
+	searchAfter := ""
+
+	for {
+		r, err := c.findInstalledPackagesNextPage(ctx, searchAfter)
+		if err != nil {
+			return nil, fmt.Errorf("can't fetch page with results: %w", err)
+		}
+		if len(installed) >= r.Total {
+			break
+		}
+		searchAfter = r.SearchAfter[0]
+		installed = append(installed, r.Items...)
+	}
+	sort.Slice(installed, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(installed[i].Name), strings.ToLower(installed[j].Name)})
+	})
+
+	return installed, nil
+}
+
+// findInstalledPackagesNextPage retrieves the next set of packages after the given searchAfter value.
+func (c *Client) findInstalledPackagesNextPage(ctx context.Context, searchAfter string) (*findInstalledPackagesResponse, error) {
+	path := fmt.Sprintf("%s/epm/packages/installed?perPage=%d&searchAfter=[\"%s\"]", FleetAPI, findInstalledPackagesPerPage, searchAfter)
+	statusCode, respBody, err := c.get(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("could not find installed packages; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not find installed packages; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	var resp findInstalledPackagesResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("could not convert installed packages (response) to JSON: %w", err)
+	}
+	return &resp, nil
+}
+
+// GetDataFromPackageAssetIDs retrieves data, such as the title, for the given a list of asset IDs
+// using the "bulk_assets" Elastic Package Manager API endpoint. Response is sorted by title.
+func (c *Client) GetDataFromPackageAssetIDs(ctx context.Context, assets []packages.Asset) ([]bulkAssetItemResponse, error) {
+	path := fmt.Sprintf("%s/epm/bulk_assets", FleetAPI)
+	type request struct {
+		AssetIDs []packages.Asset `json:"assetIds"`
+	}
+	reqBody, err := json.Marshal(request{AssetIDs: assets})
+	if err != nil {
+		return nil, fmt.Errorf("could not convert assets (request) to JSON: %w", err)
+	}
+	statusCode, respBody, err := c.post(ctx, path, reqBody)
+	if err != nil {
+		return nil, fmt.Errorf("could not get assets; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
+	}
+
+	if statusCode != http.StatusOK {
+		return nil, fmt.Errorf("could not get assets; API status code = %d; response body = %s", statusCode, string(respBody))
+	}
+
+	type packageAssetsResponse struct {
+		Items []bulkAssetItemResponse `json:"items"`
+	}
+
+	var resp packageAssetsResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("could not convert get assets (response) to JSON: %w", err)
+	}
+	sort.Slice(resp.Items, func(i, j int) bool {
+		return sort.StringsAreSorted([]string{strings.ToLower(resp.Items[i].Attributes.Title), strings.ToLower(resp.Items[j].Attributes.Title)})
+	})
 	return resp.Items, nil
 }

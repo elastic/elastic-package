@@ -28,10 +28,9 @@ var commands = []*cobraext.Command{
 	setupExportCommand(),
 	setupFormatCommand(),
 	setupInstallCommand(),
+	setupLinksCommand(),
 	setupLintCommand(),
-	setupPromoteCommand(),
 	setupProfilesCommand(),
-	setupPublishCommand(),
 	setupReportsCommand(),
 	setupServiceCommand(),
 	setupStackCommand(),
@@ -54,7 +53,7 @@ func RootCmd() *cobra.Command {
 			)
 		},
 	}
-	rootCmd.PersistentFlags().BoolP(cobraext.VerboseFlagName, cobraext.VerboseFlagShorthand, false, cobraext.VerboseFlagDescription)
+	rootCmd.PersistentFlags().CountP(cobraext.VerboseFlagName, cobraext.VerboseFlagShorthand, cobraext.VerboseFlagDescription)
 	rootCmd.PersistentFlags().StringP(cobraext.ChangeDirectoryFlagName, cobraext.ChangeDirectoryFlagShorthand, "", cobraext.ChangeDirectoryFlagDescription)
 
 	for _, cmd := range commands {
@@ -73,12 +72,14 @@ func Commands() []*cobraext.Command {
 }
 
 func processPersistentFlags(cmd *cobra.Command, args []string) error {
-	verbose, err := cmd.Flags().GetBool(cobraext.VerboseFlagName)
+	verbose, err := cmd.Flags().GetCount(cobraext.VerboseFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.VerboseFlagName)
 	}
-	if verbose {
+	if verbose == 1 {
 		logger.EnableDebugMode()
+	} else if verbose > 1 {
+		logger.EnableTraceMode()
 	}
 
 	changeDirectory, err := cmd.Flags().GetString(cobraext.ChangeDirectoryFlagName)

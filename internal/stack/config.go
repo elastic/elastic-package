@@ -20,18 +20,30 @@ type Config struct {
 	Provider   string            `json:"provider,omitempty"`
 	Parameters map[string]string `json:"parameters,omitempty"`
 
+	ElasticsearchAPIKey   string `json:"elasticsearch_api_key,omitempty"`
 	ElasticsearchHost     string `json:"elasticsearch_host,omitempty"`
 	ElasticsearchUsername string `json:"elasticsearch_username,omitempty"`
 	ElasticsearchPassword string `json:"elasticsearch_password,omitempty"`
 	KibanaHost            string `json:"kibana_host,omitempty"`
 	CACertFile            string `json:"ca_cert_file,omitempty"`
+
+	OutputID      string `json:"output_id,omitempty"`
+	FleetServerID string `json:"fleet_server_id,omitempty"`
+
+	// EnrollmentToken is the token used during initialization, it can expire,
+	// so don't persist it, it won't be reused.
+	EnrollmentToken string `json:"-"`
+
+	// FleetServiceToken is the service token used during initialization when
+	// a local Fleet Server is needed.
+	FleetServiceToken string `json:"-"`
 }
 
 func configPath(profile *profile.Profile) string {
 	return profile.Path(ProfileStackPath, configFileName)
 }
 
-func defaultConfig(profile *profile.Profile) Config {
+func defaultConfig() Config {
 	return Config{
 		Provider: DefaultProvider,
 
@@ -40,14 +52,19 @@ func defaultConfig(profile *profile.Profile) Config {
 		ElasticsearchUsername: elasticsearchUsername,
 		ElasticsearchPassword: elasticsearchPassword,
 		KibanaHost:            "https://127.0.0.1:5601",
-		CACertFile:            profile.Path(CACertificateFile),
 	}
 }
 
 func LoadConfig(profile *profile.Profile) (Config, error) {
 	d, err := os.ReadFile(configPath(profile))
 	if errors.Is(err, os.ErrNotExist) {
-		return defaultConfig(profile), nil
+		config := defaultConfig()
+		caCertFile := profile.Path(CACertificateFile)
+		// Use CA file in the profile only if it exists.
+		if _, err := os.Stat(caCertFile); err == nil {
+			config.CACertFile = caCertFile
+		}
+		return config, nil
 	}
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to read stack config: %w", err)

@@ -1,0 +1,143 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 540
+        uncompressed: false
+        body: |
+            {
+              "name" : "c6180cf277a0",
+              "cluster_name" : "elasticsearch",
+              "cluster_uuid" : "fZKFi-3CSDu53Sl7YGS_5Q",
+              "version" : {
+                "number" : "8.18.0",
+                "build_flavor" : "default",
+                "build_type" : "docker",
+                "build_hash" : "04e979aa50b657bebd4a0937389308de82c2bdad",
+                "build_date" : "2025-04-10T10:09:16.444104780Z",
+                "build_snapshot" : false,
+                "lucene_version" : "9.12.1",
+                "minimum_wire_compatibility_version" : "7.17.0",
+                "minimum_index_compatibility_version" : "7.0.0"
+              },
+              "tagline" : "You Know, for Search"
+            }
+        headers:
+            Content-Length:
+                - "540"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 4.848ms
+    - id: 1
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.access-2.0.0,2.3.0-ml_dga_ingest_pipeline
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 8694
+        uncompressed: false
+        body: '{"logs-apache.access-2.0.0":{"description":"Pipeline for parsing Apache HTTP Server access logs. Requires the geoip and user_agent plugins.","processors":[{"pipeline":{"if":"ctx.message.startsWith(''{'')","name":"logs-apache.access-2.0.0-third-party"}},{"set":{"field":"event.ingested","value":"{{_ingest.timestamp}}"}},{"set":{"field":"ecs.version","value":"8.11.0"}},{"rename":{"field":"message","target_field":"event.original","ignore_missing":true,"if":"ctx.event?.original == null"}},{"remove":{"field":"message","ignore_missing":true,"if":"ctx.event?.original != null","description":"The `message` field is no longer required if the document has an `event.original` field."}},{"grok":{"field":"event.original","patterns":["(%{IPORHOST:destination.domain}:?%{POSINT:destination.port}? )?(%{IPORHOST:source.address}:?%{POSINT:source.port}? )%{DATA:apache.access.identity} %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"(%{DATA:apache.access.tls_handshake.error})?((%{WORD:http.request.method}?) %{DATA:_tmp.url_orig}? HTTP/%{NUMBER:http.version})?(%{WORD:http.request.method}? ?%{DATA:apache.access.http.request_headers}?(-)? %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version})?(-)?\" %{NUMBER:http.response.status_code:long} (?:%{NUMBER:http.response.body.bytes:long}|-)( %{NUMBER:apache.access.response_time})?( \"%{DATA:http.request.referrer}\")?( \"%{DATA:user_agent.original}\")?( X-Forwarded-For=\"%{ADDRESS_LIST:apache.access.remote_addresses}\")?","%{IPORHOST:source.address} - %{DATA:user.name} \\[%{HTTPDATE:apache.access.time}\\] \"-\" %{NUMBER:http.response.status_code:long} -","\\[%{HTTPDATE:apache.access.time}\\] %{IPORHOST:source.address} %{DATA:apache.access.ssl.protocol} %{DATA:apache.access.ssl.cipher} \"%{WORD:http.request.method} %{DATA:_tmp.url_orig} HTTP/%{NUMBER:http.version}\" (-|%{NUMBER:http.response.body.bytes:long})"],"ignore_missing":true,"pattern_definitions":{"ADDRESS_LIST":"(%{IP})(\"?,?\\s*(%{IP}))*"}}},{"split":{"field":"apache.access.remote_addresses","separator":"\"?,\\s*","ignore_missing":true}},{"set":{"field":"network.forwarded_ip","value":"{{{apache.access.remote_addresses.0}}}","if":"ctx.apache?.access?.remote_addresses != null && ctx.apache.access.remote_addresses.length > 0"}},{"script":{"if":"ctx.apache?.access?.remote_addresses != null && ctx.apache.access.remote_addresses.length > 0","lang":"painless","tag":"Get source address","description":"Extract from remote_addresses, the first non-private IP to ctx.client.ip","source":"boolean isPrivateCIDR(def ip) {\n  CIDR class_a_network = new CIDR(''10.0.0.0/8'');\n  CIDR class_b_network = new CIDR(''172.16.0.0/12'');\n  CIDR class_c_network = new CIDR(''192.168.0.0/16'');\n\n  try {\n    return class_a_network.contains(ip) || class_b_network.contains(ip) || class_c_network.contains(ip);\n  } catch (IllegalArgumentException e) {\n    return false;\n  }\n}\ntry {\n  if (ctx.client == null) {\n    Map map = new HashMap();\n    ctx.put(\"client\", map);\n  }\n\n  def found = false;\n  for (def item : ctx.apache.access.remote_addresses) {\n    if (!isPrivateCIDR(item)) {\n      ctx.client.ip = item;\n      found = true;\n      break;\n    }\n  }\n  if (!found) {\n    ctx.client.ip = ctx.apache.access.remote_addresses[0];\n  }\n} catch (Exception e) {\n  ctx.client.ip = null;\n}"}},{"append":{"field":"apache.access.remote_addresses","value":["{{source.address}}"],"if":"ctx.source?.address != null"}},{"uri_parts":{"field":"_tmp.url_orig","ignore_failure":true}},{"remove":{"field":["_tmp"],"ignore_missing":true}},{"set":{"field":"url.domain","value":"{{destination.domain}}","if":"ctx.url?.domain == null && ctx.destination?.domain != null"}},{"set":{"field":"event.kind","value":"event"}},{"append":{"field":"event.category","value":"web"}},{"set":{"field":"event.outcome","value":"success","if":"ctx.http?.response?.status_code != null && ctx.http.response.status_code < 400"}},{"set":{"field":"event.outcome","value":"failure","if":"ctx.http?.response?.status_code != null && ctx.http.response.status_code > 399"}},{"grok":{"field":"source.address","ignore_missing":true,"patterns":["^(%{IP:source.ip}|%{HOSTNAME:source.domain})$"]}},{"remove":{"field":"event.created","ignore_missing":true,"ignore_failure":true}},{"rename":{"field":"@timestamp","target_field":"event.created"}},{"date":{"field":"apache.access.time","target_field":"@timestamp","formats":["dd/MMM/yyyy:H:m:s Z"],"ignore_failure":true}},{"remove":{"field":"apache.access.time","ignore_failure":true}},{"user_agent":{"field":"user_agent.original","ignore_failure":true}},{"geoip":{"field":"source.ip","target_field":"source.geo","ignore_missing":true}},{"geoip":{"database_file":"GeoLite2-ASN.mmdb","field":"source.ip","target_field":"source.as","properties":["asn","organization_name"],"ignore_missing":true}},{"rename":{"field":"source.as.asn","target_field":"source.as.number","ignore_missing":true}},{"rename":{"field":"source.as.organization_name","target_field":"source.as.organization.name","ignore_missing":true}},{"set":{"field":"tls.cipher","value":"{{apache.access.ssl.cipher}}","if":"ctx.apache?.access?.ssl?.cipher != null"}},{"script":{"lang":"painless","if":"ctx.apache?.access?.ssl?.protocol != null","source":"def parts = ctx.apache.access.ssl.protocol.toLowerCase().splitOnToken(\"v\"); if (parts.length != 2) {\n  return;\n} if (parts[1].contains(\".\")) {\n  ctx.tls.version = parts[1];\n} else {\n  ctx.tls.version = parts[1] + \".0\";\n} ctx.tls.version_protocol = parts[0];"}},{"convert":{"field":"source.address","type":"ip","ignore_missing":true,"on_failure":[{"set":{"field":"tmp_host","copy_from":"source.address"}},{"append":{"field":"related.hosts","value":"{{{tmp_host}}}","allow_duplicates":false,"if":"ctx.tmp_host != null"}},{"set":{"field":"tmp_host","value":"","if":"ctx.tmp_host != null"}}]}},{"append":{"field":"related.ip","value":"{{{source.address}}}","allow_duplicates":false,"if":"ctx.tmp_host == null"}},{"convert":{"field":"destination.domain","type":"ip","ignore_missing":true,"on_failure":[{"set":{"field":"tmp_host","copy_from":"destination.domain"}},{"append":{"field":"related.hosts","value":"{{{tmp_host}}}","allow_duplicates":false,"if":"ctx.tmp_host != null"}},{"set":{"field":"tmp_host","value":"","if":"ctx.tmp_host != null"}}]}},{"convert":{"field":"destination.port","type":"long","if":"ctx.destination?.port != null"}},{"convert":{"field":"source.port","type":"long","if":"ctx.source?.port != null"}},{"append":{"field":"related.ip","value":"{{{destination.domain}}}","allow_duplicates":false,"if":"ctx.tmp_host == null"}},{"convert":{"field":"apache.access.response_time","tag":"convert_response_time_to_long","type":"long","ignore_missing":true,"on_failure":[{"append":{"field":"error.message","value":"Processor {{{_ingest.on_failure_processor_type}}} with tag fail-{{{_ingest.on_failure_processor_tag}}} in pipeline {{{_ingest.pipeline}}} failed with message: {{{_ingest.on_failure_message}}}"}}]}},{"script":{"lang":"painless","source":"boolean drop(Object o) {\n  if (o == null || o == '''' || o == ''-'') {\n    return true;\n  } else if (o instanceof Map) {\n    ((Map) o).values().removeIf(v -> drop(v));\n    return (((Map) o).size() == 0);\n  } else if (o instanceof List) {\n    ((List) o).removeIf(v -> drop(v));\n    return (((List) o).size() == 0);\n  }\n  return false;\n}\ndrop(ctx);","description":"Drops null and empty values recursively from the Elasticsearch document context."}},{"pipeline":{"name":"global@custom","ignore_missing_pipeline":true,"description":"[Fleet] Global pipeline for all data streams"}},{"pipeline":{"name":"logs@custom","ignore_missing_pipeline":true,"description":"[Fleet] Pipeline for all data streams of type `logs`"}},{"pipeline":{"name":"logs-apache.integration@custom","ignore_missing_pipeline":true,"description":"[Fleet] Pipeline for all data streams of type `logs` defined by the `apache` integration"}},{"pipeline":{"name":"logs-apache.access@custom","ignore_missing_pipeline":true,"description":"[Fleet] Pipeline for the `apache.access` dataset"}}],"on_failure":[{"set":{"field":"error.message","value":"{{ _ingest.on_failure_message }}"}}],"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"apache"}}},"2.3.0-ml_dga_ingest_pipeline":{"description":"Pipelines for enriching DNS data. Ignores non-DNS data.","processors":[{"pipeline":{"if":"ctx.network?.protocol == ''dns'' && ctx.dns?.question?.type != ''PTR''","name":"2.3.0-ml_dga_inference_pipeline"}}],"on_failure":[{"set":{"field":"event.kind","value":"pipeline_error"}},{"append":{"field":"error.message","value":"{{{ _ingest.on_failure_message }}}"}}],"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"dga"}}}}'
+        headers:
+            Content-Length:
+                - "8694"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 1.365916ms
+    - id: 2
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        transfer_encoding: []
+        trailer: {}
+        host: ""
+        remote_addr: ""
+        request_uri: ""
+        body: ""
+        form: {}
+        headers:
+            Authorization:
+                - Basic ZWxhc3RpYzpjaGFuZ2VtZQ==
+            User-Agent:
+                - go-elasticsearch/7.17.10 (darwin arm64; Go 1.24.2)
+            X-Elastic-Client-Meta:
+                - es=7.17.10,go=1.24.2,t=7.17.10,hc=1.24.2
+        url: https://127.0.0.1:9200/_ingest/pipeline/logs-apache.access-2.0.0-third-party,global@custom,logs@custom,logs-apache.integration@custom,logs-apache.access@custom,2.3.0-ml_dga_inference_pipeline
+        method: GET
+      response:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        transfer_encoding: []
+        trailer: {}
+        content_length: 4087
+        uncompressed: false
+        body: '{"logs-apache.access-2.0.0-third-party":{"description":"Pipeline for parsing Apache HTTP Server logs from third party api","processors":[{"json":{"field":"message","target_field":"json"}},{"drop":{"if":"ctx.json?.result == null"}},{"fingerprint":{"fields":["json.result._cd","json.result._indextime","json.result._raw","json.result._time","json.result.host","json.result.source"],"target_field":"_id","ignore_missing":true}},{"set":{"copy_from":"json.result._raw","field":"message","ignore_empty_value":true}},{"set":{"copy_from":"json.result.host","field":"host.name","ignore_empty_value":true}},{"set":{"copy_from":"json.result.source","field":"file.path","ignore_empty_value":true}},{"remove":{"field":["json"],"ignore_missing":true}}],"on_failure":[{"append":{"field":"error.message","value":"error in third-party pipeline: error in [{{_ingest.on_failure_processor_type}}] processor{{#_ingest.on_failure_processor_tag}} with tag [{{_ingest.on_failure_processor_tag }}]{{/_ingest.on_failure_processor_tag}} {{ _ingest.on_failure_message }}"}}],"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"apache"}}},"2.3.0-ml_dga_inference_pipeline":{"processors":[{"script":{"description":"Add ngram features for ML DGA model","lang":"painless","source":"String nGramAtPosition(String text, int fieldcount, int n){\n  if (fieldcount+n>text.length()){\n    return null;\n  } else {\n    return text.substring(fieldcount, fieldcount+n);\n  }\n}\n\nString[] secondLevelDomain(Map dynamic_domains, String domain, String subdomain, String registered_domain, String top_level_domain){\n  if (registered_domain == null || registered_domain == ''.'') {\n    return new String[] {domain, ''''};\n  }\n\n  if (dynamic_domains.containsKey(registered_domain) == true) {\n    if (subdomain != null) {\n      return new String[] {subdomain, registered_domain};\n    }\n  }\n\n  return new String[] {registered_domain.substring(0, registered_domain.length()-top_level_domain.length()-1), top_level_domain};\n  }\n\nString domain = ctx[''dns''][''question''][''name''];\nString subdomain = ctx[''dns''][''question''][''subdomain''];\nString registered_domain = ctx[''dns''][''question''][''registered_domain''];\nString top_level_domain = ctx[''dns''][''question''][''top_level_domain''];\n\nString[] ret = secondLevelDomain(params.dynamic_domains, domain, subdomain, registered_domain, top_level_domain);\n\nString sld = ret[0];\nString tld = ret[1];\n\nctx[''f''] = new HashMap();\nctx[''f''][''tld''] = tld;\n\nfor (int i=0;i<sld.length();i++){\n  String field = nGramAtPosition(sld, i, 1);\n  if (field == null) {\n    break;\n  }\n  ctx[''f''][''u''+ Integer.toString(i)] = field;\n}\n\nfor (int i=0;i<sld.length();i++){\n  String field = nGramAtPosition(sld, i, 2);\n  if (field == null) {\n    break;\n  }\n  ctx[''f''][''b''+ Integer.toString(i)] = field;\n  }\n\nfor (int i=0;i<sld.length();i++){\n  String field = nGramAtPosition(sld, i, 3);\n  if (field == null) {\n    break;\n  }\n  ctx[''f''][''t''+ Integer.toString(i)] = field;\n}\n","params":{"dynamic_domains":{"avsvmcloud.com":0,"co.cc":0,"cz.cc":0,"ddns.net":0,"dyndns.org":0,"dynserv.com":0,"github.io":0,"mooo.com":0,"mynumber.org":0,"yi.org":0}}}},{"inference":{"field_map":{},"inference_config":{"classification":{"num_top_classes":1}},"model_id":"dga_1611725_2.0","target_field":"ml_is_dga"}},{"script":{"lang":"painless","source":"def top_classes = ctx[''ml_is_dga''][''top_classes''];\ndef malicious_probability = 0.0;\ndef malicious_prediction = ctx[''ml_is_dga''][''malicious_prediction''];\n\nfor (def class: top_classes) {\n  if (class[''class_name''] == 1) {\n    malicious_probability = class[''class_probability''];\n  }\n}\n\nctx.remove(''ml_is_dga'');\nctx.remove(''f'');\nctx[''ml_is_dga''] = new HashMap();\nctx[''ml_is_dga''][''malicious_prediction''] = malicious_prediction;\nctx[''ml_is_dga''][''malicious_probability''] = malicious_probability;\n"}}],"on_failure":[{"set":{"field":"event.kind","value":"pipeline_error"}},{"append":{"field":"error.message","value":"{{{ _ingest.on_failure_message }}}"}}],"_meta":{"managed_by":"fleet","managed":true,"package":{"name":"dga"}}}}'
+        headers:
+            Content-Length:
+                - "4087"
+            Content-Type:
+                - application/json
+            X-Elastic-Product:
+                - Elasticsearch
+        status: 200 OK
+        code: 200
+        duration: 726.792µs

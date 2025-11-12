@@ -25,5 +25,11 @@ func stripObjectProperties(ctx *transformationContext, object common.MapStr) (co
 	if err != nil && err != common.ErrKeyNotFound {
 		return nil, fmt.Errorf("removing field \"version\" failed: %w", err)
 	}
+
+	err = object.Delete("managed")
+	if err != nil && err != common.ErrKeyNotFound {
+		return nil, fmt.Errorf("removing field \"managed\" failed: %w", err)
+	}
+
 	return object, nil
 }

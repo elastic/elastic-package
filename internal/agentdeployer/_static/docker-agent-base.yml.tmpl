@@ -5,11 +5,12 @@
 {{- $dockerfile_hash := fact "dockerfile_hash" -}}
 {{- $stack_version := fact "stack_version" }}
 {{- $agent_image := fact "agent_image" }}
+{{- $enrollment_token := fact "enrollment_token" }}
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
     {{ if ne $dockerfile_hash "" }}
-    image: "elastic-package-test-elastic-agent-complete:{{ $stack_version }}-{{ $dockerfile_hash }}"
+    image: "elastic-package-test-elastic-agent:{{ $stack_version }}-{{ $dockerfile_hash }}"
     build:
       context: .
       args:
@@ -40,9 +41,13 @@ services:
       - FLEET_ENROLL=1
       - FLEET_URL={{ fact "fleet_url" }}
       - KIBANA_HOST={{ fact "kibana_host" }}
+      {{ if eq $enrollment_token "" }}
       - FLEET_TOKEN_POLICY_NAME=${FLEET_TOKEN_POLICY_NAME}
       - ELASTICSEARCH_USERNAME={{ fact "elasticsearch_username" }}
       - ELASTICSEARCH_PASSWORD={{ fact "elasticsearch_password" }}
+      {{ else }}
+      - FLEET_ENROLLMENT_TOKEN={{ $enrollment_token }}
+      {{ end }}
     volumes:
       - type: bind
         source: ${LOCAL_CA_CERT}
@@ -57,3 +62,5 @@ services:
         source: ${SERVICE_LOGS_DIR}
         target: /run/service_logs/
         read_only: false
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

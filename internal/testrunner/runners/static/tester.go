@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
@@ -166,6 +167,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
@@ -182,7 +184,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	if len(multiErr) > 0 {
 		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
 			Reason:  "one or more errors found in document",
-			Details: multiErr.Error(),
+			Details: multiErr.Unique().Error(),
 		})
 		return results
 	}
@@ -233,4 +235,20 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 
 func (r tester) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
+}
+
+func isTestUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
+	if manifest.Type != "input" {
+		return false
+	}
+
+	// We are not testing an specific policy template here, assume this is an OTel package
+	// if at least one policy template has an "otelcol" input.
+	if !slices.ContainsFunc(manifest.PolicyTemplates, func(t packages.PolicyTemplate) bool {
+		return t.Input == "otelcol"
+	}) {
+		return false
+	}
+
+	return true
 }

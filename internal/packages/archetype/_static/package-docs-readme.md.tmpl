@@ -1,84 +1,101 @@
-<!-- Use this template language as a starting point, replacing {placeholder text} with details about the integration. -->
-<!-- Find more detailed documentation guidelines in https://github.com/elastic/integrations/blob/main/docs/documentation_guidelines.md -->
+{{- generatedHeader }}
+{{/*
+This template can be used as a starting point for writing documentation for your new integration. For each section, fill in the details
+described in the comments.
 
-# {{.Manifest.Title}}
+Find more detailed documentation guidelines in https://www.elastic.co/docs/extend/integrations/documentation-guidelines
+*/}}
+# {[.Manifest.Title]} Integration for Elastic
 
-<!-- The {{.Manifest.Title}} integration allows you to monitor {name of service}. {name of service} is {describe service}.
+## Overview
+{{/* Complete this section with a short summary of what data this integration collects and what use cases it enables */}}
+The {[.Manifest.Title]} integration for Elastic enables collection of ...
+This integration facilitates ...
 
-Use the {{.Manifest.Title}} integration to {purpose}. Then visualize that data in Kibana, create alerts to notify you if something goes wrong, and reference {data stream type} when troubleshooting an issue.
+### Compatibility
+{{/* Complete this section with information on what 3rd party software or hardware versions this integration is compatible with */}}
+This integration is compatible with ...
 
-For example, if you wanted to {sample use case} you could {action}. Then you can {visualize|alert|troubleshoot} by {action}. -->
+### How it works
+{{/* Add a high level overview on how this integration works. For example, does it collect data from API calls or recieving data from a network or file.*/}}
 
-## Data streams
+## What data does this integration collect?
+{{/* Complete this section with information on what types of data the integration collects, and link to reference documentation if available */}}
+The {[.Manifest.Title]} integration collects log messages of the following types:
+* ...
 
-<!-- The {{.Manifest.Title}} integration collects {one|two} type{s} of data streams: {logs and/or metrics}. -->
+### Supported use cases
+{{/* Add details on the use cases that can be enabled by using this integration. Explain why a user would want to install and use this integration. */}}
 
-<!-- If applicable -->
-<!-- **Logs** help you keep a record of events happening in {service}.
-Log data streams collected by the {name} integration include {sample data stream(s)} and more. See more details in the [Logs](#logs-reference). -->
+## What do I need to use this integration?
+{{/* List any vendor-specific prerequisites needed before starting to install the integration. */}}
 
-<!-- If applicable -->
-<!-- **Metrics** give you insight into the state of {service}.
-Metric data streams collected by the {name} integration include {sample data stream(s)} and more. See more details in the [Metrics](#metrics-reference). -->
+## How do I deploy this integration?
 
-<!-- Optional: Any additional notes on data streams -->
+### Agent-based deployment
 
-## Requirements
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
 
-You need Elasticsearch for storing and searching your data and Kibana for visualizing and managing it.
-You can use our hosted Elasticsearch Service on Elastic Cloud, which is recommended, or self-manage the Elastic Stack on your own hardware.
+Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-<!--
-	Optional: Other requirements including:
-	* System compatibility
-	* Supported versions of third-party products
-	* Permissions needed
-	* Anything else that could block a user from successfully using the integration
--->
+{{/* If agentless is available for this integration, we'll want to include that here as well.
+### Agentless deployment
 
-## Setup
+Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
 
-<!-- Any prerequisite instructions -->
+For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html) 
+*/}}
 
-For step-by-step instructions on how to set up an integration, see the
-[Getting started](https://www.elastic.co/guide/en/welcome-to-elastic/current/getting-started-observability.html) guide.
+### Onboard / configure
+{{/* List the steps that will need to be followed in order to completely set up a working integration.
+For integrations that support multiple input types, be sure to add steps for all inputs.
+*/}}
 
-<!-- Additional set up instructions -->
+### Validation
+{{/* How can the user test whether the integration is working? Including example commands or test files if applicable */}}
 
-<!-- If applicable -->
-<!-- ## Logs reference -->
+## Troubleshooting
 
-<!-- Repeat for each data stream of the current type -->
-<!-- ### {Data stream name}
+For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
+{{/*
+Add any vendor specific troubleshooting here.
 
-The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+Are there common issues or “gotchas” for deploying this integration? If so, how can they be resolved?
+If applicable, links to the third-party software’s troubleshooting documentation.
+*/}}
 
-<!-- Optional -->
-<!-- #### Example
+## Scaling
 
-An example event for `{data stream name}` looks as following:
+For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
+{{/* Add any vendor specific scaling information here */}}
 
-{code block with example} -->
+## Reference
+{{/* Repeat for each data stream of the current type
+### {Data stream name}
 
-<!-- #### Exported fields
+The `{data stream name}` data stream provides events from {source} of the following types: {list types}.
 
-{insert table} -->
+For each data_stream_name, include an optional summary of the datastream, the exported fields reference table and the sample event.
 
-<!-- If applicable -->
-<!-- ## Metrics reference -->
+The fields template function will be replaced by a generated list of all fields from the `fields/` directory of the data stream when building the integration.
 
-<!-- Repeat for each data stream of the current type -->
-<!-- ### {Data stream name}
+#### {data stream name} fields
 
-The `{data stream name}` data stream provides events from {source} of the following types: {list types}. -->
+To include a generated list of fields from the `fields/` directory, uncomment and use:
+{{ fields "data_stream_name" }}
 
-<!-- Optional -->
-<!-- #### Example
+The event template function will be replace by a sample event, taken from `sample_event.json`, when building this integration.
 
-An example event for `{data stream name}` looks as following:
+To include a sample event from `sample_event.json`, uncomment and use:
+{{ event "data_stream_name" }}
 
-{code block with example} -->
+*/}}
 
-<!-- #### Exported fields
+### Inputs used
+{{/* All inputs used by this package will be automatically listed here. */}}
+{{ inputDocs }}
 
-{insert table} -->
+### API usage
+{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information */}}
+These APIs are used with this integration:
+* ...

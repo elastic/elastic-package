@@ -42,8 +42,6 @@ type TestOptions struct {
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
 
-	RunIndependentElasticAgent bool
-
 	DeferCleanup   time.Duration
 	ServiceVariant string
 	WithCoverage   bool
@@ -73,8 +71,6 @@ type Tester interface {
 	// Parallel indicates if this test can be run in parallel or not
 	Parallel() bool
 }
-
-type TesterFactory func(TestFolder) (Tester, error)
 
 // TestRunner is the interface test runners that require a global initialization must implement.
 type TestRunner interface {
@@ -503,7 +499,7 @@ func PackageHasDataStreams(manifest *packages.PackageManifest) (bool, error) {
 	switch manifest.Type {
 	case "integration":
 		return true, nil
-	case "input":
+	case "input", "content":
 		return false, nil
 	default:
 		return false, fmt.Errorf("unexpected package type %q", manifest.Type)

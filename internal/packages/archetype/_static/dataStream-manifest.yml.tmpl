@@ -1,17 +1,59 @@
-title: "{{.Manifest.Title}}"
-type: {{.Manifest.Type}}
-streams:{{if eq .Manifest.Type "logs" }}
-  - input: logfile
-    title: Sample logs
-    description: Collect sample logs
+title: "{[.Manifest.Title]}"
+type: {[.Manifest.Type]}
+{[- if eq .Manifest.Type "logs" ]}
+{[- if .Manifest.Streams ]}
+streams:
+{[- range .Manifest.Streams ]}
+  - input: {[ .Input ]}
+{[- if .Title ]}
+    title: "{[ .Title ]}"
+{[- end ]}
+{[- if .Description ]}
+    description: |-
+{[ indent .Description 6 ]}
+{[- end ]}
+{[- if .TemplatePath ]}
+    template_path: {[ .TemplatePath ]}
+{[- end ]}
     vars:
-      - name: paths
-        type: text
-        title: Paths
-        multi: true
-        default:
-          - /var/log/*.log
-{{else}}
+{[- range .Vars ]}
+    - name: {[ .Name ]}
+{[- if .Type ]}
+      type: {[ .Type ]}
+{[- end ]}
+{[- if .Title ]}
+      title: "{[ .Title ]}"
+{[- end ]}
+{[- if .Description ]}
+      description: |-
+{[ indent .Description 8 ]}
+{[- end ]}
+{[- if .Multi ]}
+      multi: {[ .Multi ]}
+{[- end ]}
+{[- if .Required ]}
+      required: {[ .Required ]}
+{[- end ]}
+{[- if .Secret ]}
+      secret: {[ .Secret ]}
+{[- end ]}
+{[- if .ShowUser ]}
+      show_user: {[ .ShowUser ]}
+{[- end ]}
+{[- if .HideInDeploymentModes ]}
+      hide_in_deployment_modes: {[ .HideInDeploymentModes ]}
+{[- end ]}
+{[- if .UrlAllowedSchemes ]}
+      url_allowed_schemes: {[ .UrlAllowedSchemes ]}
+{[- end ]}
+{[- if .Default ]}
+      {[ yamlString .Default "default" 6 ]}
+{[- end ]}
+{[- end ]} {[/* range .Vars */]}
+{[- end ]} {[/* range .Manifest.Streams */]}
+{[- end ]} {[/* if .Manifest.Streams */]}
+{[ else ]}
+streams:
   - input: sample/metrics
     title: Sample metrics
     description: Collect sample metrics
@@ -20,20 +62,20 @@ streams:{{if eq .Manifest.Type "logs" }}
         type: text
         title: Period
         default: 10s
-{{- end }}
-{{ if .Manifest.Elasticsearch }}
+{[- end ]} {[/* if eq .Manifest.Type "logs" */]}
+{[ if .Manifest.Elasticsearch ]}
 elasticsearch:
-{{ if .Manifest.Elasticsearch.SourceMode }}
-  source_mode: {{ .Manifest.Elasticsearch.SourceMode }}
-{{- end}}
-{{ if .Manifest.Elasticsearch.IndexMode }}
-  index_mode: {{ .Manifest.Elasticsearch.IndexMode }}
-{{- end }}
-{{ if .Manifest.Elasticsearch.IndexTemplate }}
+{[ if .Manifest.Elasticsearch.SourceMode ]}
+  source_mode: {[ .Manifest.Elasticsearch.SourceMode ]}
+{[- end ]}
+{[ if .Manifest.Elasticsearch.IndexMode ]}
+  index_mode: {[ .Manifest.Elasticsearch.IndexMode ]}
+{[- end ]}
+{[ if .Manifest.Elasticsearch.IndexTemplate ]}
   index_template:
-{{ if .Manifest.Elasticsearch.IndexTemplate.Mappings }}
+{[ if .Manifest.Elasticsearch.IndexTemplate.Mappings ]}
     mappings:
-      subobjects: {{ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects }}
-{{- end }}
-{{- end }}
-{{- end }}
+      subobjects: {[ .Manifest.Elasticsearch.IndexTemplate.Mappings.Subobjects ]}
+{[- end ]}
+{[- end ]} {[/* if .Manifest.Elasticsearch.IndexTemplate */]}
+{[- end ]} {[/* if .Manifest.Elasticsearch */]}

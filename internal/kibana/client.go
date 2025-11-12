@@ -22,11 +22,15 @@ import (
 	"github.com/elastic/elastic-package/internal/retry"
 )
 
-var ErrUndefinedHost = errors.New("missing kibana host")
+var (
+	ErrUndefinedHost = errors.New("missing kibana host")
+	ErrConflict      = errors.New("resource already exists")
+)
 
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	host     string
+	apiKey   string
 	username string
 	password string
 
@@ -73,9 +77,12 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		}
 		c.versionInfo = v.Version
 
-		c.semver, err = semver.NewVersion(c.versionInfo.Number)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+		// Version info may not contain any version if this is a managed Kibana.
+		if c.versionInfo.Number != "" {
+			c.semver, err = semver.NewVersion(c.versionInfo.Number)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse Kibana version (%s): %w", c.versionInfo.Number, err)
+			}
 		}
 	}
 
@@ -91,6 +98,13 @@ func (c *Client) Address() string {
 func Address(address string) ClientOption {
 	return func(c *Client) {
 		c.host = address
+	}
+}
+
+// APIKey option sets the API key to be used by the client for authentication.
+func APIKey(apiKey string) ClientOption {
+	return func(c *Client) {
+		c.apiKey = apiKey
 	}
 }
 
@@ -175,14 +189,18 @@ func (c *Client) newRequest(ctx context.Context, method, resourcePath string, re
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
 
-	logger.Debugf("%s %s", method, u)
+	logger.Tracef("%s %s", method, u)
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("could not create %v request to Kibana API resource: %s: %w", method, resourcePath, err)
 	}
 
-	req.SetBasicAuth(c.username, c.password)
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "ApiKey "+c.apiKey)
+	} else {
+		req.SetBasicAuth(c.username, c.password)
+	}
 	req.Header.Add("content-type", "application/json")
 	req.Header.Add("kbn-xsrf", install.DefaultStackVersion)
 

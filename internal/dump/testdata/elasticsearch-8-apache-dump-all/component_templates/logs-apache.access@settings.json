@@ -82,7 +82,8 @@
               "user_agent.os.version",
               "user_agent.version",
               "apache.access.ssl.protocol",
-              "apache.access.ssl.cipher"
+              "apache.access.ssl.cipher",
+              "apache.access.remote_addresses"
             ]
           }
         }

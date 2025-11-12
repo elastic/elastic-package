@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -57,12 +58,13 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled         = "stack.apm_enabled"
-	configGeoIPDir           = "stack.geoip_dir"
-	configKibanaHTTP2Enabled = "stack.kibana_http2_enabled"
-	configLogsDBEnabled      = "stack.logsdb_enabled"
-	configLogstashEnabled    = "stack.logstash_enabled"
-	configSelfMonitorEnabled = "stack.self_monitor_enabled"
+	configAPMEnabled          = "stack.apm_enabled"
+	configGeoIPDir            = "stack.geoip_dir"
+	configKibanaHTTP2Enabled  = "stack.kibana_http2_enabled"
+	configLogsDBEnabled       = "stack.logsdb_enabled"
+	configLogstashEnabled     = "stack.logstash_enabled"
+	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
+	configElasticSubscription = "stack.elastic_subscription"
 )
 
 var (
@@ -135,6 +137,11 @@ var (
 			Content: staticSource.File("_static/Dockerfile.logstash"),
 		},
 	}
+
+	elasticSubscriptionsSupported = []string{
+		"basic",
+		"trial",
+	}
 )
 
 func applyResources(profile *profile.Profile, stackVersion string) error {
@@ -143,6 +150,11 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 	var agentPorts []string
 	if err := profile.Decode("stack.agent.ports", &agentPorts); err != nil {
 		return fmt.Errorf("failed to unmarshal stack.agent.ports: %w", err)
+	}
+
+	elasticSubscriptionProfile := profile.Config(configElasticSubscription, "trial")
+	if !slices.Contains(elasticSubscriptionsSupported, elasticSubscriptionProfile) {
+		return fmt.Errorf("unsupported Elastic subscription %q: supported subscriptions: %s", elasticSubscriptionProfile, strings.Join(elasticSubscriptionsSupported, ", "))
 	}
 
 	resourceManager := resource.NewManager()
@@ -156,8 +168,10 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"fleet_url":          "https://fleet-server:8220",
 		"elasticsearch_host": "https://elasticsearch:9200",
 
-		"username": elasticsearchUsername,
-		"password": elasticsearchPassword,
+		"api_key":          "",
+		"username":         elasticsearchUsername,
+		"password":         elasticsearchPassword,
+		"enrollment_token": "",
 
 		"agent_publish_ports":  strings.Join(agentPorts, ","),
 		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
@@ -166,6 +180,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+		"elastic_subscription": elasticSubscriptionProfile,
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
@@ -250,11 +265,11 @@ func addClientCertsToResources(resourceManager *resource.Manager, certResources 
 func semverLessThan(a, b string) (bool, error) {
 	sa, err := semver.NewVersion(a)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %q", err, a)
 	}
 	sb, err := semver.NewVersion(b)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("%w: %q", err, b)
 	}
 
 	return sa.LessThan(sb), nil

@@ -25,6 +25,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -52,10 +53,12 @@ For details on how to configure rally benchmarks for a package, review the [HOWT
 These benchmarks allow you to benchmark ingesting real time data.
 You can stream data to a remote ES cluster setting the following environment variables:
 
+` + "```" + `
 ELASTIC_PACKAGE_ELASTICSEARCH_HOST=https://my-deployment.es.eu-central-1.aws.foundit.no
 ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
 ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
 ELASTIC_PACKAGE_KIBANA_HOST=https://my-deployment.kb.eu-central-1.aws.foundit.no:9243
+` + "```" + `
 
 #### System Benchmarks
 
@@ -134,10 +137,12 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -201,6 +206,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 			pipeline.WithESAPI(esClient.API),
 			pipeline.WithNumTopProcs(numTopProcs),
 			pipeline.WithFormat(reportFormat),
+			pipeline.WithRepositoryRoot(repositoryRoot),
 		)
 		runner := pipeline.NewPipelineBenchmark(opts)
 
@@ -289,15 +295,16 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	var packageRootPath string
-	var found bool
 	if len(packageName) == 0 {
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
+		packageRootPath, err = packages.FindPackageRoot()
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -334,6 +341,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyDryRun(rallyDryRun),
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
+		rally.WithRepositoryRoot(repositoryRoot),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)
@@ -463,12 +471,14 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchStreamTimestampFieldFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 
 	profile, err := cobraext.GetProfileFlag(cmd)
@@ -505,6 +515,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithESAPI(esClient.API),
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
+		stream.WithRepositoryRoot(repositoryRoot),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))
@@ -570,10 +581,7 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
 	}
 
-	packageRootPath, found, err := packages.FindPackageRoot()
-	if !found {
-		return errors.New("package root not found")
-	}
+	packageRootPath, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -655,16 +663,18 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 
 func initializeESMetricsClient(ctx context.Context) (*elasticsearch.Client, error) {
 	address := os.Getenv(benchcommon.ESMetricstoreHostEnv)
+	apiKey := os.Getenv(benchcommon.ESMetricstoreAPIKeyEnv)
 	user := os.Getenv(benchcommon.ESMetricstoreUsernameEnv)
 	pass := os.Getenv(benchcommon.ESMetricstorePasswordEnv)
 	cacert := os.Getenv(benchcommon.ESMetricstoreCACertificateEnv)
-	if address == "" || user == "" || pass == "" {
+	if address == "" || ((user == "" || pass == "") && apiKey == "") {
 		logger.Debugf("can't initialize metricstore, missing environment configuration")
 		return nil, nil
 	}
 
 	esClient, err := stack.NewElasticsearchClient(
 		elasticsearch.OptionWithAddress(address),
+		elasticsearch.OptionWithAPIKey(apiKey),
 		elasticsearch.OptionWithUsername(user),
 		elasticsearch.OptionWithPassword(pass),
 		elasticsearch.OptionWithCertificateAuthority(cacert),

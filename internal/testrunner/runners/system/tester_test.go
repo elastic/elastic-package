@@ -5,7 +5,6 @@
 package system
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,12 +30,12 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 	var testCases = []struct {
 		testName string
 		err      string
-		pkg      packages.PackageManifest
+		pkg      *packages.PackageManifest
 		input    string
 	}{
 		{
 			testName: "single policy_template",
-			pkg: packages.PackageManifest{
+			pkg: &packages.PackageManifest{
 				PolicyTemplates: []packages.PolicyTemplate{
 					{
 						Name:        policyTemplateName,
@@ -53,7 +52,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		},
 		{
 			testName: "unspecified input name",
-			pkg: packages.PackageManifest{
+			pkg: &packages.PackageManifest{
 				PolicyTemplates: []packages.PolicyTemplate{
 					{
 						Name:        policyTemplateName,
@@ -69,7 +68,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		},
 		{
 			testName: "input matching",
-			pkg: packages.PackageManifest{
+			pkg: &packages.PackageManifest{
 				PolicyTemplates: []packages.PolicyTemplate{
 					{
 						Name:        policyTemplateName,
@@ -96,7 +95,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		{
 			testName: "data stream not specified",
 			err:      "no policy template was found",
-			pkg: packages.PackageManifest{
+			pkg: &packages.PackageManifest{
 				PolicyTemplates: []packages.PolicyTemplate{
 					{
 						Name:        policyTemplateName,
@@ -114,7 +113,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		{
 			testName: "multiple matches",
 			err:      "ambiguous result",
-			pkg: packages.PackageManifest{
+			pkg: &packages.PackageManifest{
 				PolicyTemplates: []packages.PolicyTemplate{
 					{
 						Name:        policyTemplateName,
@@ -140,12 +139,9 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		},
 	}
 
-	ds := packages.DataStreamManifest{
+	ds := &packages.DataStreamManifest{
 		Name: dataStreamName,
-		Streams: []struct {
-			Input string              `config:"input" json:"input" yaml:"input"`
-			Vars  []packages.Variable `config:"vars" json:"vars" yaml:"vars"`
-		}{
+		Streams: []packages.Stream{
 			{Input: inputName},
 		},
 	}
@@ -155,7 +151,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.testName, func(t *testing.T) {
-			name, err := findPolicyTemplateForInput(tc.pkg, ds, inputName)
+			name, err := FindPolicyTemplateForInput(tc.pkg, ds, inputName)
 
 			if tc.err != "" {
 				require.Errorf(t, err, "expected err containing %q", tc.err)
@@ -435,8 +431,8 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			client := estest.NewClient(t, c.record)
-			enabled, err := isSyntheticSourceModeEnabled(context.Background(), client.API, c.dataStreamName)
+			client := estest.NewClient(t, c.record, nil)
+			enabled, err := isSyntheticSourceModeEnabled(t.Context(), client.API, c.dataStreamName)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, enabled)
 		})

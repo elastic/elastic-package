@@ -253,9 +253,10 @@ func (r *runner) installPackage(ctx context.Context) error {
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		RootPath:       r.options.PackageRootPath,
-		SkipValidation: true,
+		Kibana:          r.options.KibanaClient,
+		PackageRootPath: r.options.PackageRootPath,
+		SkipValidation:  true,
+		RepositoryRoot:  r.options.RepositoryRoot,
 	})
 
 	if err != nil {
@@ -605,8 +606,6 @@ func (r *runner) runStreamGenerator(ctx context.Context, scenarioName string) er
 			return fmt.Errorf("error performing bulk request: %w", err)
 		}
 	}
-
-	return nil
 }
 
 func (r *runner) runBackfillGenerator(ctx context.Context, scenarioName string) error {

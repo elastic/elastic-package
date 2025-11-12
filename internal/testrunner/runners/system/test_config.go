@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -24,7 +25,10 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-var systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
+var (
+	systemTestConfigFilePattern = regexp.MustCompile(`^test-([a-z0-9_.-]+)-config.yml$`)
+	allowedDeployerNames        = []string{"docker", "k8s", "tf"}
+)
 
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
@@ -37,19 +41,33 @@ type testConfig struct {
 	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
 	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
 
+	Deployer string `config:"deployer"` // Name of the service deployer to use for this test.
+
 	Vars       common.MapStr `config:"vars"`
 	DataStream struct {
 		Vars common.MapStr `config:"vars"`
 	} `config:"data_stream"`
 
+	SkipTransformValidation bool `config:"skip_transform_validation"`
+
 	Assert struct {
-		// Expected number of hits for a given test
+		// HitCount expected number of hits for a given test
 		HitCount int `config:"hit_count"`
+
+		// MinCount minimum number of hits for a given test
+		MinCount int `config:"min_count"`
+
+		// FieldsPresent list of fields that must be present in any of documents ingested
+		FieldsPresent []string `config:"fields_present"`
 	} `config:"assert"`
 
 	// NumericKeywordFields holds a list of fields that have keyword
 	// type but can be ingested as numeric type.
 	NumericKeywordFields []string `config:"numeric_keyword_fields"`
+
+	// StringNumberFields holds a list of fields that have numeric
+	// types but can be ingested as strings.
+	StringNumberFields []string `config:"string_number_fields"`
 
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
@@ -115,6 +133,11 @@ func newConfig(configFilePath string, svcInfo servicedeployer.ServiceInfo, servi
 
 	if c.Agent.PreStartScript.Contents != "" && c.Agent.PreStartScript.Language == "" {
 		c.Agent.PreStartScript.Language = agentdeployer.DefaultAgentProgrammingLanguage
+	}
+
+	// Not included in package-spec validation for deployer name
+	if c.Deployer != "" && !slices.Contains(allowedDeployerNames, c.Deployer) {
+		return nil, fmt.Errorf("invalid deployer name %q in system test configuration file %q, allowed values are: %s", c.Deployer, configFilePath, strings.Join(allowedDeployerNames, ", "))
 	}
 
 	return &c, nil

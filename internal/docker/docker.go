@@ -73,7 +73,7 @@ func Pull(image string) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	logger.Debugf("run command: %s", cmd)
+	logger.Tracef("run command: %s", cmd)
 	err := cmd.Run()
 	if err != nil {
 		return fmt.Errorf("running docker command failed: %w", err)
@@ -87,7 +87,7 @@ func ContainerID(containerName string) (string, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Tracef("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("could not find \"%s\" container (stderr=%q): %w", containerName, errOutput.String(), err)
@@ -106,7 +106,7 @@ func ContainerIDsWithLabel(key, value string) ([]string, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Tracef("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return []string{}, fmt.Errorf("error getting containers with label \"%s\" (stderr=%q): %w", label, errOutput.String(), err)
@@ -121,7 +121,7 @@ func InspectNetwork(network string) ([]NetworkDescription, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Tracef("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("could not inspect the network (stderr=%q): %w", errOutput.String(), err)
@@ -152,7 +152,7 @@ func ConnectToNetworkWithAlias(containerID, network string, aliases []string) er
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", cmd)
+	logger.Tracef("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("could not attach container to the stack network (stderr=%q): %w", errOutput.String(), err)
 	}
@@ -168,7 +168,7 @@ func InspectContainers(containerIDs ...string) ([]ContainerDescription, error) {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("output command: %s", cmd)
+	logger.Tracef("output command: %s", cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("could not inspect containers (stderr=%q): %w", errOutput.String(), err)
@@ -188,7 +188,7 @@ func Copy(containerName, containerPath, localPath string) error {
 	errOutput := new(bytes.Buffer)
 	cmd.Stderr = errOutput
 
-	logger.Debugf("run command: %s", cmd)
+	logger.Tracef("run command: %s", cmd)
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("could not copy files from the container (stderr=%q): %w", errOutput.String(), err)
 	}

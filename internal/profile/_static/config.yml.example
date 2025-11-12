@@ -27,3 +27,5 @@
 # stack.agent.ports:
 # - 127.0.0.1:1514:1514/udp
 
+## Set license subscription
+# stack.elastic_subscription: "basic"

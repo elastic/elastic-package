@@ -19,7 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const buildLongDescription = `Use this command to build a package. Currently it supports only the "integration" package type.
+const buildLongDescription = `Use this command to build a package.
 
 Built packages are stored in the "build/" folder located at the root folder of the local Git repository checkout that contains your package folder. The command will also render the README file in your package folder if there is a corresponding template file present in "_dev/build/docs/README.md". All "_dev" directories under your package will be omitted. For details on how to generate and syntax of this README, see the [HOWTO guide](./docs/howto/add_package_readme.md).
 
@@ -61,18 +61,38 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+	defer repositoryRoot.Close()
+
 	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
+	// Currently the build directory is placed inside the repository build/ folder.
+	// In the future we might want to make this configurable.
 	buildDir, err := builder.BuildDirectory()
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	targets, err := docs.UpdateReadmes(packageRoot)
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRootPath: packageRoot,
+		BuildDir:        buildDir,
+		CreateZip:       createZip,
+		SignPackage:     signPackage,
+		SkipValidation:  skipValidation,
+		RepositoryRoot:  repositoryRoot,
+	})
+	if err != nil {
+		return fmt.Errorf("building package failed: %w", err)
+	}
+
+	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
 	if err != nil {
 		return fmt.Errorf("updating files failed: %w", err)
 	}
@@ -82,15 +102,6 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-	})
-	if err != nil {
-		return fmt.Errorf("building package failed: %w", err)
-	}
 	cmd.Printf("Package built: %s\n", target)
 
 	cmd.Println("Done")

@@ -1,0 +1,44 @@
+---
+name: Bump latest 8.x-SNAPSHOT elastic-stack test version
+pipelineid: 'bump-latest-8x-elastic-stack-version'
+
+actions:
+  default:
+    title: '[updatecli] Update latest snapshot to {{ source "latestSnapshot" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  latestSnapshot:
+    name: Get latest snapshot build
+    kind: json
+    spec:
+      file: https://storage.googleapis.com/artifacts-api/snapshots/8.19.json
+      key: .build_id
+
+targets:
+  update-snapshot:
+    name: '[updatecli] Update latest snapshot to {{ source "latestSnapshot" }}'
+    kind: file
+    sourceid: latestSnapshot
+    scmid: default
+    spec:
+      file: Makefile
+      matchpattern: '(./scripts/test-stack-command.sh) 8\.[^\s]+-SNAPSHOT'
+      replacepattern: '$1 {{ source "latestSnapshot" }}-SNAPSHOT'

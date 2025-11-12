@@ -135,6 +135,8 @@ func waitForReadyResources(resources []resource) error {
 	// be unavailable (DaemonSet.spec.updateStrategy.rollingUpdate.maxUnavailable defaults to 1).
 	// daemonSetReady will return true regardless of the pod not being ready yet.
 	// Can be solved with multi-node clusters.
+	// TODO: Support context cancelation in this wait. We rely on a helm waiter
+	// that doesn't support it.
 	err := kubeClient.Wait(resList, readinessTimeout)
 	if err != nil {
 		return fmt.Errorf("waiter failed: %w", err)

@@ -20,7 +20,7 @@ services:
       - "127.0.0.1:9200:9200"
 
   elasticsearch_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elasticsearch:
         condition: service_healthy
@@ -49,7 +49,7 @@ services:
       - "127.0.0.1:5601:5601"
 
   kibana_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       kibana:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       - "127.0.0.1:9000:9000"
 
   package-registry_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       package-registry:
         condition: service_healthy
@@ -91,7 +91,7 @@ services:
       kibana:
         condition: service_healthy
     healthcheck:
-      test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy 2>&1 >/dev/null"
+      test: "curl --cacert /etc/ssl/elastic-agent/ca-cert.pem -f https://localhost:8220/api/status | grep -i healthy >/dev/null"
       start_period: 60s
       interval: 5s
     hostname: docker-fleet-server
@@ -116,7 +116,7 @@ services:
       
 
   fleet-server_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       fleet-server:
         condition: service_healthy
@@ -148,7 +148,7 @@ services:
       target: /run/service_logs/
 
   elastic-agent_is_ready:
-    image: tianon/true:multiarch
+    image: "${ISREADY_IMAGE_REF}"
     depends_on:
       elastic-agent:
         condition: service_healthy

@@ -48,7 +48,7 @@ func (r *runner) SetUp(ctx context.Context) error {
 		return errors.New("data stream root not found")
 	}
 
-	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(r.options.API, dataStreamPath)
+	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.options.API, dataStreamPath, r.options.RepositoryRoot)
 	if err != nil {
 		return fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}

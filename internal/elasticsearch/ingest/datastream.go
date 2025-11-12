@@ -6,6 +6,7 @@ package ingest
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,13 +19,16 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
 var (
-	ingestPipelineTag   = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
-	defaultPipelineJSON = "default.json"
-	defaultPipelineYML  = "default.yml"
+	ingestPipelineTag       = regexp.MustCompile(`{{\s*IngestPipeline.+}}`)
+	defaultPipelineJSON     = "default.json"
+	defaultPipelineJSONLink = "default.json.link"
+	defaultPipelineYML      = "default.yml"
+	defaultPipelineYMLLink  = "default.yml.link"
 )
 
 type Rule struct {
@@ -45,7 +49,7 @@ type RerouteProcessor struct {
 	Namespace []string `yaml:"namespace"`
 }
 
-func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (string, []Pipeline, error) {
+func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamPath string, repositoryRoot *os.Root) (string, []Pipeline, error) {
 	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, fmt.Errorf("reading data stream manifest failed: %w", err)
@@ -53,24 +57,27 @@ func InstallDataStreamPipelines(api *elasticsearch.API, dataStreamPath string) (
 
 	nonce := time.Now().UnixNano()
 
-	mainPipeline := getPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
-	pipelines, err := loadIngestPipelineFiles(dataStreamPath, nonce)
+	mainPipeline := GetPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
+	pipelines, err := LoadIngestPipelineFiles(dataStreamPath, nonce, repositoryRoot)
 	if err != nil {
 		return "", nil, fmt.Errorf("loading ingest pipeline files failed: %w", err)
 	}
 
-	err = installPipelinesInElasticsearch(api, pipelines)
+	err = InstallPipelinesInElasticsearch(ctx, api, pipelines)
 	if err != nil {
 		return "", nil, err
 	}
 	return mainPipeline, pipelines, nil
 }
 
-func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, error) {
+// LoadIngestPipelineFiles returns the set of pipelines found in the directory
+// elasticsearch/ingest_pipeline under the provided data stream path. The names
+// of the pipelines are decorated with the provided nonce.
+func LoadIngestPipelineFiles(dataStreamPath string, nonce int64, repositoryRoot *os.Root) ([]Pipeline, error) {
 	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
 
 	var pipelineFiles []string
-	for _, pattern := range []string{"*.json", "*.yml"} {
+	for _, pattern := range []string{"*.json", "*.yml", "*.link"} {
 		files, err := filepath.Glob(filepath.Join(elasticsearchPath, pattern))
 		if err != nil {
 			return nil, fmt.Errorf("listing '%s' in '%s': %w", pattern, elasticsearchPath, err)
@@ -78,9 +85,13 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		pipelineFiles = append(pipelineFiles, files...)
 	}
 
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, elasticsearchPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating links filesystem failed: %w", err)
+	}
 	var pipelines []Pipeline
 	for _, path := range pipelineFiles {
-		c, err := os.ReadFile(path)
+		c, err := linksFS.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("reading ingest pipeline failed (path: %s): %w", path, err)
 		}
@@ -92,7 +103,7 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 				return nil
 			}
 			pipelineTag := s[1]
-			return []byte(getPipelineNameWithNonce(pipelineTag, nonce))
+			return []byte(GetPipelineNameWithNonce(pipelineTag, nonce))
 		})
 		if err != nil {
 			return nil, err
@@ -106,8 +117,8 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 		name := filepath.Base(path)
 		pipelines = append(pipelines, Pipeline{
 			Path:            path,
-			Name:            getPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
-			Format:          filepath.Ext(path)[1:],
+			Name:            GetPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
+			Format:          filepath.Ext(strings.TrimSuffix(path, ".link"))[1:],
 			Content:         cWithRerouteProcessors,
 			ContentOriginal: c,
 		})
@@ -118,7 +129,8 @@ func loadIngestPipelineFiles(dataStreamPath string, nonce int64) ([]Pipeline, er
 func addRerouteProcessors(pipeline []byte, dataStreamPath, path string) ([]byte, error) {
 	// Only attach routing_rules.yml reroute processors after the default pipeline
 	filename := filepath.Base(path)
-	if filename != defaultPipelineJSON && filename != defaultPipelineYML {
+	if filename != defaultPipelineJSON && filename != defaultPipelineYML &&
+		filename != defaultPipelineJSONLink && filename != defaultPipelineYMLLink {
 		return pipeline, nil
 	}
 
@@ -232,9 +244,11 @@ func convertValue(value interface{}, label string) ([]string, error) {
 	}
 }
 
-func installPipelinesInElasticsearch(api *elasticsearch.API, pipelines []Pipeline) error {
+// InstallPipelinesInElasticsearch installs the provided pipelines into the
+// Elasticsearch instance specified by the provided API handle.
+func InstallPipelinesInElasticsearch(ctx context.Context, api *elasticsearch.API, pipelines []Pipeline) error {
 	for _, p := range pipelines {
-		if err := installPipeline(api, p); err != nil {
+		if err := installPipeline(ctx, api, p); err != nil {
 			return err
 		}
 	}
@@ -251,20 +265,22 @@ func pipelineError(err error, pipeline Pipeline, format string, args ...interfac
 	return fmt.Errorf("%s: %w", errorStr, err)
 }
 
-func installPipeline(api *elasticsearch.API, pipeline Pipeline) error {
-	if err := putIngestPipeline(api, pipeline); err != nil {
+func installPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
+	if err := putIngestPipeline(ctx, api, pipeline); err != nil {
 		return err
 	}
 	// Just to be sure the pipeline has been uploaded.
-	return getIngestPipeline(api, pipeline)
+	return getIngestPipeline(ctx, api, pipeline)
 }
 
-func putIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
+func putIngestPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
 	source, err := pipeline.MarshalJSON()
 	if err != nil {
 		return err
 	}
-	r, err := api.Ingest.PutPipeline(pipeline.Name, bytes.NewReader(source))
+	r, err := api.Ingest.PutPipeline(pipeline.Name, bytes.NewReader(source),
+		api.Ingest.PutPipeline.WithContext(ctx),
+	)
 	if err != nil {
 		return pipelineError(err, pipeline, "PutPipeline API call failed")
 	}
@@ -283,10 +299,11 @@ func putIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	return nil
 }
 
-func getIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
-	r, err := api.Ingest.GetPipeline(func(request *elasticsearch.IngestGetPipelineRequest) {
-		request.PipelineID = pipeline.Name
-	})
+func getIngestPipeline(ctx context.Context, api *elasticsearch.API, pipeline Pipeline) error {
+	r, err := api.Ingest.GetPipeline(
+		api.Ingest.GetPipeline.WithContext(ctx),
+		api.Ingest.GetPipeline.WithPipelineID(pipeline.Name),
+	)
 	if err != nil {
 		return pipelineError(err, pipeline, "GetPipeline API call failed")
 	}
@@ -305,6 +322,7 @@ func getIngestPipeline(api *elasticsearch.API, pipeline Pipeline) error {
 	return nil
 }
 
-func getPipelineNameWithNonce(pipelineName string, nonce int64) string {
+// GetPipelineNameWithNonce returns the pipeline name decorated with the provided nonce.
+func GetPipelineNameWithNonce(pipelineName string, nonce int64) string {
 	return fmt.Sprintf("%s-%d", pipelineName, nonce)
 }

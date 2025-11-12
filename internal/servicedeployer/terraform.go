@@ -113,7 +113,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	service := dockerComposeDeployedService{
 		ymlPaths:        ymlPaths,
-		project:         fmt.Sprintf("elastic-package-service-%s", svcInfo.Test.RunID),
+		project:         svcInfo.ProjectName(),
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
 		configDir:       configDir,

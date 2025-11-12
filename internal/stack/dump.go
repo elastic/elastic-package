@@ -6,6 +6,7 @@ package stack
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,7 +46,11 @@ type DumpResult struct {
 
 // Dump function exports stack data and dumps them as local artifacts, which can be used for debug purposes.
 func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump Elastic stack data")
+	targetPathLogMessage := ""
+	if options.Output != "" {
+		targetPathLogMessage = fmt.Sprintf(" (location: %s)", options.Output)
+	}
+	logger.Debugf("Dump Elastic stack data%s", targetPathLogMessage)
 
 	results, err := dumpStackLogs(ctx, options)
 	if err != nil {
@@ -55,34 +60,46 @@ func Dump(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
 }
 
 func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, error) {
-	logger.Debugf("Dump stack logs (location: %s)", options.Output)
-	err := os.RemoveAll(options.Output)
-	if err != nil {
-		return nil, fmt.Errorf("can't remove output location: %w", err)
+	localServices := &localServicesManager{
+		profile: options.Profile,
 	}
-
-	services, err := localServiceNames(DockerComposeProjectName(options.Profile))
+	services, err := localServices.serviceNames()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get local services: %w", err)
 	}
 
 	for _, requestedService := range options.Services {
 		if !slices.Contains(services, requestedService) {
-			return nil, fmt.Errorf("local service %s does not exist", requestedService)
+			return nil, fmt.Errorf("%w: local service %s does not exist", ErrUnavailableStack, requestedService)
+		}
+	}
+
+	var logsPath string
+	if options.Output != "" {
+		err := os.RemoveAll(options.Output)
+		if err != nil {
+			return nil, fmt.Errorf("can't remove output location: %w", err)
+		}
+
+		logsPath = filepath.Join(options.Output, "logs")
+		err = os.MkdirAll(logsPath, 0755)
+		if err != nil {
+			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
 		}
 	}
 
 	var results []DumpResult
+	var containerErrors error
 	for _, serviceName := range services {
 		if len(options.Services) > 0 && !slices.Contains(options.Services, serviceName) {
 			continue
 		}
-
 		logger.Debugf("Dump stack logs for %s", serviceName)
 
 		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)
 		if err != nil {
-			return nil, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err)
+			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err))
+			continue
 		}
 		if options.Output == "" {
 			results = append(results, DumpResult{
@@ -96,15 +113,10 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 			ServiceName: serviceName,
 		}
 
-		logsPath := filepath.Join(options.Output, "logs")
-		err = os.MkdirAll(logsPath, 0755)
-		if err != nil {
-			return nil, fmt.Errorf("can't create output location (path: %s): %w", logsPath, err)
-		}
-
 		logPath, err := writeLogFiles(logsPath, serviceName, content)
 		if err != nil {
-			return nil, fmt.Errorf("can't write log files for service %q: %w", serviceName, err)
+			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't write log files for service %q: %w", serviceName, err))
+			continue
 		}
 		result.LogsFile = logPath
 
@@ -112,12 +124,17 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 		case elasticAgentService, fleetServerService:
 			logPath, err := copyDockerInternalLogs(serviceName, logsPath, options.Profile)
 			if err != nil {
-				return nil, fmt.Errorf("can't copy internal logs (service: %s): %w", serviceName, err)
+				containerErrors = errors.Join(containerErrors, fmt.Errorf("can't copy internal logs for service %q: %w", serviceName, err))
+				continue
 			}
 			result.InternalLogsDir = logPath
 		}
 
 		results = append(results, result)
+	}
+
+	if containerErrors != nil {
+		return nil, fmt.Errorf("failed to dump stack logs: %w", containerErrors)
 	}
 
 	return results, nil
