@@ -975,8 +975,7 @@ type scenarioTest struct {
 	// dataStream is the name of the target data stream where documents are indexed
 	dataStream          string
 	indexTemplateName   string
-	policyTemplateName  string
-	policyTemplateInput string
+	policyTemplate      packages.PolicyTemplate
 	kibanaDataStream    kibana.PackageDataStream
 	syntheticEnabled    bool
 	docs                []common.MapStr
@@ -1033,13 +1032,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
-	scenario.policyTemplateName = policyTemplateName
 
-	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
+	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
-	scenario.policyTemplateInput = policyTemplate.Input
+	scenario.policyTemplate = policyTemplate
 
 	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
@@ -1100,7 +1098,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.kibanaDataStream = ds
 
 	scenario.indexTemplateName = BuildIndexTemplateName(ds, policyTemplate, r.pkgManifest.Type, config.Vars)
-	scenario.dataStream = BuildDataStreamName(scenario.policyTemplateInput, ds, policyTemplate, r.pkgManifest.Type, config.Vars)
+	scenario.dataStream = BuildDataStreamName(ds, policyTemplate, r.pkgManifest.Type, config.Vars)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1269,8 +1267,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 // BuildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
+func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(packageType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	indexTemplateName := fmt.Sprintf(
 		"%s-%s",
@@ -1282,11 +1280,11 @@ func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
+func BuildDataStreamName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(packageType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	// Input packages using the otel collector input require to add a specific dataset suffix
-	if manType == "input" && policyTemplateInput == otelCollectorInputName {
+	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
 		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
 	}
 
@@ -1640,7 +1638,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return nil, err
 	}
 
-	if r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) {
+	if r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) {
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
@@ -1652,7 +1650,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
 		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
-		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput)),
+		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -1665,7 +1663,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
+	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1722,7 +1720,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplateInput, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplate.Input, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1775,29 +1773,26 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 		}
 	}
 
-	if expectedDatasets == nil {
+	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
 		if r.pkgManifest.Type == "input" {
-			expectedDataset = scenario.policyTemplateName
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				expectedDataset += "." + otelSuffixDataset
+			v, _ := config.Vars.GetValue("data_stream.dataset")
+			if dataset, ok := v.(string); ok && dataset != "" {
+				expectedDataset = dataset
+			} else if dataset := findDefaultValue(scenario.policyTemplate.Vars, "data_stream.dataset"); dataset != "" {
+				expectedDataset = dataset
+			} else {
+				expectedDataset = scenario.policyTemplate.Name
 			}
+		}
+
+		if scenario.policyTemplate.Input == otelCollectorInputName {
+			// Input packages whose input is `otelcol` must add the `.otel` suffix
+			// Example: httpcheck.metrics.otel
+			expectedDataset += "." + otelSuffixDataset
 		}
 		expectedDatasets = []string{expectedDataset}
-	}
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				dataset += "." + otelSuffixDataset
-			}
-			expectedDatasets = append(expectedDatasets, dataset)
-		}
 	}
 
 	return expectedDatasets, nil
