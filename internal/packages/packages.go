@@ -19,6 +19,7 @@ import (
 
 	yamlv3 "gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 )
@@ -432,8 +433,10 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
 	// Parse exclude directories
 	excludeMap := map[string]bool{
-		".git": true, // Always exclude .git
+		".git":  true, // Always exclude .git
+		"build": true, // Always exclude build
 	}
+
 	if excludeDirs != "" {
 		for dir := range strings.SplitSeq(excludeDirs, ",") {
 			excludeMap[strings.TrimSpace(dir)] = true
@@ -455,8 +458,8 @@ func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs s
 		if d.IsDir() {
 			dirName := d.Name()
 
-			// Skip excluded directories
-			if excludeMap[dirName] {
+			// Skip excluded directories (but not the search root)
+			if excludeMap[dirName] && searchRoot != path {
 				return filepath.SkipDir
 			}
 
@@ -476,7 +479,7 @@ func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs s
 		// Validate it's a package manifest
 		ok, err := isPackageManifest(path)
 		if err != nil {
-			// Log the error but continue searching
+			logger.Debugf("failed to validate package manifest (path: %s): %v", path, err)
 			return nil
 		}
 		if !ok {

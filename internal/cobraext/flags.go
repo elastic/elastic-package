@@ -157,9 +157,12 @@ const (
 	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
 
 	FilterOutputFlagName        = "output"
-	FilterOutputFlagDescription = "select the output format [pkgname, dirname, absolute]"
-	FilterOutputFlagDefault     = "dirname"
+	FilterOutputFlagDescription = "format of the output. Available options: json, yaml (leave empty for newline-separated list)"
 	FilterOutputFlagShorthand   = "o"
+
+	FilterOutputInfoFlagName        = "output-info"
+	FilterOutputInfoFlagDescription = "output information about the packages. Available options: pkgname, dirname, absolute"
+	FilterOutputInfoFlagDefault     = "dirname"
 
 	FilterPackageDirNameFlagName        = "package-dirs"
 	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"

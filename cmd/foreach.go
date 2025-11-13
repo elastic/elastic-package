@@ -30,6 +30,7 @@ func getAllowedSubCommands() []string {
 	return []string{
 		"build",
 		"check",
+		"changelog",
 		"clean",
 		"format",
 		"install",

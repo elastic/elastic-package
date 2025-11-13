@@ -5,65 +5,106 @@
 package filter
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"go.yaml.in/yaml/v2"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type OutputFormat string
-
-const (
-	OutputFormatPackageName   OutputFormat = "pkgname"
-	OutputFormatDirectoryName OutputFormat = "dirname"
-	OutputFormatAbsolutePath  OutputFormat = "absolute"
-)
-
-func OutputFormatsList() []OutputFormat {
-	return []OutputFormat{OutputFormatPackageName, OutputFormatDirectoryName, OutputFormatAbsolutePath}
+// OutputOptions handles both what information to display and how to format it.
+type OutputOptions struct {
+	infoType string // "pkgname", "dirname", "absolute"
+	format   string // "json", "yaml", ""
 }
 
-func (o OutputFormat) String() string {
-	return string(o)
-}
-
-func NewOutputFormat(s string) (OutputFormat, error) {
-	switch s {
-	case string(OutputFormatPackageName):
-		return OutputFormatPackageName, nil
-	case string(OutputFormatDirectoryName):
-		return OutputFormatDirectoryName, nil
-	case string(OutputFormatAbsolutePath):
-		return OutputFormatAbsolutePath, nil
+// NewOutputOptions creates a new OutputOptions from string parameters.
+func NewOutputOptions(infoType, format string) (*OutputOptions, error) {
+	cfg := &OutputOptions{
+		infoType: infoType,
+		format:   format,
 	}
-	return "", fmt.Errorf("invalid output format: %s", s)
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
-func (o OutputFormat) ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]string, error) {
-	// if no packages are found, return an empty slice
+func (o *OutputOptions) validate() error {
+	validInfo := []string{"pkgname", "dirname", "absolute"}
+	validFormats := []string{"json", "yaml", ""}
+
+	if !slices.Contains(validInfo, o.infoType) {
+		return fmt.Errorf("invalid output info type: %s (valid: pkgname, dirname, absolute)", o.infoType)
+	}
+	if !slices.Contains(validFormats, o.format) {
+		return fmt.Errorf("invalid output format: %s (valid: json, yaml, or empty)", o.format)
+	}
+
+	return nil
+}
+
+// ApplyTo applies the output configuration to packages and returns formatted output.
+func (o *OutputOptions) ApplyTo(pkgs []packages.PackageDirNameAndManifest) (string, error) {
 	if len(pkgs) == 0 {
-		return nil, nil
+		return "", nil
 	}
 
-	// apply the output format to the packages
-	output := make([]string, 0, len(pkgs))
+	values, err := o.extractInfo(pkgs)
+	if err != nil {
+		return "", fmt.Errorf("extracting info failed: %w", err)
+	}
+
+	// Format output
+	return o.formatOutput(values)
+}
+
+func (o *OutputOptions) extractInfo(pkgs []packages.PackageDirNameAndManifest) ([]string, error) {
+
+	// Extract information
+	values := make([]string, 0, len(pkgs))
 	for _, pkg := range pkgs {
-		switch o {
-		case OutputFormatPackageName:
-			output = append(output, pkg.Manifest.Name)
-		case OutputFormatDirectoryName:
-			output = append(output, pkg.DirName)
-		case OutputFormatAbsolutePath:
-			output = append(output, pkg.Path)
+		var val string
+		switch o.infoType {
+		case "pkgname":
+			val = pkg.Manifest.Name
+		case "dirname":
+			val = pkg.DirName
+		case "absolute":
+			val = pkg.Path
 		}
+		values = append(values, val)
 	}
 
-	// sort the output
-	slices.Sort(output)
+	// Sort for consistent output
+	slices.Sort(values)
 
-	return output, nil
+	return values, nil
+}
+
+func (o *OutputOptions) formatOutput(values []string) (string, error) {
+	switch o.format {
+	case "":
+		return strings.Join(values, "\n"), nil
+	case "json":
+		data, err := json.Marshal(values)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal to JSON: %w", err)
+		}
+		return string(data), nil
+	case "yaml":
+		data, err := yaml.Marshal(values)
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal to YAML: %w", err)
+		}
+		return string(data), nil
+	default:
+		return "", fmt.Errorf("unsupported format: %s", o.format)
+	}
 }
 
 // FilterFlag defines the basic interface for filter flags.
@@ -77,7 +118,6 @@ type FilterFlag interface {
 // It defines the interface for filtering packages based on specific criteria.
 type Filter interface {
 	FilterFlag
-
 	Parse(cmd *cobra.Command) error
 	Validate() error
 	ApplyTo(pkgs []packages.PackageDirNameAndManifest) ([]packages.PackageDirNameAndManifest, error)
@@ -92,8 +132,7 @@ type FilterFlagBase struct {
 	description  string
 	shorthand    string
 	defaultValue string
-
-	isApplied bool
+	isApplied    bool
 }
 
 func (f *FilterFlagBase) String() string {

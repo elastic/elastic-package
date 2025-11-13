@@ -5,7 +5,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -32,7 +31,8 @@ func setupFilterCommand() *cobraext.Command {
 	filter.SetFilterFlags(cmd)
 
 	// add the output package name and absolute path flags to the command
-	cmd.Flags().StringP(cobraext.FilterOutputFlagName, cobraext.FilterOutputFlagShorthand, cobraext.FilterOutputFlagDefault, cobraext.FilterOutputFlagDescription)
+	cmd.Flags().StringP(cobraext.FilterOutputFlagName, cobraext.FilterOutputFlagShorthand, "", cobraext.FilterOutputFlagDescription)
+	cmd.Flags().StringP(cobraext.FilterOutputInfoFlagName, "", cobraext.FilterOutputInfoFlagDefault, cobraext.FilterOutputInfoFlagDescription)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
@@ -48,12 +48,17 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting output format flag failed: %w", err)
 	}
 
-	outputFormat, err := filter.NewOutputFormat(outputFormatStr)
+	outputInfoStr, err := cmd.Flags().GetString(cobraext.FilterOutputInfoFlagName)
 	if err != nil {
-		return fmt.Errorf("invalid output format: %w", err)
+		return fmt.Errorf("getting output info flag failed: %w", err)
 	}
 
-	if err = printPkgList(filtered, outputFormat, os.Stdout); err != nil {
+	outputOptions, err := filter.NewOutputOptions(outputInfoStr, outputFormatStr)
+	if err != nil {
+		return fmt.Errorf("creating output options failed: %w", err)
+	}
+
+	if err = printPkgList(filtered, outputOptions, os.Stdout); err != nil {
 		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
@@ -89,14 +94,13 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, er
 	return filtered, nil
 }
 
-func printPkgList(pkgs []packages.PackageDirNameAndManifest, outputFormat filter.OutputFormat, w io.Writer) error {
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
-
-	names, err := outputFormat.ApplyTo(pkgs)
+func printPkgList(pkgs []packages.PackageDirNameAndManifest, outputOptions *filter.OutputOptions, w io.Writer) error {
+	formatted, err := outputOptions.ApplyTo(pkgs)
 	if err != nil {
 		return fmt.Errorf("applying output format failed: %w", err)
 	}
 
-	return enc.Encode(names)
+	// write the formatted packages to the writer
+	_, err = io.WriteString(w, formatted+"\n")
+	return err
 }
