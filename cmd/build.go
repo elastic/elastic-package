@@ -7,13 +7,11 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -80,26 +78,17 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
+	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRootPath: packageRoot,
 		BuildDir:        buildDir,
 		CreateZip:       createZip,
 		SignPackage:     signPackage,
 		SkipValidation:  skipValidation,
 		RepositoryRoot:  repositoryRoot,
+		UpdateReadmes:   true,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
-	}
-
-	targets, err := docs.UpdateReadmes(repositoryRoot, packageRoot, buildDir)
-	if err != nil {
-		return fmt.Errorf("updating files failed: %w", err)
-	}
-
-	for _, target := range targets {
-		fileName := filepath.Base(target)
-		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
 	cmd.Printf("Package built: %s\n", target)

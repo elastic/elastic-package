@@ -25,10 +25,11 @@ import (
 
 // KubernetesAgentDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesAgentDeployer struct {
-	profile      *profile.Profile
-	stackVersion string
-	policyName   string
-	dataStream   string
+	profile              *profile.Profile
+	stackVersion         string
+	overrideAgentVersion string
+	policyName           string
+	dataStream           string
 
 	agentRunID string
 
@@ -38,10 +39,11 @@ type KubernetesAgentDeployer struct {
 }
 
 type KubernetesAgentDeployerOptions struct {
-	Profile      *profile.Profile
-	StackVersion string
-	PolicyName   string
-	DataStream   string
+	Profile              *profile.Profile
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
+	DataStream           string
 
 	RunSetup     bool
 	RunTestsOnly bool
@@ -53,11 +55,12 @@ type kubernetesDeployedAgent struct {
 	profile      *profile.Profile
 	stackVersion string
 
-	agentName string
+	agentName            string
+	overrideAgentVersion string
 }
 
 func (s kubernetesDeployedAgent) TearDown(ctx context.Context) error {
-	elasticAgentManagedYaml, err := getElasticAgentYAML(ctx, s.profile, s.agentInfo, s.stackVersion, s.agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(ctx, s.profile, s.agentInfo, s.stackVersion, s.agentName, s.overrideAgentVersion)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -90,13 +93,14 @@ var _ DeployedAgent = new(kubernetesDeployedAgent)
 // NewKubernetesAgentDeployer function creates a new instance of KubernetesAgentDeployer.
 func NewKubernetesAgentDeployer(opts KubernetesAgentDeployerOptions) (*KubernetesAgentDeployer, error) {
 	return &KubernetesAgentDeployer{
-		profile:      opts.Profile,
-		stackVersion: opts.StackVersion,
-		policyName:   opts.PolicyName,
-		dataStream:   opts.DataStream,
-		runSetup:     opts.RunSetup,
-		runTestsOnly: opts.RunTestsOnly,
-		runTearDown:  opts.RunTearDown,
+		profile:              opts.Profile,
+		stackVersion:         opts.StackVersion,
+		overrideAgentVersion: opts.OverrideAgentVersion,
+		policyName:           opts.PolicyName,
+		dataStream:           opts.DataStream,
+		runSetup:             opts.RunSetup,
+		runTestsOnly:         opts.RunTestsOnly,
+		runTearDown:          opts.RunTearDown,
 	}, nil
 }
 
@@ -123,7 +127,7 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	if ksd.runTearDown || ksd.runTestsOnly {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, agentInfo, ksd.stackVersion, agentName)
+		err = installElasticAgentInCluster(ctx, ksd.profile, agentInfo, ksd.stackVersion, agentName, ksd.overrideAgentVersion)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -135,10 +139,11 @@ func (ksd *KubernetesAgentDeployer) SetUp(ctx context.Context, agentInfo AgentIn
 	// to deploy Agent Pod. Because of this, hostname inside pod will be equal to the name of the k8s host.
 	agentInfo.Agent.Host.NamePrefix = "kind-control-plane"
 	return &kubernetesDeployedAgent{
-		agentInfo:    agentInfo,
-		profile:      ksd.profile,
-		stackVersion: ksd.stackVersion,
-		agentName:    agentName,
+		agentInfo:            agentInfo,
+		profile:              ksd.profile,
+		stackVersion:         ksd.stackVersion,
+		agentName:            agentName,
+		overrideAgentVersion: ksd.overrideAgentVersion,
 	}, nil
 }
 
@@ -155,10 +160,10 @@ func (ksd *KubernetesAgentDeployer) agentName() string {
 
 var _ AgentDeployer = new(KubernetesAgentDeployer)
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName, agentVersion string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(ctx, profile, agentInfo, stackVersion, agentName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(ctx, profile, agentInfo, stackVersion, agentName, agentVersion)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -176,7 +181,7 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName string) ([]byte, error) {
+func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInfo AgentInfo, stackVersion, agentName, overrideAgentVersion string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
 	config, err := stack.LoadConfig(profile)
 	if err != nil {
@@ -207,7 +212,13 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 		}
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
+	// default to stack version if no override is provided
+	agentVersion := stackVersion
+	if overrideAgentVersion != "" {
+		agentVersion = overrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -228,7 +239,7 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 		"enrollmentToken":             enrollmentToken,
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs().ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, agentInfo.Policy.Name),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(agentVersion, agentInfo.Policy.Name),
 		"agentName":                   agentName,
 	})
 	if err != nil {
@@ -255,8 +266,8 @@ func readCACertBase64(profile *profile.Profile) (string, error) {
 // getTokenPolicyName function returns the policy name for the >= 8.x Elastic stacks. The agent's policy
 // is predefined in the Kibana configuration file. The logic is not present in older stacks and it uses
 // the default policy in Kibana (empty string).
-func getTokenPolicyName(stackVersion, policyName string) string {
-	if strings.HasPrefix(stackVersion, "7.") {
+func getTokenPolicyName(agentVersion, policyName string) string {
+	if strings.HasPrefix(agentVersion, "7.") {
 		return ""
 	}
 	return policyName

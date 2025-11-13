@@ -5,7 +5,6 @@
 package builder
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/magefile/mage/sh"
 
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -33,6 +33,7 @@ type BuildOptions struct {
 	CreateZip      bool
 	SignPackage    bool
 	SkipValidation bool
+	UpdateReadmes  bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -163,7 +164,7 @@ func FindBuildPackagesDirectory() (string, bool, error) {
 }
 
 // BuildPackage function builds the package.
-func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
+func BuildPackage(options BuildOptions) (string, error) {
 	// builtPackageDir is the directory where the built package content is placed
 	// eg. <buildDir>/packages/<package name>/<package version>
 	builtPackageDir, err := BuildPackagesDirectory(options.PackageRootPath, options.BuildDir)
@@ -229,8 +230,15 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
+	if options.UpdateReadmes {
+		err = docs.UpdateReadmes(options.RepositoryRoot, options.PackageRootPath, builtPackageDir)
+		if err != nil {
+			return "", fmt.Errorf("updating readme files failed: %w", err)
+		}
+	}
+
 	if options.CreateZip {
-		return buildZippedPackage(ctx, options, builtPackageDir)
+		return buildZippedPackage(options, builtPackageDir)
 	}
 
 	if options.SkipValidation {
@@ -250,14 +258,15 @@ func BuildPackage(ctx context.Context, options BuildOptions) (string, error) {
 }
 
 // buildZippedPackage function builds the zipped package from the builtPackageDir and stores it in buildPackagesDir.
-func buildZippedPackage(ctx context.Context, options BuildOptions, builtPackageDir string) (string, error) {
+func buildZippedPackage(options BuildOptions, builtPackageDir string) (string, error) {
 	logger.Debug("Build zipped package")
 	zippedPackagePath, err := buildPackagesZipPath(options.PackageRootPath)
 	if err != nil {
 		return "", fmt.Errorf("can't evaluate path for the zipped package: %w", err)
 	}
 
-	err = files.Zip(ctx, builtPackageDir, zippedPackagePath)
+	logger.Debugf("Compress using archives.Zip (destination: %s)", zippedPackagePath)
+	err = files.Zip(builtPackageDir, zippedPackagePath)
 	if err != nil {
 		return "", fmt.Errorf("can't compress the built package (compressed file path: %s): %w", zippedPackagePath, err)
 	}

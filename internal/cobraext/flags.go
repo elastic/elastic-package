@@ -154,7 +154,7 @@ const (
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
 
 	ReportFormatFlagName        = "report-format"
-	ReportFormatFlagDescription = "format of test report"
+	ReportFormatFlagDescription = "format of test report, eg: human, xUnit"
 
 	ReportFullFlagName        = "full"
 	ReportFullFlagDescription = "whether to show the full report or a summary"
@@ -227,4 +227,7 @@ const (
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
+
+	AgentVersionFlagName        = "agent-version"
+	AgentVersionFlagDescription = "Elastic Agent version to be used in the stack"
 )

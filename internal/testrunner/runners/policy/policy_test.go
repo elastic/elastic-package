@@ -146,6 +146,8 @@ inputs:
         package:
             name: sql_input
             version: 1.0.0
+            release: ga
+            policy_template: sql_input
       name: test-mysql-sql_input
       package_policy_id: b2775cd2-185c-11ef-bf70-b7bd5adaa788
       streams:

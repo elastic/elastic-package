@@ -42,6 +42,8 @@ const (
 
 	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
+
+	defaultNamespace = "ep"
 )
 
 type runner struct {
@@ -169,14 +171,25 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
+	// Set default values for scenario fields from package manifest if not set
+	if r.scenario.Version == "" {
+		r.scenario.Version = pkgManifest.Version
+	}
+
+	if r.scenario.Package == "" {
+		r.scenario.Package = pkgManifest.Name
+	}
+
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
+	}
+
+	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, defaultNamespace)
 	if err != nil {
 		return err
 	}
 	r.benchPolicy = policy
 
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
 			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
@@ -210,6 +223,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return nil
 	}
 
+	logger.Debug("deleting old data in data stream...")
 	if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
@@ -367,14 +381,14 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 	return nil
 }
 
-func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
+func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest, namespace string) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
 		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
-		Namespace:         "ep",
+		Namespace:         namespace,
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
 
@@ -388,29 +402,21 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 		return nil, err
 	}
 
-	packagePolicy, err := r.createPackagePolicy(ctx, pkgManifest, policy)
-	if err != nil {
-		return nil, err
-	}
-
 	r.deletePolicyHandler = func(ctx context.Context) error {
-		var merr multierror.Error
-
-		logger.Debug("deleting benchmark package policy...")
-		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
-		}
-
+		// Package policy deletion is handled when deleting this policy.
+		// Setting here the deletion handler ensures that if package policy creation fails,
+		// no orphaned package policies are left behind.
 		logger.Debug("deleting benchmark policy...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
-		}
-
-		if len(merr) > 0 {
-			return merr
+			return fmt.Errorf("error cleaning up benchmark policy: %w", err)
 		}
 
 		return nil
+	}
+
+	_, err = r.createPackagePolicy(ctx, pkgManifest, policy)
+	if err != nil {
+		return nil, err
 	}
 
 	return policy, nil
@@ -419,20 +425,8 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
 	logger.Debug("creating package policy...")
 
-	if r.scenario.Version == "" {
-		r.scenario.Version = pkgManifest.Version
-	}
-
-	if r.scenario.Package == "" {
-		r.scenario.Package = pkgManifest.Name
-	}
-
-	if r.scenario.PolicyTemplate == "" {
-		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
-	}
-
 	pp := kibana.PackagePolicy{
-		Namespace: "ep",
+		Namespace: p.Namespace,
 		PolicyID:  p.ID,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
@@ -440,7 +434,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 				Enabled: true,
 				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{
-					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
+					fmt.Sprintf("%s.%s", r.scenario.Package, r.scenario.DataStream.Name): {
 						Enabled: true,
 						Vars:    r.scenario.DataStream.Vars,
 					},
@@ -448,7 +442,24 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 			},
 		},
 	}
-	pp.Package.Name = pkgManifest.Name
+
+	// By default, all policy templates are enabled when creating a package policy.
+	// This could lead to errors if other policy templates have required variables.
+	// Therefore, all other policy templates and inputs must be disabled since here
+	// just the variables for the current input are set.
+	// NOTE: This data is retrieved from the local package manifest.
+	for _, policyTemplate := range pkgManifest.PolicyTemplates {
+		for _, input := range policyTemplate.Inputs {
+			if policyTemplate.Name == r.scenario.PolicyTemplate && input.Type == r.scenario.Input {
+				continue
+			}
+			pp.Inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, input.Type)] = kibana.PackagePolicyInput{
+				Enabled: false,
+			}
+		}
+	}
+
+	pp.Package.Name = r.scenario.Package
 	pp.Package.Version = r.scenario.Version
 
 	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)

@@ -56,7 +56,12 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
+	agentVersion := options.StackVersion
+	if options.OverrideAgentVersion != "" {
+		agentVersion = options.OverrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -82,7 +87,12 @@ func dockerComposePull(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
+	agentVersion := options.StackVersion
+	if options.OverrideAgentVersion != "" {
+		agentVersion = options.OverrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -113,7 +123,12 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 		args = append(args, "-d")
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
+	agentVersion := options.StackVersion
+	if options.OverrideAgentVersion != "" {
+		agentVersion = options.OverrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -140,7 +155,12 @@ func dockerComposeDown(ctx context.Context, options Options) error {
 		return fmt.Errorf("could not create docker compose project: %w", err)
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion))
+	agentVersion := options.StackVersion
+	if options.OverrideAgentVersion != "" {
+		agentVersion = options.OverrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}

@@ -39,8 +39,14 @@ var (
 
 // applyLocalResources creates the local resources needed to run system tests when the stack
 // is not local.
-func applyLocalResources(profile *profile.Profile, stackVersion string, config Config) error {
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
+func applyLocalResources(profile *profile.Profile, stackVersion, overrideAgentVersion string, config Config) error {
+
+	agentVersion := stackVersion
+	if overrideAgentVersion != "" {
+		agentVersion = overrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -50,7 +56,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion string, config C
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_version":        stackVersion,
+		"agent_version":        agentVersion,
 		"agent_image":          imageRefs.ElasticAgent,
 		"logstash_image":       imageRefs.Logstash,
 		"isready_image":        imageRefs.IsReady,
