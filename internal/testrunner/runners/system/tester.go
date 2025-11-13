@@ -1264,7 +1264,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 // BuildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
 func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate.Name, cfgVars)
+	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	indexTemplateName := fmt.Sprintf(
 		"%s-%s",
@@ -1277,7 +1277,7 @@ func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
 func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate.Name, cfgVars)
+	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	// Input packages using the otel collector input require to add a specific dataset suffix
 	if manType == "input" && policyTemplateInput == otelCollectorInputName {
@@ -1293,14 +1293,18 @@ func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream
 	return dataStreamName
 }
 
-func getExpectedDatasetForTest(pkgType, dataset, policyTemplateName string, cfgVars common.MapStr) string {
+func getExpectedDatasetForTest(pkgType, dataset string, policyTemplate packages.PolicyTemplate, cfgVars common.MapStr) string {
 	if pkgType == "input" {
 		// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 		v, _ := cfgVars.GetValue("data_stream.dataset")
 		if ds, ok := v.(string); ok && ds != "" {
 			return ds
 		}
-		return policyTemplateName
+		// Some of them also set a default value.
+		if ds := findDefaultValue(policyTemplate.Vars, "data_stream.dataset"); ds != "" {
+			return ds
+		}
+		return policyTemplate.Name
 	}
 	return dataset
 }
@@ -2053,6 +2057,19 @@ func createInputPackageDatastream(
 	streams[0].Vars = vars
 	r.Inputs[0].Streams = streams
 	return r
+}
+
+func findDefaultValue(vars []packages.Variable, name string) string {
+	for _, v := range vars {
+		if v.Name != name {
+			continue
+		}
+		value, ok := v.Default.Value().(string)
+		if ok && value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
