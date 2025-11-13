@@ -41,9 +41,6 @@ type testCase struct {
 	ClassName     string  `xml:"classname,attr"`
 	TimeInSeconds float64 `xml:"time,attr"`
 
-	StackVersion          string `xml:"stack-version,attr,omitempty"`
-	ElasticPackageVersion string `xml:"elastic-package-version,attr,omitempty"`
-
 	Error   string   `xml:"error,omitempty"`
 	Failure string   `xml:"failure,omitempty"`
 	Skipped *skipped `xml:"skipped,omitempty"`
@@ -96,13 +93,11 @@ func reportXUnitFormat(results []testrunner.TestResult) (string, error) {
 		}
 
 		c := testCase{
-			Name:                  name,
-			ClassName:             fmt.Sprintf("%s.%s", r.Package, r.DataStream),
-			TimeInSeconds:         r.TimeElapsed.Seconds(),
-			StackVersion:          r.ElasticStackVersion,
-			ElasticPackageVersion: r.ElasticPackageVersion,
-			Error:                 r.ErrorMsg,
-			Failure:               failure,
+			Name:          name,
+			ClassName:     fmt.Sprintf("%s.%s", r.Package, r.DataStream),
+			TimeInSeconds: r.TimeElapsed.Seconds(),
+			Error:         r.ErrorMsg,
+			Failure:       failure,
 		}
 
 		if r.Skipped != nil {

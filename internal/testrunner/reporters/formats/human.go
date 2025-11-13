@@ -48,7 +48,7 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 	}
 
 	t := table.NewWriter()
-	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Stack version", "EP version", "Time elapsed"})
+	t.AppendHeader(table.Row{"Package", "Data stream", "Test type", "Test name", "Result", "Time elapsed"})
 
 	for _, r := range results {
 		var result string
@@ -62,16 +62,7 @@ func reportHumanFormat(results []testrunner.TestResult) (string, error) {
 			result = "PASS"
 		}
 
-		stackVersion := r.ElasticStackVersion
-		if stackVersion == "" {
-			stackVersion = "N/A"
-		}
-		epVersion := r.ElasticPackageVersion
-		if epVersion == "" {
-			epVersion = "N/A"
-		}
-
-		t.AppendRow(table.Row{r.Package, r.DataStream, r.TestType, r.Name, result, stackVersion, epVersion, r.TimeElapsed})
+		t.AppendRow(table.Row{r.Package, r.DataStream, r.TestType, r.Name, result, r.TimeElapsed})
 	}
 
 	t.SetStyle(table.StyleRounded)

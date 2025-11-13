@@ -5,10 +5,8 @@
 package version
 
 import (
-	"fmt"
 	"runtime/debug"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -45,15 +43,4 @@ func BuildTimeFormatted() string {
 		return "invalid"
 	}
 	return time.Unix(seconds, 0).Format(time.RFC3339)
-}
-
-// String returns a formatted version string for elastic-package.
-// Format: "tag version-hash commitHash (build time: buildTime)" or just "version-hash commitHash" if no tag.
-func String() string {
-	var parts []string
-	if Tag != "" {
-		parts = append(parts, Tag)
-	}
-	parts = append(parts, fmt.Sprintf("version-hash %s (build time: %s)", CommitHash, BuildTimeFormatted()))
-	return strings.Join(parts, " ")
 }
