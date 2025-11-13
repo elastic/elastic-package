@@ -31,6 +31,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/policy"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/static"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
@@ -566,6 +567,13 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("fetching stack version failed: %w", err)
+	}
+
+	cmd.Println(version.Version())
+	cmd.Printf("elastic-stack: %s\n", stackVersion.Version())
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:            profile,
 		PackageRootPath:    packageRootPath,
