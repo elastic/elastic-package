@@ -12,6 +12,7 @@ import (
 
 	"github.com/magefile/mage/sh"
 
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -32,6 +33,7 @@ type BuildOptions struct {
 	CreateZip      bool
 	SignPackage    bool
 	SkipValidation bool
+	UpdateReadmes  bool
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -226,6 +228,13 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = resolveTransformDefinitions(builtPackageDir)
 	if err != nil {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
+	}
+
+	if options.UpdateReadmes {
+		err = docs.UpdateReadmes(options.RepositoryRoot, options.PackageRootPath, builtPackageDir)
+		if err != nil {
+			return "", fmt.Errorf("updating readme files failed: %w", err)
+		}
 	}
 
 	if options.CreateZip {

@@ -91,6 +91,7 @@ func NewForPackage(options Options) (Installer, error) {
 		SignPackage:     false,
 		SkipValidation:  options.SkipValidation,
 		RepositoryRoot:  options.RepositoryRoot,
+		UpdateReadmes:   false,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)
