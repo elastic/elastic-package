@@ -24,6 +24,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-with-apm-server
     test-stack-command-with-basic-subscription
     test-stack-command-with-self-monitor
+    test-stack-command-agent-version-flag
 )
 
 for test in "${STACK_COMMAND_TESTS[@]}"; do

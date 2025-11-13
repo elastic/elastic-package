@@ -420,6 +420,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
+	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -541,6 +542,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+	}
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -567,24 +573,25 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:            profile,
-		PackageRootPath:    packageRootPath,
-		KibanaClient:       kibanaClient,
-		API:                esClient.API,
-		ESClient:           esClient,
-		ConfigFilePath:     configFileFlag,
-		RunSetup:           runSetup,
-		RunTearDown:        runTearDown,
-		RunTestsOnly:       runTestsOnly,
-		DataStreams:        dataStreams,
-		ServiceVariant:     variantFlag,
-		FailOnMissingTests: failOnMissing,
-		GenerateTestResult: generateTestResult,
-		DeferCleanup:       deferCleanup,
-		GlobalTestConfig:   globalTestConfig.System,
-		WithCoverage:       testCoverage,
-		CoverageType:       testCoverageFormat,
-		RepositoryRoot:     repositoryRoot,
+		Profile:              profile,
+		PackageRootPath:      packageRootPath,
+		KibanaClient:         kibanaClient,
+		API:                  esClient.API,
+		ESClient:             esClient,
+		ConfigFilePath:       configFileFlag,
+		RunSetup:             runSetup,
+		RunTearDown:          runTearDown,
+		RunTestsOnly:         runTestsOnly,
+		DataStreams:          dataStreams,
+		ServiceVariant:       variantFlag,
+		FailOnMissingTests:   failOnMissing,
+		GenerateTestResult:   generateTestResult,
+		DeferCleanup:         deferCleanup,
+		GlobalTestConfig:     globalTestConfig.System,
+		WithCoverage:         testCoverage,
+		CoverageType:         testCoverageFormat,
+		RepositoryRoot:       repositoryRoot,
+		OverrideAgentVersion: agentVersion,
 	})
 
 	logger.Debugf("Running suite...")

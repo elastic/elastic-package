@@ -10,6 +10,7 @@ VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
 ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
+AGENT_VERSION_FLAG=${AGENT_VERSION_FLAG:-""}
 
 cleanup() {
   local r=$?
@@ -60,6 +61,10 @@ if [ "${VERSION}" != "default" ]; then
   ARG_VERSION="--version ${VERSION}"
   EXPECTED_VERSION=${VERSION}
 fi
+if [ "${AGENT_VERSION_FLAG}" != "" ]; then
+    ARG_VERSION="${ARG_VERSION} --agent-version ${AGENT_VERSION_FLAG}"
+    echo "Using agent version override flag: ${AGENT_VERSION_FLAG}"
+fi
 
 OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
 
@@ -109,10 +114,14 @@ elastic-package stack status 2> "${OUTPUT_PATH_STATUS}/initial.txt"
 grep "\- No service running" "${OUTPUT_PATH_STATUS}/initial.txt"
 
 EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}"
-if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
+# Override agent version if flag is set
+if [ "${AGENT_VERSION_FLAG}" != "" ]; then
+    EXPECTED_AGENT_VERSION="${AGENT_VERSION_FLAG}"
+fi
+if [[ "${EXPECTED_AGENT_VERSION}" =~ ^7\.17 ]] ; then
     # Required starting with STACK_VERSION 7.17.21
-    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_VERSION}-amd64"
-    EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}-amd64"
+    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_AGENT_VERSION}-amd64"
+    EXPECTED_AGENT_VERSION="${EXPECTED_AGENT_VERSION}-amd64"
     echo "Override elastic-agent docker image: ${ELASTIC_AGENT_IMAGE_REF_OVERRIDE}"
 fi
 

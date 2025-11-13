@@ -345,7 +345,7 @@ func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, e
 }
 
 func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {
-	err := applyLocalResources(sp.profile, options.StackVersion, config)
+	err := applyLocalResources(sp.profile, options.StackVersion, options.OverrideAgentVersion, config)
 	if err != nil {
 		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}
