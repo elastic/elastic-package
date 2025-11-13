@@ -112,6 +112,9 @@ const (
 	CheckConditionFlagName        = "check-condition"
 	CheckConditionFlagDescription = "check if the condition is met for the package, but don't install the package (e.g. kibana.version=7.10.0)"
 
+	ContinueOnErrorFlagName        = "continue"
+	ContinueOnErrorFlagDescription = "continue running the script if an error occurs"
+
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
@@ -129,6 +132,9 @@ const (
 
 	DumpOutputFlagName        = "output"
 	DumpOutputFlagDescription = "path to directory where exported assets will be stored"
+
+	ExternalStackFlagName        = "external-stack"
+	ExternalStackFlagDescription = "use external stack for script tests"
 
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
@@ -164,6 +170,12 @@ const (
 
 	ReportOutputPathFlagName        = "report-output-path"
 	ReportOutputPathFlagDescription = "output path for test report (defaults to %q in build directory)"
+
+	RunPatternFlagName        = "run"
+	RunPatternFlagDescription = "run only tests matching the regular expression"
+
+	ScriptsFlagName        = "scripts"
+	ScriptsFlagDescription = "path to directory containing test scripts"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
@@ -223,6 +235,15 @@ const (
 
 	NoProvisionFlagName        = "no-provision"
 	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+
+	UpdateScriptTestArchiveFlagName        = "update"
+	UpdateScriptTestArchiveFlagDescription = "update archive file if a cmp fails"
+
+	VerboseScriptFlagName        = "verbose-scripts"
+	VerboseScriptFlagDescription = "verbose script test output"
+
+	WorkScriptTestFlagName        = "work"
+	WorkScriptTestFlagDescription = "print temporary work directory and do not remove when done"
 
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
