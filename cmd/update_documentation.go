@@ -55,6 +55,11 @@ Configuration options for LLM providers (environment variables or profile config
 - LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
 - LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false)`
 
+const (
+	modePromptRewrite = "Rewrite (full regeneration)"
+	modePromptModify  = "Modify (targeted changes)"
+)
+
 // getConfigValue retrieves a configuration value with fallback from environment variable to profile config
 func getConfigValue(profile *profile.Profile, envVar, configKey, defaultValue string) string {
 	// First check environment variable
@@ -266,9 +271,9 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		// If no modify-prompt flag was provided, ask user to choose mode
 		if modifyPrompt == "" {
 			modePrompt := tui.NewSelect("Do you want to rewrite or modify the documentation?", []string{
-				"Rewrite (full regeneration)",
-				"Modify (targeted changes)",
-			}, "Rewrite (full regeneration)")
+				modePromptRewrite,
+				modePromptModify,
+			}, modePromptRewrite)
 
 			var mode string
 			err = tui.AskOne(modePrompt, &mode)
