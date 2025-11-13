@@ -61,6 +61,9 @@ test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
 test-stack-command-default:
 	./scripts/test-stack-command.sh
 
+test-stack-command-agent-version-flag:
+	AGENT_VERSION_FLAG=9.1.0 ./scripts/test-stack-command.sh
+
 # Oldest minor where fleet is GA.
 test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
@@ -87,7 +90,7 @@ test-stack-command-with-self-monitor:
 test-stack-command-with-basic-subscription:
 	ELASTIC_SUBSCRIPTION=basic ./scripts/test-stack-command.sh
 
-test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
+test-stack-command: test-stack-command-default test-stack-command-agent-version-flag test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
 
 test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
 
