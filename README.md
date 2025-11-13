@@ -932,6 +932,104 @@ During documentation generation, the AI agent:
 
 This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
 
+##### Creating the service_info.md File
+
+The `service_info.md` file should be placed at `docs/knowledge_base/service_info.md` within your package directory. This file provides structured, authoritative information about the service your integration monitors, and is used by the AI documentation generator to produce accurate, comprehensive documentation.
+
+##### Template Structure
+
+The `service_info.md` file should follow this template:
+
+```markdown
+# Service Info
+
+## Common use cases
+
+/* Common use cases that this will facilitate */
+
+## Data types collected
+
+/* What types of data this integration can collect */
+
+## Compatibility
+
+/* Information on the vendor versions this integration is compatible with or has been tested against */
+
+## Scaling and Performance
+
+/* Vendor-specific information on what performance can be expected, how to set up scaling, etc. */
+
+# Set Up Instructions
+
+## Vendor prerequisites
+
+/* Add any vendor specific prerequisites, e.g. "an API key with permission to access <X, Y, Z> is required" */
+
+## Elastic prerequisites
+
+/* If there are any Elastic specific prerequisites, add them here
+
+    The stack version and agentless support is not needed, as this can be taken from the manifest */
+
+## Vendor set up steps
+
+/* List the specific steps that are needed in the vendor system to send data to Elastic.
+
+  If multiple input types are supported, add instructions for each in a subsection */
+
+## Kibana set up steps
+
+/* List the specific steps that are needed in Kibana to add and configure the integration to begin ingesting data */
+
+# Validation Steps
+
+/* List the steps that are needed to validate the integration is working, after ingestion has started.
+
+    This may include steps on the vendor system to trigger data flow, and steps on how to check the data is correct in Kibana dashboards or alerts. */
+
+# Troubleshooting
+
+/* Add lists of "*Issue* / *Solutions*" for troubleshooting knowledge base into the most appropriate section below */
+
+## Common Configuration Issues
+
+/* For generic problems such as "service failed to start" or "no data collected" */
+
+## Ingestion Errors
+
+/* For problems that involve "error.message" being set on ingested data */
+
+## API Authentication Errors
+
+/* For API authentication failures, credential errors, and similar */
+
+## Vendor Resources
+
+/* If the vendor has a troubleshooting specific help page, add it here */
+
+# Documentation sites
+
+/* List of URLs that contain info on the service (reference pages, set up help, API docs, etc.) */
+```
+
+##### Writing Guidelines
+
+- **Be specific**: Provide concrete details rather than generic descriptions
+- **Use complete sentences**: The AI will use this content to generate natural-sounding documentation
+- **Include URLs**: List relevant vendor documentation, API references, and help pages in the "Documentation sites" section
+- **Cover edge cases**: Document known issues, limitations, or special configuration requirements
+- **Update regularly**: Keep this file current as the service or integration evolves
+
+##### How it's used by elastic-package
+
+During documentation generation, the AI agent:
+1. **Reads the service_info.md file first** as the primary source of information
+2. **Prioritizes this content** over any web search results or other sources
+3. **Uses the structured sections** to generate specific parts of the README
+4. **Preserves vendor-specific details** that might not be available through web searches
+
+This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
+
 **Custom Prompts:**
 
 Enable `llm.external_prompts` in your profile config to use custom prompt files. Place them in:
