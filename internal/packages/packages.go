@@ -19,9 +19,10 @@ import (
 
 	yamlv3 "gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
