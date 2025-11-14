@@ -39,6 +39,11 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 	builder.WriteString("The following alert rule templates are available:\n\n")
 
 	err := filepath.WalkDir(templatesDir, func(path string, d fs.DirEntry, err error) error {
+		if err == fs.ErrNotExist {
+			// no template directory in the package, skip
+			return filepath.SkipAll
+		}
+
 		if err != nil {
 			return err
 		}
