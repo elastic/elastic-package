@@ -2039,6 +2039,9 @@ func createInputPackageDatastream(
 
 	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, cfgVars)
+
+	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
+	// UI would use if this is not defined in the config or doesn't have a default.
 	if _, found := vars["data_stream.dataset"]; !found {
 		// Fleet uses the policy template name as default dataset for input packages, do the same.
 		dataStreamDataset := policyTemplate.Name
@@ -2065,9 +2068,11 @@ func findDefaultValue(vars []packages.Variable, name string) string {
 		if v.Name != name {
 			continue
 		}
-		value, ok := v.Default.Value().(string)
-		if ok && value != "" {
-			return value
+		if v.Default != nil {
+			value, ok := v.Default.Value().(string)
+			if ok && value != "" {
+				return value
+			}
 		}
 	}
 	return ""
