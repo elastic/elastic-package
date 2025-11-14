@@ -370,7 +370,12 @@ Use this command to download selected ingest pipelines and its referenced proces
 
 _Context: package_
 
-This command gives you a list of all packages based on the given query
+This command gives you a list of all packages based on the given query.
+
+The command will search for packages in the working directory for default depth of 2 and 
+return the list of packages that match the given criteria. 
+
+Use --change-directory to change the working directory and --depth to change the depth of the search.
 
 ### `elastic-package foreach [flags] -- <SUBCOMMAND>`
 
