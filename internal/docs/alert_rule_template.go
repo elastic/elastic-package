@@ -20,14 +20,10 @@ type alertRuleTemplate struct {
 	}
 }
 
-func renderAlertRuleTemplates(packageRoot string, techPreview bool) (string, error) {
+func renderAlertRuleTemplates(packageRoot string) (string, error) {
 	templatesDir := filepath.Join(packageRoot, "kibana", "alerting_rule_template")
 
 	var builder strings.Builder
-	if techPreview {
-		builder.WriteString("**Tech Preview:** Alert rule templates are in tech preview and may be changed or removed in future releases.\n\n")
-	}
-
 	builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
 For more information, see the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
