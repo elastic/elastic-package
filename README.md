@@ -648,6 +648,53 @@ Use this command to uninstall the package in Kibana.
 
 The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.
 
+### `elastic-package update`
+
+_Context: global_
+
+Use this command to update package resources.
+
+The command can help update existing resources in a package. Currently only documentation is supported.
+
+### `elastic-package update documentation`
+
+_Context: global_
+
+Use this command to update package documentation using an AI agent or to get manual instructions for update.
+
+The AI agent supports two modes:
+1. Rewrite mode (default): Full documentation regeneration
+   - Analyzes your package structure, data streams, and configuration
+   - Generates comprehensive documentation following Elastic's templates
+   - Creates or updates markdown files in /_dev/build/docs/
+2. Modify mode: Targeted documentation changes
+   - Makes specific changes to existing documentation
+   - Requires existing documentation file at /_dev/build/docs/
+   - Use --modify-prompt flag for non-interactive modifications
+
+Multi-file support:
+   - Use --doc-file to specify which markdown file to update (defaults to README.md)
+   - In interactive mode, you'll be prompted to select from available files
+   - Supports packages with multiple documentation files (e.g., README.md, vpc.md, etc.)
+
+Interactive workflow:
+After confirming you want to use the AI agent, you'll choose between rewrite or modify mode.
+You can review results and request additional changes iteratively.
+
+Non-interactive mode:
+Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
+Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+
+If no LLM provider is configured, this command will print instructions for updating the documentation manually.
+
+Configuration options for LLM providers (environment variables or profile config):
+- GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
+- LOCAL_LLM_ENDPOINT / llm.local.endpoint: Endpoint for local LLM server
+- LOCAL_LLM_MODEL / llm.local.model: Model name for local LLM (defaults to llama2)
+- LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
+- LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false).
+
 ### `elastic-package version`
 
 _Context: global_
@@ -699,6 +746,301 @@ The following settings are available per profile:
 * `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
   Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
   which enables all subscription features for 30 days.  Defaults to "trial".
+
+### AI-powered Documentation Configuration
+
+The `elastic-package update documentation` command supports AI-powered documentation generation using various LLM providers.
+
+**⚠️ IMPORTANT PRIVACY NOTICE:**
+When using AI-powered documentation generation, **file content from your local file system within the package directory may be sent to the configured LLM provider**. This includes manifest files, configuration files, field definitions, and other package content. The generated documentation **must be reviewed for accuracy and correctness** before being finalized, as LLMs may occasionally produce incorrect or hallucinated information.
+
+#### Operation Modes
+
+The command supports two modes of operation:
+
+1. **Rewrite Mode** (default): Full documentation regeneration
+   - Analyzes your package structure, data streams, and configuration
+   - Generates comprehensive documentation following Elastic's templates
+   - Creates or updates the README.md file in `/_dev/build/docs/`
+
+2. **Modify Mode**: Targeted documentation changes
+   - Makes specific changes to existing documentation
+   - Requires existing README.md file at `/_dev/build/docs/README.md`
+   - Use `--modify-prompt` flag for non-interactive modifications
+
+#### Workflow Options
+
+**Interactive Mode** (default): 
+The command will guide you through the process, allowing you to:
+- Choose between rewrite or modify mode
+- Review generated documentation
+- Request iterative changes
+- Accept or cancel the update
+
+**Non-Interactive Mode**:
+Use `--non-interactive` to skip all prompts and automatically accept the first result.
+Combine with `--modify-prompt "instructions"` for targeted non-interactive changes.
+
+If no LLM provider is configured, the command will print manual instructions for updating documentation.
+
+#### LLM Provider Configuration
+
+You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
+
+* `llm.gemini.api_key`: API key for Google Gemini LLM services  
+* `llm.gemini.model`: Gemini model ID (defaults to `gemini-2.5-pro`)
+* `llm.local.endpoint`: Endpoint URL for local OpenAI-compatible LLM servers
+* `llm.local.model`: Model name for local LLM servers (defaults to `llama2`)
+* `llm.local.api_key`: API key for local LLM servers (optional, if authentication is required)
+* `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
+
+Environment variables (e.g., `GEMINI_API_KEY`, `LOCAL_LLM_ENDPOINT`) take precedence over profile configuration.
+
+#### Usage Examples
+
+```bash
+# Interactive documentation update (rewrite mode)
+elastic-package update documentation
+
+# Interactive modification mode
+elastic-package update documentation
+# (choose "Modify" when prompted)
+
+# Non-interactive rewrite
+elastic-package update documentation --non-interactive
+
+# Non-interactive targeted changes
+elastic-package update documentation --modify-prompt "Add more details about authentication configuration"
+
+# Use specific profile with LLM configuration
+elastic-package update documentation --profile production
+```
+
+#### Advanced Features
+
+**Preserving Human-Edited Content:**
+
+Manually edited sections can be preserved by wrapping them with HTML comment markers:
+
+```html
+<!-- PRESERVE START -->
+Important manual content to preserve
+<!-- PRESERVE END -->
+```
+
+Any content between these markers will be preserved exactly as-is during AI-generated documentation updates. The system will automatically validate preservation after generation and warn if marked content was modified or removed.
+
+**Service Knowledge Base:**
+
+Place a `docs/knowledge_base/service_info.md` file in your package to provide authoritative service information. This file is treated as the source of truth and takes precedence over web search results during documentation generation.
+By using this file, you will be better able to control the content of the generated documentation, by providing authoritative information on the service.
+
+##### Creating the service_info.md File
+
+The `service_info.md` file should be placed at `docs/knowledge_base/service_info.md` within your package directory. This file provides structured, authoritative information about the service your integration monitors, and is used by the AI documentation generator to produce accurate, comprehensive documentation.
+
+##### Template Structure
+
+The `service_info.md` file should follow this template:
+
+```markdown
+# Service Info
+
+## Common use cases
+
+/* Common use cases that this will facilitate */
+
+## Data types collected
+
+/* What types of data this integration can collect */
+
+## Compatibility
+
+/* Information on the vendor versions this integration is compatible with or has been tested against */
+
+## Scaling and Performance
+
+/* Vendor-specific information on what performance can be expected, how to set up scaling, etc. */
+
+# Set Up Instructions
+
+## Vendor prerequisites
+
+/* Add any vendor specific prerequisites, e.g. "an API key with permission to access <X, Y, Z> is required" */
+
+## Elastic prerequisites
+
+/* If there are any Elastic specific prerequisites, add them here
+
+    The stack version and agentless support is not needed, as this can be taken from the manifest */
+
+## Vendor set up steps
+
+/* List the specific steps that are needed in the vendor system to send data to Elastic.
+
+  If multiple input types are supported, add instructions for each in a subsection */
+
+## Kibana set up steps
+
+/* List the specific steps that are needed in Kibana to add and configure the integration to begin ingesting data */
+
+# Validation Steps
+
+/* List the steps that are needed to validate the integration is working, after ingestion has started.
+
+    This may include steps on the vendor system to trigger data flow, and steps on how to check the data is correct in Kibana dashboards or alerts. */
+
+# Troubleshooting
+
+/* Add lists of "*Issue* / *Solutions*" for troubleshooting knowledge base into the most appropriate section below */
+
+## Common Configuration Issues
+
+/* For generic problems such as "service failed to start" or "no data collected" */
+
+## Ingestion Errors
+
+/* For problems that involve "error.message" being set on ingested data */
+
+## API Authentication Errors
+
+/* For API authentication failures, credential errors, and similar */
+
+## Vendor Resources
+
+/* If the vendor has a troubleshooting specific help page, add it here */
+
+# Documentation sites
+
+/* List of URLs that contain info on the service (reference pages, set up help, API docs, etc.) */
+```
+
+**The sections in this template are only to categorize information provided to the LLM**; they are not used to control section formatting in the generated documentation.
+
+##### Writing Guidelines
+
+- **Be specific**: Provide concrete details rather than generic descriptions
+- **Use complete sentences**: The AI will use this content to generate natural-sounding documentation
+- **Include URLs**: List relevant vendor documentation, API references, and help pages in the "Documentation sites" section
+- **Cover edge cases**: Document known issues, limitations, or special configuration requirements
+- **Update regularly**: Keep this file current as the service or integration evolves
+
+##### How it's used by elastic-package
+
+During documentation generation, the AI agent:
+1. **Reads the service_info.md file first** as the primary source of information
+2. **Prioritizes this content** over any web search results or other sources
+3. **Uses the structured sections** to generate specific parts of the README
+4. **Preserves vendor-specific details** that might not be available through web searches
+5. **Does not use this section format** in the generated documentation. This file provides content, but not style or formatting
+
+This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
+
+##### Creating the service_info.md File
+
+The `service_info.md` file should be placed at `docs/knowledge_base/service_info.md` within your package directory. This file provides structured, authoritative information about the service your integration monitors, and is used by the AI documentation generator to produce accurate, comprehensive documentation.
+
+##### Template Structure
+
+The `service_info.md` file should follow this template:
+
+```markdown
+# Service Info
+
+## Common use cases
+
+/* Common use cases that this will facilitate */
+
+## Data types collected
+
+/* What types of data this integration can collect */
+
+## Compatibility
+
+/* Information on the vendor versions this integration is compatible with or has been tested against */
+
+## Scaling and Performance
+
+/* Vendor-specific information on what performance can be expected, how to set up scaling, etc. */
+
+# Set Up Instructions
+
+## Vendor prerequisites
+
+/* Add any vendor specific prerequisites, e.g. "an API key with permission to access <X, Y, Z> is required" */
+
+## Elastic prerequisites
+
+/* If there are any Elastic specific prerequisites, add them here
+
+    The stack version and agentless support is not needed, as this can be taken from the manifest */
+
+## Vendor set up steps
+
+/* List the specific steps that are needed in the vendor system to send data to Elastic.
+
+  If multiple input types are supported, add instructions for each in a subsection */
+
+## Kibana set up steps
+
+/* List the specific steps that are needed in Kibana to add and configure the integration to begin ingesting data */
+
+# Validation Steps
+
+/* List the steps that are needed to validate the integration is working, after ingestion has started.
+
+    This may include steps on the vendor system to trigger data flow, and steps on how to check the data is correct in Kibana dashboards or alerts. */
+
+# Troubleshooting
+
+/* Add lists of "*Issue* / *Solutions*" for troubleshooting knowledge base into the most appropriate section below */
+
+## Common Configuration Issues
+
+/* For generic problems such as "service failed to start" or "no data collected" */
+
+## Ingestion Errors
+
+/* For problems that involve "error.message" being set on ingested data */
+
+## API Authentication Errors
+
+/* For API authentication failures, credential errors, and similar */
+
+## Vendor Resources
+
+/* If the vendor has a troubleshooting specific help page, add it here */
+
+# Documentation sites
+
+/* List of URLs that contain info on the service (reference pages, set up help, API docs, etc.) */
+```
+
+##### Writing Guidelines
+
+- **Be specific**: Provide concrete details rather than generic descriptions
+- **Use complete sentences**: The AI will use this content to generate natural-sounding documentation
+- **Include URLs**: List relevant vendor documentation, API references, and help pages in the "Documentation sites" section
+- **Cover edge cases**: Document known issues, limitations, or special configuration requirements
+- **Update regularly**: Keep this file current as the service or integration evolves
+
+##### How it's used by elastic-package
+
+During documentation generation, the AI agent:
+1. **Reads the service_info.md file first** as the primary source of information
+2. **Prioritizes this content** over any web search results or other sources
+3. **Uses the structured sections** to generate specific parts of the README
+4. **Preserves vendor-specific details** that might not be available through web searches
+
+This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
+
+**Custom Prompts:**
+
+Enable `llm.external_prompts` in your profile config to use custom prompt files. Place them in:
+- `~/.elastic-package/profiles/<profile>/prompts/` (profile-specific)
+- `~/.elastic-package/prompts/` (global)
+
+Available prompt files: `initial_prompt.txt`, `revision_prompt.txt`, `limit_hit_prompt.txt`
 
 ## Useful environment variables
 
@@ -756,6 +1098,13 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
     - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+- To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
+    - `GEMINI_API_KEY`: API key for Gemini LLM services
+    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-2.5-pro`)
+    - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
+    - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
+    - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)
 
 
 ## Release process
