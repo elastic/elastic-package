@@ -23,6 +23,11 @@ type alertRuleTemplate struct {
 func renderAlertRuleTemplates(packageRoot string) (string, error) {
 	templatesDir := filepath.Join(packageRoot, "kibana", "alerting_rule_template")
 
+	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
+		// no template directory in the package, do nothing
+		return "", nil
+	}
+
 	var builder strings.Builder
 	builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
@@ -35,11 +40,6 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 	builder.WriteString("The following alert rule templates are available:\n\n")
 
 	err := filepath.WalkDir(templatesDir, func(path string, d fs.DirEntry, err error) error {
-		if err == fs.ErrNotExist {
-			// no template directory in the package, skip
-			return filepath.SkipAll
-		}
-
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("reading alert rule templates failed: %w", err)
+		return "", fmt.Errorf("processing alert rule templates failed: %w", err)
 	}
 
 	return builder.String(), nil
