@@ -68,6 +68,17 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 	return []byte("null"), nil
 }
 
+// Value returns the stored value.
+func (vv VarValue) Value() any {
+	if vv.scalar != nil {
+		return vv.scalar
+	}
+	if vv.list != nil {
+		return vv.list
+	}
+	return nil
+}
+
 // VarValueYamlString will return a YAML style string representation of vv,
 // in the given YAML field, and with numSpaces indentation if it's a list.
 func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
