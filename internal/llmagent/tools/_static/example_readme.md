@@ -1,110 +1,218 @@
-# Palo Alto Network Integration for Elastic
+# Fortinet FortiGate Firewall Logs Integration for Elastic
 
 ## Overview
 
-The Palo Alto Network Integration for Elastic enables collection of logs from Palo Alto Networks' PAN-OS firewalls. This integration facilitates real-time visibility into network
-activity, threat detection and security operations.
+The Fortinet FortiGate Firewall Logs integration for Elastic enables the collection of logs from Fortinet FortiGate firewalls. This allows for comprehensive security monitoring, threat detection, and network traffic analysis within the Elastic Stack. By ingesting FortiGate logs, users can gain visibility into firewall activity, monitor for security threats, audit policy compliance, and troubleshoot network issues.
+
+This integration facilitates:
+- Security monitoring and threat detection
+- Network traffic analysis and monitoring
+- Firewall policy compliance and auditing
+- Intrusion detection and prevention system (IPS) event monitoring
+- VPN connection monitoring and troubleshooting
+- Web filtering and application control monitoring
 
 ### Compatibility
 
-This integration is compatible with PAN-OS versions 10.2, 11.1 and 11.2.
+This integration has been tested against FortiOS versions 6.x and 7.x up to 7.4.1. Newer versions are expected to work but have not been tested.
 
-Support for specific log types varies by PAN-OS version. GlobalProtect logs are supported starting with PAN-OS version 9.1.3. User-ID logs are supported for PAN-OS version 8.1 and
-above, while Tunnel Inspection logs are supported for version 9.1 and later.
+This integration is compatible with Elastic Stack version 8.11.0 or higher.
 
-This integration can receive logs from syslog via TCP or UDP, or read from log files.
+### How it works
+
+This integration collects logs from FortiGate firewalls by receiving syslog data over TCP or UDP, or by reading directly from log files. An Elastic Agent is deployed on a host that is configured as a syslog receiver or has access to the log files. The agent forwards the logs to your Elastic deployment, where they can be monitored or analyzed.
 
 ## What data does this integration collect?
 
-The Palo Alto Network integration collects log messages of the following types:
-
-* [GlobalProtect](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/globalprotect-log-fields.html)
-* [HIP Match](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/hip-match-log-fields.html)
-* [Threat](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/threat-log-fields.html)
-* [Traffic](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/traffic-log-fields.html)
-* [User-ID](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/user-id-log-fields.html)
-* [Authentication](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/authentication-log-fields)
-* [Config](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/config-log-fields)
-* [Correlated Events](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/correlated-events-log-fields)
-* [Decryption](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/decryption-log-fields)
-* [GTP](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/gtp-log-fields)
-* [IP-Tag](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/ip-tag-log-fields)
-* [SCTP](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/sctp-log-fields)
-* [System](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/system-log-fields)
-* [Tunnel Inspection](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/tunnel-inspection-log-fields).
+The Fortinet FortiGate Firewall Logs integration collects the following types of logs:
+*   **Traffic logs**: Records of firewall decisions to allow or deny traffic.
+*   **UTM (Unified Threat Management) logs**: Includes events from antivirus, web filter, application control, IPS, and DNS filter modules.
+*   **Event logs**: System-level events, high-availability (HA) events, and configuration changes.
+*   **Authentication logs**: Records of VPN, administrator, and user authentication events.
 
 ### Supported use cases
 
-Integrating Palo Alto Networks (PANW) with the Elastic Stack creates a powerful solution for transforming raw firewall logs into actionable intelligence, dramatically enhancing
-security and operational visibility. This synergy enables advanced use cases including real-time threat detection and hunting through Elastic SIEM, deep network traffic analysis
-with intuitive Kibana dashboards, and automated incident response by connecting with Cortex XSOAR. By centralizing and analyzing PANW data, organizations can strengthen their
-security posture, optimize network performance, and build a solid data foundation for implementing a Zero Trust architecture.
+Integrating Fortinet FortiGate logs with Elastic provides a powerful solution for enhancing security posture and operational visibility. Key use cases include:
+- **Real-time Threat Detection**: Leverage Elastic SIEM to detect and respond to threats identified in firewall logs.
+- **Network Traffic Analysis**: Use Kibana dashboards to visualize and analyze network traffic patterns, helping to identify anomalies and optimize network performance.
+- **Compliance and Auditing**: Maintain a searchable, long-term archive of firewall logs to meet compliance requirements and conduct security audits.
+- **Incident Response**: Accelerate incident investigation by correlating firewall data with other security and observability data sources within Elastic.
 
 ## What do I need to use this integration?
 
-Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
-
-Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
+- A FortiGate firewall with administrative access to configure syslog settings.
+- Network connectivity between the FortiGate firewall and the Elastic Agent host.
+- Elastic Stack version 8.11.0 or higher.
 
 ## How do I deploy this integration?
 
-### Collect logs via syslog
+### Agent-based deployment
 
-To configure syslog monitoring, follow the steps described in the [Configure Syslog Monitoring](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/use-syslog-for-monitoring/configure-syslog-monitoring) documentation.
+Elastic Agent must be installed on a host that will receive the syslog data or has access to the log files from the FortiGate firewall. For detailed installation instructions, refer to the Elastic Agent [installation guide](docs-content://reference/fleet/install-elastic-agents.md). Only one Elastic Agent is needed per host.
 
-### Collect logs via log file
+### Set up steps in Fortinet Fortigate
 
-To configure log file monitoring, follow the steps described in the [Configure Log Forwarding](https://docs.paloaltonetworks.com/pan-os/10-2/pan-os-admin/monitoring/configure-log-forwarding) documentation.
+#### Syslog Configuration
 
-### Enable the integration in Elastic
+You can configure FortiGate to send logs to the Elastic Agent using either the GUI or the CLI.
 
-1. In Kibana navigate to **Management** > **Integrations**.
-2. In the search bar, type **Palo Alto Next-Gen Firewall**.
-3. Select the **Palo Alto Next-Gen Firewall** integration and add it.
-4. If needed, install Elastic Agent on the systems which receive syslog messages or log files.
-5. Enable and configure only the collection methods which you will use.
+**GUI Configuration:**
 
-    * **To collect logs via syslog over TCP**, you'll need to configure the syslog server host and port details.
+1.  Log in to the FortiGate web-based manager (GUI).
+2.  Navigate to **Log & Report -> Log Settings**.
+3.  Enable **Send Logs to Syslog**.
+4.  In the IP address field, enter the IP address of the host where the Elastic Agent is installed.
+5.  Click **Apply**.
+6.  Under **Log Settings**, ensure that **Event Logging** and all desired log subtypes are enabled to generate and send the necessary logs.
 
-    * **To collect logs via syslog over UDP**, you'll need to configure the syslog server host and port details.
+**CLI Configuration:**
 
-    * **To collect logs via log file**, configure the file path patterns which will be monitored, in the Paths field.
+1.  Log in to the FortiGate CLI.
+2.  Use the following commands to configure the syslog server settings:
 
-6. Press **Save Integration** to begin collecting logs.
+    ```sh
+    config log syslogd setting
+        set status enable
+        set server "<elastic_agent_ip>"
+        set port <port>  // Default syslog ports are 514 for UDP and TCP
+        // For TCP with reliable syslog mode, ensure framing is set to rfc6587
+        set mode reliable
+        set format rfc6587
+    end
+    ```
 
-### Validate log collection
+3.  Configure the appropriate log types and severity levels to be sent to the syslog server. For example:
 
-1. In Kibana, navigate to **Dashboards**.
-2. In the search bar, type **Logs PANW**.
-3. Select a dashboard overview for the data type you are collecting, and verify the dashboard information is populated.
+    ```sh
+    config log syslogd filter
+        set severity information
+        set forward-traffic enable
+        set local-traffic enable
+        set web enable
+        set antivirus enable
+        // Enable other UTM and event logs as needed
+    end
+    ```
+
+For more detailed information, refer to the [FortiGate CLI reference](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting).
+
+### Set up steps in Kibana
+
+1.  In Kibana, navigate to **Management > Integrations**.
+2.  Search for "Fortinet FortiGate Firewall Logs" and select the integration.
+3.  Click **Add Fortinet FortiGate Firewall Logs**.
+4.  Configure the integration by selecting an input type and providing the necessary settings. This integration supports `TCP`, `UDP`, and `Log file` inputs.
+
+#### TCP Input Configuration
+
+This input collects logs over a TCP socket.
+
+| Setting | Description |
+|---|---|
+| **Listen Address** | The bind address for the TCP listener (e.g., `localhost`, `0.0.0.0`). |
+| **Listen Port** | The TCP port number to listen on (e.g., `9004`). |
+| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
+
+Under **Advanced Options**, you can configure the following optional parameters:
+
+| Setting | Description |
+|---|---|
+| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
+| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). Supports CIDR notation and named ranges like `private`. |
+| **SSL Configuration** | Configure SSL options for encrypted communication. See the [SSL documentation](https://www.elastic.co/guide/en/beats/filebeat/current/configuration-ssl.html#ssl-common-config) for details. |
+| **Custom TCP Options** | `framing`: Specifies how messages are framed. Defaults to `rfc6587`, which is required for FortiGate's reliable syslog mode. <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `max_connections`: The maximum number of simultaneous connections. |
+| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
+| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
+
+#### UDP Input Configuration
+
+This input collects logs over a UDP socket.
+
+| Setting | Description |
+|---|---|
+| **Listen Address** | The bind address for the UDP listener (e.g., `localhost`, `0.0.0.0`). |
+| **Listen Port** | The UDP port number to listen on (e.g., `9004`). |
+| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
+
+Under **Advanced Options**, you can configure the following optional parameters:
+
+| Setting | Description |
+|---|---|
+| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
+| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
+| **Custom UDP Options** | `read_buffer`: The size of the read buffer for the UDP socket (e.g., `100MiB`). <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `timeout`: The read timeout for the UDP socket (e.g., `300s`). |
+| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
+| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
+
+#### Log file Input Configuration
+
+This input collects logs directly from log files on the host where the Elastic Agent is running.
+
+| Setting | Description |
+|---|---|
+| **Paths** | A list of file paths to monitor (e.g., `/var/log/fortinet-firewall.log`). |
+| **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
+
+Under **Advanced Options**, you can configure the following optional parameters:
+
+| Setting | Description |
+|---|---|
+| **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
+| **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
+| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
+| **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
+
+After configuring the input, assign the integration to an agent policy and click **Save and continue**.
+
+### Validation
+
+1.  First, verify on the FortiGate device that logs are being actively sent to the configured Elastic Agent host.
+2.  In Kibana, navigate to **Discover**.
+3.  In the search bar, enter `data_stream.dataset: "fortinet_fortigate.log"` and check for incoming documents.
+4.  Verify that events are appearing with recent timestamps.
+5.  Navigate to **Management > Dashboards** and search for "Fortinet FortiGate Overview" to see if the visualizations are populated with data.
+6.  Generate some test traffic that would be logged by the firewall and confirm that the corresponding logs appear in Kibana.
 
 ## Troubleshooting
 
 For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
 
-If events are truncated, increase `max_message_size` option for TCP and UDP input type. You can find it under Advanced Options and configure it as per requirements.
-The default value of `max_message_size` is set to 50KiB.
+### Common Configuration Issues
 
-If the TCP input is used, it is recommended that PAN-OS is configured to send syslog messages using the IETF (RFC 5424) format. In addition, RFC 6587 framing (Octet Counting) will
-be enabled by default on the TCP input.
+-   **No data is being collected**:
+    *   Verify network connectivity (e.g., using `ping` or `netcat`) between the FortiGate firewall and the Elastic Agent host.
+    *   Ensure there are no firewalls or network ACLs blocking the syslog port.
+    *   Confirm that the listening port configured in the Elastic integration matches the destination port configured on the FortiGate device.
+-   **TCP framing issues**:
+    *   When using TCP input with reliable syslog mode, both the FortiGate configuration and the integration settings must have framing set to `rfc6587`. Mismatched framing settings will result in parsing errors or lost logs.
 
-To verify the configuration before and after the change (fields `before-change-detail` and `after-change-detail`) in the [config-log](https://docs.paloaltonetworks.com/pan-os/11-1/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/config-log-fields), use the following [custom log format in the syslog server profile](https://docs.paloaltonetworks.com/pan-os/11-1/pan-os-admin/monitoring/use-syslog-for-monitoring/syslog-field-descriptions/custom-logevent-format):
-  ``1,$receive_time,$serial,$type,$subtype,2561,$time_generated,$host,$vsys,$cmd,$admin,$client,$result,$path,$before-change-detail,$after-change-detail,$seqno,$actionflags,$dg_hier_level_1,$dg_hier_level_2,$dg_hier_level_3,$dg_hier_level_4,$vsys_name,$device_name,$dg_id,$comment,0,$high_res_timestamp``
+### Vendor Resources
 
-## Performance and scaling
+-   [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
+-   [Fortinet Documentation Library](https://docs.fortinet.com/)
+-   [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
 
-For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
+## Performance and Scaling
+
+For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation. A common approach for large-scale syslog collection is to place a load balancer or a dedicated syslog collector like Logstash between the FortiGate devices and the Elastic Agents.
 
 ## Reference
 
-### ECS field reference
+### log
 
-{{fields "panos"}}
+The `log` data stream collects all log types from the FortiGate firewall, including traffic, UTM, event, and authentication logs.
 
-### Example event
+#### log fields
 
-{{event "panos"}}
+{{ fields "log" }}
+
+#### log sample event
+
+{{ event "log" }}
 
 ### Inputs used
-{{/* All inputs used by this package will be automatically listed here. */}}
-{{ inputDocs }}
+
+{{ inputDocs }}ß

@@ -75,5 +75,14 @@ Style and Content Guidance:
 * Template is a Blueprint: The template from get_readme_template is your required structure. Follow it closely.
 * The Example is Your "Gold Standard": The example from get_example_readme demonstrates the target quality, level of detail, and formatting. Emulate its style, especially in the "Configuration" and "Setup" sections. Explain *why* a step is needed, not just *what* the step is.
 * Be Specific: Instead of saying "configure the service," provide a concrete configuration snippet or a numbered list of steps. Link to official external documentation where appropriate to provide users with more depth.
+* Follow these guidelines for voice and tone:
+  * **We're real people, writing for real people** Being conversational without exaggerating or forcing our traits makes our products more human and easier to interact with daily. We address users directly.
+  * **We help users get their job done** With timely, succinct, and impactful content, we can make our users' jobs easier and help them be more efficient.
+  * **We inspire users to think big** Through our content, we empower users to do more and to dive into their next actions. We help them achieve their potential and trust them to forge their best path forward.
+  * **Write like a minimalist** Concise, clear sentences not only save space, but are easy to understand. Use simple words with precise meanings, and remove words that don’t add substance.
+  * **Please avoid please, please!** In most cases, saying "please" is unnecessary in documentation.
+  * **Avoid ambiguity** Many English words have more than one meaning, so whenever possible, choose words that have one clear meaning.
+  * **Active vs. passive voice** Voice is either active or passive. Keep it active whenever you can.
+  * **Avoid Latin Abbreviations** Instead of e.g., use for example.
 
 Please begin. Start by getting the template and example, then proceed with the "Initial Analysis" step.
