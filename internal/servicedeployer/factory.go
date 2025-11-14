@@ -28,6 +28,7 @@ type FactoryOptions struct {
 	DevDeployDir           string
 	Type                   string
 	StackVersion           string
+	OverrideAgentVersion   string
 	DeployIndependentAgent bool
 
 	PolicyName string
@@ -73,6 +74,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
 				DeployIndependentAgent: options.DeployIndependentAgent,
+				OverrideAgentVersion:   options.OverrideAgentVersion,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -105,10 +107,11 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
 
 		opts := CustomAgentDeployerOptions{
-			Profile:           options.Profile,
-			DockerComposeFile: customAgentCfgYMLPath,
-			StackVersion:      options.StackVersion,
-			PolicyName:        policyName,
+			Profile:              options.Profile,
+			DockerComposeFile:    customAgentCfgYMLPath,
+			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
+			PolicyName:           policyName,
 
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,

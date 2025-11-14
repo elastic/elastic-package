@@ -485,10 +485,11 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
-	installer, err := installer.NewForPackage(ctx, installer.Options{
-		Kibana:         r.options.KibanaClient,
-		RootPath:       r.options.PackageRootPath,
-		SkipValidation: true,
+	installer, err := installer.NewForPackage(installer.Options{
+		Kibana:          r.options.KibanaClient,
+		PackageRootPath: r.options.PackageRootPath,
+		SkipValidation:  true,
+		RepositoryRoot:  r.options.RepositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)

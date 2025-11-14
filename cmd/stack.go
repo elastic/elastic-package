@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
@@ -31,6 +32,8 @@ var availableServices = map[string]struct{}{
 
 const stackLongDescription = `Use this command to spin up a Docker-based Elastic Stack consisting of Elasticsearch, Kibana, and the Package Registry. By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
 
+Use --agent-version to specify a different version for the Elastic Agent from the stack.
+
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
@@ -42,6 +45,8 @@ For details on how to connect the service with the Elastic stack, see the [servi
 const stackUpLongDescription = `Use this command to boot up the stack locally.
 
 By default the latest released version of the stack is spun up but it is possible to specify a different version, including SNAPSHOT versions by appending --version <version>.
+
+Use --agent-version to specify a different version for the Elastic Agent from the stack.
 
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
@@ -107,6 +112,11 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+			}
+
 			profile, err := cobraext.GetProfileFlag(cmd)
 			if err != nil {
 				return err
@@ -128,11 +138,12 @@ func setupStackCommand() *cobraext.Command {
 
 			cmd.Printf("Using profile %s.\n", profile.ProfilePath)
 			err = provider.BootUp(cmd.Context(), stack.Options{
-				DaemonMode:   daemonMode,
-				StackVersion: stackVersion,
-				Services:     services,
-				Profile:      profile,
-				Printer:      cmd,
+				DaemonMode:           daemonMode,
+				StackVersion:         stackVersion,
+				OverrideAgentVersion: agentVersion,
+				Services:             services,
+				Profile:              profile,
+				Printer:              cmd,
 			})
 			if err != nil {
 				return fmt.Errorf("booting up the stack failed: %w", err)
@@ -146,6 +157,7 @@ func setupStackCommand() *cobraext.Command {
 	upCommand.Flags().StringSliceP(cobraext.StackServicesFlagName, "s", nil,
 		fmt.Sprintf(cobraext.StackServicesFlagDescription, strings.Join(availableServicesAsList(), ",")))
 	upCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	upCommand.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 	upCommand.Flags().String(cobraext.StackProviderFlagName, "", fmt.Sprintf(cobraext.StackProviderFlagDescription, strings.Join(stack.SupportedProviders, ", ")))
 	upCommand.Flags().StringSliceP(cobraext.StackUserParameterFlagName, cobraext.StackUserParameterFlagShorthand, nil, cobraext.StackUserParameterDescription)
 
@@ -201,10 +213,16 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.StackVersionFlagName)
 			}
 
+			agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+			if err != nil {
+				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+			}
+
 			err = provider.Update(cmd.Context(), stack.Options{
-				StackVersion: stackVersion,
-				Profile:      profile,
-				Printer:      cmd,
+				StackVersion:         stackVersion,
+				Profile:              profile,
+				Printer:              cmd,
+				OverrideAgentVersion: agentVersion,
 			})
 			if err != nil {
 				return fmt.Errorf("failed updating the stack images: %w", err)
@@ -215,6 +233,7 @@ func setupStackCommand() *cobraext.Command {
 		},
 	}
 	updateCommand.Flags().StringP(cobraext.StackVersionFlagName, "", install.DefaultStackVersion, cobraext.StackVersionFlagDescription)
+	updateCommand.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 
 	shellInitCommand := &cobra.Command{
 		Use:   "shellinit",
@@ -367,9 +386,31 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
-	table.Header("Service", "Version", "Status")
+	table.Header("Service", "Version", "Status", "Image Build Date", "VCS Ref")
 	for _, service := range servicesStatus {
-		table.Append(service.Name, service.Version, service.Status)
+		var buildDate, vcsRef string
+		if service.Labels != nil {
+			buildDate = formatTime(service.Labels.BuildDate)
+			vcsRef = truncate(service.Labels.VCSRef, 10)
+		}
+		table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef)
 	}
 	table.Render()
+}
+
+// formatTime returns the given RFC3339 time formated as 2006-01-02T15:04Z.
+// If the value is not in RFC3339 format, then it is returned as-is.
+func formatTime(maybeRFC3339Time string) string {
+	if t, err := time.Parse(time.RFC3339, maybeRFC3339Time); err == nil {
+		return t.UTC().Format("2006-01-02T15:04Z")
+	}
+	return maybeRFC3339Time
+}
+
+// truncate truncates text if it is longer than maxLength.
+func truncate(text string, maxLength int) string {
+	if len(text) > maxLength {
+		return text[:maxLength]
+	}
+	return text
 }

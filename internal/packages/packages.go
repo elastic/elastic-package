@@ -294,27 +294,30 @@ func (t *Transform) HasSource(name string) (bool, error) {
 // MustFindPackageRoot finds and returns the path to the root folder of a package.
 // It fails with an error if the package root can't be found.
 func MustFindPackageRoot() (string, error) {
-	root, found, err := FindPackageRoot()
+	root, err := FindPackageRoot()
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
-	}
-	if !found {
-		return "", errors.New("package root not found")
 	}
 	return root, nil
 }
 
 // FindPackageRoot finds and returns the path to the root folder of a package from the working directory.
-func FindPackageRoot() (string, bool, error) {
+func FindPackageRoot() (string, error) {
 	workDir, err := os.Getwd()
 	if err != nil {
-		return "", false, fmt.Errorf("locating working directory failed: %w", err)
+		return "", fmt.Errorf("locating working directory failed: %w", err)
 	}
 	return FindPackageRootFrom(workDir)
 }
 
+var (
+	ErrPackageRootNotFound = errors.New("package root not found")
+)
+
 // FindPackageRootFrom finds and returns the path to the root folder of a package from a given directory.
-func FindPackageRootFrom(fromDir string) (string, bool, error) {
+//
+// - fromDir should be an absolute path to a directory.
+func FindPackageRootFrom(fromDir string) (string, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
 	rootDir := filepath.VolumeName(fromDir) + string(filepath.Separator)
@@ -326,10 +329,10 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 		if err == nil && !fileInfo.IsDir() {
 			ok, err := isPackageManifest(path)
 			if err != nil {
-				return "", false, fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
+				return "", fmt.Errorf("verifying manifest file failed (path: %s): %w", path, err)
 			}
 			if ok {
-				return dir, true, nil
+				return dir, nil
 			}
 		}
 
@@ -338,7 +341,7 @@ func FindPackageRootFrom(fromDir string) (string, bool, error) {
 		}
 		dir = filepath.Dir(dir)
 	}
-	return "", false, nil
+	return "", ErrPackageRootNotFound
 }
 
 // FindDataStreamRootForPath finds and returns the path to the root folder of a data stream.

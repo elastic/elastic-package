@@ -14,9 +14,7 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 
-	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // ReadmeFile contains file name and status of each readme file.
@@ -33,10 +31,10 @@ const (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate() ([]ReadmeFile, error) {
-	packageRoot, err := packages.MustFindPackageRoot()
+func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string) ([]ReadmeFile, error) {
+	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
-		return nil, fmt.Errorf("package root not found: %w", err)
+		return nil, fmt.Errorf("locating links file failed: %w", err)
 	}
 
 	files, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
@@ -47,7 +45,7 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, diff, err := isReadmeUpToDate(fileName, packageRoot)
+		ok, diff, err := isReadmeUpToDate(fileName, linksFilePath, packageRoot)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
@@ -65,10 +63,12 @@ func AreReadmesUpToDate() ([]ReadmeFile, error) {
 	return readmeFiles, nil
 }
 
-func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
+// isReadmeUpToDate function checks if a single readme file is up-to-date.
+func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	// the readme is generated within the package root, so source should be the packageRoot files too
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -99,31 +99,39 @@ func isReadmeUpToDate(fileName, packageRoot string) (bool, string, error) {
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(packageRoot, buildDir string) ([]string, error) {
+func UpdateReadmes(repositoryRoot *os.Root, packageRoot, packageBuildRoot string) error {
+	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
+	if err != nil {
+		return fmt.Errorf("locating links file failed: %w", err)
+	}
+
 	readmeFiles, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "docs", "*.md"))
 	if err != nil {
-		return nil, fmt.Errorf("reading directory entries failed: %w", err)
+		return fmt.Errorf("reading directory entries failed: %w", err)
 	}
 
-	var targets []string
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, packageRoot, buildDir)
+		target, err := updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot)
 		if err != nil {
-			return nil, fmt.Errorf("updating readme file %s failed: %w", fileName, err)
+			return fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
 
+		// Log only when a file has been rendered/updated.
 		if target != "" {
-			targets = append(targets, target)
+			fileName := filepath.Base(target)
+			fmt.Printf("%s file rendered: %s\n", fileName, target)
 		}
 	}
-	return targets, nil
+	return nil
 }
 
-func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
+// updateReadme function updates a single readme file using a defined template file.
+// It writes the rendered file to both the package directory and the package build directory.
+func updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot)
 	if err != nil {
 		return "", err
 	}
@@ -136,11 +144,6 @@ func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 		return "", fmt.Errorf("writing %s file failed: %w", fileName, err)
 	}
 
-	packageBuildRoot, err := builder.BuildPackagesDirectory(packageRoot, buildDir)
-	if err != nil {
-		return "", fmt.Errorf("package build root not found: %w", err)
-	}
-
 	_, err = writeReadme(fileName, packageBuildRoot, rendered)
 	if err != nil {
 		return "", fmt.Errorf("writing %s file failed: %w", fileName, err)
@@ -148,7 +151,12 @@ func updateReadme(fileName, packageRoot, buildDir string) (string, error) {
 	return target, nil
 }
 
-func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
+// generateReadme function generates the readme file content
+// the readme takes a template that lives under the _dev/build/docs directory at the package root.
+// the readme template reads data from the sourceFilesRoot directory.
+// sourceFilesRoot is usually the package root when generating readme for checking up-to-dateness,
+// and the built package root when generating readme for the built package.
+func generateReadme(fileName, linksFilePath, packageRoot, sourceFilesRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -160,18 +168,21 @@ func generateReadme(fileName, packageRoot string) ([]byte, bool, error) {
 	}
 	logger.Debugf("Template file for %s found: %s", fileName, templatePath)
 
-	linksMap, err := readLinksMap()
+	linksMap, err := readLinksMap(linksFilePath)
 	if err != nil {
 		return nil, false, err
 	}
 
-	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
+	// templatePath lives under the _dev/build/docs directory at the package root.
+	// builtPackageRoot is the root directory of the built package.
+	rendered, err := renderReadme(fileName, sourceFilesRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, fmt.Errorf("rendering Readme failed: %w", err)
 	}
 	return rendered, true, nil
 }
 
+// findReadmeTemplatePath function looks for the README template file in the _dev/build/docs directory.
 func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) {
 	templatePath := filepath.Join(packageRoot, "_dev", "build", "docs", fileName)
 	_, err := os.Stat(templatePath)
@@ -184,23 +195,24 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 	return templatePath, true, nil
 }
 
-func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
-	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
+// renderReadme function renders the readme file reading from
+func renderReadme(fileName, sourceFilesRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, sourceFilesRoot, templatePath)
 
 	t := template.New(fileName)
 	t, err := t.Funcs(template.FuncMap{
 		"event": func(args ...string) (string, error) {
 			if len(args) > 0 {
-				return renderSampleEvent(packageRoot, args[0])
+				return renderSampleEvent(sourceFilesRoot, args[0])
 			}
-			return renderSampleEvent(packageRoot, "")
+			return renderSampleEvent(sourceFilesRoot, "")
 		},
 		"fields": func(args ...string) (string, error) {
 			if len(args) > 0 {
-				dataStreamPath := filepath.Join(packageRoot, "data_stream", args[0])
+				dataStreamPath := filepath.Join(sourceFilesRoot, "data_stream", args[0])
 				return renderExportedFields(dataStreamPath)
 			}
-			return renderExportedFields(packageRoot)
+			return renderExportedFields(sourceFilesRoot)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}
@@ -210,7 +222,7 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 			return linksMap.RenderLink(args[0], options)
 		},
 		"inputDocs": func() (string, error) {
-			return renderInputDocs(packageRoot)
+			return renderInputDocs(sourceFilesRoot)
 		},
 		"generatedHeader": func() string {
 			return doNotModifyStr

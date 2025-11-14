@@ -44,8 +44,9 @@ var staticSource = resource.NewSourceFS(static)
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
-	profile      *profile.Profile
-	stackVersion string
+	profile              *profile.Profile
+	stackVersion         string
+	overrideAgentVersion string
 
 	policyName string
 
@@ -59,9 +60,10 @@ type DockerComposeAgentDeployer struct {
 }
 
 type DockerComposeAgentDeployerOptions struct {
-	Profile      *profile.Profile
-	StackVersion string
-	PolicyName   string
+	Profile              *profile.Profile
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	PackageName string
 	DataStream  string
@@ -86,13 +88,14 @@ var _ DeployedAgent = new(dockerComposeDeployedAgent)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
 	return &DockerComposeAgentDeployer{
-		profile:      options.Profile,
-		stackVersion: options.StackVersion,
-		packageName:  options.PackageName,
-		dataStream:   options.DataStream,
-		policyName:   options.PolicyName,
-		runTearDown:  options.RunTearDown,
-		runTestsOnly: options.RunTestsOnly,
+		profile:              options.Profile,
+		stackVersion:         options.StackVersion,
+		overrideAgentVersion: options.OverrideAgentVersion,
+		packageName:          options.PackageName,
+		dataStream:           options.DataStream,
+		policyName:           options.PolicyName,
+		runTearDown:          options.RunTearDown,
+		runTestsOnly:         options.RunTestsOnly,
 	}, nil
 }
 
@@ -101,7 +104,13 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion))
+	// default agent version to stack version
+	agentVersion := d.stackVersion
+	if d.overrideAgentVersion != "" {
+		agentVersion = d.overrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -281,7 +290,13 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		stackVersion = version
 	}
 
-	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)
+	agentVersion := stackVersion
+	// Allow overriding the agent version if specified by the flag
+	if d.overrideAgentVersion != "" {
+		agentVersion = d.overrideAgentVersion
+	}
+
+	agentImage, err := selectElasticAgentImage(agentVersion, agentInfo.Agent.BaseImage)
 	if err != nil {
 		return "", nil
 	}
@@ -295,7 +310,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		"pid_mode":               agentInfo.Agent.PidMode,
 		"ports":                  strings.Join(agentInfo.Agent.Ports, ","),
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
-		"stack_version":          stackVersion,
+		"agent_version":          agentVersion,
 		"fleet_url":              fleetURL,
 		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,
@@ -321,8 +336,8 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	return customAgentDir, nil
 }
 
-func selectElasticAgentImage(stackVersion, agentBaseImage string) (string, error) {
-	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithStackVersion(stackVersion))
+func selectElasticAgentImage(agentVersion, agentBaseImage string) (string, error) {
+	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}

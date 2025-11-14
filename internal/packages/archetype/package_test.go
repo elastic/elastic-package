@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -38,11 +37,15 @@ func TestPackage(t *testing.T) {
 }
 
 func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
-	tempDir := makeInRepoBuildTempDir(t)
-	err := createPackageInDir(pd, tempDir)
+	repositoryRoot, err := os.OpenRoot(t.TempDir())
+	require.NoError(t, err)
+	defer repositoryRoot.Close()
+
+	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
+	err = createPackageInDir(pd, packagesDir)
 	require.NoError(t, err)
 
-	checkPackage(t, filepath.Join(tempDir, pd.Manifest.Name), valid)
+	checkPackage(t, repositoryRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -92,29 +95,29 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, packageRoot string) error {
-	buildDir := makeInRepoBuildTempDir(t)
-	_, err := docs.UpdateReadmes(packageRoot, buildDir)
-	if err != nil {
-		return err
-	}
+func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string) error {
+	buildDir := filepath.Join(repositoryRoot.Name(), "build")
+	err := os.MkdirAll(buildDir, 0o755)
+	require.NoError(t, err)
 
-	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
-		PackageRoot: packageRoot,
-		BuildDir:    buildDir,
+	_, err = builder.BuildPackage(builder.BuildOptions{
+		PackageRootPath: packageRootPath,
+		BuildDir:        buildDir,
+		RepositoryRoot:  repositoryRoot,
+		UpdateReadmes:   true,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, packageRoot string, valid bool) {
-	err := buildPackage(t, packageRoot)
+func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string, valid bool) {
+	err := buildPackage(t, repositoryRoot, packageRootPath)
 	if !valid {
 		assert.Error(t, err)
 		return
 	}
 	require.NoError(t, err)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	require.NoError(t, err)
 
 	// Running in subtests because manifest subobjects can be pointers that can panic when dereferenced by assertions.
@@ -128,7 +131,7 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 
 	if manifest.Type == "integration" {
 		t.Run("integration", func(t *testing.T) {
-			ds, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
+			ds, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
 			require.NoError(t, err)
 			for _, d := range ds {
 				manifest, err := packages.ReadDataStreamManifest(filepath.Join(d, "manifest.yml"))
@@ -139,23 +142,4 @@ func checkPackage(t *testing.T, packageRoot string, valid bool) {
 			}
 		})
 	}
-}
-
-// makeInRepoBuildTempDir mimicks t.TempDir(), but creates the directory inside the current
-// directory.
-// FIXME: It should be possible to use t.TempDir(), but conflicts with links resolution, as
-// t.TempDir() creates the directory out of the repository. We should refactor links resolution
-// so it can write files out of the repository.
-// https://github.com/elastic/elastic-package/issues/2797
-func makeInRepoBuildTempDir(t *testing.T) string {
-	t.Helper()
-	cwd, err := os.Getwd()
-	require.NoError(t, err)
-	dir, err := os.MkdirTemp(cwd, "_build-test-*")
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		err := os.RemoveAll(dir)
-		assert.NoError(t, err)
-	})
-	return dir
 }

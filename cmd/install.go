@@ -5,12 +5,12 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -74,22 +74,24 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	if zipPathFile == "" && packageRootPath == "" {
-		var found bool
 		var err error
-		packageRootPath, found, err = packages.FindPackageRoot()
-		if !found {
-			return errors.New("package root not found")
-		}
+		packageRootPath, err = packages.FindPackageRoot()
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
-	installer, err := installer.NewForPackage(cmd.Context(), installer.Options{
-		Kibana:         kibanaClient,
-		RootPath:       packageRootPath,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		return fmt.Errorf("locating repository root failed: %w", err)
+	}
+
+	installer, err := installer.NewForPackage(installer.Options{
+		Kibana:          kibanaClient,
+		PackageRootPath: packageRootPath,
+		SkipValidation:  skipValidation,
+		ZipPath:         zipPathFile,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

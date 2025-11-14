@@ -7,7 +7,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/Masterminds/semver/v3"
+
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/tui"
 
 	"github.com/spf13/cobra"
@@ -19,9 +23,13 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
-const exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
+const (
+	exportDashboardsLongDescription = `Use this command to export dashboards with referenced objects from the Kibana instance.
 
 Use this command to download selected dashboards and other associated saved objects from Kibana. This command adjusts the downloaded saved objects according to package naming conventions (prefixes, unique IDs) and writes them locally into folders corresponding to saved object types (dashboard, visualization, map, etc.).`
+
+	newDashboardOption = "The dashboard is not part of a package (show all available dashboards)"
+)
 
 func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	cmd.Println("Export Kibana dashboards")
@@ -70,10 +78,26 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: %s\n", message)
 	}
 
+	// Just query for dashboards if none were provided as flags
 	if len(dashboardIDs) == 0 {
-		dashboardIDs, err = promptDashboardIDs(cmd.Context(), kibanaClient)
+		packageRoot, err := packages.MustFindPackageRoot()
 		if err != nil {
-			return fmt.Errorf("prompt for dashboard selection failed: %w", err)
+			return fmt.Errorf("locating package root failed: %w", err)
+		}
+		m, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+		if err != nil {
+			return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		}
+		options := selectDashboardOptions{
+			ctx:            cmd.Context(),
+			kibanaClient:   kibanaClient,
+			kibanaVersion:  kibanaVersion,
+			defaultPackage: m.Name,
+		}
+
+		dashboardIDs, err = selectDashboardIDs(options)
+		if err != nil {
+			return fmt.Errorf("selecting dashboard IDs failed: %w", err)
 		}
 
 		if len(dashboardIDs) == 0 {
@@ -91,12 +115,167 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]string, error) {
-	savedDashboards, err := kibanaClient.FindDashboards(ctx)
+type selectDashboardOptions struct {
+	ctx            context.Context
+	kibanaClient   *kibana.Client
+	kibanaVersion  kibana.VersionInfo
+	defaultPackage string
+}
+
+// selectDashboardIDs prompts the user to select dashboards to export. It handles
+// different flows depending on whether the Kibana instance is a Serverless environment or not.
+// In non-Serverless environments, it prompts directly for dashboard selection.
+// In Serverless environments, it first prompts to select an installed package or choose
+// to export new dashboards, and then prompts for dashboard selection accordingly.
+func selectDashboardIDs(options selectDashboardOptions) ([]string, error) {
+	kibanaSemver, err := semver.NewVersion(options.kibanaVersion.Number)
 	if err != nil {
-		return nil, fmt.Errorf("finding dashboards failed: %w", err)
+		return nil, fmt.Errorf("parsing Kibana version failed: %w", err)
+	}
+	if options.kibanaVersion.BuildFlavor != kibana.ServerlessFlavor && kibanaSemver.LessThan(semver.MustParse("9.0.0")) {
+		// This method uses a deprecated API to search for saved objects.
+		// Moreover, this API is not available in Serverless environments.
+		savedDashboards, err := options.kibanaClient.FindDashboards(options.ctx)
+		if err != nil {
+			return nil, fmt.Errorf("finding dashboards failed: %w", err)
+		}
+
+		dashboardIDs, err := promptDashboardIDs(savedDashboards)
+		if err != nil {
+			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
+		}
+		return dashboardIDs, nil
 	}
 
+	installedPackage, err := promptPackagesInstalled(options.ctx, options.kibanaClient, options.defaultPackage)
+	if err != nil {
+		return nil, fmt.Errorf("prompt for package selection failed: %w", err)
+	}
+
+	if installedPackage == "" {
+		fmt.Println("No installed packages were found in Kibana.")
+		return nil, nil
+	}
+
+	if installedPackage == newDashboardOption {
+		savedDashboards, err := options.kibanaClient.FindDashboardsWithExport(options.ctx)
+		if err != nil {
+			return nil, fmt.Errorf("finding dashboards failed: %w", err)
+		}
+
+		dashboardIDs, err := promptDashboardIDs(savedDashboards)
+		if err != nil {
+			return nil, fmt.Errorf("prompt for dashboard selection failed: %w", err)
+		}
+		return dashboardIDs, nil
+	}
+
+	// As it can be installed just one version of a package in Elastic, we can split by '-' to get the name.
+	// This package name will be used to get the data related to a package (kibana.GetPackage).
+	installedPackageName, _, found := strings.Cut(installedPackage, "-")
+	if !found {
+		return nil, fmt.Errorf("invalid package name: %s", installedPackage)
+	}
+
+	dashboardIDs, err := promptPackageDashboardIDs(options.ctx, options.kibanaClient, installedPackageName)
+	if err != nil {
+		return nil, fmt.Errorf("prompt for package dashboard selection failed: %w", err)
+	}
+
+	return dashboardIDs, nil
+}
+
+func promptPackagesInstalled(ctx context.Context, kibanaClient *kibana.Client, defaultPackageName string) (string, error) {
+	installedPackages, err := kibanaClient.FindInstalledPackages(ctx)
+	if err != nil {
+		return "", fmt.Errorf("finding installed packages failed: %w", err)
+	}
+
+	options := []string{}
+	options = append(options, installedPackages.Strings()...)
+	defaultOption := ""
+	for _, ip := range installedPackages {
+		if ip.Name == defaultPackageName {
+			// set default package to the one matching the package in the current directory
+			defaultOption = ip.String()
+			break
+		}
+	}
+	// Latest option is always to list all available dashboards even if they are not related
+	// to any package. This is helpful in case the user is working on a new dashboard.
+	options = append(options, newDashboardOption)
+
+	packagesPrompt := tui.NewSelect("Which package would you like to export dashboards from?", options, defaultOption)
+
+	var selectedOption string
+	err = tui.AskOne(packagesPrompt, &selectedOption, tui.Required)
+	if err != nil {
+		return "", err
+	}
+
+	return selectedOption, nil
+}
+
+// promptPackageDashboardIDs prompts the user to select dashboards from the given package.
+// It requires the package name to fetch the installed package information from Kibana.
+func promptPackageDashboardIDs(ctx context.Context, kibanaClient *kibana.Client, packageName string) ([]string, error) {
+	installedPackage, err := kibanaClient.GetPackage(ctx, packageName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get package status: %w", err)
+	}
+	if installedPackage.Status == "not_installed" {
+		return nil, fmt.Errorf("package %s is not installed", packageName)
+	}
+
+	// get asset titles from IDs
+	packageAssets := []packages.Asset{}
+	for _, asset := range installedPackage.InstallationInfo.InstalledKibanaAssets {
+		if asset.Type != "dashboard" {
+			continue
+		}
+
+		packageAssets = append(packageAssets, packages.Asset{ID: asset.ID, Type: asset.Type})
+	}
+
+	assetsResponse, err := kibanaClient.GetDataFromPackageAssetIDs(ctx, packageAssets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get package assets: %w", err)
+	}
+
+	dashboardIDOptions := []string{}
+	for _, asset := range assetsResponse {
+		if asset.Type != "dashboard" {
+			continue
+		}
+		dashboardIDOptions = append(dashboardIDOptions, asset.String())
+	}
+
+	if len(dashboardIDOptions) == 0 {
+		return nil, fmt.Errorf("no dashboards found for package %s", packageName)
+	}
+
+	dashboardsPrompt := tui.NewMultiSelect("Which dashboards would you like to export?", dashboardIDOptions, []string{})
+	dashboardsPrompt.SetPageSize(100)
+
+	var selectedOptions []string
+	err = tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
+	if err != nil {
+		return nil, err
+	}
+
+	var selectedIDs []string
+	for _, option := range selectedOptions {
+		for _, asset := range assetsResponse {
+			if asset.String() == option {
+				selectedIDs = append(selectedIDs, asset.ID)
+			}
+		}
+	}
+
+	return selectedIDs, nil
+}
+
+func promptDashboardIDs(savedDashboards kibana.DashboardSavedObjects) ([]string, error) {
 	if len(savedDashboards) == 0 {
 		return []string{}, nil
 	}
@@ -105,7 +284,7 @@ func promptDashboardIDs(ctx context.Context, kibanaClient *kibana.Client) ([]str
 	dashboardsPrompt.SetPageSize(100)
 
 	var selectedOptions []string
-	err = tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
+	err := tui.AskOne(dashboardsPrompt, &selectedOptions, tui.Required)
 	if err != nil {
 		return nil, err
 	}
