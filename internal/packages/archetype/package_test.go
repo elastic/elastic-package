@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -100,15 +99,12 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string)
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
-	_, err = docs.UpdateReadmes(repositoryRoot, packageRootPath, buildDir)
-	if err != nil {
-		return err
-	}
 
 	_, err = builder.BuildPackage(builder.BuildOptions{
 		PackageRootPath: packageRootPath,
 		BuildDir:        buildDir,
 		RepositoryRoot:  repositoryRoot,
+		UpdateReadmes:   true,
 	})
 	return err
 }
