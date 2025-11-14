@@ -66,7 +66,7 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 			return fmt.Errorf("failed to unmarshal alert rule template JSON: %w", err)
 		}
 
-		builder.WriteString(fmt.Sprintf("### **%s**\n\n", template.Attributes.Name))
+		builder.WriteString(fmt.Sprintf("### %s\n\n", template.Attributes.Name))
 		builder.WriteString(fmt.Sprintf("%s\n\n", template.Attributes.Description))
 		return nil
 	})
