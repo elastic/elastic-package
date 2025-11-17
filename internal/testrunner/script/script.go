@@ -54,7 +54,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	workRoot := filepath.Join(home, loc.TempDir(), "script_tests")
+	workRoot := filepath.Join(loc.TempDir(), "script_tests")
 	err = os.MkdirAll(workRoot, 0o700)
 	if err != nil {
 		return fmt.Errorf("could not make work space root: %w", err)

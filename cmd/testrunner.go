@@ -629,7 +629,7 @@ func getTestRunnerScriptCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.ContinueOnErrorFlagName, false, cobraext.ContinueOnErrorFlagDescription)
 	cmd.Flags().Bool(cobraext.VerboseScriptFlagName, false, cobraext.VerboseScriptFlagDescription)
 
-	cmd.MarkFlagsMutuallyExclusive(cobraext.DataStreamsFlagName, cobraext.DataStreamsFlagName)
+	cmd.MarkFlagsMutuallyExclusive(cobraext.ScriptsFlagName, cobraext.DataStreamsFlagName)
 
 	return cmd
 }
