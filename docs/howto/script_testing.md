@@ -43,7 +43,7 @@ a stack, starting agents and services and validating results.
   - `stack_up [-profile <profile>] [-provider <provider>] [-timeout <duration>] <stack-version>`: bring up a version of the Elastic stack
   - `use_stack [-profile <profile>] [-timeout <duration>]`: use a running Elastic stack
   - `stack_down [-profile <profile>] [-provider <provider>] [-timeout <duration>]`: take down a started Elastic stack
-  - `dump_logs [-profile <profile>] [-provider <provider>] [-timeout <duration>] [-since <RFC3339 time>] [<dirpath>]`: dump the logs from the stack into a directory
+  - `dump_logs [-profile <profile>] [-provider <provider>] [-timeout <duration>] [-since <RFC3339 time>] [<dirpath>]`: dump the logs from the stack into a directory, collecting internal logs into an ordered complete set with the base name elastic-agent-all.ndjson
   - `get_policy [-profile <profile>] [-timeout <duration>] <policy_name>`: print the details for a policy
 
 - agent commands:

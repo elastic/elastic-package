@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -389,6 +390,53 @@ func dumpLogs(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("dumping agent logs", err))
 	ts.Check(decoratedWith("moving logs", os.Rename(filepath.Join(tmp, "logs"), filepath.Join(ts.MkAbs(dir)))))
 	ts.Check(decoratedWith("removing temporary logs target", os.Remove(tmp)))
+
+	// Collect all internal logs into canonical locations in temporal order.
+	for _, l := range []string{
+		"elastic-agent-internal",
+		"fleet-server-internal",
+	} {
+		g, err := filepath.Glob(filepath.Join(ts.MkAbs(dir), l, "*"))
+		ts.Check(decoratedWith(fmt.Sprintf("collecting %s logs", l), err))
+		type message struct {
+			ts   time.Time
+			json json.RawMessage
+		}
+		var log []message
+		for _, p := range g {
+			f, err := os.Open(p)
+			ts.Check(decoratedWith(fmt.Sprintf("reading %s logs", l), err))
+			dec := json.NewDecoder(f)
+			for {
+				var line message
+				err := dec.Decode(&line.json)
+				if err == io.EOF {
+					break
+				}
+				ts.Check(decoratedWith(fmt.Sprintf("unmarshaling logs in %s", p), err))
+				var probe struct {
+					Timestamp time.Time `json:"@timestamp"`
+				}
+				ts.Check(decoratedWith(fmt.Sprintf("unmarshaling timestamp in %s", p), json.Unmarshal(line.json, &probe)))
+				line.ts = probe.Timestamp
+				log = append(log, line)
+			}
+			ts.Check(decoratedWith(fmt.Sprintf("closing %s", p), f.Close()))
+		}
+		slices.SortStableFunc(log, func(a, b message) int {
+			return int(a.ts.Sub(b.ts))
+		})
+		o, err := os.Create(filepath.Join(ts.MkAbs(dir), l, "elastic-agent-all.ndjson"))
+		ts.Check(decoratedWith(fmt.Sprintf("creating %s logs collection", l), err))
+		for _, line := range log {
+			_, err := o.Write(line.json)
+			ts.Check(decoratedWith(fmt.Sprintf("writing %s logs collection", l), err))
+			_, err = o.WriteString("\n")
+			ts.Check(decoratedWith(fmt.Sprintf("writing new line to %s logs collection", l), err))
+		}
+		ts.Check(decoratedWith(fmt.Sprintf("syncing %s logs collection", l), o.Sync()))
+		ts.Check(decoratedWith(fmt.Sprintf("closing %s logs collection", l), o.Close()))
+	}
 }
 
 type runningStackTag struct{}

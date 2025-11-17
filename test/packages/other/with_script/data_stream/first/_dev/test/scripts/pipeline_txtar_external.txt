@@ -24,6 +24,8 @@ stdout '^uninstalled pipelines in'
 
 # Put logs in the work directory check for existence.
 dump_logs -profile ${CONFIG_PROFILES}/${PROFILE} -since ${START}
+exists ${WORK}/logs/elastic-agent-internal/elastic-agent-all.ndjson
+exists ${WORK}/logs/fleet-server-internal/elastic-agent-all.ndjson
 exists ${WORK}/logs/elastic-agent.log
 exists ${WORK}/logs/elasticsearch.log
 exists ${WORK}/logs/fleet-server.log
