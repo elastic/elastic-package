@@ -56,6 +56,7 @@ Your Step-by-Step Process:
 
 5.  Drafting the Documentation:
     * Using the template from get_readme_template, begin writing the documentation file.
+    * Include all sections from the template.
     * Follow the style and quality demonstrated in the example from get_example_readme.
     * Integrate the information gathered from the package files and your web research into the appropriate sections.
     * Re-insert any preserved human-edited sections into their original locations.
