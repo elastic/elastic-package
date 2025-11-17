@@ -17,5 +17,11 @@ streams:
         required: true
         show_user: false
         default: /server-status
+      - name: unused_multi
+        title: Unused YAML multi variable that is artificially required to have a value by Fleet.
+        type: yaml
+        multi: true
+        required: false
+        show_user: false
     title: Apache status metrics
     description: Collect Apache status metrics

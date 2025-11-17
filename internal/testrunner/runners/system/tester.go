@@ -2069,8 +2069,14 @@ func setKibanaVariables(definitions []packages.Variable, values common.MapStr) k
 			val = &packages.VarValue{}
 			val.Unpack(value)
 		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
-			// Do not include nulls for unset variables.
-			continue
+			if definition.Multi && definition.Type == "yaml" {
+				// Fleet expects some multi variables to contain something, even if they don't have a value or are required.
+				val = &packages.VarValue{}
+				val.Unpack([]any{})
+			} else {
+				// Do not include nulls for unset variables.
+				continue
+			}
 		}
 
 		vars[definition.Name] = kibana.Var{
