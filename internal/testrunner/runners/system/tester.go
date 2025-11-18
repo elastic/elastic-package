@@ -1775,18 +1775,11 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
-		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
-		if r.pkgManifest.Type == "input" {
-			v, _ := config.Vars.GetValue("data_stream.dataset")
-			if dataset, ok := v.(string); ok && dataset != "" {
-				expectedDataset = dataset
-			} else if dataset := findDefaultValue(scenario.policyTemplate.Vars, "data_stream.dataset"); dataset != "" {
-				expectedDataset = dataset
-			} else {
-				expectedDataset = scenario.policyTemplate.Name
-			}
-		}
-
+		expectedDataset := getExpectedDatasetForTest(
+			r.pkgManifest.Type,
+			scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset,
+			scenario.policyTemplate,
+			config.Vars)
 		if scenario.policyTemplate.Input == otelCollectorInputName {
 			// Input packages whose input is `otelcol` must add the `.otel` suffix
 			// Example: httpcheck.metrics.otel
