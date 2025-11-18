@@ -33,8 +33,8 @@ const (
 	configRegion              = "stack.serverless.region"
 	configProjectType         = "stack.serverless.type"
 	configElasticCloudURL     = "stack.elastic_cloud.host"
-	configProjectFleetPeriod  = "stack.serverless.fleet.period"
-	configProjectFleetTimeout = "stack.serverless.fleet.timeout"
+	configProjectFleetPeriod  = "stack.serverless.fleet.wait_period"
+	configProjectFleetTimeout = "stack.serverless.fleet.wait_timeout"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
