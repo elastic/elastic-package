@@ -7,6 +7,7 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/olekukonko/tablewriter/renderer"
@@ -385,9 +386,31 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 		tablewriter.WithRenderer(renderer.NewColorized(config)),
 		tablewriter.WithConfig(defaultTableConfig),
 	)
-	table.Header("Service", "Version", "Status")
+	table.Header("Service", "Version", "Status", "Image Build Date", "VCS Ref")
 	for _, service := range servicesStatus {
-		table.Append(service.Name, service.Version, service.Status)
+		var buildDate, vcsRef string
+		if service.Labels != nil {
+			buildDate = formatTime(service.Labels.BuildDate)
+			vcsRef = truncate(service.Labels.VCSRef, 10)
+		}
+		table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef)
 	}
 	table.Render()
+}
+
+// formatTime returns the given RFC3339 time formated as 2006-01-02T15:04Z.
+// If the value is not in RFC3339 format, then it is returned as-is.
+func formatTime(maybeRFC3339Time string) string {
+	if t, err := time.Parse(time.RFC3339, maybeRFC3339Time); err == nil {
+		return t.UTC().Format("2006-01-02T15:04Z")
+	}
+	return maybeRFC3339Time
+}
+
+// truncate truncates text if it is longer than maxLength.
+func truncate(text string, maxLength int) string {
+	if len(text) > maxLength {
+		return text[:maxLength]
+	}
+	return text
 }
