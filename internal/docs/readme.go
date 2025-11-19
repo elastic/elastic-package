@@ -131,7 +131,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, packageBuildRoot string
 func updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageBuildRoot, packageRoot)
 	if err != nil {
 		return "", err
 	}
