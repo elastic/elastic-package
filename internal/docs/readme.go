@@ -157,8 +157,8 @@ func updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot string)
 // sourceFilesRoot is usually the package root when generating readme for checking up-to-dateness,
 // and the built package root when generating readme for the built package.
 func generateReadme(fileName, linksFilePath, packageRoot, sourceFilesRoot string) ([]byte, bool, error) {
-	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
-	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
+	logger.Debugf("Generate %s file (package: %s)", fileName, sourceFilesRoot)
+	templatePath, found, err := findReadmeTemplatePath(fileName, sourceFilesRoot)
 	if err != nil {
 		return nil, false, fmt.Errorf("can't locate %s template file: %w", fileName, err)
 	}
