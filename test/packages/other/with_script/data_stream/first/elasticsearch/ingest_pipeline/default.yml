@@ -1,0 +1,15 @@
+---
+description: Test pipeline.
+processors:
+  - set:
+      field: hello
+      value: '{{{message}}}'
+      ignore_empty_value: true
+  - rename:
+      field: message
+      target_field: event.original
+      ignore_missing: true
+on_failure:
+  - set:
+      field: error.message
+      value: '{{{ _ingest.on_failure_message }}}'

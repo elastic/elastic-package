@@ -31,6 +31,7 @@ require (
 	github.com/maxmind/mmdbwriter v1.1.0
 	github.com/olekukonko/tablewriter v1.1.1
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
+	github.com/rogpeppe/go-internal v1.13.1
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/spf13/cobra v1.10.1
 	github.com/stretchr/testify v1.11.1

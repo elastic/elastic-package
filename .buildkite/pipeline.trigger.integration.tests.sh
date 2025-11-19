@@ -45,6 +45,7 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
+    test-check-packages-independent-script
 )
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     test_name=${test#"test-check-packages-"}

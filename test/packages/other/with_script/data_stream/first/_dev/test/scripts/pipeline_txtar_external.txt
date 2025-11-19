@@ -1,0 +1,84 @@
+[!external_stack] skip 'Skipping external stack test.'
+
+date START
+
+# Register stack and check that we get the expected output.
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
+! stderr .
+cmpenv stdout want_use.json
+
+# Install the data stream's pipeline.
+install_pipelines -profile ${CONFIG_PROFILES}/${PROFILE} ${WORK}
+! stderr .
+stdout '^installed pipelines in .* with nonce'
+
+# Run a simulation with the data.
+simulate -profile ${CONFIG_PROFILES}/${PROFILE} ${WORK} default data.json
+! stderr .
+cmp stdout want.json
+
+# Uninstall pipelines.
+uninstall_pipelines -profile ${CONFIG_PROFILES}/${PROFILE} ${WORK}
+! stderr .
+stdout '^uninstalled pipelines in'
+
+# Put logs in the work directory check for existence.
+dump_logs -profile ${CONFIG_PROFILES}/${PROFILE} -since ${START}
+exists ${WORK}/logs/elastic-agent-internal/elastic-agent-all.ndjson
+exists ${WORK}/logs/fleet-server-internal/elastic-agent-all.ndjson
+exists ${WORK}/logs/elastic-agent.log
+exists ${WORK}/logs/elasticsearch.log
+exists ${WORK}/logs/fleet-server.log
+exists ${WORK}/logs/kibana.log
+exists ${WORK}/logs/package-registry.log
+
+# Then attempt to take it down again.
+! stack_down -profile ${CONFIG_PROFILES}/${PROFILE}
+! stdout .
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/'${PROFILE}'$'
+
+-- want_use.json --
+{
+	"provider": "compose",
+	"elasticsearch_host": "https://127.0.0.1:9200",
+	"elasticsearch_username": "elastic",
+	"elasticsearch_password": "changeme",
+	"kibana_host": "https://127.0.0.1:5601",
+	"ca_cert_file": "${CONFIG_PROFILES}/${PROFILE}/certs/ca-cert.pem"
+}
+-- data.json --
+{
+	"message": "World!"
+}
+{
+	"message": "from testscript"
+}
+-- elasticsearch/ingest_pipeline/default.yml --
+---
+description: Test pipeline.
+processors:
+  - set:
+      field: hello
+      value: '{{{message}}}'
+      ignore_empty_value: true
+  - rename:
+      field: message
+      target_field: event.original
+      ignore_missing: true
+on_failure:
+  - set:
+      field: error.message
+      value: '{{{ _ingest.on_failure_message }}}'
+-- want.json --
+{
+	"event": {
+		"original": "World!"
+	},
+	"hello": "World!"
+}
+{
+	"event": {
+		"original": "from testscript"
+	},
+	"hello": "from testscript"
+}
