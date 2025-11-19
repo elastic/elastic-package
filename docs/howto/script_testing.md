@@ -85,6 +85,7 @@ a stack, starting agents and services and validating results.
 - `PREVIOUS_VERSION`: the previous version of the package
 - `DATA_STREAM`: the name of the data stream
 - `DATA_STREAM_ROOT`: the path to the root of the data stream
+- `WORK`: the path to the directory that the script is run in
 
 
 ## Conditions
@@ -206,4 +207,4 @@ flags:
 While the testscript package allows reference to paths outside the configuration
 root and the package's root, the backing `elastic-package` infrastructure does
 not, so it is advised that tests only refer to paths within the `$WORK` and
-`$PKG_ROOT` directories.
+`$PACKAGE_ROOT` directories.
