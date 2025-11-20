@@ -22,7 +22,7 @@ const (
 )
 
 type runner struct {
-	packageRootPath    string
+	packageRoot        string
 	failOnMissingTests bool
 	dataStreams        []string
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
@@ -31,7 +31,7 @@ type runner struct {
 }
 
 type StaticTestRunnerOptions struct {
-	PackageRootPath    string
+	PackageRoot        string
 	FailOnMissingTests bool
 	DataStreams        []string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
@@ -41,7 +41,7 @@ type StaticTestRunnerOptions struct {
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 	runner := runner{
-		packageRootPath:    options.PackageRootPath,
+		packageRoot:        options.PackageRoot,
 		failOnMissingTests: options.FailOnMissingTests,
 		dataStreams:        options.DataStreams,
 		globalTestConfig:   options.GlobalTestConfig,
@@ -64,9 +64,9 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var tests []testrunner.TestFolder
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
-		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRoot, err)
 	}
 
 	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
@@ -75,7 +75,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	}
 
 	if hasDataStreams {
-		tests, err = testrunner.AssumeTestFolders(r.packageRootPath, r.dataStreams, r.Type())
+		tests, err = testrunner.AssumeTestFolders(r.packageRoot, r.dataStreams, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to assume test folder paths: %w", err)
 		}
@@ -87,7 +87,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			return nil, fmt.Errorf("no %s tests found", r.Type())
 		}
 	} else {
-		_, pkg := filepath.Split(r.packageRootPath)
+		_, pkg := filepath.Split(r.packageRoot)
 		tests = []testrunner.TestFolder{
 			{
 				Package: pkg,
@@ -98,7 +98,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var testers []testrunner.Tester
 	for _, t := range tests {
 		testers = append(testers, NewStaticTester(StaticTesterOptions{
-			PackageRootPath:  r.packageRootPath,
+			PackageRoot:      r.packageRoot,
 			TestFolder:       t,
 			GlobalTestConfig: r.globalTestConfig,
 			WithCoverage:     r.withCoverage,

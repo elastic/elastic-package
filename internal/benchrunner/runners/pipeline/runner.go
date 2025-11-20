@@ -40,7 +40,7 @@ func NewPipelineBenchmark(opts Options) benchrunner.Runner {
 }
 
 func (r *runner) SetUp(ctx context.Context) error {
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
+	dataStreamRoot, found, err := packages.FindDataStreamRootForPath(r.options.Folder.Path)
 	if err != nil {
 		return fmt.Errorf("locating data_stream root failed: %w", err)
 	}
@@ -48,7 +48,7 @@ func (r *runner) SetUp(ctx context.Context) error {
 		return errors.New("data stream root not found")
 	}
 
-	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.options.API, dataStreamPath, r.options.RepositoryRoot)
+	r.entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.options.API, dataStreamRoot, r.options.RepositoryRoot)
 	if err != nil {
 		return fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
@@ -98,9 +98,9 @@ func (r *runner) run(ctx context.Context) (reporters.Reportable, error) {
 }
 
 // FindBenchmarkFolders finds benchmark folders for the given package and, optionally, benchmark type and data streams
-func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testrunner.TestFolder, error) {
+func FindBenchmarkFolders(packageRoot string, dataStreams []string) ([]testrunner.TestFolder, error) {
 	// Expected folder structure:
-	// <packageRootPath>/
+	// <packageRoot>/
 	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
@@ -111,7 +111,7 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testr
 	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findBenchFolderPaths(packageRootPath, dataStream)
+			p, err := findBenchFolderPaths(packageRoot, dataStream)
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +119,7 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testr
 			paths = append(paths, p...)
 		}
 	} else {
-		p, err := findBenchFolderPaths(packageRootPath, "*")
+		p, err := findBenchFolderPaths(packageRoot, "*")
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +129,7 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testr
 
 	sort.Strings(dataStreams)
 	for _, dataStream := range dataStreams {
-		p, err := findBenchFolderPaths(packageRootPath, dataStream)
+		p, err := findBenchFolderPaths(packageRoot, dataStream)
 		if err != nil {
 			return nil, err
 		}
@@ -138,9 +138,9 @@ func FindBenchmarkFolders(packageRootPath string, dataStreams []string) ([]testr
 	}
 
 	folders := make([]testrunner.TestFolder, len(paths))
-	_, pkg := filepath.Split(packageRootPath)
+	_, pkg := filepath.Split(packageRoot)
 	for idx, p := range paths {
-		relP := strings.TrimPrefix(p, packageRootPath)
+		relP := strings.TrimPrefix(p, packageRoot)
 		parts := strings.Split(relP, string(filepath.Separator))
 		dataStream := parts[2]
 
@@ -223,8 +223,8 @@ func (r *runner) loadBenchmark() (*benchmark, error) {
 
 // findBenchFoldersPaths can only be called for benchmark runners that require benchmarks to be defined
 // at the data stream level.
-func findBenchFolderPaths(packageRootPath, dataStreamGlob string) ([]string, error) {
-	benchFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "benchmark", "pipeline")
+func findBenchFolderPaths(packageRoot, dataStreamGlob string) ([]string, error) {
+	benchFoldersGlob := filepath.Join(packageRoot, "data_stream", dataStreamGlob, "_dev", "benchmark", "pipeline")
 	paths, err := filepath.Glob(benchFoldersGlob)
 	if err != nil {
 		return nil, fmt.Errorf("error finding benchmark folders: %w", err)

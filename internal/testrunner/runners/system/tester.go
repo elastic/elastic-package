@@ -196,7 +196,7 @@ var validationMethods = map[string]fieldValidationMethod{
 type tester struct {
 	profile            *profile.Profile
 	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	packageRoot        string
 	generateTestResult bool
 	esAPI              *elasticsearch.API
 	esClient           *elasticsearch.Client
@@ -216,7 +216,7 @@ type tester struct {
 
 	pipelines []ingest.Pipeline
 
-	dataStreamPath       string
+	dataStream           string
 	stackVersion         kibana.VersionInfo
 	overrideAgentVersion string
 	locationManager      *locations.LocationManager
@@ -243,7 +243,7 @@ type tester struct {
 type SystemTesterOptions struct {
 	Profile            *profile.Profile
 	TestFolder         testrunner.TestFolder
-	PackageRootPath    string
+	PackageRoot        string
 	GenerateTestResult bool
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
@@ -269,7 +269,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r := tester{
 		profile:                    options.Profile,
 		testFolder:                 options.TestFolder,
-		packageRootPath:            options.PackageRootPath,
+		packageRoot:                options.PackageRoot,
 		generateTestResult:         options.GenerateTestResult,
 		esAPI:                      options.API,
 		esClient:                   options.ESClient,
@@ -298,7 +298,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	r.dataStreamPath, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
+	r.dataStream, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
 	}
@@ -315,16 +315,16 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
 
-	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	if r.dataStreamPath != "" {
+	if r.dataStream != "" {
 		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
 		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
 		// the package manifest instead of the data stream manifest.
-		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
+		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStream, packages.DataStreamManifestFile))
 		if err != nil {
 			return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 		}
@@ -458,8 +458,8 @@ type resourcesOptions struct {
 func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
 		Profile:              r.profile,
-		PackageRootPath:      r.packageRootPath,
-		DataStreamRootPath:   r.dataStreamPath,
+		PackageRoot:          r.packageRoot,
+		DataStreamRoot:       r.dataStream,
 		DevDeployDir:         DevDeployDir,
 		Type:                 agentdeployer.TypeTest,
 		StackVersion:         r.stackVersion.Version(),
@@ -477,8 +477,8 @@ func (r *tester) createAgentOptions(policyName, deployerName string) agentdeploy
 func (r *tester) createServiceOptions(variantName, deployerName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:                r.profile,
-		PackageRootPath:        r.packageRootPath,
-		DataStreamRootPath:     r.dataStreamPath,
+		PackageRoot:            r.packageRoot,
+		DataStreamRoot:         r.dataStream,
 		DevDeployDir:           DevDeployDir,
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
@@ -499,7 +499,7 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRootPath, r.testFolder.DataStream, runID)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRoot, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
@@ -1642,7 +1642,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStream,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),
@@ -1653,7 +1653,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
 	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
+		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStream, err)
 	}
 
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
@@ -2205,9 +2205,9 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		return nil
 	}
 
-	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
+	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRoot)
 	if err != nil {
-		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
+		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRoot, err)
 	}
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
@@ -2248,8 +2248,8 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
-		transformRootPath := filepath.Dir(transform.Path)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
+		transformRoot := filepath.Dir(transform.Path)
+		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRoot,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
@@ -2258,7 +2258,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
-			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
+			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRoot, err)
 		}
 		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
 			return testrunner.ErrTestCaseFailed{
@@ -2494,7 +2494,7 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 		return nil
 	}
 
-	rootPath := r.packageRootPath
+	rootPath := r.packageRoot
 	if ds := r.testFolder.DataStream; ds != "" {
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
@@ -2639,10 +2639,10 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 
 	// This list of patterns includes patterns for all types of packages. It should not be a problem if some path doesn't exist.
 	patterns := []string{
-		filepath.Join(r.packageRootPath, "manifest.yml"),
-		filepath.Join(r.packageRootPath, "fields", "*.yml"),
-		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "manifest.yml"),
-		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
+		filepath.Join(r.packageRoot, "manifest.yml"),
+		filepath.Join(r.packageRoot, "fields", "*.yml"),
+		filepath.Join(r.packageRoot, "data_stream", dsPattern, "manifest.yml"),
+		filepath.Join(r.packageRoot, "data_stream", dsPattern, "fields", "*.yml"),
 	}
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)

@@ -166,7 +166,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		}
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
@@ -192,7 +192,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRoot, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -307,7 +307,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 	logger.Debug("Setting up service...")
 	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
-		PackageRootPath:        r.options.PackageRootPath,
+		PackageRoot:            r.options.PackageRoot,
 		DevDeployDir:           devDeployDir,
 		Variant:                r.options.Variant,
 		Profile:                r.options.Profile,

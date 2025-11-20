@@ -15,8 +15,8 @@ import (
 // resolveTransformDefinitions processes all transform definition files in the given destination directory.
 // It reads each file, applies templating to set the final ingest pipeline name, and writes the processed
 // content back to the same file.
-func resolveTransformDefinitions(destinationDir string) error {
-	files, err := filepath.Glob(filepath.Join(destinationDir, "elasticsearch", "transform", "*", "transform.yml"))
+func resolveTransformDefinitions(buildPackageRoot string) error {
+	files, err := filepath.Glob(filepath.Join(buildPackageRoot, "elasticsearch", "transform", "*", "transform.yml"))
 	if err != nil {
 		return fmt.Errorf("failed matching files with transform definitions: %w", err)
 	}
@@ -26,7 +26,7 @@ func resolveTransformDefinitions(destinationDir string) error {
 		if err != nil {
 			return fmt.Errorf("stat failed for transform definition file %q: %w", file, err)
 		}
-		contents, _, err := packages.ReadTransformDefinitionFile(file, destinationDir)
+		contents, _, err := packages.ReadTransformDefinitionFile(file, buildPackageRoot)
 		if err != nil {
 			return fmt.Errorf("failed reading transform definition file %q: %w", file, err)
 		}
