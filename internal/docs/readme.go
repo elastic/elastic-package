@@ -152,10 +152,8 @@ func updateReadme(fileName, linksFilePath, packageRoot, packageBuildRoot string)
 }
 
 // generateReadme function generates the readme file content
-// the readme takes a template that lives under the _dev/build/docs directory at the package root.
+// the readme takes a template that lives under the _dev/build/docs directory at the sourceFilesRoot.
 // the readme template reads data from the sourceFilesRoot directory.
-// sourceFilesRoot is usually the package root when generating readme for checking up-to-dateness,
-// and the built package root when generating readme for the built package.
 func generateReadme(fileName, linksFilePath, sourceFilesRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, sourceFilesRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, sourceFilesRoot)
