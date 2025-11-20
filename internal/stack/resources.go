@@ -144,7 +144,7 @@ var (
 	}
 )
 
-func applyResources(profile *profile.Profile, stackVersion string) error {
+func applyResources(profile *profile.Profile, stackVersion string, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	var agentPorts []string
@@ -162,7 +162,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"registry_base_image":   PackageRegistryBaseImage,
 		"elasticsearch_version": stackVersion,
 		"kibana_version":        stackVersion,
-		"agent_version":         stackVersion,
+		"agent_version":         agentVersion,
 
 		"kibana_host":        "https://kibana:5601",
 		"fleet_url":          "https://fleet-server:8220",

@@ -61,6 +61,9 @@ test-go-ci: $(CODE_COVERAGE_REPORT_FOLDER)
 test-stack-command-default:
 	./scripts/test-stack-command.sh
 
+test-stack-command-agent-version-flag:
+	AGENT_VERSION_FLAG=9.1.0 ./scripts/test-stack-command.sh
+
 # Oldest minor where fleet is GA.
 test-stack-command-oldest:
 	./scripts/test-stack-command.sh 7.14.2
@@ -73,10 +76,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.7-06f1fb36-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.8-ed86d8dd-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.3.0-6f40f4f1-SNAPSHOT
+	./scripts/test-stack-command.sh 9.3.0-aa28bea9-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -87,7 +90,7 @@ test-stack-command-with-self-monitor:
 test-stack-command-with-basic-subscription:
 	ELASTIC_SUBSCRIPTION=basic ./scripts/test-stack-command.sh
 
-test-stack-command: test-stack-command-default test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
+test-stack-command: test-stack-command-default test-stack-command-agent-version-flag test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
 
 test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
 
@@ -96,6 +99,9 @@ test-check-packages-with-kind:
 
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+
+test-check-packages-independent-script:
+	elastic-package test script -C test/packages/other/with_script --external-stack=false --defer-cleanup 1s
 
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
@@ -133,7 +139,7 @@ test-profiles-command:
 test-check-update-version:
 	./scripts/test-check-update-version.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
+test: test-go test-stack-command test-check-packages test-check-packages-independent-script test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
 
 check-git-clean:
 	git update-index --really-refresh

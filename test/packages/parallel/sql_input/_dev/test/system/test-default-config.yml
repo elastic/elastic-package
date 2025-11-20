@@ -2,4 +2,6 @@ vars:
   hosts:
     - root:test@tcp({{Hostname}}:{{Port}})/
   sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+
+  # This test configures a dataset to ensure that it is possible to do it.
   data_stream.dataset: sql_input.test

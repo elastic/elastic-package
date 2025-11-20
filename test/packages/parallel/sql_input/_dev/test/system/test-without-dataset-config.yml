@@ -1,0 +1,5 @@
+# This configuration doesn't have a dataset, to ensure that elastic-package is able to get the proper default.
+vars:
+  hosts:
+    - root:test@tcp({{Hostname}}:{{Port}})/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"

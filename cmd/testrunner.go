@@ -31,6 +31,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/policy"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/static"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
+	"github.com/elastic/elastic-package/internal/testrunner/script"
 	"github.com/elastic/elastic-package/internal/version"
 )
 
@@ -95,6 +96,9 @@ func setupTestCommand() *cobraext.Command {
 
 	systemCmd := getTestRunnerSystemCommand()
 	cmd.AddCommand(systemCmd)
+
+	scriptCmd := getTestRunnerScriptCommand()
+	cmd.AddCommand(scriptCmd)
 
 	policyCmd := getTestRunnerPolicyCommand()
 	cmd.AddCommand(policyCmd)
@@ -430,6 +434,7 @@ func getTestRunnerSystemCommand() *cobra.Command {
 	cmd.Flags().Bool(cobraext.SetupFlagName, false, cobraext.SetupFlagDescription)
 	cmd.Flags().Bool(cobraext.TearDownFlagName, false, cobraext.TearDownFlagDescription)
 	cmd.Flags().Bool(cobraext.NoProvisionFlagName, false, cobraext.NoProvisionFlagDescription)
+	cmd.Flags().String(cobraext.AgentVersionFlagName, "", cobraext.AgentVersionFlagDescription)
 
 	cmd.MarkFlagsMutuallyExclusive(cobraext.SetupFlagName, cobraext.TearDownFlagName, cobraext.NoProvisionFlagName)
 	cmd.MarkFlagsRequiredTogether(cobraext.ConfigFileFlagName, cobraext.SetupFlagName)
@@ -551,6 +556,11 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	agentVersion, err := cmd.Flags().GetString(cobraext.AgentVersionFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
+	}
+
 	esClient, err := stack.NewElasticsearchClientFromProfile(profile)
 	if err != nil {
 		return fmt.Errorf("can't create Elasticsearch client: %w", err)
@@ -584,24 +594,25 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println(version.Version())
 	cmd.Printf("elastic-stack: %s\n", stackVersion.Version())
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:            profile,
-		PackageRootPath:    packageRootPath,
-		KibanaClient:       kibanaClient,
-		API:                esClient.API,
-		ESClient:           esClient,
-		ConfigFilePath:     configFileFlag,
-		RunSetup:           runSetup,
-		RunTearDown:        runTearDown,
-		RunTestsOnly:       runTestsOnly,
-		DataStreams:        dataStreams,
-		ServiceVariant:     variantFlag,
-		FailOnMissingTests: failOnMissing,
-		GenerateTestResult: generateTestResult,
-		DeferCleanup:       deferCleanup,
-		GlobalTestConfig:   globalTestConfig.System,
-		WithCoverage:       testCoverage,
-		CoverageType:       testCoverageFormat,
-		RepositoryRoot:     repositoryRoot,
+		Profile:              profile,
+		PackageRootPath:      packageRootPath,
+		KibanaClient:         kibanaClient,
+		API:                  esClient.API,
+		ESClient:             esClient,
+		ConfigFilePath:       configFileFlag,
+		RunSetup:             runSetup,
+		RunTearDown:          runTearDown,
+		RunTestsOnly:         runTestsOnly,
+		DataStreams:          dataStreams,
+		ServiceVariant:       variantFlag,
+		FailOnMissingTests:   failOnMissing,
+		GenerateTestResult:   generateTestResult,
+		DeferCleanup:         deferCleanup,
+		GlobalTestConfig:     globalTestConfig.System,
+		WithCoverage:         testCoverage,
+		CoverageType:         testCoverageFormat,
+		RepositoryRoot:       repositoryRoot,
+		OverrideAgentVersion: agentVersion,
 	})
 
 	logger.Debugf("Running suite...")
@@ -615,6 +626,46 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to process results: %w", err)
 	}
 	return nil
+}
+
+func getTestRunnerScriptCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "script",
+		Short: "Run script tests",
+		Long:  "Run script tests for the package.",
+		Args:  cobra.NoArgs,
+		RunE:  testRunnerScriptCommandAction,
+	}
+
+	cmd.Flags().String(cobraext.ScriptsFlagName, "", cobraext.ScriptsFlagDescription)
+	cmd.Flags().Bool(cobraext.ExternalStackFlagName, true, cobraext.ExternalStackFlagDescription)
+	cmd.Flags().StringSliceP(cobraext.DataStreamsFlagName, "d", nil, cobraext.DataStreamsFlagDescription)
+	cmd.Flags().String(cobraext.RunPatternFlagName, "", cobraext.RunPatternFlagDescription)
+	cmd.Flags().BoolP(cobraext.UpdateScriptTestArchiveFlagName, "u", false, cobraext.UpdateScriptTestArchiveFlagDescription)
+	cmd.Flags().BoolP(cobraext.WorkScriptTestFlagName, "w", false, cobraext.WorkScriptTestFlagDescription)
+	cmd.Flags().Bool(cobraext.ContinueOnErrorFlagName, false, cobraext.ContinueOnErrorFlagDescription)
+	cmd.Flags().Bool(cobraext.VerboseScriptFlagName, false, cobraext.VerboseScriptFlagDescription)
+
+	cmd.MarkFlagsMutuallyExclusive(cobraext.ScriptsFlagName, cobraext.DataStreamsFlagName)
+
+	return cmd
+}
+
+func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
+	cmd.Println("Run script tests for the package")
+	pkgRoot, err := packages.FindPackageRoot()
+	if err != nil {
+		if err == packages.ErrPackageRootNotFound {
+			return errors.New("package root not found")
+		}
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+	pkg := filepath.Base(pkgRoot)
+	cmd.Printf("--- Test results for package: %s - START ---\n", pkg)
+	err = script.Run(cmd.OutOrStderr(), cmd, args)
+	cmd.Printf("--- Test results for package: %s - END ---\n", pkg)
+	cmd.Println("Done")
+	return err
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
