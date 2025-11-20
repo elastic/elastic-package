@@ -31,12 +31,12 @@ type ServerlessManifests struct {
 }
 
 // LocalPackage returns the status of a given package including local development information
-func LocalPackage(packageRootPath string, options registry.SearchOptions) (*PackageStatus, error) {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+func LocalPackage(packageRoot string, options registry.SearchOptions) (*PackageStatus, error) {
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
-	changelog, err := changelog.ReadChangelogFromPackageRoot(packageRootPath)
+	changelog, err := changelog.ReadChangelogFromPackageRoot(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package changelog failed: %w", err)
 	}

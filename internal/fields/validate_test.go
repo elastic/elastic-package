@@ -25,11 +25,11 @@ type results struct {
 }
 
 type packageRootTestFinder struct {
-	packageRootPath string
+	packageRoot string
 }
 
 func (p packageRootTestFinder) FindPackageRoot() (string, error) {
-	return p.packageRootPath, nil
+	return p.packageRoot, nil
 }
 
 func TestValidate_NoWildcardFields(t *testing.T) {

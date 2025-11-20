@@ -23,13 +23,13 @@ func ValidateFromZip(packagePath string) error {
 	return validator.ValidateFromZip(packagePath)
 }
 
-func ValidateAndFilterFromPath(rootPath string) (error, error) {
-	allErrors := validator.ValidateFromPath(rootPath)
+func ValidateAndFilterFromPath(packageRoot string) (error, error) {
+	allErrors := validator.ValidateFromPath(packageRoot)
 	if allErrors == nil {
 		return nil, nil
 	}
 
-	fsys := os.DirFS(rootPath)
+	fsys := os.DirFS(packageRoot)
 	result, err := filterErrors(allErrors, fsys)
 	if err != nil {
 		return err, nil
@@ -37,21 +37,21 @@ func ValidateAndFilterFromPath(rootPath string) (error, error) {
 	return result.Processed, result.Removed
 }
 
-func ValidateAndFilterFromZip(packagePath string) (error, error) {
-	allErrors := validator.ValidateFromZip(packagePath)
+func ValidateAndFilterFromZip(zipPackagePath string) (error, error) {
+	allErrors := validator.ValidateFromZip(zipPackagePath)
 	if allErrors == nil {
 		return nil, nil
 	}
 
-	fsys, err := zip.OpenReader(packagePath)
+	fsys, err := zip.OpenReader(zipPackagePath)
 	if err != nil {
-		return fmt.Errorf("failed to open zip file (%s): %w", packagePath, err), nil
+		return fmt.Errorf("failed to open zip file (%s): %w", zipPackagePath, err), nil
 	}
 	defer fsys.Close()
 
 	fsZip, err := fsFromPackageZip(fsys)
 	if err != nil {
-		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", packagePath, err), nil
+		return fmt.Errorf("failed to extract filesystem from zip file (%s): %w", zipPackagePath, err), nil
 	}
 
 	result, err := filterErrors(allErrors, fsZip)

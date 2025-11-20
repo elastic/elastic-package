@@ -51,10 +51,10 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	var dataStreamPath string
+	var dataStreamRoot string
 	dataStreamFlag, _ := cmd.Flags().GetString(cobraext.DataStreamFlagName)
 	if dataStreamFlag != "" {
-		dataStreamPath = filepath.Join(packageRoot, "data_stream", dataStreamFlag)
+		dataStreamRoot = filepath.Join(packageRoot, "data_stream", dataStreamFlag)
 	}
 
 	variantFlag, _ := cmd.Flags().GetString(cobraext.VariantFlagName)
@@ -75,13 +75,13 @@ func upCommandAction(cmd *cobra.Command, args []string) error {
 
 	_, serviceName := filepath.Split(packageRoot)
 	err = service.BootUp(cmd.Context(), service.Options{
-		Profile:            profile,
-		ServiceName:        serviceName,
-		PackageRootPath:    packageRoot,
-		DevDeployDir:       system.DevDeployDir,
-		DataStreamRootPath: dataStreamPath,
-		Variant:            variantFlag,
-		StackVersion:       stackVersion.Version(),
+		Profile:        profile,
+		ServiceName:    serviceName,
+		PackageRoot:    packageRoot,
+		DevDeployDir:   system.DevDeployDir,
+		DataStreamRoot: dataStreamRoot,
+		Variant:        variantFlag,
+		StackVersion:   stackVersion.Version(),
 	})
 	if err != nil {
 		return fmt.Errorf("up command failed: %w", err)

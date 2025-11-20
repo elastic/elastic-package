@@ -39,12 +39,12 @@ func ServiceLogs() (string, error) {
 func ServiceLogsIndependentAgents(profile *profile.Profile) (string, error) {
 	logger.Debug("Clean all service logs from independent Elastic Agents")
 
-	packageRootPath, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot()
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	serviceLogDirGlob := agentdeployer.ServiceLogsDirGlobPackage(profile, packageRootPath)
+	serviceLogDirGlob := agentdeployer.ServiceLogsDirGlobPackage(profile, packageRoot)
 
 	folders, err := filepath.Glob(serviceLogDirGlob)
 	if err != nil {

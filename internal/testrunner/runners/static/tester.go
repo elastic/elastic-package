@@ -22,7 +22,7 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
-	packageRootPath  string
+	packageRoot      string
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
@@ -30,7 +30,7 @@ type tester struct {
 
 type StaticTesterOptions struct {
 	TestFolder       testrunner.TestFolder
-	PackageRootPath  string
+	PackageRoot      string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
@@ -39,7 +39,7 @@ type StaticTesterOptions struct {
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
 		testFolder:       options.TestFolder,
-		packageRootPath:  options.PackageRootPath,
+		packageRoot:      options.PackageRoot,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
@@ -92,16 +92,16 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithSkip(skip)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
 	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvent(pkgManifest)...), nil
 }
 
-func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
+func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify benchmark config",
 		TestType:   TestType,
@@ -110,7 +110,7 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	})
 
 	withOpts := []stream.OptionFunc{
-		stream.WithPackageRootPath(packageRootPath),
+		stream.WithPackageRoot(packageRoot),
 	}
 
 	ctx, stop := signal.Enable(ctx, logger.Info)
@@ -197,12 +197,12 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	var sampleEventPath string
 	if r.testFolder.DataStream != "" {
 		sampleEventPath = filepath.Join(
-			r.packageRootPath,
+			r.packageRoot,
 			"data_stream",
 			r.testFolder.DataStream,
 			sampleEventJSON)
 	} else {
-		sampleEventPath = filepath.Join(r.packageRootPath, sampleEventJSON)
+		sampleEventPath = filepath.Join(r.packageRoot, sampleEventJSON)
 	}
 	_, err := os.Stat(sampleEventPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -223,7 +223,7 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 		return nil, nil
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRootPath, dsName)
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, dsName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}

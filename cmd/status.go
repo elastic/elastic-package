@@ -163,14 +163,14 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 	if packageName != "" {
 		return status.RemotePackage(packageName, options)
 	}
-	packageRootPath, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		if errors.Is(err, packages.ErrPackageRootNotFound) {
 			return nil, errors.New("no package specified and package root not found")
 		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
-	return status.LocalPackage(packageRootPath, options)
+	return status.LocalPackage(packageRoot, options)
 }
 
 func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {
