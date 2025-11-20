@@ -39,11 +39,8 @@ func reportToFile(pkg, report string, testType testrunner.TestType, format testr
 	}
 
 	ext := "txt"
-	switch format {
-	case formats.ReportFormatXUnit:
+	if format == formats.ReportFormatXUnit {
 		ext = "xml"
-	case formats.ReportFormatJSON:
-		ext = "json"
 	}
 
 	fileName := fmt.Sprintf("%s-%s-%d.%s", pkg, testType, time.Now().UnixNano(), ext)

@@ -160,7 +160,7 @@ const (
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
 
 	ReportFormatFlagName        = "report-format"
-	ReportFormatFlagDescription = "format of test report, eg: human, xUnit, json"
+	ReportFormatFlagDescription = "format of test report, eg: human, xUnit"
 
 	ReportFullFlagName        = "full"
 	ReportFullFlagDescription = "whether to show the full report or a summary"
