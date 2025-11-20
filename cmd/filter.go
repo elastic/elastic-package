@@ -96,7 +96,11 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, er
 		return nil, fmt.Errorf("validating filter options failed: %w", err)
 	}
 
-	filtered, errors := filters.Execute()
+	currDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("getting current directory failed: %w", err)
+	}
+	filtered, errors := filters.Execute(currDir)
 	if errors != nil {
 		return nil, fmt.Errorf("filtering packages failed: %s", errors.Error())
 	}

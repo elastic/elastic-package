@@ -6,7 +6,6 @@ package filter
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -16,14 +15,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-var registry = []Filter{
-	initCategoryFlag(),
-	initCodeOwnerFlag(),
-	initInputFlag(),
-	initPackageDirNameFlag(),
-	initPackageNameFlag(),
-	initPackageTypeFlag(),
-	initSpecVersionFlag(),
+func getFilters() []Filter {
+	return []Filter{
+		initCategoryFlag(),
+		initCodeOwnerFlag(),
+		initInputFlag(),
+		initPackageDirNameFlag(),
+		initPackageNameFlag(),
+		initPackageTypeFlag(),
+		initSpecVersionFlag(),
+	}
 }
 
 // SetFilterFlags registers all filter flags with the given command.
@@ -31,8 +32,8 @@ func SetFilterFlags(cmd *cobra.Command) {
 	cmd.Flags().IntP(cobraext.FilterDepthFlagName, cobraext.FilterDepthFlagShorthand, cobraext.FilterDepthFlagDefault, cobraext.FilterDepthFlagDescription)
 	cmd.Flags().StringP(cobraext.FilterExcludeDirFlagName, "", "", cobraext.FilterExcludeDirFlagDescription)
 
-	for _, filterFlag := range registry {
-		filterFlag.Register(cmd)
+	for _, filter := range getFilters() {
+		filter.Register(cmd)
 	}
 }
 
@@ -54,7 +55,7 @@ func NewFilterRegistry(depth int, excludeDirs string) *FilterRegistry {
 
 func (r *FilterRegistry) Parse(cmd *cobra.Command) error {
 	errs := multierror.Error{}
-	for _, filter := range registry {
+	for _, filter := range getFilters() {
 		if err := filter.Parse(cmd); err != nil {
 			errs = append(errs, err)
 		}
@@ -80,12 +81,7 @@ func (r *FilterRegistry) Validate() error {
 	return nil
 }
 
-func (r *FilterRegistry) Execute() (filtered []packages.PackageDirNameAndManifest, errors multierror.Error) {
-	currentDir, err := os.Getwd()
-	if err != nil {
-		return nil, multierror.Error{fmt.Errorf("getting current directory failed: %w", err)}
-	}
-
+func (r *FilterRegistry) Execute(currentDir string) (filtered []packages.PackageDirNameAndManifest, errors multierror.Error) {
 	pkgs, err := packages.ReadAllPackageManifestsFromRepo(currentDir, r.depth, r.excludeDirs)
 	if err != nil {
 		return nil, multierror.Error{err}
