@@ -310,10 +310,10 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
 
-			packageBuildRoot := t.TempDir()
-			createManifestFile(t, packageBuildRoot)
+			buildPackageRoot := t.TempDir()
+			createManifestFile(t, buildPackageRoot)
 
-			readmePath, err := updateReadme(filename, "", packageRoot, packageBuildRoot)
+			readmePath, err := updateReadme(filename, "", packageRoot, buildPackageRoot)
 			require.NoError(t, err)
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)
@@ -322,7 +322,7 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 
 			builtReadmePath, err := filepath.Rel(packageRoot, readmePath)
 			require.NoError(t, err)
-			builtReadmePath = filepath.Join(packageBuildRoot, builtReadmePath)
+			builtReadmePath = filepath.Join(buildPackageRoot, builtReadmePath)
 			d, err = os.ReadFile(builtReadmePath)
 			require.NoError(t, err)
 			assert.Equal(t, string(c.expected), string(d))
