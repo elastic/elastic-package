@@ -58,7 +58,7 @@ Introduction to the package`,
 			err := createReadmeFile(dir, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, isTemplate, err := generateReadme(c.filename, "", dir, dir)
+			rendered, isTemplate, err := GenerateReadme(c.filename, "", dir, dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -293,7 +293,7 @@ func createReadmeFile(packageRoot, contents string) error {
 
 	if contents != "" {
 		readmeFile := filepath.Join(docsFolder, "README.md")
-		os.WriteFile(readmeFile, []byte(contents), 0644)
+		os.WriteFile(readmeFile, []byte(contents), 0o644)
 	}
 	return nil
 }
@@ -314,7 +314,7 @@ func createSampleEventFile(packageRoot, dataStreamName, contents string) error {
 	}
 
 	sampleEventFile := filepath.Join(dataStreamFolder, sampleEventFile)
-	if err := os.WriteFile(sampleEventFile, []byte(contents), 0644); err != nil {
+	if err := os.WriteFile(sampleEventFile, []byte(contents), 0o644); err != nil {
 		return err
 	}
 	return nil
@@ -324,7 +324,7 @@ func createManifestFile(packageRoot string) error {
 	// Minimal content needed to render readme.
 	manifest := `format_version: 2.10.0`
 	manifestFile := filepath.Join(packageRoot, packages.PackageManifestFile)
-	return os.WriteFile(manifestFile, []byte(manifest), 0644)
+	return os.WriteFile(manifestFile, []byte(manifest), 0o644)
 }
 
 func createDataStreamFolder(packageRoot, dataStreamName string) (string, error) {
@@ -345,7 +345,7 @@ func createFieldsFile(packageRoot, dataStreamName, contents string) error {
 		return err
 	}
 	fieldsFile := filepath.Join(fieldsFolder, "fields.yml")
-	if err := os.WriteFile(fieldsFile, []byte(contents), 0644); err != nil {
+	if err := os.WriteFile(fieldsFile, []byte(contents), 0o644); err != nil {
 		return err
 	}
 	return nil

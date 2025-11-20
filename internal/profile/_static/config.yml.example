@@ -29,3 +29,20 @@
 
 ## Set license subscription
 # stack.elastic_subscription: "basic"
+
+## LLM Agent Configuration
+## Configure LLM providers for documentation generation and other AI-assisted features
+
+## Gemini
+# Gemini API key for Gemini models
+# llm.gemini.api_key: "your-gemini-api-key"
+# Gemini model ID (optional, defaults to gemini-2.5-pro)
+# llm.gemini.model: "gemini-2.5-pro"
+
+## Local LLM Provider
+# Local LLM endpoint for OpenAI-compatible servers (Ollama, LocalAI, etc.)
+# llm.local.endpoint: "http://localhost:11434"
+# Local LLM model name (optional, defaults to llama2)
+# llm.local.model: "llama2"
+# Local LLM API key (optional, for servers requiring authentication)
+# llm.local.api_key: "your-local-api-key"
