@@ -20,7 +20,7 @@ type alertRuleTemplate struct {
 	}
 }
 
-func renderAlertRuleTemplates(packageRoot string) (string, error) {
+func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, error) {
 	templatesDir := filepath.Join(packageRoot, "kibana", "alerting_rule_template")
 
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
@@ -68,9 +68,14 @@ func renderAlertRuleTemplates(packageRoot string) (string, error) {
 	var builder strings.Builder
 
 	if len(templates) != 0 {
+		docsLink, err := linksMap.RenderLink("alert-rule-templates", linkOptions{})
+		if err != nil {
+			docsLink = "https://www.elastic.co/docs"
+		}
+
 		builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
-For more information, refer to the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
+For more information, refer to the [Elastic documentation](` + docsLink + `).
 
 Alert rule templates require Elastic Stack version 9.2.0 or later.
 

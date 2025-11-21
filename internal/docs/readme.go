@@ -228,7 +228,7 @@ func renderReadme(fileName, sourceFilesRoot, templatePath string, linksMap linkM
 			return doNotModifyStr
 		},
 		"alertRuleTemplates": func(args ...string) (string, error) {
-			return renderAlertRuleTemplates(sourceFilesRoot)
+			return renderAlertRuleTemplates(sourceFilesRoot, linksMap)
 		},
 	}).ParseFiles(templatePath)
 	if err != nil {
