@@ -28,16 +28,7 @@ func renderAlertRuleTemplates(packageRoot string) (string, error) {
 		return "", nil
 	}
 
-	var builder strings.Builder
-	builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
-
-For more information, refer to the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
-
-Alert rule templates require Elastic Stack version 9.2.0 or later.
-
-`)
-
-	builder.WriteString("The following alert rule templates are available:\n\n")
+	var templates []alertRuleTemplate
 
 	err := filepath.WalkDir(templatesDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -66,13 +57,31 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 			return fmt.Errorf("failed to unmarshal alert rule template JSON: %w", err)
 		}
 
-		builder.WriteString(fmt.Sprintf("**%s**\n\n", template.Attributes.Name))
-		builder.WriteString(fmt.Sprintf("%s\n\n", template.Attributes.Description))
+		templates = append(templates, template)
 		return nil
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("processing alert rule templates failed: %w", err)
+		return "", fmt.Errorf("parsing alert rule templates failed: %w", err)
+	}
+
+	var builder strings.Builder
+
+	if len(templates) != 0 {
+		builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
+
+For more information, refer to the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
+
+Alert rule templates require Elastic Stack version 9.2.0 or later.
+
+`)
+
+		builder.WriteString("The following alert rule templates are available:\n\n")
+
+		for _, template := range templates {
+			builder.WriteString(fmt.Sprintf("**%s**\n\n", template.Attributes.Name))
+			builder.WriteString(fmt.Sprintf("%s\n\n", template.Attributes.Description))
+		}
 	}
 
 	return builder.String(), nil
