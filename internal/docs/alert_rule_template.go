@@ -31,7 +31,7 @@ func renderAlertRuleTemplates(packageRoot string) (string, error) {
 	var builder strings.Builder
 	builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
 
-For more information, see the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
+For more information, refer to the [Elastic documentation](https://www.elastic.co/docs/reference/fleet/alert-templates#alert-templates).
 
 Alert rule templates require Elastic Stack version 9.2.0 or later.
 
