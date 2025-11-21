@@ -1,0 +1,34 @@
+{
+    "id": "sample-rule",
+    "type": "alerting_rule_template",
+    "attributes": {
+        "name": "[MongoDB Replication] Replica member down",
+        "description": "Alert when a replica set member is down.\n\nDetects any down members in a replica set which can impact availability and replication. When this alert fires, investigate network/connectivity issues, server health, and replica set configuration.\n\n**Metrics:** `mongodb.replstatus.members.down.count`\n\n**Default dimensions:** `[mongodb.replstatus.set_name, service.address]`\n\n**Default threshold:** > 0 (any member down)\n\n**Threshold customization:** For large clusters, you may want to tolerate a single down member depending on voting configuration; adjust thresholds or add runbook checks accordingly.",
+        "tags": [
+            "MongoDB",
+            "Replication"
+        ],
+        "ruleTypeId": ".es-query",
+        "schedule": {
+            "interval": "1m"
+        },
+        "params": {
+            "searchType": "esqlQuery",
+            "timeWindowSize": 5,
+            "timeWindowUnit": "m",
+            "esqlQuery": {
+                "esql": "FROM metrics-mongodb.replstatus-default\n| STATS members_down = MAX(`mongodb.replstatus.members.down.count`) BY `mongodb.replstatus.set_name`, `service.address`\n| WHERE members_down > 0"
+            },
+            "groupBy": "row",
+            "termSize": 5,
+            "timeField": "@timestamp"
+        },
+        "alertDelay": {
+            "active": 1
+        }
+    },
+    "managed": true,
+    "coreMigrationVersion": "8.8.0",
+    "typeMigrationVersion": "10.1.0"
+}
+
