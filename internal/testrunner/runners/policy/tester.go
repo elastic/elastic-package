@@ -19,7 +19,7 @@ import (
 
 type tester struct {
 	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	packageRoot        string
 	kibanaClient       *kibana.Client
 	testPath           string
 	generateTestResult bool
@@ -37,7 +37,7 @@ type PolicyTesterOptions struct {
 	TestFolder         testrunner.TestFolder
 	TestPath           string
 	KibanaClient       *kibana.Client
-	PackageRootPath    string
+	PackageRoot        string
 	GenerateTestResult bool
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
@@ -48,7 +48,7 @@ func NewPolicyTester(options PolicyTesterOptions) *tester {
 	tester := tester{
 		kibanaClient:       options.KibanaClient,
 		testFolder:         options.TestFolder,
-		packageRootPath:    options.PackageRootPath,
+		packageRoot:        options.PackageRoot,
 		generateTestResult: options.GenerateTestResult,
 		testPath:           options.TestPath,
 		globalTestConfig:   options.GlobalTestConfig,
@@ -113,12 +113,12 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:            testName + "-" + r.testFolder.Package,
-				PackageRootPath: r.packageRootPath,
-				DataStreamName:  r.testFolder.DataStream,
-				InputName:       testConfig.Input,
-				Vars:            testConfig.Vars,
-				DataStreamVars:  testConfig.DataStream.Vars,
+				Name:           testName + "-" + r.testFolder.Package,
+				PackageRoot:    r.packageRoot,
+				DataStreamName: r.testFolder.DataStream,
+				InputName:      testConfig.Input,
+				Vars:           testConfig.Vars,
+				DataStreamVars: testConfig.DataStream.Vars,
 			},
 		},
 	}
@@ -143,7 +143,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	if r.withCoverage {
-		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRootPath, r.testFolder.DataStream, r.coverageType)
+		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRoot, r.testFolder.DataStream, r.coverageType)
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
 		}

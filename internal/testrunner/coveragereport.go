@@ -75,8 +75,8 @@ func (tcd *testCoverageDetails) withTestResults(results []TestResult) *testCover
 
 // WriteCoverage function calculates test coverage for the given package.
 // It requires to execute tests for all data streams (same test type), so the coverage can be calculated properly.
-func WriteCoverage(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) error {
-	report, err := createCoverageReport(packageRootPath, packageName, packageType, testType, results, format)
+func WriteCoverage(packageRoot, packageName, packageType string, testType TestType, results []TestResult, format string) error {
+	report, err := createCoverageReport(packageRoot, packageName, packageType, testType, results, format)
 	if err != nil {
 		return fmt.Errorf("can't create coverage report: %w", err)
 	}
@@ -91,8 +91,8 @@ func WriteCoverage(packageRootPath, packageName, packageType string, testType Te
 	return nil
 }
 
-func createCoverageReport(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (CoverageReport, error) {
-	details, err := collectTestCoverageDetails(packageRootPath, packageName, packageType, testType, results, format)
+func createCoverageReport(packageRoot, packageName, packageType string, testType TestType, results []TestResult, format string) (CoverageReport, error) {
+	details, err := collectTestCoverageDetails(packageRoot, packageName, packageType, testType, results, format)
 	if err != nil {
 		return nil, fmt.Errorf("can't collect test coverage details: %w", err)
 	}
@@ -101,13 +101,13 @@ func createCoverageReport(packageRootPath, packageName, packageType string, test
 	return details.coverage, nil
 }
 
-func collectTestCoverageDetails(packageRootPath, packageName, packageType string, testType TestType, results []TestResult, format string) (*testCoverageDetails, error) {
-	withoutTests, err := findDataStreamsWithoutTests(packageRootPath, testType)
+func collectTestCoverageDetails(packageRoot, packageName, packageType string, testType TestType, results []TestResult, format string) (*testCoverageDetails, error) {
+	withoutTests, err := findDataStreamsWithoutTests(packageRoot, testType)
 	if err != nil {
 		return nil, fmt.Errorf("can't find data streams without tests: %w", err)
 	}
 
-	emptyCoverage, err := GenerateBasePackageCoverageReport(packageName, packageRootPath, format)
+	emptyCoverage, err := GenerateBasePackageCoverageReport(packageName, packageRoot, format)
 	if err != nil {
 		return nil, fmt.Errorf("can't generate initial base coverage report: %w", err)
 	}
@@ -122,10 +122,10 @@ func collectTestCoverageDetails(packageRootPath, packageName, packageType string
 	return details, nil
 }
 
-func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]string, error) {
+func findDataStreamsWithoutTests(packageRoot string, testType TestType) ([]string, error) {
 	var noTests []string
 
-	dataStreamDir := filepath.Join(packageRootPath, "data_stream")
+	dataStreamDir := filepath.Join(packageRoot, "data_stream")
 	dataStreams, err := os.ReadDir(dataStreamDir)
 	if errors.Is(err, os.ErrNotExist) {
 		return noTests, nil // there are packages that don't have any data streams (fleet_server, security_detection_engine)
@@ -138,7 +138,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 			continue
 		}
 
-		expected, err := verifyTestExpected(packageRootPath, dataStream.Name(), testType)
+		expected, err := verifyTestExpected(packageRoot, dataStream.Name(), testType)
 		if err != nil {
 			return nil, fmt.Errorf("can't verify if test is expected: %w", err)
 		}
@@ -146,7 +146,7 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 			continue
 		}
 
-		dataStreamTestPath := filepath.Join(packageRootPath, "data_stream", dataStream.Name(), "_dev", "test", string(testType))
+		dataStreamTestPath := filepath.Join(packageRoot, "data_stream", dataStream.Name(), "_dev", "test", string(testType))
 		_, err = os.Stat(dataStreamTestPath)
 		if errors.Is(err, os.ErrNotExist) {
 			noTests = append(noTests, dataStream.Name())
@@ -161,12 +161,12 @@ func findDataStreamsWithoutTests(packageRootPath string, testType TestType) ([]s
 
 // verifyTestExpected function checks if tests are actually expected.
 // Pipeline tests require an ingest pipeline to be defined in the data stream.
-func verifyTestExpected(packageRootPath string, dataStreamName string, testType TestType) (bool, error) {
+func verifyTestExpected(packageRoot string, dataStreamName string, testType TestType) (bool, error) {
 	if testType != "pipeline" {
 		return true, nil
 	}
 
-	ingestPipelinePath := filepath.Join(packageRootPath, "data_stream", dataStreamName, "elasticsearch", "ingest_pipeline")
+	ingestPipelinePath := filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ingest_pipeline")
 	_, err := os.Stat(ingestPipelinePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return false, nil

@@ -52,9 +52,9 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "one-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:            "nginx-1",
-					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName:  "stubstatus",
+					Name:           "nginx-1",
+					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName: "stubstatus",
 				},
 			},
 		},
@@ -62,14 +62,14 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "multiple-packages",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:            "nginx-1",
-					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName:  "stubstatus",
+					Name:           "nginx-1",
+					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName: "stubstatus",
 				},
 				{
-					Name:            "system-1",
-					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
-					DataStreamName:  "process",
+					Name:           "system-1",
+					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
+					DataStreamName: "process",
 				},
 			},
 		},
@@ -77,8 +77,8 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "input-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:            "input-1",
-					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
+					Name:        "input-1",
+					PackageRoot: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
 				},
 			},
 		},
@@ -120,9 +120,9 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			PackageRootPath: policy.PackageRootPath,
-			Absent:          agentPolicy.Absent,
-			RepositoryRoot:  repostoryRoot,
+			PackageRoot:    policy.PackageRoot,
+			Absent:         agentPolicy.Absent,
+			RepositoryRoot: repostoryRoot,
 		})
 	}
 	return append(resources, agentPolicy)

@@ -13,13 +13,13 @@ import (
 
 // Options contains benchmark runner options.
 type Options struct {
-	BenchName       string
-	Folder          testrunner.TestFolder
-	PackageRootPath string
-	API             *elasticsearch.API
-	NumTopProcs     int
-	Format          Format
-	RepositoryRoot  *os.Root
+	BenchName      string
+	Folder         testrunner.TestFolder
+	PackageRoot    string
+	API            *elasticsearch.API
+	NumTopProcs    int
+	Format         Format
+	RepositoryRoot *os.Root
 }
 
 type OptionFunc func(*Options)
@@ -38,9 +38,9 @@ func WithFolder(f testrunner.TestFolder) OptionFunc {
 	}
 }
 
-func WithPackageRootPath(path string) OptionFunc {
+func WithPackageRoot(path string) OptionFunc {
 	return func(opts *Options) {
-		opts.PackageRootPath = path
+		opts.PackageRoot = path
 	}
 }
 

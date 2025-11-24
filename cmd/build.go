@@ -79,13 +79,13 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	logger.Debugf("Use build directory: %s", buildDir)
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRootPath: packageRoot,
-		BuildDir:        buildDir,
-		CreateZip:       createZip,
-		SignPackage:     signPackage,
-		SkipValidation:  skipValidation,
-		RepositoryRoot:  repositoryRoot,
-		UpdateReadmes:   true,
+		PackageRoot:    packageRoot,
+		BuildDir:       buildDir,
+		CreateZip:      createZip,
+		SignPackage:    signPackage,
+		SkipValidation: skipValidation,
+		RepositoryRoot: repositoryRoot,
+		UpdateReadmes:  true,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
