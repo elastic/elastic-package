@@ -636,6 +636,44 @@ func getTestRunnerScriptCommand() *cobra.Command {
 
 func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run script tests for the package")
+
+	var (
+		opts script.Options
+		err  error
+	)
+	opts.Dir, err = cmd.Flags().GetString(cobraext.ScriptsFlagName)
+	if err != nil {
+		return err
+	}
+	opts.Streams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+	}
+	opts.ExternalStack, err = cmd.Flags().GetBool(cobraext.ExternalStackFlagName)
+	if err != nil {
+		return err
+	}
+	opts.RunPattern, err = cmd.Flags().GetString(cobraext.RunPatternFlagName)
+	if err != nil {
+		return err
+	}
+	opts.Verbose, err = cmd.Flags().GetBool(cobraext.VerboseScriptFlagName)
+	if err != nil {
+		return err
+	}
+	opts.UpdateScripts, err = cmd.Flags().GetBool(cobraext.UpdateScriptTestArchiveFlagName)
+	if err != nil {
+		return err
+	}
+	opts.ContinueOnError, err = cmd.Flags().GetBool(cobraext.ContinueOnErrorFlagName)
+	if err != nil {
+		return err
+	}
+	opts.TestWork, err = cmd.Flags().GetBool(cobraext.WorkScriptTestFlagName)
+	if err != nil {
+		return err
+	}
+
 	pkgRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		if err == packages.ErrPackageRootNotFound {
@@ -643,12 +681,36 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	pkg := filepath.Base(pkgRoot)
-	cmd.Printf("--- Test results for package: %s - START ---\n", pkg)
-	err = script.Run(cmd.OutOrStderr(), cmd, args)
-	cmd.Printf("--- Test results for package: %s - END ---\n", pkg)
-	cmd.Println("Done")
-	return err
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", pkgRoot, err)
+	}
+
+	reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+	}
+	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+	}
+	testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
+	}
+	testCoverageFormat, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TestCoverageFormatFlagName)
+	}
+
+	opts.Package = manifest.Name
+
+	var results []testrunner.TestResult
+	err = script.Run(&results, cmd.OutOrStderr(), opts)
+	if err != nil {
+		return err
+	}
+	return processResults(results, "script", reportFormat, reportOutput, pkgRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
