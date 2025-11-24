@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -258,6 +260,7 @@ func WithOTelValidation(otelValidation bool) ValidatorOption {
 
 type packageRootFinder interface {
 	FindPackageRoot() (string, error)
+	FindRepositoryRoot() (*os.Root, error)
 }
 
 type packageRoot struct {
@@ -266,6 +269,10 @@ type packageRoot struct {
 
 func (p packageRoot) FindPackageRoot() (string, error) {
 	return packages.FindPackageRootFrom(p.from)
+}
+
+func (p packageRoot) FindRepositoryRoot() (*os.Root, error) {
+	return files.FindRepositoryRootFrom(p.from)
 }
 
 // CreateValidatorForDirectory function creates a validator for the directory.
@@ -286,25 +293,35 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
+	packageRoot, err := finder.FindPackageRoot()
+	if err != nil {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
+			return nil, errors.New("package root not found and dependency management is enabled")
+		}
+		return nil, fmt.Errorf("can't find package root: %w", err)
+	}
+
+	repositoryRoot, err := finder.FindRepositoryRoot()
+	if err != nil {
+		return nil, fmt.Errorf("can't find repository root: %w", err)
+	}
+
 	fieldsDir := filepath.Join(fieldsParentDir, "fields")
+	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
+	if err != nil {
+		return nil, fmt.Errorf("can't create links filesystem: %w", err)
+
+	}
 
 	var fdm *DependencyManager
 	if !v.disabledDependencyManagement {
-		packageRoot, err := finder.FindPackageRoot()
-		if err != nil {
-			if errors.Is(err, packages.ErrPackageRootNotFound) {
-				return nil, errors.New("package root not found and dependency management is enabled")
-			}
-			return nil, fmt.Errorf("can't find package root: %w", err)
-		}
-
 		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 		}
 	}
 
-	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
+	fields, err := loadFieldsFromDir(linksFS, fieldsDir, fdm, v.injectFieldsOptions)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
@@ -513,15 +530,20 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
-	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
+func loadFieldsFromDir(fsys fs.FS, fieldsDir string, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
+	files, err := fs.Glob(fsys, filepath.Join(fieldsDir, "*.yml"))
 	if err != nil {
 		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
 	}
+	links, err := fs.Glob(fsys, filepath.Join(fieldsDir, "*.yml.link"))
+	if err != nil {
+		return nil, fmt.Errorf("reading fields links from directory failed (path: %s): %w", fieldsDir, err)
+	}
+	files = append(files, links...)
 
 	var fields []FieldDefinition
 	for _, file := range files {
-		body, err := os.ReadFile(file)
+		body, err := fs.ReadFile(fsys, file)
 		if err != nil {
 			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}
