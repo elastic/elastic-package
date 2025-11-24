@@ -32,6 +32,7 @@ import (
 	"github.com/elastic/elastic-package/internal/testrunner/runners/static"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 	"github.com/elastic/elastic-package/internal/testrunner/script"
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 const testLongDescription = `Use this command to run tests on a package. Currently, the following types of tests are available:
@@ -178,6 +179,13 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("fetching stack version failed: %w", err)
+	}
+
+	logger.Info(version.Version())
+	logger.Infof("elastic-stack: %s\n", stackVersion.Version())
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
 		PackageRoot:      packageRoot,
 		KibanaClient:     kibanaClient,
@@ -266,6 +274,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	logger.Info(version.Version())
 	runner := static.NewStaticTestRunner(static.StaticTestRunnerOptions{
 		PackageRoot:        packageRoot,
 		DataStreams:        dataStreams,
@@ -384,6 +393,13 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	esClientInfo, err := esClient.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching stack version failed: %w", err)
+	}
+
+	logger.Info(version.Version())
+	logger.Infof("elastic-stack: %s\n", esClientInfo.Version.Number)
 	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
 		Profile:            profile,
 		PackageRoot:        packageRoot,
@@ -576,6 +592,13 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	info, err := esClient.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching stack version failed: %w", err)
+	}
+
+	logger.Info(version.Version())
+	logger.Infof("elastic-stack: %s", info.Version.Number)
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:              profile,
 		PackageRoot:          packageRoot,
@@ -742,6 +765,13 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
+	stackVersion, err := kibanaClient.Version()
+	if err != nil {
+		return fmt.Errorf("fetching stack version failed: %w", err)
+	}
+
+	logger.Info(version.Version())
+	logger.Infof("elastic-stack: %s", stackVersion.Version())
 	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
 		PackageRoot:        packageRoot,
 		KibanaClient:       kibanaClient,

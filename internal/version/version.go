@@ -5,8 +5,10 @@
 package version
 
 import (
+	"fmt"
 	"runtime/debug"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,8 +34,8 @@ func init() {
 	}
 }
 
-// BuildTimeFormatted method returns the build time preserving the RFC3339 format.
-func BuildTimeFormatted() string {
+// buildTimeFormatted method returns the build time preserving the RFC3339 format.
+func buildTimeFormatted() string {
 	if BuildTime == "unknown" {
 		return BuildTime
 	}
@@ -43,4 +45,15 @@ func BuildTimeFormatted() string {
 		return "invalid"
 	}
 	return time.Unix(seconds, 0).Format(time.RFC3339)
+}
+
+func Version() string {
+	var sb strings.Builder
+	sb.WriteString("elastic-package ")
+	if Tag != "" {
+		sb.WriteString(Tag)
+		sb.WriteString(" ")
+	}
+	sb.WriteString(fmt.Sprintf("version-hash %s (build time: %s)", CommitHash, buildTimeFormatted()))
+	return sb.String()
 }
