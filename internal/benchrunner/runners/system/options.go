@@ -22,7 +22,7 @@ type Options struct {
 	ESMetricsAPI    *elasticsearch.API
 	BenchPath       string
 	BenchName       string
-	PackageRootPath string
+	PackageRoot     string
 	Variant         string
 	Profile         *profile.Profile
 }
@@ -49,9 +49,9 @@ func WithKibanaClient(c *kibana.Client) OptionFunc {
 	}
 }
 
-func WithPackageRootPath(path string) OptionFunc {
+func WithPackageRoot(path string) OptionFunc {
 	return func(opts *Options) {
-		opts.PackageRootPath = path
+		opts.PackageRoot = path
 	}
 }
 

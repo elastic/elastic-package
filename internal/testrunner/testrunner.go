@@ -37,7 +37,7 @@ type TestType string
 type TestOptions struct {
 	Profile            *profile.Profile
 	TestFolder         TestFolder
-	PackageRootPath    string
+	PackageRoot        string
 	GenerateTestResult bool
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
@@ -201,13 +201,13 @@ type TestFolder struct {
 }
 
 // AssumeTestFolders assumes potential test folders for the given package, data streams and test types.
-func AssumeTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
+func AssumeTestFolders(packageRoot string, dataStreams []string, testType TestType) ([]TestFolder, error) {
 	// Expected folder structure:
-	// <packageRootPath>/
+	// <packageRoot>/
 	//   data_stream/
 	//     <dataStream>/
 
-	dataStreamsPath := filepath.Join(packageRootPath, "data_stream")
+	dataStreamsPath := filepath.Join(packageRoot, "data_stream")
 
 	if len(dataStreams) == 0 {
 		fileInfos, err := os.ReadDir(dataStreamsPath)
@@ -230,7 +230,7 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 	for _, dataStream := range dataStreams {
 		folders = append(folders, TestFolder{
 			Path:       filepath.Join(dataStreamsPath, dataStream, "_dev", "test", string(testType)),
-			Package:    filepath.Base(packageRootPath),
+			Package:    filepath.Base(packageRoot),
 			DataStream: dataStream,
 		})
 	}
@@ -238,9 +238,9 @@ func AssumeTestFolders(packageRootPath string, dataStreams []string, testType Te
 }
 
 // FindTestFolders finds test folders for the given package and, optionally, test type and data streams
-func FindTestFolders(packageRootPath string, dataStreams []string, testType TestType) ([]TestFolder, error) {
+func FindTestFolders(packageRoot string, dataStreams []string, testType TestType) ([]TestFolder, error) {
 	// Expected folder structure for packages with data streams (integration packages):
-	// <packageRootPath>/
+	// <packageRoot>/
 	//   data_stream/
 	//     <dataStream>/
 	//       _dev/
@@ -248,7 +248,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	//           <testType>/
 	//
 	// Expected folder structure for packages without data streams (input packages):
-	// <packageRootPath>/
+	// <packageRoot>/
 	//   _dev/
 	//     test/
 	//       <testType>/
@@ -262,7 +262,7 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	if len(dataStreams) > 0 {
 		sort.Strings(dataStreams)
 		for _, dataStream := range dataStreams {
-			p, err := findDataStreamTestFolderPaths(packageRootPath, dataStream, testTypeGlob)
+			p, err := findDataStreamTestFolderPaths(packageRoot, dataStream, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -271,14 +271,14 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 		}
 	} else {
 		// No datastreams specified, try to discover them.
-		p, err := findDataStreamTestFolderPaths(packageRootPath, "*", testTypeGlob)
+		p, err := findDataStreamTestFolderPaths(packageRoot, "*", testTypeGlob)
 		if err != nil {
 			return nil, err
 		}
 
 		// Look for tests at the package level, like for input packages.
 		if len(p) == 0 {
-			p, err = findPackageTestFolderPaths(packageRootPath, testTypeGlob)
+			p, err = findPackageTestFolderPaths(packageRoot, testTypeGlob)
 			if err != nil {
 				return nil, err
 			}
@@ -288,9 +288,9 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	}
 
 	folders := make([]TestFolder, len(paths))
-	_, pkg := filepath.Split(packageRootPath)
+	_, pkg := filepath.Split(packageRoot)
 	for idx, p := range paths {
-		dataStream := ExtractDataStreamFromPath(p, packageRootPath)
+		dataStream := ExtractDataStreamFromPath(p, packageRoot)
 
 		folder := TestFolder{
 			Path:       p,
@@ -304,8 +304,8 @@ func FindTestFolders(packageRootPath string, dataStreams []string, testType Test
 	return folders, nil
 }
 
-func ExtractDataStreamFromPath(fullPath, packageRootPath string) string {
-	relP := strings.TrimPrefix(fullPath, packageRootPath)
+func ExtractDataStreamFromPath(fullPath, packageRoot string) string {
+	relP := strings.TrimPrefix(fullPath, packageRoot)
 	parts := strings.Split(relP, string(filepath.Separator))
 	dataStream := ""
 	if len(parts) >= 3 && parts[1] == "data_stream" {
@@ -476,8 +476,8 @@ func run(ctx context.Context, tester Tester) ([]TestResult, error) {
 
 // findDataStreamTestFoldersPaths can only be called for test runners that require tests to be defined
 // at the data stream level.
-func findDataStreamTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob string) ([]string, error) {
-	testFoldersGlob := filepath.Join(packageRootPath, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
+func findDataStreamTestFolderPaths(packageRoot, dataStreamGlob, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRoot, "data_stream", dataStreamGlob, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, fmt.Errorf("error finding test folders: %w", err)
@@ -486,8 +486,8 @@ func findDataStreamTestFolderPaths(packageRootPath, dataStreamGlob, testTypeGlob
 }
 
 // findPackageTestFolderPaths finds tests at the package level.
-func findPackageTestFolderPaths(packageRootPath, testTypeGlob string) ([]string, error) {
-	testFoldersGlob := filepath.Join(packageRootPath, "_dev", "test", testTypeGlob)
+func findPackageTestFolderPaths(packageRoot, testTypeGlob string) ([]string, error) {
+	testFoldersGlob := filepath.Join(packageRoot, "_dev", "test", testTypeGlob)
 	paths, err := filepath.Glob(testFoldersGlob)
 	if err != nil {
 		return nil, fmt.Errorf("error finding test folders: %w", err)

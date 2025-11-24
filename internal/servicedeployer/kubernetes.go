@@ -25,10 +25,11 @@ import (
 
 // KubernetesServiceDeployer is responsible for deploying resources in the Kubernetes cluster.
 type KubernetesServiceDeployer struct {
-	profile        *profile.Profile
-	definitionsDir string
-	stackVersion   string
-	policyName     string
+	profile              *profile.Profile
+	definitionsDir       string
+	stackVersion         string
+	overrideAgentVersion string
+	policyName           string
 
 	deployIndependentAgent bool
 
@@ -38,10 +39,11 @@ type KubernetesServiceDeployer struct {
 }
 
 type KubernetesServiceDeployerOptions struct {
-	Profile        *profile.Profile
-	DefinitionsDir string
-	StackVersion   string
-	PolicyName     string
+	Profile              *profile.Profile
+	DefinitionsDir       string
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	DeployIndependentAgent bool
 
@@ -118,6 +120,7 @@ func NewKubernetesServiceDeployer(opts KubernetesServiceDeployerOptions) (*Kuber
 		profile:                opts.Profile,
 		definitionsDir:         opts.DefinitionsDir,
 		stackVersion:           opts.StackVersion,
+		overrideAgentVersion:   opts.OverrideAgentVersion,
 		policyName:             opts.PolicyName,
 		runSetup:               opts.RunSetup,
 		runTestsOnly:           opts.RunTestsOnly,
@@ -146,7 +149,13 @@ func (ksd KubernetesServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceI
 	if ksd.runTearDown || ksd.runTestsOnly || ksd.deployIndependentAgent {
 		logger.Debug("Skip install Elastic Agent in cluster")
 	} else {
-		err = installElasticAgentInCluster(ctx, ksd.profile, ksd.stackVersion, ksd.policyName)
+
+		agentVersion := ksd.stackVersion
+		if ksd.overrideAgentVersion != "" {
+			agentVersion = ksd.overrideAgentVersion
+		}
+
+		err = installElasticAgentInCluster(ctx, ksd.profile, agentVersion, ksd.policyName)
 		if err != nil {
 			return nil, fmt.Errorf("can't install Elastic-Agent in the Kubernetes cluster: %w", err)
 		}
@@ -208,10 +217,10 @@ func findKubernetesDefinitions(definitionsDir string) ([]string, error) {
 	return definitionPaths, nil
 }
 
-func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, stackVersion, policyName string) error {
+func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile, agentVersion, policyName string) error {
 	logger.Debug("install Elastic Agent in the Kubernetes cluster")
 
-	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, stackVersion, policyName)
+	elasticAgentManagedYaml, err := getElasticAgentYAML(profile, agentVersion, policyName)
 	if err != nil {
 		return fmt.Errorf("can't retrieve Kubernetes file for Elastic Agent: %w", err)
 	}
@@ -226,10 +235,10 @@ func installElasticAgentInCluster(ctx context.Context, profile *profile.Profile,
 //go:embed _static/elastic-agent-managed.yaml.tmpl
 var elasticAgentManagedYamlTmpl string
 
-func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName string) ([]byte, error) {
-	logger.Debugf("Prepare YAML definition for Elastic Agent running in stack v%s", stackVersion)
+func getElasticAgentYAML(profile *profile.Profile, agentVersion, policyName string) ([]byte, error) {
+	logger.Debugf("Prepare YAML definition for Elastic Agent (v%s) running in stack ", agentVersion)
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion))
+	appConfig, err := install.Configuration(install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -247,7 +256,7 @@ func getElasticAgentYAML(profile *profile.Profile, stackVersion, policyName stri
 		"kibanaURL":                   "https://kibana:5601",
 		"caCertPem":                   caCert,
 		"elasticAgentImage":           appConfig.StackImageRefs().ElasticAgent,
-		"elasticAgentTokenPolicyName": getTokenPolicyName(stackVersion, policyName),
+		"elasticAgentTokenPolicyName": getTokenPolicyName(agentVersion, policyName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("can't generate elastic agent manifest: %w", err)

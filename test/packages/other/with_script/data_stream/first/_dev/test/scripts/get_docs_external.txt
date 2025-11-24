@@ -1,0 +1,133 @@
+[!external_stack] skip 'Skipping external stack test.'
+[!exec:echo] skip 'Skipping test requiring absent echo command'
+[!exec:jq] skip 'Skipping test requiring absent jq command'
+
+# Register stack and check that we get the expected output.
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
+! stderr .
+cmpenv stdout want_use.json
+
+# Install an agent.
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE} NETWORK_NAME
+! stderr .
+cmp stdout want_agent_up.text
+# Check the network name is valid.
+exec echo ${NETWORK_NAME}
+stdout 'elastic-package-agent-with_script-first-[0-9]+_default'
+
+# Bring up a docker container and check that we get the expected output.
+docker_up -profile ${CONFIG_PROFILES}/${PROFILE} -network ${NETWORK_NAME} test-hits
+! stderr .
+cp stdout got_up.text
+match_file want_up.pattern got_up.text 
+
+# Add the package resources.
+add_package -profile ${CONFIG_PROFILES}/${PROFILE}
+! stderr .
+
+# Add the data stream.
+add_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} test_config.yaml DATA_STREAM_NAME
+! stderr .
+cmpenv stdout want_add_package_policy.text
+exec echo ${DATA_STREAM_NAME}
+cp stdout got_data_stream_name.text
+match_file want_data_stream_name.pattern got_data_stream_name.text
+
+# Check that no policy exists yet.
+# No timeout so we do only a single poll.
+get_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
+stdout 'not found'
+
+# Start the service.
+docker_signal test-hits SIGHUP
+
+# Wait for the service to exit.
+docker_wait_exit -timeout 5m test-hits
+
+# Check that we can see our policy.
+get_policy -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m ${DATA_STREAM_NAME}
+cp stdout got_policy.json
+exec jq '.name=="'${DATA_STREAM_NAME}'"' got_policy.json
+stdout true
+
+# Take down the service and check logs for our message.
+docker_down test-hits
+! stderr .
+cp stdout got_down.text
+match_file want_down.pattern got_down.text
+
+# Get documents from the data stream.
+get_docs -profile ${CONFIG_PROFILES}/${PROFILE} -want 10 -timeout 5m ${DATA_STREAM_NAME}
+cp stdout got_docs.json
+
+# Let's upgrade!
+upgrade_package_latest -profile ${CONFIG_PROFILES}/${PROFILE}
+! stderr .
+stdout 'upgraded package '${PACKAGE_NAME}' from version '${CURRENT_VERSION@R}
+
+# Remove the data stream.
+remove_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
+! stderr .
+cmpenv stdout want_remove_package_policy.text
+
+# Uninstall the agent.
+uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m 
+stdout '^deleted agent policies for '${PACKAGE_NAME}/${DATA_STREAM}
+! stderr .
+
+# Remove the package resources.
+remove_package -profile ${CONFIG_PROFILES}/${PROFILE}
+! stderr .
+
+# Then attempt to take the stack down even though we don't own it.
+! stack_down -profile ${CONFIG_PROFILES}/${PROFILE}
+! stdout .
+stderr '^cannot take down externally run stack '${CONFIG_PROFILES}'/'${PROFILE}'$'
+
+-- test-hits/docker-compose.yml --
+version: '2.3'
+services:
+  test-hits:
+    image: docker.elastic.co/observability/stream:v0.20.0
+    volumes:
+      - ./logs:/logs:ro
+    command: log --start-signal=SIGHUP --delay=5s --addr elastic-agent:9999 -p=tcp /logs/generated.log
+-- test-hits/logs/generated.log --
+ntpd[1001]: kernel time sync enabled utl
+restorecond: : Reset file context quasiarc: liqua
+auditd[5699]: Audit daemon rotating log files
+anacron[5066]: Normal exit ehend
+restorecond: : Reset file context vol: luptat
+heartbeat: : <<eumiu.medium> Processing command: accept
+restorecond: : Reset file context nci: ofdeFin
+auditd[6668]: Audit daemon rotating log files
+anacron[1613]: Normal exit mvolu
+ntpd[2959]: ntpd gelit-r tatno
+-- want_use.json --
+{
+	"provider": "compose",
+	"elasticsearch_host": "https://127.0.0.1:9200",
+	"elasticsearch_username": "elastic",
+	"elasticsearch_password": "changeme",
+	"kibana_host": "https://127.0.0.1:5601",
+	"ca_cert_file": "${CONFIG_PROFILES}/${PROFILE}/certs/ca-cert.pem"
+}
+-- want_up.pattern --
+deployed elastic-package-service-[0-9]+:test-hits-1
+-- want_down.pattern --
+test-hits-1  | \{"level":"info","ts":"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-2][0-9]:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z","caller":"command/log\.go:[0-9]+","msg":"Log data sent\.","address":"elastic-agent:9999","log":"/logs/generated\.log","total_bytes":[0-9]+,"total_lines":10}
+-- want_agent_up.text --
+installed agent policies for with_script/first
+-- test_config.yaml --
+input: tcp
+vars: ~
+data_stream:
+  vars:
+    tcp_host: 0.0.0.0
+    tcp_port: 9999
+-- want_data_stream_name.pattern --
+logs-with_script\.first-[0-9]+
+-- want_add_package_policy.text --
+added ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}
+-- want_remove_package_policy.text --
+removed ${DATA_STREAM_NAME} data stream policy templates for ${PACKAGE_NAME}/${DATA_STREAM}

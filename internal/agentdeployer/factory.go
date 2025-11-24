@@ -24,12 +24,13 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath    string
-	DataStreamRootPath string
-	DevDeployDir       string
-	Type               string
-	StackVersion       string
-	PolicyName         string
+	PackageRoot          string
+	DataStreamRoot       string
+	DevDeployDir         string
+	Type                 string
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	DeployerName string
 
@@ -55,13 +56,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
 		opts := DockerComposeAgentDeployerOptions{
-			Profile:      options.Profile,
-			StackVersion: options.StackVersion,
-			PackageName:  options.PackageName,
-			PolicyName:   options.PolicyName,
-			DataStream:   options.DataStream,
-			RunTearDown:  options.RunTearDown,
-			RunTestsOnly: options.RunTestsOnly,
+			Profile:              options.Profile,
+			StackVersion:         options.StackVersion,
+			PackageName:          options.PackageName,
+			PolicyName:           options.PolicyName,
+			DataStream:           options.DataStream,
+			RunTearDown:          options.RunTearDown,
+			RunTestsOnly:         options.RunTestsOnly,
+			OverrideAgentVersion: options.OverrideAgentVersion,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
@@ -70,13 +72,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		return nil, nil
 	case "k8s":
 		opts := KubernetesAgentDeployerOptions{
-			Profile:      options.Profile,
-			StackVersion: options.StackVersion,
-			PolicyName:   options.PolicyName,
-			DataStream:   options.DataStream,
-			RunSetup:     options.RunSetup,
-			RunTestsOnly: options.RunTestsOnly,
-			RunTearDown:  options.RunTearDown,
+			Profile:              options.Profile,
+			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
+			PolicyName:           options.PolicyName,
+			DataStream:           options.DataStream,
+			RunSetup:             options.RunSetup,
+			RunTestsOnly:         options.RunTestsOnly,
+			RunTearDown:          options.RunTearDown,
 		}
 		return NewKubernetesAgentDeployer(opts)
 	}
@@ -85,9 +88,9 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		DataStreamRootPath: options.DataStreamRootPath,
-		DevDeployDir:       options.DevDeployDir,
-		PackageRootPath:    options.PackageRootPath,
+		DataStreamRoot: options.DataStreamRoot,
+		DevDeployDir:   options.DevDeployDir,
+		PackageRoot:    options.PackageRoot,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		return "default", nil
