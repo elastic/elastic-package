@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -47,14 +48,11 @@ func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	flg := flag.NewFlagSet("install", flag.ContinueOnError)
 	profName := flg.String("profile", "default", "profile name")
 	timeout := flg.Duration("timeout", 0, "timeout (zero or lower indicates no timeout)")
+	containerNameLabel := flg.String("container_name", "", "environment variable name to place container name in")
+	networkNameLabel := flg.String("network_name", "", "environment variable name to place network name in")
 	ts.Check(flg.Parse(args))
-	if flg.NArg() != 0 && flg.NArg() != 1 {
-		ts.Fatalf("usage: install_agent [-profile <profile>] [-timeout <duration>] [<network_name_label>]")
-	}
-
-	var networkNameLabel string
-	if flg.NArg() == 1 {
-		networkNameLabel = flg.Arg(0)
+	if flg.NArg() != 0 {
+		ts.Fatalf("usage: install_agent [-profile <profile>] [-timeout <duration>] [-container_name <container_name_label>] [-network_name <network_name_label>]")
 	}
 
 	stk, ok := stacks[*profName]
@@ -120,8 +118,12 @@ func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	// ELASTIC_PACKAGE_CA_CERT is set. ¯\_(ツ)_/¯
 	installed.deployed, err = dep.SetUp(ctx, info)
 	ts.Check(decoratedWith("setting up agent", err))
-	if networkNameLabel != "" {
-		ts.Setenv(networkNameLabel, installed.deployed.Info().NetworkName)
+	depInfo := installed.deployed.Info()
+	if *networkNameLabel != "" {
+		ts.Setenv(*networkNameLabel, depInfo.NetworkName)
+	}
+	if *containerNameLabel != "" {
+		ts.Setenv(*containerNameLabel, fmt.Sprintf("elastic-package-agent-%s-%s-%s-%s-1", filepath.Base(pkgRoot), ds, info.Test.RunID, depInfo.Name))
 	}
 	polID := installed.deployed.Info().Policy.ID
 	ts.Check(decoratedWith("getting kibana agent", doKibanaAgent(ctx, stk.kibana, func(a kibana.Agent) (bool, error) {

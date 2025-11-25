@@ -47,7 +47,7 @@ a stack, starting agents and services and validating results.
   - `get_policy [-profile <profile>] [-timeout <duration>] <policy_name>`: print the details for a policy
 
 - agent commands:
-  - `install_agent [-profile <profile>] [-timeout <duration>] [<network_name_label>]`: install an Elastic Agent policy, setting the environment variable named in the positional argument
+  - `install_agent [-profile <profile>] [-timeout <duration>] [-container_name <container_name_label>] [-network_name <network_name_label>]`: install an Elastic Agent policy, setting the environment variables named in the container_name and network_name arguments
   - `uninstall_agent [-profile <profile>] [-timeout <duration>]`: remove an installed Elastic Agent policy
 
 - package commands:
@@ -110,7 +110,7 @@ As an example, a basic system test could be expressed as follows.
 use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 
 # Install an agent.
-install_agent -profile ${CONFIG_PROFILES}/${PROFILE} NETWORK_NAME
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE} -network_name NETWORK_NAME
 
 # Bring up a docker container.
 #
