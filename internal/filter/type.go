@@ -18,7 +18,7 @@ import (
 
 // OutputOptions handles both what information to display and how to format it.
 type OutputOptions struct {
-	infoType string // "pkgname", "dirname", "absolute"
+	infoType string // "package_name", "dir_name", "absolute_path"
 	format   string // "json", "yaml", ""
 }
 
@@ -35,14 +35,14 @@ func NewOutputOptions(infoType, format string) (*OutputOptions, error) {
 }
 
 func (o *OutputOptions) validate() error {
-	validInfo := []string{"pkgname", "dirname", "absolute"}
-	validFormats := []string{"json", "yaml", ""}
-
+	validInfo := []string{"package_name", "dir_name", "absolute_path"}
 	if !slices.Contains(validInfo, o.infoType) {
-		return fmt.Errorf("invalid output info type: %s (valid: pkgname, dirname, absolute)", o.infoType)
+		return fmt.Errorf("invalid output info type: %s (valid: %s)", o.infoType, strings.Join(validInfo, ", "))
 	}
+
+	validFormats := []string{"json", "yaml", ""}
 	if !slices.Contains(validFormats, o.format) {
-		return fmt.Errorf("invalid output format: %s (valid: json, yaml, or empty)", o.format)
+		return fmt.Errorf("invalid output format: %s (valid: %s)", o.format, strings.Join(validFormats, ", "))
 	}
 
 	return nil
@@ -70,11 +70,11 @@ func (o *OutputOptions) extractInfo(pkgs []packages.PackageDirNameAndManifest) (
 	for _, pkg := range pkgs {
 		var val string
 		switch o.infoType {
-		case "pkgname":
+		case "package_name":
 			val = pkg.Manifest.Name
-		case "dirname":
+		case "dir_name":
 			val = pkg.DirName
-		case "absolute":
+		case "absolute_path":
 			val = pkg.Path
 		}
 		values = append(values, val)

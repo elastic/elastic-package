@@ -161,8 +161,8 @@ const (
 	FilterOutputFlagShorthand   = "o"
 
 	FilterOutputInfoFlagName        = "output-info"
-	FilterOutputInfoFlagDescription = "output information about the packages. Available options: pkgname, dirname, absolute"
-	FilterOutputInfoFlagDefault     = "dirname"
+	FilterOutputInfoFlagDescription = "output information about the packages. Available options: package_name, dir_name, absolute_path"
+	FilterOutputInfoFlagDefault     = "absolute_path"
 
 	FilterPackageDirNameFlagName        = "package-dirs"
 	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"

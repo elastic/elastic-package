@@ -433,7 +433,7 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 // ReadAllPackageManifestsFromRepo reads all the package manifests in the given directory.
 // It recursively searches for manifest.yml files up to the specified depth.
 // - depth: maximum depth to search (1 = current dir + immediate sub dirs)
-// - excludeDirs: comma-separated list of directory names to exclude (always excludes .git)
+// - excludeDirs: comma-separated list of directory names to exclude (always excludes .git, build)
 func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
 	// Parse exclude directories
 	excludeMap := map[string]bool{

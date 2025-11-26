@@ -16,21 +16,20 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const filterLongDescription = `This command gives you a list of all packages based on the given query.
+const filterLongDescription = `[Technical Preview]
+This command gives you a list of all packages based on the given query.
 
-The command will search for packages in the working directory for default depth of 2 and 
-return the list of packages that match the given criteria. 
+The command will search for packages in the working directory for default depth of 2 and return the list of packages that match the given criteria. 
 
 Use --change-directory to change the working directory and --depth to change the depth of the search.`
 
-const filterExample = `elastic-package filter --inputs tcp,udp --categories security --depth 3 --output json
-elastic-package filter --packages 'cisco_*,fortinet_*' --output yaml
-`
+const filterExample = `  elastic-package filter --inputs tcp,udp --categories security --depth 3 --output json
+  elastic-package filter --packages 'cisco_*,fortinet_*' --output yaml`
 
 func setupFilterCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:     "filter [flags]",
-		Short:   "filter integrations based on given flags",
+		Short:   "Filter integrations based on given flags [Technical Preview]",
 		Long:    filterLongDescription,
 		Args:    cobra.NoArgs,
 		RunE:    filterCommandAction,

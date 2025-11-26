@@ -17,13 +17,12 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 )
 
-const foreachLongDescription = `Execute a command for each package matching the given filter criteria.
+const foreachLongDescription = `[Technical Preview]
+Execute a command for each package matching the given filter criteria.
 
-This command combines filtering capabilities with command execution, allowing you to run
-any elastic-package subcommand across multiple packages in a single operation.
+This command combines filtering capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
 
-The command uses the same filter flags as the 'filter' command to select packages, 
-then executes the specified subcommand for each matched package.`
+The command uses the same filter flags as the 'filter' command to select packages, then executes the specified subcommand for each matched package.`
 
 // getAllowedSubCommands returns the list of allowed subcommands for the foreach command.
 func getAllowedSubCommands() []string {
@@ -43,8 +42,8 @@ func getAllowedSubCommands() []string {
 func setupForeachCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "foreach [flags] -- <SUBCOMMAND>",
-		Short: "Execute a command for filtered packages",
-		Long:  foreachLongDescription,
+		Short: "Execute a command for filtered packages [Technical Preview]",
+		Long:  fmt.Sprintf(foreachLongDescription+"\n\nAllowed subcommands:\n%s", strings.Join(getAllowedSubCommands(), ", ")),
 		Example: `  # Run system tests for packages with specific inputs
   elastic-package foreach --input tcp,udp -- test system -g`,
 		RunE: foreachCommandAction,

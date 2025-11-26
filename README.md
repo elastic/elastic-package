@@ -370,10 +370,10 @@ Use this command to download selected ingest pipelines and its referenced proces
 
 _Context: package_
 
+[Technical Preview]
 This command gives you a list of all packages based on the given query.
 
-The command will search for packages in the working directory for default depth of 2 and 
-return the list of packages that match the given criteria. 
+The command will search for packages in the working directory for default depth of 2 and return the list of packages that match the given criteria. 
 
 Use --change-directory to change the working directory and --depth to change the depth of the search.
 
@@ -381,13 +381,15 @@ Use --change-directory to change the working directory and --depth to change the
 
 _Context: package_
 
+[Technical Preview]
 Execute a command for each package matching the given filter criteria.
 
-This command combines filtering capabilities with command execution, allowing you to run
-any elastic-package subcommand across multiple packages in a single operation.
+This command combines filtering capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
 
-The command uses the same filter flags as the 'filter' command to select packages, 
-then executes the specified subcommand for each matched package.
+The command uses the same filter flags as the 'filter' command to select packages, then executes the specified subcommand for each matched package.
+
+Allowed subcommands:
+build, check, changelog, clean, format, install, lint, test, uninstall
 
 ### `elastic-package format`
 

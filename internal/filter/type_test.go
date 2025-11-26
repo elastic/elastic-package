@@ -20,11 +20,11 @@ func TestOutputOptions_NewOutputOptions(t *testing.T) {
 		format   string
 		wantErr  bool
 	}{
-		{"valid defaults", "pkgname", "", false},
-		{"valid json", "dirname", "json", false},
-		{"valid yaml", "absolute", "yaml", false},
+		{"valid defaults", "package_name", "", false},
+		{"valid json", "dir_name", "json", false},
+		{"valid yaml", "absolute_path", "yaml", false},
 		{"invalid info type", "invalid", "", true},
-		{"invalid format", "pkgname", "invalid", true},
+		{"invalid format", "package_name", "invalid", true},
 	}
 
 	for _, tt := range tests {
@@ -57,16 +57,16 @@ func TestOutputOptions_ApplyTo(t *testing.T) {
 		},
 	}
 
-	t.Run("pkgname output", func(t *testing.T) {
-		opts, _ := NewOutputOptions("pkgname", "")
+	t.Run("package_name output", func(t *testing.T) {
+		opts, _ := NewOutputOptions("package_name", "")
 		out, err := opts.ApplyTo(pkgs)
 		require.NoError(t, err)
 		assert.Contains(t, out, "package_one")
 		assert.Contains(t, out, "package_two")
 	})
 
-	t.Run("dirname output", func(t *testing.T) {
-		opts, _ := NewOutputOptions("dirname", "")
+	t.Run("dir_name output", func(t *testing.T) {
+		opts, _ := NewOutputOptions("dir_name", "")
 		out, err := opts.ApplyTo(pkgs)
 		require.NoError(t, err)
 		assert.Contains(t, out, "package1")
@@ -74,21 +74,21 @@ func TestOutputOptions_ApplyTo(t *testing.T) {
 	})
 
 	t.Run("json format", func(t *testing.T) {
-		opts, _ := NewOutputOptions("pkgname", "json")
+		opts, _ := NewOutputOptions("package_name", "json")
 		out, err := opts.ApplyTo(pkgs)
 		require.NoError(t, err)
 		assert.Contains(t, out, `["package_one","package_two"]`)
 	})
 
 	t.Run("yaml format", func(t *testing.T) {
-		opts, _ := NewOutputOptions("pkgname", "yaml")
+		opts, _ := NewOutputOptions("package_name", "yaml")
 		out, err := opts.ApplyTo(pkgs)
 		require.NoError(t, err)
 		assert.Contains(t, out, "- package_one\n- package_two")
 	})
 
-	t.Run("absolute format", func(t *testing.T) {
-		opts, _ := NewOutputOptions("absolute", "")
+	t.Run("absolute_path format", func(t *testing.T) {
+		opts, _ := NewOutputOptions("absolute_path", "")
 		out, err := opts.ApplyTo(pkgs)
 		require.NoError(t, err)
 		assert.Contains(t, out, "/path/to/package1")
