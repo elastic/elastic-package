@@ -18,11 +18,11 @@ import (
 )
 
 const foreachLongDescription = `[Technical Preview]
-Execute a command for each package matching the given filter criteria.
+Execute a command for each package matching the given query flags.
 
-This command combines filtering capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
+This command combines query capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
 
-The command uses the same filter flags as the 'filter' command to select packages, then executes the specified subcommand for each matched package.`
+The command uses the same query flags as the 'find' command to select packages, then executes the specified subcommand for each matched package.`
 
 // getAllowedSubCommands returns the list of allowed subcommands for the foreach command.
 func getAllowedSubCommands() []string {
@@ -50,7 +50,7 @@ func setupForeachCommand() *cobraext.Command {
 		Args: cobra.MinimumNArgs(1),
 	}
 
-	// Add filter flags
+	// Add query flags
 	filter.SetFilterFlags(cmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
@@ -61,8 +61,8 @@ func foreachCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating sub command failed: %w", err)
 	}
 
-	// reuse filterPackage from cmd/filter.go
-	filtered, err := filterPackage(cmd)
+	// reuse findPackage from cmd/find.go
+	filtered, err := findPackage(cmd)
 	if err != nil {
 		return fmt.Errorf("filtering packages failed: %w", err)
 	}

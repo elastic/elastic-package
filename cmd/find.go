@@ -16,24 +16,24 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const filterLongDescription = `[Technical Preview]
+const findLongDescription = `[Technical Preview]
 This command gives you a list of all packages based on the given query.
 
 The command will search for packages in the working directory for default depth of 2 and return the list of packages that match the given criteria. 
 
 Use --change-directory to change the working directory and --depth to change the depth of the search.`
 
-const filterExample = `  elastic-package filter --inputs tcp,udp --categories security --depth 3 --output json
-  elastic-package filter --packages 'cisco_*,fortinet_*' --output yaml`
+const findExample = `  elastic-package find --inputs tcp,udp --categories security --depth 3 --output json
+  elastic-package find --packages 'cisco_*,fortinet_*' --output yaml`
 
-func setupFilterCommand() *cobraext.Command {
+func setupFindCommand() *cobraext.Command {
 	cmd := &cobra.Command{
-		Use:     "filter [flags]",
-		Short:   "Filter integrations based on given flags [Technical Preview]",
-		Long:    filterLongDescription,
+		Use:     "find [flags]",
+		Short:   "Find integrations based on given flags [Technical Preview]",
+		Long:    findLongDescription,
 		Args:    cobra.NoArgs,
-		RunE:    filterCommandAction,
-		Example: filterExample,
+		RunE:    findCommandAction,
+		Example: findExample,
 	}
 
 	// add filter flags to the command (input, code owner, kibana version, categories)
@@ -46,10 +46,10 @@ func setupFilterCommand() *cobraext.Command {
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
-func filterCommandAction(cmd *cobra.Command, args []string) error {
-	filtered, err := filterPackage(cmd)
+func findCommandAction(cmd *cobra.Command, args []string) error {
+	found, err := findPackage(cmd)
 	if err != nil {
-		return fmt.Errorf("filtering packages failed: %w", err)
+		return fmt.Errorf("finding packages failed: %w", err)
 	}
 
 	outputFormatStr, err := cmd.Flags().GetString(cobraext.FilterOutputFlagName)
@@ -67,14 +67,14 @@ func filterCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("creating output options failed: %w", err)
 	}
 
-	if err = printPkgList(filtered, outputOptions, os.Stdout); err != nil {
+	if err = printPkgList(found, outputOptions, os.Stdout); err != nil {
 		return fmt.Errorf("printing JSON failed: %w", err)
 	}
 
 	return nil
 }
 
-func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, error) {
+func findPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, error) {
 	depth, err := cmd.Flags().GetInt(cobraext.FilterDepthFlagName)
 	if err != nil {
 		return nil, fmt.Errorf("getting depth flag failed: %w", err)
@@ -99,12 +99,12 @@ func filterPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, er
 	if err != nil {
 		return nil, fmt.Errorf("getting current directory failed: %w", err)
 	}
-	filtered, errors := filters.Execute(currDir)
+	found, errors := filters.Execute(currDir)
 	if errors != nil {
-		return nil, fmt.Errorf("filtering packages failed: %s", errors.Error())
+		return nil, fmt.Errorf("finding packages failed: %s", errors.Error())
 	}
 
-	return filtered, nil
+	return found, nil
 }
 
 func printPkgList(pkgs []packages.PackageDirNameAndManifest, outputOptions *filter.OutputOptions, w io.Writer) error {

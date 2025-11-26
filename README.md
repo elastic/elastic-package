@@ -366,7 +366,7 @@ Use this command to export ingest pipelines with referenced pipelines from the E
 
 Use this command to download selected ingest pipelines and its referenced processor pipelines from Elasticsearch. Select data stream or the package root directories to download the pipelines. Pipelines are downloaded as is and will need adjustment to meet your package needs.
 
-### `elastic-package filter [flags]`
+### `elastic-package find [flags]`
 
 _Context: package_
 
@@ -382,11 +382,11 @@ Use --change-directory to change the working directory and --depth to change the
 _Context: package_
 
 [Technical Preview]
-Execute a command for each package matching the given filter criteria.
+Execute a command for each package matching the given query flags.
 
-This command combines filtering capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
+This command combines query capabilities with command execution, allowing you to run any elastic-package subcommand across multiple packages in a single operation.
 
-The command uses the same filter flags as the 'filter' command to select packages, then executes the specified subcommand for each matched package.
+The command uses the same query flags as the 'find' command to select packages, then executes the specified subcommand for each matched package.
 
 Allowed subcommands:
 build, check, changelog, clean, format, install, lint, test, uninstall
