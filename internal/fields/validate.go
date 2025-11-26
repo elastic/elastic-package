@@ -157,6 +157,8 @@ type Validator struct {
 	enabledOTelValidation bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	schemaURLs SchemaURLs
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -256,6 +258,14 @@ func WithOTelValidation(otelValidation bool) ValidatorOption {
 	}
 }
 
+// WithSchemaURLs configures the validator to use custom sources for schemas.
+func WithSchemaURLs(schemaURLs SchemaURLs) ValidatorOption {
+	return func(v *Validator) error {
+		v.schemaURLs = schemaURLs
+		return nil
+	}
+}
+
 type packageRootFinder interface {
 	FindPackageRoot() (string, error)
 }
@@ -298,7 +308,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
 
-		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema, v.schemaURLs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 		}
@@ -313,7 +323,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 	return v, nil
 }
 
-func initDependencyManagement(packageRoot string, specVersion semver.Version, importECSSchema bool) (*DependencyManager, []FieldDefinition, error) {
+func initDependencyManagement(packageRoot string, specVersion semver.Version, importECSSchema bool, urls SchemaURLs) (*DependencyManager, []FieldDefinition, error) {
 	buildManifest, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't read build manifest: %w", err)
@@ -323,7 +333,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, nil
 	}
 
-	fdm, err := CreateFieldDependencyManager(buildManifest.Dependencies)
+	fdm, err := CreateFieldDependencyManager(buildManifest.Dependencies, urls)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}

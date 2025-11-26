@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -38,6 +39,8 @@ const (
 	kibanaImageName                     = "docker.elastic.co/kibana/kibana"
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
 	isReadyImageName                    = "tianon/true:multiarch"
+
+	defaultECSSchemaBaseURL = "https://raw.githubusercontent.com/elastic/ecs"
 
 	applicationConfigurationYmlFile = "config.yml"
 )
@@ -69,6 +72,8 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
+	config.c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
+
 	return &config
 }
 
@@ -85,6 +90,7 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
+	SchemaURLs fields.SchemaURLs `yaml:"schema_urls"`
 }
 
 type stack struct {
@@ -154,6 +160,10 @@ func (ac *ApplicationConfiguration) CurrentProfile() string {
 // SetCurrentProfile sets the current profile.
 func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
+}
+
+func (ac *ApplicationConfiguration) SchemaURLs() fields.SchemaURLs {
+	return ac.c.SchemaURLs
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.

@@ -14,6 +14,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -34,6 +35,7 @@ type BuildOptions struct {
 	SignPackage    bool
 	SkipValidation bool
 	UpdateReadmes  bool
+	SchemaURLs     fields.SchemaURLs
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -215,7 +217,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	logger.Debug("Resolve external fields")
-	err = resolveExternalFields(options.PackageRoot, buildPackageRoot)
+	err = resolveExternalFields(options.PackageRoot, buildPackageRoot, options.SchemaURLs)
 	if err != nil {
 		return "", fmt.Errorf("resolving external fields failed: %w", err)
 	}
