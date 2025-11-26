@@ -621,7 +621,10 @@ func TestDependencyManagerWithECS(t *testing.T) {
 			Reference: "file://" + ecsNestedPath8_10_0,
 		},
 	}
-	dm, err := CreateFieldDependencyManager(deps)
+	urls := SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
+	dm, err := CreateFieldDependencyManager(deps, urls)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -849,6 +852,7 @@ func TestECSSchemaURL(t *testing.T) {
 	}{
 		{
 			title:        "default",
+			baseURL:      "https://raw.githubusercontent.com/elastic/ecs",
 			gitReference: "v8.11.0",
 			schemaFile:   ecsSchemaFile,
 			expected:     "https://raw.githubusercontent.com/elastic/ecs/v8.11.0/generated/ecs/ecs_nested.yml",
@@ -877,6 +881,13 @@ func TestECSSchemaURL(t *testing.T) {
 		{
 			title:        "invalid scheme",
 			baseURL:      "file://../../..",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expectedErr:  true,
+		},
+		{
+			title:        "no URL",
+			baseURL:      "",
 			gitReference: "v8.11.0",
 			schemaFile:   ecsSchemaFile,
 			expectedErr:  true,

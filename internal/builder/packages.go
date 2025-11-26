@@ -233,7 +233,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 	}
 
 	if options.UpdateReadmes {
-		err = docs.UpdateReadmes(options.RepositoryRoot, options.PackageRoot, buildPackageRoot)
+		err = docs.UpdateReadmes(options.RepositoryRoot, options.PackageRoot, buildPackageRoot, options.SchemaURLs)
 		if err != nil {
 			return "", fmt.Errorf("updating readme files failed: %w", err)
 		}

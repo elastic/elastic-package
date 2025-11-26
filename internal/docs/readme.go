@@ -14,6 +14,7 @@ import (
 
 	"github.com/pmezard/go-difflib/difflib"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -31,7 +32,7 @@ const (
 )
 
 // AreReadmesUpToDate function checks if all the .md readme files are up-to-date.
-func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string) ([]ReadmeFile, error) {
+func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string, schemaURLs fields.SchemaURLs) ([]ReadmeFile, error) {
 	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("locating links file failed: %w", err)
@@ -45,7 +46,7 @@ func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string) ([]ReadmeFi
 	var readmeFiles []ReadmeFile
 	for _, filePath := range files {
 		fileName := filepath.Base(filePath)
-		ok, diff, err := isReadmeUpToDate(fileName, linksFilePath, packageRoot)
+		ok, diff, err := isReadmeUpToDate(fileName, linksFilePath, packageRoot, schemaURLs)
 		if !ok || err != nil {
 			readmeFile := ReadmeFile{
 				FileName: fileName,
@@ -64,11 +65,11 @@ func AreReadmesUpToDate(repositoryRoot *os.Root, packageRoot string) ([]ReadmeFi
 }
 
 // isReadmeUpToDate function checks if a single readme file is up-to-date.
-func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string, error) {
+func isReadmeUpToDate(fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) (bool, string, error) {
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
 	// the readme is generated within the package root, so source should be the packageRoot files too
-	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, schemaURLs)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -99,7 +100,7 @@ func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string
 
 // UpdateReadmes function updates all .md readme files using a defined template
 // files. The function doesn't perform any action if the template file is not present.
-func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string) error {
+func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) error {
 	linksFilePath, err := linksDefinitionsFilePath(repositoryRoot)
 	if err != nil {
 		return fmt.Errorf("locating links file failed: %w", err)
@@ -112,7 +113,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string
 
 	for _, filePath := range readmeFiles {
 		fileName := filepath.Base(filePath)
-		target, err := updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot)
+		target, err := updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot, schemaURLs)
 		if err != nil {
 			return fmt.Errorf("updating readme file %s failed: %w", fileName, err)
 		}
@@ -128,10 +129,10 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string
 
 // updateReadme function updates a single readme file using a defined template file.
 // It writes the rendered file to both the package directory and the package build directory.
-func updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot string) (string, error) {
+func updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
+	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot, schemaURLs)
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +155,7 @@ func updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot string)
 // generateReadme function generates the readme file content
 // the readme takes a template that lives under the _dev/build/docs directory at the packageRoot.
 // the readme template reads data from the packageRoot directory.
-func generateReadme(fileName, linksFilePath, packageRoot string) ([]byte, bool, error) {
+func generateReadme(fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
@@ -173,7 +174,7 @@ func generateReadme(fileName, linksFilePath, packageRoot string) ([]byte, bool, 
 
 	// templatePath lives under the _dev/build/docs directory at the package root.
 	// builtPackageRoot is the root directory of the built package.
-	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap)
+	rendered, err := renderReadme(fileName, packageRoot, templatePath, linksMap, schemaURLs)
 	if err != nil {
 		return nil, true, fmt.Errorf("rendering Readme failed: %w", err)
 	}
@@ -194,7 +195,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 }
 
 // renderReadme function renders the readme file reading from
-func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap, schemaURLs fields.SchemaURLs) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, packageRoot, templatePath)
 
 	t := template.New(fileName)
@@ -208,9 +209,9 @@ func renderReadme(fileName, packageRoot, templatePath string, linksMap linkMap) 
 		"fields": func(args ...string) (string, error) {
 			if len(args) > 0 {
 				dataStreamRoot := filepath.Join(packageRoot, "data_stream", args[0])
-				return renderExportedFields(dataStreamRoot)
+				return renderExportedFields(dataStreamRoot, schemaURLs)
 			}
-			return renderExportedFields(packageRoot)
+			return renderExportedFields(packageRoot, schemaURLs)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}

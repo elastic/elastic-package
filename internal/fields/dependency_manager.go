@@ -173,11 +173,9 @@ func asGitReference(reference string) (string, error) {
 	return reference[len(gitReferencePrefix):], nil
 }
 
-const defaultECSSchemaBaseURL = "https://raw.githubusercontent.com/elastic/ecs"
-
 func ecsSchemaURL(baseURL string, gitReference string, schemaFile string) (string, error) {
 	if baseURL == "" {
-		baseURL = defaultECSSchemaBaseURL
+		return "", errors.New("no base URL configured")
 	}
 	parsedBaseURL, err := url.Parse(baseURL)
 	switch {

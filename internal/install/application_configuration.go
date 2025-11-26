@@ -162,6 +162,7 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
 }
 
+// SchemaURLs returns the URLs used to retrieve schemas.
 func (ac *ApplicationConfiguration) SchemaURLs() fields.SchemaURLs {
 	return ac.c.SchemaURLs
 }
