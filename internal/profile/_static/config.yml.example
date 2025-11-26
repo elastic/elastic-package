@@ -1,8 +1,17 @@
+## Elasticssearch settings
 # Directory containing GeoIP databases for stacks managed by elastic-agent.
 # stack.geoip_dir: "/path/to/geoip_dir/"
+#
+# Flag to enable the logs index mode in logs data stream.
+# stack.logsdb_enabled: true
+
 ## Elastic Cloud
 # Host URL
 # stack.elastic_cloud.host: https://cloud.elastic.co
+
+## Package Registry settings
+# Package Registry used to proxy requests to (EPR_PROXY_TO environment variable).
+# stack.epr_proxy_to: https://epr.elastic.co
 
 ## Serverless stack provider
 # Project type
@@ -13,10 +22,6 @@
 ## Enable apm-server
 # Flag to enable apm-server in elastic-package stack profile config
 # stack.apm_enabled: true
-
-## Logs DB
-# Flag to enable the logs index mode in logs data stream.
-# stack.logsdb_enabled: true
 
 ## Enable logstash for testing
 # Flag to enable logstash in elastic-package stack profile config
