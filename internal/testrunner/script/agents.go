@@ -123,7 +123,7 @@ func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Setenv(*networkNameLabel, depInfo.NetworkName)
 	}
 	if *containerNameLabel != "" {
-		ts.Setenv(*containerNameLabel, fmt.Sprintf("elastic-package-agent-%s-%s-%s-%s-1", filepath.Base(pkgRoot), ds, info.Test.RunID, depInfo.Name))
+		ts.Setenv(*containerNameLabel, fmt.Sprintf("%s-%s-1", dep.ProjectName(info.Test.RunID), depInfo.Name))
 	}
 	polID := installed.deployed.Info().Policy.ID
 	ts.Check(decoratedWith("getting kibana agent", doKibanaAgent(ctx, stk.kibana, func(a kibana.Agent) (bool, error) {
