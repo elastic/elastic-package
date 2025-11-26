@@ -65,7 +65,7 @@ const (
 	configLogsDBEnabled       = "stack.logsdb_enabled"
 	configLogstashEnabled     = "stack.logstash_enabled"
 	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
-	configElasticEPRProxyTo   = "stack.epr_proxy_to"
+	configElasticEPRProxyTo   = "stack.epr.proxy_to"
 	configElasticSubscription = "stack.elastic_subscription"
 )
 

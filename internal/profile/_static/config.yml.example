@@ -11,7 +11,7 @@
 
 ## Package Registry settings
 # Package Registry used to proxy requests to (EPR_PROXY_TO environment variable).
-# stack.epr_proxy_to: https://epr.elastic.co
+# stack.epr.proxy_to: https://epr.elastic.co
 
 ## Serverless stack provider
 # Project type
