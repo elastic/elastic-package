@@ -87,6 +87,31 @@ namespaces: [foo]
 			equal: false,
 		},
 		{
+			title: "clean suffix in package policy name",
+			expected: `
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: test_package
+      name: test-name
+      streams: []
+      type: test_package/logs
+      use_output: default
+`,
+			found: `
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: test_package
+      name: test-name-12345
+`,
+			equal: false,
+		},
+		{
 			title: "clean expected",
 			expected: `
 inputs:
@@ -95,7 +120,7 @@ inputs:
       meta:
         package:
             name: sql_input
-      name: test-mysql-sql_input
+      name: test-mysql-sql_input-12345
       streams:
         - data_stream:
             dataset: sql_input.sql_query
