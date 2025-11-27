@@ -6,11 +6,13 @@ package policy
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/resources"
@@ -108,12 +110,13 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		return result.WithSkip(skip)
 	}
 
+	policyTestSuffix := common.CreateTestRunID()
 	policy := resources.FleetAgentPolicy{
-		Name:      testName,
+		Name:      fmt.Sprintf("%s-%s", testName, policyTestSuffix),
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:           testName + "-" + r.testFolder.Package,
+				Name:           fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
 				PackageRoot:    r.packageRoot,
 				DataStreamName: r.testFolder.DataStream,
 				InputName:      testConfig.Input,
