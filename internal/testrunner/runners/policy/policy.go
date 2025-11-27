@@ -101,12 +101,12 @@ func expectedPathFor(testPath string) string {
 }
 
 type policyEntryFilter struct {
-	name            string
-	elementsEntries []policyEntryFilter
-	memberReplace   *policyEntryReplace
-	valueReplace    *policyEntryReplace
-	onlyIfEmpty     bool
-	ignoreValues    []any
+	name               string
+	elementsEntries    []policyEntryFilter
+	memberReplace      *policyEntryReplace
+	stringValueReplace *policyEntryReplace
+	onlyIfEmpty        bool
+	ignoreValues       []any
 }
 
 type policyEntryReplace struct {
@@ -126,7 +126,7 @@ var policyEntryFilters = []policyEntryFilter{
 		{name: "streams", elementsEntries: []policyEntryFilter{
 			{name: "id"},
 		}},
-		{name: "name", valueReplace: &policyEntryReplace{
+		{name: "name", stringValueReplace: &policyEntryReplace{
 			regexp:  regexp.MustCompile(`^(.+)-[0-9]+$`),
 			replace: "$1",
 		}},
@@ -315,13 +315,13 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 					m[key] = e
 				}
 			}
-		case entry.valueReplace != nil:
+		case entry.stringValueReplace != nil:
 			vStr, ok := v.(string)
 			if !ok {
 				return nil, fmt.Errorf("expected string, found %T", v)
 			}
-			regexp := entry.valueReplace.regexp
-			replacement := entry.valueReplace.replace
+			regexp := entry.stringValueReplace.regexp
+			replacement := entry.stringValueReplace.replace
 			if regexp.MatchString(vStr) {
 				value := regexp.ReplaceAllString(vStr, replacement)
 				policyMap.Put(entry.name, value)
