@@ -6,10 +6,12 @@ package script
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"path/filepath"
+	"io"
+	"os"
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
@@ -233,4 +235,84 @@ func deletePolicies(ctx context.Context, cli *kibana.Client, a *installedAgent) 
 		errs = append(errs, cli.DeletePolicy(ctx, a.enrolledPolicy.ID))
 	}
 	return errors.Join(errs...)
+}
+
+func compileRegistryState(ts *testscript.TestScript, neg bool, args []string) {
+	if neg {
+		ts.Fatalf("unsupported: ! get_registry_state")
+	}
+	clearStdStreams(ts)
+	flg := flag.NewFlagSet("uninstall", flag.ContinueOnError)
+	first := flg.Int64("start", 0, "first registry log operation ID to use")
+	pretty := flg.Bool("pretty", false, "pretty print the registry")
+	ts.Check(flg.Parse(args))
+	if flg.NArg() != 1 {
+		ts.Fatalf("usage: get_registry_state [-start <first_id_to_use>] <path_to_registry_log>")
+	}
+	var choose func(int64) bool
+	if *first != 0 {
+		choose = func(i int64) bool {
+			return i >= *first
+		}
+	}
+	f, err := os.Open(ts.MkAbs(flg.Arg(0)))
+	ts.Check(decoratedWith("opening registry log", err))
+	defer f.Close()
+
+	s := make(map[string]any)
+	ts.Check(decoratedWith("compiling state", compileStateInto(s, f, choose)))
+	var msg []byte
+	if *pretty {
+		msg, err = json.MarshalIndent(s, "", "  ")
+	} else {
+		msg, err = json.Marshal(s)
+	}
+	ts.Check(decoratedWith("marshaling registry", err))
+	fmt.Fprintf(ts.Stdout(), "%s\n", msg)
+}
+
+func compileStateInto(dst map[string]any, r io.Reader, choose func(int64) bool) error {
+	type action struct {
+		Operation string `json:"op"`
+		ID        int64  `json:"id"`
+	}
+
+	type delta struct {
+		Key string         `json:"K"`
+		Val map[string]any `json:"V"`
+	}
+
+	dec := json.NewDecoder(r)
+	dec.DisallowUnknownFields()
+	for {
+		var (
+			a action
+			d delta
+		)
+		err := dec.Decode(&a)
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		err = dec.Decode(&d)
+		if err != nil {
+			if err == io.EOF {
+				return io.ErrUnexpectedEOF
+			}
+			return err
+		}
+		if choose != nil && !choose(a.ID) {
+			continue
+		}
+		switch a.Operation {
+		case "set":
+			dst[d.Key] = d.Val
+		case "remove":
+			delete(dst, d.Key)
+		default:
+			return fmt.Errorf("unknown operation: %q", a.Operation)
+		}
+	}
 }
