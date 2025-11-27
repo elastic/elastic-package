@@ -332,6 +332,10 @@ output_permissions:
                     - create_doc
 extensions:
     health_check/31c94f44-214a-4778-8a36-acc2634096f7: {}
+exporters:
+    elasticsearch/default:
+        endpoints:
+          - https://something.elastic.cloud:443
 processors:
     batch/11c35ad0-4351-49d4-9c78-fa679ce9d950:
         send_batch_size: 10
@@ -399,6 +403,10 @@ output_permissions:
             indices: []
 extensions:
     health_check/4391d954-1ffe-4014-a256-5eda78a71829: {}
+exporters:
+    elasticsearch/fleet-default-output:
+        endpoints:
+          - https://sfca8c1a9178b40b28c73f0f1d8a08267.elastic.cloud:443
 processors:
     batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b:
         send_batch_size: 10
