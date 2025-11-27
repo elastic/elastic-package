@@ -101,12 +101,13 @@ func expectedPathFor(testPath string) string {
 }
 
 type policyEntryFilter struct {
-	name            string
-	elementsEntries []policyEntryFilter
-	mapValues       []policyEntryFilter
-	memberReplace   *policyEntryReplace
-	onlyIfEmpty     bool
-	ignoreValues    []any
+	name               string
+	elementsEntries    []policyEntryFilter
+	mapValues          []policyEntryFilter
+	memberReplace      *policyEntryReplace
+	stringValueReplace *policyEntryReplace
+	onlyIfEmpty        bool
+	ignoreValues       []any
 }
 
 type policyEntryReplace struct {
@@ -125,6 +126,10 @@ var policyEntryFilters = []policyEntryFilter{
 		{name: "package_policy_id"},
 		{name: "streams", elementsEntries: []policyEntryFilter{
 			{name: "id"},
+		}},
+		{name: "name", stringValueReplace: &policyEntryReplace{
+			regexp:  regexp.MustCompile(`^(.+)-[0-9]+$`),
+			replace: "$1",
 		}},
 	}},
 	{name: "secret_references", elementsEntries: []policyEntryFilter{
@@ -346,6 +351,17 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 					key = regexp.ReplaceAllString(k, replacement)
 					m[key] = e
 				}
+			}
+		case entry.stringValueReplace != nil:
+			vStr, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, found %T", v)
+			}
+			regexp := entry.stringValueReplace.regexp
+			replacement := entry.stringValueReplace.replace
+			if regexp.MatchString(vStr) {
+				value := regexp.ReplaceAllString(vStr, replacement)
+				policyMap.Put(entry.name, value)
 			}
 		default:
 			if entry.onlyIfEmpty && !isEmpty(v, entry.ignoreValues) {
