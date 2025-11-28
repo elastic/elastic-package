@@ -13,6 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -39,6 +40,7 @@ type Options struct {
 	ZipPath        string
 	SkipValidation bool
 	RepositoryRoot *os.Root // Root of the repository where package source code is located.
+	SchemaURLs     fields.SchemaURLs
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -92,6 +94,7 @@ func NewForPackage(options Options) (Installer, error) {
 		SkipValidation: options.SkipValidation,
 		RepositoryRoot: options.RepositoryRoot,
 		UpdateReadmes:  false,
+		SchemaURLs:     options.SchemaURLs,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

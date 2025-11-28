@@ -621,7 +621,10 @@ func TestDependencyManagerWithECS(t *testing.T) {
 			Reference: "file://" + ecsNestedPath8_10_0,
 		},
 	}
-	dm, err := CreateFieldDependencyManager(deps)
+	urls := SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
+	dm, err := CreateFieldDependencyManager(deps, urls)
 	require.NoError(t, err)
 
 	cases := []struct {
@@ -834,6 +837,73 @@ func TestValidate_SetExternalECS(t *testing.T) {
 
 			require.NotNil(t, found)
 			assert.Equal(t, c.external, found.External)
+		})
+	}
+}
+
+func TestECSSchemaURL(t *testing.T) {
+	cases := []struct {
+		title        string
+		baseURL      string
+		gitReference string
+		schemaFile   string
+		expected     string
+		expectedErr  bool
+	}{
+		{
+			title:        "default",
+			baseURL:      "https://raw.githubusercontent.com/elastic/ecs",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expected:     "https://raw.githubusercontent.com/elastic/ecs/v8.11.0/generated/ecs/ecs_nested.yml",
+		},
+		{
+			title:        "fork in github",
+			baseURL:      "https://raw.githubusercontent.com/jsoriano/ecs",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expected:     "https://raw.githubusercontent.com/jsoriano/ecs/v8.11.0/generated/ecs/ecs_nested.yml",
+		},
+		{
+			title:        "fork in forgejo",
+			baseURL:      "https://somehost.org/raw/jsoriano/ecs",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expected:     "https://somehost.org/raw/jsoriano/ecs/v8.11.0/generated/ecs/ecs_nested.yml",
+		},
+		{
+			title:        "invalid URL",
+			baseURL:      "/somehost.org/raw/elastic/ecs",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expectedErr:  true,
+		},
+		{
+			title:        "invalid scheme",
+			baseURL:      "file://../../..",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expectedErr:  true,
+		},
+		{
+			title:        "no URL",
+			baseURL:      "",
+			gitReference: "v8.11.0",
+			schemaFile:   ecsSchemaFile,
+			expectedErr:  true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			found, err := ecsSchemaURL(c.baseURL, c.gitReference, c.schemaFile)
+			t.Log(found)
+			if c.expectedErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, found)
 		})
 	}
 }
