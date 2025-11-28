@@ -24,16 +24,27 @@ type results struct {
 	Expected []json.RawMessage
 }
 
-type packageRootTestFinder struct {
-	packageRoot string
+type rootTestFinder struct {
+	packageRoot    string
+	repositoryRoot string
 }
 
-func (p packageRootTestFinder) FindPackageRoot() (string, error) {
+func (p rootTestFinder) FindPackageRoot() (string, error) {
 	return p.packageRoot, nil
 }
 
+func (p rootTestFinder) FindRepositoryRoot() (*os.Root, error) {
+	return os.OpenRoot(p.repositoryRoot)
+}
+
 func TestValidate_NoWildcardFields(t *testing.T) {
-	validator, err := CreateValidatorForDirectory("../../test/packages/parallel/aws/data_stream/elb_logs", WithDisabledDependencyManagement())
+	finder := rootTestFinder{
+		packageRoot:    "../../test/packages/parallel/aws/data_stream/elb_logs",
+		repositoryRoot: "../../test/packages",
+	}
+	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/parallel/aws/data_stream/elb_logs",
+		finder,
+		WithDisabledDependencyManagement())
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -149,8 +160,10 @@ func TestValidate_WithStringNumberFields(t *testing.T) {
 }
 
 func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
-	finder := packageRootTestFinder{"../../test/packages/other/imported_mappings_tests"}
-
+	finder := rootTestFinder{
+		packageRoot:    "../../test/packages/other/imported_mappings_tests",
+		repositoryRoot: "../../test/packages",
+	}
 	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
 		finder,
 		WithSpecVersion("2.3.0"),
@@ -164,8 +177,10 @@ func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
 }
 
 func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
-	finder := packageRootTestFinder{"../../test/packages/other/imported_mappings_tests"}
-
+	finder := rootTestFinder{
+		packageRoot:    "../../test/packages/other/imported_mappings_tests",
+		repositoryRoot: "../../test/packages",
+	}
 	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
 		finder,
 		WithSpecVersion("2.3.0"),
@@ -1007,7 +1022,7 @@ func TestValidateExternalMultiField(t *testing.T) {
 	dataStreamRoot := filepath.Join(packageRoot, "data_stream", "status")
 
 	validator, err := createValidatorForDirectoryAndPackageRoot(dataStreamRoot,
-		packageRootTestFinder{packageRoot})
+		rootTestFinder{packageRoot, "../../test/packages"})
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
