@@ -5,6 +5,7 @@
 package script
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"crypto/tls"
@@ -19,14 +20,13 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/rogpeppe/go-internal/testscript"
-	"github.com/spf13/cobra"
 
-	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/install"
@@ -35,9 +35,30 @@ import (
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
-func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
+// Options is the script testing configuration type.
+type Options struct {
+	Package string // The package being tested.
+
+	Dir     string   // Path to directory containing script tests.
+	Streams []string // Data streams to test.
+
+	ExternalStack   bool   // Stack is provided externally to the scripts.
+	RunPattern      string // Regular expression to select tests to run.
+	Verbose         bool   // Verbose script logging.
+	UpdateScripts   bool   // testscript.Params.UpdateScripts
+	ContinueOnError bool   // testscript.Params.ContinueOnError
+	TestWork        bool   // testscript.Params.TestWork
+}
+
+func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
+	if opt.Dir != "" && len(opt.Streams) != 0 {
+		// We should never reach here.
+		return errors.New("script directory path set with streams list")
+	}
+
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("could not find home: %w", err)
@@ -50,17 +71,13 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	work, err := cmd.Flags().GetBool(cobraext.WorkScriptTestFlagName)
-	if err != nil {
-		return err
-	}
 	workRoot := filepath.Join(loc.TempDir(), "script_tests")
 	err = os.MkdirAll(workRoot, 0o700)
 	if err != nil {
 		return fmt.Errorf("could not make work space root: %w", err)
 	}
 	var workdirRoot string
-	if work {
+	if opt.TestWork {
 		// Only create a work root and pass it in if --work has been requested.
 		// The behaviour of testscript is to set TestWork to true if the work
 		// root is non-zero, so just let testscript put it where it wants in the
@@ -82,32 +99,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	externalStack, err := cmd.Flags().GetBool(cobraext.ExternalStackFlagName)
-	if err != nil {
-		return err
-	}
-	run, err := cmd.Flags().GetString(cobraext.RunPatternFlagName)
-	if err != nil {
-		return err
-	}
-	verbose, err := cmd.Flags().GetCount(cobraext.VerboseFlagName)
-	if err != nil {
-		return err
-	}
-	verboseScript, err := cmd.Flags().GetBool(cobraext.VerboseScriptFlagName)
-	if err != nil {
-		return err
-	}
-	update, err := cmd.Flags().GetBool(cobraext.UpdateScriptTestArchiveFlagName)
-	if err != nil {
-		return err
-	}
-	cont, err := cmd.Flags().GetBool(cobraext.ContinueOnErrorFlagName)
-	if err != nil {
-		return err
-	}
-
-	dirs, err := scripts(cmd)
+	dirs, err := scripts(opt.Dir)
 	if err != nil {
 		return err
 	}
@@ -120,7 +112,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 			}
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
-		dirs, err = datastreams(cmd, pkgRoot)
+		dirs, err = datastreams(slices.Clone(opt.Streams), pkgRoot)
 		if err != nil {
 			return err
 		}
@@ -141,10 +133,14 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 
 	var stdinTempFile string
 	t := &T{
-		verbose:       verbose != 0 || verboseScript,
+		pkg: opt.Package,
+
+		verbose:       opt.Verbose,
 		stdinTempFile: stdinTempFile,
 
-		out: dst,
+		passthrough: w, out: w,
+
+		results: dst,
 
 		deployedService:      make(map[string]servicedeployer.DeployedService),
 		runningStack:         make(map[string]*runningStack),
@@ -152,13 +148,12 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 		installedDataStreams: make(map[string]struct{}),
 		installedPipelines:   make(map[string]installedPipelines),
 	}
-	if run != "" {
-		t.run, err = regexp.Compile(run)
+	if opt.RunPattern != "" {
+		t.run, err = regexp.Compile(opt.RunPattern)
 		if err != nil {
 			return nil
 		}
 	}
-	var errs []error
 	if pkgRoot != "" {
 		t.Log("PKG ", filepath.Base(pkgRoot))
 	}
@@ -166,6 +161,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	defer cancel()
 	var n int
 	for _, d := range dirs {
+		t.dataStream = d
 		scripts := d
 		var dsRoot string
 		if pkgRoot != "" {
@@ -180,9 +176,9 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 		p := testscript.Params{
 			Dir:             scripts,
 			WorkdirRoot:     workdirRoot,
-			UpdateScripts:   update,
-			ContinueOnError: cont,
-			TestWork:        work,
+			UpdateScripts:   opt.UpdateScripts,
+			ContinueOnError: opt.ContinueOnError,
+			TestWork:        opt.TestWork,
 			Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
 				"sleep":                  sleep,
 				"date":                   date,
@@ -246,7 +242,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 			Condition: func(cond string) (bool, error) {
 				switch cond {
 				case "external_stack":
-					return externalStack, nil
+					return opt.ExternalStack, nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}
@@ -261,11 +257,8 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 			t.Fatal("interrupted")
 		}
 		t.Log("DATA_STREAM ", d)
-		err = runTests(t, p)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		if work {
+		runTests(t, p) //nolint:errcheck // elastic-package detects errors by the results slice.
+		if opt.TestWork {
 			continue
 		}
 		cleanUp(
@@ -281,7 +274,7 @@ func Run(dst io.Writer, cmd *cobra.Command, args []string) error {
 	if n == 0 {
 		t.Log("[no test files]")
 	}
-	return errors.Join(errs...)
+	return nil
 }
 
 func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) {
@@ -325,11 +318,7 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 	}
 }
 
-func scripts(cmd *cobra.Command) ([]string, error) {
-	dir, err := cmd.Flags().GetString(cobraext.ScriptsFlagName)
-	if err != nil {
-		return nil, err
-	}
+func scripts(dir string) ([]string, error) {
 	if dir == "" {
 		return nil, nil
 	}
@@ -358,11 +347,7 @@ func clearStdStreams(ts *testscript.TestScript) {
 	fmt.Fprint(ts.Stderr(), "")
 }
 
-func datastreams(cmd *cobra.Command, root string) ([]string, error) {
-	streams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
-	if err != nil {
-		return nil, cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
-	}
+func datastreams(streams []string, root string) ([]string, error) {
 	if len(streams) == 0 {
 		p := filepath.Join(root, "data_stream")
 		fi, err := os.Stat(p)
@@ -438,12 +423,17 @@ var (
 
 // T implements testscript.T and is used in the call to testscript.Run
 type T struct {
+	pkg, dataStream string
+
 	run           *regexp.Regexp
 	verbose       bool
 	stdinTempFile string
 	failed        atomic.Bool
 
-	out io.Writer
+	passthrough, out io.Writer
+
+	current testrunner.TestResult
+	results *[]testrunner.TestResult
 
 	// stack registries
 	deployedService      map[string]servicedeployer.DeployedService
@@ -465,10 +455,12 @@ func (t *T) clearRegistries() {
 }
 
 func (t *T) Skip(is ...any) {
+	t.current.Skipped = &testrunner.SkipConfig{Reason: fmt.Sprint(is...)}
 	panic(skipRun)
 }
 
 func (t *T) Fatal(is ...any) {
+	t.current.FailureMsg = fmt.Sprint(is...)
 	t.Log(is...)
 	t.FailNow()
 }
@@ -499,6 +491,15 @@ func (t *T) Run(name string, f func(t testscript.T)) {
 	if t.run != nil && !t.run.MatchString(name) {
 		return
 	}
+	t.current = testrunner.TestResult{
+		Name:       name,
+		Package:    t.pkg,
+		DataStream: t.dataStream,
+		TestType:   "script",
+	}
+	var buf bytes.Buffer
+	t.out = io.MultiWriter(t.passthrough, &buf)
+	start := time.Now()
 	defer func() {
 		switch err := recover(); err {
 		case nil:
@@ -506,14 +507,44 @@ func (t *T) Run(name string, f func(t testscript.T)) {
 			t.Log("SKIPPED ", name)
 		case failedRun:
 			t.Log("FAILED ", name)
+			t.current.FailureDetails = buf.String()
+			if t.current.FailureMsg == "" {
+				// A builtin failed us, so the Failure message
+				// was not set.
+				t.current.FailureMsg = reason(name, t.current.FailureDetails)
+			}
+			t.out = t.passthrough
 			t.failed.Store(true)
 		default:
 			panic(fmt.Errorf("unexpected panic: %v [%T]", err, err))
 		}
+		t.current.TimeElapsed = time.Since(start)
+		*t.results = append(*t.results, t.current)
 	}()
 	t.Log("RUN ", name)
 	t.clearRegistries()
 	f(t)
+}
+
+func reason(name, details string) string {
+	sc := bufio.NewScanner(strings.NewReader(details))
+	sep := string(filepath.Separator)
+	for sc.Scan() {
+		line := sc.Text()
+		if strings.HasPrefix(line, "FAIL: ") {
+			idx := strings.Index(line, sep+name+".txt:")
+			if idx > 0 {
+				return line[idx+len(sep):]
+			}
+			idx = strings.Index(line, sep+name+".txtar:")
+			if idx > 0 {
+				return line[idx+len(sep):]
+			}
+			// This should never be reached.
+			return strings.TrimPrefix(line, "FAIL: ")
+		}
+	}
+	return "failed for unknown reason"
 }
 
 func (t *T) Verbose() bool {
