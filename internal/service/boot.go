@@ -26,9 +26,9 @@ type Options struct {
 	Profile *profile.Profile
 
 	ServiceName          string
-	PackageRootPath      string
+	PackageRoot          string
 	DevDeployDir         string
-	DataStreamRootPath   string
+	DataStreamRoot       string
 	StackVersion         string
 	OverrideAgentVersion string
 
@@ -40,8 +40,8 @@ func BootUp(ctx context.Context, options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		Profile:                options.Profile,
-		PackageRootPath:        options.DataStreamRootPath,
-		DataStreamRootPath:     options.DataStreamRootPath,
+		PackageRoot:            options.DataStreamRoot,
+		DataStreamRoot:         options.DataStreamRoot,
 		DevDeployDir:           options.DevDeployDir,
 		Variant:                options.Variant,
 		StackVersion:           options.StackVersion,

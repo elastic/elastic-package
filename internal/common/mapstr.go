@@ -145,7 +145,7 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 
 	var mapStrs []MapStr
 	for _, v := range sliceI {
-		m, err := toMapStr(v)
+		m, err := ToMapStr(v)
 		if err != nil {
 			return nil, fmt.Errorf("can't convert element to MapStr: %w", err)
 		}
@@ -154,10 +154,10 @@ func ToMapStrSlice(slice interface{}) ([]MapStr, error) {
 	return mapStrs, nil
 }
 
-// toMapStr performs a type assertion on v and returns a MapStr. v can be either
+// ToMapStr performs a type assertion on v and returns a MapStr. v can be either
 // a MapStr or a map[string]interface{}. If it's any other type or nil then
 // an error is returned.
-func toMapStr(v interface{}) (MapStr, error) {
+func ToMapStr(v interface{}) (MapStr, error) {
 	m, ok := tryToMapStr(v)
 	if !ok {
 		return nil, fmt.Errorf("expected map but type is %T", v)
@@ -213,7 +213,7 @@ func mapFind(
 			}
 		}
 
-		v, err := toMapStr(d)
+		v, err := ToMapStr(d)
 		if err != nil {
 			return "", nil, nil, false, err
 		}

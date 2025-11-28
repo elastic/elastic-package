@@ -56,7 +56,7 @@ func (d *DocumentationAgent) displayReadme() error {
 	}
 
 	// Try to render the content
-	renderedContent, shouldBeRendered, err := docs.GenerateReadme(d.targetDocFile, "", d.packageRoot, d.packageRoot)
+	renderedContent, shouldBeRendered, err := docs.GenerateReadme(d.targetDocFile, "", d.packageRoot)
 	if err != nil || !shouldBeRendered {
 		fmt.Printf("\n⚠️  The generated %s could not be rendered.\n", d.targetDocFile)
 		fmt.Println("It's recommended that you do not accept this version (ask for revisions or cancel).")

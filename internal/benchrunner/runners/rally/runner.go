@@ -259,12 +259,12 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("could not create local rally track dir %w", err)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
+	scenario, err := readConfig(r.options.PackageRoot, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRoot, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -486,10 +486,10 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:          r.options.KibanaClient,
-		PackageRootPath: r.options.PackageRootPath,
-		SkipValidation:  true,
-		RepositoryRoot:  r.options.RepositoryRoot,
+		Kibana:         r.options.KibanaClient,
+		PackageRoot:    r.options.PackageRoot,
+		SkipValidation: true,
+		RepositoryRoot: r.options.RepositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)

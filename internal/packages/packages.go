@@ -68,6 +68,17 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 	return []byte("null"), nil
 }
 
+// Value returns the stored value.
+func (vv VarValue) Value() any {
+	if vv.scalar != nil {
+		return vv.scalar
+	}
+	if vv.list != nil {
+		return vv.list
+	}
+	return nil
+}
+
 // VarValueYamlString will return a YAML style string representation of vv,
 // in the given YAML field, and with numSpaces indentation if it's a list.
 func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
@@ -426,8 +437,8 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 // file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
 // by adding the package version defined in the package manifest.
 // It fails if the referenced destination pipeline doesn't exist.
-func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
-	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
+func ReadTransformDefinitionFile(transformPath, packageRoot string) ([]byte, TransformDefinition, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("could not read package manifest: %w", err)
 	}
@@ -473,7 +484,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 	// example: 0.1.0-pipeline_extract_metadata
 
 	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
-	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
+	_, err = os.Stat(filepath.Join(packageRoot, "elasticsearch", "ingest_pipeline", pipelineFileName))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, TransformDefinition{}, fmt.Errorf("checking for destination ingest pipeline file %s: %w", pipelineFileName, err)
 	}
@@ -484,17 +495,17 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 	// Is it using the Ingest pipeline from any data stream (data_stream/*/elasticsearch/pipeline/*.yml)?
 	// <data_stream>-<version>-<data_stream_pipeline>.yml
 	// example: metrics-aws_billing.cur-0.1.0-pipeline_extract_metadata
-	dataStreamPaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+	dataStreamRoots, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("error finding data streams: %w", err)
 	}
 
-	for _, dataStreamPath := range dataStreamPaths {
-		matched, err := filepath.Glob(filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", "*.yml"))
+	for _, dataStreamRoot := range dataStreamRoots {
+		matched, err := filepath.Glob(filepath.Join(dataStreamRoot, "elasticsearch", "ingest_pipeline", "*.yml"))
 		if err != nil {
-			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamPath, err)
+			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamRoot, err)
 		}
-		dataStreamName := filepath.Base(dataStreamPath)
+		dataStreamName := filepath.Base(dataStreamRoot)
 		for _, pipelinePath := range matched {
 			dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
 			expectedSuffix := fmt.Sprintf("-%s.%s-%s-%s.yml", manifest.Name, dataStreamName, manifest.Version, dataStreamPipelineName)
@@ -503,7 +514,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 			}
 		}
 	}
-	pipelinePaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
+	pipelinePaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data streams: %w", err)
 	}

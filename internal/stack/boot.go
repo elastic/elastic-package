@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 // baseComposeProjectName is the base name of the Docker Compose project used to boot up
@@ -69,7 +70,7 @@ func BootUp(ctx context.Context, options Options) error {
 	}
 
 	options.Printer.Println("Local package-registry will serve packages from these sources:")
-	options.Printer.Println("- Proxy to https://epr.elastic.co")
+	options.Printer.Printf("- Proxy to %s\n", options.Profile.Config(configElasticEPRProxyTo, registry.ProductionURL))
 
 	if found {
 		options.Printer.Printf("- Local directory %s\n", buildPackagesPath)

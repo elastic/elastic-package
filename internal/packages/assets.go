@@ -64,13 +64,13 @@ func (asset Asset) String() string {
 }
 
 // LoadPackageAssets parses the package contents and returns a list of assets defined by the package.
-func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
-	assets, err := loadKibanaAssets(pkgRootPath)
+func LoadPackageAssets(packageRoot string) ([]Asset, error) {
+	assets, err := loadKibanaAssets(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not load kibana assets: %w", err)
 	}
 
-	a, err := loadElasticsearchAssets(pkgRootPath)
+	a, err := loadElasticsearchAssets(packageRoot)
 	if err != nil {
 		return a, fmt.Errorf("could not load elasticsearch assets: %w", err)
 	}
@@ -79,8 +79,8 @@ func LoadPackageAssets(pkgRootPath string) ([]Asset, error) {
 	return assets, nil
 }
 
-func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
-	kibanaAssetsFolderPath := filepath.Join(pkgRootPath, "kibana")
+func loadKibanaAssets(packageRoot string) ([]Asset, error) {
+	kibanaAssetsFolderPath := filepath.Join(packageRoot, "kibana")
 
 	var (
 		errs multierror.Error
@@ -114,14 +114,14 @@ func loadKibanaAssets(pkgRootPath string) ([]Asset, error) {
 	return assets, nil
 }
 
-func loadElasticsearchAssets(pkgRootPath string) ([]Asset, error) {
-	packageManifestPath := filepath.Join(pkgRootPath, PackageManifestFile)
+func loadElasticsearchAssets(packageRoot string) ([]Asset, error) {
+	packageManifestPath := filepath.Join(packageRoot, PackageManifestFile)
 	pkgManifest, err := ReadPackageManifest(packageManifestPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest file failed: %w", err)
 	}
 
-	dataStreamManifestPaths, err := filepath.Glob(filepath.Join(pkgRootPath, "data_stream", "*", DataStreamManifestFile))
+	dataStreamManifestPaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", DataStreamManifestFile))
 	if err != nil {
 		return nil, fmt.Errorf("could not read data stream manifest file paths: %w", err)
 	}

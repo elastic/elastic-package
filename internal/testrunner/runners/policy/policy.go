@@ -101,11 +101,13 @@ func expectedPathFor(testPath string) string {
 }
 
 type policyEntryFilter struct {
-	name            string
-	elementsEntries []policyEntryFilter
-	memberReplace   *policyEntryReplace
-	onlyIfEmpty     bool
-	ignoreValues    []any
+	name               string
+	elementsEntries    []policyEntryFilter
+	mapValues          []policyEntryFilter
+	memberReplace      *policyEntryReplace
+	stringValueReplace *policyEntryReplace
+	onlyIfEmpty        bool
+	ignoreValues       []any
 }
 
 type policyEntryReplace struct {
@@ -124,6 +126,10 @@ var policyEntryFilters = []policyEntryFilter{
 		{name: "package_policy_id"},
 		{name: "streams", elementsEntries: []policyEntryFilter{
 			{name: "id"},
+		}},
+		{name: "name", stringValueReplace: &policyEntryReplace{
+			regexp:  regexp.MustCompile(`^(.+)-[0-9]+$`),
+			replace: "$1",
 		}},
 	}},
 	{name: "secret_references", elementsEntries: []policyEntryFilter{
@@ -145,6 +151,12 @@ var policyEntryFilters = []policyEntryFilter{
 	{name: "agent"},
 	{name: "fleet"},
 	{name: "outputs"},
+	{name: "exporters", mapValues: []policyEntryFilter{
+		{name: "endpoints", memberReplace: &policyEntryReplace{
+			regexp:  regexp.MustCompile(`^https?://.*$`),
+			replace: "https://elasticsearch:9200",
+		}},
+	}},
 
 	// Signatures that change from installation to installation.
 	{name: "agent.protection.uninstall_token_hash"},
@@ -295,6 +307,36 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			if err != nil {
 				return nil, err
 			}
+		case len(entry.mapValues) > 0:
+			mapStr, err := common.ToMapStr(v)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range mapStr {
+				if vMap, err := common.ToMapStr(v); err != nil {
+					m, err := cleanPolicyMap(vMap, entry.mapValues)
+					if err != nil {
+						return nil, err
+					}
+					mapStr[k] = m
+				} else if list, err := common.ToMapStrSlice(v); err != nil {
+					clean := make([]any, len(list))
+					for i := range list {
+						c, err := cleanPolicyMap(list[i], entry.mapValues)
+						if err != nil {
+							return nil, err
+						}
+						clean[i] = c
+					}
+					mapStr.Delete(k)
+					_, err = mapStr.Put(k, clean)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, fmt.Errorf("expected map or list, found %T", v)
+				}
+			}
 		case entry.memberReplace != nil:
 			m, ok := v.(common.MapStr)
 			if !ok {
@@ -309,6 +351,17 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 					key = regexp.ReplaceAllString(k, replacement)
 					m[key] = e
 				}
+			}
+		case entry.stringValueReplace != nil:
+			vStr, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, found %T", v)
+			}
+			regexp := entry.stringValueReplace.regexp
+			replacement := entry.stringValueReplace.replace
+			if regexp.MatchString(vStr) {
+				value := regexp.ReplaceAllString(vStr, replacement)
+				policyMap.Put(entry.name, value)
 			}
 		default:
 			if entry.onlyIfEmpty && !isEmpty(v, entry.ignoreValues) {

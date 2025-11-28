@@ -76,10 +76,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.7-06f1fb36-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.8-6e139af9-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.3.0-6f40f4f1-SNAPSHOT
+	./scripts/test-stack-command.sh 9.3.0-29f0d425-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -99,6 +99,9 @@ test-check-packages-with-kind:
 
 test-check-packages-other:
 	PACKAGE_TEST_TYPE=other ./scripts/test-check-packages.sh
+
+test-check-packages-independent-script:
+	elastic-package test script -C test/packages/other/with_script --external-stack=false --defer-cleanup 1s
 
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
@@ -136,7 +139,7 @@ test-profiles-command:
 test-check-update-version:
 	./scripts/test-check-update-version.sh
 
-test: test-go test-stack-command test-check-packages test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
+test: test-go test-stack-command test-check-packages test-check-packages-independent-script test-profiles-command test-build-install-zip test-build-zip test-build-install-zip-file test-build-install-zip-file-shellinit test-check-update-version test-profiles-command test-system-test-flags
 
 check-git-clean:
 	git update-index --really-refresh

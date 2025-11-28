@@ -12,12 +12,12 @@ import (
 )
 
 const (
-	productionURL = "https://epr.elastic.co"
+	ProductionURL = "https://epr.elastic.co"
 )
 
 var (
 	// Production is a pre-configured production client
-	Production = NewClient(productionURL)
+	Production = NewClient(ProductionURL)
 )
 
 // Client is responsible for exporting dashboards from Kibana.

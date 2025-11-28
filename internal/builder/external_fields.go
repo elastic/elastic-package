@@ -22,7 +22,7 @@ import (
 
 var semver3_0_0 = semver.MustParse("3.0.0")
 
-func resolveExternalFields(packageRoot, destinationDir string) error {
+func resolveExternalFields(packageRoot, buildPackageRoot string) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return fmt.Errorf("can't read build manifest: %w", err)
@@ -42,9 +42,9 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 		return fmt.Errorf("can't create field dependency manager: %w", err)
 	}
 
-	fieldsFiles, err := listAllFieldsFiles(destinationDir)
+	fieldsFiles, err := listAllFieldsFiles(buildPackageRoot)
 	if err != nil {
-		return fmt.Errorf("failed to list fields files under \"%s\": %w", destinationDir, err)
+		return fmt.Errorf("failed to list fields files under \"%s\": %w", buildPackageRoot, err)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
@@ -66,7 +66,7 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 			return err
 		}
 
-		rel, _ := filepath.Rel(destinationDir, file)
+		rel, _ := filepath.Rel(buildPackageRoot, file)
 		output, injected, err := injectFields(fdm, data, options)
 		if err != nil {
 			return err
@@ -85,14 +85,14 @@ func resolveExternalFields(packageRoot, destinationDir string) error {
 	return nil
 }
 
-func listAllFieldsFiles(dir string) ([]string, error) {
+func listAllFieldsFiles(packageRoot string) ([]string, error) {
 	patterns := []string{
 		// Package fields
-		filepath.Join(dir, "fields", "*.yml"),
+		filepath.Join(packageRoot, "fields", "*.yml"),
 		// Data stream fields
-		filepath.Join(dir, "data_stream", "*", "fields", "*.yml"),
+		filepath.Join(packageRoot, "data_stream", "*", "fields", "*.yml"),
 		// Transform fields
-		filepath.Join(dir, "elasticsearch", "transform", "*", "fields", "*.yml"),
+		filepath.Join(packageRoot, "elasticsearch", "transform", "*", "fields", "*.yml"),
 	}
 
 	var paths []string

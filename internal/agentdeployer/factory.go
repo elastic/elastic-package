@@ -24,8 +24,8 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath      string
-	DataStreamRootPath   string
+	PackageRoot          string
+	DataStreamRoot       string
 	DevDeployDir         string
 	Type                 string
 	StackVersion         string
@@ -88,9 +88,9 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		DataStreamRootPath: options.DataStreamRootPath,
-		DevDeployDir:       options.DevDeployDir,
-		PackageRootPath:    options.PackageRootPath,
+		DataStreamRoot: options.DataStreamRoot,
+		DevDeployDir:   options.DevDeployDir,
+		PackageRoot:    options.PackageRoot,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		return "default", nil
