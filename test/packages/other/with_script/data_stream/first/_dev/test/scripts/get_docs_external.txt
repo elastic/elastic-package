@@ -8,12 +8,19 @@ use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
 cmpenv stdout want_use.json
 
 # Install an agent.
-install_agent -profile ${CONFIG_PROFILES}/${PROFILE} NETWORK_NAME
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE} -container_name CONTAINER_NAME -network_name NETWORK_NAME
 ! stderr .
 cmp stdout want_agent_up.text
+# Check the container name is valid.
+exec echo ${CONTAINER_NAME}
+stdout 'elastic-package-agent-with_script-first-[0-9]+-elastic-agent-1'
 # Check the network name is valid.
 exec echo ${NETWORK_NAME}
 stdout 'elastic-package-agent-with_script-first-[0-9]+_default'
+
+# Demonstrate we can interact with the running agent container.
+exec docker exec ${CONTAINER_NAME} ls
+stdout elastic-agent
 
 # Bring up a docker container and check that we get the expected output.
 docker_up -profile ${CONFIG_PROFILES}/${PROFILE} -network ${NETWORK_NAME} test-hits
