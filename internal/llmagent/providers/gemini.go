@@ -103,7 +103,7 @@ func NewGeminiProvider(config GeminiConfig) *GeminiProvider {
 		modelID:  config.ModelID,
 		endpoint: config.Endpoint,
 		client: &http.Client{
-			Timeout: 60 * time.Second,
+			Timeout: 120 * time.Second,
 		},
 	}
 }
