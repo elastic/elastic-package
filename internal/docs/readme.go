@@ -68,7 +68,7 @@ func isReadmeUpToDate(fileName, linksFilePath, packageRoot string) (bool, string
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
 	// the readme is generated within the package root, so source should be the packageRoot files too
-	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
+	rendered, shouldBeRendered, err := GenerateReadme(fileName, linksFilePath, packageRoot)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -131,7 +131,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string
 func updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot string) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(fileName, linksFilePath, packageRoot)
+	rendered, shouldBeRendered, err := GenerateReadme(fileName, linksFilePath, packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -151,10 +151,12 @@ func updateReadme(fileName, linksFilePath, packageRoot, buildPackageRoot string)
 	return target, nil
 }
 
-// generateReadme function generates the readme file content
-// the readme takes a template that lives under the _dev/build/docs directory at the packageRoot.
-// the readme template reads data from the packageRoot directory.
-func generateReadme(fileName, linksFilePath, packageRoot string) ([]byte, bool, error) {
+// GenerateReadme function generates the readme file content
+// the readme takes a template that lives under the _dev/build/docs directory at the package root.
+// the readme template reads data from the sourceFilesRoot directory.
+// sourceFilesRoot is usually the package root when generating readme for checking up-to-dateness,
+// and the built package root when generating readme for the built package.
+func GenerateReadme(fileName, linksFilePath, packageRoot string) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
