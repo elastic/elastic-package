@@ -239,7 +239,7 @@ func deletePolicies(ctx context.Context, cli *kibana.Client, a *installedAgent) 
 
 func compileRegistryState(ts *testscript.TestScript, neg bool, args []string) {
 	if neg {
-		ts.Fatalf("unsupported: ! get_registry_state")
+		ts.Fatalf("unsupported: ! compile_registry_state")
 	}
 	clearStdStreams(ts)
 	flg := flag.NewFlagSet("uninstall", flag.ContinueOnError)
@@ -247,7 +247,7 @@ func compileRegistryState(ts *testscript.TestScript, neg bool, args []string) {
 	pretty := flg.Bool("pretty", false, "pretty print the registry")
 	ts.Check(flg.Parse(args))
 	if flg.NArg() != 1 {
-		ts.Fatalf("usage: get_registry_state [-start <first_id_to_use>] <path_to_registry_log>")
+		ts.Fatalf("usage: compile_registry_state [-start <first_id_to_use>] <path_to_registry_log>")
 	}
 	var choose func(int64) bool
 	if *first != 0 {
