@@ -1,0 +1,17 @@
+Reorganize this documentation to match the template section structure below.
+
+RULES:
+1. ONLY MOVE content - do not modify, rewrite, or add new text
+2. PRESERVE all original text exactly as written
+3. For empty sections, add: <<TODO: Add appropriate information to this section>>
+4. Content that doesn't fit any section goes under: # UNKNOWN SECTION CONTENT
+
+TEMPLATE SECTIONS:
+%s
+
+CURRENT DOCUMENT TO REFORMAT:
+---
+%s
+---
+
+Return ONLY the reformatted document with no explanation.

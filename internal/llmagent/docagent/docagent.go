@@ -337,6 +337,92 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	return nil
 }
 
+// ReformatDocumentation runs the documentation reformat process using single-call mode.
+// This is optimized for efficiency: reads document, makes one LLM call, writes result.
+func (d *DocumentationAgent) ReformatDocumentation(ctx context.Context, nonInteractive bool) error {
+	// Check if documentation file exists
+	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
+	if _, err := os.Stat(docPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot reformat documentation: %s does not exist at _dev/build/docs/%s", d.targetDocFile, d.targetDocFile)
+		}
+		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
+	}
+
+	// Backup original README content before making any changes
+	d.backupOriginalReadme()
+
+	// Read current document content directly (no tool call needed)
+	currentContent, err := d.readCurrentReadme()
+	if err != nil {
+		return fmt.Errorf("failed to read current documentation: %w", err)
+	}
+
+	if strings.TrimSpace(currentContent) == "" {
+		return fmt.Errorf("current documentation is empty, nothing to reformat")
+	}
+
+	fmt.Println("Starting documentation reformat...")
+	fmt.Printf("📄 Document size: %d characters\n", len(currentContent))
+
+	// Build the reformat prompt with document content included
+	prompt := d.buildReformatPrompt(currentContent)
+	logger.Debugf("Reformat prompt size: %d characters", len(prompt))
+
+	fmt.Println("🤖 Sending to LLM...")
+
+	// Execute the task using the executor
+	result, err := d.executor.ExecuteTask(ctx, prompt)
+	if err != nil {
+		return fmt.Errorf("LLM call failed: %w", err)
+	}
+
+	if result.FinalContent == "" {
+		return fmt.Errorf("LLM returned empty response")
+	}
+
+	fmt.Println("✅ LLM response received")
+	logger.Debugf("Response size: %d characters", len(result.FinalContent))
+
+	// Extract the reformatted document from the response
+	reformattedContent := strings.TrimSpace(result.FinalContent)
+
+	// Write the reformatted content
+	if err := d.writeDocumentation(docPath, reformattedContent); err != nil {
+		return fmt.Errorf("failed to write reformatted documentation: %w", err)
+	}
+
+	// Display result in interactive mode
+	if !nonInteractive {
+		err = d.displayReadme()
+		if err != nil {
+			logger.Debugf("Could not display readme: %v", err)
+		}
+
+		// Get user confirmation
+		action, err := d.getUserAction()
+		if err != nil {
+			return err
+		}
+
+		switch action {
+		case ActionAccept:
+			fmt.Println("✅ Documentation reformat completed!")
+		case ActionCancel:
+			fmt.Println("❌ Reformat cancelled, restoring original.")
+			d.restoreOriginalReadme()
+		case ActionRequest:
+			// For reformat, we don't support iterative changes
+			fmt.Println("⚠️  Reformat mode doesn't support iterative changes. Accept or cancel.")
+			d.restoreOriginalReadme()
+		}
+	} else {
+		fmt.Printf("✅ %s was reformatted successfully!\n", d.targetDocFile)
+	}
+
+	return nil
+}
+
 // runNonInteractiveMode handles the non-interactive documentation update flow
 func (d *DocumentationAgent) runNonInteractiveMode(ctx context.Context, prompt string) error {
 	fmt.Println("Starting non-interactive documentation update process...")

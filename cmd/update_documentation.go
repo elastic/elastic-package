@@ -22,7 +22,7 @@ import (
 
 const updateDocumentationLongDescription = `Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
+The AI agent supports three modes:
 1. Rewrite mode (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
@@ -31,6 +31,11 @@ The AI agent supports two modes:
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
    - Use --modify-prompt flag for non-interactive modifications
+3. Reformat mode: Reorganize existing content
+   - Reorganizes existing documentation to match template structure
+   - Only moves content between sections, does not modify or add content
+   - Adds TODO placeholders for empty sections
+   - Use --reformat flag for non-interactive reformatting
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -38,12 +43,13 @@ Multi-file support:
    - Supports packages with multiple documentation files (e.g., README.md, vpc.md, etc.)
 
 Interactive workflow:
-After confirming you want to use the AI agent, you'll choose between rewrite or modify mode.
+After confirming you want to use the AI agent, you'll choose between rewrite, modify, or reformat mode.
 You can review results and request additional changes iteratively.
 
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
 Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+Use --reformat for non-interactive reformatting (mutually exclusive with --modify-prompt).
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -52,8 +58,9 @@ Configuration options for LLM providers (environment variables or profile config
 - GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)`
 
 const (
-	modePromptRewrite = "Rewrite (full regeneration)"
-	modePromptModify  = "Modify (targeted changes)"
+	modePromptRewrite  = "Rewrite (full regeneration)"
+	modePromptModify   = "Modify (targeted changes)"
+	modePromptReformat = "Reformat (reorganize structure)"
 )
 
 // getConfigValue retrieves a configuration value with fallback from environment variable to profile config
@@ -218,8 +225,19 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Selected documentation file: %s\n", targetDocFile)
 	}
 
+	// Check for reformat flag
+	reformat, err := cmd.Flags().GetBool("reformat")
+	if err != nil {
+		return fmt.Errorf("failed to get reformat flag: %w", err)
+	}
+
+	// Validate mutually exclusive flags
+	if reformat && modifyPrompt != "" {
+		return fmt.Errorf("--reformat and --modify-prompt are mutually exclusive")
+	}
+
 	// Determine the mode based on user input
-	var useModifyMode bool
+	var selectedMode string
 
 	// Skip confirmation prompt in non-interactive mode
 	if !nonInteractive {
@@ -237,26 +255,32 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 			return nil
 		}
 
-		// If no modify-prompt flag was provided, ask user to choose mode
-		if modifyPrompt == "" {
-			modePrompt := tui.NewSelect("Do you want to rewrite or modify the documentation?", []string{
+		// If no modify-prompt or reformat flag was provided, ask user to choose mode
+		if modifyPrompt == "" && !reformat {
+			modePrompt := tui.NewSelect("What would you like to do with the documentation?", []string{
 				modePromptRewrite,
 				modePromptModify,
+				modePromptReformat,
 			}, modePromptRewrite)
 
-			var mode string
-			err = tui.AskOne(modePrompt, &mode)
+			err = tui.AskOne(modePrompt, &selectedMode)
 			if err != nil {
 				return fmt.Errorf("prompt failed: %w", err)
 			}
-
-			useModifyMode = mode == "Modify (targeted changes)"
+		} else if reformat {
+			selectedMode = modePromptReformat
 		} else {
-			useModifyMode = true
+			selectedMode = modePromptModify
 		}
 	} else {
 		cmd.Println("Running in non-interactive mode - proceeding automatically.")
-		useModifyMode = modifyPrompt != ""
+		if reformat {
+			selectedMode = modePromptReformat
+		} else if modifyPrompt != "" {
+			selectedMode = modePromptModify
+		} else {
+			selectedMode = modePromptRewrite
+		}
 	}
 
 	// Find repository root for file operations
@@ -280,12 +304,18 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Run the documentation update process based on selected mode
-	if useModifyMode {
+	switch selectedMode {
+	case modePromptModify:
 		err = docAgent.ModifyDocumentation(cmd.Context(), nonInteractive, modifyPrompt)
 		if err != nil {
 			return fmt.Errorf("documentation modification failed: %w", err)
 		}
-	} else {
+	case modePromptReformat:
+		err = docAgent.ReformatDocumentation(cmd.Context(), nonInteractive)
+		if err != nil {
+			return fmt.Errorf("documentation reformat failed: %w", err)
+		}
+	default: // modePromptRewrite
 		err = docAgent.UpdateDocumentation(cmd.Context(), nonInteractive)
 		if err != nil {
 			return fmt.Errorf("documentation update failed: %w", err)

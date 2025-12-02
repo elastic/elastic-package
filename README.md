@@ -673,7 +673,7 @@ _Context: global_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
+The AI agent supports three modes:
 1. Rewrite mode (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
@@ -682,6 +682,11 @@ The AI agent supports two modes:
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
    - Use --modify-prompt flag for non-interactive modifications
+3. Reformat mode: Reorganize existing content
+   - Reorganizes existing documentation to match template structure
+   - Only moves content between sections, does not modify or add content
+   - Adds TODO placeholders for empty sections
+   - Use --reformat flag for non-interactive reformatting
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -689,22 +694,19 @@ Multi-file support:
    - Supports packages with multiple documentation files (e.g., README.md, vpc.md, etc.)
 
 Interactive workflow:
-After confirming you want to use the AI agent, you'll choose between rewrite or modify mode.
+After confirming you want to use the AI agent, you'll choose between rewrite, modify, or reformat mode.
 You can review results and request additional changes iteratively.
 
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
 Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+Use --reformat for non-interactive reformatting (mutually exclusive with --modify-prompt).
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
-- LOCAL_LLM_ENDPOINT / llm.local.endpoint: Endpoint for local LLM server
-- LOCAL_LLM_MODEL / llm.local.model: Model name for local LLM (defaults to llama2)
-- LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
-- LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false).
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro).
 
 ### `elastic-package version`
 
