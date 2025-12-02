@@ -16,9 +16,17 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
+// ServiceInfoProvider is an interface for accessing service_info.md sections
+// This interface breaks the import cycle between tools and docagent packages
+type ServiceInfoProvider interface {
+	IsAvailable() bool
+	GetAllSections() string
+	GetSections(sectionTitles []string) string
+}
+
 // PackageTools creates the tools available to the LLM for package operations.
 // These tools do not allow access to `docs/`, to prevent the LLM from confusing the generated and non-generated README versions.
-func PackageTools(packageRoot string) []providers.Tool {
+func PackageTools(packageRoot string, serviceInfoProvider ServiceInfoProvider) []providers.Tool {
 	return []providers.Tool{
 		{
 			Name:        "list_directory",
@@ -88,6 +96,21 @@ func PackageTools(packageRoot string) []providers.Tool {
 				"required":   []string{},
 			},
 			Handler: getExampleReadmeHandler(),
+		},
+		{
+			Name:        "get_service_info",
+			Description: "Get relevant sections from the service_info.md knowledge base file. If no section is specified, returns the complete file. This file contains authoritative information about the service/technology.",
+			Parameters: map[string]interface{}{
+				"type": "object",
+				"properties": map[string]interface{}{
+					"readme_section": map[string]interface{}{
+						"type":        "string",
+						"description": "Optional. The README section you're currently generating (e.g., 'Overview', 'Troubleshooting'). If provided, returns only the relevant service_info sections for that README section.",
+					},
+				},
+				"required": []string{},
+			},
+			Handler: getServiceInfoHandler(serviceInfoProvider),
 		},
 	}
 }
@@ -273,4 +296,144 @@ func getExampleReadmeHandler() providers.ToolHandler {
 		// Get the embedded example content
 		return &providers.ToolResult{Content: ExampleReadmeContent}, nil
 	}
+}
+
+// ServiceInfoSectionMapper defines a function that maps README section names to service_info section names
+// This is defined here to avoid importing docagent
+type ServiceInfoSectionMapper func(readmeSectionTitle string) []string
+
+// getServiceInfoHandler returns a handler for the get_service_info tool
+func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) providers.ToolHandler {
+	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
+		var args struct {
+			ReadmeSection string `json:"readme_section"`
+		}
+
+		// Parse arguments (readme_section is optional)
+		if arguments != "" && arguments != "{}" {
+			if err := json.Unmarshal([]byte(arguments), &args); err != nil {
+				return &providers.ToolResult{Error: fmt.Sprintf("failed to parse arguments: %v", err)}, nil
+			}
+		}
+
+		// Check if service_info is available
+		if !serviceInfoProvider.IsAvailable() {
+			return &providers.ToolResult{Content: "Note: service_info.md file is not available for this package."}, nil
+		}
+
+		// If no readme_section provided, return all sections
+		if args.ReadmeSection == "" {
+			content := serviceInfoProvider.GetAllSections()
+			return &providers.ToolResult{Content: content}, nil
+		}
+
+		// Get mapping for the specified README section (hardcoded here to avoid import cycle)
+		serviceInfoSections := getServiceInfoMappingForSection(args.ReadmeSection)
+		
+		if len(serviceInfoSections) == 0 {
+			// No mapping exists for this section, return all sections
+			content := serviceInfoProvider.GetAllSections()
+			return &providers.ToolResult{Content: content}, nil
+		}
+
+		// Get the relevant sections
+		content := serviceInfoProvider.GetSections(serviceInfoSections)
+		
+		if content == "" {
+			// Requested sections not found, return all sections as fallback
+			content = serviceInfoProvider.GetAllSections()
+		}
+
+		return &providers.ToolResult{Content: content}, nil
+	}
+}
+
+// getServiceInfoMappingForSection returns service_info sections for a README section
+// This is duplicated here to avoid import cycle with docagent package
+func getServiceInfoMappingForSection(readmeSectionTitle string) []string {
+	// Mapping of README sections to service_info sections
+	// This must be kept in sync with ServiceInfoSectionMapping in docagent/service_info_mapping.go
+	mapping := map[string][]string{
+		"Overview": {
+			"Common use cases",
+			"Data types collected",
+			"Vendor Resources",
+			"Documentation sites",
+		},
+		"Compatibility": {
+			"Compatibility",
+		},
+		"How it works": {
+			"Data types collected",
+			"Vendor prerequisites",
+			"Elastic prerequisites",
+			"Vendor set up steps",
+			"Kibana set up steps",
+			"Validation steps",
+		},
+		"What data does this integration collect?": {
+			"Data types collected",
+		},
+		"Supported use cases": {
+			"Supported use cases",
+			"Data types collected",
+			"Vendor Resources",
+		},
+		"What do I need to use this integration?": {
+			"Vendor prerequisites",
+			"Elastic prerequisites",
+		},
+		"How do I deploy this integration?": {
+			"Vendor set up steps",
+			"Kibana set up steps",
+		},
+		"Onboard and configure": {
+			"Vendor set up steps",
+			"Kibana set up steps",
+		},
+		"Set up steps in *": {
+			"Vendor set up steps",
+		},
+		"Set up steps in Kibana": {
+			"Kibana set up steps",
+		},
+		"Validation Steps": {
+			"Validation Steps",
+		},
+		"Troubleshooting": {
+			"Troubleshooting",
+		},
+		"Performance and scaling": {
+			"Performance and scaling",
+		},
+		"Reference": {
+			"Documentation sites",
+			"Vendor Resources",
+		},
+	}
+
+	// Normalize the title for lookup (case-insensitive)
+	lowerTitle := strings.ToLower(strings.TrimSpace(readmeSectionTitle))
+
+	// First pass: try exact matches (non-wildcard keys)
+	for key, sections := range mapping {
+		if !strings.HasSuffix(key, "*") {
+			if strings.ToLower(key) == lowerTitle {
+				return sections
+			}
+		}
+	}
+
+	// Second pass: try wildcard matches (keys ending with *)
+	for key, sections := range mapping {
+		if strings.HasSuffix(key, "*") {
+			// Remove the * and check if the title starts with the prefix
+			prefix := strings.ToLower(strings.TrimSuffix(key, "*"))
+			if strings.HasPrefix(lowerTitle, prefix) {
+				return sections
+			}
+		}
+	}
+
+	return []string{}
 }

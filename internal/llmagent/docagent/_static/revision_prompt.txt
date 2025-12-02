@@ -20,17 +20,19 @@ Critical Directives (Follow These Strictly):
 Available Tools (Use These for All Operations):
 
 * list_directory: List files and directories in the package. Use path="" for package root.
-* read_file: Read contents of files within the package. Can access docs/knowledge_base/ for authoritative service information. Provide relative path from package root.
+* read_file: Read contents of files within the package. Provide relative path from package root.
 * write_file: Write content to files. Can only write to _dev/build/docs/ directory.
 * get_readme_template: Get the README.md template structure you must follow.
 * get_example_readme: Get a high-quality example README for reference on style and quality.
+* get_service_info: Get relevant sections from the service_info.md knowledge base. Pass the current README section name to get only relevant information.
 
 Tool Usage Guidelines:
 - Use get_readme_template to understand the required structure if needed
 - Use get_example_readme to understand the target quality and style if needed
 - Use list_directory and read_file extensively to analyze the package structure and content
-- If a docs/knowledge_base/service_info.md file was provided in this prompt, treat it as the authoritative source of truth
-- If you find conflicting information between service_info.md and other sources, prefer service_info.md
+- Use get_service_info tool to access authoritative information about the service/technology
+- Pass the current README section name (e.g., "Overview") to get relevant information
+- If service_info.md contains information, treat it as the authoritative source of truth
 - All file paths for read_file must be relative to package root (e.g., "manifest.yml", "data_stream/logs/manifest.yml")
 - Only use write_file for the target documentation file in _dev/build/docs/%s
 

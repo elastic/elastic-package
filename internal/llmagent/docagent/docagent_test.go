@@ -116,7 +116,6 @@ func TestNewResponseAnalyzer(t *testing.T) {
 	assert.NotEmpty(t, analyzer.successIndicators)
 	assert.NotEmpty(t, analyzer.errorIndicators)
 	assert.NotEmpty(t, analyzer.errorMarkers)
-	assert.NotEmpty(t, analyzer.tokenLimitIndicators)
 }
 
 func TestResponseAnalyzer_ContainsAnyIndicator(t *testing.T) {
@@ -198,12 +197,6 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 			expectedStatus: responseSuccess,
 		},
 		{
-			name:           "token limit indicator",
-			content:        "I reached the maximum response length and need to continue",
-			conversation:   nil,
-			expectedStatus: responseTokenLimit,
-		},
-		{
 			name:           "error indicator",
 			content:        "I encountered an error while processing",
 			conversation:   nil,
@@ -228,12 +221,6 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 			content:        "Something went wrong and I'm unable to complete the task",
 			conversation:   nil,
 			expectedStatus: responseError,
-		},
-		{
-			name:           "token limit with specific phrase",
-			content:        "Due to length constraints, I'll need to break this into sections",
-			conversation:   nil,
-			expectedStatus: responseTokenLimit,
 		},
 	}
 

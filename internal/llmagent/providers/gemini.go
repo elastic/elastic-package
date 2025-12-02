@@ -76,12 +76,19 @@ type googleGenerationConfig struct {
 }
 
 type googleResponse struct {
-	Candidates []googleCandidate `json:"candidates"`
+	Candidates    []googleCandidate    `json:"candidates"`
+	UsageMetadata *googleUsageMetadata `json:"usageMetadata,omitempty"`
 }
 
 type googleCandidate struct {
 	Content      googleContent `json:"content"`
 	FinishReason string        `json:"finishReason"`
+}
+
+type googleUsageMetadata struct {
+	PromptTokenCount     int `json:"promptTokenCount"`
+	CandidatesTokenCount int `json:"candidatesTokenCount"`
+	TotalTokenCount      int `json:"totalTokenCount"`
 }
 
 // NewGeminiProvider creates a new Gemini LLM provider
@@ -183,6 +190,14 @@ func (g *GeminiProvider) GenerateResponse(ctx context.Context, prompt string, to
 	var googleResp googleResponse
 	if err := json.NewDecoder(resp.Body).Decode(&googleResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	// Log token usage
+	if googleResp.UsageMetadata != nil {
+		logger.Debugf("Gemini token usage - Prompt: %d, Response: %d, Total: %d",
+			googleResp.UsageMetadata.PromptTokenCount,
+			googleResp.UsageMetadata.CandidatesTokenCount,
+			googleResp.UsageMetadata.TotalTokenCount)
 	}
 
 	// Debug logging for the full response

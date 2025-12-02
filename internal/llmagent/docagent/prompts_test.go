@@ -140,30 +140,6 @@ func TestBuildRevisionPromptArgs(t *testing.T) {
 	assert.Equal(t, "Add more examples", args[11])
 }
 
-func TestBuildSectionBasedPromptArgs(t *testing.T) {
-	agent := &DocumentationAgent{
-		targetDocFile: "docs/README.md",
-	}
-
-	ctx := PromptContext{
-		Manifest: &packages.PackageManifest{
-			Name:        "test-package",
-			Title:       "Test Package",
-			Type:        "integration",
-			Version:     "1.0.0",
-			Description: "Test description",
-		},
-		TargetDocFile: "docs/README.md",
-	}
-
-	args := agent.buildSectionBasedPromptArgs(ctx)
-
-	// Should have 9 arguments (based on the implementation)
-	assert.Len(t, args, 9)
-	assert.Equal(t, "docs/README.md", args[0])
-	assert.Equal(t, "test-package", args[2])
-}
-
 func TestBuildPrompt(t *testing.T) {
 	agent := &DocumentationAgent{
 		targetDocFile: "docs/README.md",
@@ -171,15 +147,14 @@ func TestBuildPrompt(t *testing.T) {
 
 	ctx := PromptContext{
 		Manifest: &packages.PackageManifest{
-			Name:        "test-package",
-			Title:       "Test Package",
-			Type:        "integration",
-			Version:     "1.0.0",
-			Description: "Test description",
-		},
-		TargetDocFile:  "docs/README.md",
-		HasServiceInfo: false,
-	}
+		Name:        "test-package",
+		Title:       "Test Package",
+		Type:        "integration",
+		Version:     "1.0.0",
+		Description: "Test description",
+	},
+	TargetDocFile: "docs/README.md",
+}
 
 	t.Run("builds initial prompt", func(t *testing.T) {
 		prompt := agent.buildPrompt(PromptTypeInitial, ctx)
@@ -192,22 +167,6 @@ func TestBuildPrompt(t *testing.T) {
 		prompt := agent.buildPrompt(PromptTypeRevision, ctx)
 		assert.NotEmpty(t, prompt)
 		assert.Contains(t, prompt, "test-package")
-	})
-
-	t.Run("builds section-based prompt", func(t *testing.T) {
-		prompt := agent.buildPrompt(PromptTypeSectionBased, ctx)
-		assert.NotEmpty(t, prompt)
-		assert.Contains(t, prompt, "test-package")
-	})
-
-	t.Run("includes service info when available", func(t *testing.T) {
-		ctxWithInfo := ctx
-		ctxWithInfo.HasServiceInfo = true
-		ctxWithInfo.ServiceInfo = "Custom service information"
-
-		prompt := agent.buildPrompt(PromptTypeInitial, ctxWithInfo)
-		assert.Contains(t, prompt, "KNOWLEDGE BASE - SERVICE INFORMATION")
-		assert.Contains(t, prompt, "Custom service information")
 	})
 }
 
@@ -230,5 +189,4 @@ func TestCreatePromptContext(t *testing.T) {
 	assert.Equal(t, manifest, ctx.Manifest)
 	assert.Equal(t, "docs/README.md", ctx.TargetDocFile)
 	assert.Equal(t, "test changes", ctx.Changes)
-	// HasServiceInfo depends on file existence, which we don't control in this test
 }

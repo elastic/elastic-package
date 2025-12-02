@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	promptFileInitial  = "initial_prompt.txt"
-	promptFileRevision = "revision_prompt.txt"
-	promptFileLimitHit = "limit_hit_prompt.txt"
+	promptFileInitial              = "initial_prompt.txt"
+	promptFileRevision             = "revision_prompt.txt"
+	promptFileSectionGeneration    = "section_generation_prompt.txt"
+	promptFileModificationAnalysis = "modification_analysis_prompt.txt"
+	promptFileModification         = "modification_prompt.txt"
 )
 
 type PromptType int
@@ -27,7 +29,9 @@ type PromptType int
 const (
 	PromptTypeInitial PromptType = iota
 	PromptTypeRevision
-	PromptTypeSectionBased
+	PromptTypeSectionGeneration
+	PromptTypeModificationAnalysis
+	PromptTypeModification
 )
 
 // loadPromptFile loads a prompt file from external location if enabled, otherwise uses embedded content
@@ -99,24 +103,22 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 		promptFile = promptFileRevision
 		embeddedContent = RevisionPrompt
 		formatArgs = d.buildRevisionPromptArgs(ctx)
-	case PromptTypeSectionBased:
-		promptFile = promptFileLimitHit
-		embeddedContent = LimitHitPrompt
-		formatArgs = d.buildSectionBasedPromptArgs(ctx)
+	case PromptTypeSectionGeneration:
+		promptFile = promptFileSectionGeneration
+		embeddedContent = SectionGenerationPrompt
+		formatArgs = d.buildSectionGenerationPromptArgs(ctx)
+	case PromptTypeModificationAnalysis:
+		promptFile = promptFileModificationAnalysis
+		embeddedContent = ModificationAnalysisPrompt
+		formatArgs = d.buildModificationAnalysisPromptArgs(ctx)
+	case PromptTypeModification:
+		promptFile = promptFileModification
+		embeddedContent = ModificationPrompt
+		formatArgs = d.buildModificationPromptArgs(ctx)
 	}
 
 	promptContent := loadPromptFile(promptFile, embeddedContent, d.profile)
 	basePrompt := fmt.Sprintf(promptContent, formatArgs...)
-
-	// Append service info if available
-	if ctx.HasServiceInfo {
-		basePrompt += fmt.Sprintf(
-			"\n\nKNOWLEDGE BASE - SERVICE INFORMATION (SOURCE OF TRUTH):"+
-				"\nThe following information is from docs/knowledge_base/service_info.md and should be treated as the authoritative source."+
-				"\nIf you find conflicting information from other sources (web search, etc.), prefer the information below."+
-				"\n\n---\n%s\n---\n",
-			ctx.ServiceInfo)
-	}
 
 	return basePrompt
 }
@@ -155,29 +157,94 @@ func (d *DocumentationAgent) buildRevisionPromptArgs(ctx PromptContext) []interf
 	}
 }
 
-// buildSectionBasedPromptArgs prepares arguments for section-based prompt
-func (d *DocumentationAgent) buildSectionBasedPromptArgs(ctx PromptContext) []interface{} {
+// buildSectionGenerationPromptArgs prepares arguments for section generation prompt
+func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext) []interface{} {
+	levelStr := "##"
+	if ctx.SectionLevel == 3 {
+		levelStr = "###"
+	}
+	levelName := "Level 2"
+	if ctx.SectionLevel == 3 {
+		levelName = "Level 3"
+	}
+
+	// Build preserve content section
+	preserveSection := ""
+	if ctx.PreserveContent != "" {
+		preserveSection = fmt.Sprintf("\nPRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
+	}
+
 	return []interface{}{
-		ctx.TargetDocFile, // task description
-		ctx.TargetDocFile, // target documentation file label
-		ctx.Manifest.Name,
-		ctx.Manifest.Title,
-		ctx.Manifest.Type,
-		ctx.Manifest.Version,
-		ctx.Manifest.Description,
-		ctx.TargetDocFile, // write_file tool description
-		ctx.TargetDocFile, // step 2 - read current file
+		ctx.SectionTitle,         // section title in task description
+		ctx.SectionLevel,         // section level number
+		ctx.TargetDocFile,        // target file name
+		ctx.SectionTitle,         // section title (repeated)
+		levelName,                // level name (Level 2 or Level 3)
+		levelStr,                 // level prefix (## or ###)
+		ctx.Manifest.Name,        // package name
+		ctx.Manifest.Title,       // package title
+		ctx.Manifest.Type,        // package type
+		ctx.Manifest.Version,     // package version
+		ctx.Manifest.Description, // package description
+		ctx.TemplateSection,      // template section content
+		ctx.ExampleSection,       // example section content
+		preserveSection,          // preserve content if any
+		levelStr,                 // level prefix for step 4
+		ctx.SectionTitle,         // section title for step 4
+	}
+}
+
+// buildModificationAnalysisPromptArgs prepares arguments for modification analysis prompt
+func (d *DocumentationAgent) buildModificationAnalysisPromptArgs(ctx PromptContext) []interface{} {
+	return []interface{}{
+		ctx.TargetDocFile,        // target file
+		ctx.Manifest.Name,        // package name
+		ctx.Manifest.Title,       // package title
+		ctx.Manifest.Type,        // package type
+		ctx.Manifest.Version,     // package version
+		ctx.Manifest.Description, // package description
+		ctx.SectionTitle,         // section list (stored temporarily in SectionTitle field)
+		ctx.Changes,              // modification request
+	}
+}
+
+// buildModificationPromptArgs prepares arguments for modification prompt
+func (d *DocumentationAgent) buildModificationPromptArgs(ctx PromptContext) []interface{} {
+	levelStr := "##"
+	if ctx.SectionLevel == 3 {
+		levelStr = "###"
+	}
+
+	// Build preserve content section
+	preserveSection := ""
+	if ctx.PreserveContent != "" {
+		preserveSection = fmt.Sprintf("PRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
+	}
+
+	return []interface{}{
+		ctx.TargetDocFile,        // target file
+		ctx.SectionTitle,         // section title
+		ctx.SectionLevel,         // section level number
+		ctx.Manifest.Name,        // package name
+		ctx.Manifest.Title,       // package title
+		ctx.Manifest.Type,        // package type
+		ctx.Manifest.Version,     // package version
+		ctx.Manifest.Description, // package description
+		ctx.TemplateSection,      // current section content
+		ctx.Changes,              // modification request
+		preserveSection,          // preserve content if any
+		levelStr,                 // level prefix for header instruction
+		ctx.SectionTitle,         // section title for header instruction
+		levelStr,                 // level prefix for final reminder
+		ctx.SectionTitle,         // section title for final reminder
 	}
 }
 
 // Helper to create context with service info
 func (d *DocumentationAgent) createPromptContext(manifest *packages.PackageManifest, changes string) PromptContext {
-	serviceInfo, hasServiceInfo := d.readServiceInfo()
 	return PromptContext{
-		Manifest:       manifest,
-		TargetDocFile:  d.targetDocFile,
-		Changes:        changes,
-		ServiceInfo:    serviceInfo,
-		HasServiceInfo: hasServiceInfo,
+		Manifest:      manifest,
+		TargetDocFile: d.targetDocFile,
+		Changes:       changes,
 	}
 }

@@ -268,7 +268,7 @@ func TestGetExampleReadmeHandler(t *testing.T) {
 
 func TestPackageTools(t *testing.T) {
 	tmpDir := t.TempDir()
-	tools := PackageTools(tmpDir)
+	tools := PackageTools(tmpDir, nil) // nil service info provider for basic tool list test
 
 	// Verify all expected tools are present
 	expectedTools := []string{
@@ -277,6 +277,7 @@ func TestPackageTools(t *testing.T) {
 		"write_file",
 		"get_readme_template",
 		"get_example_readme",
+		"get_service_info",
 	}
 
 	assert.Len(t, tools, len(expectedTools))

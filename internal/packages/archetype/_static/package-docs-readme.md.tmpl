@@ -20,7 +20,7 @@ This integration is compatible with ...
 {{/* Add a high level overview on how this integration works. For example, does it collect data from API calls or recieving data from a network or file.*/}}
 
 ## What data does this integration collect?
-{{/* Complete this section with information on what types of data the integration collects, and link to reference documentation if available */}}
+{{/* Complete this section with information on what types of data the integration collects, and link to reference documentation if available*/}}
 The {[.Manifest.Title]} integration collects log messages of the following types:
 * ...
 
@@ -50,16 +50,33 @@ For more information, refer to [Agentless integrations](https://www.elastic.co/g
 {{/* This section should list the steps that are required to set up the integration in Kibana. */}}
 
 ### Set up steps in {[.Manifest.Title]}
-{{/* List the steps that are required to set up the 3rd party system to send data to Elastic. */}}
+{{/* List the steps that are required to set up the 3rd party system to send data to Elastic. 
+This should be specific to the steps needed to set up the 3rd party system to send data to Elastic. It should not include generic information about how to install or set up the 3rd party system itself.
+*/}}
 
 ### Set up steps in Kibana
-{{/* List the steps that are required to set up the integration in Kibana. */}}
+{{/* List the steps that are required to set up the integration in Kibana.
+This includes how to add the integration, and how to configure the integration, with descriptions of each available configuration option.
 
-Troubleshooting
-{{/* The troubleshooting section should include details specific to each input type, along with general guidance for resolving common issues encountered when deploying this integration. Whenever possible, link to the troubleshooting documentation provided by the third-party software. */}}
+If multiple input types are supported, add instructions for each in a subsection.
+*/}}
+
+### Validation
+{{/* In this section, describe the actions required to validate that the integration is working properly, and data is flowing into Elasticsearch.
+If required, list the steps needed in the vendor product to start sending events or trigger alerts.
+Then list how to validate that the data is in Elasticsearch, using Kibana. This could be which indices to check in the Discover table, or which built in dashboards to look at to see the data.
+*/}}
+
+## Troubleshooting
+{{/* The troubleshooting section should include details specific to each input type, along with general guidance for resolving common issues encountered when deploying this integration. Whenever possible, link to the troubleshooting documentation provided by the third-party software. 
+
+It should be formatted as a list of "*Issue* / *Solutions*".
+*/}}
 
 ## Performance and scaling
-{{/* Add any vendor specific performance and scaling information to this section. */}}
+{{/* Add any vendor specific performance and scaling information to this section.
+Performance and scaling information should be specific to sending data to Elasticsearch. It should not include information about the vendor product itself or generic information about performance and scaling.
+*/}}
 For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
 
 ## Reference

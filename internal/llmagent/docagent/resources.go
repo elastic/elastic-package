@@ -12,5 +12,11 @@ var InitialPrompt string
 //go:embed _static/revision_prompt.txt
 var RevisionPrompt string
 
-//go:embed _static/limit_hit_prompt.txt
-var LimitHitPrompt string
+//go:embed _static/section_generation_prompt.txt
+var SectionGenerationPrompt string
+
+//go:embed _static/modification_analysis_prompt.txt
+var ModificationAnalysisPrompt string
+
+//go:embed _static/modification_prompt.txt
+var ModificationPrompt string

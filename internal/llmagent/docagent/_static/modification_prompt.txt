@@ -1,0 +1,55 @@
+You are modifying a specific section of documentation based on user feedback.
+
+Target Documentation File: %s
+Section to modify: %s (Level %d header)
+
+Package Information:
+* Package Name: %s
+* Title: %s
+* Type: %s
+* Version: %s
+* Description: %s
+
+Current section content:
+---
+%s
+---
+
+User's modification request:
+"%s"
+
+%sAvailable Tools (Use These for Information Gathering):
+
+* list_directory: List files and directories in the package. Use path="" for package root.
+* read_file: Read contents of files within the package.
+* get_service_info: Get relevant sections from the service_info.md knowledge base. Pass the current README section name to get only relevant information.
+
+Tool Usage Guidelines:
+- Use list_directory and read_file to analyze the package if you need additional context
+- Use get_service_info tool to access authoritative information about the service/technology
+- Pass the current README section name (e.g., "Overview") to get relevant information
+- If service_info.md contains information, treat it as the authoritative source of truth
+- All file paths must be relative to package root (e.g., "manifest.yml", "data_stream/logs/manifest.yml")
+
+Your task:
+1. Read the current section content carefully
+2. Apply the requested modification appropriately for THIS section only
+3. Preserve content that doesn't need to change based on the modification request
+4. If PRESERVE blocks are present, maintain them EXACTLY as they appear
+5. Maintain the section header at the appropriate level (%s %s)
+6. Focus only on changes relevant to this specific section
+
+Style and Content Guidance:
+
+* Audience & Tone: Write for a technical audience (DevOps Engineers, SREs, Security Analysts). Be professional, clear, and direct. Use active voice.
+* Follow Elastic voice and tone guidelines:
+  * We're real people, writing for real people - be conversational and address users directly
+  * Help users get their job done - be timely, succinct, and impactful
+  * Write like a minimalist - use concise, clear sentences with simple, precise words
+  * Avoid "please" in documentation
+  * Avoid ambiguity - choose words with clear meanings
+  * Use active voice
+  * Use "for example" instead of "e.g."
+
+Return ONLY the modified section markdown, starting with the section header (%s %s). Do not include explanations or other sections.
+

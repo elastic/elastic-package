@@ -1,0 +1,59 @@
+You are analyzing a documentation modification request to determine which sections of the document are affected.
+
+Target Documentation File: %s
+
+Package Information:
+* Package Name: %s
+* Title: %s
+* Type: %s
+* Version: %s
+* Description: %s
+
+Available sections in the document:
+%s
+
+User's modification request:
+"%s"
+
+Your task is to analyze this modification request and determine its scope:
+
+1. **Global Scope** - Select this if:
+   - The request affects ALL sections or the entire document structure
+   - The request involves template-wide changes (like "apply new template", "improve writing style throughout")
+   - The request adds or removes sections from the document
+   - The request is about overall formatting or structure
+
+2. **Specific Scope** - Select this if:
+   - The request clearly targets specific, named sections
+   - The request involves content that belongs to particular sections (like "update compatible versions" → Compatibility section)
+   - You can confidently identify which 1-3 sections are affected
+
+3. **Ambiguous Scope** - Select this if:
+   - The request is vague or unclear (like "make it better", "fix issues")
+   - You cannot confidently determine which sections are affected
+   - The request could apply to multiple interpretations
+
+Classification Guidelines:
+- If unsure, prefer "global" over "ambiguous"
+- For specific scope, list section titles EXACTLY as they appear in the available sections list
+- Provide confidence as a decimal from 0.0 to 1.0 (0.0 = no confidence, 1.0 = completely certain)
+- Explain your reasoning clearly
+
+Response Format:
+You MUST respond with a JSON object in this exact format:
+
+{
+  "type": "global|specific|ambiguous",
+  "sections": ["Section Title 1", "Section Title 2"],
+  "confidence": 0.9,
+  "reasoning": "Explanation of why you classified it this way"
+}
+
+Important:
+- For "global" or "ambiguous" scope, set "sections" to an empty array: []
+- For "specific" scope, list the exact section titles that should be modified
+- Always include all four fields: type, sections, confidence, reasoning
+- Return ONLY the JSON object, no additional text
+
+Begin your analysis now.
+

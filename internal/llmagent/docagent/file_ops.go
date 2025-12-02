@@ -154,14 +154,6 @@ func (d *DocumentationAgent) extractPreservedSections(content string) []string {
 
 // readServiceInfo reads the service_info.md file if it exists in docs/knowledge_base/
 // Returns the content and whether the file exists
-func (d *DocumentationAgent) readServiceInfo() (string, bool) {
-	serviceInfoPath := filepath.Join(d.packageRoot, "docs", "knowledge_base", "service_info.md")
-	content, err := os.ReadFile(serviceInfoPath)
-	if err != nil {
-		return "", false
-	}
-	return string(content), true
-}
 
 func (d *DocumentationAgent) getDocPath() (string, error) {
 	if d.packageRoot == "" {
