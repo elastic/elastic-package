@@ -787,13 +787,8 @@ func TestDependencyManagerWithECS(t *testing.T) {
 }
 
 func TestValidate_SetExternalECS(t *testing.T) {
-	finder := rootTestFinder{
-		packageRoot:    "../../test/packages/other/imported_mappings_tests",
-		repositoryRoot: "../../test",
-	}
-
-	validator, err := createValidatorForDirectoryAndPackageRoot("../../test/packages/other/imported_mappings_tests/data_stream/first",
-		finder,
+	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
+	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
 		WithEnabledImportAllECSSChema(true))
 	require.NoError(t, err)

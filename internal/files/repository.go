@@ -19,7 +19,6 @@ func FindRepositoryRoot() (*os.Root, error) {
 		return nil, fmt.Errorf("locating working directory failed: %w", err)
 	}
 	return FindRepositoryRootFrom(workDir)
-
 }
 
 func FindRepositoryRootFrom(workDir string) (*os.Root, error) {

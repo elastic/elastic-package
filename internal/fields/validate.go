@@ -13,7 +13,6 @@ import (
 	"io/fs"
 	"net"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -258,30 +257,8 @@ func WithOTelValidation(otelValidation bool) ValidatorOption {
 	}
 }
 
-type packageRootFinder interface {
-	FindPackageRoot() (string, error)
-	FindRepositoryRoot() (*os.Root, error)
-}
-
-type packageRoot struct {
-	from string
-}
-
-func (p packageRoot) FindPackageRoot() (string, error) {
-	return packages.FindPackageRootFrom(p.from)
-}
-
-func (p packageRoot) FindRepositoryRoot() (*os.Root, error) {
-	return files.FindRepositoryRootFrom(p.from)
-}
-
-// CreateValidatorForDirectory function creates a validator for the directory.
-func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
-	finder := packageRoot{from: fieldsParentDir}
-	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, finder, opts...)
-}
-
-func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
+// CreateValidator creates a validator for a given fields directory, contained under the indicated repository and package roots.
+func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	// In validator, inject fields with settings used for validation, such as `allowed_values`.
 	v.injectFieldsOptions.IncludeValidationSettings = true
@@ -293,20 +270,6 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	packageRoot, err := finder.FindPackageRoot()
-	if err != nil {
-		if errors.Is(err, packages.ErrPackageRootNotFound) {
-			return nil, errors.New("package root not found and dependency management is enabled")
-		}
-		return nil, fmt.Errorf("can't find package root: %w", err)
-	}
-
-	repositoryRoot, err := finder.FindRepositoryRoot()
-	if err != nil {
-		return nil, fmt.Errorf("can't find repository root: %w", err)
-	}
-
-	fieldsDir := filepath.Join(fieldsParentDir, "fields")
 	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
 	if err != nil {
 		return nil, fmt.Errorf("can't create links filesystem: %w", err)
@@ -321,7 +284,7 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		}
 	}
 
-	fields, err := loadFieldsFromDir(linksFS, fieldsDir, fdm, v.injectFieldsOptions)
+	fields, err := loadFieldsFromDir(linksFS, fdm, v.injectFieldsOptions)
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 	}
@@ -530,14 +493,14 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fsys fs.FS, fieldsDir string, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
-	files, err := fs.Glob(fsys, filepath.Join(fieldsDir, "*.yml"))
+func loadFieldsFromDir(fsys fs.FS, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
+	files, err := fs.Glob(fsys, "*.yml")
 	if err != nil {
-		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
+		return nil, err
 	}
-	links, err := fs.Glob(fsys, filepath.Join(fieldsDir, "*.yml.link"))
+	links, err := fs.Glob(fsys, "*.yml.link")
 	if err != nil {
-		return nil, fmt.Errorf("reading fields links from directory failed (path: %s): %w", fieldsDir, err)
+		return nil, err
 	}
 	files = append(files, links...)
 
