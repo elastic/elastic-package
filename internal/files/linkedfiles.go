@@ -240,10 +240,7 @@ func newLinkedFile(repositoryRoot *os.Root, linkFilePath string) (*Link, error) 
 
 	var includedPackageName string
 	includedPackageRoot, err := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
-	if err != nil {
-		return nil, fmt.Errorf("could not find package root for included file %s: %w", includedFilePath, err)
-	}
-	if includedPackageRoot != "" {
+	if err == nil && includedPackageRoot != "" {
 		includedPackageName = filepath.Base(includedPackageRoot)
 	}
 
