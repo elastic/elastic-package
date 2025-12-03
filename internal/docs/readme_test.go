@@ -53,11 +53,13 @@ Introduction to the package`,
 	}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-
 			dir := t.TempDir()
 			createReadmeTemplateFile(t, dir, c.readmeTemplateContents)
 
-			rendered, isTemplate, err := generateReadme(c.filename, "", dir)
+			root, err := os.OpenRoot(dir)
+			require.NoError(t, err)
+
+			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -113,7 +115,10 @@ http://www.example.com/bar
 
 			createReadmeTemplateFile(t, c.packageRoot, c.readmeTemplateContents)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, c.linksMap)
+			root, err := os.OpenRoot(c.packageRoot)
+			require.NoError(t, err)
+
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, c.linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -167,7 +172,10 @@ An example event for ` + "`example`" + ` looks as following:
 			createSampleEventFile(t, c.packageRoot, c.dataStreamName, c.sampleEventJsonContents)
 			createManifestFile(t, c.packageRoot)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
+			root, err := os.OpenRoot(c.packageRoot)
+			require.NoError(t, err)
+
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -290,7 +298,10 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
 
-			rendered, err := renderReadme(filename, packageRoot, templatePath, linksMap)
+			root, err := os.OpenRoot(packageRoot)
+			require.NoError(t, err)
+
+			rendered, err := renderReadme(root, filename, packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -313,7 +324,10 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			buildPackageRoot := t.TempDir()
 			createManifestFile(t, buildPackageRoot)
 
-			readmePath, err := updateReadme(filename, "", packageRoot, buildPackageRoot)
+			root, err := os.OpenRoot(packageRoot)
+			require.NoError(t, err)
+
+			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot)
 			require.NoError(t, err)
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)

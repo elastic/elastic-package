@@ -270,26 +270,28 @@ func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir stri
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
-	if err != nil {
-		return nil, fmt.Errorf("can't create links filesystem: %w", err)
-
-	}
-
-	var fdm *DependencyManager
-	if !v.disabledDependencyManagement {
-		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+	if _, err := os.Stat(fieldsDir); err == nil {
+		linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+			return nil, fmt.Errorf("can't create links filesystem: %w", err)
+
 		}
+
+		var fdm *DependencyManager
+		if !v.disabledDependencyManagement {
+			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+			}
+		}
+
+		fields, err := loadFieldsFromDir(linksFS, fdm, v.injectFieldsOptions)
+		if err != nil {
+			return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
+		}
+		v.Schema = append(fields, v.Schema...)
 	}
 
-	fields, err := loadFieldsFromDir(linksFS, fdm, v.injectFieldsOptions)
-	if err != nil {
-		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
-	}
-
-	v.Schema = append(fields, v.Schema...)
 	return v, nil
 }
 
