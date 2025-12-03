@@ -1666,7 +1666,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
 	}
 	defer repositoryRoot.Close()
-	fieldsDir := filepath.Join(r.dataStream, "fields")
+	fieldsDir := filepath.Join(r.packageRoot, "fields")
+	if r.dataStream != "" {
+		fieldsDir = filepath.Join(r.dataStream, "fields")
+	}
 	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -1678,7 +1681,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
 	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStream, err)
+		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
 	}
 
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
