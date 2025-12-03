@@ -495,12 +495,13 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fsys fs.FS, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
-	files, err := fs.Glob(fsys, "*.yml")
+// loadFieldsFromDir loads all the fields from a directory with fields files. The directory is passed as a filesystem.
+func loadFieldsFromDir(fieldsFS fs.FS, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
+	files, err := fs.Glob(fieldsFS, "*.yml")
 	if err != nil {
 		return nil, err
 	}
-	links, err := fs.Glob(fsys, "*.yml.link")
+	links, err := fs.Glob(fieldsFS, "*.yml.link")
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +509,7 @@ func loadFieldsFromDir(fsys fs.FS, fdm *DependencyManager, injectOptions InjectF
 
 	var fields []FieldDefinition
 	for _, file := range files {
-		body, err := fs.ReadFile(fsys, file)
+		body, err := fs.ReadFile(fieldsFS, file)
 		if err != nil {
 			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}
