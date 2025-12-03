@@ -347,7 +347,8 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 		fields.WithStringNumberFields(tc.config.StringNumberFields),
 	)
-	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
+	fieldsDir := filepath.Join(dsPath, "fields")
+	fieldsValidator, err := fields.CreateValidator(r.repositoryRoot, r.packageRoot, fieldsDir, validatorOptions...)
 	if err != nil {
 		return rc.WithErrorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
 	}
