@@ -605,6 +605,11 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+#### Script Tests
+These tests allow you to run scripted testing to exercise specific behaviors in a package.
+
+For details on how to configure and run script tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/script_testing.md).
+
 #### Policy Tests
 These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
 
@@ -686,6 +691,8 @@ The following settings are available per profile:
   Defaults to false.
 * `stack.elastic_cloud.host` can be used to override the address when connecting with
   the Elastic Cloud APIs. It defaults to `https://cloud.elastic.co`.
+* `stack.epr.proxy_to` indicates the local Package Registry to proxy requests to the configured
+  endpoint. When not set, it uses `https://epr.elastic.co`.
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.

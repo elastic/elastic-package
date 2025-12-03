@@ -178,6 +178,7 @@ var (
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
 	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
+	kibanaPolicyOverridesEnv     = environment.WithElasticPackagePrefix("KIBANA_POLICY_OVERRIDES")
 )
 
 type fieldValidationMethod int
@@ -229,6 +230,8 @@ type tester struct {
 	serviceStateFilePath string
 
 	globalTestConfig testrunner.GlobalRunnerTestConfig
+
+	kibanaPolicyOverrides map[string]any
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
@@ -346,6 +349,20 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 			return nil, fmt.Errorf("invalid field method option: %s", v)
 		}
 		r.fieldValidationMethod = method
+	}
+
+	// kibana policy overrides
+	v, ok = os.LookupEnv(kibanaPolicyOverridesEnv)
+	if ok {
+		data, err := os.ReadFile(v)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %q specified in %s: %w", v, kibanaPolicyOverridesEnv, err)
+		}
+		overrides := make(map[string]any)
+		if err = yaml.Unmarshal(data, &overrides); err != nil {
+			return nil, fmt.Errorf("error reading yaml from %s: %w", v, err)
+		}
+		r.kibanaPolicyOverrides = overrides
 	}
 
 	return &r, nil
@@ -1374,6 +1391,7 @@ func (r *tester) createOrGetKibanaPolicies(ctx context.Context, serviceStateData
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
+			Overrides:   r.kibanaPolicyOverrides,
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
 		// TODO: Migrate from stack.logstash_enabled to the stack config.
