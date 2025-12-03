@@ -58,6 +58,7 @@ Introduction to the package`,
 
 			root, err := os.OpenRoot(dir)
 			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
 
 			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir)
 			require.NoError(t, err)
@@ -117,6 +118,7 @@ http://www.example.com/bar
 
 			root, err := os.OpenRoot(c.packageRoot)
 			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
 
 			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, c.linksMap)
 			require.NoError(t, err)
@@ -174,6 +176,7 @@ An example event for ` + "`example`" + ` looks as following:
 
 			root, err := os.OpenRoot(c.packageRoot)
 			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
 
 			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
@@ -300,6 +303,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 
 			root, err := os.OpenRoot(packageRoot)
 			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
 
 			rendered, err := renderReadme(root, filename, packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
@@ -326,6 +330,7 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 
 			root, err := os.OpenRoot(packageRoot)
 			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
 
 			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot)
 			require.NoError(t, err)

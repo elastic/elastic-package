@@ -1665,6 +1665,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if err != nil {
 		return result.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
 	}
+	defer repositoryRoot.Close()
 	fieldsDir := filepath.Join(r.dataStream, "fields")
 	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
@@ -2276,6 +2277,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		if err != nil {
 			return fmt.Errorf("cannot find repository root from %s: %w", r.packageRoot, err)
 		}
+		defer repositoryRoot.Close()
 		transformRoot := filepath.Dir(transform.Path)
 		fieldsDir := filepath.Join(transformRoot, "fields")
 		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,

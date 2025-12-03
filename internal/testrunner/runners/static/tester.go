@@ -168,6 +168,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
 		return results
 	}
+	defer repositoryRoot.Close()
 	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
 	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
