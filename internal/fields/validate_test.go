@@ -1027,6 +1027,7 @@ func TestValidateExternalMultiField(t *testing.T) {
 	require.NotNil(t, validator)
 
 	def := FindElementDefinition("process.name", validator.Schema)
+	require.NotNil(t, def)
 	require.NotEmpty(t, def.MultiFields, "expected to test with a data stream with a field with multifields")
 
 	e := readSampleEvent(t, "testdata/mongodb-multi-fields.json")
