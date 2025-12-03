@@ -533,19 +533,14 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.NoProvisionFlagName)
 	}
 
-	configFileFlag, err := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+	configFileFlag, err := cobraext.AbsolutePathFlag(cmd, cobraext.ConfigFileFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
+		return err
 	}
 	if configFileFlag != "" {
-		absPath, err := filepath.Abs(configFileFlag)
-		if err != nil {
-			return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
-		}
-		if _, err := os.Stat(absPath); err != nil {
+		if _, err := os.Stat(configFileFlag); err != nil {
 			return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
 		}
-		configFileFlag = absPath
 	}
 
 	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
