@@ -23,6 +23,9 @@ elastic-package
 # IDEA
 .idea
 
+# VSCode
+.vscode
+
 # Build directory
 /build
 
