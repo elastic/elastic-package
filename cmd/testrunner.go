@@ -165,6 +165,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
@@ -365,6 +366,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -525,6 +527,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	runSetup, err := cmd.Flags().GetBool(cobraext.SetupFlagName)
 	if err != nil {
@@ -808,6 +811,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
 	if err != nil {
