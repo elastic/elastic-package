@@ -13,28 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/llmagent/framework"
-	"github.com/elastic/elastic-package/internal/llmagent/providers"
+	"github.com/elastic/elastic-package/internal/llmagent/agent"
 )
 
-// mockProvider implements a minimal LLMProvider for testing
-type mockProvider struct{}
-
-func (m *mockProvider) GenerateResponse(ctx context.Context, prompt string, tools []providers.Tool) (*providers.LLMResponse, error) {
-	return &providers.LLMResponse{
-		Content:  "mock response",
-		Finished: true,
-	}, nil
-}
-
-func (m *mockProvider) Name() string {
-	return "mock"
-}
-
-func TestNewDocumentationAgent(t *testing.T) {
+func TestNewDocumentationAgent_Validation(t *testing.T) {
 	tests := []struct {
 		name          string
-		provider      providers.LLMProvider
+		apiKey        string
 		packageRoot   string
 		targetDocFile string
 		setupFunc     func(*testing.T) string // Returns packageRoot path
@@ -42,37 +27,16 @@ func TestNewDocumentationAgent(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name:          "valid parameters",
-			provider:      &mockProvider{},
-			targetDocFile: "README.md",
-			setupFunc: func(t *testing.T) string {
-				// Create temporary directory with minimal manifest.yml
-				tmpDir := t.TempDir()
-				manifestContent := `format_version: "3.0.0"
-name: test
-title: Test Package
-version: "1.0.0"
-type: integration
-`
-				manifestPath := filepath.Join(tmpDir, "manifest.yml")
-				if err := os.WriteFile(manifestPath, []byte(manifestContent), 0o644); err != nil {
-					t.Fatalf("Failed to create test manifest: %v", err)
-				}
-				return tmpDir
-			},
-			expectError: false,
-		},
-		{
-			name:          "nil provider",
-			provider:      nil,
+			name:          "empty API key",
+			apiKey:        "",
 			packageRoot:   "/some/path",
 			targetDocFile: "README.md",
 			expectError:   true,
-			errorContains: "provider cannot be nil",
+			errorContains: "API key cannot be empty",
 		},
 		{
 			name:          "empty packageRoot",
-			provider:      &mockProvider{},
+			apiKey:        "test-key",
 			packageRoot:   "",
 			targetDocFile: "README.md",
 			expectError:   true,
@@ -80,7 +44,7 @@ type: integration
 		},
 		{
 			name:          "empty targetDocFile",
-			provider:      &mockProvider{},
+			apiKey:        "test-key",
 			packageRoot:   "/some/path",
 			targetDocFile: "",
 			expectError:   true,
@@ -90,20 +54,26 @@ type: integration
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			packageRoot := tt.packageRoot
 			if tt.setupFunc != nil {
 				packageRoot = tt.setupFunc(t)
 			}
 
-			agent, err := NewDocumentationAgent(tt.provider, packageRoot, tt.targetDocFile, nil)
+			cfg := AgentConfig{
+				APIKey:      tt.apiKey,
+				PackageRoot: packageRoot,
+				DocFile:     tt.targetDocFile,
+			}
+			docAgent, err := NewDocumentationAgent(ctx, cfg)
 
 			if tt.expectError {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorContains)
-				assert.Nil(t, agent)
+				assert.Nil(t, docAgent)
 			} else {
 				require.NoError(t, err)
-				require.NotNil(t, agent)
+				require.NotNil(t, docAgent)
 			}
 		})
 	}
@@ -179,7 +149,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 	tests := []struct {
 		name           string
 		content        string
-		conversation   []framework.ConversationEntry
+		conversation   []agent.ConversationEntry
 		expectedStatus responseStatus
 	}{
 		{
@@ -191,7 +161,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 		{
 			name:    "empty content with successful tools",
 			content: "",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "✅ success"},
 			},
 			expectedStatus: responseSuccess,
@@ -205,7 +175,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 		{
 			name:    "error indicator but tools succeeded",
 			content: "I encountered an error while processing",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "successfully wrote file"},
 			},
 			expectedStatus: responseSuccess,
@@ -238,31 +208,31 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		conversation []framework.ConversationEntry
+		conversation []agent.ConversationEntry
 		expected     bool
 	}{
 		{
 			name:         "empty conversation",
-			conversation: []framework.ConversationEntry{},
+			conversation: []agent.ConversationEntry{},
 			expected:     false,
 		},
 		{
 			name: "recent success",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "✅ success - file written"},
 			},
 			expected: true,
 		},
 		{
 			name: "recent error marker",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "❌ error - file not found"},
 			},
 			expected: false,
 		},
 		{
 			name: "success followed by error",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "successfully wrote file"},
 				{Type: "tool_result", Content: "❌ error - something failed"},
 			},
@@ -270,7 +240,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "error followed by success",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "❌ error - something failed"},
 				{Type: "tool_result", Content: "completed successfully"},
 			},
@@ -278,7 +248,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "success beyond lookback window",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "tool_result", Content: "✅ success"},
 				{Type: "user", Content: "message 1"},
 				{Type: "user", Content: "message 2"},
@@ -291,7 +261,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "non-tool entries",
-			conversation: []framework.ConversationEntry{
+			conversation: []agent.ConversationEntry{
 				{Type: "user", Content: "user message"},
 				{Type: "assistant", Content: "assistant message"},
 			},
@@ -305,4 +275,26 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestWriteDocumentation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create minimal DocumentationAgent for testing
+	da := &DocumentationAgent{
+		packageRoot:   tmpDir,
+		targetDocFile: "README.md",
+	}
+
+	testContent := "# Test Documentation\n\nThis is a test."
+	docPath := filepath.Join(tmpDir, "_dev", "build", "docs", "README.md")
+
+	// Test writing documentation
+	err := da.writeDocumentation(docPath, testContent)
+	require.NoError(t, err)
+
+	// Verify file was created
+	content, err := os.ReadFile(docPath)
+	require.NoError(t, err)
+	assert.Equal(t, testContent, string(content))
 }

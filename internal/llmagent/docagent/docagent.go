@@ -12,9 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/framework"
+	"github.com/elastic/elastic-package/internal/llmagent/agent"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
-	"github.com/elastic/elastic-package/internal/llmagent/providers"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -53,7 +52,7 @@ type responseAnalysis struct {
 
 // DocumentationAgent handles documentation updates for packages
 type DocumentationAgent struct {
-	agent                 *framework.Agent
+	llmAgent              *agent.Agent
 	packageRoot           string
 	targetDocFile         string // Target documentation file (e.g., README.md, vpc.md)
 	profile               *profile.Profile
@@ -74,47 +73,61 @@ type PromptContext struct {
 	PreserveContent string
 }
 
-// NewDocumentationAgent creates a new documentation agent
-func NewDocumentationAgent(provider providers.LLMProvider, packageRoot string, targetDocFile string, profile *profile.Profile) (*DocumentationAgent, error) {
-	if provider == nil {
-		return nil, fmt.Errorf("provider cannot be nil")
+// AgentConfig holds configuration for creating a DocumentationAgent
+type AgentConfig struct {
+	APIKey      string
+	ModelID     string
+	PackageRoot string
+	DocFile     string
+	Profile     *profile.Profile
+}
+
+// NewDocumentationAgent creates a new documentation agent using ADK
+func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*DocumentationAgent, error) {
+	if cfg.APIKey == "" {
+		return nil, fmt.Errorf("API key cannot be empty")
 	}
-	if packageRoot == "" {
+	if cfg.PackageRoot == "" {
 		return nil, fmt.Errorf("packageRoot cannot be empty")
 	}
-	if targetDocFile == "" {
+	if cfg.DocFile == "" {
 		return nil, fmt.Errorf("targetDocFile cannot be empty")
 	}
 
 	// Initialize and load service info manager
-	serviceInfoManager := NewServiceInfoManager(packageRoot)
+	serviceInfoManager := NewServiceInfoManager(cfg.PackageRoot)
 	// Attempt to load service_info (don't fail if it doesn't exist)
 	_ = serviceInfoManager.Load()
 
-	packageTools := tools.PackageTools(packageRoot, serviceInfoManager)
+	// Get package tools
+	packageTools := tools.PackageTools(cfg.PackageRoot, serviceInfoManager)
 
-	servers := mcptools.LoadTools()
-	if servers != nil {
-		for _, srv := range servers.Servers {
-			if len(srv.Tools) > 0 {
-				packageTools = append(packageTools, srv.Tools...)
-			}
-		}
+	// Load MCP toolsets
+	mcpToolsets := mcptools.LoadToolsets()
+
+	// Create ADK agent configuration
+	agentCfg := agent.Config{
+		APIKey:  cfg.APIKey,
+		ModelID: cfg.ModelID,
 	}
 
-	llmAgent := framework.NewAgent(provider, packageTools)
+	// Create ADK agent with tools and toolsets
+	llmAgent, err := agent.NewAgentWithToolsets(ctx, agentCfg, packageTools, mcpToolsets)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ADK agent: %w", err)
+	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(cfg.PackageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read package manifest: %w", err)
 	}
 
 	responseAnalyzer := NewResponseAnalyzer()
 	return &DocumentationAgent{
-		agent:              llmAgent,
-		packageRoot:        packageRoot,
-		targetDocFile:      targetDocFile,
-		profile:            profile,
+		llmAgent:           llmAgent,
+		packageRoot:        cfg.PackageRoot,
+		targetDocFile:      cfg.DocFile,
+		profile:            cfg.Profile,
 		manifest:           manifest,
 		responseAnalyzer:   responseAnalyzer,
 		serviceInfoManager: serviceInfoManager,
@@ -359,13 +372,13 @@ func (d *DocumentationAgent) runInteractiveMode(ctx context.Context, prompt stri
 		// Display README content if updated
 		readmeUpdated, err := d.isReadmeUpdated()
 		if err != nil {
-			logger.Debugf("could not determine if readme is updated: %w", err)
+			logger.Debugf("could not determine if readme is updated: %v", err)
 		}
 		if readmeUpdated {
 			err = d.displayReadme()
 			if err != nil {
 				// This may be recoverable, only log the error
-				logger.Debugf("displaying readme: %w", err)
+				logger.Debugf("displaying readme: %v", err)
 			}
 		}
 
@@ -388,7 +401,7 @@ func (d *DocumentationAgent) runInteractiveMode(ctx context.Context, prompt stri
 }
 
 // logAgentResponse logs debug information about the agent response
-func (d *DocumentationAgent) logAgentResponse(result *framework.TaskResult) {
+func (d *DocumentationAgent) logAgentResponse(result *agent.TaskResult) {
 	logger.Debugf("DEBUG: Full agent task response follows (may contain sensitive content)")
 	logger.Debugf("Agent task response - Success: %t", result.Success)
 	logger.Debugf("Agent task response - FinalContent: %s", result.FinalContent)
@@ -401,10 +414,10 @@ func (d *DocumentationAgent) logAgentResponse(result *framework.TaskResult) {
 }
 
 // executeTaskWithLogging executes a task and logs the result
-func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*framework.TaskResult, error) {
+func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*agent.TaskResult, error) {
 	fmt.Println("🤖 LLM Agent is working...")
 
-	result, err := d.agent.ExecuteTask(ctx, prompt)
+	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
 	if err != nil {
 		fmt.Println("❌ Agent task failed")
 		fmt.Printf("❌ result is %v\n", result)
@@ -447,7 +460,7 @@ func NewResponseAnalyzer() *responseAnalyzer {
 }
 
 // AnalyzeResponse will detect the LLM state based on it's response to us.
-func (ra *responseAnalyzer) AnalyzeResponse(content string, conversation []framework.ConversationEntry) responseAnalysis {
+func (ra *responseAnalyzer) AnalyzeResponse(content string, conversation []agent.ConversationEntry) responseAnalysis {
 	// Check for empty content
 	if strings.TrimSpace(content) == "" {
 		// Empty content might be okay if recent tools succeeded
@@ -497,7 +510,7 @@ func (ra *responseAnalyzer) containsAnyIndicator(content string, indicators []st
 }
 
 // hasRecentSuccessfulTools checks if recent tool executions were successful
-func (ra *responseAnalyzer) hasRecentSuccessfulTools(conversation []framework.ConversationEntry) bool {
+func (ra *responseAnalyzer) hasRecentSuccessfulTools(conversation []agent.ConversationEntry) bool {
 	// Look at the last 5 conversation entries for tool results
 	lookbackCount := analysisLookbackCount
 	startIdx := len(conversation) - lookbackCount
@@ -713,7 +726,7 @@ func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existin
 // generateModifiedSection generates a modified version of a section using the LLM
 func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, originalSection Section, prompt string) (Section, error) {
 	// Execute the task
-	result, err := d.agent.ExecuteTask(ctx, prompt)
+	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
 	if err != nil {
 		return Section{}, fmt.Errorf("agent task failed: %w", err)
 	}

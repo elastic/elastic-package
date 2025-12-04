@@ -5,7 +5,6 @@
 package mcptools
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -13,27 +12,26 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/elastic/elastic-package/internal/llmagent/providers"
 )
 
 func TestMCPServer_Connect_NilURL(t *testing.T) {
 	server := &MCPServer{}
 	err := server.Connect()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "URL is required")
+	// With nil URL, it should return nil (skip) not error
+	require.NoError(t, err)
+	assert.Nil(t, server.Toolset)
 }
 
 func TestMCPServer_Close(t *testing.T) {
 	server := &MCPServer{}
 
-	// Should not error even if session is nil
+	// Should not error even if toolset is nil
 	err := server.Close()
 	require.NoError(t, err)
-	assert.Nil(t, server.session)
+	assert.Nil(t, server.Toolset)
 }
 
-func TestLoadTools_NoConfigFile(t *testing.T) {
+func TestLoadToolsets_NoConfigFile(t *testing.T) {
 	// Create a temporary directory that doesn't have the config file
 	tempDir := t.TempDir()
 	originalEnv := os.Getenv("ELASTIC_PACKAGE_DATA_HOME")
@@ -48,11 +46,11 @@ func TestLoadTools_NoConfigFile(t *testing.T) {
 	// Set ELASTIC_PACKAGE_DATA_HOME to temp directory so LocationManager looks there
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 
-	result := LoadTools()
+	result := LoadToolsets()
 	assert.Nil(t, result, "Expected nil when config file doesn't exist")
 }
 
-func TestLoadTools_InvalidJSON(t *testing.T) {
+func TestLoadToolsets_InvalidJSON(t *testing.T) {
 	// Create a temporary config directory
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "llm_config")
@@ -74,11 +72,11 @@ func TestLoadTools_InvalidJSON(t *testing.T) {
 	}()
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 
-	result := LoadTools()
+	result := LoadToolsets()
 	assert.Nil(t, result, "Expected nil when JSON is invalid")
 }
 
-func TestLoadTools_ValidConfig_NoServers(t *testing.T) {
+func TestLoadToolsets_ValidConfig_NoServers(t *testing.T) {
 	// Create a temporary config directory
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "llm_config")
@@ -106,12 +104,12 @@ func TestLoadTools_ValidConfig_NoServers(t *testing.T) {
 	}()
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 
-	result := LoadTools()
-	require.NotNil(t, result)
-	assert.Empty(t, result.Servers)
+	result := LoadToolsets()
+	// With no servers, we should get empty slice
+	assert.Empty(t, result)
 }
 
-func TestLoadTools_ValidConfig_WithPrompts(t *testing.T) {
+func TestLoadToolsets_ValidConfig_WithPrompts(t *testing.T) {
 	// Create a temporary config directory
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "llm_config")
@@ -143,15 +141,12 @@ func TestLoadTools_ValidConfig_WithPrompts(t *testing.T) {
 	}()
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 
-	result := LoadTools()
-	require.NotNil(t, result)
-	assert.NotNil(t, result.InitialPrompt)
-	assert.Equal(t, "initial.txt", *result.InitialPrompt)
-	assert.NotNil(t, result.RevisionPrompt)
-	assert.Equal(t, "revision.txt", *result.RevisionPrompt)
+	// LoadToolsets returns toolsets, not the full MCPJson config
+	result := LoadToolsets()
+	assert.Empty(t, result) // No servers with URLs, so no toolsets
 }
 
-func TestLoadTools_ValidConfig_ServerWithoutURL(t *testing.T) {
+func TestLoadToolsets_ValidConfig_ServerWithoutURL(t *testing.T) {
 	// Create a temporary config directory
 	tempDir := t.TempDir()
 	configDir := filepath.Join(tempDir, "llm_config")
@@ -185,51 +180,13 @@ func TestLoadTools_ValidConfig_ServerWithoutURL(t *testing.T) {
 	}()
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 
-	result := LoadTools()
-	require.NotNil(t, result)
-	assert.Len(t, result.Servers, 1)
-	// Server should exist but not be connected (no Tools loaded)
-	server := result.Servers["test-server"]
-	assert.NotNil(t, server.Command)
-	assert.Nil(t, server.session)
+	result := LoadToolsets()
+	// Server without URL should be skipped
+	assert.Empty(t, result)
 }
 
-func TestMCPServer_ToolHandler(t *testing.T) {
-	// Test that the tool handler function signature works correctly
-	toolName := "test-tool"
-	server := &MCPServer{}
-
-	// Create a mock tool (without actually connecting to MCP server)
-	// This tests the tool structure and handler setup
-	handler := func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-		return &providers.ToolResult{Content: "test result"}, nil
-	}
-
-	// Verify handler can be called
-	ctx := context.Background()
-	result, err := handler(ctx, `{"test": "value"}`)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Equal(t, "test result", result.Content)
-
-	// Verify tool structure matches expected format
-	tool := providers.Tool{
-		Name:        toolName,
-		Description: "Test tool description",
-		Parameters: map[string]interface{}{
-			"type":       "object",
-			"properties": map[string]interface{}{},
-			"required":   []string{},
-		},
-		Handler: handler,
-	}
-
-	assert.Equal(t, toolName, tool.Name)
-	assert.NotNil(t, tool.Handler)
-	assert.NotNil(t, tool.Parameters)
-
-	// Verify server tools can be appended
-	server.Tools = append(server.Tools, tool)
-	assert.Len(t, server.Tools, 1)
-	assert.Equal(t, toolName, server.Tools[0].Name)
+func TestLoadTools_Deprecated(t *testing.T) {
+	// LoadTools is deprecated and should return nil
+	result := LoadTools()
+	assert.Nil(t, result)
 }

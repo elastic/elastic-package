@@ -71,7 +71,7 @@ func (d *DocumentationAgent) analyzeModificationScope(ctx context.Context, modif
 
 	// Execute the analysis
 	logger.Debugf("Analyzing modification scope for prompt: %s", modificationPrompt)
-	result, err := d.agent.ExecuteTask(ctx, prompt)
+	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
 	if err != nil {
 		logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
 		return &ModificationScope{

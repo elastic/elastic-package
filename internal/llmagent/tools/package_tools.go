@@ -5,14 +5,14 @@
 package tools
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/providers"
+	"google.golang.org/adk/tool"
+	"google.golang.org/adk/tool/functiontool"
+
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
@@ -24,95 +24,153 @@ type ServiceInfoProvider interface {
 	GetSections(sectionTitles []string) string
 }
 
+// ListDirectoryArgs represents arguments for list_directory tool
+type ListDirectoryArgs struct {
+	Path string `json:"path"`
+}
+
+// ListDirectoryResult represents the result of list_directory tool
+type ListDirectoryResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// ReadFileArgs represents arguments for read_file tool
+type ReadFileArgs struct {
+	Path string `json:"path"`
+}
+
+// ReadFileResult represents the result of read_file tool
+type ReadFileResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// WriteFileArgs represents arguments for write_file tool
+type WriteFileArgs struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
+// WriteFileResult represents the result of write_file tool
+type WriteFileResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// GetReadmeTemplateArgs represents arguments for get_readme_template tool (empty)
+type GetReadmeTemplateArgs struct{}
+
+// GetReadmeTemplateResult represents the result of get_readme_template tool
+type GetReadmeTemplateResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// GetExampleReadmeArgs represents arguments for get_example_readme tool (empty)
+type GetExampleReadmeArgs struct{}
+
+// GetExampleReadmeResult represents the result of get_example_readme tool
+type GetExampleReadmeResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
+// GetServiceInfoArgs represents arguments for get_service_info tool
+type GetServiceInfoArgs struct {
+	ReadmeSection string `json:"readme_section,omitempty"`
+}
+
+// GetServiceInfoResult represents the result of get_service_info tool
+type GetServiceInfoResult struct {
+	Content string `json:"content,omitempty"`
+	Error   string `json:"error,omitempty"`
+}
+
 // PackageTools creates the tools available to the LLM for package operations.
 // These tools do not allow access to `docs/`, to prevent the LLM from confusing the generated and non-generated README versions.
-func PackageTools(packageRoot string, serviceInfoProvider ServiceInfoProvider) []providers.Tool {
-	return []providers.Tool{
-		{
+func PackageTools(packageRoot string, serviceInfoProvider ServiceInfoProvider) []tool.Tool {
+	var result []tool.Tool
+
+	// list_directory tool
+	listDirTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "list_directory",
 			Description: "List files and directories in a given path within the package",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "Directory path relative to package root (empty string for package root)",
-					},
-				},
-				"required": []string{"path"},
-			},
-			Handler: listDirectoryHandler(packageRoot),
 		},
-		{
+		listDirectoryHandler(packageRoot),
+	)
+	if err != nil {
+		panic("failed to create list_directory tool: " + err.Error())
+	}
+	result = append(result, listDirTool)
+
+	// read_file tool
+	readFileTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "read_file",
 			Description: "Read the contents of a file within the package.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "File path relative to package root",
-					},
-				},
-				"required": []string{"path"},
-			},
-			Handler: readFileHandler(packageRoot),
 		},
-		{
+		readFileHandler(packageRoot),
+	)
+	if err != nil {
+		panic("failed to create read_file tool: " + err.Error())
+	}
+	result = append(result, readFileTool)
+
+	// write_file tool
+	writeFileTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "write_file",
 			Description: "Write content to a file within the package. This tool can only write in _dev/build/docs/.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"path": map[string]interface{}{
-						"type":        "string",
-						"description": "File path relative to package root",
-					},
-					"content": map[string]interface{}{
-						"type":        "string",
-						"description": "Content to write to the file",
-					},
-				},
-				"required": []string{"path", "content"},
-			},
-			Handler: writeFileHandler(packageRoot),
 		},
-		{
+		writeFileHandler(packageRoot),
+	)
+	if err != nil {
+		panic("failed to create write_file tool: " + err.Error())
+	}
+	result = append(result, writeFileTool)
+
+	// get_readme_template tool
+	readmeTemplateTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "get_readme_template",
 			Description: "Get the README.md template that should be used as the structure for generating package documentation. This template contains the required sections and format.",
-			Parameters: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-				"required":   []string{},
-			},
-			Handler: getReadmeTemplateHandler(),
 		},
-		{
+		getReadmeTemplateHandler(),
+	)
+	if err != nil {
+		panic("failed to create get_readme_template tool: " + err.Error())
+	}
+	result = append(result, readmeTemplateTool)
+
+	// get_example_readme tool
+	exampleReadmeTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "get_example_readme",
 			Description: "Get a high-quality example README.md that demonstrates the target quality, level of detail, and formatting. Use this as a reference for style and content structure.",
-			Parameters: map[string]interface{}{
-				"type":       "object",
-				"properties": map[string]interface{}{},
-				"required":   []string{},
-			},
-			Handler: getExampleReadmeHandler(),
 		},
-		{
+		getExampleReadmeHandler(),
+	)
+	if err != nil {
+		panic("failed to create get_example_readme tool: " + err.Error())
+	}
+	result = append(result, exampleReadmeTool)
+
+	// get_service_info tool
+	serviceInfoTool, err := functiontool.New(
+		functiontool.Config{
 			Name:        "get_service_info",
 			Description: "Get relevant sections from the service_info.md knowledge base file. If no section is specified, returns the complete file. This file contains authoritative information about the service/technology.",
-			Parameters: map[string]interface{}{
-				"type": "object",
-				"properties": map[string]interface{}{
-					"readme_section": map[string]interface{}{
-						"type":        "string",
-						"description": "Optional. The README section you're currently generating (e.g., 'Overview', 'Troubleshooting'). If provided, returns only the relevant service_info sections for that README section.",
-					},
-				},
-				"required": []string{},
-			},
-			Handler: getServiceInfoHandler(serviceInfoProvider),
 		},
+		getServiceInfoHandler(serviceInfoProvider),
+	)
+	if err != nil {
+		panic("failed to create get_service_info tool: " + err.Error())
 	}
+	result = append(result, serviceInfoTool)
+
+	return result
 }
 
 // validatePathInRoot ensures the path stays within the root directory and is safe to access.
@@ -149,25 +207,17 @@ func validatePathInRoot(packageRoot, userPath string) (string, error) {
 }
 
 // listDirectoryHandler returns a handler for the list_directory tool
-func listDirectoryHandler(packageRoot string) providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-		var args struct {
-			Path string `json:"path"`
-		}
-
-		if err := json.Unmarshal([]byte(arguments), &args); err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to parse arguments: %v", err)}, nil
-		}
-
+func listDirectoryHandler(packageRoot string) functiontool.Func[ListDirectoryArgs, ListDirectoryResult] {
+	return func(ctx tool.Context, args ListDirectoryArgs) (ListDirectoryResult, error) {
 		// Validate path security
 		fullPath, err := validatePathInRoot(packageRoot, args.Path)
 		if err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
+			return ListDirectoryResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
 		}
 
 		entries, err := os.ReadDir(fullPath)
 		if err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to read directory: %v", err)}, nil
+			return ListDirectoryResult{Error: fmt.Sprintf("failed to read directory: %v", err)}, nil
 		}
 
 		var result strings.Builder
@@ -191,58 +241,41 @@ func listDirectoryHandler(packageRoot string) providers.ToolHandler {
 			}
 		}
 
-		return &providers.ToolResult{Content: result.String()}, nil
+		return ListDirectoryResult{Content: result.String()}, nil
 	}
 }
 
 // readFileHandler returns a handler for the read_file tool
-func readFileHandler(packageRoot string) providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-		var args struct {
-			Path string `json:"path"`
-		}
-
-		if err := json.Unmarshal([]byte(arguments), &args); err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to parse arguments: %v", err)}, nil
-		}
-
+func readFileHandler(packageRoot string) functiontool.Func[ReadFileArgs, ReadFileResult] {
+	return func(ctx tool.Context, args ReadFileArgs) (ReadFileResult, error) {
 		// Block access to generated artifacts in docs/ directory, except docs/knowledge_base/
 		// which contains authoritative service information
 		if strings.HasPrefix(args.Path, "docs/") && !strings.HasPrefix(args.Path, "docs/knowledge_base/") {
-			return &providers.ToolResult{Error: "access denied: cannot read generated documentation in docs/ (use _dev/build/docs/ instead)"}, nil
+			return ReadFileResult{Error: "access denied: cannot read generated documentation in docs/ (use _dev/build/docs/ instead)"}, nil
 		}
 
 		// Validate path security
 		fullPath, err := validatePathInRoot(packageRoot, args.Path)
 		if err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
+			return ReadFileResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
 		}
 
 		content, err := os.ReadFile(fullPath)
 		if err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to read file: %v", err)}, nil
+			return ReadFileResult{Error: fmt.Sprintf("failed to read file: %v", err)}, nil
 		}
 
-		return &providers.ToolResult{Content: string(content)}, nil
+		return ReadFileResult{Content: string(content)}, nil
 	}
 }
 
 // writeFileHandler returns a handler for the write_file tool
-func writeFileHandler(packageRoot string) providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-		var args struct {
-			Path    string `json:"path"`
-			Content string `json:"content"`
-		}
-
-		if err := json.Unmarshal([]byte(arguments), &args); err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to parse arguments: %v", err)}, nil
-		}
-
+func writeFileHandler(packageRoot string) functiontool.Func[WriteFileArgs, WriteFileResult] {
+	return func(ctx tool.Context, args WriteFileArgs) (WriteFileResult, error) {
 		// First validate against package root
 		fullPath, err := validatePathInRoot(packageRoot, args.Path)
 		if err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
+			return WriteFileResult{Error: fmt.Sprintf("access denied: %v", err)}, nil
 		}
 
 		// Additional security check: ensure we only write in "_dev/build/docs"
@@ -255,7 +288,7 @@ func writeFileHandler(packageRoot string) providers.ToolHandler {
 			if os.IsNotExist(err) {
 				resolvedAllowed = filepath.Clean(allowedDir)
 			} else {
-				return &providers.ToolResult{Error: fmt.Sprintf("failed to resolve allowed directory: %v", err)}, nil
+				return WriteFileResult{Error: fmt.Sprintf("failed to resolve allowed directory: %v", err)}, nil
 			}
 		}
 
@@ -263,38 +296,38 @@ func writeFileHandler(packageRoot string) providers.ToolHandler {
 		cleanAllowed := filepath.Clean(resolvedAllowed)
 		relPath, err := filepath.Rel(cleanAllowed, cleanPath)
 		if err != nil || strings.HasPrefix(relPath, "..") {
-			return &providers.ToolResult{Error: fmt.Sprintf("access denied: path '%s' is outside allowed directory (_dev/build/docs/)", args.Path)}, nil
+			return WriteFileResult{Error: fmt.Sprintf("access denied: path '%s' is outside allowed directory (_dev/build/docs/)", args.Path)}, nil
 		}
 
 		// Create directory if it doesn't exist
 		dir := filepath.Dir(fullPath)
 		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to create directory: %v", err)}, nil
+			return WriteFileResult{Error: fmt.Sprintf("failed to create directory: %v", err)}, nil
 		}
 
 		// Write the file
 		if err := os.WriteFile(fullPath, []byte(args.Content), 0o644); err != nil {
-			return &providers.ToolResult{Error: fmt.Sprintf("failed to write file: %v", err)}, nil
+			return WriteFileResult{Error: fmt.Sprintf("failed to write file: %v", err)}, nil
 		}
 
-		return &providers.ToolResult{Content: fmt.Sprintf("Successfully wrote %d bytes to %s", len(args.Content), args.Path)}, nil
+		return WriteFileResult{Content: fmt.Sprintf("Successfully wrote %d bytes to %s", len(args.Content), args.Path)}, nil
 	}
 }
 
 // getReadmeTemplateHandler returns a handler for the get_readme_template tool
-func getReadmeTemplateHandler() providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
+func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetReadmeTemplateResult] {
+	return func(ctx tool.Context, args GetReadmeTemplateArgs) (GetReadmeTemplateResult, error) {
 		// Get the embedded template content
 		templateContent := archetype.GetPackageDocsReadmeTemplate()
-		return &providers.ToolResult{Content: templateContent}, nil
+		return GetReadmeTemplateResult{Content: templateContent}, nil
 	}
 }
 
 // getExampleReadmeHandler returns a handler for the get_example_readme tool
-func getExampleReadmeHandler() providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
+func getExampleReadmeHandler() functiontool.Func[GetExampleReadmeArgs, GetExampleReadmeResult] {
+	return func(ctx tool.Context, args GetExampleReadmeArgs) (GetExampleReadmeResult, error) {
 		// Get the embedded example content
-		return &providers.ToolResult{Content: ExampleReadmeContent}, nil
+		return GetExampleReadmeResult{Content: ExampleReadmeContent}, nil
 	}
 }
 
@@ -303,48 +336,37 @@ func getExampleReadmeHandler() providers.ToolHandler {
 type ServiceInfoSectionMapper func(readmeSectionTitle string) []string
 
 // getServiceInfoHandler returns a handler for the get_service_info tool
-func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) providers.ToolHandler {
-	return func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-		var args struct {
-			ReadmeSection string `json:"readme_section"`
-		}
-
-		// Parse arguments (readme_section is optional)
-		if arguments != "" && arguments != "{}" {
-			if err := json.Unmarshal([]byte(arguments), &args); err != nil {
-				return &providers.ToolResult{Error: fmt.Sprintf("failed to parse arguments: %v", err)}, nil
-			}
-		}
-
+func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool.Func[GetServiceInfoArgs, GetServiceInfoResult] {
+	return func(ctx tool.Context, args GetServiceInfoArgs) (GetServiceInfoResult, error) {
 		// Check if service_info is available
 		if !serviceInfoProvider.IsAvailable() {
-			return &providers.ToolResult{Content: "Note: service_info.md file is not available for this package."}, nil
+			return GetServiceInfoResult{Content: "Note: service_info.md file is not available for this package."}, nil
 		}
 
 		// If no readme_section provided, return all sections
 		if args.ReadmeSection == "" {
 			content := serviceInfoProvider.GetAllSections()
-			return &providers.ToolResult{Content: content}, nil
+			return GetServiceInfoResult{Content: content}, nil
 		}
 
 		// Get mapping for the specified README section (hardcoded here to avoid import cycle)
 		serviceInfoSections := getServiceInfoMappingForSection(args.ReadmeSection)
-		
+
 		if len(serviceInfoSections) == 0 {
 			// No mapping exists for this section, return all sections
 			content := serviceInfoProvider.GetAllSections()
-			return &providers.ToolResult{Content: content}, nil
+			return GetServiceInfoResult{Content: content}, nil
 		}
 
 		// Get the relevant sections
 		content := serviceInfoProvider.GetSections(serviceInfoSections)
-		
+
 		if content == "" {
 			// Requested sections not found, return all sections as fallback
 			content = serviceInfoProvider.GetAllSections()
 		}
 
-		return &providers.ToolResult{Content: content}, nil
+		return GetServiceInfoResult{Content: content}, nil
 	}
 }
 

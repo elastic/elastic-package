@@ -5,23 +5,16 @@
 package mcptools
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"google.golang.org/adk/tool"
+	"google.golang.org/adk/tool/mcptoolset"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/llmagent/providers"
-)
-
-const (
-	// toolCallTimeout is the maximum time allowed for an MCP tool call
-	toolCallTimeout = 30 * time.Second
 )
 
 // MCPServer represents a Model Context Protocol server configuration.
@@ -33,8 +26,7 @@ type MCPServer struct {
 	Url     *string            `json:"url"`
 	Headers *map[string]string `json:"headers"`
 
-	session *mcp.ClientSession `json:"-"`
-	Tools   []providers.Tool   `json:"-"`
+	Toolset tool.Toolset `json:"-"`
 }
 
 // MCPJson represents the MCP configuration file structure.
@@ -44,100 +36,38 @@ type MCPJson struct {
 	Servers        map[string]MCPServer `json:"mcpServers"`
 }
 
-// Connect establishes a connection to the MCP server and loads available tools.
-// It returns an error if the connection fails or if tool loading fails.
+// Connect establishes a connection to the MCP server using ADK's mcptoolset.
+// It returns an error if the connection fails.
 func (s *MCPServer) Connect() error {
 	if s.Url == nil {
-		return fmt.Errorf("URL is required for MCP server connection")
+		return nil // Skip servers without URL
 	}
 
-	ctx := context.Background()
+	// Create a streamable transport for the MCP server
 	transport := &mcp.StreamableClientTransport{Endpoint: *s.Url}
 
-	client := mcp.NewClient(&mcp.Implementation{Name: "mcp-client", Version: "v1.0.0"}, nil)
-
-	fmt.Printf("attempting to connect to %s\n", *s.Url)
-
-	cs, err := client.Connect(ctx, transport, nil)
+	// Create the MCP toolset using ADK
+	toolset, err := mcptoolset.New(mcptoolset.Config{
+		Transport: transport,
+	})
 	if err != nil {
-		return fmt.Errorf("failed to connect to MCP server: %w", err)
+		return err
 	}
 
-	s.session = cs
-
-	// Load tools if the server supports them
-	if s.session.InitializeResult().Capabilities.Tools != nil {
-		for tool, err := range s.session.Tools(ctx, nil) {
-			if err != nil {
-				log.Printf("failed to load tool: %v", err)
-				continue
-			}
-
-			// Safely extract schema properties
-			schema, ok := tool.InputSchema.(map[string]interface{})
-			if !ok {
-				log.Printf("unexpected InputSchema type for tool %s, skipping", tool.Name)
-				continue
-			}
-
-			required := schema["required"]
-			if required == nil {
-				required = []string{}
-			}
-
-			properties := schema["properties"]
-
-			// Capture tool name to avoid closure bug
-			toolName := tool.Name
-
-			s.Tools = append(s.Tools, providers.Tool{
-				Name:        tool.Name,
-				Description: tool.Description,
-				Parameters: map[string]interface{}{
-					"type":       "object",
-					"properties": properties,
-					"required":   required,
-				},
-				Handler: func(ctx context.Context, arguments string) (*providers.ToolResult, error) {
-					callCtx, cancel := context.WithTimeout(ctx, toolCallTimeout)
-					defer cancel()
-
-					res, err := s.session.CallTool(callCtx, &mcp.CallToolParams{
-						Name:      toolName,
-						Arguments: json.RawMessage(arguments),
-					})
-					if err != nil {
-						return nil, fmt.Errorf("failed to call tool %s: %w", toolName, err)
-					}
-
-					data, err := json.Marshal(res)
-					if err != nil {
-						return nil, fmt.Errorf("failed to marshal tool result: %w", err)
-					}
-
-					return &providers.ToolResult{Content: string(data)}, nil
-				},
-			})
-		}
-	}
-
+	s.Toolset = toolset
 	return nil
 }
 
-// Close terminates the MCP server session if it exists.
+// Close terminates the MCP server connection.
 func (s *MCPServer) Close() error {
-	if s.session != nil {
-		// The MCP SDK doesn't expose a Close method directly,
-		// but we can clear the session reference
-		s.session = nil
-	}
+	s.Toolset = nil
 	return nil
 }
 
-// LoadTools loads MCP server configurations from the elastic-package config directory
-// and establishes connections to all configured servers. It returns nil if the
+// LoadToolsets loads MCP server configurations from the elastic-package config directory
+// and returns ADK toolsets for all configured servers. It returns nil if the
 // configuration file doesn't exist or if there are errors loading it.
-func LoadTools() *MCPJson {
+func LoadToolsets() []tool.Toolset {
 	lm, err := locations.NewLocationManager()
 	if err != nil {
 		log.Printf("failed to create location manager: %v", err)
@@ -163,16 +93,27 @@ func LoadTools() *MCPJson {
 		return nil
 	}
 
-	// Connect to all configured servers
+	var toolsets []tool.Toolset
+
+	// Connect to all configured servers and collect their toolsets
 	for key, value := range mcpJson.Servers {
 		if value.Url != nil {
 			if err := value.Connect(); err != nil {
 				log.Printf("failed to connect to MCP server %s: %v", key, err)
 				continue
 			}
-			mcpJson.Servers[key] = value
+			if value.Toolset != nil {
+				toolsets = append(toolsets, value.Toolset)
+			}
 		}
 	}
 
-	return &mcpJson
+	return toolsets
+}
+
+// LoadTools is deprecated. Use LoadToolsets instead.
+// This function is kept for backward compatibility but returns nil.
+func LoadTools() *MCPJson {
+	log.Printf("LoadTools is deprecated, use LoadToolsets instead")
+	return nil
 }
