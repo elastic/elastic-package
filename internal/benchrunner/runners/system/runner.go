@@ -58,6 +58,8 @@ type runner struct {
 	mcollector        *collector
 	corporaFile       string
 
+	service servicedeployer.DeployedService
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func(context.Context) error
 	resetAgentPolicyHandler func(context.Context) error
@@ -152,11 +154,31 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
+	// It is required to read once the configuration to know if a service deployer is needed.
 	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
 	if err != nil {
 		return err
 	}
 	r.scenario = scenario
+
+	if r.scenario.Corpora.InputService != nil {
+		// Just in the case service deployer is needed (input_service field), setup the service now.
+		// and re-read the configuration to have the final one with any possible service-related variable applied.
+		s, err := r.setupService(ctx)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("No service deployer defined for this benchmark")
+		} else if err != nil {
+			return err
+		}
+		r.service = s
+		r.svcInfo = s.Info()
+
+		scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
+		if err != nil {
+			return err
+		}
+		r.scenario = scenario
+	}
 
 	if r.scenario.Corpora.Generator != nil {
 		var err error
@@ -243,17 +265,6 @@ func (r *runner) setUp(ctx context.Context) error {
 }
 
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
-	var service servicedeployer.DeployedService
-	if r.scenario.Corpora.InputService != nil {
-		s, err := r.setupService(ctx)
-		if errors.Is(err, os.ErrNotExist) {
-			logger.Debugf("No service deployer defined for this benchmark")
-		} else if err != nil {
-			return nil, err
-		}
-		service = s
-	}
-
 	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
@@ -271,8 +282,8 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
-		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
+	if r.service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
+		if err = r.service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
