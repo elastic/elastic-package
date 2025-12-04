@@ -207,6 +207,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				"dump_logs":              dumpLogs,
 				"match_file":             match,
 				"get_policy":             getPolicyCommand,
+				"compile_registry_state": compileRegistryState,
 			},
 			Setup: func(e *testscript.Env) error {
 				e.Setenv("PROFILE", config.CurrentProfile())
