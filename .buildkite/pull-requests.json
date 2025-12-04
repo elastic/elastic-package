@@ -16,7 +16,13 @@
         "skip_ci_on_only_changed": [
           "^docs/",
           "^.github/",
-          "^.mergify.yml"
+          "^.mergify.yml$",
+          "^.buildkite/configs/",
+          "^.buildkite/pipeline.cloud-cleanup.yml$",
+          "^.buildkite/pipeline.serverless.yml$",
+          "^.buildkite/pipeline.test-with-integrations-repo.yml$",
+          "^.buildkite/pull-requests.json$",
+          "^catalog-info.yaml$"
         ],
         "always_require_ci_on_changed": [ ]
      },

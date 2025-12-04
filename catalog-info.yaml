@@ -62,6 +62,18 @@ spec:
           access_level: MANAGE_BUILD_AND_READ
         observablt-ci:
           access_level: MANAGE_BUILD_AND_READ
+        elastic-agent-control-plane:
+          access_level: BUILD_AND_READ
+        elastic-agent-data-plane:
+          access_level: BUILD_AND_READ
+        fleet:
+          access_level: BUILD_AND_READ
+        obs-infraobs-integrations:
+          access_level: BUILD_AND_READ
+        sec-deployment-and-devices:
+          access_level: BUILD_AND_READ
+        security-service-integrations:
+          access_level: BUILD_AND_READ
         everyone:
           access_level: READ_ONLY
 
