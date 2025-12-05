@@ -67,6 +67,7 @@ var ServiceInfoSectionMapping = map[string][]string{
 	"Reference": {
 		"Documentation sites",
 		"Vendor Resources",
+		"Data types collected",
 	},
 	// Add more mappings as needed in the future
 }
