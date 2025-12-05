@@ -7,6 +7,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/adk/tool"
 	"google.golang.org/genai"
 
+	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -51,6 +53,7 @@ type ConversationEntry struct {
 // Agent wraps an ADK LLM agent for documentation generation.
 type Agent struct {
 	llmModel       model.LLM
+	modelID        string
 	tools          []tool.Tool
 	toolsets       []tool.Toolset
 	instruction    string
@@ -73,6 +76,11 @@ func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, to
 		modelID = "gemini-2.5-pro"
 	}
 
+	// Initialize Phoenix tracing (no-op if PHOENIX_COLLECTOR_ENDPOINT not set)
+	if err := tracing.Init(ctx); err != nil {
+		logger.Debugf("Failed to initialize Phoenix tracing: %v", err)
+	}
+
 	// Create Gemini model
 	llmModel, err := gemini.NewModel(ctx, modelID, &genai.ClientConfig{
 		APIKey: cfg.APIKey,
@@ -85,6 +93,7 @@ func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, to
 
 	return &Agent{
 		llmModel:       llmModel,
+		modelID:        modelID,
 		tools:          tools,
 		toolsets:       toolsets,
 		instruction:    cfg.Instruction,
@@ -94,6 +103,13 @@ func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, to
 
 // ExecuteTask runs the agent to complete a task.
 func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, error) {
+	// Start agent span for the entire task
+	ctx, agentSpan := tracing.StartAgentSpan(ctx, "agent:execute_task", a.modelID)
+	defer agentSpan.End()
+
+	// Record input prompt
+	tracing.RecordInput(agentSpan, prompt)
+
 	var conversation []ConversationEntry
 
 	// Add initial prompt to conversation history
@@ -142,6 +158,9 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 	var lastEventContent string
 	iterationCount := 0
 
+	// Track input messages for LLM spans
+	inputMessages := []tracing.Message{{Role: "user", Content: prompt}}
+
 	for event, err := range r.Run(ctx, defaultUserID, sessionResp.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
 			logger.Debugf("Agent iteration error: %v", err)
@@ -170,11 +189,29 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 						Type:    "assistant",
 						Content: part.Text,
 					})
+
+					// Create LLM span for this response
+					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", a.modelID, inputMessages)
+					outputMessages := []tracing.Message{{Role: "assistant", Content: part.Text}}
+					tracing.EndLLMSpan(llmSpan, outputMessages, 0, 0)
 				}
 
 				// Track function calls
 				if part.FunctionCall != nil {
 					logger.Debugf("Function call: %s", part.FunctionCall.Name)
+
+					// Convert Args to map[string]any for tracing
+					var argsMap map[string]any
+					if part.FunctionCall.Args != nil {
+						argsMap = part.FunctionCall.Args
+					}
+
+					// Start tool span (will be ended when we get the response)
+					_, toolSpan := tracing.StartToolSpan(ctx, part.FunctionCall.Name, argsMap)
+					// End immediately since we don't have async tracking
+					// In a real implementation, we'd match up call/response pairs
+					toolSpan.End()
+
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
 						Content: fmt.Sprintf("Called: %s", part.FunctionCall.Name),
@@ -184,13 +221,25 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 				// Track function responses
 				if part.FunctionResponse != nil {
 					logger.Debugf("Function response for: %s", part.FunctionResponse.Name)
+
+					// Create tool response span
+					_, toolSpan := tracing.StartToolSpan(ctx, part.FunctionResponse.Name+"_response", nil)
+
 					// Format the response content
 					var responseContent string
 					if content, exists := part.FunctionResponse.Response["content"]; exists {
 						responseContent = fmt.Sprintf("%v", content)
 					} else if errContent, exists := part.FunctionResponse.Response["error"]; exists {
 						responseContent = fmt.Sprintf("Error: %v", errContent)
+					} else {
+						// Marshal the entire response
+						if respJSON, err := json.Marshal(part.FunctionResponse.Response); err == nil {
+							responseContent = string(respJSON)
+						}
 					}
+
+					tracing.EndToolSpan(toolSpan, responseContent, nil)
+
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
 						Content: fmt.Sprintf("✅ SUCCESS: %s completed.\nResult: %s", part.FunctionResponse.Name, responseContent),
@@ -211,6 +260,9 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 	if resultContent == "" {
 		resultContent = lastEventContent
 	}
+
+	// Record final output on agent span
+	tracing.RecordOutput(agentSpan, strings.TrimSpace(resultContent))
 
 	return &TaskResult{
 		Success:      resultContent != "",
