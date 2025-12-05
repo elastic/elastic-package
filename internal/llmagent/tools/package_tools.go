@@ -67,15 +67,6 @@ type GetReadmeTemplateResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// GetExampleReadmeArgs represents arguments for get_example_readme tool (empty)
-type GetExampleReadmeArgs struct{}
-
-// GetExampleReadmeResult represents the result of get_example_readme tool
-type GetExampleReadmeResult struct {
-	Content string `json:"content,omitempty"`
-	Error   string `json:"error,omitempty"`
-}
-
 // GetServiceInfoArgs represents arguments for get_service_info tool
 type GetServiceInfoArgs struct {
 	ReadmeSection string `json:"readme_section,omitempty"`
@@ -144,18 +135,8 @@ func PackageTools(packageRoot string, serviceInfoProvider ServiceInfoProvider) [
 	}
 	result = append(result, readmeTemplateTool)
 
-	// get_example_readme tool
-	exampleReadmeTool, err := functiontool.New(
-		functiontool.Config{
-			Name:        "get_example_readme",
-			Description: "Get a high-quality example README.md that demonstrates the target quality, level of detail, and formatting. Use this as a reference for style and content structure.",
-		},
-		getExampleReadmeHandler(),
-	)
-	if err != nil {
-		panic("failed to create get_example_readme tool: " + err.Error())
-	}
-	result = append(result, exampleReadmeTool)
+	// Add example tools (list_examples and get_example) for category-based example retrieval
+	result = append(result, CreateExampleTools()...)
 
 	// get_service_info tool
 	serviceInfoTool, err := functiontool.New(
@@ -320,14 +301,6 @@ func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetRead
 		// Get the embedded template content
 		templateContent := archetype.GetPackageDocsReadmeTemplate()
 		return GetReadmeTemplateResult{Content: templateContent}, nil
-	}
-}
-
-// getExampleReadmeHandler returns a handler for the get_example_readme tool
-func getExampleReadmeHandler() functiontool.Func[GetExampleReadmeArgs, GetExampleReadmeResult] {
-	return func(ctx tool.Context, args GetExampleReadmeArgs) (GetExampleReadmeResult, error) {
-		// Get the embedded example content
-		return GetExampleReadmeResult{Content: ExampleReadmeContent}, nil
 	}
 }
 

@@ -20,7 +20,7 @@ Critical Directives (Follow These Strictly):
 3. Preserve Content: If PRESERVE blocks are provided below, you MUST include them verbatim in your generated section.
 4. No Hallucination: If you cannot find information, use: << INFORMATION NOT AVAILABLE - PLEASE UPDATE >>.
 5. Follow Template Structure: Use the template section as your structural guide.
-6. Match Example Quality: Use the example section to understand the expected quality and style.
+6. Match Example Quality: Use the example section to understand the expected quality and style. Examples are for FORMAT and STYLE reference only - do NOT copy their content as it will not apply to the integration you are documenting.
 
 Available Tools (Use These for Information Gathering):
 
@@ -62,7 +62,7 @@ Example Section (Quality Reference):
 3. Generate Section Content:
    * Start with the section header at the appropriate level (%s %s)
    * Follow the structure shown in the template section
-   * Match the quality and style demonstrated in the example section
+   * Match the quality and style demonstrated in the example section (format only, not content)
    * Include any PRESERVE blocks exactly as provided
    * If relevent information is available in the existing readme, prefer to use it verbatim, unless this information conflicts with another directive.
    * Be specific and actionable - provide concrete examples and steps

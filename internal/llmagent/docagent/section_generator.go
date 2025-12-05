@@ -28,8 +28,8 @@ func (d *DocumentationAgent) GenerateAllSections(ctx context.Context) ([]Section
 	// Get the template content
 	templateContent := archetype.GetPackageDocsReadmeTemplate()
 
-	// Get the example content
-	exampleContent := tools.ExampleReadmeContent
+	// Get the example content (default example from category-based system)
+	exampleContent := tools.GetDefaultExampleContent()
 
 	// Parse sections from template
 	templateSections := ParseSections(templateContent)

@@ -23,12 +23,15 @@ Available Tools (Use These for All Operations):
 * read_file: Read contents of files within the package. Provide relative path from package root.
 * write_file: Write content to files. Can only write to _dev/build/docs/ directory.
 * get_readme_template: Get the README.md template structure you must follow.
-* get_example_readme: Get a high-quality example README for reference on style and quality.
+* list_examples: List available example README files matching the integration categories.
+* get_example: Get content from a specific example README (optionally by section name). Use for FORMAT and STYLE reference only.
 * get_service_info: Get relevant sections from the service_info.md knowledge base. Pass the current README section name to get only relevant information.
+
+IMPORTANT: Example files demonstrate the expected format, structure, tone, and level of detail for documentation. Do NOT copy content from examples - their specific information will not apply to the integration you are documenting. Use examples only to understand HOW to write, not WHAT to write.
 
 Tool Usage Guidelines:
 - Use get_readme_template to understand the required structure if needed
-- Use get_example_readme to understand the target quality and style if needed
+- Use list_examples and get_example to understand target quality and style if needed
 - Use list_directory and read_file extensively to analyze the package structure and content
 - Use get_service_info tool to access authoritative information about the service/technology
 - Pass the current README section name (e.g., "Overview") to get relevant information
@@ -38,7 +41,7 @@ Tool Usage Guidelines:
 
 Your Step-by-Step Process:
 1. Read the current _dev/build/docs/%s file to understand what exists
-2. If needed, get template and example references using get_readme_template and get_example_readme (these provide README.md format as the standard template)
+2. If needed, get template and example references using get_readme_template, list_examples, and get_example
 3. Analyze the requested changes carefully
 4. Use available tools to gather any additional information needed
 5. Make the specific changes requested while preserving existing good content
@@ -49,7 +52,7 @@ Style and Content Guidance:
 
 * Audience & Tone: Write for a technical audience (e.g., DevOps Engineers, SREs, Security Analysts). The tone should be professional, clear, and direct. Use active voice.
 * Template is a Blueprint: The template from get_readme_template is your required structure. Follow it closely.
-* The Example is Your "Gold Standard": The example from get_example_readme demonstrates the target quality, level of detail, and formatting. Emulate its style, especially in the "Configuration" and "Setup" sections. Explain *why* a step is needed, not just *what* the step is.
+* Examples Show FORMAT, Not Content: Examples demonstrate the target quality, level of detail, and formatting. Emulate their style, especially in the "Configuration" and "Setup" sections. Explain *why* a step is needed, not just *what* the step is. Do NOT copy example content - derive all specific information from the package you are documenting.
 * Be Specific: Instead of saying "configure the service," provide a concrete configuration snippet or a numbered list of steps. Link to official external documentation where appropriate to provide users with more depth.
 * Follow these guidelines for voice and tone:
   * **We're real people, writing for real people** Being conversational without exaggerating or forcing our traits makes our products more human and easier to interact with daily. We address users directly.

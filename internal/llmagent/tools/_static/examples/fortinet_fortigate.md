@@ -215,4 +215,5 @@ The `log` data stream collects all log types from the FortiGate firewall, includ
 
 ### Inputs used
 
-{{ inputDocs }}ß
+{{ inputDocs }}
+

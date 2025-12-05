@@ -76,7 +76,8 @@ func TestPackageTools(t *testing.T) {
 		"read_file",
 		"write_file",
 		"get_readme_template",
-		"get_example_readme",
+		"list_examples",
+		"get_example",
 		"get_service_info",
 	}
 
@@ -90,46 +91,46 @@ func TestPackageTools(t *testing.T) {
 
 func TestGetServiceInfoMappingForSection(t *testing.T) {
 	tests := []struct {
-		name            string
-		sectionTitle    string
-		expectedLength  int
-		shouldContain   []string
-		shouldBeEmpty   bool
+		name           string
+		sectionTitle   string
+		expectedLength int
+		shouldContain  []string
+		shouldBeEmpty  bool
 	}{
 		{
-			name:            "Overview section",
-			sectionTitle:    "Overview",
-			expectedLength:  4,
-			shouldContain:   []string{"Common use cases", "Data types collected"},
+			name:           "Overview section",
+			sectionTitle:   "Overview",
+			expectedLength: 4,
+			shouldContain:  []string{"Common use cases", "Data types collected"},
 		},
 		{
-			name:            "Troubleshooting section",
-			sectionTitle:    "Troubleshooting",
-			expectedLength:  1,
-			shouldContain:   []string{"Troubleshooting"},
+			name:           "Troubleshooting section",
+			sectionTitle:   "Troubleshooting",
+			expectedLength: 1,
+			shouldContain:  []string{"Troubleshooting"},
 		},
 		{
-			name:            "Case insensitive",
-			sectionTitle:    "OVERVIEW",
-			expectedLength:  4,
+			name:           "Case insensitive",
+			sectionTitle:   "OVERVIEW",
+			expectedLength: 4,
 		},
 		{
-			name:            "Unknown section",
-			sectionTitle:    "Unknown Section",
-			shouldBeEmpty:   true,
+			name:          "Unknown section",
+			sectionTitle:  "Unknown Section",
+			shouldBeEmpty: true,
 		},
 		{
-			name:            "Wildcard match",
-			sectionTitle:    "Set up steps in AWS",
-			expectedLength:  1,
-			shouldContain:   []string{"Vendor set up steps"},
+			name:           "Wildcard match",
+			sectionTitle:   "Set up steps in AWS",
+			expectedLength: 1,
+			shouldContain:  []string{"Vendor set up steps"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := getServiceInfoMappingForSection(tt.sectionTitle)
-			
+
 			if tt.shouldBeEmpty {
 				assert.Empty(t, result)
 			} else {
