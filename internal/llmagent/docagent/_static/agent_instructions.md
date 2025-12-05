@@ -67,19 +67,17 @@ Use dropdowns to hide detailed information that users might not need immediately
 
 #### Dropdown syntax
 
+Use the MyST dropdown directive with the syntax `:::[directive-name]`. For example:
+
 ````markdown
-:::{dropdown} Click to expand
+:::dropdown Click to expand
 :open:
 
 This content is hidden by default but can be expanded by the user.
-
-```json
-{
-  "example": "configuration"
-}
-```
 :::
 ````
+
+Note: Replace `dropdown` with the actual directive name in curly braces when writing documentation.
 
 #### Dropdown best practices
 
@@ -95,7 +93,7 @@ Use tabs when you have multiple approaches to the same task or different version
 #### When to use tabs
 
 -   **Operating systems**: Different installation procedures for Windows, macOS, and Linux
--   **Deployment types**: {{ess}} vs. {{self}} vs. {{ece}}
+-   **Deployment types**: Elastic Cloud hosted vs. self-managed vs. ECE
 -   **Code languages**: Python, JavaScript, and Java examples
 -   **UI variations**: Different ways to accomplish the same task
 
@@ -239,15 +237,17 @@ If this context information is not available, you **MUST** ask the user for it.
 2.  **Section-level**: On the line below a heading. Applies to all content until the next heading of the same or higher level.
     ````markdown
     ## A section for a specific version
-    ```{applies_to}
+    ```applies_to
     stack: ga 9.1
     ```
     This content only shows for Stack 9.1+.
     ````
 3.  **Inline**: Within a line of text. Used for individual sentences, phrases, or list items.
     ````markdown
-    This feature is available for {applies_to}`stack: ga 9.0`.
+    This feature is available for applies_to`stack: ga 9.0`.
     ````
+
+Note: In actual documentation, wrap `applies_to` in curly braces as per MyST syntax.
 
 #### `applies_to` syntax and keys
 
@@ -280,13 +280,13 @@ The basic structure is `key: <lifecycle> <version>`.
 -   **Unversioned Products (e.g., `serverless`)**: When a feature's lifecycle changes, **REPLACE** the old state with the new one.
     -   Example: Change `serverless: preview` to `serverless: ga`.
 -   **Ordering**: When listing multiple versions, **ALWAYS** put the newest version first.
--   **`unavailable`**: Use this sparingly, only when necessary to prevent user confusion. For example, if a page covers both Stack and Serverless, and a specific section does not apply to Serverless, you can mark it `{applies_to}\`serverless: unavailable\`.
+-   **`unavailable`**: Use this sparingly, only when necessary to prevent user confusion. For example, if a page covers both Stack and Serverless, and a specific section does not apply to Serverless, you can mark it with the applies_to directive for `serverless: unavailable`.
 
 #### Badge placement rules
 
 -   **Headings**: Use a section-level annotation on the line **AFTER** the heading. **NEVER** use an inline annotation in a heading.
 -   **Lists (Ordered/Unordered)**: Place the inline annotation at the **BEGINNING** of the list item's text.
--   **Definition Lists**: Place the inline annotation at the **END** of the term (`<term> {applies_to}\`...\``), if it applies to the entire item (term + definition).
+-   **Definition Lists**: Place the inline annotation at the **END** of the term, if it applies to the entire item (term + definition).
 -   **Tables**:
     -   To apply to a **WHOLE ROW**, place the annotation at the end of the text in the **FIRST** column.
     -   To apply to a **SINGLE CELL**, place the annotation at the end of the text in that cell.
@@ -319,10 +319,12 @@ When content diverges significantly, use these patterns:
 
 Use these to draw attention to important information.
 
--   `:::{warning}`: **CRITICAL**. Risk of data loss or a security vulnerability.
--   `:::{important}`: High importance. Risk of performance impact or system instability. Data is safe.
--   `:::{note}`: Relevant information. No serious repercussions if ignored.
--   `:::{tip}`: Helpful advice or a best practice.
+-   `:::warning`: **CRITICAL**. Risk of data loss or a security vulnerability.
+-   `:::important`: High importance. Risk of performance impact or system instability. Data is safe.
+-   `:::note`: Relevant information. No serious repercussions if ignored.
+-   `:::tip`: Helpful advice or a best practice.
+
+Note: In actual MyST syntax, the directive name is wrapped in curly braces after the colons.
 
 ### Grammar and spelling
 
@@ -369,18 +371,20 @@ When product changes require immediate documentation updates:
 
 **Feature backports**: When features appear in multiple versions simultaneously
 ```markdown
-{applies_to}`stack: ga 9.1.5, ga 9.0.8, ga 8.15.3`
+applies_to`stack: ga 9.1.5, ga 9.0.8, ga 8.15.3`
 ```
 
 **Gradual rollouts**: When features deploy progressively
 ```markdown
-{applies_to}`serverless: ga` {applies_to}`ess: preview` {applies_to}`self: unavailable`
+applies_to`serverless: ga` applies_to`ess: preview` applies_to`self: unavailable`
 ```
 
 **Deprecation timelines**: Show removal planning
 ```markdown
-{applies_to}`stack: removed 10.0, deprecated 9.5, ga 9.0`
+applies_to`stack: removed 10.0, deprecated 9.5, ga 9.0`
 ```
+
+Note: In actual MyST syntax, wrap `applies_to` in curly braces.
 
 ## SEO guidelines for documentation content
 
