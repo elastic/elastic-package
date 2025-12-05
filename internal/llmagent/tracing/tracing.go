@@ -17,7 +17,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -294,4 +294,3 @@ func RecordInput(span trace.Span, input string) {
 func RecordOutput(span trace.Span, output string) {
 	span.SetAttributes(attribute.String(AttrOutputValue, output))
 }
-

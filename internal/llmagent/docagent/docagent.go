@@ -105,10 +105,11 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	// Load MCP toolsets
 	mcpToolsets := mcptools.LoadToolsets()
 
-	// Create ADK agent configuration
+	// Create ADK agent configuration with system instructions
 	agentCfg := agent.Config{
-		APIKey:  cfg.APIKey,
-		ModelID: cfg.ModelID,
+		APIKey:      cfg.APIKey,
+		ModelID:     cfg.ModelID,
+		Instruction: AgentInstructions,
 	}
 
 	// Create ADK agent with tools and toolsets
@@ -134,8 +135,44 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	}, nil
 }
 
+// ConfirmInstructionsUnderstood asks the LLM to confirm it understood the system instructions.
+// This should be called before any documentation workflow to ensure proper adherence.
+func (d *DocumentationAgent) ConfirmInstructionsUnderstood(ctx context.Context) error {
+	fmt.Println("🔍 Verifying LLM understands documentation guidelines...")
+
+	confirmPrompt := `Please confirm that you understand and will follow all instructions provided in the system prompt for authoring Elastic documentation.
+
+Briefly summarize the key principles you will adhere to:
+1. The cumulative documentation model and applies_to mechanism
+2. Voice and tone requirements  
+3. Accessibility and inclusivity requirements
+
+End your response with "CONFIRMED: I will follow all guidelines." if you understand.`
+
+	result, err := d.llmAgent.ExecuteTask(ctx, confirmPrompt)
+	if err != nil {
+		return fmt.Errorf("failed to confirm instructions: %w", err)
+	}
+
+	// Log the confirmation response
+	logger.Debugf("LLM confirmation response: %s", result.FinalContent)
+
+	// Check if the LLM confirmed understanding
+	if !strings.Contains(strings.ToLower(result.FinalContent), "confirmed") {
+		return fmt.Errorf("LLM did not confirm understanding of documentation guidelines")
+	}
+
+	fmt.Println("✅ LLM confirmed understanding of documentation guidelines")
+	return nil
+}
+
 // UpdateDocumentation runs the documentation update process using section-based generation
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
+	// Confirm LLM understands the documentation guidelines before proceeding
+	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
+		return fmt.Errorf("instruction confirmation failed: %w", err)
+	}
+
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
 
@@ -174,6 +211,11 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 			return fmt.Errorf("cannot modify documentation: %s does not exist at _dev/build/docs/%s", d.targetDocFile, d.targetDocFile)
 		}
 		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
+	}
+
+	// Confirm LLM understands the documentation guidelines before proceeding
+	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
+		return fmt.Errorf("instruction confirmation failed: %w", err)
 	}
 
 	// Backup original README content before making any changes
