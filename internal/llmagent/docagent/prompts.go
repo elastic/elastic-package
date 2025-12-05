@@ -186,11 +186,16 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		ctx.Manifest.Type,        // package type
 		ctx.Manifest.Version,     // package version
 		ctx.Manifest.Description, // package description
+		ctx.SectionTitle,         // section title for get_example in tool guidelines
+		ctx.SectionTitle,         // section title for get_service_info in tool guidelines
 		ctx.TemplateSection,      // template section content
-		ctx.ExampleSection,       // example section content
 		preserveSection,          // preserve content if any
+		ctx.SectionTitle,         // section title for get_example in step 1
+		ctx.SectionTitle,         // section title for get_service_info in step 3
 		levelStr,                 // level prefix for step 4
 		ctx.SectionTitle,         // section title for step 4
+		levelStr,                 // level prefix for step 5
+		ctx.SectionTitle,         // section title for step 5
 	}
 }
 

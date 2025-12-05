@@ -20,16 +20,21 @@ Critical Directives (Follow These Strictly):
 3. Preserve Content: If PRESERVE blocks are provided below, you MUST include them verbatim in your generated section.
 4. No Hallucination: If you cannot find information, use: << INFORMATION NOT AVAILABLE - PLEASE UPDATE >>.
 5. Follow Template Structure: Use the template section as your structural guide.
-6. Match Example Quality: Use the example section to understand the expected quality and style. Examples are for FORMAT and STYLE reference only - do NOT copy their content as it will not apply to the integration you are documenting.
+6. Match Example Quality: Get examples to understand the expected quality and style. Examples are for FORMAT and STYLE reference only - do NOT copy their content as it will not apply to the integration you are documenting.
 
 Available Tools (Use These for Information Gathering):
 
 * list_directory: List files and directories in the package. Use path="" for package root.
 * read_file: Read contents of files within the package.
+* list_examples: List available example README files matching the integration categories. Pass categories from manifest.yml.
+* get_example: Get content from a specific example README (optionally by section name). Use for FORMAT and STYLE reference only.
 * get_service_info: Get relevant sections from the service_info.md knowledge base. Pass the current README section name to get only relevant information.
+
+IMPORTANT: Example files demonstrate the expected format, structure, tone, and level of detail for documentation. Do NOT copy content from examples - their specific information will not apply to the integration you are documenting. Use examples only to understand HOW to write, not WHAT to write.
 
 Tool Usage Guidelines:
 - Use list_directory and read_file to analyze the package structure and gather information
+- Use list_examples to find relevant examples based on the package categories, then use get_example with section="%s" to see how that section should be formatted
 - When generating content for this section, use the get_service_info tool with readme_section="%s" to retrieve relevant service information
 - If service_info.md contains information, treat it as the authoritative source of truth
 - All file paths must be relative to package root (e.g., "manifest.yml", "data_stream/logs/manifest.yml")
@@ -40,40 +45,41 @@ Template Section (Structure to Follow):
 %s
 ---
 
-Example Section (Quality Reference):
----
-%s
----
-
 %sYour Step-by-Step Process:
 
-1. Analyze Requirements:
-   * Understand what information this section should contain based on the template
-   * Review the example to understand the expected quality and style
+1. Get Quality Examples:
+   * Read manifest.yml to get the package categories
+   * Call list_examples with the package categories to find relevant examples
+   * Call get_example with section="%s" to see how this section should be formatted and styled
 
-2. Gather Information:
+2. Analyze Requirements:
+   * Understand what information this section should contain based on the template
+   * Review the example section to understand the expected quality and style (format only, not content)
+
+3. Gather Information:
    * Use list_directory to explore the package structure
    * Use read_file to extract relevant details from package files
    * Use get_service_info with readme_section="%s" to get authoritative information
    * Review the current README by reading it at '_dev/build/docs/README.md'
    * Focus on information relevant to THIS SECTION ONLY
-   * Relevent information in the existing readme
 
-3. Generate Section Content:
+4. Generate Section Content:
    * Start with the section header at the appropriate level (%s %s)
    * Follow the structure shown in the template section
-   * Match the quality and style demonstrated in the example section (format only, not content)
+   * Match the quality and style demonstrated in the example (format only, not content)
    * Include any PRESERVE blocks exactly as provided
-   * If relevent information is available in the existing readme, prefer to use it verbatim, unless this information conflicts with another directive.
+   * If relevant information is available in the existing readme, prefer to use it verbatim, unless this information conflicts with another directive
    * Be specific and actionable - provide concrete examples and steps
 
-4. Return Your Response:
+5. Return Your Response:
+   * CRITICAL: You MUST return markdown content in your final response - never end with an empty response
    * Your response should contain the markdown content for this section
    * Start with the section header (%s %s)
    * If this section has subsections (### headers), include ALL of them
    * Generate complete content for this section and all its logical subsections
    * DO NOT generate content for sibling sections (other ## headers)
    * Maintain the hierarchical structure: one ## header with its ### subsections
+   * If you cannot generate meaningful content, still return a section header with placeholder text
 
 SUBSECTION HANDLING:
 - If the template shows ### subsections under this ## section, include them ALL
@@ -96,4 +102,6 @@ Style and Content Guidance:
   * Do not use initialisms - Use "for example" instead of "e.g."
 
 Begin by analyzing the package to gather information for this specific section, then generate ONLY this section's content (including all its subsections).
+
+IMPORTANT: Your final response MUST contain the generated markdown content for the section. Do not end your turn without providing the section content as text output.
 

@@ -28,7 +28,7 @@ func TestListExamplesHandler(t *testing.T) {
 		{
 			name:           "security category",
 			categories:     []string{"security"},
-			expectExamples: []string{"fortinet_fortigate.md"},
+			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
 		},
 		{
 			name:           "firewall category",
@@ -38,17 +38,22 @@ func TestListExamplesHandler(t *testing.T) {
 		{
 			name:           "network category",
 			categories:     []string{"network"},
-			expectExamples: []string{"fortinet_fortigate.md"},
+			expectExamples: []string{"fortinet_fortigate.md", "suricata.md"},
+		},
+		{
+			name:           "observability category",
+			categories:     []string{"observability"},
+			expectExamples: []string{"fortinet_fortigate.md", "airflow.md", "proofpoint_essentials.md", "postgresql_otel.md"},
 		},
 		{
 			name:           "multiple categories deduplicates",
 			categories:     []string{"security", "firewall", "network"},
-			expectExamples: []string{"fortinet_fortigate.md"},
+			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
 		},
 		{
 			name:           "case insensitive categories",
 			categories:     []string{"SECURITY", "Network"},
-			expectExamples: []string{"fortinet_fortigate.md"},
+			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
 		},
 		{
 			name:           "unknown category still returns wildcard examples",

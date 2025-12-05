@@ -136,6 +136,9 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, sectionC
 	return generatedSection, nil
 }
 
+// emptySectionPlaceholder is the placeholder text for sections that couldn't be populated
+const emptySectionPlaceholder = "<< SECTION NOT POPULATED! Add appropriate text, or remove the section. >>"
+
 // extractGeneratedSectionContent extracts the generated section content from the LLM response
 func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskResult, sectionTitle string) string {
 	// Look through the conversation for the generated content
@@ -146,6 +149,12 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 	// For now, we'll look for the content in the final response
 	// This assumes the LLM returns the markdown content directly
 	content := result.FinalContent
+
+	// Handle empty response - return placeholder with section header
+	if trimSpace(content) == "" {
+		logger.Warnf("LLM returned empty response for section: %s", sectionTitle)
+		return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
+	}
 
 	// If the content starts with thinking or explanatory text, try to extract just the markdown
 	// Look for the section header
@@ -167,7 +176,13 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 		return joinLines(lines)
 	}
 
-	return content
+	// If no section header was found but content exists, it might be just the content without a header
+	// In this case, add the header ourselves if content is meaningful, otherwise return placeholder
+	if trimSpace(content) != "" {
+		return fmt.Sprintf("## %s\n\n%s", sectionTitle, content)
+	}
+
+	return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
 }
 
 // Helper functions for content extraction
