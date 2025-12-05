@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/llmagent/agent"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
+	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
@@ -168,6 +169,9 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 
 // UpdateDocumentation runs the documentation update process using section-based generation
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
+	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate")
+	defer chainSpan.End()
+
 	// Confirm LLM understands the documentation guidelines before proceeding
 	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
 		return fmt.Errorf("instruction confirmation failed: %w", err)
@@ -204,6 +208,9 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 // ModifyDocumentation runs the documentation modification process for targeted changes using section-based approach
 func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) error {
+	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:modify")
+	defer chainSpan.End()
+
 	// Check if documentation file exists
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
 	if _, err := os.Stat(docPath); err != nil {

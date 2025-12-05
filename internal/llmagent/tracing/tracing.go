@@ -204,6 +204,15 @@ type Message struct {
 	Content string `json:"content"`
 }
 
+// StartChainSpan starts a new span for a chain of operations (e.g., document generation)
+func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	return Tracer().Start(ctx, name,
+		trace.WithAttributes(
+			attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
+		),
+	)
+}
+
 // StartAgentSpan starts a new span for an agent task execution
 func StartAgentSpan(ctx context.Context, name string, modelID string) (context.Context, trace.Span) {
 	return Tracer().Start(ctx, name,
