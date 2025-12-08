@@ -66,4 +66,3 @@ func TestHasServiceInfoMapping(t *testing.T) {
 		assert.True(t, HasServiceInfoMapping("overview"))
 	})
 }
-

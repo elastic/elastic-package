@@ -13,9 +13,9 @@ import (
 
 func TestParseSections_Hierarchical(t *testing.T) {
 	tests := []struct {
-		name               string
-		content            string
-		expectedSections   int
+		name                string
+		content             string
+		expectedSections    int
 		expectedSubsections map[string]int // section title -> subsection count
 	}{
 		{
@@ -98,7 +98,7 @@ Troubleshooting content.`,
 				for _, section := range sections {
 					if section.Title == sectionTitle {
 						found = true
-						assert.Len(t, section.Subsections, expectedSubCount, 
+						assert.Len(t, section.Subsections, expectedSubCount,
 							"subsection count for %s", sectionTitle)
 						break
 					}
@@ -258,10 +258,10 @@ func TestGetParentSection(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
+		name            string
 		subsectionTitle string
-		expectedParent string
-		shouldFind   bool
+		expectedParent  string
+		shouldFind      bool
 	}{
 		{"find parent of compatibility", "Compatibility", "Overview", true},
 		{"find parent of how it works", "How it works", "Overview", true},
@@ -317,7 +317,7 @@ func TestParseSections_EdgeCases(t *testing.T) {
 This starts with level 3.`
 
 		sections := ParseSections(content)
-		
+
 		// Should still parse, but subsection becomes a top-level item
 		// (This is an edge case - ideally shouldn't happen, but parser should handle it gracefully)
 		assert.Len(t, sections, 1)
@@ -335,4 +335,3 @@ This starts with level 3.`
 		assert.Len(t, sections, 0)
 	})
 }
-

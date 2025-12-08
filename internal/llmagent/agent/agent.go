@@ -270,4 +270,3 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 		Conversation: conversation,
 	}, nil
 }
-

@@ -147,14 +147,14 @@ func TestBuildPrompt(t *testing.T) {
 
 	ctx := PromptContext{
 		Manifest: &packages.PackageManifest{
-		Name:        "test-package",
-		Title:       "Test Package",
-		Type:        "integration",
-		Version:     "1.0.0",
-		Description: "Test description",
-	},
-	TargetDocFile: "docs/README.md",
-}
+			Name:        "test-package",
+			Title:       "Test Package",
+			Type:        "integration",
+			Version:     "1.0.0",
+			Description: "Test description",
+		},
+		TargetDocFile: "docs/README.md",
+	}
 
 	t.Run("builds initial prompt", func(t *testing.T) {
 		prompt := agent.buildPrompt(PromptTypeInitial, ctx)

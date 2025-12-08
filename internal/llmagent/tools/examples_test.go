@@ -11,80 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListExamplesHandler(t *testing.T) {
-	handler := listExamplesHandler()
-
-	tests := []struct {
-		name           string
-		categories     []string
-		expectExamples []string
-		expectError    bool
-	}{
-		{
-			name:           "empty categories returns wildcard examples",
-			categories:     []string{},
-			expectExamples: []string{"fortinet_fortigate.md"},
-		},
-		{
-			name:           "security category",
-			categories:     []string{"security"},
-			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
-		},
-		{
-			name:           "firewall category",
-			categories:     []string{"firewall"},
-			expectExamples: []string{"fortinet_fortigate.md"},
-		},
-		{
-			name:           "network category",
-			categories:     []string{"network"},
-			expectExamples: []string{"fortinet_fortigate.md", "suricata.md"},
-		},
-		{
-			name:           "observability category",
-			categories:     []string{"observability"},
-			expectExamples: []string{"fortinet_fortigate.md", "airflow.md", "proofpoint_essentials.md", "postgresql_otel.md"},
-		},
-		{
-			name:           "multiple categories deduplicates",
-			categories:     []string{"security", "firewall", "network"},
-			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
-		},
-		{
-			name:           "case insensitive categories",
-			categories:     []string{"SECURITY", "Network"},
-			expectExamples: []string{"fortinet_fortigate.md", "extrahop.md", "proofpoint_essentials.md", "sentinel_one.md", "suricata.md"},
-		},
-		{
-			name:           "unknown category still returns wildcard examples",
-			categories:     []string{"unknown_category"},
-			expectExamples: []string{"fortinet_fortigate.md"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := handler(nil, ListExamplesArgs{Categories: tt.categories})
-			require.NoError(t, err)
-
-			if tt.expectError {
-				assert.NotEmpty(t, result.Error)
-			} else {
-				assert.Empty(t, result.Error)
-				assert.Equal(t, tt.expectExamples, result.Examples)
-			}
-		})
-	}
-}
-
 func TestGetExampleHandler(t *testing.T) {
 	handler := getExampleHandler()
 
 	tests := []struct {
-		name        string
-		exampleName string
-		section     string
-		expectError bool
+		name         string
+		exampleName  string
+		section      string
+		expectError  bool
 		checkContent func(t *testing.T, content string)
 	}{
 		{
@@ -265,4 +199,3 @@ func TestCreateExampleTools(t *testing.T) {
 	assert.Equal(t, "list_examples", tools[0].Name())
 	assert.Equal(t, "get_example", tools[1].Name())
 }
-

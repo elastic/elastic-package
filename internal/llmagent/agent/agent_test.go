@@ -51,5 +51,3 @@ func TestConversationEntry(t *testing.T) {
 	assert.Equal(t, "assistant", entries[1].Type)
 	assert.Equal(t, "tool_result", entries[2].Type)
 }
-
-

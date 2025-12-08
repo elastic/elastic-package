@@ -31,16 +31,16 @@ func NewServiceInfoManager(packageRoot string) *ServiceInfoManager {
 // Returns error if file doesn't exist or can't be parsed
 func (s *ServiceInfoManager) Load() error {
 	serviceInfoPath := filepath.Join(s.packageRoot, "docs", "knowledge_base", "service_info.md")
-	
+
 	content, err := os.ReadFile(serviceInfoPath)
 	if err != nil {
 		return fmt.Errorf("failed to read service_info.md: %w", err)
 	}
-	
+
 	// Parse the content into sections
 	s.sections = ParseSections(string(content))
 	s.loaded = true
-	
+
 	return nil
 }
 
@@ -50,9 +50,9 @@ func (s *ServiceInfoManager) GetSections(sectionTitles []string) string {
 	if !s.loaded || len(sectionTitles) == 0 {
 		return ""
 	}
-	
+
 	var matchedSections []string
-	
+
 	for _, requestedTitle := range sectionTitles {
 		// Try to find the section (case-insensitive, fuzzy match)
 		section := FindSectionByTitleHierarchical(s.sections, requestedTitle)
@@ -61,11 +61,11 @@ func (s *ServiceInfoManager) GetSections(sectionTitles []string) string {
 			matchedSections = append(matchedSections, section.GetAllContent())
 		}
 	}
-	
+
 	if len(matchedSections) == 0 {
 		return ""
 	}
-	
+
 	// Join sections with double newline separator
 	return strings.Join(matchedSections, "\n\n")
 }
@@ -75,7 +75,7 @@ func (s *ServiceInfoManager) GetAllSections() string {
 	if !s.loaded {
 		return ""
 	}
-	
+
 	// Combine all top-level sections using CombineSections
 	return CombineSections(s.sections)
 }
@@ -90,7 +90,7 @@ func (s *ServiceInfoManager) GetSectionTitles() []string {
 	if !s.loaded {
 		return []string{}
 	}
-	
+
 	var titles []string
 	for _, section := range s.sections {
 		titles = append(titles, section.Title)
@@ -99,7 +99,6 @@ func (s *ServiceInfoManager) GetSectionTitles() []string {
 			titles = append(titles, subsection.Title)
 		}
 	}
-	
+
 	return titles
 }
-

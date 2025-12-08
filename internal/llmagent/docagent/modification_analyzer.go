@@ -103,11 +103,11 @@ func (d *DocumentationAgent) buildScopeAnalysisPromptHierarchical(modificationPr
 	// Build numbered list of sections with subsections indented
 	var sectionsBuilder strings.Builder
 	counter := 1
-	
+
 	for _, section := range sections {
 		sectionsBuilder.WriteString(fmt.Sprintf("%d. %s\n", counter, section.Title))
 		counter++
-		
+
 		// List subsections with indentation
 		for _, subsection := range section.Subsections {
 			sectionsBuilder.WriteString(fmt.Sprintf("   %d. %s (subsection of %s)\n", counter, subsection.Title, section.Title))
@@ -198,4 +198,3 @@ func isSectionAffected(sectionTitle string, affectedTitles []string) bool {
 
 	return false
 }
-

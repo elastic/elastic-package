@@ -139,22 +139,22 @@ func TestParseSections_RealTemplate(t *testing.T) {
 
 		// Verify we have the expected top-level sections
 		assert.Len(t, sections, 7)
-		
+
 		// Verify section titles and structure
 		expectedSections := map[string]int{
-			"Overview":                              2, // 2 subsections: Compatibility, How it works
+			"Overview": 2, // 2 subsections: Compatibility, How it works
 			"What data does this integration collect?": 1, // 1 subsection: Supported use cases
-			"What do I need to use this integration?": 0, // No subsections
-			"How do I deploy this integration?":     5, // 5 subsections
-			"Troubleshooting":                       0, // No subsections
-			"Performance and scaling":               0, // No subsections
-			"Reference":                             3, // 3 subsections
+			"What do I need to use this integration?":  0, // No subsections
+			"How do I deploy this integration?":        5, // 5 subsections
+			"Troubleshooting":                          0, // No subsections
+			"Performance and scaling":                  0, // No subsections
+			"Reference":                                3, // 3 subsections
 		}
 
 		for i, section := range sections {
-			t.Logf("Section %d: %q (level %d) with %d subsections", 
+			t.Logf("Section %d: %q (level %d) with %d subsections",
 				i, section.Title, section.Level, len(section.Subsections))
-			
+
 			expectedSubsections, found := expectedSections[section.Title]
 			if found {
 				assert.Equal(t, expectedSubsections, len(section.Subsections),
@@ -163,4 +163,3 @@ func TestParseSections_RealTemplate(t *testing.T) {
 		}
 	})
 }
-

@@ -32,7 +32,7 @@ Logs and metrics.`
 
 		manager := NewServiceInfoManager(tmpDir)
 		err := manager.Load()
-		
+
 		assert.NoError(t, err)
 		assert.True(t, manager.IsAvailable())
 		assert.Len(t, manager.sections, 2)
@@ -42,7 +42,7 @@ Logs and metrics.`
 		tmpDir := t.TempDir()
 		manager := NewServiceInfoManager(tmpDir)
 		err := manager.Load()
-		
+
 		assert.Error(t, err)
 		assert.False(t, manager.IsAvailable())
 	})
@@ -151,4 +151,3 @@ Content 2`
 	assert.Contains(t, titles, "Data types collected")
 	assert.Contains(t, titles, "Subsection")
 }
-
