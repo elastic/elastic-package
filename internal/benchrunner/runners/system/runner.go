@@ -160,12 +160,11 @@ func (r *runner) setUp(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	r.scenario = scenario
 
-	if r.scenario.Corpora.InputService != nil {
+	if scenario.Corpora.InputService != nil {
 		// Just in the case service deployer is needed (input_service field), setup the service now.
 		// and re-read the configuration to have the final one with any possible service-related variable applied.
-		s, err := r.setupService(ctx)
+		s, err := r.setupService(ctx, scenario.Corpora.InputService.Name)
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debugf("No service deployer defined for this benchmark")
 		} else if err != nil {
@@ -309,7 +308,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
-func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedService, error) {
+func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
@@ -332,7 +331,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
-	r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+	r.svcInfo.Name = serviceName
 	service, err := serviceDeployer.SetUp(ctx, r.svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup service: %w", err)
