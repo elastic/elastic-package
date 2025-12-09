@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -258,13 +259,21 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		useModifyMode = modifyPrompt != ""
 	}
 
+	// Find repository root for file operations
+	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to find repository root: %w", err)
+	}
+	defer repositoryRoot.Close()
+
 	// Create the documentation agent using ADK
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
-		APIKey:      apiKey,
-		ModelID:     modelID,
-		PackageRoot: packageRoot,
-		DocFile:     targetDocFile,
-		Profile:     profile,
+		APIKey:         apiKey,
+		ModelID:        modelID,
+		PackageRoot:    packageRoot,
+		RepositoryRoot: repositoryRoot,
+		DocFile:        targetDocFile,
+		Profile:        profile,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create documentation agent: %w", err)

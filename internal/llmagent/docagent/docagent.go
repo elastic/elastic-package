@@ -56,6 +56,7 @@ type responseAnalysis struct {
 type DocumentationAgent struct {
 	executor              *Executor
 	packageRoot           string
+	repositoryRoot        *os.Root
 	targetDocFile         string // Target documentation file (e.g., README.md, vpc.md)
 	profile               *profile.Profile
 	originalReadmeContent *string // Stores original content for restoration on cancel
@@ -77,11 +78,12 @@ type PromptContext struct {
 
 // AgentConfig holds configuration for creating a DocumentationAgent
 type AgentConfig struct {
-	APIKey      string
-	ModelID     string
-	PackageRoot string
-	DocFile     string
-	Profile     *profile.Profile
+	APIKey         string
+	ModelID        string
+	PackageRoot    string
+	RepositoryRoot *os.Root
+	DocFile        string
+	Profile        *profile.Profile
 }
 
 // NewDocumentationAgent creates a new documentation agent using ADK
@@ -129,6 +131,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	return &DocumentationAgent{
 		executor:           executor,
 		packageRoot:        cfg.PackageRoot,
+		repositoryRoot:     cfg.RepositoryRoot,
 		targetDocFile:      cfg.DocFile,
 		profile:            cfg.Profile,
 		manifest:           manifest,

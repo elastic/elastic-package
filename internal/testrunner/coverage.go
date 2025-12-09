@@ -25,6 +25,7 @@ func GenerateBasePackageCoverageReport(packageName, packageRoot, format string) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
+	defer root.Close()
 
 	var coverage CoverageReport
 	err = filepath.WalkDir(packageRoot, func(match string, d fs.DirEntry, err error) error {
@@ -73,6 +74,7 @@ func GenerateBaseFileCoverageReport(packageName, path, format string, covered bo
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
+	defer root.Close()
 
 	return generateBaseFileCoverageReport(root, packageName, path, format, covered)
 }
@@ -84,6 +86,7 @@ func GenerateBaseFileCoverageReportGlob(packageName string, patterns []string, f
 	if err != nil {
 		return nil, fmt.Errorf("failed to find repository root directory: %w", err)
 	}
+	defer root.Close()
 
 	var coverage CoverageReport
 	for _, pattern := range patterns {

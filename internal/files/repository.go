@@ -14,7 +14,15 @@ import (
 )
 
 func FindRepositoryRoot() (*os.Root, error) {
-	rootPath, err := findRepositoryRootDirectory()
+	workDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("locating working directory failed: %w", err)
+	}
+	return FindRepositoryRootFrom(workDir)
+}
+
+func FindRepositoryRootFrom(workDir string) (*os.Root, error) {
+	rootPath, err := findRepositoryRootDirectoryFrom(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("root not found: %w", err)
 	}
@@ -26,14 +34,6 @@ func FindRepositoryRoot() (*os.Root, error) {
 	}
 
 	return dirRoot, nil
-}
-
-func findRepositoryRootDirectory() (string, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("locating working directory failed: %w", err)
-	}
-	return findRepositoryRootDirectoryFrom(workDir)
 }
 
 func findRepositoryRootDirectoryFrom(workDir string) (string, error) {

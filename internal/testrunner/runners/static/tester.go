@@ -14,6 +14,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
@@ -162,7 +163,14 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
+	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+	if err != nil {
+		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		return results
+	}
+	defer repositoryRoot.Close()
+	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
+	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),

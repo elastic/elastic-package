@@ -605,6 +605,11 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+#### Script Tests
+These tests allow you to run scripted testing to exercise specific behaviors in a package.
+
+For details on how to configure and run script tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/script_testing.md).
+
 #### Policy Tests
 These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
 
