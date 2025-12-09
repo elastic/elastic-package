@@ -154,8 +154,9 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	// It is required to read once the configuration to know if a service deployer is needed.
-	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
+	// First read of the configuration to know if a service deployer is needed.
+	// No need to render any template at this point.
+	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
 	if err != nil {
 		return err
 	}
@@ -171,14 +172,14 @@ func (r *runner) setUp(ctx context.Context) error {
 			return err
 		}
 		r.service = s
-		r.svcInfo = s.Info()
-
-		scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
-		if err != nil {
-			return err
-		}
-		r.scenario = scenario
 	}
+
+	// Read the configuration again to have any possible service-related variable applied.
+	scenario, err = readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
+	if err != nil {
+		return err
+	}
+	r.scenario = scenario
 
 	if r.scenario.Corpora.Generator != nil {
 		var err error
