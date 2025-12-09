@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/agent"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
@@ -107,7 +106,7 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, sectionC
 	prompt := d.buildSectionPrompt(sectionCtx)
 
 	// Execute the task
-	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
+	result, err := d.executor.ExecuteTask(ctx, prompt)
 	if err != nil {
 		return Section{}, fmt.Errorf("agent task failed: %w", err)
 	}
@@ -141,7 +140,7 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, sectionC
 const emptySectionPlaceholder = "<< SECTION NOT POPULATED! Add appropriate text, or remove the section. >>"
 
 // extractGeneratedSectionContent extracts the generated section content from the LLM response
-func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskResult, sectionTitle string) string {
+func (d *DocumentationAgent) extractGeneratedSectionContent(result *TaskResult, sectionTitle string) string {
 	// Look through the conversation for the generated content
 	// The LLM might have:
 	// 1. Returned the content directly in the final response

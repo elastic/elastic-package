@@ -12,8 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/elastic/elastic-package/internal/llmagent/agent"
 )
 
 func TestNewDocumentationAgent_Validation(t *testing.T) {
@@ -149,7 +147,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 	tests := []struct {
 		name           string
 		content        string
-		conversation   []agent.ConversationEntry
+		conversation   []ConversationEntry
 		expectedStatus responseStatus
 	}{
 		{
@@ -161,7 +159,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 		{
 			name:    "empty content with successful tools",
 			content: "",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "✅ success"},
 			},
 			expectedStatus: responseSuccess,
@@ -175,7 +173,7 @@ func TestResponseAnalyzer_AnalyzeResponse(t *testing.T) {
 		{
 			name:    "error indicator but tools succeeded",
 			content: "I encountered an error while processing",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "successfully wrote file"},
 			},
 			expectedStatus: responseSuccess,
@@ -208,31 +206,31 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		conversation []agent.ConversationEntry
+		conversation []ConversationEntry
 		expected     bool
 	}{
 		{
 			name:         "empty conversation",
-			conversation: []agent.ConversationEntry{},
+			conversation: []ConversationEntry{},
 			expected:     false,
 		},
 		{
 			name: "recent success",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "✅ success - file written"},
 			},
 			expected: true,
 		},
 		{
 			name: "recent error marker",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "❌ error - file not found"},
 			},
 			expected: false,
 		},
 		{
 			name: "success followed by error",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "successfully wrote file"},
 				{Type: "tool_result", Content: "❌ error - something failed"},
 			},
@@ -240,7 +238,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "error followed by success",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "❌ error - something failed"},
 				{Type: "tool_result", Content: "completed successfully"},
 			},
@@ -248,7 +246,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "success beyond lookback window",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "tool_result", Content: "✅ success"},
 				{Type: "user", Content: "message 1"},
 				{Type: "user", Content: "message 2"},
@@ -261,7 +259,7 @@ func TestResponseAnalyzer_HasRecentSuccessfulTools(t *testing.T) {
 		},
 		{
 			name: "non-tool entries",
-			conversation: []agent.ConversationEntry{
+			conversation: []ConversationEntry{
 				{Type: "user", Content: "user message"},
 				{Type: "assistant", Content: "assistant message"},
 			},

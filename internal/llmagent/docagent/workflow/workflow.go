@@ -16,7 +16,7 @@ import (
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -29,7 +29,7 @@ type Builder struct {
 // NewBuilder creates a new workflow builder with the given configuration
 func NewBuilder(cfg Config) *Builder {
 	if cfg.Registry == nil {
-		cfg.Registry = agents.DefaultRegistry()
+		cfg.Registry = specialists.DefaultRegistry()
 	}
 	if cfg.MaxIterations == 0 {
 		cfg.MaxIterations = DefaultMaxIterations
@@ -48,9 +48,9 @@ type Result struct {
 	// Feedback contains the final feedback (if any)
 	Feedback string
 	// ValidationResult contains validation results
-	ValidationResult *agents.ValidationResult
+	ValidationResult *specialists.ValidationResult
 	// URLCheckResult contains URL check results
-	URLCheckResult *agents.URLCheckResult
+	URLCheckResult *specialists.URLCheckResult
 }
 
 // BuildSectionWorkflow creates a workflow agent for generating a single section
@@ -99,7 +99,7 @@ func (b *Builder) BuildSectionWorkflow(ctx context.Context) (agent.Agent, error)
 
 // buildSubAgents creates ADK agents from the registry
 func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
-	agentCfg := agents.AgentConfig{
+	agentCfg := specialists.AgentConfig{
 		Model:    b.config.Model,
 		Tools:    b.config.Tools,
 		Toolsets: b.config.Toolsets,
@@ -134,7 +134,7 @@ func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
 }
 
 // ExecuteWorkflow runs the workflow and returns the result
-func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx agents.SectionContext) (*Result, error) {
+func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.SectionContext) (*Result, error) {
 	// Start workflow span for tracing with configuration
 	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
 	defer func() {
@@ -171,8 +171,8 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx agents.Section
 		AppName: "docagent-workflow",
 		UserID:  "docagent",
 		State: map[string]any{
-			agents.StateKeySectionContext: string(ctxJSON),
-			agents.StateKeyIteration:      0,
+			specialists.StateKeySectionContext: string(ctxJSON),
+			specialists.StateKeyIteration:      0,
 		},
 	})
 	if err != nil {
@@ -201,19 +201,19 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx agents.Section
 
 		// Process state updates from events
 		if event.Actions.StateDelta != nil {
-			if content, ok := event.Actions.StateDelta[agents.StateKeyContent].(string); ok {
+			if content, ok := event.Actions.StateDelta[specialists.StateKeyContent].(string); ok {
 				result.Content = content
 			}
-			if approved, ok := event.Actions.StateDelta[agents.StateKeyApproved].(bool); ok {
+			if approved, ok := event.Actions.StateDelta[specialists.StateKeyApproved].(bool); ok {
 				result.Approved = approved
 			}
-			if feedback, ok := event.Actions.StateDelta[agents.StateKeyFeedback].(string); ok {
+			if feedback, ok := event.Actions.StateDelta[specialists.StateKeyFeedback].(string); ok {
 				result.Feedback = feedback
 			}
-			if vr, ok := event.Actions.StateDelta[agents.StateKeyValidation].(agents.ValidationResult); ok {
+			if vr, ok := event.Actions.StateDelta[specialists.StateKeyValidation].(specialists.ValidationResult); ok {
 				result.ValidationResult = &vr
 			}
-			if ur, ok := event.Actions.StateDelta[agents.StateKeyURLCheck].(agents.URLCheckResult); ok {
+			if ur, ok := event.Actions.StateDelta[specialists.StateKeyURLCheck].(specialists.URLCheckResult); ok {
 				result.URLCheckResult = &ur
 			}
 		}

@@ -2,8 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-// Package agents provides specialized documentation agents for multi-agent workflows.
-package agents
+// Package specialists provides specialized documentation agents for multi-agent workflows.
+package specialists
 
 import (
 	"context"

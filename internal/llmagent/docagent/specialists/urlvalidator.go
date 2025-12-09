@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package agents
+package specialists
 
 import (
 	"context"
@@ -302,3 +302,4 @@ func isLocalhostURL(url string) bool {
 	}
 	return false
 }
+

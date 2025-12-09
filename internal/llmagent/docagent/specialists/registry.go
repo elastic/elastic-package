@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package agents
+package specialists
 
 import (
 	"fmt"
@@ -123,3 +123,4 @@ func DefaultRegistry() *Registry {
 	r.Register(NewURLValidatorAgent())
 	return r
 }
+

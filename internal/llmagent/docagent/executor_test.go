@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package agent
+package docagent
 
 import (
 	"testing"
@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestConfig(t *testing.T) {
-	cfg := Config{
+func TestExecutorConfig(t *testing.T) {
+	cfg := ExecutorConfig{
 		APIKey:      "test-api-key",
 		ModelID:     "gemini-2.5-pro",
 		Instruction: "You are a helpful assistant",

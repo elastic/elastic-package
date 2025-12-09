@@ -9,7 +9,7 @@ import (
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 )
 
 // DefaultMaxIterations is the default maximum number of workflow iterations
@@ -18,7 +18,7 @@ const DefaultMaxIterations uint = 3
 // Config holds configuration for building workflows
 type Config struct {
 	// Registry contains the agents to use in the workflow
-	Registry *agents.Registry
+	Registry *specialists.Registry
 
 	// MaxIterations limits the number of refinement cycles
 	// Set to 0 for unlimited iterations (until approved)
@@ -46,7 +46,7 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() Config {
 	return Config{
-		Registry:           agents.DefaultRegistry(),
+		Registry:           specialists.DefaultRegistry(),
 		MaxIterations:      DefaultMaxIterations,
 		EnableCritic:       true,
 		EnableValidator:    true,
@@ -79,15 +79,15 @@ func (c Config) WithMaxIterations(n uint) Config {
 }
 
 // WithRegistry sets a custom agent registry
-func (c Config) WithRegistry(r *agents.Registry) Config {
+func (c Config) WithRegistry(r *specialists.Registry) Config {
 	c.Registry = r
 	return c
 }
 
 // GeneratorOnly returns a config that only uses the generator agent
 func GeneratorOnly() Config {
-	r := agents.NewRegistry()
-	r.Register(agents.NewGeneratorAgent())
+	r := specialists.NewRegistry()
+	r.Register(specialists.NewGeneratorAgent())
 	return Config{
 		Registry:      r,
 		MaxIterations: 1,

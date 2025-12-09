@@ -2,8 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-// Package agent provides an ADK-based LLM agent wrapper for elastic-package.
-package agent
+package docagent
 
 import (
 	"context"
@@ -30,8 +29,8 @@ const (
 	defaultUserID = "default-user"
 )
 
-// Config holds configuration for creating an Agent.
-type Config struct {
+// ExecutorConfig holds configuration for creating an Executor.
+type ExecutorConfig struct {
 	APIKey      string
 	ModelID     string
 	Instruction string
@@ -50,8 +49,8 @@ type ConversationEntry struct {
 	Content string
 }
 
-// Agent wraps an ADK LLM agent for documentation generation.
-type Agent struct {
+// Executor wraps an ADK LLM agent for documentation generation.
+type Executor struct {
 	llmModel       model.LLM
 	modelID        string
 	tools          []tool.Tool
@@ -60,13 +59,13 @@ type Agent struct {
 	sessionService session.Service
 }
 
-// NewAgent creates a new ADK-based agent with tools only.
-func NewAgent(ctx context.Context, cfg Config, tools []tool.Tool) (*Agent, error) {
-	return NewAgentWithToolsets(ctx, cfg, tools, nil)
+// NewExecutor creates a new ADK-based executor with tools only.
+func NewExecutor(ctx context.Context, cfg ExecutorConfig, tools []tool.Tool) (*Executor, error) {
+	return NewExecutorWithToolsets(ctx, cfg, tools, nil)
 }
 
-// NewAgentWithToolsets creates a new ADK-based agent with tools and optional toolsets.
-func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolsets []tool.Toolset) (*Agent, error) {
+// NewExecutorWithToolsets creates a new ADK-based executor with tools and optional toolsets.
+func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []tool.Tool, toolsets []tool.Toolset) (*Executor, error) {
 	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("API key is required")
 	}
@@ -89,9 +88,9 @@ func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, to
 		return nil, fmt.Errorf("failed to create Gemini model: %w", err)
 	}
 
-	logger.Debugf("Created ADK agent with model: %s", modelID)
+	logger.Debugf("Created ADK executor with model: %s", modelID)
 
-	return &Agent{
+	return &Executor{
 		llmModel:       llmModel,
 		modelID:        modelID,
 		tools:          tools,
@@ -101,10 +100,10 @@ func NewAgentWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, to
 	}, nil
 }
 
-// ExecuteTask runs the agent to complete a task.
-func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, error) {
+// ExecuteTask runs the executor to complete a task.
+func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, error) {
 	// Start agent span for the entire task
-	ctx, agentSpan := tracing.StartAgentSpan(ctx, "agent:execute_task", a.modelID)
+	ctx, agentSpan := tracing.StartAgentSpan(ctx, "executor:execute_task", e.modelID)
 	defer agentSpan.End()
 
 	// Record input prompt
@@ -122,10 +121,10 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 	adkAgent, err := llmagent.New(llmagent.Config{
 		Name:        "doc-agent",
 		Description: "Documentation generation agent for Elastic packages",
-		Model:       a.llmModel,
-		Instruction: a.instruction,
-		Tools:       a.tools,
-		Toolsets:    a.toolsets,
+		Model:       e.llmModel,
+		Instruction: e.instruction,
+		Tools:       e.tools,
+		Toolsets:    e.toolsets,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM agent: %w", err)
@@ -135,14 +134,14 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 	r, err := runner.New(runner.Config{
 		AppName:        appName,
 		Agent:          adkAgent,
-		SessionService: a.sessionService,
+		SessionService: e.sessionService,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create runner: %w", err)
 	}
 
 	// Create a new session for this task
-	sessionResp, err := a.sessionService.Create(ctx, &session.CreateRequest{
+	sessionResp, err := e.sessionService.Create(ctx, &session.CreateRequest{
 		AppName: appName,
 		UserID:  defaultUserID,
 	})
@@ -163,8 +162,8 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 
 	for event, err := range r.Run(ctx, defaultUserID, sessionResp.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
-			logger.Debugf("Agent iteration error: %v", err)
-			return nil, fmt.Errorf("agent execution error: %w", err)
+			logger.Debugf("Executor iteration error: %v", err)
+			return nil, fmt.Errorf("executor execution error: %w", err)
 		}
 
 		iterationCount++
@@ -191,7 +190,7 @@ func (a *Agent) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, er
 					})
 
 					// Create LLM span for this response
-					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", a.modelID, inputMessages)
+					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", e.modelID, inputMessages)
 					outputMessages := []tracing.Message{{Role: "assistant", Content: part.Text}}
 					tracing.EndLLMSpan(llmSpan, outputMessages, 0, 0)
 				}

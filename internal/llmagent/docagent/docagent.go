@@ -12,8 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/agent"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
@@ -55,7 +54,7 @@ type responseAnalysis struct {
 
 // DocumentationAgent handles documentation updates for packages
 type DocumentationAgent struct {
-	llmAgent              *agent.Agent
+	executor              *Executor
 	packageRoot           string
 	targetDocFile         string // Target documentation file (e.g., README.md, vpc.md)
 	profile               *profile.Profile
@@ -108,17 +107,17 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	// Load MCP toolsets
 	mcpToolsets := mcptools.LoadToolsets()
 
-	// Create ADK agent configuration with system instructions
-	agentCfg := agent.Config{
+	// Create executor configuration with system instructions
+	execCfg := ExecutorConfig{
 		APIKey:      cfg.APIKey,
 		ModelID:     cfg.ModelID,
 		Instruction: AgentInstructions,
 	}
 
-	// Create ADK agent with tools and toolsets
-	llmAgent, err := agent.NewAgentWithToolsets(ctx, agentCfg, packageTools, mcpToolsets)
+	// Create executor with tools and toolsets
+	executor, err := NewExecutorWithToolsets(ctx, execCfg, packageTools, mcpToolsets)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create ADK agent: %w", err)
+		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(cfg.PackageRoot)
@@ -128,7 +127,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 
 	responseAnalyzer := NewResponseAnalyzer()
 	return &DocumentationAgent{
-		llmAgent:           llmAgent,
+		executor:           executor,
 		packageRoot:        cfg.PackageRoot,
 		targetDocFile:      cfg.DocFile,
 		profile:            cfg.Profile,
@@ -152,7 +151,7 @@ Briefly summarize the key principles you will adhere to:
 
 End your response with "CONFIRMED: I will follow all guidelines." if you understand.`
 
-	result, err := d.llmAgent.ExecuteTask(ctx, confirmPrompt)
+	result, err := d.executor.ExecuteTask(ctx, confirmPrompt)
 	if err != nil {
 		return fmt.Errorf("failed to confirm instructions: %w", err)
 	}
@@ -452,7 +451,7 @@ func (d *DocumentationAgent) runInteractiveMode(ctx context.Context, prompt stri
 }
 
 // logAgentResponse logs debug information about the agent response
-func (d *DocumentationAgent) logAgentResponse(result *agent.TaskResult) {
+func (d *DocumentationAgent) logAgentResponse(result *TaskResult) {
 	logger.Debugf("DEBUG: Full agent task response follows (may contain sensitive content)")
 	logger.Debugf("Agent task response - Success: %t", result.Success)
 	logger.Debugf("Agent task response - FinalContent: %s", result.FinalContent)
@@ -465,10 +464,10 @@ func (d *DocumentationAgent) logAgentResponse(result *agent.TaskResult) {
 }
 
 // executeTaskWithLogging executes a task and logs the result
-func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*agent.TaskResult, error) {
+func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*TaskResult, error) {
 	fmt.Println("🤖 LLM Agent is working...")
 
-	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
+	result, err := d.executor.ExecuteTask(ctx, prompt)
 	if err != nil {
 		fmt.Println("❌ Agent task failed")
 		fmt.Printf("❌ result is %v\n", result)
@@ -511,7 +510,7 @@ func NewResponseAnalyzer() *responseAnalyzer {
 }
 
 // AnalyzeResponse will detect the LLM state based on it's response to us.
-func (ra *responseAnalyzer) AnalyzeResponse(content string, conversation []agent.ConversationEntry) responseAnalysis {
+func (ra *responseAnalyzer) AnalyzeResponse(content string, conversation []ConversationEntry) responseAnalysis {
 	// Check for empty content
 	if strings.TrimSpace(content) == "" {
 		// Empty content might be okay if recent tools succeeded
@@ -561,7 +560,7 @@ func (ra *responseAnalyzer) containsAnyIndicator(content string, indicators []st
 }
 
 // hasRecentSuccessfulTools checks if recent tool executions were successful
-func (ra *responseAnalyzer) hasRecentSuccessfulTools(conversation []agent.ConversationEntry) bool {
+func (ra *responseAnalyzer) hasRecentSuccessfulTools(conversation []ConversationEntry) bool {
 	// Look at the last 5 conversation entries for tool results
 	lookbackCount := analysisLookbackCount
 	startIdx := len(conversation) - lookbackCount
@@ -777,7 +776,7 @@ func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existin
 // generateModifiedSection generates a modified version of a section using the LLM
 func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, originalSection Section, prompt string) (Section, error) {
 	// Execute the task
-	result, err := d.llmAgent.ExecuteTask(ctx, prompt)
+	result, err := d.executor.ExecuteTask(ctx, prompt)
 	if err != nil {
 		return Section{}, fmt.Errorf("agent task failed: %w", err)
 	}
@@ -861,7 +860,7 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 		}
 
 		// Build section context for workflow
-		sectionCtx := agents.SectionContext{
+		sectionCtx := specialists.SectionContext{
 			SectionTitle: templateSection.Title,
 			SectionLevel: templateSection.Level,
 			PackageName:  d.manifest.Name,
