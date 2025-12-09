@@ -67,10 +67,20 @@ const (
 
 // SpanKind values for OpenInference
 const (
-	SpanKindLLM   = "LLM"
-	SpanKindTool  = "TOOL"
-	SpanKindChain = "CHAIN"
-	SpanKindAgent = "AGENT"
+	SpanKindLLM      = "LLM"
+	SpanKindTool     = "TOOL"
+	SpanKindChain    = "CHAIN"
+	SpanKindAgent    = "AGENT"
+	SpanKindWorkflow = "CHAIN" // Workflows are represented as chains in OpenInference
+)
+
+// Workflow-specific attribute keys
+const (
+	AttrWorkflowName      = "workflow.name"
+	AttrWorkflowIteration = "workflow.iteration"
+	AttrWorkflowMaxIter   = "workflow.max_iterations"
+	AttrSubAgentName      = "sub_agent.name"
+	AttrSubAgentRole      = "sub_agent.role"
 )
 
 var (
@@ -302,4 +312,56 @@ func RecordInput(span trace.Span, input string) {
 // RecordOutput records the output value on a span
 func RecordOutput(span trace.Span, output string) {
 	span.SetAttributes(attribute.String(AttrOutputValue, output))
+}
+
+// StartWorkflowSpan starts a new span for a multi-agent workflow execution
+func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	return Tracer().Start(ctx, name,
+		trace.WithAttributes(
+			attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
+			attribute.String(AttrWorkflowName, name),
+		),
+	)
+}
+
+// StartWorkflowSpanWithConfig starts a workflow span with iteration configuration
+func StartWorkflowSpanWithConfig(ctx context.Context, name string, maxIterations uint) (context.Context, trace.Span) {
+	return Tracer().Start(ctx, name,
+		trace.WithAttributes(
+			attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
+			attribute.String(AttrWorkflowName, name),
+			attribute.Int(AttrWorkflowMaxIter, int(maxIterations)),
+		),
+	)
+}
+
+// StartSubAgentSpan starts a new span for a sub-agent within a workflow
+func StartSubAgentSpan(ctx context.Context, agentName string, role string) (context.Context, trace.Span) {
+	return Tracer().Start(ctx, "subagent:"+agentName,
+		trace.WithAttributes(
+			attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
+			attribute.String(AttrSubAgentName, agentName),
+			attribute.String(AttrSubAgentRole, role),
+		),
+	)
+}
+
+// RecordWorkflowIteration records the current iteration number on a workflow span
+func RecordWorkflowIteration(span trace.Span, iteration int) {
+	span.SetAttributes(attribute.Int(AttrWorkflowIteration, iteration))
+}
+
+// RecordWorkflowResult records the final workflow result on a span
+func RecordWorkflowResult(span trace.Span, approved bool, iterations int, content string) {
+	span.SetAttributes(
+		attribute.Bool("workflow.approved", approved),
+		attribute.Int("workflow.total_iterations", iterations),
+	)
+	if content != "" {
+		// Truncate content if too long for tracing
+		if len(content) > 1000 {
+			content = content[:1000] + "..."
+		}
+		span.SetAttributes(attribute.String(AttrOutputValue, content))
+	}
 }

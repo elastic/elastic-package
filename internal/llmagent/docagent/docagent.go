@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/llmagent/agent"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
@@ -804,4 +806,116 @@ func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, origin
 	}
 
 	return modifiedSection, nil
+}
+
+// GenerateAllSectionsWithWorkflow generates all sections using the multi-agent workflow.
+// This method uses a configurable pipeline of agents (generator, critic, validator, etc.)
+// to iteratively refine each section.
+func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
+	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
+	defer chainSpan.End()
+
+	// Get the template content
+	templateContent := archetype.GetPackageDocsReadmeTemplate()
+
+	// Get the example content
+	exampleContent := tools.GetDefaultExampleContent()
+
+	// Parse sections from template
+	templateSections := ParseSections(templateContent)
+	if len(templateSections) == 0 {
+		return nil, fmt.Errorf("no sections found in template")
+	}
+
+	// Parse sections from example
+	exampleSections := ParseSections(exampleContent)
+
+	// Read existing documentation if it exists
+	existingContent, _ := d.readCurrentReadme()
+	var existingSections []Section
+	if existingContent != "" {
+		existingSections = ParseSections(existingContent)
+	}
+
+	// Create workflow builder
+	builder := workflow.NewBuilder(workflowCfg)
+
+	// Generate ONLY top-level sections
+	var generatedSections []Section
+
+	for i, templateSection := range templateSections {
+		// Skip subsections - they're generated with their parent
+		if !templateSection.IsTopLevel() {
+			continue
+		}
+
+		fmt.Printf("📝 Generating section %d: %s (using multi-agent workflow)\n", i+1, templateSection.Title)
+
+		// Find corresponding example section
+		exampleSection := FindSectionByTitle(exampleSections, templateSection.Title)
+
+		// Find existing section
+		var existingSection *Section
+		if len(existingSections) > 0 {
+			existingSection = FindSectionByTitle(existingSections, templateSection.Title)
+		}
+
+		// Build section context for workflow
+		sectionCtx := agents.SectionContext{
+			SectionTitle: templateSection.Title,
+			SectionLevel: templateSection.Level,
+			PackageName:  d.manifest.Name,
+			PackageTitle: d.manifest.Title,
+		}
+
+		if templateSection.Content != "" {
+			sectionCtx.TemplateContent = templateSection.GetAllContent()
+		}
+		if exampleSection != nil {
+			sectionCtx.ExampleContent = exampleSection.GetAllContent()
+		}
+		if existingSection != nil {
+			sectionCtx.ExistingContent = existingSection.GetAllContent()
+		}
+
+		// Execute workflow for this section
+		result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
+		if err != nil {
+			logger.Debugf("Workflow failed for section %s: %v", templateSection.Title, err)
+			// Fall back to placeholder on error
+			generatedSections = append(generatedSections, Section{
+				Title:   templateSection.Title,
+				Level:   templateSection.Level,
+				Content: fmt.Sprintf("## %s\n\n%s", templateSection.Title, emptySectionPlaceholder),
+			})
+			continue
+		}
+
+		// Create section from result
+		generatedSection := Section{
+			Title:           templateSection.Title,
+			Level:           templateSection.Level,
+			Content:         result.Content,
+			HasPreserve:     templateSection.HasPreserve,
+			PreserveContent: templateSection.PreserveContent,
+		}
+
+		// Parse to extract hierarchical structure
+		parsedGenerated := ParseSections(generatedSection.Content)
+		if len(parsedGenerated) > 0 {
+			generatedSection = parsedGenerated[0]
+		}
+
+		logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
+			templateSection.Title, result.Iterations, result.Approved)
+
+		generatedSections = append(generatedSections, generatedSection)
+	}
+
+	return generatedSections, nil
+}
+
+// GetWorkflowConfig returns a workflow configuration suitable for this agent
+func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
+	return workflow.DefaultConfig()
 }
