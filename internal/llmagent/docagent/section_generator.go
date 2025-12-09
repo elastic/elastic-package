@@ -7,6 +7,7 @@ package docagent
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/llmagent/agent"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
@@ -151,7 +152,7 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 	content := result.FinalContent
 
 	// Handle empty response - return placeholder with section header
-	if trimSpace(content) == "" {
+	if strings.TrimSpace(content) == "" {
 		logger.Warnf("LLM returned empty response for section: %s", sectionTitle)
 		return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
 	}
@@ -160,7 +161,7 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 	// Look for the section header
 	lines := []string{}
 	inSection := false
-	for _, line := range splitLines(content) {
+	for line := range strings.SplitSeq(content, "\n") {
 		// Check if this line is the section header we're looking for
 		if !inSection && (startsWithHeader(line, sectionTitle, 2) || startsWithHeader(line, sectionTitle, 3)) {
 			inSection = true
@@ -173,12 +174,12 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 
 	// If we found section content, use it; otherwise use the full content
 	if len(lines) > 0 {
-		return joinLines(lines)
+		return strings.Join(lines, "\n")
 	}
 
 	// If no section header was found but content exists, it might be just the content without a header
 	// In this case, add the header ourselves if content is meaningful, otherwise return placeholder
-	if trimSpace(content) != "" {
+	if strings.TrimSpace(content) != "" {
 		return fmt.Sprintf("## %s\n\n%s", sectionTitle, content)
 	}
 
@@ -187,35 +188,6 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *agent.TaskRe
 
 // Helper functions for content extraction
 
-func splitLines(content string) []string {
-	// Split by newlines, handling both \n and \r\n
-	var lines []string
-	current := ""
-	for _, ch := range content {
-		if ch == '\n' {
-			lines = append(lines, current)
-			current = ""
-		} else if ch != '\r' {
-			current += string(ch)
-		}
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
-}
-
-func joinLines(lines []string) string {
-	result := ""
-	for i, line := range lines {
-		if i > 0 {
-			result += "\n"
-		}
-		result += line
-	}
-	return result
-}
-
 func startsWithHeader(line, title string, level int) bool {
 	prefix := ""
 	for i := 0; i < level; i++ {
@@ -223,49 +195,10 @@ func startsWithHeader(line, title string, level int) bool {
 	}
 	prefix += " "
 
-	if !hasPrefix(line, prefix) {
+	if !strings.HasPrefix(line, prefix) {
 		return false
 	}
 
-	lineTitle := trimSpace(line[len(prefix):])
-	return toLower(lineTitle) == toLower(trimSpace(title))
-}
-
-func hasPrefix(s, prefix string) bool {
-	if len(s) < len(prefix) {
-		return false
-	}
-	return s[:len(prefix)] == prefix
-}
-
-func trimSpace(s string) string {
-	// Simple trim implementation
-	start := 0
-	end := len(s)
-
-	for start < end && isSpace(s[start]) {
-		start++
-	}
-
-	for end > start && isSpace(s[end-1]) {
-		end--
-	}
-
-	return s[start:end]
-}
-
-func isSpace(ch byte) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
-}
-
-func toLower(s string) string {
-	result := ""
-	for _, ch := range s {
-		if ch >= 'A' && ch <= 'Z' {
-			result += string(ch + 32)
-		} else {
-			result += string(ch)
-		}
-	}
-	return result
+	lineTitle := strings.TrimSpace(line[len(prefix):])
+	return strings.EqualFold(strings.ToLower(lineTitle), strings.ToLower(strings.TrimSpace(title)))
 }

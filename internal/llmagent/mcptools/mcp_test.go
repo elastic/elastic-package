@@ -184,9 +184,3 @@ func TestLoadToolsets_ValidConfig_ServerWithoutURL(t *testing.T) {
 	// Server without URL should be skipped
 	assert.Empty(t, result)
 }
-
-func TestLoadTools_Deprecated(t *testing.T) {
-	// LoadTools is deprecated and should return nil
-	result := LoadTools()
-	assert.Nil(t, result)
-}

@@ -110,10 +110,3 @@ func LoadToolsets() []tool.Toolset {
 
 	return toolsets
 }
-
-// LoadTools is deprecated. Use LoadToolsets instead.
-// This function is kept for backward compatibility but returns nil.
-func LoadTools() *MCPJson {
-	log.Printf("LoadTools is deprecated, use LoadToolsets instead")
-	return nil
-}
