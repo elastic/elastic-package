@@ -154,17 +154,15 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	// First read of the configuration to know if a service deployer is needed.
-	// No need to render any template at this point.
-	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
+	serviceName, err := r.serviceDefinedInConfig()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to determine if service is defined in config: %w", err)
 	}
 
-	if scenario.Corpora.InputService != nil {
+	if serviceName != "" {
 		// Just in the case service deployer is needed (input_service field), setup the service now.
 		// and re-read the configuration to have the final one with any possible service-related variable applied.
-		s, err := r.setupService(ctx, scenario.Corpora.InputService.Name)
+		s, err := r.setupService(ctx, serviceName)
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debugf("No service deployer defined for this benchmark")
 		} else if err != nil {
@@ -174,7 +172,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	// Read the configuration again to have any possible service-related variable applied.
-	scenario, err = readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
+	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
 	if err != nil {
 		return err
 	}
@@ -262,6 +260,21 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (r *runner) serviceDefinedInConfig() (string, error) {
+	// Read of the configuration to know if a service deployer is needed.
+	// No need to render any template at this point.
+	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
+	if err != nil {
+		return "", err
+	}
+
+	if scenario.Corpora.InputService == nil {
+		return "", nil
+	}
+
+	return scenario.Corpora.InputService.Name, nil
 }
 
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
