@@ -242,7 +242,7 @@ func compileRegistryState(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Fatalf("unsupported: ! compile_registry_state")
 	}
 	clearStdStreams(ts)
-	flg := flag.NewFlagSet("uninstall", flag.ContinueOnError)
+	flg := flag.NewFlagSet("compile_registry_state", flag.ContinueOnError)
 	first := flg.Int64("start", 0, "first registry log operation ID to use")
 	pretty := flg.Bool("pretty", false, "pretty print the registry")
 	ts.Check(flg.Parse(args))
