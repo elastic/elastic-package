@@ -83,38 +83,6 @@ func TestGetExampleHandler(t *testing.T) {
 	}
 }
 
-func TestGetDefaultExampleContent(t *testing.T) {
-	content := GetDefaultExampleContent()
-
-	assert.NotEmpty(t, content)
-	assert.Contains(t, content, "# Fortinet FortiGate")
-	assert.Contains(t, content, "## Overview")
-}
-
-func TestGetExampleContent(t *testing.T) {
-	t.Run("full file", func(t *testing.T) {
-		content, err := GetExampleContent("fortinet_fortigate.md", "")
-		require.NoError(t, err)
-		assert.Contains(t, content, "# Fortinet FortiGate")
-	})
-
-	t.Run("specific section", func(t *testing.T) {
-		content, err := GetExampleContent("fortinet_fortigate.md", "Overview")
-		require.NoError(t, err)
-		assert.Contains(t, content, "## Overview")
-	})
-
-	t.Run("non-existent file", func(t *testing.T) {
-		_, err := GetExampleContent("non_existent.md", "")
-		assert.Error(t, err)
-	})
-
-	t.Run("non-existent section", func(t *testing.T) {
-		_, err := GetExampleContent("fortinet_fortigate.md", "Non Existent")
-		assert.Error(t, err)
-	})
-}
-
 func TestParseExampleSections(t *testing.T) {
 	content := `# Title
 

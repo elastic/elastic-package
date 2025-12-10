@@ -142,13 +142,13 @@ func TestParseSections_RealTemplate(t *testing.T) {
 
 		// Verify section titles and structure
 		expectedSections := map[string]int{
-			"Overview": 2, // 2 subsections: Compatibility, How it works
-			"What data does this integration collect?": 1, // 1 subsection: Supported use cases
-			"What do I need to use this integration?":  0, // No subsections
-			"How do I deploy this integration?":        5, // 5 subsections
-			"Troubleshooting":                          0, // No subsections
-			"Performance and scaling":                  0, // No subsections
-			"Reference":                                3, // 3 subsections
+			"Overview": 2,
+			"What data does this integration collect?": 1,
+			"What do I need to use this integration?":  0,
+			"How do I deploy this integration?":        6,
+			"Troubleshooting":                          0,
+			"Performance and scaling":                  0,
+			"Reference":                                3,
 		}
 
 		for i, section := range sections {
