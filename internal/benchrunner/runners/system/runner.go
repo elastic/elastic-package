@@ -160,8 +160,9 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 
 	if serviceName != "" {
-		// Just in the case service deployer is needed (input_service field), setup the service now.
-		// and re-read the configuration to have the final one with any possible service-related variable applied.
+		// Just in the case service deployer is needed (input_service field), setup the service now so all the
+		// required information is available in r.svcInfo (e.g. hostname, port, etc).
+		// This info may be needed to render the variables in the configuration.
 		s, err := r.setupService(ctx, serviceName)
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debugf("No service deployer defined for this benchmark")
@@ -171,7 +172,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		r.service = s
 	}
 
-	// Read the configuration again to have any possible service-related variable applied.
+	// Read the configuration again to have any possible service-related variable rendered.
 	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
 	if err != nil {
 		return err
