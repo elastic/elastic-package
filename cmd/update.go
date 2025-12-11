@@ -26,9 +26,9 @@ func setupUpdateCommand() *cobraext.Command {
 		RunE:  updateDocumentationCommandAction,
 	}
 	updateDocumentationCmd.Flags().Bool("non-interactive", false, "run in non-interactive mode, accepting the first result from the LLM")
-	updateDocumentationCmd.Flags().String("modify-prompt", "", "modification instructions for targeted documentation changes (skips full rewrite)")
+	updateDocumentationCmd.Flags().String("mode", "", "documentation update mode: rewrite (default), modify, or reformat")
+	updateDocumentationCmd.Flags().String("modify-prompt", "", "modification instructions for modify mode (implies --mode=modify if mode not set)")
 	updateDocumentationCmd.Flags().String("doc-file", "", "specify which markdown file to update (e.g., README.md, vpc.md). Defaults to README.md")
-	updateDocumentationCmd.Flags().Bool("reformat", false, "reformat existing documentation to match template structure (mutually exclusive with --modify-prompt)")
 
 	cmd := &cobra.Command{
 		Use:   "update",

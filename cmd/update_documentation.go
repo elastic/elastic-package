@@ -22,20 +22,19 @@ import (
 
 const updateDocumentationLongDescription = `Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports three modes:
-1. Rewrite mode (default): Full documentation regeneration
+The AI agent supports three modes (--mode flag):
+1. rewrite (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
    - Creates or updates markdown files in /_dev/build/docs/
-2. Modify mode: Targeted documentation changes
+2. modify: Targeted documentation changes
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
-   - Use --modify-prompt flag for non-interactive modifications
-3. Reformat mode: Reorganize existing content
+   - Use --modify-prompt for non-interactive modifications
+3. reformat: Reorganize existing content
    - Reorganizes existing documentation to match template structure
    - Only moves content between sections, does not modify or add content
    - Adds TODO placeholders for empty sections
-   - Use --reformat flag for non-interactive reformatting
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -48,8 +47,8 @@ You can review results and request additional changes iteratively.
 
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
-Combine with --modify-prompt "instructions" for targeted non-interactive changes.
-Use --reformat for non-interactive reformatting (mutually exclusive with --modify-prompt).
+Combine with --mode=modify --modify-prompt "instructions" for targeted non-interactive changes.
+Use --mode=reformat for non-interactive reformatting.
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -58,10 +57,87 @@ Configuration options for LLM providers (environment variables or profile config
 - GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)`
 
 const (
-	modePromptRewrite  = "Rewrite (full regeneration)"
-	modePromptModify   = "Modify (targeted changes)"
-	modePromptReformat = "Reformat (reorganize structure)"
+	modeRewrite  = "rewrite"
+	modeModify   = "modify"
+	modeReformat = "reformat"
 )
+
+var (
+	validModes = []string{modeRewrite, modeModify, modeReformat}
+	modeLabels = map[string]string{
+		modeRewrite:  "Rewrite (full regeneration)",
+		modeModify:   "Modify (targeted changes)",
+		modeReformat: "Reformat (reorganize structure)",
+	}
+)
+
+// labelToMode converts a display label to its mode value
+func labelToMode(label string) string {
+	for mode, l := range modeLabels {
+		if l == label {
+			return mode
+		}
+	}
+	return modeRewrite
+}
+
+// modeLabelsSlice returns the display labels in order for UI selection
+func modeLabelsSlice() []string {
+	return []string{modeLabels[modeRewrite], modeLabels[modeModify], modeLabels[modeReformat]}
+}
+
+// isValidMode checks if a mode string is valid
+func isValidMode(mode string) bool {
+	for _, m := range validModes {
+		if m == mode {
+			return true
+		}
+	}
+	return false
+}
+
+// determineMode determines the mode from flags or prompts the user
+func determineMode(cmd *cobra.Command, nonInteractive bool) (string, error) {
+	modeFlag, err := cmd.Flags().GetString("mode")
+	if err != nil {
+		return "", fmt.Errorf("failed to get mode flag: %w", err)
+	}
+
+	modifyPrompt, err := cmd.Flags().GetString("modify-prompt")
+	if err != nil {
+		return "", fmt.Errorf("failed to get modify-prompt flag: %w", err)
+	}
+
+	// If mode flag is explicitly set, validate and use it
+	if modeFlag != "" {
+		if !isValidMode(modeFlag) {
+			return "", fmt.Errorf("invalid mode %q: must be one of %v", modeFlag, validModes)
+		}
+		return modeFlag, nil
+	}
+
+	// If modify-prompt is provided without mode, infer modify mode
+	if modifyPrompt != "" {
+		return modeModify, nil
+	}
+
+	// In non-interactive mode, default to rewrite
+	if nonInteractive {
+		return modeRewrite, nil
+	}
+
+	// Interactive mode: prompt user to choose
+	modePrompt := tui.NewSelect("What would you like to do with the documentation?",
+		modeLabelsSlice(), modeLabels[modeRewrite])
+
+	var selectedLabel string
+	err = tui.AskOne(modePrompt, &selectedLabel)
+	if err != nil {
+		return "", fmt.Errorf("mode selection failed: %w", err)
+	}
+
+	return labelToMode(selectedLabel), nil
+}
 
 // getConfigValue retrieves a configuration value with fallback from environment variable to profile config
 func getConfigValue(profile *profile.Profile, envVar, configKey, defaultValue string) string {
@@ -187,27 +263,17 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	// Check for non-interactive flag
 	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
 	if err != nil {
 		return fmt.Errorf("failed to get non-interactive flag: %w", err)
 	}
 
-	// Check for modify-prompt flag
-	modifyPrompt, err := cmd.Flags().GetString("modify-prompt")
-	if err != nil {
-		return fmt.Errorf("failed to get modify-prompt flag: %w", err)
-	}
-
-	// Get profile for configuration access
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to get profile: %w", err)
 	}
 
-	// Get Gemini configuration
 	apiKey, modelID := getGeminiConfig(profile)
-
 	if apiKey == "" {
 		printNoProviderInstructions(cmd)
 		return nil
@@ -215,82 +281,44 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 
 	cmd.Printf("Using Gemini provider with model: %s\n", modelID)
 
-	// Select which documentation file to update
+	// Select documentation file
 	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
 	if err != nil {
 		return fmt.Errorf("failed to select documentation file: %w", err)
 	}
-
 	if !nonInteractive && targetDocFile != "README.md" {
 		cmd.Printf("Selected documentation file: %s\n", targetDocFile)
 	}
 
-	// Check for reformat flag
-	reformat, err := cmd.Flags().GetBool("reformat")
-	if err != nil {
-		return fmt.Errorf("failed to get reformat flag: %w", err)
-	}
-
-	// Validate mutually exclusive flags
-	if reformat && modifyPrompt != "" {
-		return fmt.Errorf("--reformat and --modify-prompt are mutually exclusive")
-	}
-
-	// Determine the mode based on user input
-	var selectedMode string
-
-	// Skip confirmation prompt in non-interactive mode
-	if !nonInteractive {
-		// Prompt user for confirmation
+	// Handle confirmation and mode selection
+	if nonInteractive {
+		cmd.Println("Running in non-interactive mode - proceeding automatically.")
+	} else {
 		confirmPrompt := tui.NewConfirm("Do you want to update the documentation using the AI agent?", true)
-
 		var confirm bool
-		err = tui.AskOne(confirmPrompt, &confirm, tui.Required)
-		if err != nil {
+		if err = tui.AskOne(confirmPrompt, &confirm, tui.Required); err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
-
 		if !confirm {
 			cmd.Println("Documentation update cancelled.")
 			return nil
 		}
-
-		// If no modify-prompt or reformat flag was provided, ask user to choose mode
-		if modifyPrompt == "" && !reformat {
-			modePrompt := tui.NewSelect("What would you like to do with the documentation?", []string{
-				modePromptRewrite,
-				modePromptModify,
-				modePromptReformat,
-			}, modePromptRewrite)
-
-			err = tui.AskOne(modePrompt, &selectedMode)
-			if err != nil {
-				return fmt.Errorf("prompt failed: %w", err)
-			}
-		} else if reformat {
-			selectedMode = modePromptReformat
-		} else {
-			selectedMode = modePromptModify
-		}
-	} else {
-		cmd.Println("Running in non-interactive mode - proceeding automatically.")
-		if reformat {
-			selectedMode = modePromptReformat
-		} else if modifyPrompt != "" {
-			selectedMode = modePromptModify
-		} else {
-			selectedMode = modePromptRewrite
-		}
 	}
 
-	// Find repository root for file operations
+	// Determine mode
+	selectedMode, err := determineMode(cmd, nonInteractive)
+	if err != nil {
+		return err
+	}
+
+	// Find repository root
 	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
 	if err != nil {
 		return fmt.Errorf("failed to find repository root: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	// Create the documentation agent using ADK
+	// Create agent
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		APIKey:         apiKey,
 		ModelID:        modelID,
@@ -303,21 +331,19 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
 
-	// Run the documentation update process based on selected mode
+	// Execute based on mode
 	switch selectedMode {
-	case modePromptModify:
-		err = docAgent.ModifyDocumentation(cmd.Context(), nonInteractive, modifyPrompt)
-		if err != nil {
+	case modeModify:
+		modifyPrompt, _ := cmd.Flags().GetString("modify-prompt")
+		if err = docAgent.ModifyDocumentation(cmd.Context(), nonInteractive, modifyPrompt); err != nil {
 			return fmt.Errorf("documentation modification failed: %w", err)
 		}
-	case modePromptReformat:
-		err = docAgent.ReformatDocumentation(cmd.Context(), nonInteractive)
-		if err != nil {
+	case modeReformat:
+		if err = docAgent.ReformatDocumentation(cmd.Context(), nonInteractive); err != nil {
 			return fmt.Errorf("documentation reformat failed: %w", err)
 		}
-	default: // modePromptRewrite
-		err = docAgent.UpdateDocumentation(cmd.Context(), nonInteractive)
-		if err != nil {
+	default: // modeRewrite
+		if err = docAgent.UpdateDocumentation(cmd.Context(), nonInteractive); err != nil {
 			return fmt.Errorf("documentation update failed: %w", err)
 		}
 	}
