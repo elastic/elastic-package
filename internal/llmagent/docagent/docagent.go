@@ -337,120 +337,90 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	return nil
 }
 
-// runNonInteractiveMode handles the non-interactive documentation update flow
-func (d *DocumentationAgent) runNonInteractiveMode(ctx context.Context, prompt string) error {
-	fmt.Println("Starting non-interactive documentation update process...")
-	fmt.Println("The LLM agent will analyze your package and generate documentation automatically.")
-	fmt.Println()
+// ReformatDocumentation runs the documentation reformat process using single-call mode.
+// This is optimized for efficiency: reads document, makes one LLM call, writes result.
+func (d *DocumentationAgent) ReformatDocumentation(ctx context.Context, nonInteractive bool) error {
+	// Check if documentation file exists
+	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
+	if _, err := os.Stat(docPath); err != nil {
+		if os.IsNotExist(err) {
+			return fmt.Errorf("cannot reformat documentation: %s does not exist at _dev/build/docs/%s", d.targetDocFile, d.targetDocFile)
+		}
+		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
+	}
 
-	// First attempt
-	result, err := d.executeTaskWithLogging(ctx, prompt)
+	// Backup original README content before making any changes
+	d.backupOriginalReadme()
+
+	// Read current document content directly (no tool call needed)
+	currentContent, err := d.readCurrentReadme()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read current documentation: %w", err)
 	}
 
-	// Show the result
-	fmt.Println("\n📝 Agent Response:")
-	fmt.Println(strings.Repeat("-", 50))
-	fmt.Println(result.FinalContent)
-	fmt.Println(strings.Repeat("-", 50))
-
-	analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
-
-	switch analysis.Status {
-	case responseError:
-		fmt.Println("\n❌ Error detected in LLM response.")
-		fmt.Println("In non-interactive mode, exiting due to error.")
-		return fmt.Errorf("LLM agent encountered an error: %s", result.FinalContent)
+	if strings.TrimSpace(currentContent) == "" {
+		return fmt.Errorf("current documentation is empty, nothing to reformat")
 	}
 
-	// Check if documentation file was successfully updated
-	if updated, _ := d.handleReadmeUpdate(); updated {
-		fmt.Printf("\n📄 %s was updated successfully!\n", d.targetDocFile)
-		return nil
+	fmt.Println("Starting documentation reformat...")
+	fmt.Printf("📄 Document size: %d characters\n", len(currentContent))
+
+	// Build the reformat prompt with document content included
+	prompt := d.buildReformatPrompt(currentContent)
+	logger.Debugf("Reformat prompt size: %d characters", len(prompt))
+
+	fmt.Println("🤖 Sending to LLM...")
+
+	// Execute the task using the executor
+	result, err := d.executor.ExecuteTask(ctx, prompt)
+	if err != nil {
+		return fmt.Errorf("LLM call failed: %w", err)
 	}
 
-	// If documentation was not updated, but there was no error response, make another attempt with specific instructions
-	fmt.Printf("⚠️  %s was not updated. Trying again with specific instructions...\n", d.targetDocFile)
-	specificPrompt := fmt.Sprintf("You haven't updated the %s file yet. Please write the %s file in the _dev/build/docs/ directory based on your analysis. This is required to complete the task.", d.targetDocFile, d.targetDocFile)
-
-	if _, err := d.executeTaskWithLogging(ctx, specificPrompt); err != nil {
-		return fmt.Errorf("second attempt failed: %w", err)
+	if result.FinalContent == "" {
+		return fmt.Errorf("LLM returned empty response")
 	}
 
-	// Final check
-	if updated, _ := d.handleReadmeUpdate(); updated {
-		fmt.Printf("\n📄 %s was updated on second attempt!\n", d.targetDocFile)
-		return nil
+	fmt.Println("✅ LLM response received")
+	logger.Debugf("Response size: %d characters", len(result.FinalContent))
+
+	// Extract the reformatted document from the response
+	reformattedContent := strings.TrimSpace(result.FinalContent)
+
+	// Write the reformatted content
+	if err := d.writeDocumentation(docPath, reformattedContent); err != nil {
+		return fmt.Errorf("failed to write reformatted documentation: %w", err)
 	}
 
-	return fmt.Errorf("failed to create %s after two attempts", d.targetDocFile)
-}
-
-// runInteractiveMode handles the interactive documentation update flow
-func (d *DocumentationAgent) runInteractiveMode(ctx context.Context, prompt string) error {
-	fmt.Println("Starting documentation update process...")
-	fmt.Println("The LLM agent will analyze your package and update the documentation.")
-	fmt.Println()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		// Execute the task
-		result, err := d.executeTaskWithLogging(ctx, prompt)
+	// Display result in interactive mode
+	if !nonInteractive {
+		err = d.displayReadme()
 		if err != nil {
-			return err
+			logger.Debugf("Could not display readme: %v", err)
 		}
 
-		analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
-
-		switch analysis.Status {
-		case responseError:
-			newPrompt, shouldContinue, err := d.handleInteractiveError()
-			if err != nil {
-				return err
-			}
-			if !shouldContinue {
-				d.restoreOriginalReadme()
-				return fmt.Errorf("user chose to exit due to LLM error")
-			}
-			prompt = newPrompt
-			continue
-		}
-
-		// Display README content if updated
-		readmeUpdated, err := d.isReadmeUpdated()
-		if err != nil {
-			logger.Debugf("could not determine if readme is updated: %v", err)
-		}
-		if readmeUpdated {
-			err = d.displayReadme()
-			if err != nil {
-				// This may be recoverable, only log the error
-				logger.Debugf("displaying readme: %v", err)
-			}
-		}
-
-		// Get and handle user action
+		// Get user confirmation
 		action, err := d.getUserAction()
 		if err != nil {
 			return err
 		}
-		actionResult := d.handleUserAction(action, readmeUpdated)
-		if actionResult.Err != nil {
-			return actionResult.Err
+
+		switch action {
+		case ActionAccept:
+			fmt.Println("✅ Documentation reformat completed!")
+		case ActionCancel:
+			fmt.Println("❌ Reformat cancelled, restoring original.")
+			d.restoreOriginalReadme()
+		case ActionRequest:
+			// For reformat, we don't support iterative changes
+			fmt.Println("⚠️  Reformat mode doesn't support iterative changes. Accept or cancel.")
+			d.restoreOriginalReadme()
 		}
-		if actionResult.ShouldContinue {
-			prompt = actionResult.NewPrompt
-			continue
-		}
-		// If we reach here, should exit
-		return nil
+	} else {
+		fmt.Printf("✅ %s was reformatted successfully!\n", d.targetDocFile)
 	}
+
+	return nil
 }
 
 // logAgentResponse logs debug information about the agent response
@@ -464,22 +434,6 @@ func (d *DocumentationAgent) logAgentResponse(result *TaskResult) {
 			i, entry.Type, len(entry.Content))
 		logger.Tracef("Agent task response - Conversation[%d]: content=%s", i, entry.Content)
 	}
-}
-
-// executeTaskWithLogging executes a task and logs the result
-func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*TaskResult, error) {
-	fmt.Println("🤖 LLM Agent is working...")
-
-	result, err := d.executor.ExecuteTask(ctx, prompt)
-	if err != nil {
-		fmt.Println("❌ Agent task failed")
-		fmt.Printf("❌ result is %v\n", result)
-		return nil, fmt.Errorf("agent task failed: %w", err)
-	}
-
-	fmt.Println("✅ Task completed")
-	d.logAgentResponse(result)
-	return result, nil
 }
 
 // NewResponseAnalyzer creates a new ResponseAnalyzer with default patterns

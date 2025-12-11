@@ -302,4 +302,3 @@ func isLocalhostURL(url string) bool {
 	}
 	return false
 }
-

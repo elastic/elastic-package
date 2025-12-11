@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -22,6 +25,7 @@ const (
 	promptFileSectionGeneration    = "section_generation_prompt.txt"
 	promptFileModificationAnalysis = "modification_analysis_prompt.txt"
 	promptFileModification         = "modification_prompt.txt"
+	promptFileReformat             = "reformat_prompt.txt"
 )
 
 type PromptType int
@@ -32,6 +36,7 @@ const (
 	PromptTypeSectionGeneration
 	PromptTypeModificationAnalysis
 	PromptTypeModification
+	PromptTypeReformat
 )
 
 // loadPromptFile loads a prompt file from external location if enabled, otherwise uses embedded content
@@ -115,6 +120,10 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 		promptFile = promptFileModification
 		embeddedContent = ModificationPrompt
 		formatArgs = d.buildModificationPromptArgs(ctx)
+	case PromptTypeReformat:
+		// Reformat uses a separate method: buildReformatPrompt()
+		// This case should not be reached in normal flow
+		return ""
 	}
 
 	promptContent := loadPromptFile(promptFile, embeddedContent, d.profile)
@@ -245,6 +254,18 @@ func (d *DocumentationAgent) buildModificationPromptArgs(ctx PromptContext) []in
 	}
 }
 
+// buildReformatPrompt builds a single-call reformat prompt with document content included
+func (d *DocumentationAgent) buildReformatPrompt(documentContent string) string {
+	// Get minimal template sections (headers only, no comments)
+	minimalSections := getMinimalTemplateSections()
+
+	// Load the prompt template
+	promptContent := loadPromptFile(promptFileReformat, ReformatPrompt, d.profile)
+
+	// Format with minimal sections and document content
+	return fmt.Sprintf(promptContent, minimalSections, documentContent)
+}
+
 // Helper to create context with service info
 func (d *DocumentationAgent) createPromptContext(manifest *packages.PackageManifest, changes string) PromptContext {
 	return PromptContext{
@@ -252,4 +273,38 @@ func (d *DocumentationAgent) createPromptContext(manifest *packages.PackageManif
 		TargetDocFile: d.targetDocFile,
 		Changes:       changes,
 	}
+}
+
+// extractTemplateSections extracts only markdown headers and minimal structure from the template,
+// removing Go template comments ({{/* ... */}}) and placeholder content.
+// This reduces prompt size by ~60% while preserving the section structure.
+func extractTemplateSections(fullTemplate string) string {
+	// Remove multi-line Go template comments: {{/* ... */}}
+	commentRegex := regexp.MustCompile(`\{\{/\*[\s\S]*?\*/\}\}`)
+	stripped := commentRegex.ReplaceAllString(fullTemplate, "")
+
+	// Remove template directives like {{- generatedHeader }}
+	directiveRegex := regexp.MustCompile(`\{\{[^}]*\}\}`)
+	stripped = directiveRegex.ReplaceAllString(stripped, "")
+
+	// Process line by line to keep only headers and remove placeholder content
+	lines := strings.Split(stripped, "\n")
+	var result []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Keep markdown headers
+		if strings.HasPrefix(trimmed, "#") {
+			result = append(result, trimmed)
+		}
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// getMinimalTemplateSections returns a minimal section list for the reformat prompt
+func getMinimalTemplateSections() string {
+	fullTemplate := archetype.GetPackageDocsReadmeTemplate()
+	return extractTemplateSections(fullTemplate)
 }

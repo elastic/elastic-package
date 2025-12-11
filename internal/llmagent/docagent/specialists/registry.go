@@ -123,4 +123,3 @@ func DefaultRegistry() *Registry {
 	r.Register(NewURLValidatorAgent())
 	return r
 }
-

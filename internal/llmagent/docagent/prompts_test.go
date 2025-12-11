@@ -190,3 +190,90 @@ func TestCreatePromptContext(t *testing.T) {
 	assert.Equal(t, "docs/README.md", ctx.TargetDocFile)
 	assert.Equal(t, "test changes", ctx.Changes)
 }
+
+func TestExtractTemplateSections(t *testing.T) {
+	t.Run("removes Go template comments", func(t *testing.T) {
+		input := `# Title
+{{/* This is a comment */}}
+## Section One
+{{/* Another
+multiline
+comment */}}
+### Subsection`
+
+		result := extractTemplateSections(input)
+
+		assert.Contains(t, result, "# Title")
+		assert.Contains(t, result, "## Section One")
+		assert.Contains(t, result, "### Subsection")
+		assert.NotContains(t, result, "This is a comment")
+		assert.NotContains(t, result, "multiline")
+	})
+
+	t.Run("removes template directives", func(t *testing.T) {
+		input := `{{- generatedHeader }}
+# Title
+{{ fields "data_stream" }}
+## Section`
+
+		result := extractTemplateSections(input)
+
+		assert.Contains(t, result, "# Title")
+		assert.Contains(t, result, "## Section")
+		assert.NotContains(t, result, "generatedHeader")
+		assert.NotContains(t, result, "fields")
+	})
+
+	t.Run("keeps only headers", func(t *testing.T) {
+		input := `# Main Title
+Some description text
+## Section One
+More text here
+### Subsection
+Even more text`
+
+		result := extractTemplateSections(input)
+
+		assert.Contains(t, result, "# Main Title")
+		assert.Contains(t, result, "## Section One")
+		assert.Contains(t, result, "### Subsection")
+		assert.NotContains(t, result, "description text")
+		assert.NotContains(t, result, "More text")
+	})
+
+	t.Run("handles real template format", func(t *testing.T) {
+		input := `{{- generatedHeader }}
+{{/*
+This template can be used as a starting point
+*/}}
+# {[.Manifest.Title]} Integration for Elastic
+
+## Overview
+{{/* Complete this section */}}
+The integration enables...
+
+### Compatibility
+This is compatible with...`
+
+		result := extractTemplateSections(input)
+
+		assert.Contains(t, result, "# {[.Manifest.Title]} Integration for Elastic")
+		assert.Contains(t, result, "## Overview")
+		assert.Contains(t, result, "### Compatibility")
+		assert.NotContains(t, result, "starting point")
+		assert.NotContains(t, result, "Complete this section")
+	})
+}
+
+func TestGetMinimalTemplateSections(t *testing.T) {
+	sections := getMinimalTemplateSections()
+
+	// Should contain key section headers
+	assert.Contains(t, sections, "## Overview")
+	assert.Contains(t, sections, "## Troubleshooting")
+	assert.Contains(t, sections, "## Reference")
+
+	// Should not contain template comments
+	assert.NotContains(t, sections, "{{/*")
+	assert.NotContains(t, sections, "*/}}")
+}
