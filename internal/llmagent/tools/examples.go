@@ -8,7 +8,7 @@ import (
 	"bufio"
 	"embed"
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"google.golang.org/adk/tool"
@@ -98,7 +98,7 @@ func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 		}
 
 		// Read the example file from embedded FS
-		filePath := filepath.Join("_static/examples", args.Name)
+		filePath := path.Join("_static/examples", args.Name)
 		content, err := examplesFS.ReadFile(filePath)
 		if err != nil {
 			return GetExampleResult{Error: fmt.Sprintf("failed to read example file '%s': %v", args.Name, err)}, nil
@@ -269,7 +269,7 @@ func findSectionByTitleInSubsections(sections []*exampleSection, titleLower stri
 // GetExampleContent retrieves the content of a specific example file.
 // If section is provided, only that section's content is returned.
 func GetExampleContent(name, section string) (string, error) {
-	filePath := filepath.Join("_static/examples", name)
+	filePath := path.Join("_static/examples", name)
 	content, err := examplesFS.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read example file '%s': %w", name, err)
