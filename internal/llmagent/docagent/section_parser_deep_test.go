@@ -7,8 +7,9 @@ package docagent
 import (
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
 func TestParseSections_DeepNesting(t *testing.T) {
