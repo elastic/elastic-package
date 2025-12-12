@@ -6,6 +6,7 @@ package docs
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -23,9 +24,8 @@ type fieldsTableRecord struct {
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-// renderExportedFields renders the fields for a package or data stream, fieldsParentRoot must be
-// the path to the root directory of the package or data stream.
-func renderExportedFields(fieldsParentRoot string) (string, error) {
+// renderExportedFields renders the fields for a package or data stream.
+func renderExportedFields(repositoryRoot *os.Root, packageRoot, fieldsDir string) (string, error) {
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -35,9 +35,9 @@ func renderExportedFields(fieldsParentRoot string) (string, error) {
 		// keep them to accept them for validation.
 		SkipEmptyFields: true,
 	}
-	validator, err := fields.CreateValidatorForDirectory(fieldsParentRoot, fields.WithInjectFieldsOptions(injectOptions))
+	validator, err := fields.CreateValidator(repositoryRoot, packageRoot, fieldsDir, fields.WithInjectFieldsOptions(injectOptions))
 	if err != nil {
-		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentRoot, err)
+		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsDir, err)
 	}
 
 	collected := collectFieldsFromDefinitions(validator)

@@ -36,25 +36,16 @@ type PackageLinks struct {
 }
 
 // CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
-//
-// - workDir can be an absolute path or a path relative to the repository root.
-// in both cases, it must point to a directory within the repository.
+// workDir must be a path to a directory, relative to the repository root.
 func CreateLinksFSFromPath(repositoryRoot *os.Root, workDir string) (*LinksFS, error) {
 	if workDir == "" {
 		return nil, errEmptyWorkDir
 	}
 
-	var relWorkDir string
-	if filepath.IsAbs(workDir) {
-		var err error
-		relWorkDir, err = filepath.Rel(repositoryRoot.Name(), workDir)
-		if err != nil {
-			return nil, fmt.Errorf("unable to find rel path for %s: %w: %w", workDir, errInvalidWorkDir, err)
-		}
-	} else {
-		relWorkDir = workDir
+	relWorkDir, err := filepath.Rel(repositoryRoot.Name(), workDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to find rel path for %s: %w: %w", workDir, errInvalidWorkDir, err)
 	}
-
 	info, err := repositoryRoot.Stat(relWorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("unable to stat %s: %w: %w", relWorkDir, errInvalidWorkDir, err)
@@ -249,10 +240,8 @@ func newLinkedFile(repositoryRoot *os.Root, linkFilePath string) (*Link, error) 
 
 	var includedPackageName string
 	includedPackageRoot, err := packages.FindPackageRootFrom(filepath.Dir(includedFilePath))
-	if err != nil {
-		return nil, fmt.Errorf("could not find package root for included file %s: %w", includedFilePath, err)
-	}
-	if includedPackageRoot != "" {
+	if err == nil && includedPackageRoot != "" {
+		// Linked file doesn't need to be in a package, so ignore failures looking for it.
 		includedPackageName = filepath.Base(includedPackageRoot)
 	}
 
