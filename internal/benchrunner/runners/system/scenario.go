@@ -77,7 +77,12 @@ func defaultConfig() *scenario {
 	}
 }
 
-func readConfig(benchPath string, scenario string, svcInfo servicedeployer.ServiceInfo) (*scenario, error) {
+// readRawConfig reads the configuration without applying any template
+func readRawConfig(benchPath string, scenario string) (*scenario, error) {
+	return readConfig(benchPath, scenario, nil)
+}
+
+func readConfig(benchPath string, scenario string, svcInfo *servicedeployer.ServiceInfo) (*scenario, error) {
 	configPath := filepath.Clean(filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario)))
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -87,9 +92,11 @@ func readConfig(benchPath string, scenario string, svcInfo servicedeployer.Servi
 		return nil, fmt.Errorf("could not load system benchmark configuration file: %s: %w", configPath, err)
 	}
 
-	data, err = applyServiceInfo(data, svcInfo)
-	if err != nil {
-		return nil, fmt.Errorf("could not apply context to benchmark configuration file: %s: %w", configPath, err)
+	if svcInfo != nil {
+		data, err = applyServiceInfo(data, *svcInfo)
+		if err != nil {
+			return nil, fmt.Errorf("could not apply context to benchmark configuration file: %s: %w", configPath, err)
+		}
 	}
 
 	cfg, err := yaml.NewConfig(data, ucfg.PathSep("."))
