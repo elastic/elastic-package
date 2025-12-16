@@ -17,6 +17,7 @@ type objectTransformer struct {
 
 type transformationContext struct {
 	packageName string
+	sharedTags  []string
 }
 
 func newObjectTransformer() *objectTransformer {

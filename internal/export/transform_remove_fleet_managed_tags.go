@@ -6,6 +6,7 @@ package export
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -34,6 +35,11 @@ func removeTagReferences(ctx *transformationContext, object common.MapStr) (comm
 	}
 
 	newReferences, err := filterOutFleetManagedTags(ctx, references.([]interface{}))
+	if err != nil {
+		return nil, err
+	}
+
+	newReferences, err = filterOutSharedTags(ctx, newReferences)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +84,42 @@ func isTagFleetManaged(aId, packageName string) bool {
 
 	_, ok := fleetManagedTags[aId]
 	return ok
+}
+
+func isSharedTag(aId string, sharedTags []string) bool {
+	for _, tag := range sharedTags {
+		id := fmt.Sprintf("tag-ref-%s-default", strings.ReplaceAll(strings.ToLower(tag), " ", "-"))
+		if aId == id {
+			return true
+		}
+	}
+	return false
+}
+
+func filterOutSharedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
+	newReferences := make([]interface{}, 0)
+	for _, r := range references {
+		reference := r.(map[string]interface{})
+
+		aType, ok := reference["type"]
+		if !ok {
+			continue
+		}
+		if aType != "tag" {
+			newReferences = append(newReferences, r)
+			continue
+		}
+
+		aNameString, ok := reference["name"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to assert name as a string: %v", reference["name"])
+		}
+		if isSharedTag(aNameString, ctx.sharedTags) {
+			continue
+		}
+		newReferences = append(newReferences, r)
+	}
+	return newReferences, nil
 }
 
 func filterOutFleetManagedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
