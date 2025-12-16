@@ -42,7 +42,7 @@ require (
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.13.0
-	helm.sh/helm/v3 v3.19.3
+	helm.sh/helm/v3 v3.19.4
 	honnef.co/go/tools v0.6.1
 	k8s.io/apimachinery v0.34.3
 	k8s.io/cli-runtime v0.34.3
@@ -177,11 +177,11 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/api v0.34.3 // indirect
-	k8s.io/apiextensions-apiserver v0.34.0 // indirect
-	k8s.io/component-base v0.34.0 // indirect
+	k8s.io/apiextensions-apiserver v0.34.2 // indirect
+	k8s.io/component-base v0.34.2 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b // indirect
-	k8s.io/kubectl v0.34.0 // indirect
+	k8s.io/kubectl v0.34.2 // indirect
 	k8s.io/utils v0.0.0-20250604170112-4c0f3b243397 // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/kustomize/api v0.20.1 // indirect
