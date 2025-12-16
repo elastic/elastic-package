@@ -44,6 +44,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 	if err != nil {
 		return nil, err
 	}
+	defer repositoryRoot.Close()
 
 	if options.CoverageType == "cobertura" {
 		pkg := &testrunner.CoberturaPackage{

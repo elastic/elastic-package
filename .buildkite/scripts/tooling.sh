@@ -116,12 +116,6 @@ clean_safe_logs() {
     rm -rf "${WORKSPACE}/build/container-logs"
 }
 
-cleanup() {
-  echo "Deleting temporary files..."
-  rm -rf ${WORKSPACE}/${TMP_FOLDER_TEMPLATE_BASE}.*
-  echo "Done."
-}
-
 create_collapsed_annotation() {
     local title="$1"
     local file="$2"

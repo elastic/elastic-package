@@ -28,6 +28,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -1660,7 +1661,16 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStream,
+	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+	if err != nil {
+		return result.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+	}
+	defer repositoryRoot.Close()
+	fieldsDir := filepath.Join(r.packageRoot, "fields")
+	if r.dataStream != "" {
+		fieldsDir = filepath.Join(r.dataStream, "fields")
+	}
+	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),
@@ -1671,7 +1681,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
 	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStream, err)
+		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
 	}
 
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
@@ -2266,8 +2276,14 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
+		repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+		if err != nil {
+			return fmt.Errorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		}
+		defer repositoryRoot.Close()
 		transformRoot := filepath.Dir(transform.Path)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRoot,
+		fieldsDir := filepath.Join(transformRoot, "fields")
+		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),

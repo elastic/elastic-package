@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/llmagent/ui"
 	"github.com/elastic/elastic-package/internal/tui"
 )
@@ -56,7 +57,12 @@ func (d *DocumentationAgent) displayReadme() error {
 	}
 
 	// Try to render the content
-	renderedContent, shouldBeRendered, err := docs.GenerateReadme(d.targetDocFile, "", d.packageRoot)
+	repositoryRoot, err := files.FindRepositoryRoot()
+	if err != nil {
+		fmt.Printf("\n⚠️  Could not find repository root: %v\n", err)
+		return fmt.Errorf("could not find repository root: %w", err)
+	}
+	renderedContent, shouldBeRendered, err := docs.GenerateReadme(repositoryRoot, d.targetDocFile, "", d.packageRoot)
 	if err != nil || !shouldBeRendered {
 		fmt.Printf("\n⚠️  The generated %s could not be rendered.\n", d.targetDocFile)
 		fmt.Println("It's recommended that you do not accept this version (ask for revisions or cancel).")
