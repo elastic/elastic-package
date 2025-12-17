@@ -16,50 +16,52 @@ import (
 func TestRemoveDuplicateSharedTags(t *testing.T) {
 	tests := []struct {
 		name           string
-		sharedTags     []string
 		inputObject    common.MapStr
 		expectedObject common.MapStr
 	}{
 		{
-			name:       "Tag already in shared tags",
-			sharedTags: []string{"shared-tag-1", "shared-tag-2"},
+			name: "Is default shared tag",
 			inputObject: map[string]interface{}{
-				"type":       "tag",
-				"attributes": map[string]interface{}{"name": "shared-tag-1"},
+				"type": "tag",
+				"id":   "fleet-shared-tag-system-default",
 			},
 			expectedObject: nil,
 		},
 		{
-			name:       "Tag not in shared tags",
-			sharedTags: []string{"shared-tag-1", "shared-tag-2"},
+			name: "Is security solution shared tag",
 			inputObject: map[string]interface{}{
-				"type":       "tag",
-				"attributes": map[string]interface{}{"name": "unique-tag"},
+				"type": "tag",
+				"id":   "system-security-solution-default",
+			},
+			expectedObject: nil,
+		},
+		{
+			name: "Is not shared tag",
+			inputObject: map[string]interface{}{
+				"type": "tag",
+				"id":   "unique-tag",
 			},
 			expectedObject: map[string]interface{}{
-				"type":       "tag",
-				"attributes": map[string]interface{}{"name": "unique-tag"},
+				"type": "tag",
+				"id":   "unique-tag",
 			},
 		},
 		{
-			name:       "Non-tag object",
-			sharedTags: []string{"shared-tag-1", "shared-tag-2"},
+			name: "Non-tag object",
 			inputObject: map[string]interface{}{
-				"type":       "dashboard",
-				"attributes": map[string]interface{}{"title": "My Dashboard"},
+				"type": "dashboard",
+				"id":   "My Dashboard",
 			},
 			expectedObject: map[string]interface{}{
-				"type":       "dashboard",
-				"attributes": map[string]interface{}{"title": "My Dashboard"},
+				"type": "dashboard",
+				"id":   "My Dashboard",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &transformationContext{
-				sharedTags: tt.sharedTags,
-			}
+			ctx := &transformationContext{}
 			inputMapStr := tt.inputObject
 			result, err := removeDuplicateSharedTags(ctx, inputMapStr)
 			require.NoError(t, err)

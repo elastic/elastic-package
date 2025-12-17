@@ -86,14 +86,15 @@ func isTagFleetManaged(aId, packageName string) bool {
 	return ok
 }
 
-func isSharedTag(aId string, sharedTags []string) bool {
-	for _, tag := range sharedTags {
-		id := fmt.Sprintf("tag-ref-%s-default", strings.ReplaceAll(strings.ToLower(tag), " ", "-"))
-		if aId == id {
-			return true
-		}
-	}
-	return false
+// isSharedTag checks if the given tag ID is a shared tag for the specified package.
+// Shared tags ids are created by fleet form the tags.yml file in the package.
+// https://github.com/elastic/kibana/blob/5385f96a132114362b2542e6a44c96a697b66c28/x-pack/platform/plugins/shared/fleet/server/services/epm/kibana/assets/tag_assets.ts#L67
+func isSharedTag(aId string, packageName string) bool {
+	defaultSharedTagTemplate := "fleet-shared-tag-%s"
+	securitySolutionTagTemplate := "%s-security-solution"
+
+	return strings.Contains(aId, fmt.Sprintf(defaultSharedTagTemplate, packageName)) ||
+		strings.Contains(aId, fmt.Sprintf(securitySolutionTagTemplate, packageName))
 }
 
 func filterOutSharedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
@@ -110,11 +111,11 @@ func filterOutSharedTags(ctx *transformationContext, references []interface{}) (
 			continue
 		}
 
-		aNameString, ok := reference["name"].(string)
+		aId, ok := reference["id"].(string)
 		if !ok {
-			return nil, fmt.Errorf("failed to assert name as a string: %v", reference["name"])
+			return nil, fmt.Errorf("failed to assert name as a string: %v", reference["id"])
 		}
-		if isSharedTag(aNameString, ctx.sharedTags) {
+		if isSharedTag(aId, ctx.packageName) {
 			continue
 		}
 		newReferences = append(newReferences, r)

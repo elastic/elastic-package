@@ -7,7 +7,6 @@ package export
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,46 +37,4 @@ func TestTransform(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Equal(t, string(expected), string(result))
-}
-
-func TestReadSharedTagsFile(t *testing.T) {
-
-	t.Run("file exists", func(t *testing.T) {
-		tmpDir := t.TempDir()
-
-		err := os.MkdirAll(filepath.Join(tmpDir, "kibana"), 0755)
-		require.NoError(t, err)
-		err = os.WriteFile(filepath.Join(tmpDir, "kibana", "tags.yml"), []byte(`- text: tag1
-- text: tag2
-- text: tag3
-`), 0644)
-		require.NoError(t, err)
-
-		tags, err := readSharedTagsFile(tmpDir)
-		require.NoError(t, err)
-		require.Equal(t, []string{"tag1", "tag2", "tag3"}, tags)
-	})
-
-	t.Run("file does not exist", func(t *testing.T) {
-		tmpDir := t.TempDir()
-
-		tags, err := readSharedTagsFile(tmpDir)
-		require.NoError(t, err)
-		require.Empty(t, tags)
-	})
-
-	t.Run("invalid YAML", func(t *testing.T) {
-		tmpDir := t.TempDir()
-
-		err := os.MkdirAll(filepath.Join(tmpDir, "kibana"), 0755)
-		require.NoError(t, err)
-		err = os.WriteFile(filepath.Join(tmpDir, "kibana", "tags.yml"), []byte(`- text: tag1
-- text
-- text: tag3
-`), 0644)
-		require.NoError(t, err)
-
-		_, err = readSharedTagsFile(tmpDir)
-		require.Error(t, err)
-	})
 }

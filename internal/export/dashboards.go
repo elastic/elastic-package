@@ -7,13 +7,11 @@ package export
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/stretchr/testify/assert/yaml"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -48,14 +46,8 @@ func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs 
 		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
 	}
 
-	sharedTags, err := readSharedTagsFile(packageRoot)
-	if err != nil {
-		return fmt.Errorf("reading shared tags file failed: %w", err)
-	}
-
 	transformContext := &transformationContext{
 		packageName: m.Name,
-		sharedTags:  sharedTags,
 	}
 
 	objects, err = applyTransformations(transformContext, objects)
@@ -128,27 +120,4 @@ func saveObjectsToFiles(packageRoot string, objects []common.MapStr) error {
 		}
 	}
 	return nil
-}
-
-func readSharedTagsFile(packageRoot string) ([]string, error) {
-	b, err := os.ReadFile(filepath.Join(packageRoot, "kibana", "tags.yml"))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			// No shared tags file, return empty list
-			return nil, nil
-		}
-		return nil, fmt.Errorf("reading shared tags file failed: %w", err)
-	}
-	var sharedTags []struct {
-		Text string `yaml:"text"`
-	}
-	err = yaml.Unmarshal(b, &sharedTags)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshalling shared tags file failed: %w", err)
-	}
-	tags := make([]string, 0, len(sharedTags))
-	for _, tag := range sharedTags {
-		tags = append(tags, tag.Text)
-	}
-	return tags, nil
 }

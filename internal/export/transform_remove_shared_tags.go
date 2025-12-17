@@ -6,7 +6,6 @@ package export
 
 import (
 	"fmt"
-	"slices"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
@@ -20,17 +19,16 @@ func removeDuplicateSharedTags(ctx *transformationContext, object common.MapStr)
 	if aType != "tag" {
 		return object, nil
 	}
-	tagName, err := object.GetValue("attributes.name")
+	tagId, err := object.GetValue("id")
 	if err != nil {
-		return nil, fmt.Errorf("failed to read attributes.name field: %w", err)
+		return nil, fmt.Errorf("failed to read id field: %w", err)
 	}
 
-	tagNameStr, ok := tagName.(string)
+	tagIdStr, ok := tagId.(string)
 	if !ok {
-		return nil, fmt.Errorf("failed to convert tag name to string")
+		return nil, fmt.Errorf("failed to convert tag id to string")
 	}
-	if slices.Contains(ctx.sharedTags, tagNameStr) {
-		// Tag is already in the shared tags list, remove it
+	if isSharedTag(tagIdStr, ctx.packageName) {
 		return nil, nil
 	}
 	return object, nil
