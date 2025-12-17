@@ -86,8 +86,7 @@ func applyTransformations(ctx *transformationContext, objects []common.MapStr) (
 			decodeObject,
 			stripObjectProperties,
 			standardizeObjectProperties,
-			removeFleetManagedTags,
-			removeDuplicateSharedTags,
+			removeFleetTags,
 			standardizeObjectID).
 		transform(objects)
 }

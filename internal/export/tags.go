@@ -11,7 +11,8 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-func removeFleetManagedTags(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
+// removeFleetTags removes fleet managed and shared tags from the given Kibana object.
+func removeFleetTags(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	aType, err := object.GetValue("type")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read type field: %w", err)
@@ -70,6 +71,9 @@ func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.
 	if isTagFleetManaged(aIdString, ctx.packageName) {
 		return nil, nil
 	}
+	if isSharedTag(aIdString, ctx.packageName) {
+		return nil, nil
+	}
 	return object, nil
 }
 
@@ -84,6 +88,38 @@ func isTagFleetManaged(aId, packageName string) bool {
 
 	_, ok := fleetManagedTags[aId]
 	return ok
+}
+
+func filterOutFleetManagedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
+	newReferences := make([]interface{}, 0)
+	for _, r := range references {
+		reference := r.(map[string]interface{})
+
+		aType, ok := reference["type"]
+		if !ok {
+			continue
+		}
+		if aType != "tag" {
+			newReferences = append(newReferences, r)
+			continue
+		}
+
+		aId, ok := reference["id"]
+		if !ok {
+			newReferences = append(newReferences, r)
+			continue
+		}
+
+		aIdString, ok := aId.(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
+		}
+		if isTagFleetManaged(aIdString, ctx.packageName) {
+			continue
+		}
+		newReferences = append(newReferences, r)
+	}
+	return newReferences, nil
 }
 
 // isSharedTag checks if the given tag ID is a shared tag for the specified package.
@@ -116,38 +152,6 @@ func filterOutSharedTags(ctx *transformationContext, references []interface{}) (
 			return nil, fmt.Errorf("failed to assert name as a string: %v", reference["id"])
 		}
 		if isSharedTag(aId, ctx.packageName) {
-			continue
-		}
-		newReferences = append(newReferences, r)
-	}
-	return newReferences, nil
-}
-
-func filterOutFleetManagedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
-	newReferences := make([]interface{}, 0)
-	for _, r := range references {
-		reference := r.(map[string]interface{})
-
-		aType, ok := reference["type"]
-		if !ok {
-			continue
-		}
-		if aType != "tag" {
-			newReferences = append(newReferences, r)
-			continue
-		}
-
-		aId, ok := reference["id"]
-		if !ok {
-			newReferences = append(newReferences, r)
-			continue
-		}
-
-		aIdString, ok := aId.(string)
-		if !ok {
-			return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
-		}
-		if isTagFleetManaged(aIdString, ctx.packageName) {
 			continue
 		}
 		newReferences = append(newReferences, r)
