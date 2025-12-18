@@ -6,6 +6,7 @@
 {{- $agent_version := fact "agent_version" }}
 {{- $agent_image := fact "agent_image" }}
 {{- $enrollment_token := fact "enrollment_token" }}
+{{- $google_credential_source_file := fact "google_credential_source_file" -}}
 services:
   elastic-agent:
     hostname: ${AGENT_HOSTNAME}
@@ -62,5 +63,13 @@ services:
         source: ${SERVICE_LOGS_DIR}
         target: /run/service_logs/
         read_only: false
+      {{ if ne $google_credential_source_file "" }}
+      # Mount Google credential source file (token file) provided
+      # Required for external accounts authentication when creating resources via terraform in GCP
+      - type: bind
+        source: {{ $google_credential_source_file }}
+        target: {{ $google_credential_source_file }}
+        read_only: true
+      {{ end }}
     extra_hosts:
       - "host.docker.internal:host-gateway"
