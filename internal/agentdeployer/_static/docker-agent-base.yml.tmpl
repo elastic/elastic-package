@@ -6,6 +6,7 @@
 {{- $agent_version := fact "agent_version" }}
 {{- $agent_image := fact "agent_image" }}
 {{- $enrollment_token := fact "enrollment_token" }}
+{{- $google_application_credentials := fact "google_application_credentials" -}}
 {{- $google_credential_source_file := fact "google_credential_source_file" -}}
 services:
   elastic-agent:
@@ -63,6 +64,14 @@ services:
         source: ${SERVICE_LOGS_DIR}
         target: /run/service_logs/
         read_only: false
+      {{ if ne $google_application_credentials "" }}
+      # Mount Google Application Credentials file provided
+      # Required for external accounts authentication when creating resources via terraform in GCP
+      - type: bind
+        source: {{ $google_application_credentials }}
+        target: {{ $google_application_credentials }}
+        read_only: true
+      {{ end }}
       {{ if ne $google_credential_source_file "" }}
       # Mount Google credential source file (token file) provided
       # Required for external accounts authentication when creating resources via terraform in GCP
