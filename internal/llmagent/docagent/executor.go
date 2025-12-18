@@ -100,6 +100,11 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 	}, nil
 }
 
+// ModelID returns the model ID used by this executor.
+func (e *Executor) ModelID() string {
+	return e.modelID
+}
+
 // ExecuteTask runs the executor to complete a task.
 func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, error) {
 	// Start agent span for the entire task
@@ -189,10 +194,17 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (*TaskResult,
 						Content: part.Text,
 					})
 
+					// Extract token counts from UsageMetadata
+					var promptTokens, completionTokens int
+					if event.UsageMetadata != nil {
+						promptTokens = int(event.UsageMetadata.PromptTokenCount)
+						completionTokens = int(event.UsageMetadata.CandidatesTokenCount)
+					}
+
 					// Create LLM span for this response
 					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", e.modelID, inputMessages)
 					outputMessages := []tracing.Message{{Role: "assistant", Content: part.Text}}
-					tracing.EndLLMSpan(llmSpan, outputMessages, 0, 0)
+					tracing.EndLLMSpan(ctx, llmSpan, outputMessages, promptTokens, completionTokens)
 				}
 
 				// Track function calls

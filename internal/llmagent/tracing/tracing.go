@@ -12,6 +12,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -41,10 +42,14 @@ const (
 	// Span kind attributes
 	AttrOpenInferenceSpanKind = "openinference.span.kind"
 
+	// Session attributes
+	AttrSessionID = "session.id"
+
 	// LLM attributes
 	AttrGenAISystem        = "gen_ai.system"
 	AttrGenAIRequestModel  = "gen_ai.request.model"
 	AttrGenAIResponseModel = "gen_ai.response.model"
+	AttrLLMModelName       = "llm.model_name" // Phoenix uses this for cost calculation
 
 	// Input/Output attributes
 	AttrInputValue  = "input.value"
@@ -82,6 +87,32 @@ const (
 	AttrSubAgentName      = "sub_agent.name"
 	AttrSubAgentRole      = "sub_agent.role"
 )
+
+// Context keys for session tracking
+type sessionIDKey struct{}
+type sessionTokensKey struct{}
+
+// SessionTokens tracks cumulative token usage for a session
+type SessionTokens struct {
+	mu               sync.Mutex
+	PromptTokens     int
+	CompletionTokens int
+}
+
+// Add adds token counts to the session totals
+func (st *SessionTokens) Add(prompt, completion int) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.PromptTokens += prompt
+	st.CompletionTokens += completion
+}
+
+// Total returns the total token count
+func (st *SessionTokens) Total() int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.PromptTokens + st.CompletionTokens
+}
 
 var (
 	globalTracer     trace.Tracer
@@ -144,12 +175,14 @@ func initTracer(ctx context.Context, cfg Config) error {
 		otlptracehttp.WithEndpointURL(cfg.Endpoint),
 	}
 
-	// Add API key header if provided
-	if cfg.APIKey != "" {
-		opts = append(opts, otlptracehttp.WithHeaders(map[string]string{
-			"api_key": cfg.APIKey,
-		}))
+	// Build headers map - Phoenix requires project name as header
+	headers := map[string]string{
+		"phoenix-project-name": cfg.ProjectName,
 	}
+	if cfg.APIKey != "" {
+		headers["api_key"] = cfg.APIKey
+	}
+	opts = append(opts, otlptracehttp.WithHeaders(headers))
 
 	// Create OTLP exporter
 	exporter, err := otlptracehttp.New(ctx, opts...)
@@ -163,7 +196,7 @@ func initTracer(ctx context.Context, cfg Config) error {
 		resource.NewWithAttributes(
 			semconv.SchemaURL,
 			semconv.ServiceName(cfg.ProjectName),
-			attribute.String("phoenix.project.name", cfg.ProjectName),
+			attribute.String("project.name", cfg.ProjectName),
 		),
 	)
 	if err != nil {
@@ -214,24 +247,104 @@ type Message struct {
 	Content string `json:"content"`
 }
 
-// StartChainSpan starts a new span for a chain of operations (e.g., document generation)
-func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Span) {
-	return Tracer().Start(ctx, name,
+// WithSessionID returns a new context with the given session ID stored.
+// Child spans created from this context will inherit the session ID.
+func WithSessionID(ctx context.Context, sessionID string) context.Context {
+	return context.WithValue(ctx, sessionIDKey{}, sessionID)
+}
+
+// withSessionTokens returns a new context with session token tracking.
+func withSessionTokens(ctx context.Context, tokens *SessionTokens) context.Context {
+	return context.WithValue(ctx, sessionTokensKey{}, tokens)
+}
+
+// SessionIDFromContext retrieves the session ID from the context, if present.
+func SessionIDFromContext(ctx context.Context) (string, bool) {
+	sessionID, ok := ctx.Value(sessionIDKey{}).(string)
+	return sessionID, ok
+}
+
+// SessionTokensFromContext retrieves the session token tracker from context.
+func SessionTokensFromContext(ctx context.Context) *SessionTokens {
+	tokens, _ := ctx.Value(sessionTokensKey{}).(*SessionTokens)
+	return tokens
+}
+
+// sessionAttributes returns session ID attribute if present in context
+func sessionAttributes(ctx context.Context) []attribute.KeyValue {
+	if sessionID, ok := SessionIDFromContext(ctx); ok {
+		return []attribute.KeyValue{attribute.String(AttrSessionID, sessionID)}
+	}
+	return nil
+}
+
+// StartSessionSpan starts a root span for an entire session/conversation.
+// It generates a unique session ID and stores it in the context for propagation to child spans.
+// It also initializes token tracking for the session.
+func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (context.Context, trace.Span) {
+	sessionID := uuid.New().String()
+
+	// Store session ID and token tracker in context for child spans
+	ctx = WithSessionID(ctx, sessionID)
+	ctx = withSessionTokens(ctx, &SessionTokens{})
+
+	ctx, span := Tracer().Start(ctx, sessionName,
 		trace.WithAttributes(
 			attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
+			attribute.String(AttrSessionID, sessionID),
+			attribute.String(AttrLLMModelName, modelID),
+			attribute.String(AttrGenAIRequestModel, modelID),
 		),
+		trace.WithSpanKind(trace.SpanKindServer),
 	)
+	return ctx, span
+}
+
+// EndSessionSpan records the final session output and token counts, then ends the span.
+func EndSessionSpan(ctx context.Context, span trace.Span, output string) {
+	// Record output
+	if output != "" {
+		span.SetAttributes(attribute.String(AttrOutputValue, output))
+	}
+
+	// Record cumulative token counts from session
+	if tokens := SessionTokensFromContext(ctx); tokens != nil {
+		tokens.mu.Lock()
+		span.SetAttributes(
+			attribute.Int(AttrLLMTokenCountPrompt, tokens.PromptTokens),
+			attribute.Int(AttrLLMTokenCountCompletion, tokens.CompletionTokens),
+			attribute.Int(AttrLLMTokenCountTotal, tokens.PromptTokens+tokens.CompletionTokens),
+		)
+		tokens.mu.Unlock()
+	}
+
+	span.End()
+}
+
+// RecordSessionInput records the input value on a session span.
+func RecordSessionInput(span trace.Span, input string) {
+	span.SetAttributes(attribute.String(AttrInputValue, input))
+}
+
+// StartChainSpan starts a new span for a chain of operations (e.g., document generation)
+func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Span) {
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
 // StartAgentSpan starts a new span for an agent task execution
 func StartAgentSpan(ctx context.Context, name string, modelID string) (context.Context, trace.Span) {
-	return Tracer().Start(ctx, name,
-		trace.WithAttributes(
-			attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
-			attribute.String(AttrGenAISystem, "gemini"),
-			attribute.String(AttrGenAIRequestModel, modelID),
-		),
-	)
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
+		attribute.String(AttrGenAISystem, "gemini"),
+		attribute.String(AttrGenAIRequestModel, modelID),
+		attribute.String(AttrLLMModelName, modelID), // Phoenix uses this for cost calculation
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
 // StartLLMSpan starts a new span for an LLM call
@@ -240,7 +353,9 @@ func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessage
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindLLM),
 		attribute.String(AttrGenAISystem, "gemini"),
 		attribute.String(AttrGenAIRequestModel, modelID),
+		attribute.String(AttrLLMModelName, modelID), // Phoenix uses this for cost calculation
 	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
 
 	if len(inputMessages) > 0 {
 		if msgJSON, err := json.Marshal(inputMessages); err == nil {
@@ -251,26 +366,27 @@ func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessage
 	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
-// EndLLMSpan records the LLM response and ends the span
-func EndLLMSpan(span trace.Span, outputMessages []Message, promptTokens, completionTokens int) {
+// EndLLMSpan records the LLM response and ends the span.
+// It also accumulates token counts to the session tracker if present in context.
+func EndLLMSpan(ctx context.Context, span trace.Span, outputMessages []Message, promptTokens, completionTokens int) {
 	if len(outputMessages) > 0 {
 		if msgJSON, err := json.Marshal(outputMessages); err == nil {
 			span.SetAttributes(attribute.String(AttrLLMOutputMessages, string(msgJSON)))
 		}
 		// Also set output.value to the last message content for simpler viewing
-		if len(outputMessages) > 0 {
-			span.SetAttributes(attribute.String(AttrOutputValue, outputMessages[len(outputMessages)-1].Content))
-		}
+		span.SetAttributes(attribute.String(AttrOutputValue, outputMessages[len(outputMessages)-1].Content))
 	}
 
-	if promptTokens > 0 {
-		span.SetAttributes(attribute.Int(AttrLLMTokenCountPrompt, promptTokens))
-	}
-	if completionTokens > 0 {
-		span.SetAttributes(attribute.Int(AttrLLMTokenCountCompletion, completionTokens))
-	}
-	if promptTokens > 0 || completionTokens > 0 {
-		span.SetAttributes(attribute.Int(AttrLLMTokenCountTotal, promptTokens+completionTokens))
+	// Always set token counts (even if 0) for Phoenix cost calculation
+	span.SetAttributes(
+		attribute.Int(AttrLLMTokenCountPrompt, promptTokens),
+		attribute.Int(AttrLLMTokenCountCompletion, completionTokens),
+		attribute.Int(AttrLLMTokenCountTotal, promptTokens+completionTokens),
+	)
+
+	// Accumulate tokens to session tracker
+	if tokens := SessionTokensFromContext(ctx); tokens != nil {
+		tokens.Add(promptTokens, completionTokens)
 	}
 
 	span.End()
@@ -282,6 +398,7 @@ func StartToolSpan(ctx context.Context, toolName string, parameters map[string]a
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindTool),
 		attribute.String(AttrToolName, toolName),
 	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
 
 	if parameters != nil {
 		if paramJSON, err := json.Marshal(parameters); err == nil {
@@ -316,34 +433,34 @@ func RecordOutput(span trace.Span, output string) {
 
 // StartWorkflowSpan starts a new span for a multi-agent workflow execution
 func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace.Span) {
-	return Tracer().Start(ctx, name,
-		trace.WithAttributes(
-			attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
-			attribute.String(AttrWorkflowName, name),
-		),
-	)
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
+		attribute.String(AttrWorkflowName, name),
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
 // StartWorkflowSpanWithConfig starts a workflow span with iteration configuration
 func StartWorkflowSpanWithConfig(ctx context.Context, name string, maxIterations uint) (context.Context, trace.Span) {
-	return Tracer().Start(ctx, name,
-		trace.WithAttributes(
-			attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
-			attribute.String(AttrWorkflowName, name),
-			attribute.Int(AttrWorkflowMaxIter, int(maxIterations)),
-		),
-	)
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
+		attribute.String(AttrWorkflowName, name),
+		attribute.Int(AttrWorkflowMaxIter, int(maxIterations)),
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 }
 
 // StartSubAgentSpan starts a new span for a sub-agent within a workflow
 func StartSubAgentSpan(ctx context.Context, agentName string, role string) (context.Context, trace.Span) {
-	return Tracer().Start(ctx, "subagent:"+agentName,
-		trace.WithAttributes(
-			attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
-			attribute.String(AttrSubAgentName, agentName),
-			attribute.String(AttrSubAgentRole, role),
-		),
-	)
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
+		attribute.String(AttrSubAgentName, agentName),
+		attribute.String(AttrSubAgentRole, role),
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	return Tracer().Start(ctx, "subagent:"+agentName, trace.WithAttributes(attrs...))
 }
 
 // RecordWorkflowIteration records the current iteration number on a workflow span

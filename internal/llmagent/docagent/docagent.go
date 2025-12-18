@@ -173,8 +173,14 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 
 // UpdateDocumentation runs the documentation update process using section-based generation
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
-	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate")
-	defer chainSpan.End()
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID())
+	var sessionOutput string
+	defer func() {
+		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
+	}()
+
+	// Record the input request
+	tracing.RecordSessionInput(sessionSpan, fmt.Sprintf("Generate documentation for package: %s (file: %s)", d.manifest.Name, d.targetDocFile))
 
 	// Confirm LLM understands the documentation guidelines before proceeding
 	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
@@ -192,6 +198,7 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 	// Combine sections into final document
 	finalContent := CombineSections(sections)
+	sessionOutput = fmt.Sprintf("Generated %d sections, %d characters for %s", len(sections), len(finalContent), d.targetDocFile)
 
 	// Write the combined document
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
@@ -212,8 +219,11 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 // ModifyDocumentation runs the documentation modification process for targeted changes using section-based approach
 func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) error {
-	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:modify")
-	defer chainSpan.End()
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:modify", d.executor.ModelID())
+	var sessionOutput string
+	defer func() {
+		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
+	}()
 
 	// Check if documentation file exists
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
@@ -223,6 +233,13 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 		}
 		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
 	}
+
+	// Record initial input for session
+	inputDesc := fmt.Sprintf("Modify documentation for package: %s (file: %s)", d.manifest.Name, d.targetDocFile)
+	if modifyPrompt != "" {
+		inputDesc += fmt.Sprintf(" - Request: %s", modifyPrompt)
+	}
+	tracing.RecordSessionInput(sessionSpan, inputDesc)
 
 	// Confirm LLM understands the documentation guidelines before proceeding
 	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
@@ -322,6 +339,8 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 
 	// Combine and write
 	finalContent := CombineSections(finalSections)
+	sessionOutput = fmt.Sprintf("Modified %d sections, %d characters for %s", len(finalSections), len(finalContent), d.targetDocFile)
+
 	if err := d.writeDocumentation(docPath, finalContent); err != nil {
 		return fmt.Errorf("failed to write documentation: %w", err)
 	}
