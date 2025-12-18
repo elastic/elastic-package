@@ -306,28 +306,39 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		return "", nil
 	}
 
+	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if googleApplicationCredentials != "" {
+		if _, err := os.Stat(googleApplicationCredentials); err != nil {
+			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
+			googleApplicationCredentials = ""
+		}
+	}
+
 	googleCredentialSourceFile := os.Getenv("GOOGLE_CREDENTIAL_SOURCE_FILE")
-	if _, err := os.Stat(googleCredentialSourceFile); err != nil {
-		logger.Warn("GOOGLE_CREDENTIAL_SOURCE_FILE environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
-		googleCredentialSourceFile = ""
+	if googleCredentialSourceFile != "" {
+		if _, err := os.Stat(googleCredentialSourceFile); err != nil {
+			logger.Warn("GOOGLE_CREDENTIAL_SOURCE_FILE environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
+			googleCredentialSourceFile = ""
+		}
 	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
-		"agent_image":                   agentImage,
-		"user":                          agentInfo.Agent.User,
-		"capabilities":                  strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
-		"runtime":                       agentInfo.Agent.Runtime,
-		"pid_mode":                      agentInfo.Agent.PidMode,
-		"ports":                         strings.Join(agentInfo.Agent.Ports, ","),
-		"dockerfile_hash":               hex.EncodeToString(hashDockerfile),
-		"agent_version":                 agentVersion,
-		"fleet_url":                     fleetURL,
-		"kibana_host":                   stack.DockerInternalHost(kibanaHost),
-		"elasticsearch_username":        config.ElasticsearchUsername,
-		"elasticsearch_password":        config.ElasticsearchPassword,
-		"enrollment_token":              enrollmentToken,
-		"google_credential_source_file": googleCredentialSourceFile,
+		"agent_image":                    agentImage,
+		"user":                           agentInfo.Agent.User,
+		"capabilities":                   strings.Join(agentInfo.Agent.LinuxCapabilities, ","),
+		"runtime":                        agentInfo.Agent.Runtime,
+		"pid_mode":                       agentInfo.Agent.PidMode,
+		"ports":                          strings.Join(agentInfo.Agent.Ports, ","),
+		"dockerfile_hash":                hex.EncodeToString(hashDockerfile),
+		"agent_version":                  agentVersion,
+		"fleet_url":                      fleetURL,
+		"kibana_host":                    stack.DockerInternalHost(kibanaHost),
+		"elasticsearch_username":         config.ElasticsearchUsername,
+		"elasticsearch_password":         config.ElasticsearchPassword,
+		"enrollment_token":               enrollmentToken,
+		"google_credential_source_file":  googleCredentialSourceFile,
+		"google_application_credentials": googleApplicationCredentials,
 	})
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
