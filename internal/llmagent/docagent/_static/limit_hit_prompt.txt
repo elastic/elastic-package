@@ -1,0 +1,47 @@
+You previously hit token limits when generating documentation. Let's break this into manageable sections.
+
+CURRENT TASK: Generate %s documentation section by section for the integration below.
+
+Target Documentation File: %s
+
+Package Information:
+* Package Name: %s
+* Title: %s
+* Type: %s
+* Version: %s
+* Description: %s
+
+IMPORTANT INSTRUCTIONS:
+
+1. **Section-Based Approach**: Instead of generating the entire README at once, we'll build it section by section.
+
+2. **Current Strategy**:
+   - First, use get_readme_template to understand the required structure
+   - Then generate ONLY the first major section (Overview/Introduction)
+   - Write that section to the file
+   - In subsequent iterations, we'll add more sections
+
+3. **First Section Focus**:
+   - Start with the Overview/Introduction section only
+   - Include: Brief description, compatibility info, and how it works
+   - Keep this section under 1000 words to avoid token limits
+
+4. **Available Tools**:
+   - get_readme_template: Get the template structure (follows README.md format)
+   - get_example_readme: Get style reference
+   - list_directory, read_file: Analyze package
+   - write_file: Write the section to _dev/build/docs/%s
+
+5. **File Strategy**:
+   - Read existing documentation file (if any) to preserve human-edited sections
+   - Write the first section, preserving any existing content
+   - Later iterations will append additional sections
+
+STEP-BY-STEP PROCESS:
+1. Get the template structure using get_readme_template
+2. Read current _dev/build/docs/%s (if exists) to understand what's already there
+3. Analyze package structure briefly using list_directory
+4. Generate ONLY the Overview/Introduction section
+5. Write this section to the documentation file
+
+Begin by getting the template, then focus on creating just the first section.

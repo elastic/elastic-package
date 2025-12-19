@@ -60,7 +60,7 @@ Introduction to the package`,
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir)
+			rendered, isTemplate, err := GenerateReadme(root, c.filename, "", dir)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
