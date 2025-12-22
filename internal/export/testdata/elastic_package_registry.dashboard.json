@@ -68,7 +68,17 @@
             "id": "elastic_package_registry-54252400-d309-11ed-97de-b7062e02194f",
             "name": "tag-ref-54252400-d309-11ed-97de-b7062e02194f",
             "type": "tag"
-         }
+        },
+        {
+            "id": "elastic_package_registry-fleet-shared-tag-elastic_package_registry",
+            "name": "tag-ref-fleet-shared-tag-default",
+            "type": "tag"
+        },
+        {
+            "id": "elastic_package_registry-security-solution-default",
+            "name": "tag-ref-security-solution-default",
+            "type": "tag"
+        }
     ],
     "type": "dashboard"
 }

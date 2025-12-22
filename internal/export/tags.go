@@ -6,11 +6,13 @@ package export
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/elastic/elastic-package/internal/common"
 )
 
-func removeFleetManagedTags(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
+// removeFleetTags removes fleet managed and shared tags from the given Kibana object.
+func removeFleetTags(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	aType, err := object.GetValue("type")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read type field: %w", err)
@@ -34,6 +36,11 @@ func removeTagReferences(ctx *transformationContext, object common.MapStr) (comm
 	}
 
 	newReferences, err := filterOutFleetManagedTags(ctx, references.([]interface{}))
+	if err != nil {
+		return nil, err
+	}
+
+	newReferences, err = filterOutSharedTags(ctx, newReferences)
 	if err != nil {
 		return nil, err
 	}
@@ -62,6 +69,9 @@ func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.
 	}
 
 	if isTagFleetManaged(aIdString, ctx.packageName) {
+		return nil, nil
+	}
+	if isSharedTag(aIdString, ctx.packageName) {
 		return nil, nil
 	}
 	return object, nil
@@ -105,6 +115,43 @@ func filterOutFleetManagedTags(ctx *transformationContext, references []interfac
 			return nil, fmt.Errorf("failed to assert id as a string: %v", aId)
 		}
 		if isTagFleetManaged(aIdString, ctx.packageName) {
+			continue
+		}
+		newReferences = append(newReferences, r)
+	}
+	return newReferences, nil
+}
+
+// isSharedTag checks if the given tag ID is a shared tag for the specified package.
+// Shared tags ids are created by fleet form the tags.yml file in the package.
+// https://github.com/elastic/kibana/blob/5385f96a132114362b2542e6a44c96a697b66c28/x-pack/platform/plugins/shared/fleet/server/services/epm/kibana/assets/tag_assets.ts#L67
+func isSharedTag(aId string, packageName string) bool {
+	defaultSharedTagTemplate := "fleet-shared-tag-%s"
+	securitySolutionTagTemplate := "%s-security-solution"
+
+	return strings.Contains(aId, fmt.Sprintf(defaultSharedTagTemplate, packageName)) ||
+		strings.Contains(aId, fmt.Sprintf(securitySolutionTagTemplate, packageName))
+}
+
+func filterOutSharedTags(ctx *transformationContext, references []interface{}) ([]interface{}, error) {
+	newReferences := make([]interface{}, 0)
+	for _, r := range references {
+		reference := r.(map[string]interface{})
+
+		aType, ok := reference["type"]
+		if !ok {
+			continue
+		}
+		if aType != "tag" {
+			newReferences = append(newReferences, r)
+			continue
+		}
+
+		aId, ok := reference["id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("failed to assert name as a string: %v", reference["id"])
+		}
+		if isSharedTag(aId, ctx.packageName) {
 			continue
 		}
 		newReferences = append(newReferences, r)

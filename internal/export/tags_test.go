@@ -27,7 +27,7 @@ func TestRemoveFleetTagsDashboard(t *testing.T) {
 		packageName: "elastic_package_registry",
 	}
 
-	result, err := removeFleetManagedTags(ctx, given)
+	result, err := removeFleetTags(ctx, given)
 	require.NoError(t, err)
 
 	resultJson, err := json.MarshalIndent(&result, "", "    ")
@@ -55,6 +55,16 @@ func TestRemoveFleetTagsObjects(t *testing.T) {
 			objectFile:      "./testdata/elastic_package_registry.random_tag.json",
 			expectedRemoved: false,
 		},
+		{
+			title:           "Shared tag - default",
+			objectFile:      "./testdata/elastic_package_registry.shared_tag_default.json",
+			expectedRemoved: true,
+		},
+		{
+			title:           "Shared tag - security solution",
+			objectFile:      "./testdata/elastic_package_registry.shared_tag_security_solution.json",
+			expectedRemoved: true,
+		},
 	}
 
 	for _, c := range cases {
@@ -70,7 +80,7 @@ func TestRemoveFleetTagsObjects(t *testing.T) {
 				packageName: "elastic_package_registry",
 			}
 
-			result, err := removeFleetManagedTags(ctx, given)
+			result, err := removeFleetTags(ctx, given)
 			require.NoError(t, err)
 
 			if c.expectedRemoved {
