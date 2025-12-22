@@ -66,7 +66,7 @@ services:
         read_only: false
       {{ if ne $google_application_credentials "" }}
       # Mount Google Application Credentials file provided
-      # Required for external accounts authentication when creating resources via terraform in GCP
+      # Required for authenticating when resources are located in GCP
       - type: bind
         source: {{ $google_application_credentials }}
         target: {{ $google_application_credentials }}
@@ -74,7 +74,7 @@ services:
       {{ end }}
       {{ if ne $google_credential_source_file "" }}
       # Mount Google credential source file (token file) provided
-      # Required for external accounts authentication when creating resources via terraform in GCP
+      # Required for external accounts authentication when resources are located in GCP
       - type: bind
         source: {{ $google_credential_source_file }}
         target: {{ $google_credential_source_file }}
