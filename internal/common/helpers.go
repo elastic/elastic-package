@@ -7,10 +7,13 @@ package common
 import (
 	"fmt"
 	"math/rand"
+	"os"
 	"slices"
 	"strings"
 
 	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -73,4 +76,29 @@ func ProcessResourceApplyResults(results resource.ApplyResults) string {
 		}
 	}
 	return strings.Join(errors, ", ")
+}
+
+func GCPCredentialFacters() resource.StaticFacter {
+	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if googleApplicationCredentials != "" {
+		if _, err := os.Stat(googleApplicationCredentials); err != nil {
+			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
+			googleApplicationCredentials = ""
+		}
+	}
+
+	googleCredentialSourceFile := os.Getenv("GOOGLE_CREDENTIAL_SOURCE_FILE")
+	if googleCredentialSourceFile != "" {
+		if _, err := os.Stat(googleCredentialSourceFile); err != nil {
+			logger.Warn("GOOGLE_CREDENTIAL_SOURCE_FILE environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
+			googleCredentialSourceFile = ""
+		}
+	}
+
+	googleCredentialSourceFile = ""
+	return resource.StaticFacter{
+		"google_credential_source_file":  googleCredentialSourceFile,
+		"google_application_credentials": googleApplicationCredentials,
+	}
+
 }

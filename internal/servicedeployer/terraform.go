@@ -182,27 +182,10 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	if googleApplicationCredentials != "" {
-		if _, err := os.Stat(googleApplicationCredentials); err != nil {
-			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
-			googleApplicationCredentials = ""
-		}
-	}
-
-	googleCredentialSourceFile := os.Getenv("GOOGLE_CREDENTIAL_SOURCE_FILE")
-	if googleCredentialSourceFile != "" {
-		if _, err := os.Stat(googleCredentialSourceFile); err != nil {
-			logger.Warn("GOOGLE_CREDENTIAL_SOURCE_FILE environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
-			googleCredentialSourceFile = ""
-		}
-	}
+	gcpFacters := common.GCPCredentialFacters()
 
 	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"google_credential_source_file":  googleCredentialSourceFile,
-		"google_application_credentials": googleApplicationCredentials,
-	})
+	resourceManager.AddFacter(gcpFacters)
 
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir, folder)
 
