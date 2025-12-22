@@ -31,9 +31,11 @@ const (
 
 // ExecutorConfig holds configuration for creating an Executor.
 type ExecutorConfig struct {
-	APIKey      string
-	ModelID     string
-	Instruction string
+	APIKey         string
+	ModelID        string
+	Instruction    string
+	ThinkingBudget *int32         // Optional thinking budget for Gemini models (nil = default, 0 = disabled)
+	TracingConfig  tracing.Config // Tracing configuration
 }
 
 // TaskResult represents the result of a task execution.
@@ -57,6 +59,7 @@ type Executor struct {
 	toolsets       []tool.Toolset
 	instruction    string
 	sessionService session.Service
+	thinkingBudget *int32
 }
 
 // NewExecutor creates a new ADK-based executor with tools only.
@@ -75,8 +78,8 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 		modelID = "gemini-2.5-pro"
 	}
 
-	// Initialize Phoenix tracing (no-op if PHOENIX_COLLECTOR_ENDPOINT not set)
-	if err := tracing.Init(ctx); err != nil {
+	// Initialize Phoenix tracing with provided config
+	if err := tracing.InitWithConfig(ctx, cfg.TracingConfig); err != nil {
 		logger.Debugf("Failed to initialize Phoenix tracing: %v", err)
 	}
 
@@ -88,7 +91,11 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 		return nil, fmt.Errorf("failed to create Gemini model: %w", err)
 	}
 
-	logger.Debugf("Created ADK executor with model: %s", modelID)
+	if cfg.ThinkingBudget != nil {
+		logger.Debugf("Created ADK executor with model: %s, thinking budget: %d", modelID, *cfg.ThinkingBudget)
+	} else {
+		logger.Debugf("Created ADK executor with model: %s", modelID)
+	}
 
 	return &Executor{
 		llmModel:       llmModel,
@@ -97,6 +104,7 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 		toolsets:       toolsets,
 		instruction:    cfg.Instruction,
 		sessionService: session.InMemoryService(),
+		thinkingBudget: cfg.ThinkingBudget,
 	}, nil
 }
 
@@ -122,15 +130,27 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (*TaskResult,
 		Content: prompt,
 	})
 
-	// Create the LLM agent
-	adkAgent, err := llmagent.New(llmagent.Config{
+	// Build agent config
+	agentCfg := llmagent.Config{
 		Name:        "doc-agent",
 		Description: "Documentation generation agent for Elastic packages",
 		Model:       e.llmModel,
 		Instruction: e.instruction,
 		Tools:       e.tools,
 		Toolsets:    e.toolsets,
-	})
+	}
+
+	// Add thinking config if budget is set
+	if e.thinkingBudget != nil {
+		agentCfg.GenerateContentConfig = &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				ThinkingBudget: e.thinkingBudget,
+			},
+		}
+	}
+
+	// Create the LLM agent
+	adkAgent, err := llmagent.New(agentCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create LLM agent: %w", err)
 	}

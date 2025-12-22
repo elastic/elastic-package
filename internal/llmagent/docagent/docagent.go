@@ -84,6 +84,8 @@ type AgentConfig struct {
 	RepositoryRoot *os.Root
 	DocFile        string
 	Profile        *profile.Profile
+	ThinkingBudget *int32         // Optional thinking budget for Gemini models
+	TracingConfig  tracing.Config // Tracing configuration
 }
 
 // NewDocumentationAgent creates a new documentation agent using ADK
@@ -111,9 +113,11 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 
 	// Create executor configuration with system instructions
 	execCfg := ExecutorConfig{
-		APIKey:      cfg.APIKey,
-		ModelID:     cfg.ModelID,
-		Instruction: AgentInstructions,
+		APIKey:         cfg.APIKey,
+		ModelID:        cfg.ModelID,
+		Instruction:    AgentInstructions,
+		ThinkingBudget: cfg.ThinkingBudget,
+		TracingConfig:  cfg.TracingConfig,
 	}
 
 	// Create executor with tools and toolsets
@@ -179,6 +183,13 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
 	}()
 
+	// Output session ID for trace retrieval (only when tracing is enabled)
+	if tracing.IsEnabled() {
+		if sessionID, ok := tracing.SessionIDFromContext(ctx); ok {
+			fmt.Printf("🔍 Tracing session ID: %s\n", sessionID)
+		}
+	}
+
 	// Record the input request
 	tracing.RecordSessionInput(sessionSpan, fmt.Sprintf("Generate documentation for package: %s (file: %s)", d.manifest.Name, d.targetDocFile))
 
@@ -190,8 +201,10 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
 
-	// Generate all sections
-	sections, err := d.GenerateAllSections(ctx)
+	// Generate all sections using multi-agent workflow (generator → critic → validator)
+	fmt.Println("📊 Using multi-agent workflow (generator → critic → validator)")
+	workflowCfg := d.buildWorkflowConfig()
+	sections, err := d.GenerateAllSectionsWithWorkflow(ctx, workflowCfg)
 	if err != nil {
 		return fmt.Errorf("failed to generate sections: %w", err)
 	}
@@ -224,6 +237,13 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	defer func() {
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
 	}()
+
+	// Output session ID for trace retrieval (only when tracing is enabled)
+	if tracing.IsEnabled() {
+		if sessionID, ok := tracing.SessionIDFromContext(ctx); ok {
+			fmt.Printf("🔍 Tracing session ID: %s\n", sessionID)
+		}
+	}
 
 	// Check if documentation file exists
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
@@ -354,122 +374,6 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	}
 
 	return nil
-}
-
-// runNonInteractiveMode handles the non-interactive documentation update flow
-func (d *DocumentationAgent) runNonInteractiveMode(ctx context.Context, prompt string) error {
-	fmt.Println("Starting non-interactive documentation update process...")
-	fmt.Println("The LLM agent will analyze your package and generate documentation automatically.")
-	fmt.Println()
-
-	// First attempt
-	result, err := d.executeTaskWithLogging(ctx, prompt)
-	if err != nil {
-		return err
-	}
-
-	// Show the result
-	fmt.Println("\n📝 Agent Response:")
-	fmt.Println(strings.Repeat("-", 50))
-	fmt.Println(result.FinalContent)
-	fmt.Println(strings.Repeat("-", 50))
-
-	analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
-
-	switch analysis.Status {
-	case responseError:
-		fmt.Println("\n❌ Error detected in LLM response.")
-		fmt.Println("In non-interactive mode, exiting due to error.")
-		return fmt.Errorf("LLM agent encountered an error: %s", result.FinalContent)
-	}
-
-	// Check if documentation file was successfully updated
-	if updated, _ := d.handleReadmeUpdate(); updated {
-		fmt.Printf("\n📄 %s was updated successfully!\n", d.targetDocFile)
-		return nil
-	}
-
-	// If documentation was not updated, but there was no error response, make another attempt with specific instructions
-	fmt.Printf("⚠️  %s was not updated. Trying again with specific instructions...\n", d.targetDocFile)
-	specificPrompt := fmt.Sprintf("You haven't updated the %s file yet. Please write the %s file in the _dev/build/docs/ directory based on your analysis. This is required to complete the task.", d.targetDocFile, d.targetDocFile)
-
-	if _, err := d.executeTaskWithLogging(ctx, specificPrompt); err != nil {
-		return fmt.Errorf("second attempt failed: %w", err)
-	}
-
-	// Final check
-	if updated, _ := d.handleReadmeUpdate(); updated {
-		fmt.Printf("\n📄 %s was updated on second attempt!\n", d.targetDocFile)
-		return nil
-	}
-
-	return fmt.Errorf("failed to create %s after two attempts", d.targetDocFile)
-}
-
-// runInteractiveMode handles the interactive documentation update flow
-func (d *DocumentationAgent) runInteractiveMode(ctx context.Context, prompt string) error {
-	fmt.Println("Starting documentation update process...")
-	fmt.Println("The LLM agent will analyze your package and update the documentation.")
-	fmt.Println()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		// Execute the task
-		result, err := d.executeTaskWithLogging(ctx, prompt)
-		if err != nil {
-			return err
-		}
-
-		analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
-
-		switch analysis.Status {
-		case responseError:
-			newPrompt, shouldContinue, err := d.handleInteractiveError()
-			if err != nil {
-				return err
-			}
-			if !shouldContinue {
-				d.restoreOriginalReadme()
-				return fmt.Errorf("user chose to exit due to LLM error")
-			}
-			prompt = newPrompt
-			continue
-		}
-
-		// Display README content if updated
-		readmeUpdated, err := d.isReadmeUpdated()
-		if err != nil {
-			logger.Debugf("could not determine if readme is updated: %v", err)
-		}
-		if readmeUpdated {
-			err = d.displayReadme()
-			if err != nil {
-				// This may be recoverable, only log the error
-				logger.Debugf("displaying readme: %v", err)
-			}
-		}
-
-		// Get and handle user action
-		action, err := d.getUserAction()
-		if err != nil {
-			return err
-		}
-		actionResult := d.handleUserAction(action, readmeUpdated)
-		if actionResult.Err != nil {
-			return actionResult.Err
-		}
-		if actionResult.ShouldContinue {
-			prompt = actionResult.NewPrompt
-			continue
-		}
-		// If we reach here, should exit
-		return nil
-	}
 }
 
 // logAgentResponse logs debug information about the agent response
@@ -938,5 +842,14 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 
 // GetWorkflowConfig returns a workflow configuration suitable for this agent
 func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
-	return workflow.DefaultConfig()
+	return d.buildWorkflowConfig()
+}
+
+// buildWorkflowConfig creates a workflow configuration with the agent's model and tools
+func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
+	return workflow.DefaultConfig().
+		WithModel(d.executor.llmModel).
+		WithModelID(d.executor.ModelID()).
+		WithTools(d.executor.tools).
+		WithToolsets(d.executor.toolsets)
 }

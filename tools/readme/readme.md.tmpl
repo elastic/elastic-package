@@ -572,6 +572,10 @@ There are available some environment variables that could be used to change some
     - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
     - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
     - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)
+    - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
+    - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
+    - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)
+    - `LLM_TRACING_PROJECT_NAME`: Project name for tracing (defaults to `elastic-package`)
 
 
 ## Release process

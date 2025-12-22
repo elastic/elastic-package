@@ -90,7 +90,9 @@ func (u *URLValidatorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*sessi
 
 		contentStr, _ := content.(string)
 
-		// Create context with timeout for HTTP operations
+		// Create context with timeout for HTTP operations.
+		// Note: ADK InvocationContext doesn't expose parent context, so we use Background.
+		// The 2-minute timeout provides reasonable protection against hanging requests.
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
 
@@ -302,4 +304,3 @@ func isLocalhostURL(url string) bool {
 	}
 	return false
 }
-

@@ -5,13 +5,10 @@
 package docagent
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
 // SectionGenerationContext holds all the context needed to generate a single section
@@ -21,119 +18,6 @@ type SectionGenerationContext struct {
 	ExampleSection  *Section
 	PackageInfo     PromptContext
 	ExistingContent string
-}
-
-// GenerateAllSections orchestrates the generation of all sections for a document
-func (d *DocumentationAgent) GenerateAllSections(ctx context.Context) ([]Section, error) {
-	// Get the template content
-	templateContent := archetype.GetPackageDocsReadmeTemplate()
-
-	// Get the example content (default example from category-based system)
-	exampleContent := tools.GetDefaultExampleContent()
-
-	// Parse sections from template
-	templateSections := ParseSections(templateContent)
-	if len(templateSections) == 0 {
-		return nil, fmt.Errorf("no sections found in template")
-	}
-
-	// Parse sections from example
-	exampleSections := ParseSections(exampleContent)
-
-	// Read existing documentation if it exists
-	existingContent, _ := d.readCurrentReadme()
-	var existingSections []Section
-	if existingContent != "" {
-		existingSections = ParseSections(existingContent)
-	}
-
-	// Generate ONLY top-level sections (subsections will be generated as part of parent)
-	var generatedSections []Section
-
-	for _, templateSection := range templateSections {
-		// Skip subsections - they're generated with their parent
-		if !templateSection.IsTopLevel() {
-			continue
-		}
-
-		logger.Debugf("Generating section: %s (level %d) with %d subsections",
-			templateSection.Title, templateSection.Level, len(templateSection.Subsections))
-
-		// Find corresponding example section
-		exampleSection := FindSectionByTitle(exampleSections, templateSection.Title)
-
-		// Find existing section for this part
-		var existingSection *Section
-		if len(existingSections) > 0 {
-			existingSection = FindSectionByTitle(existingSections, templateSection.Title)
-		}
-
-		// Build context for this section (includes subsection information via FullContent)
-		sectionCtx := SectionGenerationContext{
-			Section:         templateSection,
-			TemplateSection: &templateSection,
-			ExampleSection:  exampleSection,
-			PackageInfo:     d.createPromptContext(d.manifest, ""),
-		}
-
-		if existingSection != nil {
-			// Use FullContent to include subsections context
-			sectionCtx.ExistingContent = existingSection.GetAllContent()
-		}
-
-		// Generate this section (includes subsections)
-		generatedSection, err := d.generateSingleSection(ctx, sectionCtx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate section %s: %w", templateSection.Title, err)
-		}
-
-		// Parse the generated content to extract hierarchical structure
-		parsedGenerated := ParseSections(generatedSection.Content)
-		if len(parsedGenerated) > 0 {
-			// Take the full hierarchical section (with subsections parsed)
-			generatedSection = parsedGenerated[0]
-		}
-
-		generatedSections = append(generatedSections, generatedSection)
-	}
-
-	return generatedSections, nil
-}
-
-// generateSingleSection generates content for a single section using the LLM
-func (d *DocumentationAgent) generateSingleSection(ctx context.Context, sectionCtx SectionGenerationContext) (Section, error) {
-	// Build the prompt for this specific section
-	prompt := d.buildSectionPrompt(sectionCtx)
-
-	// Execute the task
-	result, err := d.executor.ExecuteTask(ctx, prompt)
-	if err != nil {
-		return Section{}, fmt.Errorf("agent task failed: %w", err)
-	}
-
-	// Log the result
-	d.logAgentResponse(result)
-
-	// Analyze the response
-	analysis := d.responseAnalyzer.AnalyzeResponse(result.FinalContent, result.Conversation)
-	if analysis.Status == responseError {
-		return Section{}, fmt.Errorf("LLM reported an error: %s", analysis.Message)
-	}
-
-	// Extract the generated content from the tool results
-	// The LLM should have written to a temporary location or returned the content
-	generatedContent := d.extractGeneratedSectionContent(result, sectionCtx.Section.Title)
-
-	// Create the section with generated content
-	generatedSection := Section{
-		Title:           sectionCtx.Section.Title,
-		Level:           sectionCtx.Section.Level,
-		Content:         generatedContent,
-		HasPreserve:     sectionCtx.Section.HasPreserve,
-		PreserveContent: sectionCtx.Section.PreserveContent,
-	}
-
-	return generatedSection, nil
 }
 
 // emptySectionPlaceholder is the placeholder text for sections that couldn't be populated
@@ -185,8 +69,7 @@ func (d *DocumentationAgent) extractGeneratedSectionContent(result *TaskResult, 
 	return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
 }
 
-// Helper functions for content extraction
-
+// startsWithHeader checks if a line starts with a markdown header of the given level and title
 func startsWithHeader(line, title string, level int) bool {
 	prefix := ""
 	for i := 0; i < level; i++ {

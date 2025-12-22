@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/workflowagents/loopagent"
 	"google.golang.org/adk/agent/workflowagents/sequentialagent"
@@ -105,24 +106,31 @@ func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
 		Toolsets: b.config.Toolsets,
 	}
 
+	logger.Debugf("Building workflow agents (EnableCritic=%v, EnableValidator=%v, EnableURLValidator=%v)",
+		b.config.EnableCritic, b.config.EnableValidator, b.config.EnableURLValidator)
+
 	var subAgents []agent.Agent
 	for _, sa := range b.config.Registry.All() {
 		// Skip disabled agents
 		switch sa.Name() {
 		case "critic":
 			if !b.config.EnableCritic {
+				logger.Debugf("Skipping critic agent (disabled)")
 				continue
 			}
 		case "validator":
 			if !b.config.EnableValidator {
+				logger.Debugf("Skipping validator agent (disabled)")
 				continue
 			}
 		case "url_validator":
 			if !b.config.EnableURLValidator {
+				logger.Debugf("Skipping url_validator agent (disabled)")
 				continue
 			}
 		}
 
+		logger.Debugf("Building agent: %s", sa.Name())
 		adkAgent, err := sa.Build(ctx, agentCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to build agent %s: %w", sa.Name(), err)
@@ -130,6 +138,7 @@ func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
 		subAgents = append(subAgents, adkAgent)
 	}
 
+	logger.Debugf("Built %d workflow agents", len(subAgents))
 	return subAgents, nil
 }
 
@@ -141,16 +150,29 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 		span.End()
 	}()
 
-	// Build the workflow agent
-	workflowAgent, err := b.BuildSectionWorkflow(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build workflow: %w", err)
-	}
-
 	// Serialize section context for initial state
 	ctxJSON, err := json.Marshal(sectionCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize section context: %w", err)
+	}
+
+	// Create state store with initial state - this is used by the state tools
+	stateStore := specialists.NewStateStore(map[string]any{
+		specialists.StateKeySectionContext: string(ctxJSON),
+		specialists.StateKeyIteration:      0,
+	})
+
+	// Set the active state store for tools to access
+	specialists.SetActiveStateStore(stateStore)
+	defer specialists.ClearActiveStateStore()
+
+	// Add state store to context (for any code that might need it directly)
+	ctx = specialists.ContextWithState(ctx, stateStore)
+
+	// Build the workflow agent (must be after context setup for tools to work)
+	workflowAgent, err := b.BuildSectionWorkflow(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build workflow: %w", err)
 	}
 
 	// Create session service with initial state
@@ -166,7 +188,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 		return nil, fmt.Errorf("failed to create runner: %w", err)
 	}
 
-	// Create session with initial state
+	// Create session with initial state (mirrors our state store)
 	sess, err := sessionService.Create(ctx, &session.CreateRequest{
 		AppName: "docagent-workflow",
 		UserID:  "docagent",
@@ -181,7 +203,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 
 	// Create initial user content
 	userContent := genai.NewContentFromText(
-		fmt.Sprintf("Generate documentation for section: %s", sectionCtx.SectionTitle),
+		fmt.Sprintf("Generate documentation for section: %s. Use the read_state and write_state tools to access context and store your output.", sectionCtx.SectionTitle),
 		genai.RoleUser,
 	)
 
@@ -189,9 +211,31 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 	result := &Result{}
 	iterations := 0
 
+	// Track active agent span to avoid duplicates and measure actual duration
+	var currentAgentName string
+	var currentAgentSpan trace.Span
+	var agentPromptTokens, agentCompletionTokens int
+
+	// Helper to end the current agent span
+	endCurrentAgentSpan := func() {
+		if currentAgentSpan != nil {
+			// Record token counts if we have them
+			if agentPromptTokens > 0 || agentCompletionTokens > 0 {
+				tracing.EndLLMSpan(ctx, currentAgentSpan, nil, agentPromptTokens, agentCompletionTokens)
+			} else {
+				currentAgentSpan.End()
+			}
+			currentAgentSpan = nil
+			currentAgentName = ""
+			agentPromptTokens = 0
+			agentCompletionTokens = 0
+		}
+	}
+
 	for event, err := range r.Run(ctx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
 			logger.Debugf("Workflow error: %v", err)
+			endCurrentAgentSpan() // Clean up on error
 			return nil, fmt.Errorf("workflow execution error: %w", err)
 		}
 
@@ -199,22 +243,69 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			continue
 		}
 
-		// Process state updates from events
+		// Track agent transitions - start a new span when agent changes
+		if event.Author != "" && event.Author != currentAgentName {
+			// End previous agent span if any
+			endCurrentAgentSpan()
+
+			// Skip creating spans for workflow orchestrator agents
+			if event.Author != "section-workflow" && event.Author != "section-pipeline" {
+				logger.Debugf("Agent started: %s", event.Author)
+				_, currentAgentSpan = tracing.StartAgentSpan(ctx, "agent:"+event.Author, b.config.ModelID)
+				currentAgentName = event.Author
+			}
+		}
+
+		// Accumulate token counts from events
+		if event.UsageMetadata != nil {
+			agentPromptTokens += int(event.UsageMetadata.PromptTokenCount)
+			agentCompletionTokens += int(event.UsageMetadata.CandidatesTokenCount)
+		}
+
+		// Sync state from our store (updated by tools) to result
+		if content, ok := stateStore.Get(specialists.StateKeyContent); ok {
+			if contentStr, ok := content.(string); ok {
+				result.Content = contentStr
+			}
+		}
+		if approved, ok := stateStore.Get(specialists.StateKeyApproved); ok {
+			if approvedBool, ok := approved.(bool); ok {
+				result.Approved = approvedBool
+			}
+		}
+		if feedback, ok := stateStore.Get(specialists.StateKeyFeedback); ok {
+			if feedbackStr, ok := feedback.(string); ok {
+				result.Feedback = feedbackStr
+			}
+		}
+
+		// Also process state updates from ADK events (for URLValidator which uses session directly)
 		if event.Actions.StateDelta != nil {
 			if content, ok := event.Actions.StateDelta[specialists.StateKeyContent].(string); ok {
 				result.Content = content
+				stateStore.Set(specialists.StateKeyContent, content)
 			}
 			if approved, ok := event.Actions.StateDelta[specialists.StateKeyApproved].(bool); ok {
 				result.Approved = approved
+				stateStore.Set(specialists.StateKeyApproved, approved)
 			}
 			if feedback, ok := event.Actions.StateDelta[specialists.StateKeyFeedback].(string); ok {
 				result.Feedback = feedback
+				stateStore.Set(specialists.StateKeyFeedback, feedback)
 			}
-			if vr, ok := event.Actions.StateDelta[specialists.StateKeyValidation].(specialists.ValidationResult); ok {
-				result.ValidationResult = &vr
+			if vrAny, ok := event.Actions.StateDelta[specialists.StateKeyValidation]; ok {
+				if vr, ok := vrAny.(specialists.ValidationResult); ok {
+					result.ValidationResult = &vr
+				} else if vrPtr, ok := vrAny.(*specialists.ValidationResult); ok {
+					result.ValidationResult = vrPtr
+				}
 			}
-			if ur, ok := event.Actions.StateDelta[specialists.StateKeyURLCheck].(specialists.URLCheckResult); ok {
-				result.URLCheckResult = &ur
+			if urAny, ok := event.Actions.StateDelta[specialists.StateKeyURLCheck]; ok {
+				if ur, ok := urAny.(specialists.URLCheckResult); ok {
+					result.URLCheckResult = &ur
+				} else if urPtr, ok := urAny.(*specialists.URLCheckResult); ok {
+					result.URLCheckResult = urPtr
+				}
 			}
 		}
 
@@ -223,17 +314,35 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			iterations++
 		}
 
-		// Check for final response
+		// Check for final response - only exit on final response from the outer workflow agent
+		// Individual sub-agents (generator, critic, validator) will return final=true when they finish,
+		// but we should continue to let the sequential agent run the next sub-agent
 		if event.IsFinalResponse() {
-			break
+			// End current agent span when it finishes
+			if event.Author == currentAgentName {
+				logger.Debugf("Agent finished: %s", event.Author)
+				endCurrentAgentSpan()
+			}
+
+			// Only break if it's from the outer workflow (section-workflow or section-pipeline)
+			// or if we've received final from an unknown/empty author (safety fallback)
+			if event.Author == "section-workflow" || event.Author == "section-pipeline" || event.Author == "" {
+				logger.Debugf("Final response from workflow %s, ending", event.Author)
+				break
+			}
+			logger.Debugf("Final response from sub-agent %s, continuing workflow", event.Author)
 		}
 
 		// Check if approved early
 		if result.Approved {
 			logger.Debugf("Workflow completed early: content approved at iteration %d", iterations)
+			endCurrentAgentSpan()
 			break
 		}
 	}
+
+	// Ensure any remaining span is closed
+	endCurrentAgentSpan()
 
 	result.Iterations = iterations
 

@@ -6,15 +6,9 @@ package specialists
 
 import (
 	"context"
-	"iter"
-	"strings"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/genai"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -44,21 +38,40 @@ func (v *ValidatorAgent) Description() string {
 const validatorInstruction = `You are a documentation validator for Elastic integration packages.
 Your task is to validate the technical correctness of documentation content.
 
-Read the generated content from temp:section_content and verify:
-1. Code snippets are syntactically correct
-2. Configuration examples are valid
-3. References to fields, settings, and features are accurate
-4. Versions and compatibility information are correct
-5. Technical terminology is used correctly
+## Getting Input
+Use the read_state tool with key "section_content" to get the generated documentation to validate.
 
-Store your validation results in temp:validation_result as a JSON object:
-{
-  "valid": true/false,
-  "issues": ["list of issues found"],
-  "warnings": ["list of warnings"]
-}
+## Validation Checks
+Check the content for:
 
+## Issues (mark as invalid)
+1. Placeholder markers like << >> or {{ }} that weren't replaced
+2. Empty code blocks (triple backticks with no content)
+3. Syntactically incorrect code snippets
+4. Invalid configuration examples (malformed YAML, JSON, etc.)
+5. Incorrect references to fields, settings, or features
+6. Factually incorrect version or compatibility information
+
+## Warnings (valid but should be addressed)
+1. TODO or FIXME markers in the content
+2. Code snippets without language specification
+3. Potentially outdated technical information
+4. Missing error handling in code examples
+
+## Storing Output
+Use the write_state tool to store your validation results:
+- key: "validation_result"
+- value: A JSON object like: {"valid": true/false, "issues": [...], "warnings": [...]}
+
+If validation fails (issues found):
+- Use write_state with key "approved" and value "false"
+- Use write_state with key "feedback" with the issues that need to be fixed
+
+Set "valid" to false if ANY issues are found. Warnings alone do not invalidate content.
 Be thorough but avoid false positives. Only flag genuine issues.
+
+## IMPORTANT
+You MUST use the read_state and write_state tools. Do not just output text directly.
 `
 
 // ValidationResult represents the result of validation
@@ -70,86 +83,14 @@ type ValidationResult struct {
 
 // Build creates the underlying ADK agent.
 func (v *ValidatorAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// If we have an LLM model, create an LLM-based agent
-	if cfg.Model != nil {
-		return llmagent.New(llmagent.Config{
-			Name:        validatorAgentName,
-			Description: validatorAgentDescription,
-			Model:       cfg.Model,
-			Instruction: validatorInstruction,
-		})
-	}
-
-	// Otherwise create a simple pass-through agent (stub mode)
-	return agent.New(agent.Config{
+	// Combine state tools with provided tools
+	allTools := append(StateTools(), cfg.Tools...)
+	return llmagent.New(llmagent.Config{
 		Name:        validatorAgentName,
 		Description: validatorAgentDescription,
-		Run:         v.run,
+		Model:       cfg.Model,
+		Instruction: validatorInstruction,
+		Tools:       allTools,
+		Toolsets:    cfg.Toolsets,
 	})
 }
-
-// run implements the agent logic when no LLM is available (stub mode)
-func (v *ValidatorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-	return func(yield func(*session.Event, error) bool) {
-		state := invCtx.Session().State()
-
-		// Read content from state
-		content, err := state.Get(StateKeyContent)
-		if err != nil {
-			logger.Debugf("Validator: no content found in state")
-			event := session.NewEvent(invCtx.InvocationID())
-			event.Content = genai.NewContentFromText("No content to validate", genai.RoleModel)
-			event.Author = validatorAgentName
-			event.Actions.StateDelta = map[string]any{
-				StateKeyValidation: ValidationResult{
-					Valid:  false,
-					Issues: []string{"No content provided for validation"},
-				},
-			}
-			yield(event, nil)
-			return
-		}
-
-		contentStr, _ := content.(string)
-
-		// Stub implementation: perform basic validation checks
-		result := v.validateContent(contentStr)
-
-		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
-		event.Content = genai.NewContentFromText("Validation complete", genai.RoleModel)
-		event.Author = validatorAgentName
-		event.Actions.StateDelta = map[string]any{
-			StateKeyValidation: result,
-		}
-
-		yield(event, nil)
-	}
-}
-
-// validateContent performs basic content validation (stub implementation)
-func (v *ValidatorAgent) validateContent(content string) ValidationResult {
-	var issues []string
-	var warnings []string
-
-	// Check for common issues (stub checks)
-	if strings.Contains(content, "TODO") || strings.Contains(content, "FIXME") {
-		warnings = append(warnings, "Content contains TODO/FIXME markers")
-	}
-
-	if strings.Contains(content, "<<") && strings.Contains(content, ">>") {
-		issues = append(issues, "Content contains placeholder markers (<< >>)")
-	}
-
-	// Check for empty code blocks
-	if strings.Contains(content, "```\n```") || strings.Contains(content, "```\n\n```") {
-		issues = append(issues, "Content contains empty code blocks")
-	}
-
-	return ValidationResult{
-		Valid:    len(issues) == 0,
-		Issues:   issues,
-		Warnings: warnings,
-	}
-}
-

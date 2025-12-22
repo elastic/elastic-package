@@ -51,3 +51,13 @@
 # llm.local.model: "llama2"
 # Local LLM API key (optional, for servers requiring authentication)
 # llm.local.api_key: "your-local-api-key"
+
+## LLM Tracing (OpenTelemetry/Phoenix)
+# Enable or disable LLM tracing (defaults to true)
+# llm.tracing.enabled: true
+# Tracing endpoint URL (defaults to http://localhost:6006/v1/traces)
+# llm.tracing.endpoint: "http://localhost:6006/v1/traces"
+# Tracing API key (optional, for authenticated endpoints)
+# llm.tracing.api_key: "your-tracing-api-key"
+# Project name for tracing (defaults to elastic-package)
+# llm.tracing.project_name: "elastic-package"

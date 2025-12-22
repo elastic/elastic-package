@@ -20,12 +20,15 @@ type Config struct {
 	// Registry contains the agents to use in the workflow
 	Registry *specialists.Registry
 
-	// MaxIterations limits the number of refinement cycles
-	// Set to 0 for unlimited iterations (until approved)
+	// MaxIterations limits the number of refinement cycles.
+	// Defaults to DefaultMaxIterations (3) if set to 0.
 	MaxIterations uint
 
 	// Model is the LLM model to use for agents
 	Model model.LLM
+
+	// ModelID is the model identifier string for tracing
+	ModelID string
 
 	// Tools available to agents in the workflow
 	Tools []tool.Tool
@@ -57,6 +60,12 @@ func DefaultConfig() Config {
 // WithModel sets the LLM model
 func (c Config) WithModel(m model.LLM) Config {
 	c.Model = m
+	return c
+}
+
+// WithModelID sets the model identifier for tracing
+func (c Config) WithModelID(id string) Config {
+	c.ModelID = id
 	return c
 }
 

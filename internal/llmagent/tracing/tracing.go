@@ -24,9 +24,10 @@ import (
 
 // Environment variable names for Phoenix configuration
 const (
-	EnvPhoenixEndpoint    = "PHOENIX_COLLECTOR_ENDPOINT"
-	EnvPhoenixAPIKey      = "PHOENIX_API_KEY"
-	EnvPhoenixProjectName = "PHOENIX_PROJECT_NAME"
+	EnvPhoenixEnabled     = "LLM_TRACING_ENABLED"
+	EnvPhoenixEndpoint    = "LLM_TRACING_ENDPOINT"
+	EnvPhoenixAPIKey      = "LLM_TRACING_API_KEY"
+	EnvPhoenixProjectName = "LLM_TRACING_PROJECT_NAME"
 )
 
 // Default values
@@ -125,6 +126,7 @@ var (
 
 // Config holds Phoenix tracing configuration
 type Config struct {
+	Enabled     bool
 	Endpoint    string
 	APIKey      string
 	ProjectName string
@@ -133,9 +135,15 @@ type Config struct {
 // ConfigFromEnv creates a Config from environment variables
 func ConfigFromEnv() Config {
 	cfg := Config{
+		Enabled:     true, // Enabled by default
 		Endpoint:    os.Getenv(EnvPhoenixEndpoint),
 		APIKey:      os.Getenv(EnvPhoenixAPIKey),
 		ProjectName: os.Getenv(EnvPhoenixProjectName),
+	}
+
+	// Check if explicitly disabled
+	if enabledStr := os.Getenv(EnvPhoenixEnabled); enabledStr != "" {
+		cfg.Enabled = enabledStr == "true" || enabledStr == "1"
 	}
 
 	if cfg.Endpoint == "" {
@@ -152,11 +160,14 @@ func ConfigFromEnv() Config {
 // It reads configuration from environment variables.
 // This function is safe to call multiple times; subsequent calls are no-ops.
 func Init(ctx context.Context) error {
-	initOnce.Do(func() {
-		cfg := ConfigFromEnv()
+	return InitWithConfig(ctx, ConfigFromEnv())
+}
 
-		// Only enable tracing if endpoint is explicitly set
-		if os.Getenv(EnvPhoenixEndpoint) == "" {
+// InitWithConfig initializes the OpenTelemetry tracer with the provided configuration.
+// This function is safe to call multiple times; subsequent calls are no-ops.
+func InitWithConfig(ctx context.Context, cfg Config) error {
+	initOnce.Do(func() {
+		if !cfg.Enabled {
 			tracingEnabled = false
 			globalTracer = otel.Tracer(TracerName)
 			return

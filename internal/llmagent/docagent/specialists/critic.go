@@ -6,20 +6,14 @@ package specialists
 
 import (
 	"context"
-	"fmt"
-	"iter"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/genai"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
 	criticAgentName        = "critic"
-	criticAgentDescription = "Reviews generated documentation and provides feedback for improvement"
+	criticAgentDescription = "Reviews generated documentation for style, voice, tone, and accessibility"
 )
 
 // CriticAgent reviews documentation content and provides feedback.
@@ -41,84 +35,83 @@ func (c *CriticAgent) Description() string {
 }
 
 // criticInstruction is the system instruction for the critic agent
-const criticInstruction = `You are a documentation critic for Elastic integration packages.
-Your task is to review documentation content and provide constructive feedback.
+const criticInstruction = `You are a documentation style critic for Elastic integration packages.
+Your task is to review documentation content for voice, tone, accessibility, and readability.
+You focus on "soft" writing quality—other agents handle technical validation (URLs, code, applies_to syntax).
 
-Read the generated content from temp:section_content and evaluate it against these criteria:
-1. Accuracy - Is the technical information correct?
-2. Completeness - Does it cover all necessary aspects?
-3. Clarity - Is it easy to understand?
-4. Style - Does it follow Elastic documentation guidelines?
-5. Structure - Is it well-organized with proper headings?
+## Getting Input
+Use the read_state tool with key "section_content" to get the generated documentation to review.
 
-If the content meets all criteria with a score of 8/10 or higher, set temp:approved to true.
-Otherwise, provide specific feedback in temp:feedback for the generator to address.
+## Evaluation Criteria
+Evaluate the content against these criteria:
 
-Be constructive and specific in your feedback. Focus on actionable improvements.
+## Voice and Tone
+- Is the voice friendly, helpful, and human?
+- Does it address the user directly with "you" and "your"?
+- Are contractions used consistently (don't, it's, you're)?
+- Is the content written in active voice, not passive?
+  - Bad: "It is recommended that..."
+  - Good: "We recommend that you..."
+
+## Accessibility and Inclusivity
+- Do all images have descriptive alt text?
+- Are link texts descriptive (not "click here" or "read more")?
+- Is plain language used with simple words and short sentences?
+- Is directional language avoided (above, below, left, right)?
+- Is gender-neutral language used (they/their, not he/she)?
+- Are violent or ableist terms avoided (kill, execute, abort, invalid, hack)?
+
+## Style and Formatting
+- Is bold used ONLY for UI elements (buttons, tabs, app names)?
+- Is italic used ONLY for introducing new terms?
+- Is monospace used for code, commands, file paths, field names, and values?
+- Are lists introduced with a complete sentence or fragment ending in a colon?
+- Are tables introduced with a sentence describing their purpose?
+
+## Grammar and Readability
+- Is American English spelling used (-ize, -or, -ense)?
+- Is present tense used consistently?
+- Is the Oxford comma used (A, B, and C)?
+- Are headings in sentence case?
+
+## Content Structure
+- Does the first paragraph summarize the page purpose clearly?
+- Is content broken into scannable sections?
+- Are paragraphs short and focused?
+
+## Scoring
+Rate each category 1-10 and calculate an average score.
+If the average score is 7/10 or higher with no critical issues:
+- Use write_state with key "approved" and value "true"
+Otherwise:
+- Use write_state with key "approved" and value "false"
+- Use write_state with key "feedback" and provide specific, actionable feedback
+
+Be constructive and specific. Focus on the most impactful improvements first.
+
+## IMPORTANT
+You MUST use the read_state and write_state tools. Do not just output text directly.
 `
+
+// CriticResult represents the result of a critic review
+type CriticResult struct {
+	Score    int            `json:"score"`
+	Approved bool           `json:"approved"`
+	Feedback string         `json:"feedback"`
+	Issues   []string       `json:"issues"`
+	Scores   map[string]int `json:"scores,omitempty"`
+}
 
 // Build creates the underlying ADK agent.
 func (c *CriticAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// If we have an LLM model, create an LLM-based agent
-	if cfg.Model != nil {
-		return llmagent.New(llmagent.Config{
-			Name:        criticAgentName,
-			Description: criticAgentDescription,
-			Model:       cfg.Model,
-			Instruction: criticInstruction,
-		})
-	}
-
-	// Otherwise create a simple pass-through agent (stub mode)
-	return agent.New(agent.Config{
+	// Combine state tools with provided tools
+	allTools := append(StateTools(), cfg.Tools...)
+	return llmagent.New(llmagent.Config{
 		Name:        criticAgentName,
 		Description: criticAgentDescription,
-		Run:         c.run,
+		Model:       cfg.Model,
+		Instruction: criticInstruction,
+		Tools:       allTools,
+		Toolsets:    cfg.Toolsets,
 	})
-}
-
-// run implements the agent logic when no LLM is available (stub mode)
-func (c *CriticAgent) run(invCtx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-	return func(yield func(*session.Event, error) bool) {
-		state := invCtx.Session().State()
-
-		// Read content from state
-		content, err := state.Get(StateKeyContent)
-		if err != nil {
-			logger.Debugf("Critic: no content found in state")
-			event := session.NewEvent(invCtx.InvocationID())
-			event.Content = genai.NewContentFromText("No content to review", genai.RoleModel)
-			event.Author = criticAgentName
-			event.Actions.StateDelta = map[string]any{
-				StateKeyFeedback: "No content was provided for review",
-				StateKeyApproved: false,
-			}
-			yield(event, nil)
-			return
-		}
-
-		contentStr, _ := content.(string)
-
-		// Stub implementation: auto-approve if content has reasonable length
-		// In production, the LLM would perform actual review
-		approved := len(contentStr) > 100
-		var feedback string
-
-		if !approved {
-			feedback = "Content is too short. Please provide more detailed documentation."
-		} else {
-			feedback = "Content meets basic quality standards."
-		}
-
-		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
-		event.Content = genai.NewContentFromText(fmt.Sprintf("Review complete. Approved: %v", approved), genai.RoleModel)
-		event.Author = criticAgentName
-		event.Actions.StateDelta = map[string]any{
-			StateKeyFeedback: feedback,
-			StateKeyApproved: approved,
-		}
-
-		yield(event, nil)
-	}
 }

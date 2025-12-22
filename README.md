@@ -701,10 +701,7 @@ If no LLM provider is configured, this command will print instructions for updat
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
 - GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
-- LOCAL_LLM_ENDPOINT / llm.local.endpoint: Endpoint for local LLM server
-- LOCAL_LLM_MODEL / llm.local.model: Model name for local LLM (defaults to llama2)
-- LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
-- LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false).
+- GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode).
 
 ### `elastic-package version`
 
@@ -1118,6 +1115,10 @@ There are available some environment variables that could be used to change some
     - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
     - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
     - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)
+    - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
+    - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
+    - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)
+    - `LLM_TRACING_PROJECT_NAME`: Project name for tracing (defaults to `elastic-package`)
 
 
 ## Release process

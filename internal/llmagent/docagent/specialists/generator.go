@@ -6,17 +6,9 @@ package specialists
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"iter"
-	"strings"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/genai"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -46,103 +38,50 @@ func (g *GeneratorAgent) Description() string {
 const generatorInstruction = `You are a documentation generator for Elastic integration packages.
 Your task is to generate high-quality documentation content for a specific section.
 
-Read the section context from the session state (temp:section_context) and any feedback
-from previous iterations (temp:feedback).
+## Getting Input
+1. First, use the read_state tool to read "section_context" - this contains:
+   - SectionTitle: The title of the section to generate
+   - SectionLevel: The heading level (2 = ##, 3 = ###, etc.)
+   - TemplateContent: Template text showing the expected structure
+   - ExampleContent: Example content for style reference
+   - ExistingContent: Current content to improve upon (if any)
+   - PackageName: The package identifier
+   - PackageTitle: The human-readable package name
 
-Generate the documentation content and store it in temp:section_content.
+2. Also use read_state to check for "feedback" - if present, it contains feedback from the critic agent that you should address.
 
-Guidelines:
-- Follow the template structure provided in the section context
-- Use the example content as a reference for style and tone
-- If there's existing content, improve upon it while maintaining accuracy
-- If there's feedback from the critic, address the specific concerns
+## Storing Output
+After generating the content, use the write_state tool to store:
+- key: "section_content"
+- value: The complete generated markdown content
+
+## Content Generation Rules
+1. Start with a heading at the correct level (## for level 2, ### for level 3, etc.)
+2. If ExistingContent is provided, use it as the base and improve upon it
+3. Otherwise, if TemplateContent is provided, follow its structure
+4. Otherwise, if ExampleContent is provided, use it as a style reference
+5. If there's feedback from the critic, address the specific concerns
+
+## Guidelines
 - Write clear, concise, and accurate documentation
+- Follow the Elastic documentation style (friendly, direct, use "you")
 - Include relevant code examples and configuration snippets where appropriate
+- Use proper markdown formatting
+
+## IMPORTANT
+You MUST use the read_state and write_state tools. Do not just output text directly.
 `
 
 // Build creates the underlying ADK agent.
 func (g *GeneratorAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// If we have an LLM model, create an LLM-based agent
-	if cfg.Model != nil {
-		return llmagent.New(llmagent.Config{
-			Name:        generatorAgentName,
-			Description: generatorAgentDescription,
-			Model:       cfg.Model,
-			Instruction: generatorInstruction,
-			Tools:       cfg.Tools,
-			Toolsets:    cfg.Toolsets,
-		})
-	}
-
-	// Otherwise create a simple pass-through agent for testing
-	return agent.New(agent.Config{
+	// Combine state tools with provided tools
+	allTools := append(StateTools(), cfg.Tools...)
+	return llmagent.New(llmagent.Config{
 		Name:        generatorAgentName,
 		Description: generatorAgentDescription,
-		Run:         g.run,
+		Model:       cfg.Model,
+		Instruction: generatorInstruction,
+		Tools:       allTools,
+		Toolsets:    cfg.Toolsets,
 	})
-}
-
-// run implements the agent logic when no LLM is available (stub mode)
-func (g *GeneratorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-	return func(yield func(*session.Event, error) bool) {
-		state := invCtx.Session().State()
-
-		// Read section context from state
-		var sectionCtx SectionContext
-		if ctxData, err := state.Get(StateKeySectionContext); err == nil {
-			if ctxJSON, ok := ctxData.(string); ok {
-				if err := json.Unmarshal([]byte(ctxJSON), &sectionCtx); err != nil {
-					logger.Debugf("Generator: failed to parse section context: %v", err)
-				}
-			}
-		}
-
-		// Check for feedback from previous iterations
-		var feedback string
-		if fb, err := state.Get(StateKeyFeedback); err == nil {
-			feedback, _ = fb.(string)
-		}
-
-		// Generate content (stub implementation - in real use, LLM would do this)
-		content := g.generateStubContent(sectionCtx, feedback)
-
-		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
-		event.Content = genai.NewContentFromText(content, genai.RoleModel)
-		event.Author = generatorAgentName
-		event.Actions.StateDelta = map[string]any{
-			StateKeyContent: content,
-		}
-
-		yield(event, nil)
-	}
-}
-
-// generateStubContent creates placeholder content for testing
-func (g *GeneratorAgent) generateStubContent(ctx SectionContext, feedback string) string {
-	var sb strings.Builder
-
-	// Create header based on level
-	headerPrefix := strings.Repeat("#", ctx.SectionLevel)
-	if headerPrefix == "" {
-		headerPrefix = "##"
-	}
-
-	sb.WriteString(fmt.Sprintf("%s %s\n\n", headerPrefix, ctx.SectionTitle))
-
-	if ctx.ExistingContent != "" {
-		// Use existing content as base
-		sb.WriteString(ctx.ExistingContent)
-	} else if ctx.TemplateContent != "" {
-		// Use template content
-		sb.WriteString(ctx.TemplateContent)
-	} else {
-		sb.WriteString(fmt.Sprintf("Documentation for %s section.\n", ctx.SectionTitle))
-	}
-
-	if feedback != "" {
-		sb.WriteString(fmt.Sprintf("\n\n<!-- Feedback addressed: %s -->\n", feedback))
-	}
-
-	return sb.String()
 }

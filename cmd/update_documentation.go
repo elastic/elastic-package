@@ -9,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
+	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -49,7 +51,8 @@ If no LLM provider is configured, this command will print instructions for updat
 
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)`
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
+- GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode)`
 
 const (
 	modePromptRewrite = "Rewrite (full regeneration)"
@@ -167,11 +170,56 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("Profile configuration: ~/.elastic-package/profiles/<profile>/config.yml"))
 }
 
+// defaultThinkingBudget is the default "low" thinking budget for Gemini Pro models
+const defaultThinkingBudget int32 = 128
+
 // getGeminiConfig gets Gemini configuration from environment or profile
-func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string) {
+func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, thinkingBudget *int32) {
 	apiKey = getConfigValue(profile, "GEMINI_API_KEY", "llm.gemini.api_key", "")
 	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", "gemini-2.5-pro")
-	return apiKey, modelID
+
+	// Get thinking budget - defaults to 128 ("low" mode) for Gemini Pro models
+	budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", "")
+	if budgetStr != "" {
+		if budget, err := strconv.ParseInt(budgetStr, 10, 32); err == nil {
+			b := int32(budget)
+			thinkingBudget = &b
+		}
+	} else {
+		// Default to low thinking budget
+		b := defaultThinkingBudget
+		thinkingBudget = &b
+	}
+
+	return apiKey, modelID, thinkingBudget
+}
+
+// getTracingConfig gets tracing configuration from environment or profile
+func getTracingConfig(profile *profile.Profile) tracing.Config {
+	cfg := tracing.Config{
+		Enabled:     true, // Enabled by default
+		Endpoint:    tracing.DefaultEndpoint,
+		ProjectName: tracing.DefaultProjectName,
+	}
+
+	// Check enabled setting
+	enabledStr := getConfigValue(profile, tracing.EnvPhoenixEnabled, "llm.tracing.enabled", "true")
+	cfg.Enabled = enabledStr == "true" || enabledStr == "1"
+
+	// Get endpoint
+	if endpoint := getConfigValue(profile, tracing.EnvPhoenixEndpoint, "llm.tracing.endpoint", ""); endpoint != "" {
+		cfg.Endpoint = endpoint
+	}
+
+	// Get API key
+	cfg.APIKey = getConfigValue(profile, tracing.EnvPhoenixAPIKey, "llm.tracing.api_key", "")
+
+	// Get project name
+	if projectName := getConfigValue(profile, tracing.EnvPhoenixProjectName, "llm.tracing.project_name", ""); projectName != "" {
+		cfg.ProjectName = projectName
+	}
+
+	return cfg
 }
 
 func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
@@ -199,14 +247,18 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get Gemini configuration
-	apiKey, modelID := getGeminiConfig(profile)
+	apiKey, modelID, thinkingBudget := getGeminiConfig(profile)
 
 	if apiKey == "" {
 		printNoProviderInstructions(cmd)
 		return nil
 	}
 
-	cmd.Printf("Using Gemini provider with model: %s\n", modelID)
+	if thinkingBudget != nil {
+		cmd.Printf("Using Gemini provider with model: %s (thinking budget: %d)\n", modelID, *thinkingBudget)
+	} else {
+		cmd.Printf("Using Gemini provider with model: %s\n", modelID)
+	}
 
 	// Select which documentation file to update
 	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
@@ -266,6 +318,9 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	defer repositoryRoot.Close()
 
+	// Get tracing configuration
+	tracingConfig := getTracingConfig(profile)
+
 	// Create the documentation agent using ADK
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		APIKey:         apiKey,
@@ -274,6 +329,8 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		RepositoryRoot: repositoryRoot,
 		DocFile:        targetDocFile,
 		Profile:        profile,
+		ThinkingBudget: thinkingBudget,
+		TracingConfig:  tracingConfig,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create documentation agent: %w", err)
