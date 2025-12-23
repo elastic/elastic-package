@@ -78,9 +78,9 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 		modelID = "gemini-2.5-pro"
 	}
 
-	// Initialize Phoenix tracing with provided config
+	// Initialize LLM tracing with provided config
 	if err := tracing.InitWithConfig(ctx, cfg.TracingConfig); err != nil {
-		logger.Debugf("Failed to initialize Phoenix tracing: %v", err)
+		logger.Debugf("Failed to initialize LLM tracing: %v", err)
 	}
 
 	// Create Gemini model
@@ -114,10 +114,17 @@ func (e *Executor) ModelID() string {
 }
 
 // ExecuteTask runs the executor to complete a task.
-func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (*TaskResult, error) {
+func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *TaskResult, err error) {
 	// Start agent span for the entire task
 	ctx, agentSpan := tracing.StartAgentSpan(ctx, "executor:execute_task", e.modelID)
-	defer agentSpan.End()
+	defer func() {
+		if err != nil {
+			tracing.SetSpanError(agentSpan, err)
+		} else {
+			tracing.SetSpanOk(agentSpan)
+		}
+		agentSpan.End()
+	}()
 
 	// Record input prompt
 	tracing.RecordInput(agentSpan, prompt)

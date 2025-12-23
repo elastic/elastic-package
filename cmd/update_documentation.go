@@ -203,19 +203,19 @@ func getTracingConfig(profile *profile.Profile) tracing.Config {
 	}
 
 	// Check enabled setting
-	enabledStr := getConfigValue(profile, tracing.EnvPhoenixEnabled, "llm.tracing.enabled", "true")
+	enabledStr := getConfigValue(profile, tracing.EnvTracingEnabled, "llm.tracing.enabled", "true")
 	cfg.Enabled = enabledStr == "true" || enabledStr == "1"
 
 	// Get endpoint
-	if endpoint := getConfigValue(profile, tracing.EnvPhoenixEndpoint, "llm.tracing.endpoint", ""); endpoint != "" {
+	if endpoint := getConfigValue(profile, tracing.EnvTracingEndpoint, "llm.tracing.endpoint", ""); endpoint != "" {
 		cfg.Endpoint = endpoint
 	}
 
 	// Get API key
-	cfg.APIKey = getConfigValue(profile, tracing.EnvPhoenixAPIKey, "llm.tracing.api_key", "")
+	cfg.APIKey = getConfigValue(profile, tracing.EnvTracingAPIKey, "llm.tracing.api_key", "")
 
 	// Get project name
-	if projectName := getConfigValue(profile, tracing.EnvPhoenixProjectName, "llm.tracing.project_name", ""); projectName != "" {
+	if projectName := getConfigValue(profile, tracing.EnvTracingProjectName, "llm.tracing.project_name", ""); projectName != "" {
 		cfg.ProjectName = projectName
 	}
 

@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the Elastic License.
 
 // Package tracing provides OpenTelemetry-based tracing for LLM conversations
-// and tool calls, compatible with Arize Phoenix via OpenInference semantic conventions.
+// and tool calls, using OpenInference semantic conventions.
 package tracing
 
 import (
@@ -15,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -22,12 +23,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Environment variable names for Phoenix configuration
+// Environment variable names for tracing configuration
 const (
-	EnvPhoenixEnabled     = "LLM_TRACING_ENABLED"
-	EnvPhoenixEndpoint    = "LLM_TRACING_ENDPOINT"
-	EnvPhoenixAPIKey      = "LLM_TRACING_API_KEY"
-	EnvPhoenixProjectName = "LLM_TRACING_PROJECT_NAME"
+	EnvTracingEnabled     = "LLM_TRACING_ENABLED"
+	EnvTracingEndpoint    = "LLM_TRACING_ENDPOINT"
+	EnvTracingAPIKey      = "LLM_TRACING_API_KEY"
+	EnvTracingProjectName = "LLM_TRACING_PROJECT_NAME"
 )
 
 // Default values
@@ -50,7 +51,7 @@ const (
 	AttrGenAISystem        = "gen_ai.system"
 	AttrGenAIRequestModel  = "gen_ai.request.model"
 	AttrGenAIResponseModel = "gen_ai.response.model"
-	AttrLLMModelName       = "llm.model_name" // Phoenix uses this for cost calculation
+	AttrLLMModelName       = "llm.model_name" // Used for cost calculation in tracing UIs
 
 	// Input/Output attributes
 	AttrInputValue  = "input.value"
@@ -124,7 +125,7 @@ var (
 	tracingInitError error
 )
 
-// Config holds Phoenix tracing configuration
+// Config holds LLM tracing configuration
 type Config struct {
 	Enabled     bool
 	Endpoint    string
@@ -132,20 +133,21 @@ type Config struct {
 	ProjectName string
 }
 
-// ConfigFromEnv creates a Config from environment variables
+// ConfigFromEnv creates a Config from environment variables.
 func ConfigFromEnv() Config {
 	cfg := Config{
 		Enabled:     true, // Enabled by default
-		Endpoint:    os.Getenv(EnvPhoenixEndpoint),
-		APIKey:      os.Getenv(EnvPhoenixAPIKey),
-		ProjectName: os.Getenv(EnvPhoenixProjectName),
+		Endpoint:    os.Getenv(EnvTracingEndpoint),
+		APIKey:      os.Getenv(EnvTracingAPIKey),
+		ProjectName: os.Getenv(EnvTracingProjectName),
 	}
 
 	// Check if explicitly disabled
-	if enabledStr := os.Getenv(EnvPhoenixEnabled); enabledStr != "" {
+	if enabledStr := os.Getenv(EnvTracingEnabled); enabledStr != "" {
 		cfg.Enabled = enabledStr == "true" || enabledStr == "1"
 	}
 
+	// Apply defaults if empty
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = DefaultEndpoint
 	}
@@ -156,7 +158,7 @@ func ConfigFromEnv() Config {
 	return cfg
 }
 
-// Init initializes the OpenTelemetry tracer with OTLP exporter for Phoenix.
+// Init initializes the OpenTelemetry tracer with OTLP exporter.
 // It reads configuration from environment variables.
 // This function is safe to call multiple times; subsequent calls are no-ops.
 func Init(ctx context.Context) error {
@@ -186,9 +188,9 @@ func initTracer(ctx context.Context, cfg Config) error {
 		otlptracehttp.WithEndpointURL(cfg.Endpoint),
 	}
 
-	// Build headers map - Phoenix requires project name as header
+	// Build headers map with project name for collectors that support it
 	headers := map[string]string{
-		"phoenix-project-name": cfg.ProjectName,
+		"phoenix-project-name": cfg.ProjectName, // Phoenix-specific header
 	}
 	if cfg.APIKey != "" {
 		headers["api_key"] = cfg.APIKey
@@ -329,6 +331,14 @@ func EndSessionSpan(ctx context.Context, span trace.Span, output string) {
 		tokens.mu.Unlock()
 	}
 
+	span.SetStatus(codes.Ok, "")
+	span.End()
+}
+
+// EndSessionSpanWithError records an error and ends the session span.
+func EndSessionSpanWithError(ctx context.Context, span trace.Span, err error) {
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 	span.End()
 }
 
@@ -352,7 +362,7 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
 		attribute.String(AttrGenAISystem, "gemini"),
 		attribute.String(AttrGenAIRequestModel, modelID),
-		attribute.String(AttrLLMModelName, modelID), // Phoenix uses this for cost calculation
+		attribute.String(AttrLLMModelName, modelID), // Used for cost calculation
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
@@ -364,7 +374,7 @@ func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessage
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindLLM),
 		attribute.String(AttrGenAISystem, "gemini"),
 		attribute.String(AttrGenAIRequestModel, modelID),
-		attribute.String(AttrLLMModelName, modelID), // Phoenix uses this for cost calculation
+		attribute.String(AttrLLMModelName, modelID), // Used for cost calculation
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 
@@ -388,7 +398,7 @@ func EndLLMSpan(ctx context.Context, span trace.Span, outputMessages []Message, 
 		span.SetAttributes(attribute.String(AttrOutputValue, outputMessages[len(outputMessages)-1].Content))
 	}
 
-	// Always set token counts (even if 0) for Phoenix cost calculation
+	// Always set token counts (even if 0) for cost calculation
 	span.SetAttributes(
 		attribute.Int(AttrLLMTokenCountPrompt, promptTokens),
 		attribute.Int(AttrLLMTokenCountCompletion, completionTokens),
@@ -400,6 +410,7 @@ func EndLLMSpan(ctx context.Context, span trace.Span, outputMessages []Message, 
 		tokens.Add(promptTokens, completionTokens)
 	}
 
+	span.SetStatus(codes.Ok, "")
 	span.End()
 }
 
@@ -428,6 +439,9 @@ func EndToolSpan(span trace.Span, output string, err error) {
 	}
 	if err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	} else {
+		span.SetStatus(codes.Ok, "")
 	}
 	span.End()
 }
@@ -479,7 +493,7 @@ func RecordWorkflowIteration(span trace.Span, iteration int) {
 	span.SetAttributes(attribute.Int(AttrWorkflowIteration, iteration))
 }
 
-// RecordWorkflowResult records the final workflow result on a span
+// RecordWorkflowResult records the final workflow result on a span and sets status
 func RecordWorkflowResult(span trace.Span, approved bool, iterations int, content string) {
 	span.SetAttributes(
 		attribute.Bool("workflow.approved", approved),
@@ -492,4 +506,16 @@ func RecordWorkflowResult(span trace.Span, approved bool, iterations int, conten
 		}
 		span.SetAttributes(attribute.String(AttrOutputValue, content))
 	}
+	span.SetStatus(codes.Ok, "")
+}
+
+// SetSpanOk marks a span as successfully completed
+func SetSpanOk(span trace.Span) {
+	span.SetStatus(codes.Ok, "")
+}
+
+// SetSpanError marks a span as failed with an error
+func SetSpanError(span trace.Span, err error) {
+	span.RecordError(err)
+	span.SetStatus(codes.Error, err.Error())
 }

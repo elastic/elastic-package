@@ -146,7 +146,14 @@ func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
 func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.SectionContext) (*Result, error) {
 	// Start workflow span for tracing with configuration
 	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
+
+	// Result is initialized here so defer can access it
+	result := &Result{}
+	iterations := 0
+
 	defer func() {
+		// Always record workflow result before ending span
+		tracing.RecordWorkflowResult(span, result.Approved, iterations, result.Content)
 		span.End()
 	}()
 
@@ -207,10 +214,6 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 		genai.RoleUser,
 	)
 
-	// Run the workflow
-	result := &Result{}
-	iterations := 0
-
 	// Track active agent span to avoid duplicates and measure actual duration
 	var currentAgentName string
 	var currentAgentSpan trace.Span
@@ -223,6 +226,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			if agentPromptTokens > 0 || agentCompletionTokens > 0 {
 				tracing.EndLLMSpan(ctx, currentAgentSpan, nil, agentPromptTokens, agentCompletionTokens)
 			} else {
+				tracing.SetSpanOk(currentAgentSpan)
 				currentAgentSpan.End()
 			}
 			currentAgentSpan = nil
@@ -345,9 +349,5 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 	endCurrentAgentSpan()
 
 	result.Iterations = iterations
-
-	// Record workflow result for tracing
-	tracing.RecordWorkflowResult(span, result.Approved, result.Iterations, result.Content)
-
 	return result, nil
 }
