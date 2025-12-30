@@ -11,12 +11,14 @@ You can provide additional Kibana configuration that will be appended to the bas
 - Set up custom security settings
 - Configure additional features
 
+**Note**: For frequently-used configuration options, consider requesting first-level support in elastic-package rather than using custom configuration.
+
 ## Setup
 
 1. Create your custom configuration file:
    ```bash
-   # Create ~/.elastic-package/profiles/default/kibana-custom.yml
-   touch ~/.elastic-package/profiles/default/kibana-custom.yml
+   # Create ~/.elastic-package/profiles/default/kibana.dev.yml
+   touch ~/.elastic-package/profiles/default/kibana.dev.yml
    ```
 
 2. Add your custom configuration:
@@ -29,38 +31,17 @@ You can provide additional Kibana configuration that will be appended to the bas
    server.customResponseHeaders:
      X-Custom-Header: "MyValue"
    
-   # Template variables are supported
-   xpack.security.enabled: {{ if eq .security_enabled "true" }}true{{ else }}false{{ end }}
+   xpack.security.enabled: true
    ```
 
-## Template Support
+## Warning Message
 
-Your custom configuration supports the same templating as the base configuration:
+When elastic-package detects a `kibana.dev.yml` file, it will display a warning message:
+```
+WARN: Custom Kibana configuration detected at /path/to/kibana.dev.yml - this may affect Kibana behavior
+```
 
-- `{{ fact "kibana_version" }}` - Kibana version
-- `{{ fact "username" }}` - Elasticsearch username  
-- `{{ fact "password" }}` - Elasticsearch password
-- `{{ fact "apm_enabled" }}` - APM enabled flag
-- `{{ fact "self_monitor_enabled" }}` - Self monitoring enabled flag
-- All other facts available in the base template
-
-### Available Template Variables
-
-The following template variables are available in your custom configuration:
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `kibana_version` | Version of Kibana | `8.11.0` |
-| `elasticsearch_version` | Version of Elasticsearch | `8.11.0` |
-| `agent_version` | Version of Elastic Agent | `8.11.0` |
-| `username` | Elasticsearch username | `elastic` |
-| `password` | Elasticsearch password | `changeme` |
-| `kibana_host` | Kibana host URL | `https://kibana:5601` |
-| `elasticsearch_host` | Elasticsearch host URL | `https://elasticsearch:9200` |
-| `fleet_url` | Fleet server URL | `https://fleet-server:8220` |
-| `apm_enabled` | APM enabled flag | `true`/`false` |
-| `logstash_enabled` | Logstash enabled flag | `true`/`false` |
-| `self_monitor_enabled` | Self monitoring flag | `true`/`false` |
+This warning helps you remember that custom configuration is active, which can be useful when troubleshooting Kibana issues.
 
 ## Configuration Precedence
 
@@ -109,46 +90,18 @@ uiSettings:
     "discover:sampleSize": 1000
 ```
 
-### Template Usage Example
-```yaml
-# Use template variables in your custom config
-server.name: kibana-{{ fact "kibana_version" }}
-server.customResponseHeaders:
-  X-Kibana-Version: "{{ fact "kibana_version" }}"
-
-# Conditional configuration based on features
-{{ if eq (fact "apm_enabled") "true" }}
-elastic.apm.active: true
-elastic.apm.serverUrl: "http://fleet-server:8200"
-elastic.apm.environment: "development"
-{{ end }}
-
-# Version-specific configuration
-{{ if semverLessThan (fact "kibana_version") "8.0.0" }}
-# Legacy configuration for older versions
-xpack.monitoring.ui.container.elasticsearch.enabled: true
-{{ else }}
-# Modern configuration for newer versions
-monitoring.ui.container.elasticsearch.enabled: true
-{{ end }}
-```
-
 ## Troubleshooting
 
 ### Configuration Not Applied
-- Verify the `kibana-custom.yml` file exists in your profile directory
+- Verify the `kibana.dev.yml` file exists in your profile directory
 - Check that the YAML syntax is valid
-- Ensure the file is in the correct location: `~/.elastic-package/profiles/{profile_name}/kibana-custom.yml`
-
-### Template Errors
-- Use `{{ fact "variable_name" }}` syntax for template variables
-- Ensure template functions like `semverLessThan` are used correctly
-- Check the elastic-package logs for template parsing errors
+- Ensure the file is in the correct location: `~/.elastic-package/profiles/{profile_name}/kibana.dev.yml`
 
 ### Kibana Startup Issues
 - Validate your custom configuration against Kibana documentation
 - Start with minimal changes and add complexity gradually
 - Check Kibana logs for configuration validation errors
+- Remember that custom configuration may affect Kibana behavior (see warning message)
 
 ## Profile-Specific Configurations
 
@@ -156,27 +109,27 @@ You can have different custom configurations for different profiles:
 
 ```bash
 # Development profile with debug settings
-~/.elastic-package/profiles/development/kibana-custom.yml
+~/.elastic-package/profiles/development/kibana.dev.yml
 
 # Production profile with optimized settings  
-~/.elastic-package/profiles/production/kibana-custom.yml
+~/.elastic-package/profiles/production/kibana.dev.yml
 ```
 
-Custom configuration is automatically detected and applied for each profile when the `kibana-custom.yml` file exists.
+Custom configuration is automatically detected and applied for each profile when the `kibana.dev.yml` file exists.
 
 ## Best Practices
 
 1. **Start Simple**: Begin with basic configuration changes and add complexity gradually
 2. **Use Comments**: Document your custom configurations for future reference
 3. **Test Changes**: Verify that Kibana starts successfully after configuration changes
-4. **Version Compatibility**: Use template conditions for version-specific settings
-5. **Backup Configurations**: Keep copies of working configurations before making changes
+4. **Backup Configurations**: Keep copies of working configurations before making changes
+5. **Consider First-Level Support**: For frequently-used options, request official elastic-package support instead of using custom configuration
 
 ## Limitations
 
 - Custom configuration is appended to the base configuration (not merged at the YAML structure level)
-- Template processing errors will prevent stack startup
 - Some Kibana settings may require specific ordering or dependencies
+- Custom configuration may affect Kibana behavior and troubleshooting
 
 ## Related Documentation
 

@@ -34,8 +34,8 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
-	// KibanaCustomConfigFile is the custom kibana config file.
-	KibanaCustomConfigFile = "kibana-custom.yml"
+	// KibanaDevConfigFile is the custom kibana config file.
+	KibanaDevConfigFile = "kibana.dev.yml"
 
 	// LogstashConfigFile is the logstash config file.
 	LogstashConfigFile = "logstash.conf"
