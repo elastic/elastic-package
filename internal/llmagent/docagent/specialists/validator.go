@@ -44,10 +44,9 @@ The documentation content to validate is provided directly in the user message.
 
 ## Validation Checks
 Check for these issues (mark as invalid if found):
-1. Unresolved placeholder markers: << >> or {{ }}
-2. Empty code blocks (triple backticks with no content)
-3. Syntactically incorrect code snippets (malformed YAML, JSON, etc.)
-4. Incorrect references to fields, settings, or features
+1. Empty code blocks (triple backticks with no content)
+2. Syntactically incorrect code snippets (malformed YAML, JSON, etc.)
+3. Incorrect references to fields, settings, or features
 
 Check for these warnings (valid but note them):
 1. TODO or FIXME markers
@@ -72,15 +71,15 @@ type ValidationResult struct {
 
 // Build creates the underlying ADK agent.
 func (v *ValidatorAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// Note: CachedContent is not compatible with ADK llmagent because
-	// Gemini doesn't allow CachedContent with system_instruction or tools.
+	// JSON response mode is incompatible with function calling on some models
+	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.
 	return llmagent.New(llmagent.Config{
-		Name:        validatorAgentName,
-		Description: validatorAgentDescription,
-		Model:       cfg.Model,
-		Instruction: validatorInstruction,
-		Tools:       cfg.Tools,
-		Toolsets:    cfg.Toolsets,
+		Name:                     validatorAgentName,
+		Description:              validatorAgentDescription,
+		Model:                    cfg.Model,
+		Instruction:              validatorInstruction,
+		DisallowTransferToParent: true,
+		DisallowTransferToPeers:  true,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
 		},

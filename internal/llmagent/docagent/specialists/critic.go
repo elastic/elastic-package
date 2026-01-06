@@ -70,15 +70,15 @@ type CriticResult struct {
 
 // Build creates the underlying ADK agent.
 func (c *CriticAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// Note: CachedContent is not compatible with ADK llmagent because
-	// Gemini doesn't allow CachedContent with system_instruction or tools.
+	// JSON response mode is incompatible with function calling on some models
+	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.
 	return llmagent.New(llmagent.Config{
-		Name:        criticAgentName,
-		Description: criticAgentDescription,
-		Model:       cfg.Model,
-		Instruction: criticInstruction,
-		Tools:       cfg.Tools,
-		Toolsets:    cfg.Toolsets,
+		Name:                     criticAgentName,
+		Description:              criticAgentDescription,
+		Model:                    cfg.Model,
+		Instruction:              criticInstruction,
+		DisallowTransferToParent: true,
+		DisallowTransferToPeers:  true,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ResponseMIMEType: "application/json",
 		},
