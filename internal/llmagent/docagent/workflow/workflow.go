@@ -8,11 +8,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
-	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/agent"
-	"google.golang.org/adk/agent/workflowagents/loopagent"
-	"google.golang.org/adk/agent/workflowagents/sequentialagent"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
@@ -54,300 +52,268 @@ type Result struct {
 	URLCheckResult *specialists.URLCheckResult
 }
 
-// BuildSectionWorkflow creates a workflow agent for generating a single section
-func (b *Builder) BuildSectionWorkflow(ctx context.Context) (agent.Agent, error) {
-	// Build sub-agents from registry
-	subAgents, err := b.buildSubAgents(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build sub-agents: %w", err)
-	}
-
-	if len(subAgents) == 0 {
-		return nil, fmt.Errorf("no agents registered in workflow")
-	}
-
-	// If only one agent, return it directly
-	if len(subAgents) == 1 {
-		return subAgents[0], nil
-	}
-
-	// Create a sequential agent to run all agents in order
-	seqAgent, err := sequentialagent.New(sequentialagent.Config{
-		AgentConfig: agent.Config{
-			Name:        "section-pipeline",
-			Description: "Runs documentation agents in sequence",
-			SubAgents:   subAgents,
-		},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create sequential agent: %w", err)
-	}
-
-	// Wrap in loop agent for iterative refinement
-	if b.config.MaxIterations > 1 {
-		return loopagent.New(loopagent.Config{
-			AgentConfig: agent.Config{
-				Name:        "section-workflow",
-				Description: "Iteratively generates and refines documentation sections",
-				SubAgents:   []agent.Agent{seqAgent},
-			},
-			MaxIterations: b.config.MaxIterations,
-		})
-	}
-
-	return seqAgent, nil
-}
-
-// buildSubAgents creates ADK agents from the registry
-func (b *Builder) buildSubAgents(ctx context.Context) ([]agent.Agent, error) {
+// buildAgent creates a single ADK agent by name
+func (b *Builder) buildAgent(ctx context.Context, name string) (agent.Agent, error) {
 	agentCfg := specialists.AgentConfig{
 		Model:    b.config.Model,
 		Tools:    b.config.Tools,
 		Toolsets: b.config.Toolsets,
 	}
 
-	logger.Debugf("Building workflow agents (EnableCritic=%v, EnableValidator=%v, EnableURLValidator=%v)",
-		b.config.EnableCritic, b.config.EnableValidator, b.config.EnableURLValidator)
-
-	var subAgents []agent.Agent
 	for _, sa := range b.config.Registry.All() {
-		// Skip disabled agents
-		switch sa.Name() {
-		case "critic":
-			if !b.config.EnableCritic {
-				logger.Debugf("Skipping critic agent (disabled)")
-				continue
-			}
-		case "validator":
-			if !b.config.EnableValidator {
-				logger.Debugf("Skipping validator agent (disabled)")
-				continue
-			}
-		case "url_validator":
-			if !b.config.EnableURLValidator {
-				logger.Debugf("Skipping url_validator agent (disabled)")
-				continue
-			}
+		if sa.Name() == name {
+			return sa.Build(ctx, agentCfg)
 		}
-
-		logger.Debugf("Building agent: %s", sa.Name())
-		adkAgent, err := sa.Build(ctx, agentCfg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to build agent %s: %w", sa.Name(), err)
-		}
-		subAgents = append(subAgents, adkAgent)
 	}
-
-	logger.Debugf("Built %d workflow agents", len(subAgents))
-	return subAgents, nil
+	return nil, fmt.Errorf("agent %s not found in registry", name)
 }
 
-// ExecuteWorkflow runs the workflow and returns the result
+// ExecuteWorkflow runs the workflow with isolated agent contexts.
+// Each agent runs in its own session to prevent conversation history accumulation.
 func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.SectionContext) (*Result, error) {
-	// Start workflow span for tracing with configuration
+	// Start workflow span for tracing
 	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
 
-	// Result is initialized here so defer can access it
 	result := &Result{}
 	iterations := 0
 
 	defer func() {
-		// Always record workflow result before ending span
 		tracing.RecordWorkflowResult(span, result.Approved, iterations, result.Content)
 		span.End()
 	}()
 
-	// Serialize section context for initial state
-	ctxJSON, err := json.Marshal(sectionCtx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize section context: %w", err)
-	}
-
-	// Create state store with initial state - this is used by the state tools
-	stateStore := specialists.NewStateStore(map[string]any{
-		specialists.StateKeySectionContext: string(ctxJSON),
-		specialists.StateKeyIteration:      0,
-	})
-
-	// Set the active state store for tools to access
+	// Create state store for sharing data between agents
+	stateStore := specialists.NewStateStore(nil)
 	specialists.SetActiveStateStore(stateStore)
 	defer specialists.ClearActiveStateStore()
 
-	// Add state store to context (for any code that might need it directly)
-	ctx = specialists.ContextWithState(ctx, stateStore)
+	// Run the workflow loop
+	for iteration := uint(0); iteration < b.config.MaxIterations; iteration++ {
+		iterations = int(iteration) + 1
 
-	// Build the workflow agent (must be after context setup for tools to work)
-	workflowAgent, err := b.BuildSectionWorkflow(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build workflow: %w", err)
+		// Step 1: Run generator
+		generatorPrompt := buildGeneratorPrompt(sectionCtx, stateStore)
+		content, promptTokens, compTokens, err := b.runAgent(ctx, "generator", generatorPrompt)
+		if err != nil {
+			return nil, fmt.Errorf("generator failed: %w", err)
+		}
+		result.Content = content
+		stateStore.Set(specialists.StateKeyContent, content)
+		logger.Debugf("Generator produced %d chars (tokens: %d/%d)", len(content), promptTokens, compTokens)
+
+		// Step 2: Run critic (if enabled)
+		if b.config.EnableCritic {
+			criticPrompt := buildCriticPrompt(content)
+			criticOutput, promptTokens, compTokens, err := b.runAgent(ctx, "critic", criticPrompt)
+			if err != nil {
+				return nil, fmt.Errorf("critic failed: %w", err)
+			}
+			logger.Debugf("Critic output (tokens: %d/%d): %s", promptTokens, compTokens, truncate(criticOutput, 100))
+
+			// Parse critic result
+			var criticResult specialists.CriticResult
+			if err := json.Unmarshal([]byte(criticOutput), &criticResult); err != nil {
+				logger.Debugf("Failed to parse critic JSON, assuming approved: %v", err)
+				criticResult.Approved = true
+			}
+
+			if !criticResult.Approved {
+				stateStore.Set(specialists.StateKeyFeedback, criticResult.Feedback)
+				result.Feedback = criticResult.Feedback
+				logger.Debugf("Critic rejected: %s", criticResult.Feedback)
+				continue // Re-run generator with feedback
+			}
+		}
+
+		// Step 3: Run validator (if enabled)
+		if b.config.EnableValidator {
+			validatorPrompt := buildValidatorPrompt(content)
+			validatorOutput, promptTokens, compTokens, err := b.runAgent(ctx, "validator", validatorPrompt)
+			if err != nil {
+				return nil, fmt.Errorf("validator failed: %w", err)
+			}
+			logger.Debugf("Validator output (tokens: %d/%d): %s", promptTokens, compTokens, truncate(validatorOutput, 100))
+
+			// Parse validator result
+			var validationResult specialists.ValidationResult
+			if err := json.Unmarshal([]byte(validatorOutput), &validationResult); err != nil {
+				logger.Debugf("Failed to parse validator JSON, assuming valid: %v", err)
+				validationResult.Valid = true
+			}
+			result.ValidationResult = &validationResult
+
+			if !validationResult.Valid {
+				feedback := fmt.Sprintf("Validation issues: %s", strings.Join(validationResult.Issues, "; "))
+				stateStore.Set(specialists.StateKeyFeedback, feedback)
+				result.Feedback = feedback
+				logger.Debugf("Validator rejected: %v", validationResult.Issues)
+				continue // Re-run generator with feedback
+			}
+		}
+
+		// Step 4: Run URL validator (if enabled) - this is typically programmatic, not LLM
+		if b.config.EnableURLValidator {
+			// URL validator runs programmatically, handled by the agent itself
+			urlPrompt := fmt.Sprintf("Validate URLs in this content:\n\n%s", content)
+			urlOutput, _, _, err := b.runAgent(ctx, "url_validator", urlPrompt)
+			if err != nil {
+				logger.Debugf("URL validator error (non-fatal): %v", err)
+			} else {
+				var urlResult specialists.URLCheckResult
+				if err := json.Unmarshal([]byte(urlOutput), &urlResult); err == nil {
+					result.URLCheckResult = &urlResult
+				}
+			}
+		}
+
+		// All checks passed
+		result.Approved = true
+		logger.Debugf("Workflow approved at iteration %d", iterations)
+		break
 	}
 
-	// Create session service with initial state
+	result.Iterations = iterations
+	return result, nil
+}
+
+// runAgent executes a single agent with an isolated session and returns its output
+func (b *Builder) runAgent(ctx context.Context, agentName, prompt string) (output string, promptTokens, completionTokens int, err error) {
+	// Start agent span
+	_, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID)
+	defer func() {
+		if promptTokens > 0 || completionTokens > 0 {
+			tracing.EndLLMSpan(ctx, agentSpan, nil, promptTokens, completionTokens)
+		} else {
+			tracing.SetSpanOk(agentSpan)
+			agentSpan.End()
+		}
+	}()
+
+	// Build the agent
+	adkAgent, err := b.buildAgent(ctx, agentName)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("failed to build agent: %w", err)
+	}
+
+	// Create isolated session service
 	sessionService := session.InMemoryService()
 
 	// Create runner
 	r, err := runner.New(runner.Config{
-		AppName:        "docagent-workflow",
-		Agent:          workflowAgent,
+		AppName:        "docagent-" + agentName,
+		Agent:          adkAgent,
 		SessionService: sessionService,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create runner: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to create runner: %w", err)
 	}
 
-	// Create session with initial state (mirrors our state store)
+	// Create session
 	sess, err := sessionService.Create(ctx, &session.CreateRequest{
-		AppName: "docagent-workflow",
+		AppName: "docagent-" + agentName,
 		UserID:  "docagent",
-		State: map[string]any{
-			specialists.StateKeySectionContext: string(ctxJSON),
-			specialists.StateKeyIteration:      0,
-		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to create session: %w", err)
 	}
 
-	// Create initial user content
-	userContent := genai.NewContentFromText(
-		fmt.Sprintf("Generate documentation for section: %s. Use the read_state and write_state tools to access context and store your output.", sectionCtx.SectionTitle),
-		genai.RoleUser,
-	)
-
-	// Track active agent span to avoid duplicates and measure actual duration
-	var currentAgentName string
-	var currentAgentSpan trace.Span
-	var agentPromptTokens, agentCompletionTokens int
-
-	// Helper to end the current agent span
-	endCurrentAgentSpan := func() {
-		if currentAgentSpan != nil {
-			// Record token counts if we have them
-			if agentPromptTokens > 0 || agentCompletionTokens > 0 {
-				tracing.EndLLMSpan(ctx, currentAgentSpan, nil, agentPromptTokens, agentCompletionTokens)
-			} else {
-				tracing.SetSpanOk(currentAgentSpan)
-				currentAgentSpan.End()
-			}
-			currentAgentSpan = nil
-			currentAgentName = ""
-			agentPromptTokens = 0
-			agentCompletionTokens = 0
-		}
-	}
+	// Run the agent
+	userContent := genai.NewContentFromText(prompt, genai.RoleUser)
+	var outputs []string
 
 	for event, err := range r.Run(ctx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
-			logger.Debugf("Workflow error: %v", err)
-			endCurrentAgentSpan() // Clean up on error
-			return nil, fmt.Errorf("workflow execution error: %w", err)
+			return "", promptTokens, completionTokens, fmt.Errorf("agent error: %w", err)
 		}
-
 		if event == nil {
 			continue
 		}
 
-		// Track agent transitions - start a new span when agent changes
-		if event.Author != "" && event.Author != currentAgentName {
-			// End previous agent span if any
-			endCurrentAgentSpan()
-
-			// Skip creating spans for workflow orchestrator agents
-			if event.Author != "section-workflow" && event.Author != "section-pipeline" {
-				logger.Debugf("Agent started: %s", event.Author)
-				_, currentAgentSpan = tracing.StartAgentSpan(ctx, "agent:"+event.Author, b.config.ModelID)
-				currentAgentName = event.Author
-			}
-		}
-
-		// Accumulate token counts from events
+		// Accumulate token counts
 		if event.UsageMetadata != nil {
-			agentPromptTokens += int(event.UsageMetadata.PromptTokenCount)
-			agentCompletionTokens += int(event.UsageMetadata.CandidatesTokenCount)
+			promptTokens += int(event.UsageMetadata.PromptTokenCount)
+			completionTokens += int(event.UsageMetadata.CandidatesTokenCount)
 		}
 
-		// Sync state from our store (updated by tools) to result
-		if content, ok := stateStore.Get(specialists.StateKeyContent); ok {
-			if contentStr, ok := content.(string); ok {
-				result.Content = contentStr
-			}
-		}
-		if approved, ok := stateStore.Get(specialists.StateKeyApproved); ok {
-			if approvedBool, ok := approved.(bool); ok {
-				result.Approved = approvedBool
-			}
-		}
-		if feedback, ok := stateStore.Get(specialists.StateKeyFeedback); ok {
-			if feedbackStr, ok := feedback.(string); ok {
-				result.Feedback = feedbackStr
-			}
-		}
-
-		// Also process state updates from ADK events (for URLValidator which uses session directly)
-		if event.Actions.StateDelta != nil {
-			if content, ok := event.Actions.StateDelta[specialists.StateKeyContent].(string); ok {
-				result.Content = content
-				stateStore.Set(specialists.StateKeyContent, content)
-			}
-			if approved, ok := event.Actions.StateDelta[specialists.StateKeyApproved].(bool); ok {
-				result.Approved = approved
-				stateStore.Set(specialists.StateKeyApproved, approved)
-			}
-			if feedback, ok := event.Actions.StateDelta[specialists.StateKeyFeedback].(string); ok {
-				result.Feedback = feedback
-				stateStore.Set(specialists.StateKeyFeedback, feedback)
-			}
-			if vrAny, ok := event.Actions.StateDelta[specialists.StateKeyValidation]; ok {
-				if vr, ok := vrAny.(specialists.ValidationResult); ok {
-					result.ValidationResult = &vr
-				} else if vrPtr, ok := vrAny.(*specialists.ValidationResult); ok {
-					result.ValidationResult = vrPtr
-				}
-			}
-			if urAny, ok := event.Actions.StateDelta[specialists.StateKeyURLCheck]; ok {
-				if ur, ok := urAny.(specialists.URLCheckResult); ok {
-					result.URLCheckResult = &ur
-				} else if urPtr, ok := urAny.(*specialists.URLCheckResult); ok {
-					result.URLCheckResult = urPtr
+		// Capture text output
+		if event.Content != nil {
+			for _, part := range event.Content.Parts {
+				if part.Text != "" {
+					outputs = append(outputs, part.Text)
 				}
 			}
 		}
 
-		// Track iterations (each loop is a complete iteration)
-		if event.Author == "section-workflow" || event.Author == "section-pipeline" {
-			iterations++
-		}
-
-		// Check for final response - only exit on final response from the outer workflow agent
-		// Individual sub-agents (generator, critic, validator) will return final=true when they finish,
-		// but we should continue to let the sequential agent run the next sub-agent
 		if event.IsFinalResponse() {
-			// End current agent span when it finishes
-			if event.Author == currentAgentName {
-				logger.Debugf("Agent finished: %s", event.Author)
-				endCurrentAgentSpan()
-			}
-
-			// Only break if it's from the outer workflow (section-workflow or section-pipeline)
-			// or if we've received final from an unknown/empty author (safety fallback)
-			if event.Author == "section-workflow" || event.Author == "section-pipeline" || event.Author == "" {
-				logger.Debugf("Final response from workflow %s, ending", event.Author)
-				break
-			}
-			logger.Debugf("Final response from sub-agent %s, continuing workflow", event.Author)
-		}
-
-		// Check if approved early
-		if result.Approved {
-			logger.Debugf("Workflow completed early: content approved at iteration %d", iterations)
-			endCurrentAgentSpan()
 			break
 		}
 	}
 
-	// Ensure any remaining span is closed
-	endCurrentAgentSpan()
+	output = strings.TrimSpace(strings.Join(outputs, ""))
+	logger.Debugf("Agent %s finished: %d chars output", agentName, len(output))
+	return output, promptTokens, completionTokens, nil
+}
 
-	result.Iterations = iterations
-	return result, nil
+// truncate shortens a string for logging
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// buildGeneratorPrompt creates a prompt with all context embedded directly.
+func buildGeneratorPrompt(sectionCtx specialists.SectionContext, stateStore *specialists.StateStore) string {
+	var prompt strings.Builder
+
+	prompt.WriteString("Generate documentation for the following section.\n\n")
+	prompt.WriteString("## Section Context\n")
+	prompt.WriteString(fmt.Sprintf("- **SectionTitle**: %s\n", sectionCtx.SectionTitle))
+	prompt.WriteString(fmt.Sprintf("- **SectionLevel**: %d (use %s for heading)\n", sectionCtx.SectionLevel, strings.Repeat("#", sectionCtx.SectionLevel)))
+	prompt.WriteString(fmt.Sprintf("- **PackageName**: %s\n", sectionCtx.PackageName))
+	prompt.WriteString(fmt.Sprintf("- **PackageTitle**: %s\n", sectionCtx.PackageTitle))
+
+	if sectionCtx.TemplateContent != "" {
+		prompt.WriteString("\n## Template Structure\n")
+		prompt.WriteString("Follow this structure:\n```\n")
+		prompt.WriteString(sectionCtx.TemplateContent)
+		prompt.WriteString("\n```\n")
+	}
+
+	if sectionCtx.ExampleContent != "" {
+		prompt.WriteString("\n## Style Reference (Example)\n")
+		prompt.WriteString("Use this as a style guide:\n```\n")
+		prompt.WriteString(sectionCtx.ExampleContent)
+		prompt.WriteString("\n```\n")
+	}
+
+	if sectionCtx.ExistingContent != "" {
+		prompt.WriteString("\n## Existing Content (to improve upon)\n")
+		prompt.WriteString("```\n")
+		prompt.WriteString(sectionCtx.ExistingContent)
+		prompt.WriteString("\n```\n")
+	}
+
+	// Check for feedback from previous iteration
+	if fb, ok := stateStore.Get(specialists.StateKeyFeedback); ok {
+		if fbStr, ok := fb.(string); ok && fbStr != "" {
+			prompt.WriteString("\n## Feedback to Address\n")
+			prompt.WriteString(fbStr)
+			prompt.WriteString("\n")
+		}
+	}
+
+	prompt.WriteString("\nOutput the markdown content directly, starting with the section heading.")
+
+	return prompt.String()
+}
+
+// buildCriticPrompt creates a prompt for the critic with content embedded.
+func buildCriticPrompt(content string) string {
+	return fmt.Sprintf("Review this documentation for style, voice, tone, and accessibility:\n\n%s", content)
+}
+
+// buildValidatorPrompt creates a prompt for the validator with content embedded.
+func buildValidatorPrompt(content string) string {
+	return fmt.Sprintf("Validate this documentation for technical correctness:\n\n%s", content)
 }
