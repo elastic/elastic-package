@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
@@ -200,6 +201,11 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
+
+	// Note: Gemini context caching is not compatible with the ADK's llmagent
+	// because CachedContent cannot be used alongside system_instruction or tools.
+	// The ADK always sets system_instruction, so we rely on Gemini's implicit
+	// caching instead (repeated content is automatically cached by the API).
 
 	// Generate all sections using multi-agent workflow (generator → critic → validator)
 	fmt.Println("📊 Using multi-agent workflow (generator → critic → validator)")
@@ -733,9 +739,16 @@ func (d *DocumentationAgent) generateModifiedSection(ctx context.Context, origin
 	return modifiedSection, nil
 }
 
+// sectionResult holds the result of generating a single section
+type sectionResult struct {
+	index   int
+	section Section
+	err     error
+}
+
 // GenerateAllSectionsWithWorkflow generates all sections using the multi-agent workflow.
 // This method uses a configurable pipeline of agents (generator, critic, validator, etc.)
-// to iteratively refine each section.
+// to iteratively refine each section. Sections are generated in PARALLEL for speed.
 func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
 	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
 	defer chainSpan.End()
@@ -762,79 +775,132 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 		existingSections = ParseSections(existingContent)
 	}
 
-	// Create workflow builder
-	builder := workflow.NewBuilder(workflowCfg)
-
-	// Generate ONLY top-level sections
-	var generatedSections []Section
-
-	for i, templateSection := range templateSections {
-		// Skip subsections - they're generated with their parent
-		if !templateSection.IsTopLevel() {
-			continue
+	// Collect top-level sections to generate
+	var topLevelSections []Section
+	for _, s := range templateSections {
+		if s.IsTopLevel() {
+			topLevelSections = append(topLevelSections, s)
 		}
+	}
 
-		fmt.Printf("📝 Generating section %d: %s (using multi-agent workflow)\n", i+1, templateSection.Title)
+	if len(topLevelSections) == 0 {
+		return nil, fmt.Errorf("no top-level sections found in template")
+	}
 
-		// Find corresponding example section
-		exampleSection := FindSectionByTitle(exampleSections, templateSection.Title)
+	fmt.Printf("📝 Generating %d sections in parallel...\n", len(topLevelSections))
 
-		// Find existing section
-		var existingSection *Section
-		if len(existingSections) > 0 {
-			existingSection = FindSectionByTitle(existingSections, templateSection.Title)
+	// Create channel to collect results
+	resultsChan := make(chan sectionResult, len(topLevelSections))
+
+	// Use WaitGroup to track goroutines
+	var wg sync.WaitGroup
+
+	// Generate sections in parallel
+	for idx, templateSection := range topLevelSections {
+		wg.Add(1)
+		go func(index int, tmplSection Section) {
+			defer wg.Done()
+
+			// Each goroutine gets its own workflow builder to avoid state conflicts
+			builder := workflow.NewBuilder(workflowCfg)
+
+			// Find corresponding example section
+			exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
+
+			// Find existing section
+			var existingSection *Section
+			if len(existingSections) > 0 {
+				existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
+			}
+
+			// Build section context for workflow
+			sectionCtx := specialists.SectionContext{
+				SectionTitle: tmplSection.Title,
+				SectionLevel: tmplSection.Level,
+				PackageName:  d.manifest.Name,
+				PackageTitle: d.manifest.Title,
+			}
+
+			if tmplSection.Content != "" {
+				sectionCtx.TemplateContent = tmplSection.GetAllContent()
+			}
+			if exampleSection != nil {
+				sectionCtx.ExampleContent = exampleSection.GetAllContent()
+			}
+			if existingSection != nil {
+				sectionCtx.ExistingContent = existingSection.GetAllContent()
+			}
+
+			// Execute workflow for this section
+			result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
+			if err != nil {
+				logger.Debugf("Workflow failed for section %s: %v", tmplSection.Title, err)
+				// Fall back to placeholder on error
+				resultsChan <- sectionResult{
+					index: index,
+					section: Section{
+						Title:   tmplSection.Title,
+						Level:   tmplSection.Level,
+						Content: fmt.Sprintf("## %s\n\n%s", tmplSection.Title, emptySectionPlaceholder),
+					},
+					err: err,
+				}
+				return
+			}
+
+			// Create section from result
+			generatedSection := Section{
+				Title:           tmplSection.Title,
+				Level:           tmplSection.Level,
+				Content:         result.Content,
+				HasPreserve:     tmplSection.HasPreserve,
+				PreserveContent: tmplSection.PreserveContent,
+			}
+
+			// Parse to extract hierarchical structure
+			parsedGenerated := ParseSections(generatedSection.Content)
+			if len(parsedGenerated) > 0 {
+				generatedSection = parsedGenerated[0]
+			}
+
+			logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
+				tmplSection.Title, result.Iterations, result.Approved)
+
+			resultsChan <- sectionResult{
+				index:   index,
+				section: generatedSection,
+			}
+		}(idx, templateSection)
+	}
+
+	// Wait for all goroutines to complete, then close channel
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect results and maintain order
+	results := make([]sectionResult, len(topLevelSections))
+	successCount := 0
+	failCount := 0
+
+	for result := range resultsChan {
+		results[result.index] = result
+		if result.err != nil {
+			failCount++
+			fmt.Printf("  ❌ Section %d: %s (failed)\n", result.index+1, result.section.Title)
+		} else {
+			successCount++
+			fmt.Printf("  ✅ Section %d: %s (done)\n", result.index+1, result.section.Title)
 		}
+	}
 
-		// Build section context for workflow
-		sectionCtx := specialists.SectionContext{
-			SectionTitle: templateSection.Title,
-			SectionLevel: templateSection.Level,
-			PackageName:  d.manifest.Name,
-			PackageTitle: d.manifest.Title,
-		}
+	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
 
-		if templateSection.Content != "" {
-			sectionCtx.TemplateContent = templateSection.GetAllContent()
-		}
-		if exampleSection != nil {
-			sectionCtx.ExampleContent = exampleSection.GetAllContent()
-		}
-		if existingSection != nil {
-			sectionCtx.ExistingContent = existingSection.GetAllContent()
-		}
-
-		// Execute workflow for this section
-		result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
-		if err != nil {
-			logger.Debugf("Workflow failed for section %s: %v", templateSection.Title, err)
-			// Fall back to placeholder on error
-			generatedSections = append(generatedSections, Section{
-				Title:   templateSection.Title,
-				Level:   templateSection.Level,
-				Content: fmt.Sprintf("## %s\n\n%s", templateSection.Title, emptySectionPlaceholder),
-			})
-			continue
-		}
-
-		// Create section from result
-		generatedSection := Section{
-			Title:           templateSection.Title,
-			Level:           templateSection.Level,
-			Content:         result.Content,
-			HasPreserve:     templateSection.HasPreserve,
-			PreserveContent: templateSection.PreserveContent,
-		}
-
-		// Parse to extract hierarchical structure
-		parsedGenerated := ParseSections(generatedSection.Content)
-		if len(parsedGenerated) > 0 {
-			generatedSection = parsedGenerated[0]
-		}
-
-		logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
-			templateSection.Title, result.Iterations, result.Approved)
-
-		generatedSections = append(generatedSections, generatedSection)
+	// Extract sections in order
+	generatedSections := make([]Section, len(topLevelSections))
+	for i, r := range results {
+		generatedSections[i] = r.section
 	}
 
 	return generatedSections, nil
