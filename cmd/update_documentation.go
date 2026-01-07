@@ -222,6 +222,13 @@ func getTracingConfig(profile *profile.Profile) tracing.Config {
 	return cfg
 }
 
+// getParallelSectionsConfig gets parallel sections configuration from environment or profile
+// Returns true (parallel) by default
+func getParallelSectionsConfig(profile *profile.Profile) bool {
+	parallelStr := getConfigValue(profile, "ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS", "llm.parallel_sections", "true")
+	return parallelStr == "true" || parallelStr == "1"
+}
+
 func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -238,6 +245,35 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	modifyPrompt, err := cmd.Flags().GetString("modify-prompt")
 	if err != nil {
 		return fmt.Errorf("failed to get modify-prompt flag: %w", err)
+	}
+
+	// Check for debug flags
+	debugCriticOnly, err := cmd.Flags().GetBool("debug-critic-only")
+	if err != nil {
+		return fmt.Errorf("failed to get debug-critic-only flag: %w", err)
+	}
+	debugValidatorOnly, err := cmd.Flags().GetBool("debug-validator-only")
+	if err != nil {
+		return fmt.Errorf("failed to get debug-validator-only flag: %w", err)
+	}
+	debugGeneratorOnly, err := cmd.Flags().GetBool("debug-generator-only")
+	if err != nil {
+		return fmt.Errorf("failed to get debug-generator-only flag: %w", err)
+	}
+
+	// Validate mutually exclusive debug flags
+	debugFlagCount := 0
+	if debugCriticOnly {
+		debugFlagCount++
+	}
+	if debugValidatorOnly {
+		debugFlagCount++
+	}
+	if debugGeneratorOnly {
+		debugFlagCount++
+	}
+	if debugFlagCount > 1 {
+		return fmt.Errorf("only one debug flag can be used at a time: --debug-critic-only, --debug-validator-only, --debug-generator-only")
 	}
 
 	// Get profile for configuration access
@@ -261,13 +297,60 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Select which documentation file to update
-	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
+	// For debug modes, treat as non-interactive for file selection
+	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive || debugCriticOnly || debugValidatorOnly)
 	if err != nil {
 		return fmt.Errorf("failed to select documentation file: %w", err)
 	}
 
 	if !nonInteractive && targetDocFile != "README.md" {
 		cmd.Printf("Selected documentation file: %s\n", targetDocFile)
+	}
+
+	// Find repository root for file operations
+	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to find repository root: %w", err)
+	}
+	defer repositoryRoot.Close()
+
+	// Get tracing configuration
+	tracingConfig := getTracingConfig(profile)
+
+	// Get parallel sections configuration
+	parallelSections := getParallelSectionsConfig(profile)
+
+	// Create the documentation agent using ADK
+	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+		APIKey:           apiKey,
+		ModelID:          modelID,
+		PackageRoot:      packageRoot,
+		RepositoryRoot:   repositoryRoot,
+		DocFile:          targetDocFile,
+		Profile:          profile,
+		ThinkingBudget:   thinkingBudget,
+		TracingConfig:    tracingConfig,
+		ParallelSections: parallelSections,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create documentation agent: %w", err)
+	}
+
+	// Handle debug modes
+	if debugCriticOnly {
+		cmd.Println("🔍 Running critic agent only (debug mode)...")
+		return docAgent.DebugRunCriticOnly(cmd.Context(), cmd)
+	}
+
+	if debugValidatorOnly {
+		cmd.Println("🔍 Running validator agent only (debug mode)...")
+		return docAgent.DebugRunValidatorOnly(cmd.Context(), cmd)
+	}
+
+	// For generator-only mode, we still go through normal flow but with modified workflow config
+	if debugGeneratorOnly {
+		cmd.Println("🔍 Running generator agent only (debug mode - no critic/validator)...")
+		return docAgent.UpdateDocumentationGeneratorOnly(cmd.Context(), nonInteractive)
 	}
 
 	// Determine the mode based on user input
@@ -309,31 +392,6 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	} else {
 		cmd.Println("Running in non-interactive mode - proceeding automatically.")
 		useModifyMode = modifyPrompt != ""
-	}
-
-	// Find repository root for file operations
-	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
-	if err != nil {
-		return fmt.Errorf("failed to find repository root: %w", err)
-	}
-	defer repositoryRoot.Close()
-
-	// Get tracing configuration
-	tracingConfig := getTracingConfig(profile)
-
-	// Create the documentation agent using ADK
-	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
-		APIKey:         apiKey,
-		ModelID:        modelID,
-		PackageRoot:    packageRoot,
-		RepositoryRoot: repositoryRoot,
-		DocFile:        targetDocFile,
-		Profile:        profile,
-		ThinkingBudget: thinkingBudget,
-		TracingConfig:  tracingConfig,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
 
 	// Run the documentation update process based on selected mode
