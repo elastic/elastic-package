@@ -58,6 +58,8 @@ type runner struct {
 	mcollector        *collector
 	corporaFile       string
 
+	service servicedeployer.DeployedService
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func(context.Context) error
 	resetAgentPolicyHandler func(context.Context) error
@@ -152,7 +154,26 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
+	serviceName, err := r.serviceDefinedInConfig()
+	if err != nil {
+		return fmt.Errorf("failed to determine if service is defined in config: %w", err)
+	}
+
+	if serviceName != "" {
+		// Just in the case service deployer is needed (input_service field), setup the service now so all the
+		// required information is available in r.svcInfo (e.g. hostname, port, etc).
+		// This info may be needed to render the variables in the configuration.
+		s, err := r.setupService(ctx, serviceName)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("No service deployer defined for this benchmark")
+		} else if err != nil {
+			return err
+		}
+		r.service = s
+	}
+
+	// Read the configuration again to have any possible service-related variable rendered.
+	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
 	if err != nil {
 		return err
 	}
@@ -242,18 +263,22 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
-	var service servicedeployer.DeployedService
-	if r.scenario.Corpora.InputService != nil {
-		s, err := r.setupService(ctx)
-		if errors.Is(err, os.ErrNotExist) {
-			logger.Debugf("No service deployer defined for this benchmark")
-		} else if err != nil {
-			return nil, err
-		}
-		service = s
+func (r *runner) serviceDefinedInConfig() (string, error) {
+	// Read of the configuration to know if a service deployer is needed.
+	// No need to render any template at this point.
+	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
+	if err != nil {
+		return "", err
 	}
 
+	if scenario.Corpora.InputService == nil {
+		return "", nil
+	}
+
+	return scenario.Corpora.InputService.Name, nil
+}
+
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
@@ -271,8 +296,8 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
-		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
+	if r.service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
+		if err = r.service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
@@ -297,7 +322,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
-func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedService, error) {
+func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
@@ -320,7 +345,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
-	r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+	r.svcInfo.Name = serviceName
 	service, err := serviceDeployer.SetUp(ctx, r.svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup service: %w", err)
