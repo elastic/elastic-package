@@ -930,8 +930,8 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 		sectionCtx.ExistingContent = pkgCtx.ExistingReadme
 	}
 
-	// Build rich context with all package information
-	sectionCtx.AdditionalContext = d.buildHeadStartContext(pkgCtx, nil)
+	// Build rich context with all package information (using shared context builder)
+	sectionCtx.AdditionalContext = workflow.BuildHeadStartContext(pkgCtx, nil)
 
 	// Execute workflow
 	builder := workflow.NewBuilder(workflowCfg)
@@ -943,105 +943,8 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 	return result.Content, nil
 }
 
-// buildHeadStartContext creates a rich context for the generator with all package information
-func (d *DocumentationAgent) buildHeadStartContext(pkgCtx *validators.PackageContext, feedback []string) string {
-	var sb strings.Builder
-
-	// REQUIRED DOCUMENT STRUCTURE - Always include this
-	sb.WriteString(fmt.Sprintf(`
-REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
-# %s
-
-## Overview
-### Compatibility
-### How it works
-
-## What data does this integration collect?
-### Supported use cases
-
-## What do I need to use this integration?
-
-## How do I deploy this integration?
-### Agent-based deployment
-### Onboard and configure
-### Validation
-
-## Troubleshooting
-
-## Performance and scaling
-
-## Reference
-### Inputs used
-### API usage (if applicable)
-
-`, pkgCtx.Manifest.Title))
-
-	// PACKAGE INFORMATION - Rich context
-	sb.WriteString("=== PACKAGE INFORMATION ===\n")
-	sb.WriteString(fmt.Sprintf("Package Name: %s\n", pkgCtx.Manifest.Name))
-	sb.WriteString(fmt.Sprintf("Package Title: %s\n", pkgCtx.Manifest.Title))
-	if pkgCtx.Manifest.Description != "" {
-		sb.WriteString(fmt.Sprintf("Description: %s\n", pkgCtx.Manifest.Description))
-	}
-
-	// DATA STREAMS - What data the integration collects
-	if len(pkgCtx.DataStreams) > 0 {
-		sb.WriteString("\n=== DATA STREAMS (document ALL of these) ===\n")
-		for _, ds := range pkgCtx.DataStreams {
-			sb.WriteString(fmt.Sprintf("- %s", ds.Name))
-			if ds.Title != "" && ds.Title != ds.Name {
-				sb.WriteString(fmt.Sprintf(" (%s)", ds.Title))
-			}
-			if ds.Description != "" {
-				sb.WriteString(fmt.Sprintf(": %s", ds.Description))
-			}
-			sb.WriteString("\n")
-		}
-	}
-
-	// SERVICE INFO LINKS - Vendor documentation
-	if pkgCtx.HasServiceInfoLinks() {
-		sb.WriteString("\n=== VENDOR DOCUMENTATION LINKS (MUST include ALL in documentation - use EXACT URLs) ===\n")
-		sb.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
-		for _, link := range pkgCtx.GetServiceInfoLinks() {
-			sb.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
-		}
-	}
-
-	// SERVICE INFO CONTENT - Additional context from service_info.md
-	if pkgCtx.ServiceInfo != "" && len(pkgCtx.ServiceInfo) < 4000 {
-		sb.WriteString("\n=== SERVICE INFO CONTENT (use this for context) ===\n")
-		sb.WriteString(pkgCtx.ServiceInfo)
-		sb.WriteString("\n")
-	}
-
-	// ADVANCED SETTINGS - Configuration gotchas that must be documented
-	if advSettingsContext := pkgCtx.FormatAdvancedSettingsForGenerator(); advSettingsContext != "" {
-		sb.WriteString(advSettingsContext)
-	}
-
-	// VALIDATION FEEDBACK - If there's feedback from previous iterations
-	if len(feedback) > 0 {
-		sb.WriteString("\n=== CRITICAL: VALIDATION ISSUES TO FIX ===\n")
-		for _, f := range feedback {
-			sb.WriteString(fmt.Sprintf("- %s\n", f))
-		}
-	}
-
-	// INSTRUCTIONS
-	sb.WriteString("\n=== INSTRUCTIONS ===\n")
-	sb.WriteString("1. Use the EXACT section names shown above (## Overview, ## What data does this integration collect?, etc.)\n")
-	sb.WriteString("2. Do NOT rename sections (e.g., don't use \"## Setup\" instead of \"## How do I deploy this integration?\")\n")
-	sb.WriteString("3. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
-	sb.WriteString("4. Document ALL data streams listed above\n")
-	sb.WriteString("5. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections\n")
-	sb.WriteString("6. Use {{event \"datastream\"}} and {{fields \"datastream\"}} placeholders in Reference section\n")
-	sb.WriteString("7. Address EVERY validation issue if any are listed above\n")
-	sb.WriteString("8. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
-	sb.WriteString("9. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")
-
-	return sb.String()
-}
+// NOTE: buildHeadStartContext has been consolidated into workflow.BuildHeadStartContext
+// This ensures both `update documentation` and `test documentation` use the same context builder
 
 // GetWorkflowConfig returns a workflow configuration suitable for this agent
 func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
