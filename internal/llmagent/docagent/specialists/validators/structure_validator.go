@@ -6,6 +6,7 @@ package validators
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 )
@@ -152,6 +153,9 @@ func (v *StructureValidator) StaticValidate(ctx context.Context, content string,
 
 	// Check 4: Markdown formatting issues
 	result.Issues = append(result.Issues, v.checkMarkdownFormatting(content)...)
+
+	// Check 5: Duplicate sections
+	result.Issues = append(result.Issues, v.checkDuplicateSections(content)...)
 
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
@@ -370,6 +374,80 @@ func (v *StructureValidator) checkMarkdownFormatting(content string) []Validatio
 			Suggestion:  "Remove space between link text ] and URL (",
 			SourceCheck: "static",
 		})
+	}
+
+	return issues
+}
+
+// checkDuplicateSections detects when the same section heading appears multiple times
+func (v *StructureValidator) checkDuplicateSections(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Check for duplicate H1 headings (title)
+	h1Pattern := regexp.MustCompile(`(?m)^#\s+([^#\n]+)$`)
+	h1Matches := h1Pattern.FindAllStringSubmatch(content, -1)
+	if len(h1Matches) > 1 {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityCritical,
+			Category:    CategoryStructure,
+			Location:    "Document Title",
+			Message:     fmt.Sprintf("Multiple H1 titles found (%d occurrences) - document should have exactly one title", len(h1Matches)),
+			Suggestion:  "Remove duplicate titles, keeping only the first one",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for duplicate H2 sections
+	h2Pattern := regexp.MustCompile(`(?m)^##\s+([^#\n]+)$`)
+	h2Matches := h2Pattern.FindAllStringSubmatch(content, -1)
+
+	h2Count := make(map[string]int)
+	for _, match := range h2Matches {
+		if len(match) > 1 {
+			sectionName := strings.TrimSpace(match[1])
+			h2Count[sectionName]++
+		}
+	}
+
+	for section, count := range h2Count {
+		if count > 1 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryStructure,
+				Location:    fmt.Sprintf("Section: %s", section),
+				Message:     fmt.Sprintf("Duplicate section '## %s' found %d times", section, count),
+				Suggestion:  fmt.Sprintf("Remove duplicate '## %s' sections - each section should appear only once", section),
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check for duplicate H3 subsections within the same context
+	// This is a bit more complex as subsections can legitimately repeat across different H2 sections
+	// But if a subsection like "### Compatibility" appears 6 times, that's likely a problem
+	h3Pattern := regexp.MustCompile(`(?m)^###\s+([^#\n]+)$`)
+	h3Matches := h3Pattern.FindAllStringSubmatch(content, -1)
+
+	h3Count := make(map[string]int)
+	for _, match := range h3Matches {
+		if len(match) > 1 {
+			subsectionName := strings.TrimSpace(match[1])
+			h3Count[subsectionName]++
+		}
+	}
+
+	// Only flag H3 duplicates if they appear more than 3 times (suggests parallel generation issue)
+	for subsection, count := range h3Count {
+		if count > 3 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryStructure,
+				Location:    fmt.Sprintf("Subsection: %s", subsection),
+				Message:     fmt.Sprintf("Subsection '### %s' appears %d times - likely duplicate content", subsection, count),
+				Suggestion:  "Review and consolidate duplicate subsections",
+				SourceCheck: "static",
+			})
+		}
 	}
 
 	return issues
