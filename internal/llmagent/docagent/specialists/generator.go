@@ -45,6 +45,8 @@ You MUST use these EXACT section names in this order:
 
 # {Package Title}
 
+> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
+
 ## Overview
 ### Compatibility
 ### How it works
@@ -81,10 +83,11 @@ Output ONLY the complete markdown document. Do not include any explanation or co
 ## Content Generation Rules
 1. Use the EXACT section names shown above - do NOT rename them
 2. Start with # {Package Title} as the H1 heading
-3. If AdditionalContext contains validation feedback, fix ALL mentioned issues
-4. If AdditionalContext contains vendor documentation links, include ALL of them in appropriate sections
-5. Include all data streams from the package
-6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
+3. IMMEDIATELY after the H1 title, include the AI-generated disclosure note: "> **Note**: This documentation was generated using AI and should be reviewed for accuracy."
+4. If AdditionalContext contains validation feedback, fix ALL mentioned issues
+5. If AdditionalContext contains vendor documentation links, include ALL of them in appropriate sections
+6. Include all data streams from the package
+7. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
 
 ## Advanced Settings Documentation
 When the context includes Advanced Settings, you MUST document them properly:

@@ -239,41 +239,79 @@ func (v *AccessibilityValidator) checkDirectionalLanguage(content string) []Vali
 func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
-	// Terms to replace
+	// Terms to replace (but with context exceptions)
 	problematicTerms := map[string]string{
 		`\bkill\b`:           "stop or terminate",
 		`\bkills\b`:          "stops or terminates",
 		`\bkilled\b`:         "stopped or terminated",
 		`\bkilling\b`:        "stopping or terminating",
-		`\bexecute\b`:        "run",
-		`\bexecutes\b`:       "runs",
-		`\bexecuted\b`:       "ran",
-		`\bexecuting\b`:      "running",
 		`\babort\b`:          "cancel or stop",
 		`\baborts\b`:         "cancels or stops",
 		`\baborted\b`:        "canceled or stopped",
 		`\baborting\b`:       "canceling or stopping",
-		`\binvalid\b`:        "not valid",
 		`\bhack\b`:           "workaround",
 		`\bhacks\b`:          "workarounds",
 		`\bhacking\b`:        "working around",
 		`\bsanity\s+check\b`: "soundness check",
 		`\bsanity\s+test\b`:  "soundness test",
-		`\bdummy\b`:          "placeholder or sample",
 		`\bblacklist\b`:      "blocklist or denylist",
 		`\bwhitelist\b`:      "allowlist",
-		`\bmaster\b`:         "main or primary",
-		`\bslave\b`:          "replica or secondary",
 		`\bcripple\b`:        "impair or disable",
 		`\bcrippled\b`:       "impaired or disabled",
 	}
 
+	// Terms that are problematic unless in specific technical contexts
+	contextualTerms := map[string]struct {
+		replacement string
+		exceptions  []string // Context patterns that make the term acceptable
+	}{
+		`\bdummy\b`: {
+			replacement: "placeholder or sample",
+			exceptions: []string{
+				"dummy values",     // Technical term for placeholder values from APIs
+				"dummy data",       // Technical term for test data
+				"dummy certificate", // Technical term for test certificates
+			},
+		},
+		`\binvalid\b`: {
+			replacement: "not valid",
+			exceptions: []string{
+				"invalid request",  // HTTP status code context
+				"invalid response", // API response context
+				"invalid input",    // Validation context
+				"invalid format",   // Data format context
+				"invalid json",     // JSON parsing context
+			},
+		},
+		`\bexecute\b`: {
+			replacement: "run",
+			exceptions: []string{
+				"execute query",   // Database context
+				"execute command", // CLI context
+			},
+		},
+		`\bmaster\b`: {
+			replacement: "main or primary",
+			exceptions: []string{
+				"master node",   // Elasticsearch context (historical)
+				"master branch", // Git context (historical)
+			},
+		},
+		`\bslave\b`: {
+			replacement: "replica or secondary",
+			exceptions: []string{
+				"slave node", // Database context (historical)
+			},
+		},
+	}
+
+	contentLower := strings.ToLower(content)
+
+	// Check non-contextual problematic terms
 	for term, replacement := range problematicTerms {
 		re := regexp.MustCompile(`(?i)` + term)
 		matches := re.FindAllString(content, -1)
 		if len(matches) > 0 {
-			// Skip if in code block (rough check)
-			// A more sophisticated check would parse code blocks
 			issues = append(issues, ValidationIssue{
 				Severity:    SeverityMajor,
 				Category:    CategoryAccessibility,
@@ -282,6 +320,34 @@ func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []Valida
 				Suggestion:  "Consider using: " + replacement,
 				SourceCheck: "static",
 			})
+		}
+	}
+
+	// Check contextual terms - allow exceptions
+	for term, config := range contextualTerms {
+		re := regexp.MustCompile(`(?i)` + term)
+		matches := re.FindAllString(content, -1)
+		if len(matches) > 0 {
+			// Check if any exception context exists
+			hasException := false
+			for _, exception := range config.exceptions {
+				if strings.Contains(contentLower, strings.ToLower(exception)) {
+					hasException = true
+					break
+				}
+			}
+
+			// Only flag if no exception context found
+			if !hasException {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMinor, // Reduced severity for contextual terms
+					Category:    CategoryAccessibility,
+					Location:    "Language",
+					Message:     "Found potentially problematic term: '" + matches[0] + "'",
+					Suggestion:  "Consider using: " + config.replacement,
+					SourceCheck: "static",
+				})
+			}
 		}
 	}
 
