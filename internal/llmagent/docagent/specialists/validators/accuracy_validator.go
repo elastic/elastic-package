@@ -182,31 +182,61 @@ func (v *AccuracyValidator) checkFieldReferences(content string, pkgCtx *Package
 	return issues
 }
 
-// checkVersionAccuracy verifies version numbers match manifest
+// checkVersionAccuracy verifies package version numbers match manifest
+// This only checks for explicit mentions of the PACKAGE version, not Elastic Stack
+// requirements, software versions, or other version numbers
 func (v *AccuracyValidator) checkVersionAccuracy(content string, pkgCtx *PackageContext) []ValidationIssue {
 	var issues []ValidationIssue
 
 	manifest := pkgCtx.Manifest
+	if manifest.Version == "" {
+		return issues
+	}
 
-	// Check for version mentions that don't match
-	versionPattern := regexp.MustCompile(`version\s*[:\s]+["']?(\d+\.\d+\.\d+)["']?`)
-	matches := versionPattern.FindAllStringSubmatch(strings.ToLower(content), -1)
+	contentLower := strings.ToLower(content)
+	packageName := strings.ToLower(manifest.Name)
+	packageTitle := strings.ToLower(manifest.Title)
 
-	for _, match := range matches {
-		if len(match) > 1 {
-			mentionedVersion := match[1]
-			if manifest.Version != "" && mentionedVersion != manifest.Version {
-				issues = append(issues, ValidationIssue{
-					Severity:    SeverityMinor,
-					Category:    CategoryAccuracy,
-					Location:    "Version",
-					Message:     fmt.Sprintf("Version '%s' mentioned doesn't match manifest version '%s'", mentionedVersion, manifest.Version),
-					Suggestion:  fmt.Sprintf("Update version reference to match manifest: %s", manifest.Version),
-					SourceCheck: "static",
-				})
+	// Only check for patterns that explicitly reference the package version:
+	// - "package version X.Y.Z"
+	// - "integration version X.Y.Z"
+	// - "{package name} version X.Y.Z"
+	// - "version: X.Y.Z" (only in context of the package)
+	packageVersionPatterns := []string{
+		`(?:package|integration)\s+version\s*[:\s]+["']?(\d+\.\d+\.\d+)["']?`,
+		packageName + `\s+version\s*[:\s]+["']?(\d+\.\d+\.\d+)["']?`,
+	}
+	if packageTitle != packageName {
+		packageVersionPatterns = append(packageVersionPatterns,
+			packageTitle+`\s+version\s*[:\s]+["']?(\d+\.\d+\.\d+)["']?`)
+	}
+
+	for _, pattern := range packageVersionPatterns {
+		re := regexp.MustCompile(pattern)
+		matches := re.FindAllStringSubmatch(contentLower, -1)
+
+		for _, match := range matches {
+			if len(match) > 1 {
+				mentionedVersion := match[1]
+				if mentionedVersion != manifest.Version {
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityMinor,
+						Category:    CategoryAccuracy,
+						Location:    "Version",
+						Message:     fmt.Sprintf("Package version '%s' mentioned doesn't match manifest version '%s'", mentionedVersion, manifest.Version),
+						Suggestion:  fmt.Sprintf("Update package version reference to match manifest: %s", manifest.Version),
+						SourceCheck: "static",
+					})
+				}
 			}
 		}
 	}
+
+	// Note: We intentionally DO NOT flag:
+	// - Elastic Stack version requirements (e.g., "requires Elastic 8.7.0+")
+	// - Software/product versions (e.g., "Citrix ADC 12.0")
+	// - API versions
+	// These are valid version numbers that should not match the package version
 
 	return issues
 }

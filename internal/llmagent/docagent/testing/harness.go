@@ -452,12 +452,12 @@ func (h *TestHarness) runStagedGeneration(
 					}
 					result.ValidatorIterations[iterKey] = staticResult.Iterations
 					
-					// Aggregate results for each stage (don't overwrite - merge issues)
+					// Aggregate results for each stage (don't overwrite - merge issues with deduplication)
 					if existing, ok := result.StageResults[validatorKey]; ok {
-						// Merge issues from this validator into existing stage result
-						existing.Issues = append(existing.Issues, staticResult.Issues...)
-						existing.Warnings = append(existing.Warnings, staticResult.Warnings...)
-						existing.Suggestions = append(existing.Suggestions, staticResult.Suggestions...)
+						// Merge issues from this validator into existing stage result (deduplicate)
+						existing.Issues = mergeAndDeduplicateIssues(existing.Issues, staticResult.Issues)
+						existing.Warnings = mergeAndDeduplicateStrings(existing.Warnings, staticResult.Warnings)
+						existing.Suggestions = mergeAndDeduplicateStrings(existing.Suggestions, staticResult.Suggestions)
 						if !staticResult.Valid {
 							existing.Valid = false
 						}
@@ -773,6 +773,54 @@ func (h *TestHarness) runBaselineGeneration(
 	_ = cfg // Used in production integration
 
 	return mockContent, nil
+}
+
+// mergeAndDeduplicateIssues combines two slices of ValidationIssue and removes duplicates
+func mergeAndDeduplicateIssues(existing, new []validators.ValidationIssue) []validators.ValidationIssue {
+	seen := make(map[string]bool)
+	result := make([]validators.ValidationIssue, 0)
+
+	// Add existing issues
+	for _, issue := range existing {
+		key := fmt.Sprintf("%s|%s|%s", issue.Category, issue.Location, issue.Message)
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, issue)
+		}
+	}
+
+	// Add new issues (if not already present)
+	for _, issue := range new {
+		key := fmt.Sprintf("%s|%s|%s", issue.Category, issue.Location, issue.Message)
+		if !seen[key] {
+			seen[key] = true
+			result = append(result, issue)
+		}
+	}
+
+	return result
+}
+
+// mergeAndDeduplicateStrings combines two slices of strings and removes duplicates
+func mergeAndDeduplicateStrings(existing, new []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0)
+
+	for _, s := range existing {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+
+	for _, s := range new {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+
+	return result
 }
 
 // RunBatchTests executes tests for multiple packages

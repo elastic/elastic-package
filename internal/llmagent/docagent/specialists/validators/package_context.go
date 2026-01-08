@@ -6,6 +6,7 @@ package validators
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -309,14 +310,90 @@ func extractMarkdownLinks(content string) []ServiceInfoLink {
 			}
 			seen[url] = true
 
+			text := match[1]
+			// If the link text is just "link", derive a better description from the URL
+			if strings.ToLower(strings.TrimSpace(text)) == "link" {
+				text = deriveLinkTextFromURL(url)
+			}
+
 			links = append(links, ServiceInfoLink{
-				Text: match[1],
+				Text: text,
 				URL:  url,
 			})
 		}
 	}
 
 	return links
+}
+
+// deriveLinkTextFromURL creates descriptive link text from a URL
+func deriveLinkTextFromURL(urlStr string) string {
+	// Extract meaningful parts from the URL path
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return "Documentation"
+	}
+
+	path := parsedURL.Path
+	host := parsedURL.Host
+
+	// Map common domains to friendly names
+	domainNames := map[string]string{
+		"developer-docs.netscaler.com":  "NetScaler",
+		"developer-docs.citrix.com":     "Citrix",
+		"docs.netscaler.com":            "NetScaler Docs",
+		"docs.citrix.com":               "Citrix Docs",
+		"support.citrix.com":            "Citrix Support",
+		"elastic.co":                    "Elastic",
+		"www.elastic.co":                "Elastic",
+	}
+
+	vendor := "Documentation"
+	for domain, name := range domainNames {
+		if strings.Contains(host, domain) {
+			vendor = name
+			break
+		}
+	}
+
+	// Extract meaningful path components
+	pathParts := strings.Split(strings.Trim(path, "/"), "/")
+	var meaningfulParts []string
+
+	skipWords := map[string]bool{
+		"en":       true,
+		"us":       true,
+		"current":  true,
+		"latest":   true,
+		"12.0":     true,
+		"projects": true,
+		"s":        true,
+		"article":  true,
+	}
+
+	for _, part := range pathParts {
+		if part == "" || skipWords[part] {
+			continue
+		}
+		// Clean up the part
+		part = strings.ReplaceAll(part, "-", " ")
+		part = strings.ReplaceAll(part, "_", " ")
+		// Capitalize first letter
+		if len(part) > 0 {
+			part = strings.ToUpper(part[:1]) + part[1:]
+		}
+		meaningfulParts = append(meaningfulParts, part)
+		// Only take first 2-3 meaningful parts
+		if len(meaningfulParts) >= 3 {
+			break
+		}
+	}
+
+	if len(meaningfulParts) > 0 {
+		return vendor + " " + strings.Join(meaningfulParts, " ")
+	}
+
+	return vendor + " Documentation"
 }
 
 // GetServiceInfoLinks returns the extracted links from service_info.md

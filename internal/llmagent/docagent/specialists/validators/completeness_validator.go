@@ -134,18 +134,33 @@ func (v *CompletenessValidator) checkSetupCompleteness(content string) []Validat
 
 	contentLower := strings.ToLower(content)
 
-	// Check for setup section
-	hasSetupSection := strings.Contains(contentLower, "## setup") ||
-		strings.Contains(contentLower, "## installation") ||
-		strings.Contains(contentLower, "## getting started")
+	// Check for setup section (using aliases from structure_validator)
+	// The canonical name is "How do I deploy this integration?"
+	// Aliases: setup, installation, getting started, configuration
+	setupSectionPatterns := []string{
+		"## how do i deploy this integration",
+		"## setup",
+		"## installation",
+		"## getting started",
+		"## configuration",
+		"## deployment",
+	}
+
+	hasSetupSection := false
+	for _, pattern := range setupSectionPatterns {
+		if strings.Contains(contentLower, pattern) {
+			hasSetupSection = true
+			break
+		}
+	}
 
 	if !hasSetupSection {
 		issues = append(issues, ValidationIssue{
 			Severity:    SeverityCritical,
 			Category:    CategoryCompleteness,
 			Location:    "Setup",
-			Message:     "Missing Setup section",
-			Suggestion:  "Add a ## Setup section with installation and configuration instructions",
+			Message:     "Missing deployment/setup section",
+			Suggestion:  "Add a '## How do I deploy this integration?' section with installation and configuration instructions",
 			SourceCheck: "static",
 		})
 		return issues
