@@ -93,7 +93,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.Sec
 		iterations = int(iteration) + 1
 
 		// Step 1: Run generator
-		generatorPrompt := buildGeneratorPrompt(sectionCtx, stateStore)
+		generatorPrompt := buildGeneratorPrompt(sectionCtx, stateStore, b.config.PackageContext)
 		content, promptTokens, compTokens, err := b.runAgent(ctx, "generator", generatorPrompt)
 		if err != nil {
 			return nil, fmt.Errorf("generator failed: %w", err)
@@ -259,7 +259,7 @@ func truncate(s string, maxLen int) string {
 }
 
 // buildGeneratorPrompt creates a prompt with all context embedded directly.
-func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *specialists.StateStore) string {
+func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *specialists.StateStore, pkgCtx *validators.PackageContext) string {
 	var prompt strings.Builder
 
 	prompt.WriteString("Generate documentation for the following section.\n\n")
@@ -288,6 +288,16 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 		prompt.WriteString("```\n")
 		prompt.WriteString(sectionCtx.ExistingContent)
 		prompt.WriteString("\n```\n")
+	}
+
+	// Add advanced settings context if available
+	if pkgCtx != nil {
+		advSettingsContext := pkgCtx.FormatAdvancedSettingsForGenerator()
+		if advSettingsContext != "" {
+			prompt.WriteString("\n## Advanced Settings (document with appropriate warnings)\n")
+			prompt.WriteString(advSettingsContext)
+			prompt.WriteString("\n")
+		}
 	}
 
 	// Add additional context (e.g., feedback from validation)

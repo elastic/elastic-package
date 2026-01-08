@@ -73,6 +73,7 @@ The section context is provided directly in the user message. It includes:
 - PackageTitle: The human-readable package name
 - ExistingContent: Current content to improve upon (if any)
 - AdditionalContext: Validation feedback and requirements (CRITICAL - read carefully)
+- Advanced Settings: Configuration variables with important caveats that MUST be documented
 
 ## Output
 Output ONLY the complete markdown document. Do not include any explanation or commentary.
@@ -84,6 +85,18 @@ Output ONLY the complete markdown document. Do not include any explanation or co
 4. If AdditionalContext contains vendor documentation links, include ALL of them in appropriate sections
 5. Include all data streams from the package
 6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
+
+## Advanced Settings Documentation
+When the context includes Advanced Settings, you MUST document them properly:
+1. **Security Warnings**: Include clear warnings for settings that compromise security or expose sensitive data
+   - Example: "⚠️ **Warning**: Enabling request tracing compromises security and should only be used for debugging."
+2. **Debug/Development Settings**: Warn that these should NOT be enabled in production
+   - Document in the Troubleshooting section or a dedicated Advanced Settings subsection
+3. **SSL/TLS Configuration**: Document certificate setup and configuration options
+   - Include example YAML snippets showing how to configure certificates
+4. **Sensitive Fields**: Mention secure credential handling
+   - Reference Fleet's secret management or environment variables
+5. **Complex Configurations**: Provide YAML/JSON examples for complex settings
 
 ## Guidelines
 - Write clear, concise, and accurate documentation
@@ -98,6 +111,7 @@ Output ONLY the complete markdown document. Do not include any explanation or co
 - Do NOT skip required sections
 - When including URLs from vendor documentation, copy them EXACTLY as provided - do NOT modify, shorten, or rephrase URLs
 - Output the markdown content directly without code block wrappers
+- Document ALL advanced settings with their warnings/caveats
 `
 
 // Build creates the underlying ADK agent.

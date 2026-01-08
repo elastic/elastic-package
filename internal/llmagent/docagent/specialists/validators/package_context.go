@@ -405,3 +405,214 @@ func (ctx *PackageContext) GetServiceInfoLinks() []ServiceInfoLink {
 func (ctx *PackageContext) HasServiceInfoLinks() bool {
 	return len(ctx.ServiceInfoLinks) > 0
 }
+
+// AdvancedSetting represents a configuration variable with important caveats
+type AdvancedSetting struct {
+	Name        string   // Variable name
+	Title       string   // Human-readable title
+	Description string   // Full description
+	Type        string   // Variable type (bool, yaml, password, etc.)
+	IsSecret    bool     // Whether this is a secret/password field
+	ShowUser    bool     // Whether shown to user by default
+	GotchaTypes []string // Types of gotchas (security, debug, ssl, sensitive, complex)
+	Warning     string   // Extracted warning message
+}
+
+// GetAdvancedSettings extracts configuration variables with important caveats from the manifest
+func (ctx *PackageContext) GetAdvancedSettings() []AdvancedSetting {
+	var settings []AdvancedSetting
+	if ctx.Manifest == nil {
+		return settings
+	}
+
+	// Extract from policy templates
+	for _, pt := range ctx.Manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			for _, v := range input.Vars {
+				if setting := analyzeVarForAdvancedSetting(v); setting != nil {
+					settings = append(settings, *setting)
+				}
+			}
+		}
+		// Check policy template level vars
+		for _, v := range pt.Vars {
+			if setting := analyzeVarForAdvancedSetting(v); setting != nil {
+				settings = append(settings, *setting)
+			}
+		}
+	}
+
+	// Extract from package-level vars
+	for _, v := range ctx.Manifest.Vars {
+		if setting := analyzeVarForAdvancedSetting(v); setting != nil {
+			settings = append(settings, *setting)
+		}
+	}
+
+	return settings
+}
+
+// HasAdvancedSettings returns true if the package has advanced settings with gotchas
+func (ctx *PackageContext) HasAdvancedSettings() bool {
+	return len(ctx.GetAdvancedSettings()) > 0
+}
+
+// analyzeVarForAdvancedSetting checks if a variable has important caveats
+func analyzeVarForAdvancedSetting(v packages.Variable) *AdvancedSetting {
+	setting := &AdvancedSetting{
+		Name:        v.Name,
+		Title:       v.Title,
+		Description: v.Description,
+		Type:        v.Type,
+		IsSecret:    v.Secret,
+		ShowUser:    v.ShowUser,
+		GotchaTypes: []string{},
+	}
+
+	descLower := strings.ToLower(v.Description)
+	nameLower := strings.ToLower(v.Name)
+
+	// Check for security-related gotchas
+	securityPatterns := []string{
+		"compromise", "security", "sensitive", "expose",
+		"should only be used for debugging", "debug only",
+		"not recommended for production",
+	}
+	for _, pattern := range securityPatterns {
+		if strings.Contains(descLower, pattern) {
+			setting.GotchaTypes = append(setting.GotchaTypes, "security")
+			setting.Warning = extractWarning(v.Description)
+			break
+		}
+	}
+
+	// Check for debug/development settings
+	debugPatterns := []string{"debug", "debugging", "development", "troubleshoot", "request tracer", "verbose", "trace"}
+	for _, pattern := range debugPatterns {
+		if strings.Contains(descLower, pattern) || strings.Contains(nameLower, pattern) {
+			setting.GotchaTypes = append(setting.GotchaTypes, "debug")
+			if setting.Warning == "" {
+				setting.Warning = "This setting should only be used for debugging/troubleshooting"
+			}
+			break
+		}
+	}
+
+	// Check for SSL/TLS configuration
+	if strings.Contains(nameLower, "ssl") || strings.Contains(nameLower, "tls") || strings.Contains(nameLower, "certificate") {
+		setting.GotchaTypes = append(setting.GotchaTypes, "ssl")
+	}
+
+	// Check for sensitive/secret fields
+	if v.Secret || v.Type == "password" || strings.Contains(nameLower, "password") ||
+		strings.Contains(nameLower, "secret") || strings.Contains(nameLower, "api_key") {
+		setting.GotchaTypes = append(setting.GotchaTypes, "sensitive")
+	}
+
+	// Check for complex configurations (YAML/JSON types)
+	if v.Type == "yaml" || v.Type == "json" {
+		setting.GotchaTypes = append(setting.GotchaTypes, "complex")
+	}
+
+	// Only return if there are actual gotchas
+	if len(setting.GotchaTypes) > 0 {
+		return setting
+	}
+
+	return nil
+}
+
+// extractWarning extracts the warning/caveat from a description
+func extractWarning(description string) string {
+	sentences := strings.Split(description, ".")
+	for _, sentence := range sentences {
+		lower := strings.ToLower(sentence)
+		if strings.Contains(lower, "security") || strings.Contains(lower, "compromise") ||
+			strings.Contains(lower, "should only") || strings.Contains(lower, "debug") ||
+			strings.Contains(lower, "not recommended") {
+			return strings.TrimSpace(sentence) + "."
+		}
+	}
+	return ""
+}
+
+// FormatAdvancedSettingsForGenerator formats advanced settings for inclusion in generator context
+func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
+	settings := ctx.GetAdvancedSettings()
+	if len(settings) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n=== ADVANCED SETTINGS (document these with appropriate warnings) ===\n")
+	sb.WriteString("The following settings have important caveats that MUST be documented:\n\n")
+
+	// Group by gotcha type for clarity
+	securitySettings := []AdvancedSetting{}
+	debugSettings := []AdvancedSetting{}
+	sslSettings := []AdvancedSetting{}
+	sensitiveSettings := []AdvancedSetting{}
+	complexSettings := []AdvancedSetting{}
+
+	for _, s := range settings {
+		for _, t := range s.GotchaTypes {
+			switch t {
+			case "security":
+				securitySettings = append(securitySettings, s)
+			case "debug":
+				debugSettings = append(debugSettings, s)
+			case "ssl":
+				sslSettings = append(sslSettings, s)
+			case "sensitive":
+				sensitiveSettings = append(sensitiveSettings, s)
+			case "complex":
+				complexSettings = append(complexSettings, s)
+			}
+		}
+	}
+
+	if len(securitySettings) > 0 {
+		sb.WriteString("### Security Warnings (CRITICAL - must include warnings)\n")
+		for _, s := range securitySettings {
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+			if s.Warning != "" {
+				sb.WriteString(fmt.Sprintf("  ⚠️ WARNING: %s\n", s.Warning))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(debugSettings) > 0 {
+		sb.WriteString("### Debug/Development Settings (warn about production use)\n")
+		for _, s := range debugSettings {
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(sslSettings) > 0 {
+		sb.WriteString("### SSL/TLS Configuration (document certificate setup)\n")
+		for _, s := range sslSettings {
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(sensitiveSettings) > 0 {
+		sb.WriteString("### Sensitive Fields (mention secure handling)\n")
+		for _, s := range sensitiveSettings {
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): Type=%s, Secret=%v\n", s.Title, s.Name, s.Type, s.IsSecret))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(complexSettings) > 0 {
+		sb.WriteString("### Complex Configuration (include examples)\n")
+		for _, s := range complexSettings {
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): YAML/JSON configuration - provide example\n", s.Title, s.Name))
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}

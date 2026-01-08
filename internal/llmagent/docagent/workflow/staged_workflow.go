@@ -293,7 +293,7 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 
 // runGenerator executes the generator agent
 func (b *StagedWorkflowBuilder) runGenerator(ctx context.Context, sectionCtx validators.SectionContext, feedback *string) (string, error) {
-	prompt := buildGeneratorPrompt(sectionCtx, b.stateStore)
+	prompt := buildGeneratorPrompt(sectionCtx, b.stateStore, b.stagedCfg.PackageContext)
 
 	// Add feedback if provided
 	if feedback != nil && *feedback != "" {

@@ -168,6 +168,7 @@ func GetStagedValidators(r *Registry) []validators.StagedValidator {
 // - Style: Elastic style guide compliance (voice, tone, grammar)
 // - Accessibility: accessibility and inclusive language
 // - VendorSetup: vendor setup instructions accuracy against docs and LLM knowledge
+// - AdvancedSettings: advanced settings gotchas from manifest.yml are documented
 func AllStagedValidators() []validators.StagedValidator {
 	return []validators.StagedValidator{
 		validators.NewStructureValidator(),
@@ -179,6 +180,7 @@ func AllStagedValidators() []validators.StagedValidator {
 		validators.NewStyleValidator(),
 		validators.NewAccessibilityValidator(),
 		validators.NewVendorSetupValidator(),
+		validators.NewAdvancedSettingsValidator(),
 	}
 }
 

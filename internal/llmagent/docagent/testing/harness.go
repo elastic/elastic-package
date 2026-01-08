@@ -704,6 +704,11 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 		sb.WriteString("\n")
 	}
 
+	// ADVANCED SETTINGS - Configuration gotchas that must be documented
+	if advSettingsContext := pkgCtx.FormatAdvancedSettingsForGenerator(); advSettingsContext != "" {
+		sb.WriteString(advSettingsContext)
+	}
+
 	// VALIDATION FEEDBACK - If there's feedback from previous iterations
 	if len(feedback) > 0 {
 		sb.WriteString("\n=== CRITICAL: VALIDATION ISSUES TO FIX ===\n")
@@ -722,6 +727,7 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 	sb.WriteString("6. Use {{event \"datastream\"}} and {{fields \"datastream\"}} placeholders in Reference section\n")
 	sb.WriteString("7. Address EVERY validation issue if any are listed above\n")
 	sb.WriteString("8. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
+	sb.WriteString("9. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")
 
 	return sb.String()
 }

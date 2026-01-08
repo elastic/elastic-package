@@ -266,6 +266,19 @@ func isCommonNonField(s string) bool {
 		return true
 	}
 
+	// Skip version strings (e.g., v13.0, v13.1, v14.1)
+	// These are product version numbers, not field references
+	versionPattern := regexp.MustCompile(`^v\d+\.\d+(\.\d+)?$`)
+	if versionPattern.MatchString(s) {
+		return true
+	}
+
+	// Skip plain version numbers (e.g., 8.12.0, 13.0, 14.1)
+	plainVersionPattern := regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`)
+	if plainVersionPattern.MatchString(s) {
+		return true
+	}
+
 	return false
 }
 
