@@ -2,11 +2,12 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package specialists
+package validators
 
 import (
 	"context"
 	"fmt"
+	"io"
 	"iter"
 	"net/http"
 	"regexp"
@@ -28,6 +29,9 @@ const (
 	// HTTP client configuration
 	httpTimeout       = 10 * time.Second
 	maxConcurrentReqs = 5
+
+	// Soft 404 detection configuration
+	maxBodyReadSize = 64 * 1024 // Read up to 64KB to check for soft 404
 )
 
 // URLValidatorAgent validates URLs in documentation content using HTTP requests.
@@ -53,6 +57,7 @@ type URLCheckResult struct {
 	TotalURLs   int      `json:"total_urls"`
 	ValidURLs   []string `json:"valid_urls"`
 	InvalidURLs []string `json:"invalid_urls"`
+	Soft404URLs []string `json:"soft_404_urls"` // URLs that return 200 but show error content
 	Warnings    []string `json:"warnings"`
 }
 
@@ -119,9 +124,10 @@ var markdownLinkPattern = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 
 // urlCheckResult holds the result of checking a single URL
 type urlCheckResult struct {
-	url     string
-	valid   bool
-	warning string
+	url       string
+	valid     bool
+	isSoft404 bool
+	warning   string
 }
 
 // validateURLs extracts and validates URLs from content using HTTP requests
@@ -151,10 +157,13 @@ func (u *URLValidatorAgent) validateURLs(ctx context.Context, content string) UR
 	results := u.checkURLsConcurrently(ctx, client, uniqueURLs)
 
 	// Aggregate results
-	var validURLs, invalidURLs, warnings []string
+	var validURLs, invalidURLs, soft404URLs, warnings []string
 	for _, r := range results {
 		if r.valid {
 			validURLs = append(validURLs, r.url)
+		} else if r.isSoft404 {
+			soft404URLs = append(soft404URLs, r.url)
+			invalidURLs = append(invalidURLs, r.url) // Also add to invalid for backwards compatibility
 		} else {
 			invalidURLs = append(invalidURLs, r.url)
 		}
@@ -167,6 +176,7 @@ func (u *URLValidatorAgent) validateURLs(ctx context.Context, content string) UR
 		TotalURLs:   len(uniqueURLs),
 		ValidURLs:   validURLs,
 		InvalidURLs: invalidURLs,
+		Soft404URLs: soft404URLs,
 		Warnings:    warnings,
 	}
 }
@@ -210,8 +220,8 @@ func (u *URLValidatorAgent) checkURLsConcurrently(ctx context.Context, client *h
 			}
 
 			// Check the URL
-			valid, warning := u.checkSingleURL(ctx, client, urlToCheck)
-			results[idx] = urlCheckResult{url: urlToCheck, valid: valid, warning: warning}
+			valid, isSoft404, warning := u.checkSingleURL(ctx, client, urlToCheck)
+			results[idx] = urlCheckResult{url: urlToCheck, valid: valid, isSoft404: isSoft404, warning: warning}
 		}(i, url)
 	}
 
@@ -219,53 +229,144 @@ func (u *URLValidatorAgent) checkURLsConcurrently(ctx context.Context, client *h
 	return results
 }
 
-// checkSingleURL performs HTTP HEAD request to validate a URL
-func (u *URLValidatorAgent) checkSingleURL(ctx context.Context, client *http.Client, url string) (valid bool, warning string) {
+// checkSingleURL performs HTTP request to validate a URL and checks for soft 404s
+func (u *URLValidatorAgent) checkSingleURL(ctx context.Context, client *http.Client, url string) (valid bool, isSoft404 bool, warning string) {
 	// Pre-validation checks
 	if containsPlaceholder(url) {
-		return false, fmt.Sprintf("URL contains placeholder: %s", url)
+		return false, false, fmt.Sprintf("URL contains placeholder: %s", url)
 	}
 	if isLocalhostURL(url) {
-		return false, fmt.Sprintf("URL points to localhost: %s", url)
+		return false, false, fmt.Sprintf("URL points to localhost: %s", url)
 	}
 
-	// Create HEAD request
-	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	// Use GET request to be able to check response body for soft 404s
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return false, fmt.Sprintf("invalid URL format: %s", url)
+		return false, false, fmt.Sprintf("invalid URL format: %s", url)
 	}
 
 	// Set a user agent to avoid being blocked
 	req.Header.Set("User-Agent", "elastic-package-url-validator/1.0")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 
 	// Execute request
 	resp, err := client.Do(req)
 	if err != nil {
-		// Some servers don't support HEAD, try GET
-		req, _ = http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		req.Header.Set("User-Agent", "elastic-package-url-validator/1.0")
-		resp, err = client.Do(req)
-		if err != nil {
-			return false, fmt.Sprintf("URL unreachable: %s (%v)", url, err)
-		}
+		return false, false, fmt.Sprintf("URL unreachable: %s (%v)", url, err)
 	}
 	defer resp.Body.Close()
 
-	// Check status code
+	// Check status code first
 	switch {
 	case resp.StatusCode >= 200 && resp.StatusCode < 300:
-		return true, ""
+		// Even with 200 OK, check for soft 404 in body
+		soft404Detected, soft404Reason := u.detectSoft404(resp)
+		if soft404Detected {
+			return false, true, fmt.Sprintf("URL returns 200 but appears to be a soft 404: %s (%s)", url, soft404Reason)
+		}
+		return true, false, ""
 	case resp.StatusCode >= 300 && resp.StatusCode < 400:
 		// Redirect - consider valid but warn
-		return true, fmt.Sprintf("URL redirects (HTTP %d): %s", resp.StatusCode, url)
+		return true, false, fmt.Sprintf("URL redirects (HTTP %d): %s", resp.StatusCode, url)
 	case resp.StatusCode == 403:
 		// Forbidden - might be valid but access restricted
-		return true, fmt.Sprintf("URL access forbidden (HTTP 403): %s", url)
+		return true, false, fmt.Sprintf("URL access forbidden (HTTP 403): %s", url)
 	case resp.StatusCode == 404:
-		return false, fmt.Sprintf("URL not found (HTTP 404): %s", url)
+		return false, false, fmt.Sprintf("URL not found (HTTP 404): %s", url)
 	default:
-		return false, fmt.Sprintf("URL returned HTTP %d: %s", resp.StatusCode, url)
+		return false, false, fmt.Sprintf("URL returned HTTP %d: %s", resp.StatusCode, url)
 	}
+}
+
+// detectSoft404 checks the response body for indicators of a soft 404 page
+func (u *URLValidatorAgent) detectSoft404(resp *http.Response) (isSoft404 bool, reason string) {
+	// Read limited portion of body
+	bodyBytes, err := io.ReadAll(io.LimitReader(resp.Body, maxBodyReadSize))
+	if err != nil {
+		// Can't read body, assume valid
+		return false, ""
+	}
+
+	bodyLower := strings.ToLower(string(bodyBytes))
+
+	// Check for common soft 404 patterns in HTML content
+	// These are strong indicators that the page is showing an error
+	soft404Patterns := []struct {
+		pattern string
+		reason  string
+	}{
+		// Common 404/error page titles
+		{"<title>404", "page title contains 404"},
+		{"<title>page not found", "page title indicates not found"},
+		{"<title>error 404", "page title indicates error 404"},
+		{"<title>not found", "page title indicates not found"},
+		{"<title>page does not exist", "page title indicates non-existent"},
+		{"<title>page has been removed", "page title indicates removed"},
+		{"<title>page has moved", "page title indicates moved"},
+		{"<title>content not found", "page title indicates content not found"},
+		{"<title>resource not found", "page title indicates resource not found"},
+		{"<title>oops", "page title suggests error page"},
+
+		// Heading-based indicators (more specific to avoid false positives)
+		{"<h1>404</h1>", "heading indicates 404"},
+		{"<h1>page not found</h1>", "heading indicates not found"},
+		{"<h1>not found</h1>", "heading indicates not found"},
+		{">404 - ", "content contains 404 error pattern"},
+		{">error 404<", "content contains error 404"},
+
+		// Common error page text patterns (more specific)
+		{"the page you requested could not be found", "error message found"},
+		{"the page you are looking for doesn't exist", "error message found"},
+		{"the page you are looking for does not exist", "error message found"},
+		{"this page doesn't exist", "error message found"},
+		{"this page does not exist", "error message found"},
+		{"page you're looking for can't be found", "error message found"},
+		{"page you were looking for doesn't exist", "error message found"},
+		{"sorry, we couldn't find that page", "error message found"},
+		{"we couldn't find the page", "error message found"},
+		{"the requested url was not found", "error message found"},
+		{"the requested page was not found", "error message found"},
+		{"this content has been removed", "content removed message"},
+		{"this article has been removed", "content removed message"},
+		{"this document has been removed", "content removed message"},
+		{"has been discontinued", "discontinued message"},
+		{"no longer available", "content unavailable message"},
+		{"page has been archived", "archived message"},
+
+		// Technical error indicators
+		{"http error 404", "HTTP error 404 text found"},
+		{"http status 404", "HTTP status 404 text found"},
+		{"status code: 404", "status code 404 found"},
+
+		// Common CMS/framework error pages
+		{"wp-content/themes/.*404", "WordPress 404 theme detected"},
+		{"drupal-404", "Drupal 404 page detected"},
+	}
+
+	for _, p := range soft404Patterns {
+		if strings.Contains(bodyLower, p.pattern) {
+			return true, p.reason
+		}
+	}
+
+	// Check for meta refresh to error page
+	if strings.Contains(bodyLower, `http-equiv="refresh"`) &&
+		(strings.Contains(bodyLower, "error") || strings.Contains(bodyLower, "404") ||
+			strings.Contains(bodyLower, "not-found") || strings.Contains(bodyLower, "notfound")) {
+		return true, "meta refresh to error page detected"
+	}
+
+	// Check response headers for soft 404 indicators
+	if xRobotsTag := resp.Header.Get("X-Robots-Tag"); xRobotsTag != "" {
+		if strings.Contains(strings.ToLower(xRobotsTag), "noindex") {
+			// noindex alone is not a soft 404, but combined with error-like content
+			if strings.Contains(bodyLower, "not found") || strings.Contains(bodyLower, "doesn't exist") {
+				return true, "noindex with error-like content"
+			}
+		}
+	}
+
+	return false, ""
 }
 
 // deduplicate removes duplicate URLs from a slice

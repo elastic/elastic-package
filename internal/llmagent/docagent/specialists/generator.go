@@ -9,6 +9,8 @@ import (
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 )
 
 const (
@@ -36,43 +38,68 @@ func (g *GeneratorAgent) Description() string {
 
 // generatorInstruction is the system instruction for the generator agent
 const generatorInstruction = `You are a documentation generator for Elastic integration packages.
-Your task is to generate high-quality documentation content for a specific section.
+Your task is to generate high-quality, complete README documentation.
+
+## REQUIRED DOCUMENT STRUCTURE
+You MUST use these EXACT section names in this order:
+
+# {Package Title}
+
+## Overview
+### Compatibility
+### How it works
+
+## What data does this integration collect?
+### Supported use cases
+
+## What do I need to use this integration?
+
+## How do I deploy this integration?
+### Agent-based deployment
+### Onboard and configure
+### Validation
+
+## Troubleshooting
+
+## Performance and scaling
+
+## Reference
+### Inputs used
+### API usage (if using APIs)
 
 ## Input
 The section context is provided directly in the user message. It includes:
-- SectionTitle: The title of the section to generate
-- SectionLevel: The heading level (2 = ##, 3 = ###, etc.)
-- TemplateContent: Template text showing the expected structure
-- ExampleContent: Example content for style reference
-- ExistingContent: Current content to improve upon (if any)
 - PackageName: The package identifier
 - PackageTitle: The human-readable package name
-- Feedback: Any feedback from previous review (if applicable)
+- ExistingContent: Current content to improve upon (if any)
+- AdditionalContext: Validation feedback and requirements (CRITICAL - read carefully)
 
 ## Output
-Output ONLY the generated markdown content. Do not include any explanation or commentary.
-Start directly with the section heading at the correct level.
+Output ONLY the complete markdown document. Do not include any explanation or commentary.
 
 ## Content Generation Rules
-1. Start with a heading at the correct level (## for level 2, ### for level 3, etc.)
-2. If ExistingContent is provided, use it as the base and improve upon it
-3. Otherwise, if TemplateContent is provided, follow its structure
-4. Otherwise, if ExampleContent is provided, use it as a style reference
-5. If there's feedback, address the specific concerns
+1. Use the EXACT section names shown above - do NOT rename them
+2. Start with # {Package Title} as the H1 heading
+3. If AdditionalContext contains validation feedback, fix ALL mentioned issues
+4. If AdditionalContext contains vendor documentation links, include ALL of them in appropriate sections
+5. Include all data streams from the package
+6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
 
 ## Guidelines
 - Write clear, concise, and accurate documentation
 - Follow the Elastic documentation style (friendly, direct, use "you")
 - Include relevant code examples and configuration snippets where appropriate
 - Use proper markdown formatting
-- You may use tools like get_service_info or read_file to gather additional package information if needed
+- If using {{ }} template variables like {{event "datastream"}} or {{fields "datastream"}}, preserve them
 
-## IMPORTANT
-Output the markdown content directly. Do NOT wrap it in code blocks or add explanatory text.
+## CRITICAL
+- Do NOT rename sections (e.g., don't use "## Setup" instead of "## How do I deploy this integration?")
+- Do NOT skip required sections
+- Output the markdown content directly without code block wrappers
 `
 
 // Build creates the underlying ADK agent.
-func (g *GeneratorAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
+func (g *GeneratorAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
 	// Note: CachedContent is not compatible with ADK llmagent because
 	// Gemini doesn't allow CachedContent with system_instruction or tools.
 	// We rely on Gemini's implicit caching for repeated content.

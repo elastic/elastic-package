@@ -13,7 +13,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
@@ -814,7 +814,7 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 			}
 
 			// Build section context for workflow
-			sectionCtx := specialists.SectionContext{
+			sectionCtx := validators.SectionContext{
 				SectionTitle: tmplSection.Title,
 				SectionLevel: tmplSection.Level,
 				PackageName:  d.manifest.Name,
@@ -913,9 +913,20 @@ func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
 
 // buildWorkflowConfig creates a workflow configuration with the agent's model and tools
 func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
-	return workflow.DefaultConfig().
+	cfg := workflow.DefaultConfig().
 		WithModel(d.executor.llmModel).
 		WithModelID(d.executor.ModelID()).
 		WithTools(d.executor.tools).
 		WithToolsets(d.executor.toolsets)
+
+	// Load package context for static validation
+	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	if err != nil {
+		logger.Debugf("Could not load package context for static validation: %v", err)
+	} else {
+		cfg = cfg.WithStaticValidation(pkgCtx)
+		logger.Debugf("Static validation enabled with package context from %s", d.packageRoot)
+	}
+
+	return cfg
 }

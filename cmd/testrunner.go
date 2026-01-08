@@ -65,7 +65,12 @@ For details on how to configure and run script tests, review the [HOWTO guide](h
 #### Policy Tests
 These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
 
-For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).`
+For details on how to configure and run policy tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/policy_testing.md).
+
+#### Documentation Tests
+These tests allow you to test documentation generation with staged validation against real packages to measure quality improvements.
+
+Documentation tests support single package tests, batch tests for multiple packages, and comparison between baseline and staged validation results.`
 
 func setupTestCommand() *cobraext.Command {
 	cmd := &cobra.Command{
@@ -107,6 +112,9 @@ func setupTestCommand() *cobraext.Command {
 
 	policyCmd := getTestRunnerPolicyCommand()
 	cmd.AddCommand(policyCmd)
+
+	documentationCmd := getTestRunnerDocumentationCommand()
+	cmd.AddCommand(documentationCmd)
 
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }

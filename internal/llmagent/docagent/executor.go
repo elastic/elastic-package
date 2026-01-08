@@ -75,7 +75,7 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 
 	modelID := cfg.ModelID
 	if modelID == "" {
-		modelID = "gemini-2.5-pro"
+		modelID = "gemini-3-flash-preview"
 	}
 
 	// Initialize LLM tracing with provided config

@@ -16,6 +16,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -47,14 +48,14 @@ type Result struct {
 	// Feedback contains the final feedback (if any)
 	Feedback string
 	// ValidationResult contains validation results
-	ValidationResult *specialists.ValidationResult
+	ValidationResult *validators.ValidationResult
 	// URLCheckResult contains URL check results
-	URLCheckResult *specialists.URLCheckResult
+	URLCheckResult *validators.URLCheckResult
 }
 
 // buildAgent creates a single ADK agent by name
 func (b *Builder) buildAgent(ctx context.Context, name string) (agent.Agent, error) {
-	agentCfg := specialists.AgentConfig{
+	agentCfg := validators.AgentConfig{
 		Model:    b.config.Model,
 		Tools:    b.config.Tools,
 		Toolsets: b.config.Toolsets,
@@ -70,7 +71,7 @@ func (b *Builder) buildAgent(ctx context.Context, name string) (agent.Agent, err
 
 // ExecuteWorkflow runs the workflow with isolated agent contexts.
 // Each agent runs in its own session to prevent conversation history accumulation.
-func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.SectionContext) (*Result, error) {
+func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.SectionContext) (*Result, error) {
 	// Start workflow span for tracing
 	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
 
@@ -98,7 +99,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			return nil, fmt.Errorf("generator failed: %w", err)
 		}
 		result.Content = content
-		stateStore.Set(specialists.StateKeyContent, content)
+		stateStore.Set(validators.StateKeyContent, content)
 		logger.Debugf("Generator produced %d chars (tokens: %d/%d)", len(content), promptTokens, compTokens)
 
 		// Step 2: Run critic (if enabled)
@@ -118,38 +119,14 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			}
 
 			if !criticResult.Approved {
-				stateStore.Set(specialists.StateKeyFeedback, criticResult.Feedback)
+				stateStore.Set(validators.StateKeyFeedback, criticResult.Feedback)
 				result.Feedback = criticResult.Feedback
 				logger.Debugf("Critic rejected: %s", criticResult.Feedback)
 				continue // Re-run generator with feedback
 			}
 		}
 
-		// Step 3: Run validator (if enabled)
-		if b.config.EnableValidator {
-			validatorPrompt := buildValidatorPrompt(content)
-			validatorOutput, promptTokens, compTokens, err := b.runAgent(ctx, "validator", validatorPrompt)
-			if err != nil {
-				return nil, fmt.Errorf("validator failed: %w", err)
-			}
-			logger.Debugf("Validator output (tokens: %d/%d): %s", promptTokens, compTokens, truncate(validatorOutput, 100))
-
-			// Parse validator result
-			var validationResult specialists.ValidationResult
-			if err := json.Unmarshal([]byte(validatorOutput), &validationResult); err != nil {
-				logger.Debugf("Failed to parse validator JSON, assuming valid: %v", err)
-				validationResult.Valid = true
-			}
-			result.ValidationResult = &validationResult
-
-			if !validationResult.Valid {
-				feedback := fmt.Sprintf("Validation issues: %s", strings.Join(validationResult.Issues, "; "))
-				stateStore.Set(specialists.StateKeyFeedback, feedback)
-				result.Feedback = feedback
-				logger.Debugf("Validator rejected: %v", validationResult.Issues)
-				continue // Re-run generator with feedback
-			}
-		}
+		// Step 3: Validation is handled by staged validators in Step 5
 
 		// Step 4: Run URL validator (if enabled) - this is typically programmatic, not LLM
 		if b.config.EnableURLValidator {
@@ -159,10 +136,29 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.Se
 			if err != nil {
 				logger.Debugf("URL validator error (non-fatal): %v", err)
 			} else {
-				var urlResult specialists.URLCheckResult
+				var urlResult validators.URLCheckResult
 				if err := json.Unmarshal([]byte(urlOutput), &urlResult); err == nil {
 					result.URLCheckResult = &urlResult
 				}
+			}
+		}
+
+		// Step 5: Run static validators (if enabled) - check against package files
+		if b.config.EnableStaticValidation && b.config.PackageContext != nil {
+			staticIssues := b.runStaticValidation(ctx, content)
+			if len(staticIssues) > 0 {
+				feedback := "Static validation issues found:\n"
+				for _, issue := range staticIssues {
+					feedback += fmt.Sprintf("- [%s] %s: %s", issue.Category, issue.Location, issue.Message)
+					if issue.Suggestion != "" {
+						feedback += fmt.Sprintf(" → FIX: %s", issue.Suggestion)
+					}
+					feedback += "\n"
+				}
+				stateStore.Set(validators.StateKeyFeedback, feedback)
+				result.Feedback = feedback
+				logger.Debugf("Static validation rejected with %d issues", len(staticIssues))
+				continue // Re-run generator with feedback
 			}
 		}
 
@@ -263,7 +259,7 @@ func truncate(s string, maxLen int) string {
 }
 
 // buildGeneratorPrompt creates a prompt with all context embedded directly.
-func buildGeneratorPrompt(sectionCtx specialists.SectionContext, stateStore *specialists.StateStore) string {
+func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *specialists.StateStore) string {
 	var prompt strings.Builder
 
 	prompt.WriteString("Generate documentation for the following section.\n\n")
@@ -294,12 +290,21 @@ func buildGeneratorPrompt(sectionCtx specialists.SectionContext, stateStore *spe
 		prompt.WriteString("\n```\n")
 	}
 
-	// Check for feedback from previous iteration
-	if fb, ok := stateStore.Get(specialists.StateKeyFeedback); ok {
-		if fbStr, ok := fb.(string); ok && fbStr != "" {
-			prompt.WriteString("\n## Feedback to Address\n")
-			prompt.WriteString(fbStr)
-			prompt.WriteString("\n")
+	// Add additional context (e.g., feedback from validation)
+	if sectionCtx.AdditionalContext != "" {
+		prompt.WriteString("\n## Additional Instructions\n")
+		prompt.WriteString(sectionCtx.AdditionalContext)
+		prompt.WriteString("\n")
+	}
+
+	// Check for feedback from previous iteration (state store)
+	if stateStore != nil {
+		if fb, ok := stateStore.Get(validators.StateKeyFeedback); ok {
+			if fbStr, ok := fb.(string); ok && fbStr != "" {
+				prompt.WriteString("\n## Feedback to Address\n")
+				prompt.WriteString(fbStr)
+				prompt.WriteString("\n")
+			}
 		}
 	}
 
@@ -313,7 +318,29 @@ func buildCriticPrompt(content string) string {
 	return fmt.Sprintf("Review this documentation for style, voice, tone, and accessibility:\n\n%s", content)
 }
 
-// buildValidatorPrompt creates a prompt for the validator with content embedded.
-func buildValidatorPrompt(content string) string {
-	return fmt.Sprintf("Validate this documentation for technical correctness:\n\n%s", content)
+// runStaticValidation runs all static validators against the content
+func (b *Builder) runStaticValidation(ctx context.Context, content string) []validators.ValidationIssue {
+	var allIssues []validators.ValidationIssue
+	pkgCtx := b.config.PackageContext
+
+	// Use the canonical list of all staged validators
+	vals := specialists.AllStagedValidators()
+
+	for _, validator := range vals {
+		if validator.SupportsStaticValidation() {
+			result, err := validator.StaticValidate(ctx, content, pkgCtx)
+			if err != nil {
+				logger.Debugf("Static validation error for %s: %v", validator.Name(), err)
+				continue
+			}
+			// Collect only major/critical issues that should block approval
+			for _, issue := range result.Issues {
+				if issue.Severity == validators.SeverityCritical || issue.Severity == validators.SeverityMajor {
+					allIssues = append(allIssues, issue)
+				}
+			}
+		}
+	}
+
+	return allIssues
 }

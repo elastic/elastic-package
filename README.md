@@ -700,7 +700,7 @@ If no LLM provider is configured, this command will print instructions for updat
 
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
 - GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode).
 
 ### `elastic-package version`
@@ -798,7 +798,7 @@ If no LLM provider is configured, the command will print manual instructions for
 You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
 
 * `llm.gemini.api_key`: API key for Google Gemini LLM services  
-* `llm.gemini.model`: Gemini model ID (defaults to `gemini-2.5-pro`)
+* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
 * `llm.local.endpoint`: Endpoint URL for local OpenAI-compatible LLM servers
 * `llm.local.model`: Model name for local LLM servers (defaults to `llama2`)
 * `llm.local.api_key`: API key for local LLM servers (optional, if authentication is required)
@@ -1111,7 +1111,7 @@ There are available some environment variables that could be used to change some
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
     - `GEMINI_API_KEY`: API key for Gemini LLM services
-    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-2.5-pro`)
+    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
     - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
     - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)

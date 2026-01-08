@@ -51,7 +51,7 @@ If no LLM provider is configured, this command will print instructions for updat
 
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
 - GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode)`
 
 const (
@@ -176,7 +176,7 @@ const defaultThinkingBudget int32 = 128
 // getGeminiConfig gets Gemini configuration from environment or profile
 func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, thinkingBudget *int32) {
 	apiKey = getConfigValue(profile, "GEMINI_API_KEY", "llm.gemini.api_key", "")
-	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", "gemini-2.5-pro")
+	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", "gemini-3-flash-preview")
 
 	// Get thinking budget - defaults to 128 ("low" mode) for Gemini Pro models
 	budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", "")
