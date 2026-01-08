@@ -436,14 +436,38 @@ func (h *TestHarness) runStagedGeneration(
 						continue
 					}
 
-					// Track iterations per stage
-					stageKey := validator.Stage()
-					if existing, ok := result.StageResults[stageKey]; ok {
-						staticResult.Iterations = existing.Iterations + 1
+					// Track iterations per validator (using name to avoid overwriting when multiple validators share a stage)
+					validatorKey := validator.Stage() // Use stage for backward compatibility with result structure
+					validatorName := validator.Name()
+					
+					// Track iterations by validator name
+					iterKey := validatorName
+					if existing, ok := result.ValidatorIterations[iterKey]; ok {
+						staticResult.Iterations = existing + 1
 					} else {
 						staticResult.Iterations = 1
 					}
-					result.StageResults[stageKey] = staticResult
+					if result.ValidatorIterations == nil {
+						result.ValidatorIterations = make(map[string]int)
+					}
+					result.ValidatorIterations[iterKey] = staticResult.Iterations
+					
+					// Aggregate results for each stage (don't overwrite - merge issues)
+					if existing, ok := result.StageResults[validatorKey]; ok {
+						// Merge issues from this validator into existing stage result
+						existing.Issues = append(existing.Issues, staticResult.Issues...)
+						existing.Warnings = append(existing.Warnings, staticResult.Warnings...)
+						existing.Suggestions = append(existing.Suggestions, staticResult.Suggestions...)
+						if !staticResult.Valid {
+							existing.Valid = false
+						}
+						// Keep the lower score
+						if staticResult.Score < existing.Score {
+							existing.Score = staticResult.Score
+						}
+					} else {
+						result.StageResults[validatorKey] = staticResult
+					}
 
 					status := "✅"
 					if !staticResult.Valid {
@@ -458,7 +482,7 @@ func (h *TestHarness) runStagedGeneration(
 							feedback = append(feedback, feedbackItem)
 						}
 					}
-					fmt.Printf("  %s %s (iter %d): %d issues\n", status, validator.Stage().String(), staticResult.Iterations, len(staticResult.Issues))
+					fmt.Printf("  %s %s [%s] (iter %d): %d issues\n", status, validator.Stage().String(), validatorName, staticResult.Iterations, len(staticResult.Issues))
 				}
 			}
 
@@ -666,7 +690,8 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 
 	// SERVICE INFO LINKS - Vendor documentation
 	if pkgCtx.HasServiceInfoLinks() {
-		sb.WriteString("\n=== VENDOR DOCUMENTATION LINKS (MUST include ALL in documentation) ===\n")
+		sb.WriteString("\n=== VENDOR DOCUMENTATION LINKS (MUST include ALL in documentation - use EXACT URLs) ===\n")
+		sb.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
 		for _, link := range pkgCtx.GetServiceInfoLinks() {
 			sb.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
 		}
@@ -688,16 +713,15 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 	}
 
 	// INSTRUCTIONS
-	sb.WriteString(`
-=== INSTRUCTIONS ===
-1. Use the EXACT section names shown above (## Overview, ## What data does this integration collect?, etc.)
-2. Do NOT rename sections (e.g., don't use "## Setup" instead of "## How do I deploy this integration?")
-3. Include ALL vendor documentation links in appropriate sections
-4. Document ALL data streams listed above
-5. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
-6. Use {{event "datastream"}} and {{fields "datastream"}} placeholders in Reference section
-7. Address EVERY validation issue if any are listed above
-`)
+	sb.WriteString("\n=== INSTRUCTIONS ===\n")
+	sb.WriteString("1. Use the EXACT section names shown above (## Overview, ## What data does this integration collect?, etc.)\n")
+	sb.WriteString("2. Do NOT rename sections (e.g., don't use \"## Setup\" instead of \"## How do I deploy this integration?\")\n")
+	sb.WriteString("3. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
+	sb.WriteString("4. Document ALL data streams listed above\n")
+	sb.WriteString("5. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections\n")
+	sb.WriteString("6. Use {{event \"datastream\"}} and {{fields \"datastream\"}} placeholders in Reference section\n")
+	sb.WriteString("7. Address EVERY validation issue if any are listed above\n")
+	sb.WriteString("8. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
 
 	return sb.String()
 }

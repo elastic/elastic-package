@@ -56,6 +56,9 @@ type StagedWorkflowResult struct {
 	// StageResults holds results for each validation stage
 	StageResults map[validators.ValidatorStage]*validators.StagedValidationResult
 
+	// ValidatorIterations tracks iteration count per validator name
+	ValidatorIterations map[string]int
+
 	// FinalFeedback contains any remaining feedback
 	FinalFeedback string
 }

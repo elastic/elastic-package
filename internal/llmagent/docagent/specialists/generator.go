@@ -91,10 +91,12 @@ Output ONLY the complete markdown document. Do not include any explanation or co
 - Include relevant code examples and configuration snippets where appropriate
 - Use proper markdown formatting
 - If using {{ }} template variables like {{event "datastream"}} or {{fields "datastream"}}, preserve them
+- For code blocks, ALWAYS specify the language (e.g., bash, yaml, json after the triple backticks)
 
 ## CRITICAL
 - Do NOT rename sections (e.g., don't use "## Setup" instead of "## How do I deploy this integration?")
 - Do NOT skip required sections
+- When including URLs from vendor documentation, copy them EXACTLY as provided - do NOT modify, shorten, or rephrase URLs
 - Output the markdown content directly without code block wrappers
 `
 

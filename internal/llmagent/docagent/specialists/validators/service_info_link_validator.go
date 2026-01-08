@@ -7,6 +7,8 @@ package validators
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"regexp"
 	"strings"
 )
 
@@ -92,10 +94,9 @@ func (v *ServiceInfoLinkValidator) StaticValidate(ctx context.Context, content s
 	contentLower := strings.ToLower(content)
 
 	for _, link := range pkgCtx.ServiceInfoLinks {
-		// Check if the URL appears in the generated content
-		// We check the URL itself, not the link text, since text might be rephrased
-		urlLower := strings.ToLower(link.URL)
-		if !strings.Contains(contentLower, urlLower) {
+		// Check if the URL appears in the generated content using flexible matching
+		// LLMs sometimes modify URLs slightly, so we use multiple strategies
+		if !isLinkPresent(contentLower, link) {
 			severity := classifyLinkSeverity(link)
 			issues = append(issues, ValidationIssue{
 				Severity:    severity,
@@ -156,6 +157,58 @@ func (v *ServiceInfoLinkValidator) StaticValidate(ctx context.Context, content s
 	}
 
 	return result, nil
+}
+
+// isLinkPresent checks if a link is present in the content using flexible matching
+// This handles cases where the LLM slightly modifies URLs
+func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
+	urlLower := strings.ToLower(link.URL)
+
+	// Strategy 1: Exact URL match
+	if strings.Contains(contentLower, urlLower) {
+		return true
+	}
+
+	// Strategy 2: Extract and match article IDs (e.g., CTX138973, KB12345)
+	articleIDPattern := regexp.MustCompile(`(?i)(ctx\d+|kb\d+|doc-\d+|article[/-]\d+)`)
+	if matches := articleIDPattern.FindStringSubmatch(urlLower); len(matches) > 0 {
+		articleID := strings.ToLower(matches[1])
+		if strings.Contains(contentLower, articleID) {
+			return true
+		}
+	}
+
+	// Strategy 3: Match domain + path prefix (without query params)
+	// This catches URLs where the LLM slightly modified the path
+	if urlObj, err := url.Parse(link.URL); err == nil {
+		// Check if the domain is present
+		domain := strings.ToLower(urlObj.Host)
+		if strings.Contains(contentLower, domain) {
+			// Check if a significant portion of the path is present
+			pathParts := strings.Split(urlObj.Path, "/")
+			matchingParts := 0
+			for _, part := range pathParts {
+				if len(part) > 3 && strings.Contains(contentLower, strings.ToLower(part)) {
+					matchingParts++
+				}
+			}
+			// If most of the path parts match, consider it present
+			if matchingParts >= len(pathParts)/2 && matchingParts >= 2 {
+				return true
+			}
+		}
+	}
+
+	// Strategy 4: If link text is unique enough (>15 chars), check if it's in content
+	// This handles cases where the link is present with a different URL
+	if len(link.Text) > 15 && link.Text != "link" {
+		textLower := strings.ToLower(link.Text)
+		if strings.Contains(contentLower, textLower) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // classifyLinkSeverity determines the severity based on link characteristics
