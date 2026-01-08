@@ -101,6 +101,135 @@ When the context includes Advanced Settings, you MUST document them properly:
    - Reference Fleet's secret management or environment variables
 5. **Complex Configurations**: Provide YAML/JSON examples for complex settings
 
+## Performance and Scaling Documentation
+The "## Performance and scaling" section is CRITICAL. You MUST provide input-specific guidance based on the inputs used by the integration:
+
+### TCP Input (syslog/tcp)
+- **Fault Tolerance**: TCP provides guaranteed delivery with acknowledgments - suitable for production.
+- **Scaling Guidance**:
+  - Configure multiple TCP listeners on different ports for high availability
+  - Use a load balancer to distribute connections across multiple Elastic Agents
+  - Monitor connection limits on both source systems and the agent
+  - TCP handles backpressure naturally - connections queue when Elasticsearch is slow
+
+### UDP Input (syslog/udp) - CRITICAL WARNINGS REQUIRED
+- **Fault Tolerance**: UDP provides NO delivery guarantee. Data loss WILL occur.
+- **⚠️ CRITICAL**: You MUST include this warning: "UDP does not guarantee message delivery. For production systems requiring data integrity, consider using TCP instead."
+- **Scaling Guidance**:
+  - Increase receive buffer size (SO_RCVBUF) for high-volume environments
+  - Consider multiple agents with DNS round-robin for redundancy
+  - Monitor for packet loss using system metrics
+
+### HTTP JSON Input (httpjson/API polling)
+- **Fault Tolerance**: Built-in retry mechanism with configurable exponential backoff.
+- **Scaling Guidance**:
+  - Adjust polling interval to balance data freshness vs API load
+  - Configure request rate limiting to avoid overwhelming source APIs
+  - Be aware of vendor API rate limits and adjust accordingly
+  - Use pagination for large datasets to avoid timeouts
+
+### Log File Input (logfile/filestream)
+- **Fault Tolerance**: File position tracking in registry survives agent restarts.
+- **Scaling Guidance**:
+  - Use glob patterns to monitor multiple log files efficiently
+  - Configure harvester_limit to control resource usage with many files
+  - Use close_inactive setting to release file handles for rotated logs
+
+### AWS S3 Input
+- **Fault Tolerance**: SQS provides guaranteed delivery with automatic retries.
+- **Scaling Guidance**:
+  - Use SQS notifications instead of polling for efficient, event-driven processing
+  - Configure visibility_timeout based on expected processing time
+  - Use multiple agents consuming from the same SQS queue for horizontal scaling
+  - Configure Dead Letter Queue for failed message handling
+
+### Kafka Input
+- **Fault Tolerance**: Consumer group offsets provide at-least-once delivery.
+- **Scaling Guidance**:
+  - Use consumer groups for horizontal scaling across multiple agents
+  - Ensure partition count allows for desired parallelism
+
+### HTTP Endpoint Input (webhook)
+- **Fault Tolerance**: Returns acknowledgment to sender, enabling retry.
+- **Scaling Guidance**:
+  - Deploy behind a load balancer for high availability
+  - Configure appropriate connection limits and timeouts
+
+### CloudWatch Input
+- **Scaling Guidance**:
+  - Adjust scan_frequency to balance freshness vs CloudWatch API costs
+  - Be aware of CloudWatch API rate limits (10 requests/second by default)
+
+### CEL Input (Common Expression Language)
+- **Fault Tolerance**: Built-in retry mechanism with configurable backoff.
+- **Scaling Guidance**:
+  - Adjust the interval setting to balance data freshness vs source system load
+  - Configure request rate limiting if the source API has rate limits
+  - Use pagination (if supported by the API) for large result sets
+  - Consider the complexity of CEL expressions - simpler expressions perform better
+  - Monitor memory usage for large response payloads
+
+### Azure Event Hub Input
+- **Fault Tolerance**: Consumer groups track offsets; at-least-once delivery.
+- **Scaling Guidance**:
+  - Use consumer groups for horizontal scaling across multiple agents
+  - Ensure partition count allows for desired parallelism
+  - Configure appropriate storage account for checkpointing
+
+### Azure Blob Storage Input
+- **Fault Tolerance**: State tracking prevents duplicate processing.
+- **Scaling Guidance**:
+  - Use Event Grid notifications for efficient, event-driven processing
+  - Configure container name filters to limit scope
+  - Set appropriate poll_interval for polling mode
+
+### GCP Pub/Sub Input
+- **Fault Tolerance**: Pub/Sub provides at-least-once delivery with acknowledgments.
+- **Scaling Guidance**:
+  - Use multiple subscriptions for horizontal scaling
+  - Configure appropriate ack_deadline based on processing time
+  - Monitor subscription backlog for capacity planning
+
+### Google Cloud Storage (GCS) Input
+- **Fault Tolerance**: Tracks processed objects; survives restarts.
+- **Scaling Guidance**:
+  - Use Pub/Sub notifications for event-driven processing
+  - Configure appropriate poll_interval for polling mode
+  - Use bucket prefixes to limit scope
+
+### SQL/Database Input
+- **Fault Tolerance**: Tracks last processed record; survives restarts.
+- **Scaling Guidance**:
+  - Use appropriate sql_query pagination (LIMIT/OFFSET or cursor-based)
+  - Index the tracking column for efficient queries
+  - Configure connection pooling for high-volume scenarios
+
+### Netflow/IPFIX Input
+- **Fault Tolerance**: UDP-based; similar caveats to UDP syslog.
+- **Scaling Guidance**:
+  - Increase receive buffer size for high-volume environments
+  - Consider multiple collectors behind a load balancer
+  - Monitor for packet loss
+
+### Windows Event Log Input (winlog)
+- **Fault Tolerance**: Bookmark tracking ensures no data loss across restarts.
+- **Scaling Guidance**:
+  - Use specific event IDs and channels to limit scope
+  - Configure batch_read_size for optimal throughput
+  - Monitor agent memory usage for high-volume channels
+
+### Journald Input
+- **Fault Tolerance**: Cursor tracking ensures no data loss.
+- **Scaling Guidance**:
+  - Filter by specific systemd units to limit scope
+  - Configure appropriate seek position for initial collection
+
+### Entity Analytics Input
+- **Fault Tolerance**: State tracking for incremental sync.
+- **Scaling Guidance**:
+  - Configure appropriate sync_interval based on data change frequency
+  - Use incremental sync when possible to reduce API calls
+
 ## Guidelines
 - Write clear, concise, and accurate documentation
 - Follow the Elastic documentation style (friendly, direct, use "you")

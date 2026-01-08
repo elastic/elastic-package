@@ -372,6 +372,138 @@ func (v *ScalingValidator) getInputKnowledgeBase() map[string]InputScalingInfo {
 			RequiredTopics:    []string{"azure", "blob"},
 			RecommendedTopics: []string{"event grid", "poll"},
 		},
+		"cel": {
+			InputType:      "cel",
+			DisplayName:    "CEL (Common Expression Language)",
+			FaultTolerance: "Built-in retry mechanism with configurable backoff.",
+			ScalingGuidance: []string{
+				"Adjust the interval setting to balance data freshness vs source system load",
+				"Configure request rate limiting if the source API has rate limits",
+				"Use pagination (if supported by the API) for large result sets",
+				"Consider the complexity of CEL expressions - simpler expressions perform better",
+				"Monitor memory usage for large response payloads",
+			},
+			RequiredTopics:    []string{"cel", "interval"},
+			RecommendedTopics: []string{"rate limit", "pagination", "memory"},
+		},
+		"azure-eventhub": {
+			InputType:      "azure-eventhub",
+			DisplayName:    "Azure Event Hub",
+			FaultTolerance: "Consumer groups track offsets; at-least-once delivery.",
+			ScalingGuidance: []string{
+				"Use consumer groups for horizontal scaling across multiple agents",
+				"Ensure partition count allows for desired parallelism",
+				"Configure appropriate storage account for checkpointing",
+			},
+			RequiredTopics:    []string{"eventhub", "azure"},
+			RecommendedTopics: []string{"consumer", "partition", "checkpoint"},
+		},
+		"gcp-pubsub": {
+			InputType:      "gcp-pubsub",
+			DisplayName:    "GCP Pub/Sub",
+			FaultTolerance: "Pub/Sub provides at-least-once delivery with acknowledgments.",
+			ScalingGuidance: []string{
+				"Use multiple subscriptions for horizontal scaling",
+				"Configure appropriate ack_deadline based on processing time",
+				"Monitor subscription backlog for capacity planning",
+			},
+			RequiredTopics:    []string{"pubsub", "gcp"},
+			RecommendedTopics: []string{"subscription", "ack", "backlog"},
+		},
+		"sql": {
+			InputType:      "sql",
+			DisplayName:    "SQL/Database",
+			FaultTolerance: "Tracks last processed record; survives restarts.",
+			ScalingGuidance: []string{
+				"Use appropriate sql_query pagination (LIMIT/OFFSET or cursor-based)",
+				"Index the tracking column for efficient queries",
+				"Configure connection pooling for high-volume scenarios",
+			},
+			RequiredTopics:    []string{"sql", "database"},
+			RecommendedTopics: []string{"pagination", "index", "connection"},
+		},
+		"netflow": {
+			InputType:        "netflow",
+			DisplayName:      "Netflow/IPFIX",
+			FaultTolerance:   "UDP-based; data loss possible during congestion or restarts.",
+			RecommendTCPOver: false, // No TCP alternative for netflow
+			ScalingGuidance: []string{
+				"Increase receive buffer size for high-volume environments",
+				"Consider multiple collectors behind a load balancer",
+				"Monitor for packet loss",
+			},
+			RequiredTopics:    []string{"netflow"},
+			RecommendedTopics: []string{"buffer", "collector"},
+		},
+		"winlog": {
+			InputType:      "winlog",
+			DisplayName:    "Windows Event Log",
+			FaultTolerance: "Bookmark tracking ensures no data loss across restarts.",
+			ScalingGuidance: []string{
+				"Use specific event IDs and channels to limit scope",
+				"Configure batch_read_size for optimal throughput",
+				"Monitor agent memory usage for high-volume channels",
+			},
+			RequiredTopics:    []string{"windows", "event"},
+			RecommendedTopics: []string{"channel", "batch", "event id"},
+		},
+		"journald": {
+			InputType:      "journald",
+			DisplayName:    "Journald",
+			FaultTolerance: "Cursor tracking ensures no data loss.",
+			ScalingGuidance: []string{
+				"Filter by specific systemd units to limit scope",
+				"Configure appropriate seek position for initial collection",
+			},
+			RequiredTopics:    []string{"journald", "systemd"},
+			RecommendedTopics: []string{"unit", "cursor"},
+		},
+		"entity-analytics": {
+			InputType:      "entity-analytics",
+			DisplayName:    "Entity Analytics",
+			FaultTolerance: "State tracking for incremental sync.",
+			ScalingGuidance: []string{
+				"Configure appropriate sync_interval based on data change frequency",
+				"Use incremental sync when possible to reduce API calls",
+			},
+			RequiredTopics:    []string{"entity", "analytics"},
+			RecommendedTopics: []string{"sync", "incremental"},
+		},
+		"o365audit": {
+			InputType:      "o365audit",
+			DisplayName:    "Office 365 Management Activity API",
+			FaultTolerance: "Content blob tracking ensures no duplicate processing.",
+			ScalingGuidance: []string{
+				"Configure appropriate interval based on audit log volume",
+				"Be aware of Office 365 API throttling limits",
+				"Use content type filters to limit scope",
+			},
+			RequiredTopics:    []string{"o365", "office"},
+			RecommendedTopics: []string{"throttle", "content type"},
+		},
+		"cloudfoundry": {
+			InputType:      "cloudfoundry",
+			DisplayName:    "Cloud Foundry",
+			FaultTolerance: "Tracks last received event.",
+			ScalingGuidance: []string{
+				"Configure appropriate shard_id for multi-agent deployments",
+				"Use app filters to limit scope",
+			},
+			RequiredTopics:    []string{"cloudfoundry"},
+			RecommendedTopics: []string{"shard", "app"},
+		},
+		"lumberjack": {
+			InputType:      "lumberjack",
+			DisplayName:    "Lumberjack (Beats protocol)",
+			FaultTolerance: "Beats protocol provides acknowledgments.",
+			ScalingGuidance: []string{
+				"Deploy behind a load balancer for high availability",
+				"Configure appropriate connection limits",
+				"Monitor queue depth on sending Beats",
+			},
+			RequiredTopics:    []string{"lumberjack", "beats"},
+			RecommendedTopics: []string{"load balancer", "queue"},
+		},
 	}
 }
 

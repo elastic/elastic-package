@@ -61,6 +61,12 @@ type StagedWorkflowResult struct {
 
 	// FinalFeedback contains any remaining feedback
 	FinalFeedback string
+
+	// IssueHistory tracks critical/major issue counts per iteration (for convergence analysis)
+	IssueHistory []int
+
+	// ConvergenceBonus indicates if an extra iteration was granted due to convergence
+	ConvergenceBonus bool
 }
 
 // StagedWorkflowBuilder builds and executes staged validation workflows
@@ -215,7 +221,12 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 	var lastResult *validators.StagedValidationResult
 	iterations := 0
 
-	for iteration := uint(0); iteration < b.stagedCfg.MaxIterationsPerStage; iteration++ {
+	// Track issue counts for convergence detection
+	issueHistory := make([]int, 0, int(b.stagedCfg.MaxIterationsPerStage)+1)
+	extraIterationAllowed := true
+	effectiveMaxIterations := b.stagedCfg.MaxIterationsPerStage
+
+	for iteration := uint(0); iteration < effectiveMaxIterations; iteration++ {
 		iterations++
 
 		// Run static validation first (if enabled and supported)
@@ -267,13 +278,28 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 			}
 		}
 
+		// Track issue count for convergence detection
+		issueCount := countCriticalMajorIssues(lastResult)
+		issueHistory = append(issueHistory, issueCount)
+
 		// If validation passed, we're done with this stage
 		if lastResult.Valid {
 			return lastResult, content, iterations, nil
 		}
 
+		// Check for convergence: are issues decreasing?
+		isConverging := false
+		if len(issueHistory) >= 2 {
+			prevIssues := issueHistory[len(issueHistory)-2]
+			currIssues := issueHistory[len(issueHistory)-1]
+			isConverging = currIssues < prevIssues
+			if isConverging {
+				logger.Debugf("Issue count decreasing: %d → %d (converging)", prevIssues, currIssues)
+			}
+		}
+
 		// If not the last iteration, regenerate with feedback
-		if iteration < b.stagedCfg.MaxIterationsPerStage-1 {
+		if iteration < effectiveMaxIterations-1 {
 			feedback := lastResult.GetFeedbackForGenerator()
 			newContent, err := b.runGenerator(ctx, sectionCtx, &feedback)
 			if err != nil {
@@ -285,10 +311,37 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 			if b.stagedCfg.SnapshotManager != nil {
 				b.stagedCfg.SnapshotManager.SaveSnapshot(content, validator.Stage().String()+"_regen", int(iteration), lastResult)
 			}
+		} else if iteration == b.stagedCfg.MaxIterationsPerStage-1 && isConverging && extraIterationAllowed && issueCount > 0 {
+			// Allow one extra iteration if we're converging but haven't hit zero
+			effectiveMaxIterations = b.stagedCfg.MaxIterationsPerStage + 1
+			extraIterationAllowed = false
+			logger.Debugf("Converging but not yet at zero issues (%d remaining). Allowing bonus iteration for %s", issueCount, validator.Name())
+
+			// Regenerate with feedback for bonus iteration
+			feedback := lastResult.GetFeedbackForGenerator()
+			newContent, err := b.runGenerator(ctx, sectionCtx, &feedback)
+			if err != nil {
+				return lastResult, content, iterations, fmt.Errorf("regeneration failed: %w", err)
+			}
+			content = newContent
 		}
 	}
 
 	return lastResult, content, iterations, nil
+}
+
+// countCriticalMajorIssues counts the number of critical and major issues in a result
+func countCriticalMajorIssues(result *validators.StagedValidationResult) int {
+	if result == nil {
+		return 0
+	}
+	count := 0
+	for _, issue := range result.Issues {
+		if issue.Severity == validators.SeverityCritical || issue.Severity == validators.SeverityMajor {
+			count++
+		}
+	}
+	return count
 }
 
 // runGenerator executes the generator agent

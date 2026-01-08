@@ -104,6 +104,12 @@ type TestResult struct {
 	// TotalIterations across all stages
 	TotalIterations int `json:"total_iterations"`
 
+	// IssueHistory tracks critical/major issue counts per iteration (for convergence analysis)
+	IssueHistory []int `json:"issue_history,omitempty"`
+
+	// ConvergenceBonus indicates if an extra iteration was granted due to convergence
+	ConvergenceBonus bool `json:"convergence_bonus,omitempty"`
+
 	// ValidationSummary provides a quick overview of validation results
 	ValidationSummary *ValidationSummary `json:"validation_summary,omitempty"`
 
@@ -300,6 +306,8 @@ func (h *TestHarness) RunTest(ctx context.Context, packageName string, cfg TestC
 		result.GeneratedContent = generatedContent
 		result.Approved = workflowResult.Approved
 		result.TotalIterations = workflowResult.TotalIterations
+		result.IssueHistory = workflowResult.IssueHistory
+		result.ConvergenceBonus = workflowResult.ConvergenceBonus
 
 		// Convert stage results with full details
 		for stage, stageRes := range workflowResult.StageResults {
@@ -402,11 +410,20 @@ func (h *TestHarness) runStagedGeneration(
 			logger.Debugf("Failed to initialize tracing: %v", err)
 		}
 
+		// Track issue counts across iterations for convergence detection
+		issueHistory := make([]int, 0, int(maxIterations)+1)
+		extraIterationAllowed := true // Allow one extra iteration if converging
+		effectiveMaxIterations := maxIterations
+
 		// Feedback loop: generate -> validate -> regenerate with feedback
-		for iteration := uint(1); iteration <= maxIterations; iteration++ {
+		for iteration := uint(1); iteration <= effectiveMaxIterations; iteration++ {
 			result.TotalIterations = int(iteration)
 
-			fmt.Printf("🤖 Generating documentation with LLM (model: %s, iteration %d/%d)...\n", cfg.ModelID, iteration, maxIterations)
+			iterationLabel := fmt.Sprintf("%d/%d", iteration, maxIterations)
+			if iteration > maxIterations {
+				iterationLabel = fmt.Sprintf("%d (bonus - converging)", iteration)
+			}
+			fmt.Printf("🤖 Generating documentation with LLM (model: %s, iteration %s)...\n", cfg.ModelID, iterationLabel)
 
 			// Generate documentation using workflow (with feedback if available)
 			generatedContent, err := h.runLLMGenerationWithFeedback(ctx, pkgCtx, cfg, feedback)
@@ -486,18 +503,52 @@ func (h *TestHarness) runStagedGeneration(
 				}
 			}
 
+			// Count critical and major issues for this iteration
+			iterationIssueCount := 0
+			for _, stageResult := range result.StageResults {
+				for _, issue := range stageResult.Issues {
+					if issue.Severity == validators.SeverityCritical || issue.Severity == validators.SeverityMajor {
+						iterationIssueCount++
+					}
+				}
+			}
+			issueHistory = append(issueHistory, iterationIssueCount)
+
 			if allValid {
 				fmt.Printf("✅ All validations passed after %d iteration(s)!\n", iteration)
 				result.Approved = true
 				break
 			}
 
-			if iteration < maxIterations {
+			// Check for convergence: are issues decreasing?
+			isConverging := false
+			if len(issueHistory) >= 2 {
+				prevIssues := issueHistory[len(issueHistory)-2]
+				currIssues := issueHistory[len(issueHistory)-1]
+				isConverging = currIssues < prevIssues
+				if isConverging {
+					fmt.Printf("📉 Issue count decreasing: %d → %d (converging)\n", prevIssues, currIssues)
+				}
+			}
+
+			if iteration < effectiveMaxIterations {
 				fmt.Printf("🔄 Regenerating with %d feedback items...\n", len(feedback))
+			} else if iteration == maxIterations && isConverging && extraIterationAllowed && iterationIssueCount > 0 {
+				// Allow one extra iteration if we're converging but haven't hit zero
+				effectiveMaxIterations = maxIterations + 1
+				extraIterationAllowed = false // Only allow one extra
+				result.ConvergenceBonus = true
+				fmt.Printf("📈 Converging but not yet at zero issues (%d remaining). Allowing bonus iteration...\n", iterationIssueCount)
 			} else {
-				fmt.Printf("⚠️ Max iterations (%d) reached. Some validations still failing.\n", maxIterations)
+				fmt.Printf("⚠️ Max iterations (%d) reached. %d critical/major issues remaining.\n", iteration, iterationIssueCount)
 				result.Approved = false
 			}
+		}
+
+		// Save issue history for convergence analysis
+		result.IssueHistory = issueHistory
+		if len(issueHistory) > 1 {
+			fmt.Printf("📊 Issue convergence history: %v\n", issueHistory)
 		}
 	} else {
 		// Use existing README content for static-only testing
@@ -709,6 +760,12 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 		sb.WriteString(advSettingsContext)
 	}
 
+	// SCALING GUIDANCE - Input-specific performance and scaling recommendations
+	scalingGuidance := buildScalingGuidance(pkgCtx)
+	if scalingGuidance != "" {
+		sb.WriteString(scalingGuidance)
+	}
+
 	// VALIDATION FEEDBACK - If there's feedback from previous iterations
 	if len(feedback) > 0 {
 		sb.WriteString("\n=== CRITICAL: VALIDATION ISSUES TO FIX ===\n")
@@ -729,6 +786,212 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 	sb.WriteString("8. Address EVERY validation issue if any are listed above\n")
 	sb.WriteString("9. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
 	sb.WriteString("10. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")
+
+	return sb.String()
+}
+
+// buildScalingGuidance generates input-specific scaling guidance based on the package's inputs
+func buildScalingGuidance(pkgCtx *validators.PackageContext) string {
+	if pkgCtx == nil || pkgCtx.Manifest == nil {
+		return ""
+	}
+
+	// Extract unique input types from policy templates
+	inputTypes := make(map[string]bool)
+	for _, pt := range pkgCtx.Manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			if input.Type != "" {
+				inputTypes[input.Type] = true
+			}
+		}
+	}
+
+	if len(inputTypes) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n=== PERFORMANCE AND SCALING GUIDANCE (include this in ## Performance and scaling section) ===\n")
+	sb.WriteString("Based on the inputs used by this integration, include the following guidance:\n\n")
+
+	// Knowledge base for each input type
+	inputGuidance := map[string]string{
+		"tcp": `### TCP/Syslog Input
+- **Fault Tolerance**: TCP provides guaranteed delivery with acknowledgments - suitable for production environments.
+- **Scaling**:
+  - Configure multiple TCP listeners on different ports for high availability
+  - Use a load balancer to distribute connections across multiple Elastic Agents
+  - Monitor connection limits on both source systems and the agent
+  - TCP handles backpressure naturally - connections queue when Elasticsearch is slow
+`,
+		"udp": `### UDP/Syslog Input
+- **⚠️ CRITICAL WARNING**: UDP does not guarantee message delivery. Data loss WILL occur during network congestion, agent restarts, or Elasticsearch backpressure. For production systems requiring data integrity, consider using TCP instead.
+- **Scaling**:
+  - Increase receive buffer size (SO_RCVBUF) for high-volume environments
+  - Consider multiple agents with DNS round-robin for redundancy
+  - Monitor for packet loss using system metrics
+`,
+		"httpjson": `### HTTP JSON/API Polling Input
+- **Fault Tolerance**: Built-in retry mechanism with configurable exponential backoff handles transient failures.
+- **Scaling**:
+  - Adjust the polling interval to balance data freshness vs API load
+  - Configure request rate limiting to avoid overwhelming source APIs
+  - Be aware of vendor API rate limits and adjust accordingly
+  - Use pagination for large datasets to avoid timeouts
+  - Configure appropriate request timeouts for your environment
+`,
+		"logfile": `### Log File Input
+- **Fault Tolerance**: File position tracking in registry survives agent restarts, ensuring no data loss.
+- **Scaling**:
+  - Use glob patterns to monitor multiple log files efficiently
+  - Configure harvester_limit to control resource usage with many files
+  - Use close_inactive setting to release file handles for rotated logs
+  - Set appropriate ignore_older to skip processing of old log files
+`,
+		"filestream": `### Filestream Input
+- **Fault Tolerance**: State tracking ensures no data loss across agent restarts.
+- **Scaling**:
+  - Use prospector configurations for efficient file discovery
+  - Configure fingerprint-based file identity for rotated logs
+  - Set appropriate close.on_state_change settings
+`,
+		"aws-s3": `### AWS S3 Input
+- **Fault Tolerance**: When used with SQS notifications, provides guaranteed delivery with automatic retries. Failed messages go to Dead Letter Queue.
+- **Scaling**:
+  - Use SQS notifications instead of polling for more efficient, event-driven processing
+  - Configure visibility_timeout based on expected processing time
+  - Adjust max_number_of_messages for optimal batch size
+  - Use multiple agents consuming from the same SQS queue for horizontal scaling
+  - Configure Dead Letter Queue for failed message handling
+`,
+		"kafka": `### Kafka Input
+- **Fault Tolerance**: Consumer group offsets provide at-least-once delivery semantics.
+- **Scaling**:
+  - Use consumer groups for horizontal scaling across multiple agents
+  - Ensure partition count allows for desired parallelism
+  - Configure appropriate fetch.min.bytes and fetch.wait.max for throughput
+`,
+		"http_endpoint": `### HTTP Endpoint (Webhook) Input
+- **Fault Tolerance**: Returns acknowledgment to sender, enabling retry on the sender side.
+- **Scaling**:
+  - Deploy behind a load balancer for high availability
+  - Configure appropriate connection limits and timeouts
+  - Monitor response times to ensure senders don't timeout
+`,
+		"aws-cloudwatch": `### AWS CloudWatch Input
+- **Fault Tolerance**: CloudWatch provides durable log storage; integration polls for new data.
+- **Scaling**:
+  - Adjust scan_frequency to balance freshness vs CloudWatch API costs
+  - Use log_group_name_prefix to limit scope and reduce API calls
+  - Be aware of CloudWatch API rate limits (10 requests/second by default)
+  - Consider regional deployment to reduce cross-region data transfer
+`,
+		"gcs": `### Google Cloud Storage Input
+- **Fault Tolerance**: Tracks processed objects; survives restarts.
+- **Scaling**:
+  - Use Pub/Sub notifications for event-driven processing
+  - Configure appropriate poll_interval for polling mode
+  - Use bucket prefixes to limit scope
+`,
+		"azure-blob-storage": `### Azure Blob Storage Input
+- **Fault Tolerance**: State tracking prevents duplicate processing.
+- **Scaling**:
+  - Use Event Grid notifications for efficient, event-driven processing
+  - Configure container name filters to limit scope
+  - Set appropriate poll_interval for polling mode
+`,
+		"cel": `### CEL Input (Common Expression Language)
+- **Fault Tolerance**: Built-in retry mechanism with configurable backoff.
+- **Scaling**:
+  - Adjust the interval setting to balance data freshness vs source system load
+  - Configure request rate limiting if the source API has rate limits
+  - Use pagination (if supported by the API) for large result sets
+  - Consider the complexity of CEL expressions - simpler expressions perform better
+  - Monitor memory usage for large response payloads
+`,
+		"azure-eventhub": `### Azure Event Hub Input
+- **Fault Tolerance**: Consumer groups track offsets; at-least-once delivery.
+- **Scaling**:
+  - Use consumer groups for horizontal scaling across multiple agents
+  - Ensure partition count allows for desired parallelism
+  - Configure appropriate storage account for checkpointing
+`,
+		"gcp-pubsub": `### GCP Pub/Sub Input
+- **Fault Tolerance**: Pub/Sub provides at-least-once delivery with acknowledgments.
+- **Scaling**:
+  - Use multiple subscriptions for horizontal scaling
+  - Configure appropriate ack_deadline based on processing time
+  - Monitor subscription backlog for capacity planning
+`,
+		"sql": `### SQL/Database Input
+- **Fault Tolerance**: Tracks last processed record; survives restarts.
+- **Scaling**:
+  - Use appropriate sql_query pagination (LIMIT/OFFSET or cursor-based)
+  - Index the tracking column for efficient queries
+  - Configure connection pooling for high-volume scenarios
+`,
+		"netflow": `### Netflow/IPFIX Input
+- **Fault Tolerance**: UDP-based; similar caveats to UDP syslog - data loss possible.
+- **Scaling**:
+  - Increase receive buffer size for high-volume environments
+  - Consider multiple collectors behind a load balancer
+  - Monitor for packet loss
+`,
+		"winlog": `### Windows Event Log Input
+- **Fault Tolerance**: Bookmark tracking ensures no data loss across restarts.
+- **Scaling**:
+  - Use specific event IDs and channels to limit scope
+  - Configure batch_read_size for optimal throughput
+  - Monitor agent memory usage for high-volume channels
+`,
+		"journald": `### Journald Input
+- **Fault Tolerance**: Cursor tracking ensures no data loss.
+- **Scaling**:
+  - Filter by specific systemd units to limit scope
+  - Configure appropriate seek position for initial collection
+`,
+		"entity-analytics": `### Entity Analytics Input
+- **Fault Tolerance**: State tracking for incremental sync.
+- **Scaling**:
+  - Configure appropriate sync_interval based on data change frequency
+  - Use incremental sync when possible to reduce API calls
+`,
+		"o365audit": `### Office 365 Management Activity API Input
+- **Fault Tolerance**: Content blob tracking ensures no duplicate processing.
+- **Scaling**:
+  - Configure appropriate interval based on audit log volume
+  - Be aware of Office 365 API throttling limits
+  - Use content type filters to limit scope
+`,
+		"cloudfoundry": `### Cloud Foundry Input
+- **Fault Tolerance**: Tracks last received event.
+- **Scaling**:
+  - Configure appropriate shard_id for multi-agent deployments
+  - Use app filters to limit scope
+`,
+		"lumberjack": `### Lumberjack Input (Beats protocol)
+- **Fault Tolerance**: Beats protocol provides acknowledgments.
+- **Scaling**:
+  - Deploy behind a load balancer for high availability
+  - Configure appropriate connection limits
+  - Monitor queue depth on sending Beats
+`,
+	}
+
+	// Add guidance for each input type used
+	for inputType := range inputTypes {
+		if guidance, ok := inputGuidance[inputType]; ok {
+			sb.WriteString(guidance)
+			sb.WriteString("\n")
+		}
+	}
+
+	// Add general guidance
+	sb.WriteString(`### General Scaling Recommendations
+- Monitor Elastic Agent resource usage (CPU, memory) under production load
+- Consider deploying multiple agents for high-volume environments
+- Review and tune Elasticsearch ingest pipelines for optimal throughput
+`)
 
 	return sb.String()
 }
