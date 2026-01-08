@@ -142,6 +142,9 @@ type StagedValidator interface {
 
 	// SupportsStaticValidation returns true if this validator has static checks
 	SupportsStaticValidation() bool
+
+	// Instruction returns the LLM instruction for this validator
+	Instruction() string
 }
 
 // BaseStagedValidator provides common functionality for staged validators
@@ -193,6 +196,11 @@ func (v *BaseStagedValidator) StaticValidate(ctx context.Context, content string
 // SupportsStaticValidation default implementation returns false
 func (v *BaseStagedValidator) SupportsStaticValidation() bool {
 	return false
+}
+
+// Instruction returns the LLM instruction for this validator
+func (v *BaseStagedValidator) Instruction() string {
+	return v.instruction
 }
 
 // LLMValidationResult is the expected JSON output from LLM validators

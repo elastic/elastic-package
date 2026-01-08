@@ -160,7 +160,7 @@ func (v *ServiceInfoLinkValidator) StaticValidate(ctx context.Context, content s
 }
 
 // isLinkPresent checks if a link is present in the content using flexible matching
-// This handles cases where the LLM slightly modifies URLs
+// This handles cases where the LLM slightly modifies URLs or uses different link text
 func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 	urlLower := strings.ToLower(link.URL)
 
@@ -178,33 +178,95 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 		}
 	}
 
-	// Strategy 3: Match domain + path prefix (without query params)
-	// This catches URLs where the LLM slightly modified the path
+	// Strategy 3: Match domain + path components (more lenient)
 	if urlObj, err := url.Parse(link.URL); err == nil {
-		// Check if the domain is present
 		domain := strings.ToLower(urlObj.Host)
+		
+		// Check if domain is present
 		if strings.Contains(contentLower, domain) {
-			// Check if a significant portion of the path is present
+			// Extract meaningful path parts (skip common ones)
 			pathParts := strings.Split(urlObj.Path, "/")
-			matchingParts := 0
+			skipParts := map[string]bool{
+				"en": true, "us": true, "current": true, "release": true,
+				"latest": true, "12.0": true, "projects": true, "s": true,
+				"article": true, "docs": true, "v1": true, "api": true,
+			}
+			
+			meaningfulParts := 0
+			matchedParts := 0
 			for _, part := range pathParts {
-				if len(part) > 3 && strings.Contains(contentLower, strings.ToLower(part)) {
-					matchingParts++
+				part = strings.ToLower(part)
+				if len(part) > 3 && !skipParts[part] {
+					meaningfulParts++
+					// Normalize part for comparison (replace - with space)
+					normalizedPart := strings.ReplaceAll(part, "-", " ")
+					if strings.Contains(contentLower, part) || strings.Contains(contentLower, normalizedPart) {
+						matchedParts++
+					}
 				}
 			}
-			// If most of the path parts match, consider it present
-			if matchingParts >= len(pathParts)/2 && matchingParts >= 2 {
+			
+			// If at least one meaningful path part matches, consider it found
+			if matchedParts >= 1 {
 				return true
 			}
 		}
 	}
 
-	// Strategy 4: If link text is unique enough (>15 chars), check if it's in content
-	// This handles cases where the link is present with a different URL
-	if len(link.Text) > 15 && link.Text != "link" {
+	// Strategy 4: If link text is meaningful, check variations
+	if len(link.Text) > 10 && strings.ToLower(link.Text) != "link" {
 		textLower := strings.ToLower(link.Text)
+		
+		// Direct match
 		if strings.Contains(contentLower, textLower) {
 			return true
+		}
+		
+		// Check for key words from the link text (ignore common filler words)
+		fillerWords := map[string]bool{
+			"the": true, "a": true, "an": true, "to": true, "and": true,
+			"of": true, "in": true, "for": true, "en": true, "us": true,
+			"current": true, "release": true, "docs": true, "how": true,
+		}
+		
+		words := strings.Fields(textLower)
+		meaningfulWords := 0
+		matchedWords := 0
+		for _, word := range words {
+			word = strings.Trim(word, ".,;:!?")
+			if len(word) > 3 && !fillerWords[word] {
+				meaningfulWords++
+				if strings.Contains(contentLower, word) {
+					matchedWords++
+				}
+			}
+		}
+		
+		// If most meaningful words match, consider it found
+		if meaningfulWords > 0 && matchedWords >= (meaningfulWords+1)/2 {
+			return true
+		}
+	}
+
+	// Strategy 5: Extract key identifier from URL path and check content
+	// For URLs like ".../netscaler-syslog-message-reference/..." check for "syslog message reference"
+	if urlObj, err := url.Parse(link.URL); err == nil {
+		pathParts := strings.Split(urlObj.Path, "/")
+		for _, part := range pathParts {
+			if len(part) > 15 { // Significant path component
+				normalized := strings.ReplaceAll(strings.ToLower(part), "-", " ")
+				if strings.Contains(contentLower, normalized) {
+					return true
+				}
+				// Also check if the normalized version with common words removed is present
+				words := strings.Fields(normalized)
+				if len(words) >= 2 {
+					keyPhrase := strings.Join(words[:min(3, len(words))], " ")
+					if strings.Contains(contentLower, keyPhrase) {
+						return true
+					}
+				}
+			}
 		}
 	}
 

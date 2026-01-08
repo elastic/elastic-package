@@ -63,6 +63,9 @@ const (
 
 	docTestFlagClearResults     = "clear-results"
 	docTestFlagClearResultsDesc = "Clear previous results from output directory before running tests (default: true)"
+
+	docTestFlagParallel     = "parallel"
+	docTestFlagParallelDesc = "Number of integrations to process in parallel in batch mode (default: 1)"
 )
 
 func getTestRunnerDocumentationCommand() *cobra.Command {
@@ -111,6 +114,7 @@ Examples:
 	cmd.Flags().Bool(docTestFlagEnableLLM, false, docTestFlagEnableLLMDesc)
 	cmd.Flags().String(docTestFlagModelID, "gemini-3-flash-preview", docTestFlagModelIDDesc)
 	cmd.Flags().Bool(docTestFlagClearResults, true, docTestFlagClearResultsDesc)
+	cmd.Flags().Int(docTestFlagParallel, 1, docTestFlagParallelDesc)
 
 	return cmd
 }
@@ -174,6 +178,14 @@ func testRunnerDocumentationCommandAction(cmd *cobra.Command, args []string) err
 		return cobraext.FlagParsingError(err, docTestFlagClearResults)
 	}
 
+	parallelism, err := cmd.Flags().GetInt(docTestFlagParallel)
+	if err != nil {
+		return cobraext.FlagParsingError(err, docTestFlagParallel)
+	}
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
 	// Determine integrations path
 	if integrationsPath == "" {
 		integrationsPath = os.Getenv("INTEGRATIONS_PATH")
@@ -235,6 +247,7 @@ func testRunnerDocumentationCommandAction(cmd *cobra.Command, args []string) err
 		APIKey:                 apiKey,
 		ModelID:                modelID,
 		EnableTracing:          enableTracing,
+		Parallelism:            parallelism,
 	}
 
 	// Handle create-golden mode
@@ -249,7 +262,11 @@ func testRunnerDocumentationCommandAction(cmd *cobra.Command, args []string) err
 			packageList[i] = strings.TrimSpace(packageList[i])
 		}
 
-		fmt.Printf("Running batch documentation test for %d packages: %s\n", len(packageList), batchPackages)
+		if parallelism > 1 {
+			fmt.Printf("Running batch documentation test for %d packages (parallel: %d): %s\n", len(packageList), parallelism, batchPackages)
+		} else {
+			fmt.Printf("Running batch documentation test for %d packages: %s\n", len(packageList), batchPackages)
+		}
 
 		batchResult, err := harness.RunBatchTests(ctx, packageList, testCfg)
 		if err != nil {

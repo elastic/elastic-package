@@ -49,6 +49,9 @@ type Config struct {
 	// EnableStaticValidation enables static validators that check against package files
 	EnableStaticValidation bool
 
+	// EnableLLMValidation enables LLM-based validation using validator instructions
+	EnableLLMValidation bool
+
 	// PackageContext provides package metadata for static validation
 	PackageContext *validators.PackageContext
 }
@@ -103,6 +106,20 @@ func (c Config) WithRegistry(r *specialists.Registry) Config {
 // WithStaticValidation enables static validators with the given package context
 func (c Config) WithStaticValidation(pkgCtx *validators.PackageContext) Config {
 	c.EnableStaticValidation = true
+	c.PackageContext = pkgCtx
+	return c
+}
+
+// WithLLMValidation enables LLM-based validation using validator instructions
+func (c Config) WithLLMValidation(enabled bool) Config {
+	c.EnableLLMValidation = enabled
+	return c
+}
+
+// WithFullValidation enables both static and LLM validation
+func (c Config) WithFullValidation(pkgCtx *validators.PackageContext) Config {
+	c.EnableStaticValidation = true
+	c.EnableLLMValidation = true
 	c.PackageContext = pkgCtx
 	return c
 }

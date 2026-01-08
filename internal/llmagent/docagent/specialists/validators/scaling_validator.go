@@ -507,6 +507,63 @@ func (v *ScalingValidator) getInputKnowledgeBase() map[string]InputScalingInfo {
 	}
 }
 
+// isInputMentioned checks if an input type is mentioned in the section content
+// using flexible matching to handle variations in naming
+func isInputMentioned(sectionLower, inputType, displayName string) bool {
+	// Strategy 1: Direct input type match (e.g., "httpjson", "tcp", "udp")
+	if strings.Contains(sectionLower, inputType) {
+		return true
+	}
+
+	// Strategy 2: Display name match (case-insensitive)
+	displayNameLower := strings.ToLower(displayName)
+	if strings.Contains(sectionLower, displayNameLower) {
+		return true
+	}
+
+	// Strategy 3: Normalize special characters and retry
+	// Replace "/" with " " or "-" and check again
+	normalizedDisplay := strings.ReplaceAll(displayNameLower, "/", " ")
+	if strings.Contains(sectionLower, normalizedDisplay) {
+		return true
+	}
+	normalizedDisplay = strings.ReplaceAll(displayNameLower, "/", "-")
+	if strings.Contains(sectionLower, normalizedDisplay) {
+		return true
+	}
+
+	// Strategy 4: Check for key words from display name
+	// For "HTTP JSON/API Polling", check if "http json" and ("api" or "polling") are present
+	words := strings.Fields(strings.ReplaceAll(strings.ReplaceAll(displayNameLower, "/", " "), "-", " "))
+	matchedWords := 0
+	for _, word := range words {
+		if len(word) > 2 && strings.Contains(sectionLower, word) {
+			matchedWords++
+		}
+	}
+	// If most words (>50%) are present, consider it a match
+	if len(words) > 0 && matchedWords >= (len(words)+1)/2 {
+		return true
+	}
+
+	// Strategy 5: Common variations
+	variations := map[string][]string{
+		"httpjson": {"http json", "http-json", "http/json", "api polling", "json api"},
+		"tcp":      {"tcp syslog", "tcp/syslog", "syslog tcp"},
+		"udp":      {"udp syslog", "udp/syslog", "syslog udp"},
+		"logfile":  {"log file", "file input", "log input"},
+	}
+	if alts, ok := variations[inputType]; ok {
+		for _, alt := range alts {
+			if strings.Contains(sectionLower, alt) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // extractScalingSection extracts the Performance and scaling section content
 func (v *ScalingValidator) extractScalingSection(content string) string {
 	contentLower := strings.ToLower(content)
@@ -577,10 +634,9 @@ func (v *ScalingValidator) validateScalingContent(section string, scalingInfos [
 
 		// Check for required topics - more lenient check
 		// Only flag as major if the input type itself isn't mentioned
-		inputMentioned := strings.Contains(sectionLower, info.InputType)
-		displayNameMentioned := strings.Contains(sectionLower, strings.ToLower(info.DisplayName))
+		inputMentioned := isInputMentioned(sectionLower, info.InputType, info.DisplayName)
 
-		if !inputMentioned && !displayNameMentioned {
+		if !inputMentioned {
 			issues = append(issues, ValidationIssue{
 				Severity:    SeverityMajor,
 				Category:    CategoryCompleteness,

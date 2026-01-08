@@ -13,10 +13,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/adk/agent"
+	"google.golang.org/adk/agent/llmagent"
+	"google.golang.org/adk/model"
 	"google.golang.org/adk/model/gemini"
+	"google.golang.org/adk/runner"
+	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
@@ -55,6 +61,9 @@ type TestConfig struct {
 
 	// ModelID is the LLM model to use (defaults to gemini-3-flash-preview)
 	ModelID string
+
+	// Parallelism is the number of integrations to process in parallel (default: 1)
+	Parallelism int
 }
 
 // DefaultTestConfig returns a test configuration with sensible defaults
@@ -70,6 +79,7 @@ func DefaultTestConfig() TestConfig {
 		EnableLLM:              apiKey != "",
 		APIKey:                 apiKey,
 		ModelID:                "gemini-3-flash-preview",
+		Parallelism:            1,
 	}
 }
 
@@ -600,6 +610,27 @@ func (h *TestHarness) runStagedGeneration(
 				}
 			}
 
+			// Run LLM validation if static validation passed and LLM is enabled
+			if allValid && cfg.EnableLLM {
+				llmIssues := h.runLLMValidation(ctx, content, pkgCtx, cfg)
+				if len(llmIssues) > 0 {
+					fmt.Printf("🧠 LLM validation found %d issues\n", len(llmIssues))
+					allValid = false
+					for _, issue := range llmIssues {
+						feedbackItem := fmt.Sprintf("[LLM:%s] %s: %s", issue.Category, issue.Location, issue.Message)
+						if issue.Suggestion != "" {
+							feedbackItem += fmt.Sprintf(" → FIX: %s", issue.Suggestion)
+						}
+						feedback = append(feedback, feedbackItem)
+					}
+					// Add LLM issues to stage results
+					if result.StageResults[validators.StageAccuracy] != nil {
+						result.StageResults[validators.StageAccuracy].Issues = append(
+							result.StageResults[validators.StageAccuracy].Issues, llmIssues...)
+					}
+				}
+			}
+
 			// Count critical and major issues for this iteration
 			iterationIssueCount := 0
 			for _, stageResult := range result.StageResults {
@@ -702,11 +733,12 @@ func (h *TestHarness) runLLMGeneration(ctx context.Context, pkgCtx *validators.P
 		return "", fmt.Errorf("failed to create Gemini model: %w", err)
 	}
 
-	// Build workflow configuration
+	// Build workflow configuration with full validation (static + LLM)
 	workflowCfg := workflow.DefaultConfig().
 		WithModel(llmModel).
 		WithModelID(modelID).
-		WithMaxIterations(cfg.MaxIterationsPerStage)
+		WithMaxIterations(cfg.MaxIterationsPerStage).
+		WithFullValidation(pkgCtx) // Enable both static and LLM validation
 
 	// Create section context for generation
 	sectionCtx := validators.SectionContext{
@@ -746,11 +778,12 @@ func (h *TestHarness) runLLMGenerationWithFeedback(ctx context.Context, pkgCtx *
 		return "", fmt.Errorf("failed to create Gemini model: %w", err)
 	}
 
-	// Build workflow configuration
+	// Build workflow configuration with full validation (static + LLM)
 	workflowCfg := workflow.DefaultConfig().
 		WithModel(llmModel).
 		WithModelID(modelID).
-		WithMaxIterations(cfg.MaxIterationsPerStage)
+		WithMaxIterations(cfg.MaxIterationsPerStage).
+		WithFullValidation(pkgCtx) // Enable both static and LLM validation
 
 	// Create section context for generation
 	sectionCtx := validators.SectionContext{
@@ -882,7 +915,7 @@ func mergeAndDeduplicateStrings(existing, new []string) []string {
 	return result
 }
 
-// RunBatchTests executes tests for multiple packages
+// RunBatchTests executes tests for multiple packages, optionally in parallel
 func (h *TestHarness) RunBatchTests(ctx context.Context, packageNames []string, cfg TestConfig) (*BatchResult, error) {
 	startTime := time.Now()
 	runID := fmt.Sprintf("batch_%s", startTime.Format("20060102_150405"))
@@ -893,14 +926,26 @@ func (h *TestHarness) RunBatchTests(ctx context.Context, packageNames []string, 
 		Results:   make([]*TestResult, 0, len(packageNames)),
 	}
 
-	logger.Debugf("Starting batch test %s for %d packages", runID, len(packageNames))
+	// Determine parallelism (default to 1 if not set)
+	parallelism := cfg.Parallelism
+	if parallelism < 1 {
+		parallelism = 1
+	}
 
-	for _, pkgName := range packageNames {
-		result, err := h.RunTest(ctx, pkgName, cfg)
-		if err != nil {
-			logger.Debugf("Test failed for %s: %v", pkgName, err)
+	logger.Debugf("Starting batch test %s for %d packages (parallelism: %d)", runID, len(packageNames), parallelism)
+
+	if parallelism == 1 {
+		// Sequential execution (original behavior)
+		for _, pkgName := range packageNames {
+			result, err := h.RunTest(ctx, pkgName, cfg)
+			if err != nil {
+				logger.Debugf("Test failed for %s: %v", pkgName, err)
+			}
+			batchResult.Results = append(batchResult.Results, result)
 		}
-		batchResult.Results = append(batchResult.Results, result)
+	} else {
+		// Parallel execution with worker pool
+		batchResult.Results = h.runParallelTests(ctx, packageNames, cfg, parallelism)
 	}
 
 	batchResult.Duration = time.Since(startTime)
@@ -912,6 +957,88 @@ func (h *TestHarness) RunBatchTests(ctx context.Context, packageNames []string, 
 	}
 
 	return batchResult, nil
+}
+
+// testJob represents a package to test
+type testJob struct {
+	index       int
+	packageName string
+}
+
+// testJobResult holds the result of a test job
+type testJobResult struct {
+	index  int
+	result *TestResult
+}
+
+// runParallelTests executes tests in parallel using a worker pool
+func (h *TestHarness) runParallelTests(ctx context.Context, packageNames []string, cfg TestConfig, parallelism int) []*TestResult {
+	// Create channels for job distribution and result collection
+	jobs := make(chan testJob, len(packageNames))
+	results := make(chan testJobResult, len(packageNames))
+
+	// Create wait group for workers
+	var wg sync.WaitGroup
+
+	// Start workers
+	for w := 0; w < parallelism; w++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			h.testWorker(ctx, workerID, jobs, results, cfg)
+		}(w)
+	}
+
+	// Send jobs to workers with staggered starts to avoid API rate limiting
+	go func() {
+		for i, pkgName := range packageNames {
+			jobs <- testJob{index: i, packageName: pkgName}
+			// Stagger job starts by 500ms to avoid burst API requests
+			if i < len(packageNames)-1 {
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+		close(jobs)
+	}()
+
+	// Wait for all workers to complete, then close results channel
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Collect results maintaining original order
+	resultSlice := make([]*TestResult, len(packageNames))
+	for jobResult := range results {
+		resultSlice[jobResult.index] = jobResult.result
+	}
+
+	return resultSlice
+}
+
+// testWorker processes test jobs from the jobs channel
+func (h *TestHarness) testWorker(ctx context.Context, workerID int, jobs <-chan testJob, results chan<- testJobResult, cfg TestConfig) {
+	for job := range jobs {
+		logger.Debugf("Worker %d: Starting test for %s", workerID, job.packageName)
+		fmt.Printf("🔄 [Worker %d] Starting: %s\n", workerID, job.packageName)
+
+		result, err := h.RunTest(ctx, job.packageName, cfg)
+		if err != nil {
+			logger.Debugf("Worker %d: Test failed for %s: %v", workerID, job.packageName, err)
+			fmt.Printf("❌ [Worker %d] Failed: %s - %v\n", workerID, job.packageName, err)
+		} else {
+			status := "❌"
+			if result.Approved {
+				status = "✅"
+			}
+			fmt.Printf("%s [Worker %d] Completed: %s (score: %.1f)\n", status, workerID, job.packageName, result.Metrics.CompositeScore)
+		}
+
+		results <- testJobResult{
+			index:  job.index,
+			result: result,
+		}
+	}
 }
 
 // computeBatchSummary calculates aggregate statistics
@@ -1239,4 +1366,231 @@ func (h *TestHarness) fetchTraceSummary(ctx context.Context, endpoint, sessionID
 	}
 
 	return summary, nil
+}
+
+// runLLMValidation runs LLM-based validation using validator instructions
+func (h *TestHarness) runLLMValidation(ctx context.Context, content string, pkgCtx *validators.PackageContext, cfg TestConfig) []validators.ValidationIssue {
+	var allIssues []validators.ValidationIssue
+
+	// These validators benefit most from LLM's semantic understanding
+	llmValidators := []string{
+		"vendor_setup_validator", // Setup accuracy against vendor docs
+		"style_validator",        // Elastic style guide compliance
+		"quality_validator",      // Writing quality assessment
+	}
+
+	vals := specialists.AllStagedValidators()
+
+	fmt.Println("🧠 Running LLM-based validation...")
+
+	for _, validator := range vals {
+		// Only run LLM validation for specific validators that benefit from it
+		shouldRunLLM := false
+		for _, name := range llmValidators {
+			if validator.Name() == name {
+				shouldRunLLM = true
+				break
+			}
+		}
+		if !shouldRunLLM {
+			continue
+		}
+
+		// Skip if validator has no instruction
+		if validator.Instruction() == "" {
+			continue
+		}
+
+		fmt.Printf("  🔍 LLM validating with %s...\n", validator.Name())
+
+		// Build prompt
+		prompt := h.buildLLMValidatorPrompt(validator, content, pkgCtx)
+
+		// Create model
+		modelID := cfg.ModelID
+		if modelID == "" {
+			modelID = "gemini-3-flash-preview"
+		}
+
+		llmModel, err := gemini.NewModel(ctx, modelID, &genai.ClientConfig{
+			APIKey: cfg.APIKey,
+		})
+		if err != nil {
+			fmt.Printf("  ❌ Failed to create LLM model: %v\n", err)
+			continue
+		}
+
+		// Run the LLM using ADK runner pattern
+		output, err := h.runLLMAgent(ctx, llmModel, validator.Name(), validator.Instruction(), prompt, modelID)
+		if err != nil {
+			fmt.Printf("  ❌ LLM validation error for %s: %v\n", validator.Name(), err)
+			continue
+		}
+
+		fmt.Printf("  ✅ LLM validator %s completed\n", validator.Name())
+
+		// Parse the LLM output
+		result, err := validators.ParseLLMValidationResult(output, validator.Stage())
+		if err != nil {
+			fmt.Printf("  ⚠️ Failed to parse LLM validation result for %s: %v\n", validator.Name(), err)
+			logger.Debugf("LLM output was: %s", output)
+			continue
+		}
+
+		// Collect only major/critical issues
+		llmIssueCount := 0
+		for _, issue := range result.Issues {
+			if issue.Severity == validators.SeverityCritical || issue.Severity == validators.SeverityMajor {
+				issue.SourceCheck = "llm"
+				allIssues = append(allIssues, issue)
+				llmIssueCount++
+			}
+		}
+
+		if llmIssueCount > 0 {
+			fmt.Printf("  ⚠️ LLM found %d critical/major issues\n", llmIssueCount)
+		} else {
+			fmt.Printf("  ✅ LLM validation passed (no critical/major issues)\n")
+		}
+	}
+
+	return allIssues
+}
+
+// runLLMAgent executes an LLM agent using the ADK runner pattern
+func (h *TestHarness) runLLMAgent(ctx context.Context, llmModel model.LLM, name, instruction, prompt, modelID string) (string, error) {
+	agentName := "llm_validator:" + name
+
+	// Start agent span (container for the agent's work)
+	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, modelID)
+	defer func() {
+		tracing.SetSpanOk(agentSpan)
+		agentSpan.End()
+	}()
+
+	// Build the agent
+	adkAgent, err := llmagent.New(llmagent.Config{
+		Name:                     agentName,
+		Description:              "LLM-based validator for " + name,
+		Model:                    llmModel,
+		Instruction:              instruction,
+		DisallowTransferToParent: true,
+		DisallowTransferToPeers:  true,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to build agent: %w", err)
+	}
+
+	// Create isolated session service
+	sessionService := session.InMemoryService()
+
+	// Create runner
+	r, err := runner.New(runner.Config{
+		AppName:        "docagent-llm-validator",
+		Agent:          adkAgent,
+		SessionService: sessionService,
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create runner: %w", err)
+	}
+
+	// Create session
+	sess, err := sessionService.Create(ctx, &session.CreateRequest{
+		AppName: "docagent-llm-validator",
+		UserID:  "docagent",
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create session: %w", err)
+	}
+
+	// Run the agent
+	userContent := genai.NewContentFromText(prompt, genai.RoleUser)
+	var outputs []string
+	var promptTokens, completionTokens int
+
+	// Track input for LLM span
+	inputMessages := []tracing.Message{{Role: "user", Content: truncateString(prompt, 500)}}
+
+	for event, err := range r.Run(agentCtx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
+		if err != nil {
+			return "", fmt.Errorf("agent error: %w", err)
+		}
+		if event == nil {
+			continue
+		}
+
+		// Accumulate token counts
+		if event.UsageMetadata != nil {
+			promptTokens += int(event.UsageMetadata.PromptTokenCount)
+			completionTokens += int(event.UsageMetadata.CandidatesTokenCount)
+		}
+
+		// Collect text outputs
+		if event.Content != nil {
+			for _, part := range event.Content.Parts {
+				if part.Text != "" {
+					outputs = append(outputs, part.Text)
+				}
+			}
+		}
+	}
+
+	output := strings.Join(outputs, "")
+
+	// Create a proper LLM span with token counts for Phoenix cost calculation
+	if promptTokens > 0 || completionTokens > 0 {
+		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, modelID, inputMessages)
+		outputMessages := []tracing.Message{{Role: "assistant", Content: truncateString(output, 500)}}
+		tracing.EndLLMSpan(agentCtx, llmSpan, outputMessages, promptTokens, completionTokens)
+	}
+
+	return output, nil
+}
+
+// truncateString shortens a string for logging/tracing
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// buildLLMValidatorPrompt creates a prompt for LLM validation
+func (h *TestHarness) buildLLMValidatorPrompt(validator validators.StagedValidator, content string, pkgCtx *validators.PackageContext) string {
+	var prompt strings.Builder
+
+	// Add the validator's instruction
+	prompt.WriteString(validator.Instruction())
+	prompt.WriteString("\n\n")
+
+	// Add context about the package
+	if pkgCtx != nil {
+		prompt.WriteString("=== PACKAGE CONTEXT ===\n")
+		prompt.WriteString(fmt.Sprintf("Package: %s (%s)\n", pkgCtx.Manifest.Name, pkgCtx.Manifest.Title))
+
+		// Add vendor links if available
+		if pkgCtx.HasServiceInfoLinks() {
+			prompt.WriteString("\n=== VENDOR DOCUMENTATION LINKS ===\n")
+			for _, link := range pkgCtx.GetServiceInfoLinks() {
+				prompt.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
+			}
+		}
+
+		// Add vendor setup content if available
+		if pkgCtx.HasVendorSetupContent() {
+			prompt.WriteString("\n=== VENDOR SETUP FROM service_info.md ===\n")
+			prompt.WriteString(pkgCtx.GetVendorSetupForGenerator())
+		}
+
+		prompt.WriteString("\n")
+	}
+
+	// Add the content to validate
+	prompt.WriteString("=== DOCUMENTATION TO VALIDATE ===\n")
+	prompt.WriteString(content)
+
+	return prompt.String()
 }
