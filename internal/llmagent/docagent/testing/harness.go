@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 
@@ -124,45 +125,100 @@ type TestResult struct {
 
 	// SnapshotDir is where intermediate snapshots were saved
 	SnapshotDir string `json:"snapshot_dir,omitempty"`
+
+	// TraceSummary holds aggregated trace data from Phoenix (if tracing enabled)
+	TraceSummary *TraceSummary `json:"trace_summary,omitempty"`
+
+	// TraceSessionID is the Phoenix session ID for this run
+	TraceSessionID string `json:"trace_session_id,omitempty"`
+}
+
+// TraceSummary holds aggregated trace statistics
+type TraceSummary struct {
+	// TotalSpans is the number of spans in the trace
+	TotalSpans int `json:"total_spans"`
+
+	// TotalLatencyMs is the total latency in milliseconds
+	TotalLatencyMs float64 `json:"total_latency_ms"`
+
+	// TotalPromptTokens is the total prompt tokens used
+	TotalPromptTokens int `json:"total_prompt_tokens"`
+
+	// TotalCompletionTokens is the total completion tokens used
+	TotalCompletionTokens int `json:"total_completion_tokens"`
+
+	// TotalTokens is the total tokens used (prompt + completion)
+	TotalTokens int `json:"total_tokens"`
+
+	// LLMCalls is the number of LLM calls made
+	LLMCalls int `json:"llm_calls"`
+
+	// AgentCalls summarizes activity by agent
+	AgentCalls []AgentCallSummary `json:"agent_calls,omitempty"`
+
+	// SignificantEvents lists important events during generation
+	SignificantEvents []SignificantEvent `json:"significant_events,omitempty"`
+}
+
+// AgentCallSummary summarizes an agent's activity
+type AgentCallSummary struct {
+	AgentName      string  `json:"agent_name"`
+	CallCount      int     `json:"call_count"`
+	TotalLatencyMs float64 `json:"total_latency_ms"`
+	TotalTokens    int     `json:"total_tokens"`
+	Approved       *bool   `json:"approved,omitempty"`
+	Score          *int    `json:"score,omitempty"`
+}
+
+// SignificantEvent represents an important event during documentation generation
+type SignificantEvent struct {
+	Timestamp   time.Time `json:"timestamp"`
+	Type        string    `json:"type"` // "llm_call", "validation", "iteration", "error"
+	Agent       string    `json:"agent,omitempty"`
+	Description string    `json:"description"`
+	LatencyMs   float64   `json:"latency_ms,omitempty"`
+	Tokens      int       `json:"tokens,omitempty"`
+	Severity    string    `json:"severity,omitempty"` // "info", "warning", "error"
+	Details     string    `json:"details,omitempty"`
 }
 
 // ValidationSummary provides a quick overview of validation results
 type ValidationSummary struct {
 	// TotalIssues is the total count of all issues across all stages
 	TotalIssues int `json:"total_issues"`
-	
+
 	// CriticalIssues is the count of critical severity issues
 	CriticalIssues int `json:"critical_issues"`
-	
+
 	// MajorIssues is the count of major severity issues
 	MajorIssues int `json:"major_issues"`
-	
+
 	// MinorIssues is the count of minor severity issues
 	MinorIssues int `json:"minor_issues"`
-	
+
 	// FailedStages lists the names of stages that failed validation
 	FailedStages []string `json:"failed_stages,omitempty"`
-	
+
 	// PassedStages lists the names of stages that passed validation
 	PassedStages []string `json:"passed_stages,omitempty"`
-	
+
 	// TopIssues lists the most critical issues (up to 5) for quick reference
 	TopIssues []string `json:"top_issues,omitempty"`
-	
+
 	// FailureReason provides a human-readable summary of why validation failed
 	FailureReason string `json:"failure_reason,omitempty"`
 }
 
 // StageResult holds results for a single validation stage
 type StageResult struct {
-	Stage         string                   `json:"stage"`
-	Valid         bool                     `json:"valid"`
-	Score         int                      `json:"score"`
-	Iterations    int                      `json:"iterations"`
-	Issues        []string                 `json:"issues,omitempty"`         // Simple issue messages (for backward compatibility)
+	Stage          string                  `json:"stage"`
+	Valid          bool                    `json:"valid"`
+	Score          int                     `json:"score"`
+	Iterations     int                     `json:"iterations"`
+	Issues         []string                `json:"issues,omitempty"`          // Simple issue messages (for backward compatibility)
 	DetailedIssues []ValidationIssueDetail `json:"detailed_issues,omitempty"` // Full issue details
-	Suggestions   []string                 `json:"suggestions,omitempty"`    // Actionable suggestions for fixing
-	Warnings      []string                 `json:"warnings,omitempty"`       // Non-blocking warnings
+	Suggestions    []string                `json:"suggestions,omitempty"`     // Actionable suggestions for fixing
+	Warnings       []string                `json:"warnings,omitempty"`        // Non-blocking warnings
 }
 
 // ValidationIssueDetail provides full details about a validation issue
@@ -315,7 +371,7 @@ func (h *TestHarness) RunTest(ctx context.Context, packageName string, cfg TestC
 			issues := make([]string, 0, len(stageRes.Issues))
 			// Detailed issue information
 			detailedIssues := make([]ValidationIssueDetail, 0, len(stageRes.Issues))
-			
+
 			for _, issue := range stageRes.Issues {
 				issues = append(issues, issue.Message)
 				detailedIssues = append(detailedIssues, ValidationIssueDetail{
@@ -337,7 +393,7 @@ func (h *TestHarness) RunTest(ctx context.Context, packageName string, cfg TestC
 				Warnings:       stageRes.Warnings,
 			}
 		}
-		
+
 		// Build validation summary
 		result.ValidationSummary = buildValidationSummary(result.StageResults, result.Approved)
 	} else {
@@ -362,6 +418,32 @@ func (h *TestHarness) RunTest(ctx context.Context, packageName string, cfg TestC
 	}
 
 	result.Duration = time.Since(startTime)
+
+	// Fetch trace data from Phoenix if tracing was enabled
+	if cfg.EnableTracing {
+		sessionID := tracing.GetSessionID()
+		if sessionID != "" {
+			result.TraceSessionID = sessionID
+
+			// Use default endpoint if not specified
+			endpoint := cfg.TracingEndpoint
+			if endpoint == "" {
+				endpoint = tracing.DefaultEndpoint
+			}
+
+			// Give Phoenix more time to ingest the traces (spans may still be flushing)
+			time.Sleep(2 * time.Second)
+
+			traceSummary, err := h.fetchTraceSummary(ctx, endpoint, sessionID)
+			if err != nil {
+				logger.Debugf("Failed to fetch trace summary: %v", err)
+			} else if traceSummary != nil {
+				result.TraceSummary = traceSummary
+				logger.Debugf("Fetched trace summary: %d spans, %d LLM calls, %d total tokens",
+					traceSummary.TotalSpans, traceSummary.LLMCalls, traceSummary.TotalTokens)
+			}
+		}
+	}
 
 	// Save result to file
 	if err := h.saveResult(result); err != nil {
@@ -410,6 +492,21 @@ func (h *TestHarness) runStagedGeneration(
 			logger.Debugf("Failed to initialize tracing: %v", err)
 		}
 
+		// Start a session span for tracing (this sets the session ID)
+		var sessionSpan trace.Span
+		if cfg.EnableTracing {
+			modelID := cfg.ModelID
+			if modelID == "" {
+				modelID = "gemini-3-flash-preview"
+			}
+			ctx, sessionSpan = tracing.StartSessionSpan(ctx, "test:documentation", modelID)
+			defer func() {
+				if sessionSpan != nil {
+					tracing.EndSessionSpan(ctx, sessionSpan, content)
+				}
+			}()
+		}
+
 		// Track issue counts across iterations for convergence detection
 		issueHistory := make([]int, 0, int(maxIterations)+1)
 		extraIterationAllowed := true // Allow one extra iteration if converging
@@ -456,7 +553,7 @@ func (h *TestHarness) runStagedGeneration(
 					// Track iterations per validator (using name to avoid overwriting when multiple validators share a stage)
 					validatorKey := validator.Stage() // Use stage for backward compatibility with result structure
 					validatorName := validator.Name()
-					
+
 					// Track iterations by validator name
 					iterKey := validatorName
 					if existing, ok := result.ValidatorIterations[iterKey]; ok {
@@ -468,7 +565,7 @@ func (h *TestHarness) runStagedGeneration(
 						result.ValidatorIterations = make(map[string]int)
 					}
 					result.ValidatorIterations[iterKey] = staticResult.Iterations
-					
+
 					// Aggregate results for each stage (don't overwrite - merge issues with deduplication)
 					if existing, ok := result.StageResults[validatorKey]; ok {
 						// Merge issues from this validator into existing stage result (deduplicate)
@@ -1005,21 +1102,21 @@ func (h *TestHarness) ValidatePackageExists(packageName string) error {
 // buildValidationSummary creates a summary of validation results
 func buildValidationSummary(stageResults map[string]*StageResult, approved bool) *ValidationSummary {
 	summary := &ValidationSummary{}
-	
+
 	var allIssues []ValidationIssueDetail
-	
+
 	for stageName, stageRes := range stageResults {
 		if stageRes.Valid {
 			summary.PassedStages = append(summary.PassedStages, stageName)
 		} else {
 			summary.FailedStages = append(summary.FailedStages, stageName)
 		}
-		
+
 		// Count issues by severity
 		for _, issue := range stageRes.DetailedIssues {
 			summary.TotalIssues++
 			allIssues = append(allIssues, issue)
-			
+
 			switch issue.Severity {
 			case "critical":
 				summary.CriticalIssues++
@@ -1030,12 +1127,12 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 			}
 		}
 	}
-	
+
 	// Extract top issues (prioritize critical, then major)
 	// Sort by severity: critical first, then major, then minor
 	criticalIssues := filterIssuesBySeverity(allIssues, "critical")
 	majorIssues := filterIssuesBySeverity(allIssues, "major")
-	
+
 	topIssues := make([]string, 0, 5)
 	for _, issue := range criticalIssues {
 		if len(topIssues) >= 5 {
@@ -1058,7 +1155,7 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 		topIssues = append(topIssues, issueStr)
 	}
 	summary.TopIssues = topIssues
-	
+
 	// Build failure reason
 	if !approved {
 		if len(summary.FailedStages) > 0 {
@@ -1070,7 +1167,7 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 				summary.MinorIssues)
 		}
 	}
-	
+
 	return summary
 }
 
@@ -1083,4 +1180,63 @@ func filterIssuesBySeverity(issues []ValidationIssueDetail, severity string) []V
 		}
 	}
 	return filtered
+}
+
+// fetchTraceSummary fetches and processes trace data from Phoenix
+func (h *TestHarness) fetchTraceSummary(ctx context.Context, endpoint, sessionID string) (*TraceSummary, error) {
+	client := tracing.NewPhoenixClient(endpoint)
+
+	// Check if Phoenix is available
+	if !client.IsPhoenixAvailable(ctx) {
+		logger.Debugf("Phoenix not available at %s", endpoint)
+		return nil, nil
+	}
+
+	// Fetch traces
+	traces, err := client.FetchSessionTraces(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch traces: %w", err)
+	}
+
+	if traces == nil || traces.Summary == nil {
+		return nil, nil
+	}
+
+	// Convert to our TraceSummary type
+	summary := &TraceSummary{
+		TotalSpans:            traces.Summary.TotalSpans,
+		TotalLatencyMs:        traces.Summary.TotalLatencyMs,
+		TotalPromptTokens:     traces.Summary.TotalPromptTokens,
+		TotalCompletionTokens: traces.Summary.TotalCompletionTokens,
+		TotalTokens:           traces.Summary.TotalTokens,
+		LLMCalls:              traces.Summary.LLMCalls,
+	}
+
+	// Convert agent calls
+	for _, ac := range traces.Summary.AgentCalls {
+		summary.AgentCalls = append(summary.AgentCalls, AgentCallSummary{
+			AgentName:      ac.AgentName,
+			CallCount:      ac.CallCount,
+			TotalLatencyMs: ac.TotalLatencyMs,
+			TotalTokens:    ac.TotalTokens,
+			Approved:       ac.Approved,
+			Score:          ac.Score,
+		})
+	}
+
+	// Convert significant events
+	for _, ev := range traces.Summary.SignificantEvents {
+		summary.SignificantEvents = append(summary.SignificantEvents, SignificantEvent{
+			Timestamp:   ev.Timestamp,
+			Type:        ev.Type,
+			Agent:       ev.Agent,
+			Description: ev.Description,
+			LatencyMs:   ev.LatencyMs,
+			Tokens:      ev.Tokens,
+			Severity:    ev.Severity,
+			Details:     ev.Details,
+		})
+	}
+
+	return summary, nil
 }

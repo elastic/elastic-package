@@ -493,7 +493,113 @@ func (g *ReportGenerator) GenerateSingleResultReport(result *TestResult) string 
 	}
 
 	if result.SnapshotDir != "" {
-		sb.WriteString(fmt.Sprintf("## Snapshots\n\nSnapshots saved to: `%s`\n", result.SnapshotDir))
+		sb.WriteString(fmt.Sprintf("## Snapshots\n\nSnapshots saved to: `%s`\n\n", result.SnapshotDir))
+	}
+
+	// Add trace summary if available
+	if result.TraceSummary != nil {
+		sb.WriteString(g.generateTraceSummarySection(result.TraceSummary, result.TraceSessionID))
+	}
+
+	return sb.String()
+}
+
+// generateTraceSummarySection generates the trace summary section of the report
+func (g *ReportGenerator) generateTraceSummarySection(summary *TraceSummary, sessionID string) string {
+	var sb strings.Builder
+
+	sb.WriteString("## Trace Summary\n\n")
+	
+	if sessionID != "" {
+		sb.WriteString(fmt.Sprintf("**Session ID**: `%s`\n\n", sessionID))
+	}
+
+	// Token usage table
+	sb.WriteString("### Token Usage\n\n")
+	sb.WriteString("| Metric | Value |\n")
+	sb.WriteString("|--------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| Prompt Tokens | %d |\n", summary.TotalPromptTokens))
+	sb.WriteString(fmt.Sprintf("| Completion Tokens | %d |\n", summary.TotalCompletionTokens))
+	sb.WriteString(fmt.Sprintf("| **Total Tokens** | **%d** |\n", summary.TotalTokens))
+	sb.WriteString(fmt.Sprintf("| LLM Calls | %d |\n", summary.LLMCalls))
+	sb.WriteString(fmt.Sprintf("| Total Spans | %d |\n", summary.TotalSpans))
+	sb.WriteString(fmt.Sprintf("| Total Latency | %.1fs |\n", summary.TotalLatencyMs/1000))
+	sb.WriteString("\n")
+
+	// Agent activity breakdown
+	if len(summary.AgentCalls) > 0 {
+		sb.WriteString("### Agent Activity\n\n")
+		sb.WriteString("| Agent | Calls | Latency | Tokens | Result |\n")
+		sb.WriteString("|-------|-------|---------|--------|--------|\n")
+		
+		for _, agent := range summary.AgentCalls {
+			result := "-"
+			if agent.Approved != nil {
+				if *agent.Approved {
+					result = "✅ Approved"
+				} else {
+					result = "❌ Rejected"
+				}
+			}
+			if agent.Score != nil {
+				result = fmt.Sprintf("Score: %d", *agent.Score)
+			}
+			
+			sb.WriteString(fmt.Sprintf("| %s | %d | %.1fs | %d | %s |\n",
+				agent.AgentName,
+				agent.CallCount,
+				agent.TotalLatencyMs/1000,
+				agent.TotalTokens,
+				result,
+			))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Significant events timeline
+	if len(summary.SignificantEvents) > 0 {
+		sb.WriteString("### Significant Events\n\n")
+		
+		for _, event := range summary.SignificantEvents {
+			// Format timestamp
+			timeStr := event.Timestamp.Format("15:04:05.000")
+			
+			// Choose icon based on severity/type
+			icon := "ℹ️"
+			switch event.Severity {
+			case "warning":
+				icon = "⚠️"
+			case "error":
+				icon = "❌"
+			}
+			switch event.Type {
+			case "llm_call":
+				icon = "🤖"
+			case "validation":
+				if event.Severity == "warning" {
+					icon = "⚠️"
+				} else {
+					icon = "✅"
+				}
+			case "iteration":
+				icon = "🔄"
+			}
+			
+			// Build event description
+			desc := event.Description
+			if event.LatencyMs > 0 {
+				desc += fmt.Sprintf(" (%.1fs)", event.LatencyMs/1000)
+			}
+			if event.Tokens > 0 {
+				desc += fmt.Sprintf(" [%d tokens]", event.Tokens)
+			}
+			if event.Details != "" {
+				desc += fmt.Sprintf(" - %s", event.Details)
+			}
+			
+			sb.WriteString(fmt.Sprintf("- `%s` %s %s\n", timeStr, icon, desc))
+		}
+		sb.WriteString("\n")
 	}
 
 	return sb.String()
