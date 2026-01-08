@@ -103,7 +103,8 @@ func (v *VendorSetupValidator) SupportsStaticValidation() bool {
 }
 
 // StaticValidate performs static vendor setup validation
-// This extracts setup-related information to provide context for LLM validation
+// This validates vendor setup documentation ONLY when service_info.md contains vendor setup content.
+// If there's no service_info.md or it lacks vendor setup sections, this validator passes automatically.
 func (v *VendorSetupValidator) StaticValidate(ctx context.Context, content string, pkgCtx *PackageContext) (*StagedValidationResult, error) {
 	result := &StagedValidationResult{
 		Stage: StageAccuracy,
@@ -115,21 +116,38 @@ func (v *VendorSetupValidator) StaticValidate(ctx context.Context, content strin
 		return result, nil
 	}
 
+	// CRITICAL: Only require vendor setup validation if service_info.md has vendor setup content
+	// If no vendor setup content exists in service_info.md, skip this validation
+	if !pkgCtx.HasVendorSetupContent() {
+		result.Suggestions = []string{
+			"No vendor setup content detected in service_info.md - vendor setup validation skipped",
+		}
+		return result, nil
+	}
+
+	// service_info.md HAS vendor setup content - now we MUST validate the generated doc includes it
+
 	// Extract setup section from content
 	setupSection := v.extractSetupSection(content)
 	if setupSection == "" {
-		// No setup section found - flag as issue
+		// CRITICAL: service_info.md has vendor setup, but generated doc has no setup section
 		result.Issues = append(result.Issues, ValidationIssue{
-			Severity:    SeverityMajor,
+			Severity:    SeverityCritical,
 			Category:    CategoryVendorSetup,
 			Location:    "Document",
-			Message:     "No setup/deployment section found in documentation",
-			Suggestion:  "Add a setup section with vendor-specific configuration instructions",
+			Message:     "Missing setup/deployment section - service_info.md contains vendor setup instructions that MUST be included",
+			Suggestion:  "Add a comprehensive setup section incorporating vendor setup instructions from service_info.md",
 			SourceCheck: "static",
 		})
 		result.Valid = false
+
+		// Provide the vendor setup content for the generator
+		result.Suggestions = []string{pkgCtx.GetVendorSetupForGenerator()}
 		return result, nil
 	}
+
+	// Validate that the setup section adequately covers the vendor setup from service_info.md
+	result.Issues = append(result.Issues, v.validateAgainstServiceInfo(setupSection, pkgCtx)...)
 
 	// Extract vendor setup links from service_info
 	vendorLinks := v.extractVendorSetupLinks(pkgCtx)
@@ -150,12 +168,137 @@ func (v *VendorSetupValidator) StaticValidate(ctx context.Context, content strin
 		}
 	}
 
-	// Store context for LLM validation
-	if len(vendorLinks) > 0 || pkgCtx.Manifest != nil {
-		result.Suggestions = v.buildLLMContext(pkgCtx, vendorLinks, setupSection)
+	// Store context for LLM validation - include the full vendor setup content
+	if pkgCtx.HasVendorSetupContent() {
+		result.Suggestions = []string{pkgCtx.GetVendorSetupForGenerator()}
 	}
 
 	return result, nil
+}
+
+// validateAgainstServiceInfo checks if the generated setup section covers the content from service_info.md
+func (v *VendorSetupValidator) validateAgainstServiceInfo(setupSection string, pkgCtx *PackageContext) []ValidationIssue {
+	var issues []ValidationIssue
+
+	if pkgCtx.VendorSetup == nil {
+		return issues
+	}
+
+	contentLower := strings.ToLower(setupSection)
+
+	// Check if vendor prerequisites are mentioned
+	if pkgCtx.VendorSetup.HasVendorPrerequisites {
+		prereqKeywords := []string{"prerequisite", "requirement", "before", "need"}
+		hasPrereqs := false
+		for _, kw := range prereqKeywords {
+			if strings.Contains(contentLower, kw) {
+				hasPrereqs = true
+				break
+			}
+		}
+		if !hasPrereqs {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryVendorSetup,
+				Location:    "Setup section",
+				Message:     "Missing vendor prerequisites - service_info.md contains prerequisite information",
+				Suggestion:  "Include vendor prerequisites from service_info.md: credentials, network access, permissions",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check if vendor setup steps are adequately covered
+	if pkgCtx.VendorSetup.HasVendorSetupSteps {
+		// Check for key indicators of vendor-side setup
+		vendorSetupIndicators := []string{
+			"navigate", "gui", "cli", "console", "admin", "settings", "configure on",
+			"in the", "on the", "click", "select", "enable", "log in",
+		}
+		vendorIndicatorsFound := 0
+		for _, indicator := range vendorSetupIndicators {
+			if strings.Contains(contentLower, indicator) {
+				vendorIndicatorsFound++
+			}
+		}
+
+		if vendorIndicatorsFound < 3 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryVendorSetup,
+				Location:    "Setup section",
+				Message:     "Insufficient vendor-side setup instructions - service_info.md contains detailed vendor setup steps",
+				Suggestion:  "Include comprehensive vendor-side configuration instructions with GUI or CLI steps from service_info.md",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check if Kibana setup steps are mentioned
+	if pkgCtx.VendorSetup.HasKibanaSetupSteps {
+		kibanaKeywords := []string{"kibana", "fleet", "integration", "add", "management"}
+		kibanaFound := 0
+		for _, kw := range kibanaKeywords {
+			if strings.Contains(contentLower, kw) {
+				kibanaFound++
+			}
+		}
+		if kibanaFound < 2 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryVendorSetup,
+				Location:    "Setup section",
+				Message:     "Missing Kibana/Fleet setup instructions - service_info.md contains Kibana setup steps",
+				Suggestion:  "Include Kibana/Fleet setup instructions from service_info.md",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check if validation steps are included
+	if pkgCtx.VendorSetup.HasValidationSteps {
+		validationKeywords := []string{"verify", "validate", "confirm", "check", "test"}
+		hasValidation := false
+		for _, kw := range validationKeywords {
+			if strings.Contains(contentLower, kw) {
+				hasValidation = true
+				break
+			}
+		}
+		if !hasValidation {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryVendorSetup,
+				Location:    "Setup section",
+				Message:     "Missing validation steps - service_info.md contains validation instructions",
+				Suggestion:  "Include validation steps from service_info.md to verify the setup is working",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check if vendor documentation links are included
+	if len(pkgCtx.VendorSetup.VendorLinks) > 0 {
+		missingLinks := 0
+		for _, link := range pkgCtx.VendorSetup.VendorLinks {
+			if !strings.Contains(setupSection, link.URL) {
+				missingLinks++
+			}
+		}
+
+		if missingLinks > 0 && missingLinks == len(pkgCtx.VendorSetup.VendorLinks) {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryVendorSetup,
+				Location:    "Setup section",
+				Message:     fmt.Sprintf("Missing vendor documentation links - service_info.md contains %d vendor links", len(pkgCtx.VendorSetup.VendorLinks)),
+				Suggestion:  "Include vendor documentation links from service_info.md",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
 }
 
 // extractSetupSection extracts the setup/deployment section from content
@@ -379,6 +522,138 @@ func (v *VendorSetupValidator) checkCommonSetupIssues(setupSection string, pkgCt
 			Location:    "Setup section",
 			Message:     "Setup instructions missing verification step",
 			Suggestion:  "Add steps to verify the setup is working correctly",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for vendor-side configuration subsection
+	issues = append(issues, v.checkVendorSideConfiguration(setupSection, pkgCtx)...)
+
+	return issues
+}
+
+// checkVendorSideConfiguration validates that vendor-side setup is comprehensively documented
+func (v *VendorSetupValidator) checkVendorSideConfiguration(setupSection string, pkgCtx *PackageContext) []ValidationIssue {
+	var issues []ValidationIssue
+
+	contentLower := strings.ToLower(setupSection)
+
+	// Check for vendor-side configuration section
+	vendorConfigIndicators := []string{
+		"vendor", "side configuration", "side setup", "configure on",
+		"on the " + strings.ToLower(pkgCtx.Manifest.Title),
+		"in the " + strings.ToLower(pkgCtx.Manifest.Title),
+	}
+
+	hasVendorConfig := false
+	for _, indicator := range vendorConfigIndicators {
+		if strings.Contains(contentLower, indicator) {
+			hasVendorConfig = true
+			break
+		}
+	}
+
+	// Also check for common vendor configuration patterns
+	vendorConfigPatterns := []string{
+		"gui", "console", "admin", "portal", "dashboard",
+		"navigate to", "click on", "select", "enable",
+	}
+	vendorPatternsFound := 0
+	for _, pattern := range vendorConfigPatterns {
+		if strings.Contains(contentLower, pattern) {
+			vendorPatternsFound++
+		}
+	}
+
+	if !hasVendorConfig && vendorPatternsFound < 3 {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryVendorSetup,
+			Location:    "Setup section",
+			Message:     "Missing or insufficient vendor-side configuration instructions",
+			Suggestion:  "Add a dedicated subsection for vendor/product-side configuration with step-by-step GUI or CLI instructions",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for prerequisites section
+	prereqKeywords := []string{"prerequisite", "requirement", "what you need", "before you begin", "what do i need"}
+	hasPrereqs := false
+	for _, keyword := range prereqKeywords {
+		if strings.Contains(contentLower, keyword) {
+			hasPrereqs = true
+			break
+		}
+	}
+
+	// Check for common prerequisites content
+	prereqContentIndicators := []string{
+		"credential", "username", "password", "api key", "token",
+		"network", "connectivity", "firewall", "port",
+		"permission", "access", "admin",
+	}
+	prereqContentFound := 0
+	for _, indicator := range prereqContentIndicators {
+		if strings.Contains(contentLower, indicator) {
+			prereqContentFound++
+		}
+	}
+
+	if !hasPrereqs && prereqContentFound < 2 {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryVendorSetup,
+			Location:    "Setup section",
+			Message:     "Missing prerequisites documentation",
+			Suggestion:  "Add a section listing prerequisites: credentials, network access, required permissions",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for Kibana/Fleet setup instructions
+	kibanaSetupIndicators := []string{
+		"kibana", "fleet", "management", "integrations",
+		"add integration", "add the integration",
+	}
+	hasKibanaSetup := false
+	for _, indicator := range kibanaSetupIndicators {
+		if strings.Contains(contentLower, indicator) {
+			hasKibanaSetup = true
+			break
+		}
+	}
+
+	if !hasKibanaSetup {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryVendorSetup,
+			Location:    "Setup section",
+			Message:     "Missing Kibana/Fleet setup instructions",
+			Suggestion:  "Add step-by-step instructions for adding the integration in Kibana: Management > Integrations > Search > Add",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for configuration parameters documentation
+	configParamIndicators := []string{
+		"host", "url", "endpoint", "address", "port",
+		"username", "password", "api key", "credential",
+		"interval", "timeout", "period",
+	}
+	configParamsFound := 0
+	for _, indicator := range configParamIndicators {
+		if strings.Contains(contentLower, indicator) {
+			configParamsFound++
+		}
+	}
+
+	if configParamsFound < 3 {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryVendorSetup,
+			Location:    "Setup section",
+			Message:     "Limited configuration parameter documentation",
+			Suggestion:  "Document key configuration parameters: host/URL, credentials, polling interval, etc.",
 			SourceCheck: "static",
 		})
 	}

@@ -89,6 +89,38 @@ Output ONLY the complete markdown document. Do not include any explanation or co
 6. Include all data streams from the package
 7. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
 
+## Vendor Setup Documentation (CRITICAL)
+The "## How do I deploy this integration?" section MUST include comprehensive vendor setup:
+
+### Required Subsections
+1. **Prerequisites** - Document what users need before starting:
+   - Credentials (admin username, password, API keys)
+   - Network access (ports, firewall rules)
+   - Required permissions on the vendor system
+
+2. **Vendor-Side Configuration** - Step-by-step GUI/CLI instructions:
+   - Navigate to specific screens in the vendor's admin interface
+   - Enable required features (logging, API access, etc.)
+   - Configure export settings (syslog, API endpoints)
+   - Example: "1. Navigate to **Security** > **Application Firewall**. 2. Click **Change Engine Settings**. 3. Enable **CEF Logging**."
+
+3. **Kibana/Fleet Setup** - Step-by-step integration setup:
+   - Go to **Management** > **Integrations**
+   - Search for and select the integration
+   - Configure connection parameters (host, credentials)
+   - Configure data collection settings (logs, metrics)
+
+4. **Validation** - How to verify the setup works:
+   - Check dashboards for data
+   - Verify in Discover
+   - Common validation queries
+
+### Best Practices
+- Use numbered steps (1. 2. 3.) for sequential instructions
+- Include screenshots or descriptions of UI elements in bold: **Settings** > **Configuration**
+- Document BOTH vendor-side AND Elastic-side configuration
+- Reference vendor documentation links for detailed procedures
+
 ## Advanced Settings Documentation
 When the context includes Advanced Settings, you MUST document them properly:
 1. **Security Warnings**: Include clear warnings for settings that compromise security or expose sensitive data

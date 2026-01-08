@@ -748,8 +748,15 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 		}
 	}
 
+	// VENDOR SETUP INSTRUCTIONS - From service_info.md (if present)
+	// This is CRITICAL: if service_info.md has vendor setup content, it MUST be included in the generated doc
+	if pkgCtx.HasVendorSetupContent() {
+		sb.WriteString("\n" + pkgCtx.GetVendorSetupForGenerator())
+	}
+
 	// SERVICE INFO CONTENT - Additional context from service_info.md
-	if pkgCtx.ServiceInfo != "" && len(pkgCtx.ServiceInfo) < 4000 {
+	if pkgCtx.ServiceInfo != "" && len(pkgCtx.ServiceInfo) < 4000 && !pkgCtx.HasVendorSetupContent() {
+		// Only include raw service_info if we haven't already included the structured vendor setup
 		sb.WriteString("\n=== SERVICE INFO CONTENT (use this for context) ===\n")
 		sb.WriteString(pkgCtx.ServiceInfo)
 		sb.WriteString("\n")
@@ -788,6 +795,73 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 	sb.WriteString("10. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")
 
 	return sb.String()
+}
+
+// extractVendorSetupFromServiceInfo extracts vendor setup sections from service_info.md
+func extractVendorSetupFromServiceInfo(serviceInfo string) string {
+	if serviceInfo == "" {
+		return ""
+	}
+
+	var extracted strings.Builder
+
+	// Look for vendor setup related sections
+	sections := []string{
+		"## Vendor prerequisites",
+		"## Vendor set up steps",
+		"## Kibana set up steps",
+		"# Set Up Instructions",
+		"## Set Up",
+		"## Setup",
+		"## Configuration",
+	}
+
+	lines := strings.Split(serviceInfo, "\n")
+	inRelevantSection := false
+	currentSection := ""
+
+	for _, line := range lines {
+		lineLower := strings.ToLower(line)
+
+		// Check if we're entering a relevant section
+		for _, section := range sections {
+			if strings.Contains(lineLower, strings.ToLower(section)) {
+				inRelevantSection = true
+				currentSection = section
+				extracted.WriteString(line + "\n")
+				break
+			}
+		}
+
+		// Check if we're leaving the section (new H1 or H2 that isn't relevant)
+		if inRelevantSection && strings.HasPrefix(line, "#") {
+			isRelevant := false
+			for _, section := range sections {
+				if strings.Contains(lineLower, strings.ToLower(section)) {
+					isRelevant = true
+					break
+				}
+			}
+			if !isRelevant && (strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ")) {
+				// Check if it's a subsection of the current relevant section
+				if strings.HasPrefix(line, "### ") || strings.HasPrefix(line, "#### ") {
+					// Keep subsections
+					extracted.WriteString(line + "\n")
+					continue
+				}
+				inRelevantSection = false
+				currentSection = ""
+				continue
+			}
+		}
+
+		// Add content from relevant sections
+		if inRelevantSection && currentSection != "" {
+			extracted.WriteString(line + "\n")
+		}
+	}
+
+	return strings.TrimSpace(extracted.String())
 }
 
 // buildScalingGuidance generates input-specific scaling guidance based on the package's inputs
