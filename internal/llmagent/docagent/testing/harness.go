@@ -79,7 +79,7 @@ func DefaultTestConfig() TestConfig {
 		EnableLLM:              apiKey != "",
 		APIKey:                 apiKey,
 		ModelID:                "gemini-3-flash-preview",
-		Parallelism:            1,
+		Parallelism:            4,
 	}
 }
 

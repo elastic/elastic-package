@@ -65,7 +65,7 @@ const (
 	docTestFlagClearResultsDesc = "Clear previous results from output directory before running tests (default: true)"
 
 	docTestFlagParallel     = "parallel"
-	docTestFlagParallelDesc = "Number of integrations to process in parallel in batch mode (default: 1)"
+	docTestFlagParallelDesc = "Number of integrations to process in parallel in batch mode (default: 4)"
 )
 
 func getTestRunnerDocumentationCommand() *cobra.Command {
@@ -114,7 +114,7 @@ Examples:
 	cmd.Flags().Bool(docTestFlagEnableLLM, false, docTestFlagEnableLLMDesc)
 	cmd.Flags().String(docTestFlagModelID, "gemini-3-flash-preview", docTestFlagModelIDDesc)
 	cmd.Flags().Bool(docTestFlagClearResults, true, docTestFlagClearResultsDesc)
-	cmd.Flags().Int(docTestFlagParallel, 1, docTestFlagParallelDesc)
+	cmd.Flags().Int(docTestFlagParallel, 4, docTestFlagParallelDesc)
 
 	return cmd
 }
