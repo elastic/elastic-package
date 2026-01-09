@@ -12,6 +12,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/elastic/elastic-package/internal/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -88,6 +89,18 @@ const (
 	AttrWorkflowMaxIter   = "workflow.max_iterations"
 	AttrSubAgentName      = "sub_agent.name"
 	AttrSubAgentRole      = "sub_agent.role"
+
+	// Section context attributes (for visualization)
+	AttrSectionTitle = "section.title"
+	AttrSectionLevel = "section.level"
+
+	// Span identification (for tree building in visualizers)
+	AttrSpanID = "span.id"
+
+	// Build info attributes (for version tracking)
+	AttrBuildCommit  = "build.commit"
+	AttrBuildTime    = "build.time"
+	AttrBuildVersion = "build.version"
 )
 
 // Context keys for session tracking
@@ -307,9 +320,14 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (
 			attribute.String(AttrSessionID, sessionID),
 			attribute.String(AttrLLMModelName, modelID),
 			attribute.String(AttrGenAIRequestModel, modelID),
+			// Build info for version tracking
+			attribute.String(AttrBuildCommit, version.CommitHash),
+			attribute.String(AttrBuildTime, version.BuildTime),
+			attribute.String(AttrBuildVersion, version.Tag),
 		),
 		trace.WithSpanKind(trace.SpanKindServer),
 	)
+	recordSpanID(span)
 	return ctx, span
 }
 
@@ -353,7 +371,9 @@ func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Sp
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // StartAgentSpan starts a new span for an agent task execution
@@ -365,7 +385,9 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 		attribute.String(AttrLLMModelName, modelID), // Used for cost calculation
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // StartLLMSpan starts a new span for an LLM call
@@ -384,7 +406,9 @@ func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessage
 		}
 	}
 
-	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // EndLLMSpan records the LLM response and ends the span.
@@ -428,7 +452,9 @@ func StartToolSpan(ctx context.Context, toolName string, parameters map[string]a
 		}
 	}
 
-	return Tracer().Start(ctx, "tool:"+toolName, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, "tool:"+toolName, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // EndToolSpan records the tool output and ends the span
@@ -456,6 +482,13 @@ func RecordOutput(span trace.Span, output string) {
 	span.SetAttributes(attribute.String(AttrOutputValue, output))
 }
 
+// recordSpanID records the span's own ID as an attribute for visualization tools.
+// This allows trace visualizers to build proper parent-child trees.
+func recordSpanID(span trace.Span) {
+	spanID := span.SpanContext().SpanID().String()
+	span.SetAttributes(attribute.String(AttrSpanID, spanID))
+}
+
 // StartWorkflowSpan starts a new span for a multi-agent workflow execution
 func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{
@@ -463,7 +496,9 @@ func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace
 		attribute.String(AttrWorkflowName, name),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // StartWorkflowSpanWithConfig starts a workflow span with iteration configuration
@@ -474,7 +509,24 @@ func StartWorkflowSpanWithConfig(ctx context.Context, name string, maxIterations
 		attribute.Int(AttrWorkflowMaxIter, int(maxIterations)),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
+}
+
+// StartSectionWorkflowSpan starts a workflow span for a specific documentation section
+func StartSectionWorkflowSpan(ctx context.Context, name string, maxIterations uint, sectionTitle string, sectionLevel int) (context.Context, trace.Span) {
+	attrs := []attribute.KeyValue{
+		attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
+		attribute.String(AttrWorkflowName, name),
+		attribute.Int(AttrWorkflowMaxIter, int(maxIterations)),
+		attribute.String(AttrSectionTitle, sectionTitle),
+		attribute.Int(AttrSectionLevel, sectionLevel),
+	}
+	attrs = append(attrs, sessionAttributes(ctx)...)
+	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // StartSubAgentSpan starts a new span for a sub-agent within a workflow
@@ -485,7 +537,9 @@ func StartSubAgentSpan(ctx context.Context, agentName string, role string) (cont
 		attribute.String(AttrSubAgentRole, role),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, "subagent:"+agentName, trace.WithAttributes(attrs...))
+	ctx, span := Tracer().Start(ctx, "subagent:"+agentName, trace.WithAttributes(attrs...))
+	recordSpanID(span)
+	return ctx, span
 }
 
 // RecordWorkflowIteration records the current iteration number on a workflow span
@@ -500,10 +554,6 @@ func RecordWorkflowResult(span trace.Span, approved bool, iterations int, conten
 		attribute.Int("workflow.total_iterations", iterations),
 	)
 	if content != "" {
-		// Truncate content if too long for tracing
-		if len(content) > 1000 {
-			content = content[:1000] + "..."
-		}
 		span.SetAttributes(attribute.String(AttrOutputValue, content))
 	}
 	span.SetStatus(codes.Ok, "")

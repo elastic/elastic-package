@@ -102,3 +102,12 @@ func GeneratorOnly() Config {
 		MaxIterations: 1,
 	}
 }
+
+// WithGeneratorOnly disables critic, validator, and URL validator
+func (c Config) WithGeneratorOnly() Config {
+	c.EnableCritic = false
+	c.EnableValidator = false
+	c.EnableURLValidator = false
+	c.MaxIterations = 1
+	return c
+}

@@ -71,8 +71,8 @@ func (b *Builder) buildAgent(ctx context.Context, name string) (agent.Agent, err
 // ExecuteWorkflow runs the workflow with isolated agent contexts.
 // Each agent runs in its own session to prevent conversation history accumulation.
 func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx specialists.SectionContext) (*Result, error) {
-	// Start workflow span for tracing
-	ctx, span := tracing.StartWorkflowSpanWithConfig(ctx, "workflow:section", b.config.MaxIterations)
+	// Start workflow span for tracing with section context
+	ctx, span := tracing.StartSectionWorkflowSpan(ctx, "workflow:section", b.config.MaxIterations, sectionCtx.SectionTitle, sectionCtx.SectionLevel)
 
 	result := &Result{}
 	iterations := 0
@@ -316,4 +316,18 @@ func buildCriticPrompt(content string) string {
 // buildValidatorPrompt creates a prompt for the validator with content embedded.
 func buildValidatorPrompt(content string) string {
 	return fmt.Sprintf("Validate this documentation for technical correctness:\n\n%s", content)
+}
+
+// RunCriticOnContent runs the critic agent on the given content and returns the raw output
+func (b *Builder) RunCriticOnContent(ctx context.Context, content string) (string, error) {
+	prompt := buildCriticPrompt(content)
+	output, _, _, err := b.runAgent(ctx, "critic", prompt)
+	return output, err
+}
+
+// RunValidatorOnContent runs the validator agent on the given content and returns the raw output
+func (b *Builder) RunValidatorOnContent(ctx context.Context, content string) (string, error) {
+	prompt := buildValidatorPrompt(content)
+	output, _, _, err := b.runAgent(ctx, "validator", prompt)
+	return output, err
 }

@@ -6,6 +6,7 @@ package docagent
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -64,6 +65,7 @@ type DocumentationAgent struct {
 	manifest              *packages.PackageManifest
 	responseAnalyzer      *responseAnalyzer
 	serviceInfoManager    *ServiceInfoManager
+	parallelSections      bool // Whether to generate sections in parallel (default: true)
 }
 
 type PromptContext struct {
@@ -79,14 +81,15 @@ type PromptContext struct {
 
 // AgentConfig holds configuration for creating a DocumentationAgent
 type AgentConfig struct {
-	APIKey         string
-	ModelID        string
-	PackageRoot    string
-	RepositoryRoot *os.Root
-	DocFile        string
-	Profile        *profile.Profile
-	ThinkingBudget *int32         // Optional thinking budget for Gemini models
-	TracingConfig  tracing.Config // Tracing configuration
+	APIKey           string
+	ModelID          string
+	PackageRoot      string
+	RepositoryRoot   *os.Root
+	DocFile          string
+	Profile          *profile.Profile
+	ThinkingBudget   *int32         // Optional thinking budget for Gemini models
+	TracingConfig    tracing.Config // Tracing configuration
+	ParallelSections bool           // Whether to generate sections in parallel (default: true)
 }
 
 // NewDocumentationAgent creates a new documentation agent using ADK
@@ -142,6 +145,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 		manifest:           manifest,
 		responseAnalyzer:   responseAnalyzer,
 		serviceInfoManager: serviceInfoManager,
+		parallelSections:   cfg.ParallelSections,
 	}, nil
 }
 
@@ -748,7 +752,8 @@ type sectionResult struct {
 
 // GenerateAllSectionsWithWorkflow generates all sections using the multi-agent workflow.
 // This method uses a configurable pipeline of agents (generator, critic, validator, etc.)
-// to iteratively refine each section. Sections are generated in PARALLEL for speed.
+// to iteratively refine each section. By default sections are generated in parallel,
+// but this can be changed via the ParallelSections config option.
 func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
 	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
 	defer chainSpan.End()
@@ -787,6 +792,15 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 		return nil, fmt.Errorf("no top-level sections found in template")
 	}
 
+	// Choose parallel or sequential execution based on config
+	if d.parallelSections {
+		return d.generateSectionsParallel(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
+	}
+	return d.generateSectionsSequential(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
+}
+
+// generateSectionsParallel generates all sections in parallel using goroutines
+func (d *DocumentationAgent) generateSectionsParallel(ctx context.Context, workflowCfg workflow.Config, topLevelSections, exampleSections, existingSections []Section) ([]Section, error) {
 	fmt.Printf("📝 Generating %d sections in parallel...\n", len(topLevelSections))
 
 	// Create channel to collect results
@@ -800,76 +814,8 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 		wg.Add(1)
 		go func(index int, tmplSection Section) {
 			defer wg.Done()
-
-			// Each goroutine gets its own workflow builder to avoid state conflicts
-			builder := workflow.NewBuilder(workflowCfg)
-
-			// Find corresponding example section
-			exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
-
-			// Find existing section
-			var existingSection *Section
-			if len(existingSections) > 0 {
-				existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
-			}
-
-			// Build section context for workflow
-			sectionCtx := specialists.SectionContext{
-				SectionTitle: tmplSection.Title,
-				SectionLevel: tmplSection.Level,
-				PackageName:  d.manifest.Name,
-				PackageTitle: d.manifest.Title,
-			}
-
-			if tmplSection.Content != "" {
-				sectionCtx.TemplateContent = tmplSection.GetAllContent()
-			}
-			if exampleSection != nil {
-				sectionCtx.ExampleContent = exampleSection.GetAllContent()
-			}
-			if existingSection != nil {
-				sectionCtx.ExistingContent = existingSection.GetAllContent()
-			}
-
-			// Execute workflow for this section
-			result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
-			if err != nil {
-				logger.Debugf("Workflow failed for section %s: %v", tmplSection.Title, err)
-				// Fall back to placeholder on error
-				resultsChan <- sectionResult{
-					index: index,
-					section: Section{
-						Title:   tmplSection.Title,
-						Level:   tmplSection.Level,
-						Content: fmt.Sprintf("## %s\n\n%s", tmplSection.Title, emptySectionPlaceholder),
-					},
-					err: err,
-				}
-				return
-			}
-
-			// Create section from result
-			generatedSection := Section{
-				Title:           tmplSection.Title,
-				Level:           tmplSection.Level,
-				Content:         result.Content,
-				HasPreserve:     tmplSection.HasPreserve,
-				PreserveContent: tmplSection.PreserveContent,
-			}
-
-			// Parse to extract hierarchical structure
-			parsedGenerated := ParseSections(generatedSection.Content)
-			if len(parsedGenerated) > 0 {
-				generatedSection = parsedGenerated[0]
-			}
-
-			logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
-				tmplSection.Title, result.Iterations, result.Approved)
-
-			resultsChan <- sectionResult{
-				index:   index,
-				section: generatedSection,
-			}
+			result := d.generateSingleSection(ctx, workflowCfg, index, tmplSection, exampleSections, existingSections)
+			resultsChan <- result
 		}(idx, templateSection)
 	}
 
@@ -906,6 +852,104 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 	return generatedSections, nil
 }
 
+// generateSectionsSequential generates all sections one at a time
+func (d *DocumentationAgent) generateSectionsSequential(ctx context.Context, workflowCfg workflow.Config, topLevelSections, exampleSections, existingSections []Section) ([]Section, error) {
+	fmt.Printf("📝 Generating %d sections sequentially...\n", len(topLevelSections))
+
+	generatedSections := make([]Section, len(topLevelSections))
+	successCount := 0
+	failCount := 0
+
+	for idx, templateSection := range topLevelSections {
+		fmt.Printf("  ⏳ Section %d/%d: %s...\n", idx+1, len(topLevelSections), templateSection.Title)
+
+		result := d.generateSingleSection(ctx, workflowCfg, idx, templateSection, exampleSections, existingSections)
+		generatedSections[idx] = result.section
+
+		if result.err != nil {
+			failCount++
+			fmt.Printf("  ❌ Section %d: %s (failed)\n", idx+1, result.section.Title)
+		} else {
+			successCount++
+			fmt.Printf("  ✅ Section %d: %s (done)\n", idx+1, result.section.Title)
+		}
+	}
+
+	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
+	return generatedSections, nil
+}
+
+// generateSingleSection generates a single section using the workflow
+func (d *DocumentationAgent) generateSingleSection(ctx context.Context, workflowCfg workflow.Config, index int, tmplSection Section, exampleSections, existingSections []Section) sectionResult {
+	builder := workflow.NewBuilder(workflowCfg)
+
+	// Find corresponding example section
+	exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
+
+	// Find existing section
+	var existingSection *Section
+	if len(existingSections) > 0 {
+		existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
+	}
+
+	// Build section context for workflow
+	sectionCtx := specialists.SectionContext{
+		SectionTitle: tmplSection.Title,
+		SectionLevel: tmplSection.Level,
+		PackageName:  d.manifest.Name,
+		PackageTitle: d.manifest.Title,
+	}
+
+	if tmplSection.Content != "" {
+		sectionCtx.TemplateContent = tmplSection.GetAllContent()
+	}
+	if exampleSection != nil {
+		sectionCtx.ExampleContent = exampleSection.GetAllContent()
+	}
+	if existingSection != nil {
+		sectionCtx.ExistingContent = existingSection.GetAllContent()
+	}
+
+	// Execute workflow for this section
+	result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
+	if err != nil {
+		logger.Debugf("Workflow failed for section %s: %v", tmplSection.Title, err)
+		// Fall back to placeholder on error
+		return sectionResult{
+			index: index,
+			section: Section{
+				Title:   tmplSection.Title,
+				Level:   tmplSection.Level,
+				Content: fmt.Sprintf("## %s\n\n%s", tmplSection.Title, emptySectionPlaceholder),
+			},
+			err: err,
+		}
+	}
+
+	// Create section from result
+	generatedSection := Section{
+		Title:           tmplSection.Title,
+		Level:           tmplSection.Level,
+		Content:         result.Content,
+		HasPreserve:     tmplSection.HasPreserve,
+		PreserveContent: tmplSection.PreserveContent,
+	}
+
+	// Parse to extract hierarchical structure
+	parsedGenerated := ParseSections(generatedSection.Content)
+	if len(parsedGenerated) > 0 {
+		generatedSection = parsedGenerated[0]
+	}
+
+	logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
+		tmplSection.Title, result.Iterations, result.Approved)
+
+	return sectionResult{
+		index:   index,
+		section: generatedSection,
+	}
+}
+
 // GetWorkflowConfig returns a workflow configuration suitable for this agent
 func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
 	return d.buildWorkflowConfig()
@@ -918,4 +962,191 @@ func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 		WithModelID(d.executor.ModelID()).
 		WithTools(d.executor.tools).
 		WithToolsets(d.executor.toolsets)
+}
+
+// Printer interface for output (satisfied by cobra.Command)
+type Printer interface {
+	Println(a ...any)
+	Printf(format string, a ...any)
+}
+
+// DebugRunCriticOnly runs the critic agent on existing documentation sections
+// and outputs results to stdout without modifying files
+func (d *DocumentationAgent) DebugRunCriticOnly(ctx context.Context, printer Printer) error {
+	// Read existing documentation
+	existingContent, err := d.readCurrentReadme()
+	if err != nil {
+		return fmt.Errorf("failed to read existing documentation: %w", err)
+	}
+
+	if existingContent == "" {
+		return fmt.Errorf("no existing documentation found at _dev/build/docs/%s", d.targetDocFile)
+	}
+
+	// Parse into sections
+	sections := ParseSections(existingContent)
+	if len(sections) == 0 {
+		return fmt.Errorf("no sections found in existing documentation")
+	}
+
+	printer.Printf("📄 Analyzing %d sections from %s\n\n", len(sections), d.targetDocFile)
+
+	// Build workflow config for running critic
+	workflowCfg := d.buildWorkflowConfig()
+	builder := workflow.NewBuilder(workflowCfg)
+
+	// Run critic on each section
+	for i, section := range sections {
+		printer.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		printer.Printf("Section %d: %s\n", i+1, section.Title)
+		printer.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+		content := section.GetAllContent()
+		output, err := builder.RunCriticOnContent(ctx, content)
+		if err != nil {
+			printer.Printf("❌ Error: %v\n\n", err)
+			continue
+		}
+
+		// Parse the critic result
+		var criticResult specialists.CriticResult
+		if jsonErr := parseJSON(output, &criticResult); jsonErr != nil {
+			printer.Printf("⚠️  Could not parse critic output as JSON: %v\n", jsonErr)
+			printer.Printf("Raw output: %s\n\n", output)
+			continue
+		}
+
+		// Display results
+		if criticResult.Approved {
+			printer.Printf("✅ Approved\n")
+		} else {
+			printer.Printf("❌ Not Approved\n")
+		}
+		printer.Printf("📊 Score: %d/10\n", criticResult.Score)
+		if criticResult.Feedback != "" {
+			printer.Printf("💬 Feedback: %s\n", criticResult.Feedback)
+		}
+		printer.Println()
+	}
+
+	return nil
+}
+
+// DebugRunValidatorOnly runs the validator agent on existing documentation sections
+// and outputs results to stdout without modifying files
+func (d *DocumentationAgent) DebugRunValidatorOnly(ctx context.Context, printer Printer) error {
+	// Read existing documentation
+	existingContent, err := d.readCurrentReadme()
+	if err != nil {
+		return fmt.Errorf("failed to read existing documentation: %w", err)
+	}
+
+	if existingContent == "" {
+		return fmt.Errorf("no existing documentation found at _dev/build/docs/%s", d.targetDocFile)
+	}
+
+	// Parse into sections
+	sections := ParseSections(existingContent)
+	if len(sections) == 0 {
+		return fmt.Errorf("no sections found in existing documentation")
+	}
+
+	printer.Printf("📄 Validating %d sections from %s\n\n", len(sections), d.targetDocFile)
+
+	// Build workflow config for running validator
+	workflowCfg := d.buildWorkflowConfig()
+	builder := workflow.NewBuilder(workflowCfg)
+
+	// Run validator on each section
+	for i, section := range sections {
+		printer.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+		printer.Printf("Section %d: %s\n", i+1, section.Title)
+		printer.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+
+		content := section.GetAllContent()
+		output, err := builder.RunValidatorOnContent(ctx, content)
+		if err != nil {
+			printer.Printf("❌ Error: %v\n\n", err)
+			continue
+		}
+
+		// Parse the validator result
+		var validationResult specialists.ValidationResult
+		if jsonErr := parseJSON(output, &validationResult); jsonErr != nil {
+			printer.Printf("⚠️  Could not parse validator output as JSON: %v\n", jsonErr)
+			printer.Printf("Raw output: %s\n\n", output)
+			continue
+		}
+
+		// Display results
+		if validationResult.Valid {
+			printer.Printf("✅ Valid\n")
+		} else {
+			printer.Printf("❌ Invalid\n")
+		}
+		if len(validationResult.Issues) > 0 {
+			printer.Printf("🚨 Issues:\n")
+			for _, issue := range validationResult.Issues {
+				printer.Printf("   - %s\n", issue)
+			}
+		}
+		if len(validationResult.Warnings) > 0 {
+			printer.Printf("⚠️  Warnings:\n")
+			for _, warning := range validationResult.Warnings {
+				printer.Printf("   - %s\n", warning)
+			}
+		}
+		printer.Println()
+	}
+
+	return nil
+}
+
+// UpdateDocumentationGeneratorOnly runs documentation generation with only the generator agent
+// (no critic or validator), then proceeds to human review or writes to disk
+func (d *DocumentationAgent) UpdateDocumentationGeneratorOnly(ctx context.Context, nonInteractive bool) error {
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate:generator-only", d.executor.ModelID())
+	var sessionOutput string
+	defer func() {
+		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
+	}()
+
+	// Record the input request
+	tracing.RecordSessionInput(sessionSpan, fmt.Sprintf("Generate documentation (generator-only) for package: %s (file: %s)", d.manifest.Name, d.targetDocFile))
+
+	// Backup original README content before making any changes
+	d.backupOriginalReadme()
+
+	// Generate all sections using generator-only workflow (no critic/validator)
+	fmt.Println("📊 Using generator-only workflow (no critic/validator)")
+	workflowCfg := d.buildWorkflowConfig().WithGeneratorOnly()
+	sections, err := d.GenerateAllSectionsWithWorkflow(ctx, workflowCfg)
+	if err != nil {
+		return fmt.Errorf("failed to generate sections: %w", err)
+	}
+
+	// Combine sections into final document
+	finalContent := CombineSections(sections)
+	sessionOutput = fmt.Sprintf("Generated %d sections, %d characters for %s (generator-only)", len(sections), len(finalContent), d.targetDocFile)
+
+	// Write the combined document
+	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
+	if err := d.writeDocumentation(docPath, finalContent); err != nil {
+		return fmt.Errorf("failed to write documentation: %w", err)
+	}
+
+	fmt.Printf("\n✅ Documentation generated successfully! (%d sections, %d characters)\n", len(sections), len(finalContent))
+	fmt.Printf("📄 Written to: _dev/build/docs/%s\n", d.targetDocFile)
+
+	// In interactive mode, allow review
+	if !nonInteractive {
+		return d.runInteractiveSectionReview(ctx, sections)
+	}
+
+	return nil
+}
+
+// parseJSON is a helper to parse JSON output
+func parseJSON(data string, v any) error {
+	return json.Unmarshal([]byte(data), v)
 }
