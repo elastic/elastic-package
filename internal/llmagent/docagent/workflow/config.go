@@ -59,11 +59,12 @@ type Config struct {
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() Config {
 	return Config{
-		Registry:           specialists.DefaultRegistry(),
-		MaxIterations:      DefaultMaxIterations,
-		EnableCritic:       true,
-		EnableValidator:    true,
-		EnableURLValidator: true,
+		Registry:            specialists.DefaultRegistry(),
+		MaxIterations:       DefaultMaxIterations,
+		EnableCritic:        true,
+		EnableValidator:     true,
+		EnableURLValidator:  true,
+		EnableLLMValidation: true, // LLM validation enabled by default for semantic checks
 	}
 }
 

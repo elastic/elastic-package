@@ -21,22 +21,43 @@ Your task is to validate that all required content is present and comprehensive.
 
 ## Input
 The documentation content to validate is provided in the user message.
-You may also receive static validation context including data stream names.
+You may also receive static validation context including data stream names and input types.
 
 ## Checks
 1. All data streams from the package are documented
 2. Setup instructions cover both vendor-side and Kibana-side configuration
 3. Validation steps are provided to verify the integration works
-4. Troubleshooting section addresses common issues
+4. Troubleshooting section addresses common issues WITH input-specific guidance
 5. Reference section includes field documentation
 6. First line should indicate LLM-generated documentation (if applicable)
+7. Agent deployment section includes:
+   - Fleet enrollment instructions
+   - Steps to add the integration
+   - Network requirements table (for network-dependent inputs like tcp, udp, httpjson, http_endpoint)
+8. **CRITICAL - Troubleshooting section MUST include:**
+   - General agent health/diagnostic steps (how to check agent status in Fleet)
+   - Kibana-based debugging (how to use Discover to find errors)
+   - **Input-specific troubleshooting tables for EACH input type used by the integration**
+     - For httpjson/cel: API credential issues, rate limiting, timeout errors
+     - For tcp/udp: port not listening, firewall rules, connection refused
+     - For logfile/filestream: file permissions, path issues, rotation
+     - For aws-s3/aws-cloudwatch: IAM permissions, bucket/log group config
+   - Each input troubleshooting should have a table with columns: Symptom | Cause | Solution
+   - If troubleshooting lacks input-specific tables, mark as MAJOR issue
+9. Validation section (### Validation) includes:
+   - Agent status check in Fleet (verify agent is Healthy)
+   - Data verification in Discover using data_stream.dataset:<integration>* pattern
+   - Dashboard verification (check Assets tab for dashboards)
+   - Input-specific verification hints
 
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "completeness", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false if critical completeness issues are found (missing data streams, no setup instructions).
-Minor gaps like missing troubleshooting can be warnings.
+Set valid=false if:
+- Missing data streams documentation (critical)
+- Missing setup instructions (critical)
+- Missing input-specific troubleshooting tables (major)
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -86,6 +107,12 @@ func (v *CompletenessValidator) StaticValidate(ctx context.Context, content stri
 
 	// Check 5: Reference/fields documentation
 	result.Issues = append(result.Issues, v.checkReferenceSection(content, pkgCtx)...)
+
+	// Check 6: Agent deployment section completeness (network requirements)
+	result.Issues = append(result.Issues, v.checkAgentDeploymentCompleteness(content, pkgCtx)...)
+
+	// Check 7: Troubleshooting section completeness (input-specific guidance)
+	result.Issues = append(result.Issues, v.checkTroubleshootingCompleteness(content, pkgCtx)...)
 
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
@@ -217,33 +244,97 @@ func (v *CompletenessValidator) checkSetupCompleteness(content string) []Validat
 	return issues
 }
 
-// checkValidationSteps verifies validation/testing instructions exist
+// checkValidationSteps verifies validation/testing instructions exist with required content
 func (v *CompletenessValidator) checkValidationSteps(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
 	contentLower := strings.ToLower(content)
 
-	// Look for validation-related content
-	validationIndicators := []string{
-		"verify", "validate", "confirm", "check", "test",
-		"discover", "data appears", "logs are", "metrics are",
-	}
+	// Check for validation section
+	hasValidationSection := strings.Contains(contentLower, "### validation") ||
+		strings.Contains(contentLower, "## validation") ||
+		strings.Contains(contentLower, "### verification")
 
-	hasValidation := false
-	for _, indicator := range validationIndicators {
-		if strings.Contains(contentLower, indicator) {
-			hasValidation = true
-			break
-		}
-	}
-
-	if !hasValidation {
+	if !hasValidationSection {
 		issues = append(issues, ValidationIssue{
 			Severity:    SeverityMajor,
 			Category:    CategoryCompleteness,
 			Location:    "Validation",
-			Message:     "No validation steps found to verify the integration works",
-			Suggestion:  "Add steps for users to verify data is being collected (e.g., check Discover, dashboards)",
+			Message:     "Missing Validation section",
+			Suggestion:  "Add a '### Validation' subsection under 'How do I deploy this integration?'",
+			SourceCheck: "static",
+		})
+		return issues
+	}
+
+	// Extract validation section for detailed checks
+	validationSection := v.extractSection(content, "validation")
+	if validationSection == "" {
+		validationSection = content // Fall back to full content
+	}
+	validationLower := strings.ToLower(validationSection)
+
+	// Check 1: Agent status verification
+	hasAgentStatus := strings.Contains(validationLower, "agent") &&
+		(strings.Contains(validationLower, "status") ||
+			strings.Contains(validationLower, "healthy") ||
+			strings.Contains(validationLower, "fleet"))
+
+	if !hasAgentStatus {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryCompleteness,
+			Location:    "Validation",
+			Message:     "Missing agent status verification step",
+			Suggestion:  "Add step to verify Elastic Agent status in Fleet (e.g., 'Navigate to Management → Fleet → Agents')",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check 2: Discover/data verification
+	hasDiscoverCheck := strings.Contains(validationLower, "discover") ||
+		(strings.Contains(validationLower, "data") && strings.Contains(validationLower, "appear"))
+
+	if !hasDiscoverCheck {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryCompleteness,
+			Location:    "Validation",
+			Message:     "Missing data verification in Discover",
+			Suggestion:  "Add step to check for incoming data in Analytics → Discover",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check 3: Dataset filter guidance
+	hasDatasetFilter := strings.Contains(validationLower, "data_stream.dataset") ||
+		strings.Contains(validationLower, "dataset") ||
+		strings.Contains(validationLower, "logs-") ||
+		strings.Contains(validationLower, "metrics-")
+
+	if !hasDatasetFilter {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryCompleteness,
+			Location:    "Validation",
+			Message:     "Missing dataset filtering guidance",
+			Suggestion:  "Add guidance on filtering by data_stream.dataset to verify specific data streams",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check 4: Dashboard verification
+	hasDashboardCheck := strings.Contains(validationLower, "dashboard") ||
+		strings.Contains(validationLower, "visualization") ||
+		strings.Contains(validationLower, "assets")
+
+	if !hasDashboardCheck {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryCompleteness,
+			Location:    "Validation",
+			Message:     "Missing dashboard verification step",
+			Suggestion:  "Add step to verify data appears in the integration's dashboards (Assets tab)",
 			SourceCheck: "static",
 		})
 	}
@@ -346,4 +437,290 @@ func (v *CompletenessValidator) checkReferenceSection(content string, pkgCtx *Pa
 	}
 
 	return issues
+}
+
+// checkAgentDeploymentCompleteness validates the agent deployment section has proper content
+func (v *CompletenessValidator) checkAgentDeploymentCompleteness(content string, pkgCtx *PackageContext) []ValidationIssue {
+	var issues []ValidationIssue
+
+	contentLower := strings.ToLower(content)
+
+	// Check for agent deployment section
+	hasAgentDeployment := strings.Contains(contentLower, "### agent-based deployment") ||
+		strings.Contains(contentLower, "### agent deployment") ||
+		strings.Contains(contentLower, "### elastic agent")
+
+	if !hasAgentDeployment {
+		// Structure validator handles this, don't duplicate
+		return issues
+	}
+
+	// Extract the agent deployment section
+	deploymentSection := v.extractSection(content, "agent")
+
+	// Check for key agent deployment content
+	deploymentLower := strings.ToLower(deploymentSection)
+
+	// Must have Fleet mention
+	if !strings.Contains(deploymentLower, "fleet") {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryCompleteness,
+			Location:    "Agent-based deployment",
+			Message:     "Missing Fleet enrollment instructions",
+			Suggestion:  "Add instructions for enrolling the Elastic Agent in Fleet",
+			SourceCheck: "static",
+		})
+	}
+
+	// Must have integration addition steps
+	if !strings.Contains(deploymentLower, "add") || !strings.Contains(deploymentLower, "integration") {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryCompleteness,
+			Location:    "Agent-based deployment",
+			Message:     "Missing steps to add the integration",
+			Suggestion:  "Add instructions for adding the integration to an agent policy",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for network requirements based on input types
+	if pkgCtx != nil && pkgCtx.Manifest != nil {
+		inputTypes := v.extractInputTypes(pkgCtx)
+		networkInputs := v.getNetworkSensitiveInputs()
+
+		hasNetworkSensitiveInput := false
+		for inputType := range inputTypes {
+			if _, ok := networkInputs[inputType]; ok {
+				hasNetworkSensitiveInput = true
+				break
+			}
+		}
+
+		// If the integration uses network-sensitive inputs, check for network requirements
+		if hasNetworkSensitiveInput {
+			hasNetworkSection := strings.Contains(deploymentLower, "network") ||
+				strings.Contains(deploymentLower, "port") ||
+				strings.Contains(deploymentLower, "firewall") ||
+				strings.Contains(contentLower, "| direction |") ||
+				strings.Contains(contentLower, "| protocol |")
+
+			if !hasNetworkSection {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMajor,
+					Category:    CategoryCompleteness,
+					Location:    "Agent-based deployment",
+					Message:     "Missing network requirements for network-dependent inputs",
+					Suggestion:  "Add a network requirements table specifying ports and protocols needed",
+					SourceCheck: "static",
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+// checkTroubleshootingCompleteness validates troubleshooting section has input-specific content
+func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string, pkgCtx *PackageContext) []ValidationIssue {
+	var issues []ValidationIssue
+
+	contentLower := strings.ToLower(content)
+
+	// Check for troubleshooting section
+	hasTroubleshooting := strings.Contains(contentLower, "## troubleshooting") ||
+		strings.Contains(contentLower, "## common issues")
+
+	if !hasTroubleshooting {
+		// Structure validator handles this, don't duplicate
+		return issues
+	}
+
+	// Extract the troubleshooting section
+	troubleshootingSection := v.extractSection(content, "troubleshooting")
+	troubleshootingLower := strings.ToLower(troubleshootingSection)
+
+	// Check for general debugging steps
+	hasGeneralDebugging := strings.Contains(troubleshootingLower, "agent") &&
+		(strings.Contains(troubleshootingLower, "health") ||
+			strings.Contains(troubleshootingLower, "status") ||
+			strings.Contains(troubleshootingLower, "diagnostic"))
+
+	if !hasGeneralDebugging {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryCompleteness,
+			Location:    "Troubleshooting",
+			Message:     "Missing general agent debugging steps",
+			Suggestion:  "Add steps to verify agent health and collect diagnostics",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for Kibana-based debugging
+	hasKibanaDebugging := strings.Contains(troubleshootingLower, "discover") ||
+		strings.Contains(troubleshootingLower, "kibana") ||
+		strings.Contains(troubleshootingLower, "data_stream")
+
+	if !hasKibanaDebugging {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryCompleteness,
+			Location:    "Troubleshooting",
+			Message:     "Missing Kibana-based debugging instructions",
+			Suggestion:  "Add instructions for checking data in Discover and identifying ingestion errors",
+			SourceCheck: "static",
+		})
+	}
+
+	// Check for troubleshooting tables (| Symptom | Cause | Solution |)
+	hasTroubleshootingTable := strings.Contains(troubleshootingLower, "| symptom |") ||
+		strings.Contains(troubleshootingLower, "| cause |") ||
+		strings.Contains(troubleshootingLower, "| solution |") ||
+		strings.Contains(troubleshootingLower, "|---------|")
+
+	// Check for input-specific troubleshooting
+	if pkgCtx != nil && pkgCtx.Manifest != nil {
+		inputTypes := v.extractInputTypes(pkgCtx)
+		troubleshootingInputs := v.getTroubleshootingSensitiveInputs()
+
+		missingInputCount := 0
+		for inputType := range inputTypes {
+			if hints, ok := troubleshootingInputs[inputType]; ok {
+				// Check if any of the troubleshooting hints for this input are present
+				hasInputTroubleshooting := false
+				for _, hint := range hints {
+					if strings.Contains(troubleshootingLower, hint) {
+						hasInputTroubleshooting = true
+						break
+					}
+				}
+
+				if !hasInputTroubleshooting {
+					missingInputCount++
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityMajor,
+						Category:    CategoryCompleteness,
+						Location:    "Troubleshooting",
+						Message:     fmt.Sprintf("Missing troubleshooting guidance for %s input", inputType),
+						Suggestion:  fmt.Sprintf("Add troubleshooting table for %s with common issues like: %s", inputType, hints[0]),
+						SourceCheck: "static",
+					})
+				}
+			}
+		}
+
+		// If multiple inputs are missing troubleshooting AND no tables exist, flag as critical
+		if missingInputCount > 1 && !hasTroubleshootingTable {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryCompleteness,
+				Location:    "Troubleshooting",
+				Message:     "Troubleshooting section lacks input-specific troubleshooting tables",
+				Suggestion:  "Add troubleshooting tables with columns: Symptom | Cause | Solution for each input type",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// extractSection extracts a section by keyword
+func (v *CompletenessValidator) extractSection(content string, sectionKeyword string) string {
+	contentLower := strings.ToLower(content)
+	keyword := strings.ToLower(sectionKeyword)
+
+	// Find section start
+	patterns := []string{
+		"### " + keyword,
+		"## " + keyword,
+	}
+
+	for _, pattern := range patterns {
+		idx := strings.Index(contentLower, pattern)
+		if idx == -1 {
+			continue
+		}
+
+		// Find next section (## or ###)
+		rest := content[idx:]
+		nextSection := -1
+		for i := 4; i < len(rest); i++ {
+			if rest[i] == '#' && (rest[i-1] == '\n' || rest[i-1] == '\r') {
+				nextSection = i
+				break
+			}
+		}
+
+		if nextSection == -1 {
+			return rest
+		}
+		return rest[:nextSection]
+	}
+
+	return ""
+}
+
+// extractInputTypes gets all input types from the manifest
+func (v *CompletenessValidator) extractInputTypes(pkgCtx *PackageContext) map[string]bool {
+	inputTypes := make(map[string]bool)
+
+	if pkgCtx == nil || pkgCtx.Manifest == nil {
+		return inputTypes
+	}
+
+	for _, pt := range pkgCtx.Manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			if input.Type != "" {
+				inputTypes[input.Type] = true
+			}
+		}
+	}
+
+	return inputTypes
+}
+
+// getNetworkSensitiveInputs returns inputs that require network configuration documentation
+func (v *CompletenessValidator) getNetworkSensitiveInputs() map[string]string {
+	return map[string]string{
+		"tcp":                "TCP listener - requires port configuration",
+		"udp":                "UDP listener - requires port configuration",
+		"httpjson":           "API polling - requires outbound HTTPS access",
+		"http_endpoint":      "Webhook receiver - requires inbound port",
+		"kafka":              "Kafka consumer - requires broker connectivity",
+		"aws-s3":             "AWS S3 - requires AWS API access",
+		"aws-cloudwatch":     "CloudWatch - requires AWS API access",
+		"gcs":                "GCS - requires GCP API access",
+		"azure-blob-storage": "Azure Blob - requires Azure API access",
+		"azure-eventhub":     "Event Hub - requires Azure connectivity",
+		"gcp-pubsub":         "Pub/Sub - requires GCP API access",
+		"cel":                "CEL - requires API access",
+		"sql":                "SQL - requires database connectivity",
+		"netflow":            "NetFlow - requires UDP port",
+		"lumberjack":         "Beats protocol - requires TCP port",
+		"entity-analytics":   "Entity provider - requires API access",
+		"o365audit":          "Office 365 - requires Microsoft API access",
+	}
+}
+
+// getTroubleshootingSensitiveInputs returns inputs with specific troubleshooting hints
+func (v *CompletenessValidator) getTroubleshootingSensitiveInputs() map[string][]string {
+	return map[string][]string{
+		"tcp":            {"port", "listen", "firewall", "connection"},
+		"udp":            {"port", "listen", "buffer", "packet"},
+		"httpjson":       {"api", "credential", "rate limit", "timeout", "401", "403"},
+		"cel":            {"api", "credential", "expression", "timeout"},
+		"http_endpoint":  {"port", "listen", "firewall", "webhook"},
+		"logfile":        {"permission", "path", "rotate", "file"},
+		"filestream":     {"permission", "path", "file"},
+		"aws-s3":         {"iam", "permission", "bucket", "sqs"},
+		"aws-cloudwatch": {"iam", "permission", "log group", "throttl"},
+		"kafka":          {"broker", "consumer", "partition", "offset"},
+		"sql":            {"connection", "credential", "query", "timeout"},
+		"netflow":        {"port", "buffer", "udp"},
+		"winlog":         {"event", "channel", "permission"},
+		"journald":       {"permission", "unit", "cursor"},
+	}
 }

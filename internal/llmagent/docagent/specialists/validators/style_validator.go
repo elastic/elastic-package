@@ -112,15 +112,15 @@ func (v *StyleValidator) checkVoiceAndTone(content string) []ValidationIssue {
 
 	// Check for formal constructions that should use contractions
 	formalPatterns := map[string]string{
-		`\bdo not\b`:   "don't",
-		`\bcannot\b`:   "can't",
-		`\bwill not\b`: "won't",
-		`\bis not\b`:   "isn't",
-		`\bare not\b`:  "aren't",
-		`\bdoes not\b`: "doesn't",
-		`\bwould not\b`: "wouldn't",
+		`\bdo not\b`:     "don't",
+		`\bcannot\b`:     "can't",
+		`\bwill not\b`:   "won't",
+		`\bis not\b`:     "isn't",
+		`\bare not\b`:    "aren't",
+		`\bdoes not\b`:   "doesn't",
+		`\bwould not\b`:  "wouldn't",
 		`\bshould not\b`: "shouldn't",
-		`\bcould not\b`: "couldn't",
+		`\bcould not\b`:  "couldn't",
 	}
 
 	formalCount := 0
@@ -190,6 +190,10 @@ func (v *StyleValidator) checkEmphasisUsage(content string) []ValidationIssue {
 	for _, match := range boldMatches {
 		if len(match) > 1 {
 			boldText := match[1]
+			// Skip if this is an allowed bold pattern
+			if isAllowedBoldPattern(boldText) {
+				continue
+			}
 			// UI elements typically: start with capital, are short, may have specific patterns
 			// Non-UI elements: long phrases, full sentences, emphasis for importance
 			if len(boldText) > 30 || strings.Contains(boldText, ".") {
@@ -207,6 +211,34 @@ func (v *StyleValidator) checkEmphasisUsage(content string) []ValidationIssue {
 	}
 
 	return issues
+}
+
+// isAllowedBoldPattern checks if bold text is an acceptable non-UI pattern
+func isAllowedBoldPattern(text string) bool {
+	textLower := strings.ToLower(text)
+
+	// Allow warning/caution/note patterns (common documentation callouts)
+	warningPatterns := []string{
+		"warning", "caution", "note", "important", "tip",
+		"critical", "danger", "attention", "notice",
+	}
+	for _, pattern := range warningPatterns {
+		if strings.Contains(textLower, pattern) {
+			return true
+		}
+	}
+
+	// Allow numbered step headers (e.g., "1. NITRO API access")
+	if regexp.MustCompile(`^\d+\.\s+`).MatchString(text) {
+		return true
+	}
+
+	// Allow "For X:" patterns (e.g., "For metrics:", "For logs:")
+	if regexp.MustCompile(`(?i)^for\s+\w+:?$`).MatchString(text) {
+		return true
+	}
+
+	return false
 }
 
 // checkAmericanEnglish validates American English spelling
@@ -396,4 +428,3 @@ func min(a, b int) int {
 	}
 	return b
 }
-
