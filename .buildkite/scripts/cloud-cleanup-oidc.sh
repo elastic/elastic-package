@@ -288,3 +288,7 @@ echo "--- TODO: Cleaning up Schedulers"
 if [ "${resources_to_delete}" -eq 1 ]; then
     exit 1
 fi
+
+if [ "${resources_failed_to_delete}" -eq 1 ]; then
+    exit 1
+fi
