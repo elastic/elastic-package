@@ -28,6 +28,7 @@ CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
+resources_failed_to_delete=0
 
 COMMAND="validate"
 redshift_message=""
@@ -70,7 +71,7 @@ any_resources_failed_to_delete() {
     # In the case, there is nothing to delete, there is one more line:
     # ⇒ Nothing to destroy !
     if [[ "${DRY_RUN}" == false ]] ; then
-        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
+        if tail -n 1 "${file}" | grep -q "Nothing to destroy" ; then
             return 1
         fi
         # cloud-reaper should show FAILED in case there is some error deleting resources
@@ -175,13 +176,13 @@ if [ "${resources_to_delete}" -eq 1 ]; then
     if running_on_buildkite ; then
          buildkite-agent annotate \
              "${message}" \
-             --context "ctx-cloud-reaper-error" \
+             --context "ctx-cloud-reaper-error-pending" \
              --style "error"
     fi
 fi
 
 if [ "${resources_failed_to_delete}" -eq 1 ]; then
-    message="There are resources to could not be deleted"
+    message="There are resources that could not be deleted. Check the logs for details."
     echo "${message}"
     if running_on_buildkite ; then
          buildkite-agent annotate \
@@ -274,7 +275,7 @@ if [ "${redshift_clusters_to_delete}" -eq 1 ]; then
     if running_on_buildkite ; then
          buildkite-agent annotate \
              "${message}" \
-             --context "ctx-aws-readshift-error" \
+             --context "ctx-aws-redshift-error-pending" \
              --style "error"
     fi
 fi
