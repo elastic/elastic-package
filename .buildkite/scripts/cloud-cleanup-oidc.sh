@@ -137,7 +137,7 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    if [[ "${DRY_RUN}" == "false" ]]; then
+    if [[ "${DRY_RUN}" == "true" ]]; then
         echo "--- Scanning resources (DRY_RUN ${DRY_RUN})"
     else 
         echo "--- Scanning and deleting resources (DRY_RUN ${DRY_RUN})"
