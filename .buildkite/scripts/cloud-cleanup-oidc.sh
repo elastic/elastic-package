@@ -53,20 +53,42 @@ any_resources_to_delete() {
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     
-    # FIXME:: When running with "destroy --confirm" there could be more lines.
-    # In the case, there is nothing to delete, there is one more line:
-    # ⇒ Nothing to destroy !
-    # but there are no examples when resources are deleted to add the required logic
     if [[ "${DRY_RUN}" == false ]] ; then
-        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
-            return 1
-        fi
+        # if DRY_RUN is false, it needs to check whether or not there are failures deleting them
+        # via any_resources_failed_to_delete function
+        return 1
     fi
     number=$(tail -n +4 "${file}" | wc -l)
     if [ "${number}" -eq 0 ]; then
         return 1
     fi
     return 0
+}
+
+any_resources_failed_to_delete() {
+    local file=$1
+    # In the case, there is nothing to delete, there is one more line:
+    # ⇒ Nothing to destroy !
+    if [[ "${DRY_RUN}" == false ]] ; then
+        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
+            return 1
+        fi
+        # cloud-reaper should show FAILED in case there is some error deleting resources
+        # if everything runs successfully, it is shown SUCCEEDED
+        # successful example:
+        # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+        # ObjectStorageBucket( name=elastic-package-sinkhole-http-bucket-771d12318 )
+        # ObjectStorageBucket( name=elastic-package-spectrum-event-bucket-44ec66812 )
+        # ObjectStorageBucket( name=elastic-package-sinkhole-http-bucket-771d12318 ):
+        # SUCCEEDED
+        # ObjectStorageBucket( name=elastic-package-spectrum-event-bucket-44ec66812 ):
+        # SUCCEEDED
+        # Destroying resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+        if grep -q FAILED "${file}" ; then
+            return 0
+        fi
+    fi
+    return 1
 }
 
 # As long as cloud reaper does not support OIDC authentication.
@@ -142,6 +164,11 @@ if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
     resources_to_delete=1
 fi
 
+if any_resources_failed_to_delete "${AWS_RESOURCES_FILE}" ; then
+    echo "Failed to delete at least one resource. Check output."
+    resources_failed_to_delete=1
+fi
+
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
@@ -149,6 +176,17 @@ if [ "${resources_to_delete}" -eq 1 ]; then
          buildkite-agent annotate \
              "${message}" \
              --context "ctx-cloud-reaper-error" \
+             --style "error"
+    fi
+fi
+
+if [ "${resources_failed_to_delete}" -eq 1 ]; then
+    message="There are resources to could not be deleted"
+    echo "${message}"
+    if running_on_buildkite ; then
+         buildkite-agent annotate \
+             "${message}" \
+             --context "ctx-cloud-reaper-error-deleting" \
              --style "error"
     fi
 fi
