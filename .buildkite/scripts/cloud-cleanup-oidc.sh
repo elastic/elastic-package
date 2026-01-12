@@ -115,7 +115,11 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    echo "--- Scanning resources"
+    if [[ "${DRY_RUN}" == "false" ]]; then
+        echo "--- Scanning resources (DRY_RUN ${DRY_RUN})"
+    else 
+        echo "--- Scanning and deleting resources (DRY_RUN ${DRY_RUN})"
+    fi
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
