@@ -18,7 +18,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-ls -l "${GOOGLE_APPLICATION_CREDENTIALS}" || true
+ls -l "${GOOGLE_APPLICATION_CREDENTIALS:-/tmp}" || true
 ls -l /tmp/tmp.*/token.json || true
 
 terraform init
