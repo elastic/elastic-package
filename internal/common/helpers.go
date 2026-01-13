@@ -95,7 +95,6 @@ func GCPCredentialFacters() resource.StaticFacter {
 		}
 	}
 
-	googleCredentialSourceFile = ""
 	return resource.StaticFacter{
 		"google_credential_source_file":  googleCredentialSourceFile,
 		"google_application_credentials": googleApplicationCredentials,
