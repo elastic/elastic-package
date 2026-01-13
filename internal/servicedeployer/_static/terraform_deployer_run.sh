@@ -20,7 +20,6 @@ trap cleanup EXIT INT TERM
 
 terraform init
 terraform plan
-exit 1
 terraform apply -auto-approve
 
 terraform output -json > /output/tfOutputValues.json
