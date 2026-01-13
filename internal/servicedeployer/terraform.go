@@ -182,7 +182,10 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	gcpFacters := common.GCPCredentialFacters()
+	gcpFacters, err := common.GCPCredentialFacters()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
+	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(gcpFacters)

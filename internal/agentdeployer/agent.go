@@ -306,7 +306,10 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		return "", nil
 	}
 
-	gcpFacters := common.GCPCredentialFacters()
+	gcpFacters, err := common.GCPCredentialFacters()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
+	}
 
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{

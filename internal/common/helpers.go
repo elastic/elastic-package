@@ -5,6 +5,7 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -12,8 +13,6 @@ import (
 	"strings"
 
 	"github.com/elastic/go-resource"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -78,26 +77,38 @@ func ProcessResourceApplyResults(results resource.ApplyResults) string {
 	return strings.Join(errors, ", ")
 }
 
-func GCPCredentialFacters() resource.StaticFacter {
+func GCPCredentialFacters() (resource.StaticFacter, error) {
 	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
-	if googleApplicationCredentials != "" {
-		if _, err := os.Stat(googleApplicationCredentials); err != nil {
-			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
-			googleApplicationCredentials = ""
-		}
+	if googleApplicationCredentials == "" {
+		return resource.StaticFacter{
+			"google_credential_source_file":  "",
+			"google_application_credentials": "",
+		}, nil
 	}
 
-	googleCredentialSourceFile := os.Getenv("GOOGLE_CREDENTIAL_SOURCE_FILE")
-	if googleCredentialSourceFile != "" {
-		if _, err := os.Stat(googleCredentialSourceFile); err != nil {
-			logger.Warn("GOOGLE_CREDENTIAL_SOURCE_FILE environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
-			googleCredentialSourceFile = ""
-		}
+	if _, err := os.Stat(googleApplicationCredentials); err != nil {
+		return resource.StaticFacter{}, fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS file does not exist: %w", err)
+	}
+
+	// Parse the file to check if it contains a credential source (external account)
+	type googleAppCredentials struct {
+		CredentialSource struct {
+			File string `json:"file"`
+		} `json:"credential_source"`
+	}
+	credentials := &googleAppCredentials{}
+	data, err := os.ReadFile(googleApplicationCredentials)
+	if err != nil {
+		return resource.StaticFacter{}, fmt.Errorf("could not read GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
+	}
+
+	err = json.Unmarshal(data, credentials)
+	if err != nil {
+		return resource.StaticFacter{}, fmt.Errorf("could not parse GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
 	}
 
 	return resource.StaticFacter{
-		"google_credential_source_file":  googleCredentialSourceFile,
+		"google_credential_source_file":  credentials.CredentialSource.File,
 		"google_application_credentials": googleApplicationCredentials,
-	}
-
+	}, nil
 }
