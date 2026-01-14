@@ -89,6 +89,15 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// Update svcInfo with the latest info before tearing down
+		service.svcInfo = svcInfo
+		service.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	// Verify the Elastic stack network
 	err = stack.EnsureStackNetworkUp(d.profile)
 	if err != nil {
@@ -130,9 +139,9 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
-			Env: opts.Env,
-		}, svcInfo.Name)
+		// processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
+		// 	Env: opts.Env,
+		// }, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 

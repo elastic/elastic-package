@@ -156,6 +156,15 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// Update svcInfo with the latest info before tearing down
+		service.svcInfo = svcInfo
+		service.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	if d.runTestsOnly || d.runTearDown {
 		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
@@ -177,9 +186,9 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, svcInfo.Name)
+		// processServiceContainerLogs(ctx, p, compose.CommandOptions{
+		// 	Env: opts.Env,
+		// }, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 

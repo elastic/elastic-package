@@ -142,6 +142,13 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
+	defer func() {
+		if err == nil {
+			return
+		}
+		service.svcInfo = svcInfo
+		service.TearDown(context.WithoutCancel(ctx))
+	}()
 
 	// Boot up service
 	opts = compose.CommandOptions{
@@ -155,9 +162,9 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, svcInfo.Name)
+		// processServiceContainerLogs(ctx, p, compose.CommandOptions{
+		// 	Env: opts.Env,
+		// }, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}

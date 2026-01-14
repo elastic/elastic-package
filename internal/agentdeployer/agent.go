@@ -155,6 +155,15 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("stack network is not ready: %w", err)
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// Update svcInfo with the latest info before tearing down
+		agent.agentInfo = agentInfo
+		agent.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	// Clean service logs
 	if d.runTestsOnly {
 		// service logs folder must no be deleted to avoid breaking log files written
@@ -194,9 +203,9 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, agentName)
+		// processAgentContainerLogs(ctx, p, compose.CommandOptions{
+		// 	Env: opts.Env,
+		// }, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
