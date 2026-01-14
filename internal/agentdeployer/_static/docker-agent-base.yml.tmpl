@@ -50,9 +50,6 @@ services:
       {{ else }}
       - FLEET_ENROLLMENT_TOKEN={{ $enrollment_token }}
       {{ end }}
-      {{ if ne $google_application_credentials "" }}
-      - GOOGLE_APPLICATION_CREDENTIALS={{ $google_application_credentials }}
-      {{ end }}
     volumes:
       - type: bind
         source: ${LOCAL_CA_CERT}
