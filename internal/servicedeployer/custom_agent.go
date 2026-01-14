@@ -186,9 +186,6 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		// processServiceContainerLogs(ctx, p, compose.CommandOptions{
-		// 	Env: opts.Env,
-		// }, svcInfo.Name)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 

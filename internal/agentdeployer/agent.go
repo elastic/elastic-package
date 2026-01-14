@@ -203,9 +203,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		// processAgentContainerLogs(ctx, p, compose.CommandOptions{
-		// 	Env: opts.Env,
-		// }, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 

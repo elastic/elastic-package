@@ -162,9 +162,6 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		// processServiceContainerLogs(ctx, p, compose.CommandOptions{
-		// 	Env: opts.Env,
-		// }, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}
