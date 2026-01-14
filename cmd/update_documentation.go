@@ -336,6 +336,13 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
 
+	// Ensure tracing is properly flushed before exit
+	defer func() {
+		if err := tracing.Shutdown(cmd.Context()); err != nil {
+			cmd.PrintErrf("Warning: failed to shutdown tracing: %v\n", err)
+		}
+	}()
+
 	// Handle debug modes
 	if debugCriticOnly {
 		cmd.Println("🔍 Running critic agent only (debug mode)...")

@@ -9,6 +9,7 @@ package tracing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 
@@ -37,6 +38,8 @@ const (
 	DefaultEndpoint    = "http://localhost:6006/v1/traces"
 	DefaultProjectName = "elastic-package"
 	TracerName         = "elastic-package-llmagent"
+	// DefaultModelID is used when no model ID is provided to ensure Phoenix can calculate costs
+	DefaultModelID = "gemini-3-flash-preview"
 )
 
 // OpenInference semantic convention attribute keys
@@ -71,6 +74,11 @@ const (
 	AttrToolName       = "tool.name"
 	AttrToolParameters = "tool.parameters"
 	AttrToolOutput     = "tool.output"
+
+	// Gen AI tool attributes (OpenInference)
+	AttrGenAIOperationName = "gen_ai.operation.name"
+	AttrGenAIToolType      = "gen_ai.tool.type"
+	AttrGenAIToolName      = "gen_ai.tool.name"
 )
 
 // SpanKind values for OpenInference
@@ -304,22 +312,35 @@ func sessionAttributes(ctx context.Context) []attribute.KeyValue {
 	return nil
 }
 
+// ensureModelID returns the provided modelID or DefaultModelID if empty.
+// This ensures gen_ai.request.model is always set for Phoenix cost calculation.
+func ensureModelID(modelID string) string {
+	if modelID == "" {
+		return DefaultModelID
+	}
+	return modelID
+}
+
 // StartSessionSpan starts a root span for an entire session/conversation.
 // It generates a unique session ID and stores it in the context for propagation to child spans.
 // It also initializes token tracking for the session.
 func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (context.Context, trace.Span) {
 	sessionID := uuid.New().String()
+	modelID = ensureModelID(modelID)
 
 	// Store session ID and token tracker in context for child spans
 	ctx = WithSessionID(ctx, sessionID)
 	ctx = withSessionTokens(ctx, &SessionTokens{})
 
+	// Create the session span - this will be a root span since the incoming
+	// context from cmd.Context() should not have any parent span
 	ctx, span := Tracer().Start(ctx, sessionName,
 		trace.WithAttributes(
 			attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
 			attribute.String(AttrSessionID, sessionID),
 			attribute.String(AttrLLMModelName, modelID),
 			attribute.String(AttrGenAIRequestModel, modelID),
+			attribute.String(AttrGenAISystem, "gemini"),
 			// Build info for version tracking
 			attribute.String(AttrBuildCommit, version.CommitHash),
 			attribute.String(AttrBuildTime, version.BuildTime),
@@ -328,6 +349,14 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (
 		trace.WithSpanKind(trace.SpanKindServer),
 	)
 	recordSpanID(span)
+
+	// Log trace info for debugging
+	sc := span.SpanContext()
+	if tracingEnabled {
+		fmt.Printf("🔍 Started session span: name=%s, traceID=%s, spanID=%s, sessionID=%s\n",
+			sessionName, sc.TraceID().String(), sc.SpanID().String(), sessionID)
+	}
+
 	return ctx, span
 }
 
@@ -378,6 +407,12 @@ func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Sp
 
 // StartAgentSpan starts a new span for an agent task execution
 func StartAgentSpan(ctx context.Context, name string, modelID string) (context.Context, trace.Span) {
+	modelID = ensureModelID(modelID)
+
+	// Check if there's a parent span in the context
+	parentSpan := trace.SpanFromContext(ctx)
+	parentSpanCtx := parentSpan.SpanContext()
+
 	attrs := []attribute.KeyValue{
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
 		attribute.String(AttrGenAISystem, "gemini"),
@@ -387,11 +422,22 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 	attrs = append(attrs, sessionAttributes(ctx)...)
 	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
 	recordSpanID(span)
+
+	// Log span hierarchy for debugging
+	sc := span.SpanContext()
+	if tracingEnabled {
+		fmt.Printf("🔍 Started agent span: name=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+			name, sc.TraceID().String(), sc.SpanID().String(),
+			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+	}
+
 	return ctx, span
 }
 
 // StartLLMSpan starts a new span for an LLM call
 func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessages []Message) (context.Context, trace.Span) {
+	modelID = ensureModelID(modelID)
+
 	attrs := []attribute.KeyValue{
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindLLM),
 		attribute.String(AttrGenAISystem, "gemini"),
@@ -404,6 +450,8 @@ func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessage
 		if msgJSON, err := json.Marshal(inputMessages); err == nil {
 			attrs = append(attrs, attribute.String(AttrLLMInputMessages, string(msgJSON)))
 		}
+		// Set input.value for Phoenix display and cost calculation
+		attrs = append(attrs, attribute.String(AttrInputValue, inputMessages[0].Content))
 	}
 
 	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
@@ -441,8 +489,14 @@ func EndLLMSpan(ctx context.Context, span trace.Span, outputMessages []Message, 
 // StartToolSpan starts a new span for a tool call
 func StartToolSpan(ctx context.Context, toolName string, parameters map[string]any) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{
+		// OpenInference span kind
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindTool),
+		// Standard tool attributes
 		attribute.String(AttrToolName, toolName),
+		// Gen AI tool attributes for Phoenix
+		attribute.String(AttrGenAIOperationName, "execute_tool"),
+		attribute.String(AttrGenAIToolType, "FunctionTool"),
+		attribute.String(AttrGenAIToolName, toolName),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 
