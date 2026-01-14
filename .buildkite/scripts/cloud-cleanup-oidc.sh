@@ -19,13 +19,13 @@ set -euo pipefail
 AWS_RESOURCES_FILE="aws.resources.txt"
 AWS_REDSHIFT_RESOURCES_FILE="redshift_clusters.json"
 
-RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
+RESOURCE_RETENTION_PERIOD="$(buildkite-agent meta-data get RESOURCE_RETENTION_PERIOD --default "${RESOURCE_RETENTION_PERIOD:-"24 hours"}")"
 DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
 export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
 resources_failed_to_delete=0
