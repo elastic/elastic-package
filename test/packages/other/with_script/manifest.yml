@@ -1,0 +1,22 @@
+format_version: 3.5.0
+name: with_script
+title: With script test
+version: 0.0.2
+description: Package that demonstrates and tests scripted tests.
+categories:
+  - custom
+type: integration
+conditions:
+  kibana:
+    version: '^8.0.0'
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    inputs:
+      - type: tcp
+        title: Collect hits via tcp.
+        description: Collect hits via tcp.
+owner:
+  github: elastic/integrations
+  type: elastic

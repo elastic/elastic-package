@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/signal"
@@ -21,7 +23,7 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
-	packageRootPath  string
+	packageRoot      string
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
@@ -29,7 +31,7 @@ type tester struct {
 
 type StaticTesterOptions struct {
 	TestFolder       testrunner.TestFolder
-	PackageRootPath  string
+	PackageRoot      string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
@@ -38,7 +40,7 @@ type StaticTesterOptions struct {
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
 		testFolder:       options.TestFolder,
-		packageRootPath:  options.PackageRootPath,
+		packageRoot:      options.PackageRoot,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
@@ -91,16 +93,16 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithSkip(skip)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
 	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(pkgManifest)...), nil
+	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvent(pkgManifest)...), nil
 }
 
-func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
+func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify benchmark config",
 		TestType:   TestType,
@@ -109,7 +111,7 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) 
 	})
 
 	withOpts := []stream.OptionFunc{
-		stream.WithPackageRootPath(packageRootPath),
+		stream.WithPackageRoot(packageRoot),
 	}
 
 	ctx, stop := signal.Enable(ctx, logger.Info)
@@ -161,11 +163,19 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	fieldsValidator, err := fields.CreateValidatorForDirectory(filepath.Dir(sampleEventPath),
+	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+	if err != nil {
+		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		return results
+	}
+	defer repositoryRoot.Close()
+	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
+	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
@@ -195,12 +205,12 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	var sampleEventPath string
 	if r.testFolder.DataStream != "" {
 		sampleEventPath = filepath.Join(
-			r.packageRootPath,
+			r.packageRoot,
 			"data_stream",
 			r.testFolder.DataStream,
 			sampleEventJSON)
 	} else {
-		sampleEventPath = filepath.Join(r.packageRootPath, sampleEventJSON)
+		sampleEventPath = filepath.Join(r.packageRoot, sampleEventJSON)
 	}
 	_, err := os.Stat(sampleEventPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -221,7 +231,7 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 		return nil, nil
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRootPath, dsName)
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, dsName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
@@ -233,4 +243,20 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 
 func (r tester) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
+}
+
+func isTestUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
+	if manifest.Type != "input" {
+		return false
+	}
+
+	// We are not testing an specific policy template here, assume this is an OTel package
+	// if at least one policy template has an "otelcol" input.
+	if !slices.ContainsFunc(manifest.PolicyTemplates, func(t packages.PolicyTemplate) bool {
+		return t.Input == "otelcol"
+	}) {
+		return false
+	}
+
+	return true
 }

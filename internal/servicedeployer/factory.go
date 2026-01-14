@@ -23,11 +23,12 @@ const (
 type FactoryOptions struct {
 	Profile *profile.Profile
 
-	PackageRootPath        string
-	DataStreamRootPath     string
+	PackageRoot            string
+	DataStreamRoot         string
 	DevDeployDir           string
 	Type                   string
 	StackVersion           string
+	OverrideAgentVersion   string
 	DeployIndependentAgent bool
 
 	PolicyName string
@@ -73,6 +74,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
 				DeployIndependentAgent: options.DeployIndependentAgent,
+				OverrideAgentVersion:   options.OverrideAgentVersion,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -105,10 +107,11 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
 
 		opts := CustomAgentDeployerOptions{
-			Profile:           options.Profile,
-			DockerComposeFile: customAgentCfgYMLPath,
-			StackVersion:      options.StackVersion,
-			PolicyName:        policyName,
+			Profile:              options.Profile,
+			DockerComposeFile:    customAgentCfgYMLPath,
+			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
+			PolicyName:           policyName,
 
 			RunTearDown:  options.RunTearDown,
 			RunTestsOnly: options.RunTestsOnly,
@@ -130,7 +133,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 
 // FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
 func FindDevDeployPath(options FactoryOptions) (string, error) {
-	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, options.DevDeployDir)
+	dataStreamDevDeployPath := filepath.Join(options.DataStreamRoot, options.DevDeployDir)
 	info, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil && info.IsDir() {
 		return dataStreamDevDeployPath, nil
@@ -138,7 +141,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for data stream (path: %s): %w", dataStreamDevDeployPath, err)
 	}
 
-	packageDevDeployPath := filepath.Join(options.PackageRootPath, options.DevDeployDir)
+	packageDevDeployPath := filepath.Join(options.PackageRoot, options.DevDeployDir)
 	info, err = os.Stat(packageDevDeployPath)
 	if err == nil && info.IsDir() {
 		return packageDevDeployPath, nil

@@ -21,6 +21,8 @@ import (
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -66,6 +68,17 @@ func (vv VarValue) MarshalJSON() ([]byte, error) {
 		return json.Marshal(vv.list)
 	}
 	return []byte("null"), nil
+}
+
+// Value returns the stored value.
+func (vv VarValue) Value() any {
+	if vv.scalar != nil {
+		return vv.scalar
+	}
+	if vv.list != nil {
+		return vv.list
+	}
+	return nil
 }
 
 // VarValueYamlString will return a YAML style string representation of vv,
@@ -199,6 +212,12 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+}
+
+type PackageDirNameAndManifest struct {
+	DirName  string
+	Path     string
+	Manifest *PackageManifest
 }
 
 type ManifestIndexTemplate struct {
@@ -422,12 +441,95 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 	return &m, nil
 }
 
+// ReadAllPackageManifestsFromRepo reads all the package manifests in the given directory.
+// It recursively searches for manifest.yml files up to the specified depth.
+// - depth: maximum depth to search (1 = current dir + immediate sub dirs)
+// - excludeDirs: comma-separated list of directory names to exclude (always excludes .git, build)
+func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
+	// Parse exclude directories
+	excludeMap := map[string]bool{
+		".git":  true, // Always exclude .git
+		"build": true, // Always exclude build
+	}
+
+	if excludeDirs != "" {
+		for dir := range strings.SplitSeq(excludeDirs, ",") {
+			excludeMap[strings.TrimSpace(dir)] = true
+		}
+	}
+
+	var packages []PackageDirNameAndManifest
+	searchRootDepth := strings.Count(searchRoot, string(filepath.Separator))
+
+	err := filepath.WalkDir(searchRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Calculate current depth relative to search root
+		currentDepth := strings.Count(path, string(filepath.Separator)) - searchRootDepth
+
+		// If it's a directory, check if we should skip it
+		if d.IsDir() {
+			dirName := d.Name()
+
+			// Skip excluded directories (but not the search root)
+			if excludeMap[dirName] && searchRoot != path {
+				return filepath.SkipDir
+			}
+
+			// Skip if we've exceeded the depth limit (but allow processing the current level)
+			if currentDepth > depth {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		// Check if this is a manifest file
+		if d.Name() != PackageManifestFile {
+			return nil
+		}
+
+		// Validate it's a package manifest
+		ok, err := isPackageManifest(path)
+		if err != nil {
+			logger.Debugf("failed to validate package manifest (path: %s): %v", path, err)
+			return nil
+		}
+		if !ok {
+			return nil
+		}
+
+		// Extract directory name (just the package directory name, not the full path)
+		dirName := filepath.Base(filepath.Dir(path))
+		manifest, err := ReadPackageManifest(path)
+		if err != nil {
+			return fmt.Errorf("failed to read package manifest (path: %s): %w", path, err)
+		}
+
+		packages = append(packages, PackageDirNameAndManifest{
+			DirName:  dirName,
+			Manifest: manifest,
+			Path:     filepath.Dir(path),
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed walking directory tree: %w", err)
+	}
+
+	return packages, nil
+}
+
 // ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)
 // file for the given transform. It also applies templating to the file, allowing to set the final ingest pipeline name
 // by adding the package version defined in the package manifest.
 // It fails if the referenced destination pipeline doesn't exist.
-func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte, TransformDefinition, error) {
-	manifest, err := ReadPackageManifestFromPackageRoot(packageRootPath)
+func ReadTransformDefinitionFile(transformPath, packageRoot string) ([]byte, TransformDefinition, error) {
+	manifest, err := ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("could not read package manifest: %w", err)
 	}
@@ -473,7 +575,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 	// example: 0.1.0-pipeline_extract_metadata
 
 	pipelineFileName := fmt.Sprintf("%s.yml", strings.TrimPrefix(definition.Dest.Pipeline, manifest.Version+"-"))
-	_, err = os.Stat(filepath.Join(packageRootPath, "elasticsearch", "ingest_pipeline", pipelineFileName))
+	_, err = os.Stat(filepath.Join(packageRoot, "elasticsearch", "ingest_pipeline", pipelineFileName))
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, TransformDefinition{}, fmt.Errorf("checking for destination ingest pipeline file %s: %w", pipelineFileName, err)
 	}
@@ -484,17 +586,17 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 	// Is it using the Ingest pipeline from any data stream (data_stream/*/elasticsearch/pipeline/*.yml)?
 	// <data_stream>-<version>-<data_stream_pipeline>.yml
 	// example: metrics-aws_billing.cur-0.1.0-pipeline_extract_metadata
-	dataStreamPaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+	dataStreamRoots, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("error finding data streams: %w", err)
 	}
 
-	for _, dataStreamPath := range dataStreamPaths {
-		matched, err := filepath.Glob(filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", "*.yml"))
+	for _, dataStreamRoot := range dataStreamRoots {
+		matched, err := filepath.Glob(filepath.Join(dataStreamRoot, "elasticsearch", "ingest_pipeline", "*.yml"))
 		if err != nil {
-			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamPath, err)
+			return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data stream %s: %w", dataStreamRoot, err)
 		}
-		dataStreamName := filepath.Base(dataStreamPath)
+		dataStreamName := filepath.Base(dataStreamRoot)
 		for _, pipelinePath := range matched {
 			dataStreamPipelineName := strings.TrimSuffix(filepath.Base(pipelinePath), filepath.Ext(pipelinePath))
 			expectedSuffix := fmt.Sprintf("-%s.%s-%s-%s.yml", manifest.Name, dataStreamName, manifest.Version, dataStreamPipelineName)
@@ -503,7 +605,7 @@ func ReadTransformDefinitionFile(transformPath, packageRootPath string) ([]byte,
 			}
 		}
 	}
-	pipelinePaths, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
+	pipelinePaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "elasticsearch", "ingest_pipeline", "*.yml"))
 	if err != nil {
 		return nil, TransformDefinition{}, fmt.Errorf("error finding ingest pipelines in data streams: %w", err)
 	}

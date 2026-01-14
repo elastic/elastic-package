@@ -19,7 +19,7 @@ import (
 
 // getPipelineCoverage returns a coverage report for the provided set of ingest pipelines.
 func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipelines []ingest.Pipeline) (testrunner.CoverageReport, error) {
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
+	dataStreamRoot, found, err := packages.FindDataStreamRootForPath(options.TestFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
@@ -38,12 +38,13 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 	// for each class (pipeline) include the package name. This prevents paths for
 	// different packages colliding (i.e. a lot of packages have a "log" datastream
 	// and a default.yml pipeline).
-	basePath := filepath.Dir(options.PackageRootPath)
+	basePath := filepath.Dir(options.PackageRoot)
 
-	repositoryRootDir, err := files.FindRepositoryRootDirectory()
+	repositoryRoot, err := files.FindRepositoryRoot()
 	if err != nil {
 		return nil, err
 	}
+	defer repositoryRoot.Close()
 
 	if options.CoverageType == "cobertura" {
 		pkg := &testrunner.CoberturaPackage{
@@ -62,7 +63,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 
 		// Calculate coverage for each pipeline
 		for _, pipeline := range pipelines {
-			pipelineName, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
+			pipelineName, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRoot.Name(), dataStreamRoot)
 			if err != nil {
 				return nil, err
 			}
@@ -86,7 +87,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 
 		// Calculate coverage for each pipeline
 		for _, pipeline := range pipelines {
-			_, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRootDir, dataStreamPath)
+			_, pipelineRelPath, src, pstats, err := pipelineDataForCoverage(pipeline, stats, repositoryRoot.Name(), dataStreamRoot)
 			if err != nil {
 				return nil, err
 			}
@@ -103,7 +104,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 	return nil, fmt.Errorf("unrecognised coverage type")
 }
 
-func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamPath string) (string, string, []ingest.Processor, ingest.PipelineStats, error) {
+func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStatsMap, basePath, dataStreamRoot string) (string, string, []ingest.Processor, ingest.PipelineStats, error) {
 	// Load the list of main processors from the pipeline source code, annotated with line numbers.
 	src, err := pipeline.OriginalProcessors()
 	if err != nil {
@@ -148,7 +149,7 @@ func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStat
 
 	// File path has to be relative to the packagePath added to the cobertura Sources list
 	// so that the source is reachable by the report tool.
-	pipelinePath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline", pipeline.Filename())
+	pipelinePath := filepath.Join(dataStreamRoot, "elasticsearch", "ingest_pipeline", pipeline.Filename())
 	pipelineRelPath, err := filepath.Rel(basePath, pipelinePath)
 	if err != nil {
 		return "", "", nil, ingest.PipelineStats{}, fmt.Errorf("cannot create relative path to pipeline file. Package root: '%s', pipeline path: '%s': %w", basePath, pipelinePath, err)

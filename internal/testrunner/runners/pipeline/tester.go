@@ -40,7 +40,7 @@ type tester struct {
 	profile            *profile.Profile
 	deferCleanup       time.Duration
 	esAPI              *elasticsearch.API
-	packageRootPath    string
+	packageRoot        string
 	testFolder         testrunner.TestFolder
 	generateTestResult bool
 	withCoverage       bool
@@ -61,7 +61,7 @@ type PipelineTesterOptions struct {
 	Profile            *profile.Profile
 	DeferCleanup       time.Duration
 	API                *elasticsearch.API
-	PackageRootPath    string
+	PackageRoot        string
 	TestFolder         testrunner.TestFolder
 	GenerateTestResult bool
 	WithCoverage       bool
@@ -78,7 +78,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 
 	r := tester{
 		profile:            options.Profile,
-		packageRootPath:    options.PackageRootPath,
+		packageRoot:        options.PackageRoot,
 		esAPI:              options.API,
 		deferCleanup:       options.DeferCleanup,
 		testFolder:         options.TestFolder,
@@ -161,7 +161,7 @@ func (r *tester) TearDown(ctx context.Context) error {
 }
 
 func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
-	dataStreamPath, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
+	dataStreamRoot, found, err := packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data_stream root failed: %w", err)
 	}
@@ -171,17 +171,17 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	startTesting := time.Now()
 	var entryPipeline string
-	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamPath, r.repositoryRoot)
+	entryPipeline, r.pipelines, err = ingest.InstallDataStreamPipelines(ctx, r.esAPI, dataStreamRoot, r.repositoryRoot)
 	if err != nil {
 		return nil, fmt.Errorf("installing ingest pipelines failed: %w", err)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read manifest: %w", err)
 	}
 
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRootPath, r.testFolder.DataStream)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, r.testFolder.DataStream)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
@@ -218,7 +218,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 	}
-	result, err := r.runTestCase(ctx, r.testCaseFile, dataStreamPath, dsManifest.Type, entryPipeline, validatorOptions)
+	result, err := r.runTestCase(ctx, r.testCaseFile, dataStreamRoot, dsManifest.Type, entryPipeline, validatorOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +347,8 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 		fields.WithStringNumberFields(tc.config.StringNumberFields),
 	)
-	fieldsValidator, err := fields.CreateValidatorForDirectory(dsPath, validatorOptions...)
+	fieldsDir := filepath.Join(dsPath, "fields")
+	fieldsValidator, err := fields.CreateValidator(r.repositoryRoot, r.packageRoot, fieldsDir, validatorOptions...)
 	if err != nil {
 		return rc.WithErrorf("creating fields validator for data stream failed (path: %s, test case file: %s): %w", dsPath, testCaseFile, err)
 	}
@@ -360,10 +361,10 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 
 	if r.withCoverage {
 		options := PipelineTesterOptions{
-			TestFolder:      r.testFolder,
-			API:             r.esAPI,
-			PackageRootPath: r.packageRootPath,
-			CoverageType:    r.coverageType,
+			TestFolder:   r.testFolder,
+			API:          r.esAPI,
+			PackageRoot:  r.packageRoot,
+			CoverageType: r.coverageType,
 		}
 		rc.Coverage, err = getPipelineCoverage(rc.CoveragePackageName(), options, r.pipelines)
 		if err != nil {
@@ -421,7 +422,7 @@ func loadTestCaseFile(testFolderPath, testCaseFile string) (*testCase, error) {
 func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *testResult, fieldsValidator *fields.Validator) error {
 	testCasePath := filepath.Join(r.testFolder.Path, testCaseFile)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return fmt.Errorf("failed to read package manifest: %w", err)
 	}

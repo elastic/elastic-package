@@ -14,7 +14,15 @@ import (
 )
 
 func FindRepositoryRoot() (*os.Root, error) {
-	rootPath, err := FindRepositoryRootDirectory()
+	workDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("locating working directory failed: %w", err)
+	}
+	return FindRepositoryRootFrom(workDir)
+}
+
+func FindRepositoryRootFrom(workDir string) (*os.Root, error) {
+	rootPath, err := findRepositoryRootDirectoryFrom(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("root not found: %w", err)
 	}
@@ -28,15 +36,7 @@ func FindRepositoryRoot() (*os.Root, error) {
 	return dirRoot, nil
 }
 
-func FindRepositoryRootDirectory() (string, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("locating working directory failed: %w", err)
-	}
-	return findRepositoryRootDirectory(workDir)
-}
-
-func findRepositoryRootDirectory(workDir string) (string, error) {
+func findRepositoryRootDirectoryFrom(workDir string) (string, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
 	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)

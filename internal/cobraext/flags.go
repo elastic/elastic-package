@@ -112,6 +112,9 @@ const (
 	CheckConditionFlagName        = "check-condition"
 	CheckConditionFlagDescription = "check if the condition is met for the package, but don't install the package (e.g. kibana.version=7.10.0)"
 
+	ContinueOnErrorFlagName        = "continue"
+	ContinueOnErrorFlagDescription = "continue running the script if an error occurs"
+
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
@@ -130,11 +133,55 @@ const (
 	DumpOutputFlagName        = "output"
 	DumpOutputFlagDescription = "path to directory where exported assets will be stored"
 
+	ExternalStackFlagName        = "external-stack"
+	ExternalStackFlagDescription = "use external stack for script tests"
+
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailFastFlagName                  = "fail-fast"
-	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
+	FailFastFlagName        = "fail-fast"
+	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
+
+	FilterCategoriesFlagName        = "categories"
+	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
+
+	FilterCodeOwnerFlagName        = "code-owners"
+	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
+
+	FilterDepthFlagName        = "depth"
+	FilterDepthFlagDescription = "maximum depth to search for packages"
+	FilterDepthFlagDefault     = 2
+	FilterDepthFlagShorthand   = "d"
+
+	FilterExcludeDirFlagName        = "exclude-dirs"
+	FilterExcludeDirFlagDescription = "comma-separated list of directories to exclude from search"
+
+	FilterInputFlagName        = "inputs"
+	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+
+	FilterKibanaVersionFlagName        = "kibana-version"
+	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
+
+	FilterOutputFlagName        = "output"
+	FilterOutputFlagDescription = "format of the output. Available options: json, yaml (leave empty for newline-separated list)"
+	FilterOutputFlagShorthand   = "o"
+
+	FilterOutputInfoFlagName        = "output-info"
+	FilterOutputInfoFlagDescription = "output information about the packages. Available options: package_name, dir_name, absolute_path"
+	FilterOutputInfoFlagDefault     = "absolute_path"
+
+	FilterPackageDirNameFlagName        = "package-dirs"
+	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"
+
+	FilterPackagesFlagName        = "packages"
+	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
+
+	FilterPackageTypeFlagName        = "package-types"
+	FilterPackageTypeFlagDescription = "package types to filter by (comma-separated values)"
+
+	FilterSpecVersionFlagName        = "spec-version"
+	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
@@ -154,7 +201,7 @@ const (
 	ProfileFormatFlagDescription = "format of the profiles list (table | json)"
 
 	ReportFormatFlagName        = "report-format"
-	ReportFormatFlagDescription = "format of test report"
+	ReportFormatFlagDescription = "format of test report, eg: human, xUnit, json"
 
 	ReportFullFlagName        = "full"
 	ReportFullFlagDescription = "whether to show the full report or a summary"
@@ -164,6 +211,12 @@ const (
 
 	ReportOutputPathFlagName        = "report-output-path"
 	ReportOutputPathFlagDescription = "output path for test report (defaults to %q in build directory)"
+
+	RunPatternFlagName        = "run"
+	RunPatternFlagDescription = "run only tests matching the regular expression"
+
+	ScriptsFlagName        = "scripts"
+	ScriptsFlagDescription = "path to directory containing test scripts"
 
 	ShowAllFlagName        = "all"
 	ShowAllFlagDescription = "show all deployed package revisions"
@@ -224,7 +277,19 @@ const (
 	NoProvisionFlagName        = "no-provision"
 	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
 
+	UpdateScriptTestArchiveFlagName        = "update"
+	UpdateScriptTestArchiveFlagDescription = "update archive file if a cmp fails"
+
+	VerboseScriptFlagName        = "verbose-scripts"
+	VerboseScriptFlagDescription = "verbose script test output"
+
+	WorkScriptTestFlagName        = "work"
+	WorkScriptTestFlagDescription = "print temporary work directory and do not remove when done"
+
 	ZipPackageFilePathFlagName        = "zip"
 	ZipPackageFilePathFlagShorthand   = "z"
 	ZipPackageFilePathFlagDescription = "path to the zip package file (*.zip)"
+
+	AgentVersionFlagName        = "agent-version"
+	AgentVersionFlagDescription = "Elastic Agent version to be used in the stack"
 )

@@ -42,6 +42,8 @@ const (
 
 	// BenchType defining system benchmark
 	BenchType benchrunner.Type = "system"
+
+	defaultNamespace = "ep"
 )
 
 type runner struct {
@@ -55,6 +57,8 @@ type runner struct {
 	generator         genlib.Generator
 	mcollector        *collector
 	corporaFile       string
+
+	service servicedeployer.DeployedService
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func(context.Context) error
@@ -150,7 +154,26 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, r.svcInfo)
+	serviceName, err := r.serviceDefinedInConfig()
+	if err != nil {
+		return fmt.Errorf("failed to determine if service is defined in config: %w", err)
+	}
+
+	if serviceName != "" {
+		// Just in the case service deployer is needed (input_service field), setup the service now so all the
+		// required information is available in r.svcInfo (e.g. hostname, port, etc).
+		// This info may be needed to render the variables in the configuration.
+		s, err := r.setupService(ctx, serviceName)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Debugf("No service deployer defined for this benchmark")
+		} else if err != nil {
+			return err
+		}
+		r.service = s
+	}
+
+	// Read the configuration again to have any possible service-related variable rendered.
+	scenario, err := readConfig(r.options.BenchPath, r.options.BenchName, &r.svcInfo)
 	if err != nil {
 		return err
 	}
@@ -164,22 +187,33 @@ func (r *runner) setUp(ctx context.Context) error {
 		}
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest)
+	// Set default values for scenario fields from package manifest if not set
+	if r.scenario.Version == "" {
+		r.scenario.Version = pkgManifest.Version
+	}
+
+	if r.scenario.Package == "" {
+		r.scenario.Package = pkgManifest.Name
+	}
+
+	if r.scenario.PolicyTemplate == "" {
+		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
+	}
+
+	policy, err := r.createBenchmarkPolicy(ctx, pkgManifest, defaultNamespace)
 	if err != nil {
 		return err
 	}
 	r.benchPolicy = policy
 
-	// Delete old data
-	logger.Debug("deleting old data in data stream...")
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRoot, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -210,6 +244,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		return nil
 	}
 
+	logger.Debug("deleting old data in data stream...")
 	if err := r.deleteDataStreamDocs(ctx, r.runtimeDataStream); err != nil {
 		return fmt.Errorf("error deleting old data in data stream: %s: %w", r.runtimeDataStream, err)
 	}
@@ -228,18 +263,22 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
-	var service servicedeployer.DeployedService
-	if r.scenario.Corpora.InputService != nil {
-		s, err := r.setupService(ctx)
-		if errors.Is(err, os.ErrNotExist) {
-			logger.Debugf("No service deployer defined for this benchmark")
-		} else if err != nil {
-			return nil, err
-		}
-		service = s
+func (r *runner) serviceDefinedInConfig() (string, error) {
+	// Read of the configuration to know if a service deployer is needed.
+	// No need to render any template at this point.
+	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
+	if err != nil {
+		return "", err
 	}
 
+	if scenario.Corpora.InputService == nil {
+		return "", nil
+	}
+
+	return scenario.Corpora.InputService.Name, nil
+}
+
+func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
 
@@ -257,8 +296,8 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
-		if err = service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
+	if r.service != nil && r.scenario.Corpora.InputService != nil && r.scenario.Corpora.InputService.Signal != "" {
+		if err = r.service.Signal(ctx, r.scenario.Corpora.InputService.Signal); err != nil {
 			return nil, fmt.Errorf("failed to notify benchmark service: %w", err)
 		}
 	}
@@ -283,7 +322,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
-func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedService, error) {
+func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
@@ -293,7 +332,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 	logger.Debug("Setting up service...")
 	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
-		PackageRootPath:        r.options.PackageRootPath,
+		PackageRoot:            r.options.PackageRoot,
 		DevDeployDir:           devDeployDir,
 		Variant:                r.options.Variant,
 		Profile:                r.options.Profile,
@@ -306,7 +345,7 @@ func (r *runner) setupService(ctx context.Context) (servicedeployer.DeployedServ
 		return nil, fmt.Errorf("could not create service runner: %w", err)
 	}
 
-	r.svcInfo.Name = r.scenario.Corpora.InputService.Name
+	r.svcInfo.Name = serviceName
 	service, err := serviceDeployer.SetUp(ctx, r.svcInfo)
 	if err != nil {
 		return nil, fmt.Errorf("could not setup service: %w", err)
@@ -367,14 +406,14 @@ func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) er
 	return nil
 }
 
-func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest) (*kibana.Policy, error) {
+func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *packages.PackageManifest, namespace string) (*kibana.Policy, error) {
 	// Configure package (single data stream) via Ingest Manager APIs.
 	logger.Debug("creating benchmark policy...")
 	benchTime := time.Now().Format("20060102T15:04:05Z")
 	p := kibana.Policy{
 		Name:              fmt.Sprintf("ep-bench-%s-%s", r.options.BenchName, benchTime),
 		Description:       fmt.Sprintf("policy created by elastic-package for benchmark %s", r.options.BenchName),
-		Namespace:         "ep",
+		Namespace:         namespace,
 		MonitoringEnabled: []string{"logs", "metrics"},
 	}
 
@@ -388,29 +427,21 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 		return nil, err
 	}
 
-	packagePolicy, err := r.createPackagePolicy(ctx, pkgManifest, policy)
-	if err != nil {
-		return nil, err
-	}
-
 	r.deletePolicyHandler = func(ctx context.Context) error {
-		var merr multierror.Error
-
-		logger.Debug("deleting benchmark package policy...")
-		if err := r.options.KibanaClient.DeletePackagePolicy(ctx, *packagePolicy); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark package policy: %w", err))
-		}
-
+		// Package policy deletion is handled when deleting this policy.
+		// Setting here the deletion handler ensures that if package policy creation fails,
+		// no orphaned package policies are left behind.
 		logger.Debug("deleting benchmark policy...")
 		if err := r.options.KibanaClient.DeletePolicy(ctx, policy.ID); err != nil {
-			merr = append(merr, fmt.Errorf("error cleaning up benchmark policy: %w", err))
-		}
-
-		if len(merr) > 0 {
-			return merr
+			return fmt.Errorf("error cleaning up benchmark policy: %w", err)
 		}
 
 		return nil
+	}
+
+	_, err = r.createPackagePolicy(ctx, pkgManifest, policy)
+	if err != nil {
+		return nil, err
 	}
 
 	return policy, nil
@@ -419,20 +450,8 @@ func (r *runner) createBenchmarkPolicy(ctx context.Context, pkgManifest *package
 func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.PackageManifest, p *kibana.Policy) (*kibana.PackagePolicy, error) {
 	logger.Debug("creating package policy...")
 
-	if r.scenario.Version == "" {
-		r.scenario.Version = pkgManifest.Version
-	}
-
-	if r.scenario.Package == "" {
-		r.scenario.Package = pkgManifest.Name
-	}
-
-	if r.scenario.PolicyTemplate == "" {
-		r.scenario.PolicyTemplate = pkgManifest.PolicyTemplates[0].Name
-	}
-
 	pp := kibana.PackagePolicy{
-		Namespace: "ep",
+		Namespace: p.Namespace,
 		PolicyID:  p.ID,
 		Force:     true,
 		Inputs: map[string]kibana.PackagePolicyInput{
@@ -440,7 +459,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 				Enabled: true,
 				Vars:    r.scenario.Vars,
 				Streams: map[string]kibana.PackagePolicyStream{
-					fmt.Sprintf("%s.%s", pkgManifest.Name, r.scenario.DataStream.Name): {
+					fmt.Sprintf("%s.%s", r.scenario.Package, r.scenario.DataStream.Name): {
 						Enabled: true,
 						Vars:    r.scenario.DataStream.Vars,
 					},
@@ -448,7 +467,24 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 			},
 		},
 	}
-	pp.Package.Name = pkgManifest.Name
+
+	// By default, all policy templates are enabled when creating a package policy.
+	// This could lead to errors if other policy templates have required variables.
+	// Therefore, all other policy templates and inputs must be disabled since here
+	// just the variables for the current input are set.
+	// NOTE: This data is retrieved from the local package manifest.
+	for _, policyTemplate := range pkgManifest.PolicyTemplates {
+		for _, input := range policyTemplate.Inputs {
+			if policyTemplate.Name == r.scenario.PolicyTemplate && input.Type == r.scenario.Input {
+				continue
+			}
+			pp.Inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, input.Type)] = kibana.PackagePolicyInput{
+				Enabled: false,
+			}
+		}
+	}
+
+	pp.Package.Name = r.scenario.Package
 	pp.Package.Version = r.scenario.Version
 
 	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)

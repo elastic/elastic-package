@@ -1,0 +1,14 @@
+format_version: 3.4.0
+name: alert_rule_templates
+title: "Alert Rule Templates"
+version: 0.0.1
+description: "These are tests of rendering alert rule templates in Readme."
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.2.0"
+owner:
+  github: elastic/integrations
+  type: elastic

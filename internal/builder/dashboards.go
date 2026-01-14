@@ -30,8 +30,8 @@ var fieldsToEncode = []string{
 	panelsAttribute,
 }
 
-func encodeDashboards(destinationDir string) error {
-	savedObjects, err := filepath.Glob(filepath.Join(destinationDir, "kibana", "*", "*"))
+func encodeDashboards(buildPackageRoot string) error {
+	savedObjects, err := filepath.Glob(filepath.Join(buildPackageRoot, "kibana", "*", "*"))
 	if err != nil {
 		return err
 	}

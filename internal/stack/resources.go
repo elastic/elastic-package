@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 //go:embed _static
@@ -67,6 +68,7 @@ const (
 	configLogsDBEnabled       = "stack.logsdb_enabled"
 	configLogstashEnabled     = "stack.logstash_enabled"
 	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
+	configElasticEPRProxyTo   = "stack.epr.proxy_to"
 	configElasticSubscription = "stack.elastic_subscription"
 )
 
@@ -147,7 +149,7 @@ var (
 	}
 )
 
-func applyResources(profile *profile.Profile, stackVersion string) error {
+func applyResources(profile *profile.Profile, stackVersion string, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	var agentPorts []string
@@ -165,7 +167,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"registry_base_image":   PackageRegistryBaseImage,
 		"elasticsearch_version": stackVersion,
 		"kibana_version":        stackVersion,
-		"agent_version":         stackVersion,
+		"agent_version":         agentVersion,
 
 		"kibana_host":        "https://kibana:5601",
 		"fleet_url":          "https://fleet-server:8220",
@@ -183,6 +185,7 @@ func applyResources(profile *profile.Profile, stackVersion string) error {
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+		"epr_proxy_to":         profile.Config(configElasticEPRProxyTo, registry.ProductionURL),
 		"elastic_subscription": elasticSubscriptionProfile,
 	})
 

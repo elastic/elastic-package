@@ -34,11 +34,11 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana          *kibana.Client
-	PackageRootPath string // Root path of the package to be installed.
-	ZipPath         string
-	SkipValidation  bool
-	RepositoryRoot  *os.Root // Root of the repository where package source code is located.
+	Kibana         *kibana.Client
+	PackageRoot    string // Root path of the package to be installed.
+	ZipPath        string
+	SkipValidation bool
+	RepositoryRoot *os.Root // Root of the repository where package source code is located.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -46,11 +46,11 @@ type Options struct {
 // of Kibana lower than 8.7.0.
 // When no zip is given, package is built as zip and installed if version is at least 8.7.0,
 // or from the package registry otherwise.
-func NewForPackage(ctx context.Context, options Options) (Installer, error) {
+func NewForPackage(options Options) (Installer, error) {
 	if options.Kibana == nil {
 		return nil, errors.New("missing kibana client")
 	}
-	if options.PackageRootPath == "" && options.ZipPath == "" {
+	if options.PackageRoot == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
 	if options.RepositoryRoot == nil {
@@ -85,12 +85,13 @@ func NewForPackage(ctx context.Context, options Options) (Installer, error) {
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
-	target, err := builder.BuildPackage(ctx, builder.BuildOptions{
-		PackageRootPath: options.PackageRootPath,
-		CreateZip:       supportsUploadZip,
-		SignPackage:     false,
-		SkipValidation:  options.SkipValidation,
-		RepositoryRoot:  options.RepositoryRoot,
+	target, err := builder.BuildPackage(builder.BuildOptions{
+		PackageRoot:    options.PackageRoot,
+		CreateZip:      supportsUploadZip,
+		SignPackage:    false,
+		SkipValidation: options.SkipValidation,
+		RepositoryRoot: options.RepositoryRoot,
+		UpdateReadmes:  false,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/builder"
-	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -96,32 +95,29 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string) error {
+func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
-	_, err = docs.UpdateReadmes(repositoryRoot, packageRootPath, buildDir)
-	if err != nil {
-		return err
-	}
 
-	_, err = builder.BuildPackage(t.Context(), builder.BuildOptions{
-		PackageRootPath: packageRootPath,
-		BuildDir:        buildDir,
-		RepositoryRoot:  repositoryRoot,
+	_, err = builder.BuildPackage(builder.BuildOptions{
+		PackageRoot:    packageRoot,
+		BuildDir:       buildDir,
+		RepositoryRoot: repositoryRoot,
+		UpdateReadmes:  true,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string, valid bool) {
-	err := buildPackage(t, repositoryRoot, packageRootPath)
+func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, valid bool) {
+	err := buildPackage(t, repositoryRoot, packageRoot)
 	if !valid {
 		assert.Error(t, err)
 		return
 	}
 	require.NoError(t, err)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	require.NoError(t, err)
 
 	// Running in subtests because manifest subobjects can be pointers that can panic when dereferenced by assertions.
@@ -135,7 +131,7 @@ func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRootPath string,
 
 	if manifest.Type == "integration" {
 		t.Run("integration", func(t *testing.T) {
-			ds, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
+			ds, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
 			require.NoError(t, err)
 			for _, d := range ds {
 				manifest, err := packages.ReadDataStreamManifest(filepath.Join(d, "manifest.yml"))

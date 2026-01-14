@@ -101,11 +101,13 @@ func expectedPathFor(testPath string) string {
 }
 
 type policyEntryFilter struct {
-	name            string
-	elementsEntries []policyEntryFilter
-	memberReplace   *policyEntryReplace
-	onlyIfEmpty     bool
-	ignoreValues    []any
+	name               string
+	elementsEntries    []policyEntryFilter
+	mapValues          []policyEntryFilter
+	memberReplace      *policyEntryReplace
+	stringValueReplace *policyEntryReplace
+	onlyIfEmpty        bool
+	ignoreValues       []any
 }
 
 type policyEntryReplace struct {
@@ -124,6 +126,10 @@ var policyEntryFilters = []policyEntryFilter{
 		{name: "package_policy_id"},
 		{name: "streams", elementsEntries: []policyEntryFilter{
 			{name: "id"},
+		}},
+		{name: "name", stringValueReplace: &policyEntryReplace{
+			regexp:  regexp.MustCompile(`^(.+)-[0-9]+$`),
+			replace: "$1",
 		}},
 	}},
 	{name: "secret_references", elementsEntries: []policyEntryFilter{
@@ -145,6 +151,12 @@ var policyEntryFilters = []policyEntryFilter{
 	{name: "agent"},
 	{name: "fleet"},
 	{name: "outputs"},
+	{name: "exporters", mapValues: []policyEntryFilter{
+		{name: "endpoints", memberReplace: &policyEntryReplace{
+			regexp:  regexp.MustCompile(`^https?://.*$`),
+			replace: "https://elasticsearch:9200",
+		}},
+	}},
 
 	// Signatures that change from installation to installation.
 	{name: "agent.protection.uninstall_token_hash"},
@@ -170,9 +182,15 @@ var policyEntryFilters = []policyEntryFilter{
 			{name: "data_stream.elasticsearch", onlyIfEmpty: true},
 		}},
 	}},
+
+	// Fields present since 9.3.0.
+	{name: "inputs", elementsEntries: []policyEntryFilter{
+		{name: "meta.package.policy_template"},
+		{name: "meta.package.release"},
+	}},
 }
 
-var uniqueOtelComponentIDReplace = policyEntryReplace{
+var uniqueOTelComponentIDReplace = policyEntryReplace{
 	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
 	replace: "$1$2/componentid-%s:$4",
 }
@@ -203,10 +221,10 @@ var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|pr
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
-	// Replacement of the OTEL component IDs needs to be done before unmarshalling the YAML.
-	// The OTEL IDs are keys in maps, and using the policyEntryFilter with memberReplace does
+	// Replacement of the OTel component IDs needs to be done before unmarshalling the YAML.
+	// The OTel IDs are keys in maps, and using the policyEntryFilter with memberReplace does
 	// not ensure to keep the same ordering.
-	policy = replaceOtelComponentIDs(policy)
+	policy = replaceOTelComponentIDs(policy)
 
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
@@ -222,9 +240,9 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 	return yaml.Marshal(policyMap)
 }
 
-// replaceOtelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
+// replaceOTelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
 // It also replaces references to those IDs in service.extensions and service.pipelines.
-func replaceOtelComponentIDs(policy []byte) []byte {
+func replaceOTelComponentIDs(policy []byte) []byte {
 	replacementsDone := map[string]string{}
 
 	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
@@ -233,16 +251,16 @@ func replaceOtelComponentIDs(policy []byte) []byte {
 		var section strings.Builder
 		for scanner.Scan() {
 			line := scanner.Text()
-			if uniqueOtelComponentIDReplace.regexp.MatchString(line) {
-				originalOtelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
+			if uniqueOTelComponentIDReplace.regexp.MatchString(line) {
+				originalOTelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
 
-				replacement := fmt.Sprintf(uniqueOtelComponentIDReplace.replace, strconv.Itoa(count))
+				replacement := fmt.Sprintf(uniqueOTelComponentIDReplace.replace, strconv.Itoa(count))
 				count++
-				line = uniqueOtelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
+				line = uniqueOTelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
 
 				// store the otel ID replaced without the space indentation and the colon to be replaced later
 				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				replacementsDone[originalOtelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
+				replacementsDone[originalOTelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
 			}
 			section.WriteString(line + "\n")
 		}
@@ -289,6 +307,36 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			if err != nil {
 				return nil, err
 			}
+		case len(entry.mapValues) > 0:
+			mapStr, err := common.ToMapStr(v)
+			if err != nil {
+				return nil, err
+			}
+			for k, v := range mapStr {
+				if vMap, err := common.ToMapStr(v); err != nil {
+					m, err := cleanPolicyMap(vMap, entry.mapValues)
+					if err != nil {
+						return nil, err
+					}
+					mapStr[k] = m
+				} else if list, err := common.ToMapStrSlice(v); err != nil {
+					clean := make([]any, len(list))
+					for i := range list {
+						c, err := cleanPolicyMap(list[i], entry.mapValues)
+						if err != nil {
+							return nil, err
+						}
+						clean[i] = c
+					}
+					mapStr.Delete(k)
+					_, err = mapStr.Put(k, clean)
+					if err != nil {
+						return nil, err
+					}
+				} else {
+					return nil, fmt.Errorf("expected map or list, found %T", v)
+				}
+			}
 		case entry.memberReplace != nil:
 			m, ok := v.(common.MapStr)
 			if !ok {
@@ -303,6 +351,17 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 					key = regexp.ReplaceAllString(k, replacement)
 					m[key] = e
 				}
+			}
+		case entry.stringValueReplace != nil:
+			vStr, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string, found %T", v)
+			}
+			regexp := entry.stringValueReplace.regexp
+			replacement := entry.stringValueReplace.replace
+			if regexp.MatchString(vStr) {
+				value := regexp.ReplaceAllString(vStr, replacement)
+				policyMap.Put(entry.name, value)
 			}
 		default:
 			if entry.onlyIfEmpty && !isEmpty(v, entry.ignoreValues) {
@@ -321,6 +380,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 	return policyMap, nil
 }
 
+// isEmpty checks if the value is empty. It is considered empty if it is the zero value,
+// or for values for length, if it is zero. Values in ignoreValues are not counted for
+// the total length when present in lists.
 func isEmpty(v any, ignoreValues []any) bool {
 	switch v := v.(type) {
 	case nil:

@@ -28,6 +28,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -153,9 +154,12 @@ var (
 				{
 					includes: regexp.MustCompile("->(FAILED|DEGRADED)"),
 
-					// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 					excludes: []*regexp.Regexp{
+						// this regex is excluded to avoid a regresion in 8.11 that can make a component to pass to a degraded state during some seconds after reassigning or removing a policy
 						regexp.MustCompile(`Component state changed .* \(HEALTHY->DEGRADED\): Degraded: pid .* missed .* check-in`),
+						// This is excluded because the awss3 input incorrectly complains about missing Records fields in s3:TestEvent messages.
+						// See https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html#notification-content-structure-examples.
+						regexp.MustCompile(`state changed .* \(HEALTHY->DEGRADED\): .* the message is an invalid S3 notification: missing Records field`),
 					},
 				},
 				{
@@ -175,6 +179,7 @@ var (
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
 	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
+	kibanaPolicyOverridesEnv     = environment.WithElasticPackagePrefix("KIBANA_POLICY_OVERRIDES")
 )
 
 type fieldValidationMethod int
@@ -193,7 +198,7 @@ var validationMethods = map[string]fieldValidationMethod{
 type tester struct {
 	profile            *profile.Profile
 	testFolder         testrunner.TestFolder
-	packageRootPath    string
+	packageRoot        string
 	generateTestResult bool
 	esAPI              *elasticsearch.API
 	esClient           *elasticsearch.Client
@@ -213,18 +218,21 @@ type tester struct {
 
 	pipelines []ingest.Pipeline
 
-	dataStreamPath     string
-	stackVersion       kibana.VersionInfo
-	locationManager    *locations.LocationManager
-	resourcesManager   *resources.Manager
-	pkgManifest        *packages.PackageManifest
-	dataStreamManifest *packages.DataStreamManifest
-	withCoverage       bool
-	coverageType       string
+	dataStream           string
+	stackVersion         kibana.VersionInfo
+	overrideAgentVersion string
+	locationManager      *locations.LocationManager
+	resourcesManager     *resources.Manager
+	pkgManifest          *packages.PackageManifest
+	dataStreamManifest   *packages.DataStreamManifest
+	withCoverage         bool
+	coverageType         string
 
 	serviceStateFilePath string
 
 	globalTestConfig testrunner.GlobalRunnerTestConfig
+
+	kibanaPolicyOverrides map[string]any
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
@@ -239,10 +247,12 @@ type tester struct {
 type SystemTesterOptions struct {
 	Profile            *profile.Profile
 	TestFolder         testrunner.TestFolder
-	PackageRootPath    string
+	PackageRoot        string
 	GenerateTestResult bool
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
+
+	OverrideAgentVersion string
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -263,7 +273,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 	r := tester{
 		profile:                    options.Profile,
 		testFolder:                 options.TestFolder,
-		packageRootPath:            options.PackageRootPath,
+		packageRoot:                options.PackageRoot,
 		generateTestResult:         options.GenerateTestResult,
 		esAPI:                      options.API,
 		esClient:                   options.ESClient,
@@ -278,6 +288,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
 		runIndependentElasticAgent: true,
+		overrideAgentVersion:       options.OverrideAgentVersion,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -291,7 +302,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("reading service logs directory failed: %w", err)
 	}
 
-	r.dataStreamPath, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
+	r.dataStream, _, err = packages.FindDataStreamRootForPath(r.testFolder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
 	}
@@ -308,16 +319,16 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
 	}
 
-	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
+	r.pkgManifest, err = packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	if r.dataStreamPath != "" {
+	if r.dataStream != "" {
 		// Avoid reading data stream manifest if path is empty (e.g. input packages) to avoid
 		// filling "r.dataStreamManifest" with values from package manifest since the resulting path will point to
 		// the package manifest instead of the data stream manifest.
-		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStreamPath, packages.DataStreamManifestFile))
+		r.dataStreamManifest, err = packages.ReadDataStreamManifest(filepath.Join(r.dataStream, packages.DataStreamManifestFile))
 		if err != nil {
 			return nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 		}
@@ -339,6 +350,20 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 			return nil, fmt.Errorf("invalid field method option: %s", v)
 		}
 		r.fieldValidationMethod = method
+	}
+
+	// kibana policy overrides
+	v, ok = os.LookupEnv(kibanaPolicyOverridesEnv)
+	if ok {
+		data, err := os.ReadFile(v)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %q specified in %s: %w", v, kibanaPolicyOverridesEnv, err)
+		}
+		overrides := make(map[string]any)
+		if err = yaml.Unmarshal(data, &overrides); err != nil {
+			return nil, fmt.Errorf("error reading yaml from %s: %w", v, err)
+		}
+		r.kibanaPolicyOverrides = overrides
 	}
 
 	return &r, nil
@@ -450,31 +475,33 @@ type resourcesOptions struct {
 
 func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
-		Profile:            r.profile,
-		PackageRootPath:    r.packageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Type:               agentdeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
-		PackageName:        r.testFolder.Package,
-		DataStream:         r.testFolder.DataStream,
-		PolicyName:         policyName,
-		DeployerName:       deployerName,
-		RunTearDown:        r.runTearDown,
-		RunTestsOnly:       r.runTestsOnly,
-		RunSetup:           r.runSetup,
+		Profile:              r.profile,
+		PackageRoot:          r.packageRoot,
+		DataStreamRoot:       r.dataStream,
+		DevDeployDir:         DevDeployDir,
+		Type:                 agentdeployer.TypeTest,
+		StackVersion:         r.stackVersion.Version(),
+		OverrideAgentVersion: r.overrideAgentVersion,
+		PackageName:          r.testFolder.Package,
+		DataStream:           r.testFolder.DataStream,
+		PolicyName:           policyName,
+		DeployerName:         deployerName,
+		RunTearDown:          r.runTearDown,
+		RunTestsOnly:         r.runTestsOnly,
+		RunSetup:             r.runSetup,
 	}
 }
 
 func (r *tester) createServiceOptions(variantName, deployerName string) servicedeployer.FactoryOptions {
 	return servicedeployer.FactoryOptions{
 		Profile:                r.profile,
-		PackageRootPath:        r.packageRootPath,
-		DataStreamRootPath:     r.dataStreamPath,
+		PackageRoot:            r.packageRoot,
+		DataStreamRoot:         r.dataStream,
 		DevDeployDir:           DevDeployDir,
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
+		OverrideAgentVersion:   r.overrideAgentVersion,
 		RunTearDown:            r.runTearDown,
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,
@@ -490,7 +517,7 @@ func (r *tester) createAgentInfo(policy *kibana.Policy, config *testConfig, runI
 	info.Logs.Folder.Agent = ServiceLogsAgentDir
 	info.Test.RunID = runID
 
-	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRootPath, r.testFolder.DataStream, runID)
+	dirPath, err := agentdeployer.CreateServiceLogsDir(r.profile, r.packageRoot, r.testFolder.DataStream, runID)
 	if err != nil {
 		return agentdeployer.AgentInfo{}, fmt.Errorf("failed to create service logs dir: %w", err)
 	}
@@ -966,8 +993,7 @@ type scenarioTest struct {
 	// dataStream is the name of the target data stream where documents are indexed
 	dataStream          string
 	indexTemplateName   string
-	policyTemplateName  string
-	policyTemplateInput string
+	policyTemplate      packages.PolicyTemplate
 	kibanaDataStream    kibana.PackageDataStream
 	syntheticEnabled    bool
 	docs                []common.MapStr
@@ -1024,13 +1050,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
-	scenario.policyTemplateName = policyTemplateName
 
-	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, scenario.policyTemplateName)
+	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
-	scenario.policyTemplateInput = policyTemplate.Input
+	scenario.policyTemplate = policyTemplate
 
 	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
@@ -1090,8 +1115,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.kibanaDataStream = ds
 
-	scenario.indexTemplateName = BuildIndexTemplateName(ds, r.pkgManifest.Type, config.Vars)
-	scenario.dataStream = BuildDataStreamName(scenario.policyTemplateInput, ds, r.pkgManifest.Type, config.Vars)
+	scenario.indexTemplateName = BuildIndexTemplateName(ds, policyTemplate, r.pkgManifest.Type, config.Vars)
+	scenario.dataStream = BuildDataStreamName(ds, policyTemplate, r.pkgManifest.Type, config.Vars)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1260,8 +1285,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 // BuildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildIndexTemplateName(ds kibana.PackageDataStream, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, cfgVars)
+func BuildIndexTemplateName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(packageType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	indexTemplateName := fmt.Sprintf(
 		"%s-%s",
@@ -1273,11 +1298,11 @@ func BuildIndexTemplateName(ds kibana.PackageDataStream, manType string, cfgVars
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream, manType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(manType, ds.Inputs[0].Streams[0].DataStream.Dataset, cfgVars)
+func BuildDataStreamName(ds kibana.PackageDataStream, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
+	dataStreamDataset := getExpectedDatasetForTest(packageType, ds.Inputs[0].Streams[0].DataStream.Dataset, policyTemplate, cfgVars)
 
 	// Input packages using the otel collector input require to add a specific dataset suffix
-	if manType == "input" && policyTemplateInput == otelCollectorInputName {
+	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
 		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
 	}
 
@@ -1290,13 +1315,18 @@ func BuildDataStreamName(policyTemplateInput string, ds kibana.PackageDataStream
 	return dataStreamName
 }
 
-func getExpectedDatasetForTest(pkgType, dataset string, cfgVars common.MapStr) string {
+func getExpectedDatasetForTest(pkgType, dataset string, policyTemplate packages.PolicyTemplate, cfgVars common.MapStr) string {
 	if pkgType == "input" {
 		// Input packages can set `data_stream.dataset` by convention to customize the dataset.
 		v, _ := cfgVars.GetValue("data_stream.dataset")
 		if ds, ok := v.(string); ok && ds != "" {
 			return ds
 		}
+		// Some of them also set a default value.
+		if ds := findDefaultValue(policyTemplate.Vars, "data_stream.dataset"); ds != "" {
+			return ds
+		}
+		return policyTemplate.Name
 	}
 	return dataset
 }
@@ -1362,6 +1392,7 @@ func (r *tester) createOrGetKibanaPolicies(ctx context.Context, serviceStateData
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
+			Overrides:   r.kibanaPolicyOverrides,
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
 		// TODO: Migrate from stack.logstash_enabled to the stack config.
@@ -1626,22 +1657,31 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return nil, err
 	}
 
-	if r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) {
+	if r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) {
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.dataStreamPath,
+	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+	if err != nil {
+		return result.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+	}
+	defer repositoryRoot.Close()
+	fieldsDir := filepath.Join(r.packageRoot, "fields")
+	if r.dataStream != "" {
+		fieldsDir = filepath.Join(r.dataStream, "fields")
+	}
+	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
-		// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
-		fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput)),
+		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
 	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
+		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
 	}
 
 	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
@@ -1651,7 +1691,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		})
 	}
 
-	if !r.isTestUsingOTELCollectorInput(scenario.policyTemplateInput) && r.fieldValidationMethod == mappingsMethod {
+	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
 		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
 
@@ -1708,7 +1748,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplateInput, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplate.Input, scenario.syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1761,28 +1801,19 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 		}
 	}
 
-	if expectedDatasets == nil {
+	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
-		expectedDataset := scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset
-		if r.pkgManifest.Type == "input" {
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				expectedDataset += "." + otelSuffixDataset
-			}
+		expectedDataset := getExpectedDatasetForTest(
+			r.pkgManifest.Type,
+			scenario.kibanaDataStream.Inputs[0].Streams[0].DataStream.Dataset,
+			scenario.policyTemplate,
+			config.Vars)
+		if scenario.policyTemplate.Input == otelCollectorInputName {
+			// Input packages whose input is `otelcol` must add the `.otel` suffix
+			// Example: httpcheck.metrics.otel
+			expectedDataset += "." + otelSuffixDataset
 		}
 		expectedDatasets = []string{expectedDataset}
-	}
-	if r.pkgManifest.Type == "input" {
-		v, _ := config.Vars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			if scenario.policyTemplateInput == otelCollectorInputName {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
-				dataset += "." + otelSuffixDataset
-			}
-			expectedDatasets = append(expectedDatasets, dataset)
-		}
 	}
 
 	return expectedDatasets, nil
@@ -1827,7 +1858,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	return r.validateTestScenario(ctx, result, scenario, config)
 }
 
-func (r *tester) isTestUsingOTELCollectorInput(policyTemplateInput string) bool {
+func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool {
 	// Just supported for input packages currently
 	if r.pkgManifest.Type != "input" {
 		return false
@@ -2012,22 +2043,29 @@ func createInputPackageDatastream(
 		},
 	}
 
-	dataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", policyTemplate.Input, pkg.Name, policyTemplate.Name),
 			Enabled: true,
 			DataStream: kibana.DataStream{
-				Type:    policyTemplate.Type,
-				Dataset: dataset,
+				Type: policyTemplate.Type,
+				// This dataset is the one Fleet uses to identify the stream,
+				// it must be <package name>.<policy template name>. This is not
+				// the same as the dataset used for the index template, configured
+				// with vars below.
+				Dataset: fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name),
 			},
 		},
 	}
 
 	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, cfgVars)
+
+	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
+	// UI would use if this is not defined in the config or doesn't have a default.
 	if _, found := vars["data_stream.dataset"]; !found {
-		dataStreamDataset := dataset
+		// Fleet uses the policy template name as default dataset for input packages, do the same.
+		dataStreamDataset := policyTemplate.Name
 		v, _ := cfgVars.GetValue("data_stream.dataset")
 		if dataset, ok := v.(string); ok && dataset != "" {
 			dataStreamDataset = dataset
@@ -2044,6 +2082,21 @@ func createInputPackageDatastream(
 	streams[0].Vars = vars
 	r.Inputs[0].Streams = streams
 	return r
+}
+
+func findDefaultValue(vars []packages.Variable, name string) string {
+	for _, v := range vars {
+		if v.Name != name {
+			continue
+		}
+		if v.Default != nil {
+			value, ok := v.Default.Value().(string)
+			if ok && value != "" {
+				return value
+			}
+		}
+	}
+	return ""
 }
 
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
@@ -2180,9 +2233,9 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		return nil
 	}
 
-	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRootPath)
+	transforms, err := packages.ReadTransformsFromPackageRoot(r.packageRoot)
 	if err != nil {
-		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRootPath, err)
+		return fmt.Errorf("loading transforms for package failed (root: %s): %w", r.packageRoot, err)
 	}
 	for _, transform := range transforms {
 		hasSource, err := transform.HasSource(dataStream)
@@ -2223,17 +2276,23 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			return fmt.Errorf("no documents found in preview for transform %q", transformId)
 		}
 
-		transformRootPath := filepath.Dir(transform.Path)
-		fieldsValidator, err := fields.CreateValidatorForDirectory(transformRootPath,
+		repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+		if err != nil {
+			return fmt.Errorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		}
+		defer repositoryRoot.Close()
+		transformRoot := filepath.Dir(transform.Path)
+		fieldsDir := filepath.Join(transformRoot, "fields")
+		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
 			fields.WithDisableNormalization(syntheticEnabled),
-			// When using the OTEL collector input, just a subset of validations are performed (e.g. check expected datasets)
-			fields.WithOTELValidation(r.isTestUsingOTELCollectorInput(policyTemplateInput)),
+			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(policyTemplateInput)),
 		)
 		if err != nil {
-			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)
+			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRoot, err)
 		}
 		if errs := validateFields(transformDocs, fieldsValidator); len(errs) > 0 {
 			return testrunner.ErrTestCaseFailed{
@@ -2469,7 +2528,7 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 		return nil
 	}
 
-	rootPath := r.packageRootPath
+	rootPath := r.packageRoot
 	if ds := r.testFolder.DataStream; ds != "" {
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
@@ -2614,10 +2673,10 @@ func (r *tester) generateCoverageReport(pkgName string) (testrunner.CoverageRepo
 
 	// This list of patterns includes patterns for all types of packages. It should not be a problem if some path doesn't exist.
 	patterns := []string{
-		filepath.Join(r.packageRootPath, "manifest.yml"),
-		filepath.Join(r.packageRootPath, "fields", "*.yml"),
-		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "manifest.yml"),
-		filepath.Join(r.packageRootPath, "data_stream", dsPattern, "fields", "*.yml"),
+		filepath.Join(r.packageRoot, "manifest.yml"),
+		filepath.Join(r.packageRoot, "fields", "*.yml"),
+		filepath.Join(r.packageRoot, "data_stream", dsPattern, "manifest.yml"),
+		filepath.Join(r.packageRoot, "data_stream", dsPattern, "fields", "*.yml"),
 	}
 
 	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, r.coverageType, true)

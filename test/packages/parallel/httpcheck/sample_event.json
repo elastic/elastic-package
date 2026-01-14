@@ -1,0 +1,38 @@
+{
+    "@timestamp": "2025-10-28T19:45:38.860Z",
+    "_metric_names_hash": "dbc9255cf6baf03b",
+    "attributes": {
+        "http": {
+            "method": "GET",
+            "status_class": "1xx",
+            "url": "http://svc-web:80"
+        }
+    },
+    "data_stream": {
+        "dataset": "httpcheck.check.otel",
+        "namespace": "18445",
+        "type": "metrics"
+    },
+    "event": {
+        "dataset": "httpcheck.check.otel"
+    },
+    "http": {
+        "method": "GET",
+        "status_class": "1xx",
+        "url": "http://svc-web:80"
+    },
+    "httpcheck": {
+        "status": 0
+    },
+    "metrics": {
+        "httpcheck": {
+            "status": 0
+        }
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/httpcheckreceiver",
+        "version": "9.2.0"
+    },
+    "start_timestamp": "2025-10-28T19:45:37.831Z",
+    "unit": "1"
+}

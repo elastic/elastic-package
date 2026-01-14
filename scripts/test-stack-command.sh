@@ -10,6 +10,7 @@ VERSION=${1:-default}
 APM_SERVER_ENABLED=${APM_SERVER_ENABLED:-false}
 SELF_MONITOR_ENABLED=${SELF_MONITOR_ENABLED:-false}
 ELASTIC_SUBSCRIPTION=${ELASTIC_SUBSCRIPTION:-""}
+AGENT_VERSION_FLAG=${AGENT_VERSION_FLAG:-""}
 
 cleanup() {
   local r=$?
@@ -49,7 +50,12 @@ default_version() {
 
 clean_status_output() {
   local output_file="$1"
-  cat "${output_file}" | grep "│" | tr -d ' '
+  # This removes the 'IMAGE BUILD DATE" and 'VCS REF' columns and
+  # removes the whitespace between columns.
+  grep "│" "${output_file}" \
+    | sed 's/│/|/g' \
+    | cut -d '|' -f 1-4,7- \
+    | tr -d ' '
 }
 
 trap cleanup EXIT
@@ -59,6 +65,10 @@ EXPECTED_VERSION=$(default_version)
 if [ "${VERSION}" != "default" ]; then
   ARG_VERSION="--version ${VERSION}"
   EXPECTED_VERSION=${VERSION}
+fi
+if [ "${AGENT_VERSION_FLAG}" != "" ]; then
+    ARG_VERSION="${ARG_VERSION} --agent-version ${AGENT_VERSION_FLAG}"
+    echo "Using agent version override flag: ${AGENT_VERSION_FLAG}"
 fi
 
 OUTPUT_PATH_STATUS="build/elastic-stack-status/${VERSION}"
@@ -109,10 +119,14 @@ elastic-package stack status 2> "${OUTPUT_PATH_STATUS}/initial.txt"
 grep "\- No service running" "${OUTPUT_PATH_STATUS}/initial.txt"
 
 EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}"
-if [[ "${EXPECTED_VERSION}" =~ ^7\.17 ]] ; then
+# Override agent version if flag is set
+if [ "${AGENT_VERSION_FLAG}" != "" ]; then
+    EXPECTED_AGENT_VERSION="${AGENT_VERSION_FLAG}"
+fi
+if [[ "${EXPECTED_AGENT_VERSION}" =~ ^7\.17 ]] ; then
     # Required starting with STACK_VERSION 7.17.21
-    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_VERSION}-amd64"
-    EXPECTED_AGENT_VERSION="${EXPECTED_VERSION}-amd64"
+    export ELASTIC_AGENT_IMAGE_REF_OVERRIDE="docker.elastic.co/beats/elastic-agent-complete:${EXPECTED_AGENT_VERSION}-amd64"
+    EXPECTED_AGENT_VERSION="${EXPECTED_AGENT_VERSION}-amd64"
     echo "Override elastic-agent docker image: ${ELASTIC_AGENT_IMAGE_REF_OVERRIDE}"
 fi
 
@@ -131,20 +145,20 @@ curl --cacert "${ELASTIC_PACKAGE_CA_CERT}" -f "${ELASTIC_PACKAGE_KIBANA_HOST}/lo
 # Check status with running services
 cat <<EOF > "${OUTPUT_PATH_STATUS}/expected_running.txt"
 Status of Elastic stack services:
-╭──────────────────┬─────────┬───────────────────╮
-│ SERVICE          │ VERSION │ STATUS            │
-├──────────────────┼─────────┼───────────────────┤
-│ elastic-agent    │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
-│ elasticsearch    │ ${EXPECTED_VERSION}   │ running (healthy) │
-│ fleet-server     │ ${EXPECTED_AGENT_VERSION}   │ running (healthy) │
-│ kibana           │ ${EXPECTED_VERSION}   │ running (healthy) │
-│ package-registry │ latest  │ running (healthy) │
-╰──────────────────┴─────────┴───────────────────╯
+╭──────────────────┬─────────────────────┬───────────────────┬───────────────────┬────────────╮
+│ SERVICE          │ VERSION             │ STATUS            │ IMAGE BUILD DATE  │ VCS REF    │
+├──────────────────┼─────────────────────┼───────────────────┼───────────────────┼────────────┤
+│ elastic-agent    │ ${EXPECTED_AGENT_VERSION} │ running (healthy) │ 2024-08-22T02:44Z │ b96a4ca8fa │
+│ elasticsearch    │ ${EXPECTED_VERSION} │ running (healthy) │ 2024-08-22T13:26Z │ 1362d56865 │
+│ fleet-server     │ ${EXPECTED_AGENT_VERSION} │ running (healthy) │ 2024-08-22T02:44Z │ b96a4ca8fa │
+│ kibana           │ ${EXPECTED_VERSION} │ running (healthy) │ 2024-08-22T11:09Z │ cdcdfddd3f │
+│ package-registry │ latest              │ running (healthy) │                   │            │
+╰──────────────────┴─────────────────────┴───────────────────┴───────────────────┴────────────╯
 EOF
 
 NO_COLOR=true elastic-package stack status -v 2> "${OUTPUT_PATH_STATUS}/running.txt"
 
-# Remove spaces to avoid issues with spaces between columns
+# Remove dates, commit IDs, and spaces to avoid issues.
 clean_status_output "${OUTPUT_PATH_STATUS}/expected_running.txt" > "${OUTPUT_PATH_STATUS}/expected_no_spaces.txt"
 clean_status_output "${OUTPUT_PATH_STATUS}/running.txt" > "${OUTPUT_PATH_STATUS}/running_no_spaces.txt"
 

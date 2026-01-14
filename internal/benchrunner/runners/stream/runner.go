@@ -110,12 +110,12 @@ func (r *runner) initialize() error {
 	r.generators = make(map[string]genlib.Generator)
 	r.backFillGenerators = make(map[string]genlib.Generator)
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenarios, err := readScenarios(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
+	scenarios, err := readScenarios(r.options.PackageRoot, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	r.svcInfo.Test.RunID = common.NewRunID()
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
@@ -180,7 +180,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		var err error
 		dataStreamManifest, err := packages.ReadDataStreamManifest(
 			filepath.Join(
-				common.DataStreamPath(r.options.PackageRootPath, scenario.DataStream.Name),
+				common.DataStreamPath(r.options.PackageRoot, scenario.DataStream.Name),
 				packages.DataStreamManifestFile,
 			),
 		)
@@ -252,11 +252,11 @@ func (r *runner) installPackage(ctx context.Context) error {
 
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
-	installer, err := installer.NewForPackage(ctx, installer.Options{
-		Kibana:          r.options.KibanaClient,
-		PackageRootPath: r.options.PackageRootPath,
-		SkipValidation:  true,
-		RepositoryRoot:  r.options.RepositoryRoot,
+	installer, err := installer.NewForPackage(installer.Options{
+		Kibana:         r.options.KibanaClient,
+		PackageRoot:    r.options.PackageRoot,
+		SkipValidation: true,
+		RepositoryRoot: r.options.RepositoryRoot,
 	})
 
 	if err != nil {

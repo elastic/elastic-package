@@ -21,8 +21,8 @@ func ServiceLogsDir(profile *profile.Profile) string {
 	return filepath.Join(profile.ProfilePath, serviceLogsDir)
 }
 
-func ServiceLogsDirGlobPackage(profile *profile.Profile, packageRootPath string) string {
-	packageFolderName := filepath.Base(packageRootPath)
+func ServiceLogsDirGlobPackage(profile *profile.Profile, packageRoot string) string {
+	packageFolderName := filepath.Base(packageRoot)
 	return fmt.Sprintf("%s/agent-%s-*", ServiceLogsDir(profile), packageFolderName)
 }
 
