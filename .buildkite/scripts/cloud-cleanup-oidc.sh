@@ -33,8 +33,6 @@ resources_failed_to_delete=0
 COMMAND="validate"
 redshift_message=""
 if [[ "${DRY_RUN}" != "true" ]]; then
-    # TODO: to be changed to "destroy --confirm" once it can be tested
-    # that filters work as expected
     COMMAND="destroy --confirm"
     redshift_message=" - stale redshift clusters will be deleted"
 else
