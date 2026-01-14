@@ -80,12 +80,13 @@ func ProcessResourceApplyResults(results resource.ApplyResults) string {
 // GCPCredentialFacters reads the GOOGLE_APPLICATION_CREDENTIALS environment variable
 // and returns a StaticFacter with the relevant GCP credential information.
 func GCPCredentialFacters() (resource.StaticFacter, error) {
+	defaultValue := resource.StaticFacter{
+		"google_credential_source_file":  "",
+		"google_application_credentials": "",
+	}
 	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
 	if googleApplicationCredentials == "" {
-		return resource.StaticFacter{
-			"google_credential_source_file":  "",
-			"google_application_credentials": "",
-		}, nil
+		return defaultValue, nil
 	}
 
 	if _, err := os.Stat(googleApplicationCredentials); err != nil {

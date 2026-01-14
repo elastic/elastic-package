@@ -9,6 +9,7 @@ import (
 	"crypto/md5"
 	"embed"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -307,7 +308,13 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	}
 
 	gcpFacters, err := common.GCPCredentialFacters()
-	if err != nil {
+	if errors.Is(err, os.ErrNotExist) {
+		logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in agent configuration.")
+		gcpFacters = resource.StaticFacter{
+			"google_credential_source_file":  "",
+			"google_application_credentials": "",
+		}
+	} else if err != nil {
 		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
 	}
 
