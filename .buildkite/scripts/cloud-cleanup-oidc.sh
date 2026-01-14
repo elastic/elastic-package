@@ -42,7 +42,7 @@ else
 fi
 
 buildkite-agent annotate \
-  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"${redshift_message}" \
+  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\" to detect resources older than \"${RESOURCE_RETENTION_PERIOD}\"${redshift_message}" \
   --context "ctx-cloud-reaper-info" \
   --style "info"
 
