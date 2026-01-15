@@ -673,7 +673,7 @@ _Context: global_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
+The AI agent supports three modes:
 1. Rewrite mode (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
@@ -682,6 +682,11 @@ The AI agent supports two modes:
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
    - Use --modify-prompt flag for non-interactive modifications
+3. Evaluate mode: Documentation quality evaluation
+   - Use --evaluate flag to run in evaluation mode
+   - Outputs to a directory instead of modifying the package
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - Supports batch processing of multiple packages with --batch flag
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -695,6 +700,22 @@ You can review results and request additional changes iteratively.
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
 Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+
+Evaluation mode examples:
+```bash
+# Evaluate a single package (run from package directory)
+elastic-package update documentation --evaluate --output-dir ./results
+
+# Batch evaluation of multiple packages
+elastic-package update documentation --evaluate \
+  --batch citrix_adc,nginx,apache \
+  --integrations-path ~/git/integrations \
+  --output-dir ./batch_results \
+  --parallel 4
+
+# With Phoenix tracing enabled
+elastic-package update documentation --evaluate --enable-tracing
+```
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -766,7 +787,7 @@ When using AI-powered documentation generation, **file content from your local f
 
 #### Operation Modes
 
-The command supports two modes of operation:
+The command supports three modes of operation:
 
 1. **Rewrite Mode** (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
@@ -777,6 +798,13 @@ The command supports two modes of operation:
    - Makes specific changes to existing documentation
    - Requires existing README.md file at `/_dev/build/docs/README.md`
    - Use `--modify-prompt` flag for non-interactive modifications
+
+3. **Evaluate Mode**: Documentation quality evaluation
+   - Use `--evaluate` flag to run in evaluation mode
+   - Outputs to a directory instead of modifying the package
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - Supports batch processing of multiple packages with `--batch` flag
+   - Results are saved as JSON files for offline analysis
 
 #### Workflow Options
 
@@ -824,7 +852,35 @@ elastic-package update documentation --modify-prompt "Add more details about aut
 
 # Use specific profile with LLM configuration
 elastic-package update documentation --profile production
+
+# Evaluate a single package
+elastic-package update documentation --evaluate --output-dir ./results
+
+# Batch evaluation of multiple packages
+elastic-package update documentation --evaluate \
+  --batch citrix_adc,nginx,apache \
+  --integrations-path ~/git/integrations \
+  --output-dir ./batch_results \
+  --parallel 4
+
+# With Phoenix tracing enabled for debugging
+elastic-package update documentation --evaluate --enable-tracing
 ```
+
+#### Evaluation Mode Flags
+
+| Flag | Type | Description |
+|------|------|-------------|
+| `--evaluate` | bool | Run in evaluation mode - outputs to directory instead of package |
+| `--output-dir` | string | Directory for evaluation results (default: `./doc_eval_results`) |
+| `--batch` | string | Comma-separated list of package names for batch processing |
+| `--integrations-path` | string | Path to integrations repo (required for batch mode) |
+| `--max-iterations` | uint | Max validation iterations per stage (default: 3) |
+| `--parallel` | int | Parallelism for batch mode (default: 4) |
+| `--model` | string | LLM model ID to use (overrides GEMINI_MODEL env var) |
+| `--enable-staged-validation` | bool | Enable staged validation (default: true) |
+| `--clear-results` | bool | Clear previous results from output directory (default: true) |
+| `--enable-tracing` | bool | Enable Phoenix tracing for documentation generation |
 
 #### Advanced Features
 

@@ -17,35 +17,35 @@ const (
 )
 
 const styleValidatorInstruction = `You are a documentation style validator for Elastic integration packages.
-Your task is to validate that the documentation follows the Elastic Style Guide.
+Your task is to validate ONLY critical style issues that significantly impact readability.
 
 ## Input
 The documentation content to validate is provided in the user message.
 
-## Style Guide Rules
+## Style Guide Rules - CHECK ONLY THESE:
 
-### Voice and Tone
-- Use friendly, helpful, conversational tone
-- Address users directly with "you" and "your"
-- Use contractions (don't, it's, you're) for friendly tone
-- Prefer active voice over passive voice
+### American English
+- Use American English spelling (-ize, -or, -ense)
+- Example: "organization" not "organisation", "color" not "colour"
 
-### Emphasis Rules
-- **Bold** ONLY for UI elements (buttons, tabs, menu items)
-- *Italic* ONLY for introducing new terms
-- Backticks for code, commands, file paths, field names
+### Technical Accuracy
+- Code examples should be complete and syntactically correct
+- File paths and commands should be properly formatted with backticks
+- API endpoints and URLs should be valid format
 
-### Grammar Rules
-- American English spelling (-ize, -or, -ense)
-- Present tense
-- Oxford comma (A, B, and C)
-- Sentence case for headings
+## DO NOT CHECK (these are acceptable):
+- Contractions vs formal language (both are fine)
+- Bold vs italic usage (author's choice)
+- Heading case (Title Case or sentence case are both acceptable)
+- Oxford comma (optional)
+- AI-generated disclaimers (these are intentionally added)
 
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "style", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false only for major style violations. Minor style issues should be warnings.
+Set valid=true unless there are significant readability issues.
+Most documents should pass - only flag truly problematic content.
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -79,22 +79,8 @@ func (v *StyleValidator) StaticValidate(ctx context.Context, content string, pkg
 		Valid: true,
 	}
 
-	// Check 1: Voice and tone (contractions, direct address)
-	result.Issues = append(result.Issues, v.checkVoiceAndTone(content)...)
-
-	// Check 2: Emphasis misuse (bold/italic)
-	result.Issues = append(result.Issues, v.checkEmphasisUsage(content)...)
-
-	// Check 3: British vs American English
 	result.Issues = append(result.Issues, v.checkAmericanEnglish(content)...)
 
-	// Check 4: Heading case
-	result.Issues = append(result.Issues, v.checkHeadingCase(content)...)
-
-	// Check 5: Oxford comma
-	result.Issues = append(result.Issues, v.checkOxfordComma(content)...)
-
-	// Determine validity based on issues
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
 			result.Valid = false

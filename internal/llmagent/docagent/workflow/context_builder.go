@@ -599,21 +599,18 @@ func (b *ContextBuilder) buildValidationGuidance() string {
 		}
 	}
 
-	// Data stream specific verification
+	// Note about data streams - don't list specific queries, just explain the pattern
 	if len(b.pkgCtx.DataStreams) > 0 {
-		sb.WriteString("**Verify Each Data Stream:**\n\n")
-		sb.WriteString("| Data Stream | Filter Query | Expected Data |\n")
-		sb.WriteString("|-------------|--------------|---------------|\n")
-
+		sb.WriteString("**Available Data Streams for this integration:**\n")
+		sb.WriteString("This integration includes the following data streams: ")
+		dsNames := make([]string, 0, len(b.pkgCtx.DataStreams))
 		for _, ds := range b.pkgCtx.DataStreams {
-			dataType := "logs"
-			if ds.Type == "metrics" {
-				dataType = "metrics"
-			}
-			sb.WriteString(fmt.Sprintf("| %s | `data_stream.dataset:\"%s.%s\"` | %s data |\n",
-				ds.Name, packageName, ds.Name, dataType))
+			dsNames = append(dsNames, ds.Name)
 		}
-		sb.WriteString("\n")
+		sb.WriteString(strings.Join(dsNames, ", "))
+		sb.WriteString("\n\n")
+		sb.WriteString("**IMPORTANT:** In the Validation section, tell users to search for `data_stream.dataset:" + packageName + "*` to see ALL data streams.\n")
+		sb.WriteString("Do NOT list individual data stream queries - the wildcard pattern covers everything.\n\n")
 	}
 
 	return sb.String()

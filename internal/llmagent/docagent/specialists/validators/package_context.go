@@ -286,38 +286,51 @@ func parseFieldsYAML(content []byte) ([]FieldInfo, error) {
 
 	var fields []FieldInfo
 	for _, rf := range rawFields {
-		field := FieldInfo{
-			Name:        getStringField(rf, "name"),
-			Type:        getStringField(rf, "type"),
-			Description: getStringField(rf, "description"),
-			Unit:        getStringField(rf, "unit"),
-			MetricType:  getStringField(rf, "metric_type"),
-		}
+		// Extract fields recursively with full path names
+		extractedFields := extractFieldsRecursively(rf, "")
+		fields = append(fields, extractedFields...)
+	}
 
-		if field.Name != "" {
-			fields = append(fields, field)
-		}
+	return fields, nil
+}
 
-		// Recursively handle nested fields
-		if nestedFields, ok := rf["fields"].([]interface{}); ok {
-			for _, nf := range nestedFields {
-				if nfMap, ok := nf.(map[string]interface{}); ok {
-					nestedField := FieldInfo{
-						Name:        field.Name + "." + getStringField(nfMap, "name"),
-						Type:        getStringField(nfMap, "type"),
-						Description: getStringField(nfMap, "description"),
-						Unit:        getStringField(nfMap, "unit"),
-						MetricType:  getStringField(nfMap, "metric_type"),
-					}
-					if nestedField.Name != "" {
-						fields = append(fields, nestedField)
-					}
-				}
+// extractFieldsRecursively extracts fields from a nested YAML structure
+// building full dotted field names like "citrix_adc.system.cpu.utilization.pct"
+func extractFieldsRecursively(fieldMap map[string]interface{}, prefix string) []FieldInfo {
+	var fields []FieldInfo
+
+	name := getStringField(fieldMap, "name")
+	if name == "" {
+		return fields
+	}
+
+	// Build full field name with prefix
+	fullName := name
+	if prefix != "" {
+		fullName = prefix + "." + name
+	}
+
+	// Add this field
+	field := FieldInfo{
+		Name:        fullName,
+		Type:        getStringField(fieldMap, "type"),
+		Description: getStringField(fieldMap, "description"),
+		Unit:        getStringField(fieldMap, "unit"),
+		MetricType:  getStringField(fieldMap, "metric_type"),
+	}
+	fields = append(fields, field)
+
+	// Recursively process nested fields
+	if nestedFields, ok := fieldMap["fields"].([]interface{}); ok {
+		for _, nf := range nestedFields {
+			if nfMap, ok := nf.(map[string]interface{}); ok {
+				nestedExtracted := extractFieldsRecursively(nfMap, fullName)
+				fields = append(fields, nestedExtracted...)
 			}
 		}
 	}
 
-	return fields, nil
+	return fields
 }
 
 // getStringField safely extracts a string field from a map

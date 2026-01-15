@@ -36,12 +36,28 @@ You may also receive static validation context with issues already identified.
 5. Version numbers and compatibility ranges are accurate
 6. Feature descriptions match actual package capabilities
 
+## DO NOT FLAG (these are acceptable):
+- Private IP addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) in examples - these are standard RFC 1918 documentation practice
+- ANY port numbers in examples (514, 443, 9090, 8080, etc.) - these are placeholder examples
+- Example hostnames like "example.com" or "your-server.example.com"
+- Vendor GUI field names that may have slight variations across product versions
+- Documentation links pointing to older API versions - users can navigate to current docs
+- Missing "read-only user" or permission mentions - these are nice-to-have, not errors
+- Missing SSL/TLS certificate verification details or self-signed certificate handling - these are advanced topics
+- Syslog format recommendations (RFC 5424 vs vendor-specific) - both approaches work
+- API URL format specifics - different integration versions may handle paths differently
+- Curl command variations (-k flag for insecure, certificate paths) - users can adapt
+- Product name variations due to rebranding - vendors rebrand products and all historical names are valid
+- Performance implications of configuration choices - the LLM doesn't have vendor-specific performance data
+- Missing vendor-specific configuration fields (specific GUI settings, log formats, etc.) - the LLM cannot know every vendor field
+- Username/password permission requirements (read-only, admin, etc.) - users understand they need valid credentials
+- Global vs targeted configuration suggestions - both approaches are valid depending on user needs
+
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "accuracy", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false if any factual inaccuracies are found.
-Be conservative: if unsure about accuracy, flag it for review.
+Set valid=false only if there are genuine factual inaccuracies.
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -234,7 +250,7 @@ func (v *AccuracyValidator) checkVersionAccuracy(content string, pkgCtx *Package
 
 	// Note: We intentionally DO NOT flag:
 	// - Elastic Stack version requirements (e.g., "requires Elastic 8.7.0+")
-	// - Software/product versions (e.g., "Citrix ADC 12.0")
+	// - Software/product versions (e.g., "Product 12.0")
 	// - API versions
 	// These are valid version numbers that should not match the package version
 

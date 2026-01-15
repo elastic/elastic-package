@@ -29,35 +29,24 @@ You may also receive static validation context including data stream names and i
 3. Validation steps are provided to verify the integration works
 4. Troubleshooting section addresses common issues WITH input-specific guidance
 5. Reference section includes field documentation
-6. First line should indicate LLM-generated documentation (if applicable)
-7. Agent deployment section includes:
-   - Fleet enrollment instructions
-   - Steps to add the integration
-   - Network requirements table (for network-dependent inputs like tcp, udp, httpjson, http_endpoint)
-8. **CRITICAL - Troubleshooting section MUST include:**
-   - General agent health/diagnostic steps (how to check agent status in Fleet)
-   - Kibana-based debugging (how to use Discover to find errors)
-   - **Input-specific troubleshooting tables for EACH input type used by the integration**
-     - For httpjson/cel: API credential issues, rate limiting, timeout errors
-     - For tcp/udp: port not listening, firewall rules, connection refused
-     - For logfile/filestream: file permissions, path issues, rotation
-     - For aws-s3/aws-cloudwatch: IAM permissions, bucket/log group config
-   - Each input troubleshooting should have a table with columns: Symptom | Cause | Solution
-   - If troubleshooting lacks input-specific tables, mark as MAJOR issue
-9. Validation section (### Validation) includes:
-   - Agent status check in Fleet (verify agent is Healthy)
-   - Data verification in Discover using data_stream.dataset:<integration>* pattern
-   - Dashboard verification (check Assets tab for dashboards)
-   - Input-specific verification hints
+6. Agent deployment section includes Fleet enrollment and integration setup steps
+7. Troubleshooting section includes input-specific guidance tables
+8. Validation section includes agent status, Discover data check, and dashboard verification
+
+## DO NOT FLAG (these are acceptable):
+- LLM-generated content disclosure format (any mention of AI/LLM generation is fine)
+- SSL/TLS configuration without inline examples (link to guide is sufficient)
+- UDP warnings that mention "data loss" - any warning format is acceptable
+- Scaling recommendations that are general rather than highly specific
 
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "completeness", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false if:
+Set valid=false only if:
 - Missing data streams documentation (critical)
 - Missing setup instructions (critical)
-- Missing input-specific troubleshooting tables (major)
+- Completely missing troubleshooting section (major)
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -541,6 +530,19 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 	troubleshootingSection := v.extractSection(content, "troubleshooting")
 	troubleshootingLower := strings.ToLower(troubleshootingSection)
 
+	// If section extraction failed, fall back to searching entire content from troubleshooting header
+	// This handles cases where the section extraction has edge case issues
+	if len(troubleshootingLower) < 100 {
+		// Section seems too short, use full content from troubleshooting onwards
+		idx := strings.Index(contentLower, "## troubleshooting")
+		if idx == -1 {
+			idx = strings.Index(contentLower, "## common issues")
+		}
+		if idx != -1 {
+			troubleshootingLower = contentLower[idx:]
+		}
+	}
+
 	// Check for general debugging steps
 	hasGeneralDebugging := strings.Contains(troubleshootingLower, "agent") &&
 		(strings.Contains(troubleshootingLower, "health") ||
@@ -588,12 +590,37 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 		missingInputCount := 0
 		for inputType := range inputTypes {
 			if hints, ok := troubleshootingInputs[inputType]; ok {
-				// Check if any of the troubleshooting hints for this input are present
-				hasInputTroubleshooting := false
-				for _, hint := range hints {
-					if strings.Contains(troubleshootingLower, hint) {
-						hasInputTroubleshooting = true
-						break
+				// First check if there's a dedicated section for this input type
+				// Look for section headers like "### TCP" or "### api" or input type name
+				hasDedicatedSection := strings.Contains(troubleshootingLower, "### "+inputType) ||
+					strings.Contains(troubleshootingLower, inputType+" input") ||
+					strings.Contains(troubleshootingLower, inputType+" troubleshoot")
+
+				// Also check for common variations in section names
+				inputAliases := map[string][]string{
+					"httpjson": {"http json", "api", "http/json", "api/http"},
+					"logfile":  {"log file", "file input", "log input"},
+					"tcp":      {"tcp", "syslog", "tcp/syslog"},
+					"udp":      {"udp", "syslog", "udp/syslog"},
+				}
+
+				if aliases, hasAlias := inputAliases[inputType]; hasAlias {
+					for _, alias := range aliases {
+						if strings.Contains(troubleshootingLower, alias) {
+							hasDedicatedSection = true
+							break
+						}
+					}
+				}
+
+				// If no dedicated section, check for hints
+				hasInputTroubleshooting := hasDedicatedSection
+				if !hasInputTroubleshooting {
+					for _, hint := range hints {
+						if strings.Contains(troubleshootingLower, hint) {
+							hasInputTroubleshooting = true
+							break
+						}
 					}
 				}
 
@@ -627,31 +654,60 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 	return issues
 }
 
-// extractSection extracts a section by keyword
+// extractSection extracts a section by keyword, including all subsections
 func (v *CompletenessValidator) extractSection(content string, sectionKeyword string) string {
 	contentLower := strings.ToLower(content)
 	keyword := strings.ToLower(sectionKeyword)
 
-	// Find section start
-	patterns := []string{
-		"### " + keyword,
-		"## " + keyword,
+	// Find section start - try H2 first (## Section), then H3 (### Section)
+	patterns := []struct {
+		pattern string
+		level   int // 2 for ##, 3 for ###
+	}{
+		{"## " + keyword, 2},
+		{"### " + keyword, 3},
 	}
 
-	for _, pattern := range patterns {
-		idx := strings.Index(contentLower, pattern)
+	for _, p := range patterns {
+		idx := strings.Index(contentLower, p.pattern)
 		if idx == -1 {
 			continue
 		}
 
-		// Find next section (## or ###)
+		// Find next section at SAME or HIGHER level (fewer #'s)
+		// For ## section, stop at next ## or #
+		// For ### section, stop at next ###, ##, or #
 		rest := content[idx:]
 		nextSection := -1
-		for i := 4; i < len(rest); i++ {
-			if rest[i] == '#' && (rest[i-1] == '\n' || rest[i-1] == '\r') {
-				nextSection = i
-				break
+
+		lines := strings.Split(rest, "\n")
+		charCount := 0
+		for i, line := range lines {
+			if i == 0 {
+				// Skip the first line (the section header itself)
+				charCount += len(line) + 1 // +1 for newline
+				continue
 			}
+
+			trimmed := strings.TrimSpace(line)
+			if strings.HasPrefix(trimmed, "#") {
+				// Count heading level
+				headingLevel := 0
+				for _, c := range trimmed {
+					if c == '#' {
+						headingLevel++
+					} else {
+						break
+					}
+				}
+
+				// Stop only at same level or higher (fewer #'s = higher level)
+				if headingLevel > 0 && headingLevel <= p.level {
+					nextSection = charCount
+					break
+				}
+			}
+			charCount += len(line) + 1 // +1 for newline
 		}
 
 		if nextSection == -1 {

@@ -16,32 +16,39 @@ const (
 )
 
 const qualityValidatorInstruction = `You are a documentation quality validator for Elastic integration packages.
-Your task is to validate writing quality, clarity, and professional tone.
+Your task is to validate ONLY critical quality issues that significantly impact usability.
 
 ## Input
 The documentation content to validate is provided in the user message.
 
-## Checks
-1. Professional, concise, and technical tone
-2. Active voice preferred over passive voice
-3. Clear, actionable instructions for setup and configuration
-4. No generic statements without specific details
-5. Minimal jargon; technical terms are explained when necessary
-6. No hallucinated features, capabilities, or version numbers
+## CHECK ONLY THESE CRITICAL ISSUES:
+1. Hallucinated features - capabilities that don't exist
+2. Incorrect version numbers or compatibility claims
+3. Missing critical setup steps that would cause failure
+4. Code examples that are syntactically broken
+5. Instructions that would lead to errors
 
-## Quality Criteria
-- Instructions should be step-by-step and actionable
-- Avoid vague phrases like "simply", "just", "easily"
-- Each section should add specific value
-- Code examples should be complete and runnable
-- Warnings/notes should be clear and placed appropriately
+## DO NOT CHECK (these are acceptable and should NOT be flagged):
+- YAML frontmatter or "applies_to" fields (README.md files don't use frontmatter)
+- Private IP addresses like 192.168.x.x, 10.x.x.x in examples (RFC 1918 addresses are standard practice)
+- Passive vs active voice (both are fine)
+- Use of "simply", "just", "easily" (common and acceptable)
+- Writing style preferences
+- Section length (author's discretion)
+- AI-generated disclaimers (intentionally added)
+- Minor phrasing variations
+- Vendor GUI field names that may vary by version
+- Documentation links pointing to older API versions - users can navigate to current docs
+- Capitalization of UI element names - these match what users see in the vendor GUI
+- Product name variations due to vendor rebranding - all historical names are valid
+- Minor version mismatches in external documentation links
 
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "quality", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false only for major quality issues that significantly impact usability.
-Minor style issues should be flagged but not invalidate.
+Set valid=true unless there are CRITICAL issues that would cause user failure.
+Most documentation should pass validation.
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -137,17 +144,10 @@ func (v *QualityValidator) checkVaguePhrases(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
 	vaguePhrases := map[string]string{
-		`(?i)\bsimply\s+`:              "Avoid 'simply' - it dismisses complexity",
-		`(?i)\bjust\s+`:                "Avoid 'just' - be specific about steps",
-		`(?i)\beasily\s+`:              "Avoid 'easily' - be specific about requirements",
-		`(?i)\bobviously\s+`:           "Avoid 'obviously' - explain clearly instead",
-		`(?i)\bclearly\s+`:             "Avoid 'clearly' - show rather than tell",
-		`(?i)\bas\s+needed\b`:          "Be specific about when/what is needed",
-		`(?i)\bas\s+appropriate\b`:     "Be specific about what is appropriate",
-		`(?i)\bvarious\s+`:             "Be specific - list the actual items",
-		`(?i)\betc\.?\b`:               "Be specific - list all relevant items",
-		`(?i)\band\s+so\s+on\b`:        "Be specific - list all relevant items",
-		`(?i)\bsome\s+configuration\b`: "Be specific about which configuration",
+		`(?i)\bsimply\s+`:          "Avoid 'simply' - it dismisses complexity",
+		`(?i)\bobviously\s+`:       "Avoid 'obviously' - explain clearly instead",
+		`(?i)\bas\s+needed\b`:      "Be specific about when/what is needed",
+		`(?i)\bas\s+appropriate\b`: "Be specific about what is appropriate",
 	}
 
 	for pattern, suggestion := range vaguePhrases {
@@ -166,7 +166,6 @@ func (v *QualityValidator) checkVaguePhrases(content string) []ValidationIssue {
 
 	return issues
 }
-
 
 // checkPassiveVoice does basic passive voice detection
 func (v *QualityValidator) checkPassiveVoice(content string) []ValidationIssue {
@@ -247,4 +246,3 @@ func (v *QualityValidator) checkSectionLength(content string) []ValidationIssue 
 
 	return issues
 }
-

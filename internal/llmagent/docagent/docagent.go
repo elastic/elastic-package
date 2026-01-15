@@ -10,9 +10,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/mcptools"
@@ -176,8 +178,13 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 	return nil
 }
 
-// UpdateDocumentation runs the documentation update process using section-based generation
+// UpdateDocumentation runs the documentation update process using the shared generation + validation loop
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
+	return d.UpdateDocumentationWithConfig(ctx, nonInteractive, DefaultGenerationConfig())
+}
+
+// UpdateDocumentationWithConfig runs documentation update with custom configuration
+func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, nonInteractive bool, genCfg GenerationConfig) error {
 	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID())
 	var sessionOutput string
 	defer func() {
@@ -202,31 +209,31 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
 
-	// Note: Gemini context caching is not compatible with the ADK's llmagent
-	// because CachedContent cannot be used alongside system_instruction or tools.
-	// The ADK always sets system_instruction, so we rely on Gemini's implicit
-	// caching instead (repeated content is automatically cached by the API).
-
-	// Generate full document in a single pass (not parallel sections)
-	// This ensures coherent output without duplicate sections
-	fmt.Println("📊 Using single-pass generation with staged validation...")
-	workflowCfg := d.buildWorkflowConfig()
-	finalContent, err := d.GenerateFullDocumentWithWorkflow(ctx, workflowCfg)
+	// Use the shared generation + validation loop
+	fmt.Printf("📊 Starting generation with validation loop (max %d iterations)...\n", genCfg.MaxIterations)
+	result, err := d.GenerateWithValidationLoop(ctx, genCfg)
 	if err != nil {
 		return fmt.Errorf("failed to generate documentation: %w", err)
 	}
 
-	sessionOutput = fmt.Sprintf("Generated %d characters for %s", len(finalContent), d.targetDocFile)
+	sessionOutput = fmt.Sprintf("Generated %d characters for %s in %d iterations", len(result.Content), d.targetDocFile, result.TotalIterations)
 
 	// Write the generated document
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
-	if err := d.writeDocumentation(docPath, finalContent); err != nil {
+	if err := d.writeDocumentation(docPath, result.Content); err != nil {
 		return fmt.Errorf("failed to write documentation: %w", err)
 	}
 
 	// Count sections for display
-	sections := ParseSections(finalContent)
-	fmt.Printf("\n✅ Documentation generated successfully! (%d sections, %d characters)\n", len(sections), len(finalContent))
+	sections := ParseSections(result.Content)
+	approvedStr := ""
+	if result.Approved {
+		approvedStr = " ✓ validated"
+	} else {
+		approvedStr = " ⚠ validation issues remain"
+	}
+	fmt.Printf("\n✅ Documentation generated successfully! (%d sections, %d characters, %d iterations%s)\n",
+		len(sections), len(result.Content), result.TotalIterations, approvedStr)
 	fmt.Printf("📄 Written to: _dev/build/docs/%s\n", d.targetDocFile)
 
 	// In interactive mode, allow review
@@ -946,6 +953,806 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 // NOTE: buildHeadStartContext has been consolidated into workflow.BuildHeadStartContext
 // This ensures both `update documentation` and `test documentation` use the same context builder
 
+// GenerationConfig holds configuration for the generation + validation loop
+type GenerationConfig struct {
+	// MaxIterations is the maximum number of generation-validation iterations (default: 3)
+	MaxIterations uint
+	// EnableStagedValidation enables validation after each generation
+	EnableStagedValidation bool
+	// EnableLLMValidation enables LLM-based semantic validation in addition to static checks
+	EnableLLMValidation bool
+	// SnapshotManager for saving iteration snapshots (optional)
+	SnapshotManager *workflow.SnapshotManager
+}
+
+// DefaultGenerationConfig returns default configuration for generation
+func DefaultGenerationConfig() GenerationConfig {
+	return GenerationConfig{
+		MaxIterations:          3,
+		EnableStagedValidation: true,
+	}
+}
+
+// GenerationResult holds the result of the generation + validation loop
+type GenerationResult struct {
+	// Content is the final generated documentation
+	Content string
+	// Approved indicates if all validation stages passed
+	Approved bool
+	// TotalIterations is the number of iterations performed
+	TotalIterations int
+	// BestIteration is the iteration number that produced the best content (may differ from TotalIterations if later iterations regressed)
+	BestIteration int
+	// StageResults holds per-stage validation results (uses StageResult from evaluation.go)
+	StageResults map[string]*StageResult
+	// ValidationFeedback contains the last validation feedback (if any)
+	ValidationFeedback string
+	// IssueHistory tracks issue counts per iteration (for convergence analysis)
+	IssueHistory []int
+	// ConvergenceBonus indicates if an extra iteration was granted due to convergence
+	ConvergenceBonus bool
+}
+
+// DocumentSection represents a section of the documentation
+type DocumentSection struct {
+	Title   string // Section title (e.g., "## Troubleshooting")
+	Level   int    // Heading level (1 = #, 2 = ##, etc.)
+	Content string // Full section content including title and body
+	Length  int    // Length of content in characters
+}
+
+// parseDocumentIntoSections parses a markdown document into sections
+func parseDocumentIntoSections(content string) map[string]*DocumentSection {
+	sections := make(map[string]*DocumentSection)
+	lines := strings.Split(content, "\n")
+
+	var currentSection *DocumentSection
+	var currentContent strings.Builder
+	var currentTitle string
+
+	for i, line := range lines {
+		// Check if this is a heading
+		if strings.HasPrefix(line, "#") {
+			// Save previous section
+			if currentSection != nil {
+				currentSection.Content = currentContent.String()
+				currentSection.Length = len(currentSection.Content)
+				sections[currentTitle] = currentSection
+			}
+
+			// Determine heading level
+			level := 0
+			for _, ch := range line {
+				if ch == '#' {
+					level++
+				} else {
+					break
+				}
+			}
+
+			// Extract title (normalized for comparison)
+			title := strings.TrimSpace(strings.TrimLeft(line, "# "))
+			normalizedTitle := strings.ToLower(title)
+
+			currentSection = &DocumentSection{
+				Title: title,
+				Level: level,
+			}
+			currentTitle = normalizedTitle
+			currentContent.Reset()
+			currentContent.WriteString(line)
+			currentContent.WriteString("\n")
+		} else if currentSection != nil {
+			currentContent.WriteString(line)
+			if i < len(lines)-1 {
+				currentContent.WriteString("\n")
+			}
+		}
+	}
+
+	// Save last section
+	if currentSection != nil {
+		currentSection.Content = currentContent.String()
+		currentSection.Length = len(currentSection.Content)
+		sections[currentTitle] = currentSection
+	}
+
+	return sections
+}
+
+// isSectionBetter determines if newSection is better than oldSection
+// Better means: more detailed (longer) content with substantive information
+func isSectionBetter(newSection, oldSection *DocumentSection) bool {
+	if oldSection == nil {
+		return true
+	}
+	if newSection == nil {
+		return false
+	}
+
+	// Significantly longer content is better (20% or more)
+	if newSection.Length > oldSection.Length*12/10 {
+		return true
+	}
+
+	// Slightly shorter but within 10% is acceptable if it has more structure
+	// (more subsections, bullet points, tables)
+	if newSection.Length >= oldSection.Length*9/10 {
+		newStructure := countStructuralElements(newSection.Content)
+		oldStructure := countStructuralElements(oldSection.Content)
+		if newStructure > oldStructure {
+			return true
+		}
+	}
+
+	return false
+}
+
+// countStructuralElements counts structural elements in content
+func countStructuralElements(content string) int {
+	count := 0
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Count bullet points
+		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
+			count++
+		}
+		// Count numbered items
+		if len(trimmed) > 2 && trimmed[0] >= '1' && trimmed[0] <= '9' && trimmed[1] == '.' {
+			count++
+		}
+		// Count table rows
+		if strings.HasPrefix(trimmed, "|") {
+			count++
+		}
+		// Count code blocks
+		if strings.HasPrefix(trimmed, "```") {
+			count++
+		}
+		// Count subheadings
+		if strings.HasPrefix(trimmed, "##") {
+			count++
+		}
+	}
+	return count
+}
+
+// assembleBestDocument assembles a document from the best sections
+func assembleBestDocument(bestSections map[string]*DocumentSection, sectionOrder []string) string {
+	var result strings.Builder
+
+	for _, title := range sectionOrder {
+		normalizedTitle := strings.ToLower(title)
+		if section, exists := bestSections[normalizedTitle]; exists {
+			if result.Len() > 0 {
+				result.WriteString("\n")
+			}
+			result.WriteString(section.Content)
+		}
+	}
+
+	// Post-process to deduplicate links in the Vendor Documentation Links section
+	assembled := result.String()
+	return deduplicateVendorLinks(assembled)
+}
+
+// cleanupVendorLinks cleans up the Vendor Documentation Links section by:
+// 1. Removing duplicate links that already appear inline in the document body
+// 2. Fixing generic link titles to be more descriptive based on the URL
+func deduplicateVendorLinks(content string) string {
+	// Find the vendor documentation links section
+	vendorLinksHeader := "### Vendor Documentation Links"
+	vendorLinksIdx := strings.Index(content, vendorLinksHeader)
+	if vendorLinksIdx == -1 {
+		return content
+	}
+
+	// Split into body (before vendor links) and vendor links section
+	body := content[:vendorLinksIdx]
+	vendorSection := content[vendorLinksIdx:]
+
+	// Extract all URLs from the body
+	bodyURLs := extractURLsFromContent(body)
+	bodyURLSet := make(map[string]bool)
+	for _, url := range bodyURLs {
+		bodyURLSet[url] = true
+	}
+
+	// Process vendor links section line by line
+	lines := strings.Split(vendorSection, "\n")
+	var cleanedLines []string
+	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
+
+	for _, line := range lines {
+		// Check if this line contains a markdown link
+		match := linkPattern.FindStringSubmatch(line)
+		if len(match) == 3 {
+			title := match[1]
+			url := match[2]
+
+			// Skip if this URL already appears in the body
+			if bodyURLSet[url] {
+				continue
+			}
+
+			// Fix generic/duplicate titles by generating better ones from URL
+			newTitle := generateDescriptiveLinkTitle(title, url)
+			if newTitle != title {
+				line = strings.Replace(line, "["+title+"]", "["+newTitle+"]", 1)
+			}
+		}
+		cleanedLines = append(cleanedLines, line)
+	}
+
+	return body + strings.Join(cleanedLines, "\n")
+}
+
+// generateDescriptiveLinkTitle creates a better link title based on the URL
+// This fixes cases where generic titles like "Elastic Guide Beats Filebeat" are used
+// for multiple different links
+func generateDescriptiveLinkTitle(currentTitle, url string) string {
+	// Check if the title is generic and needs improvement
+	genericTitles := map[string]bool{
+		"Elastic Guide Beats Filebeat": true,
+		"Elastic Guide Beats":          true,
+		"Elastic Guide":                true,
+		"Citrix Docs":                  true,
+		"NetScaler Docs":               true,
+	}
+
+	if !genericTitles[currentTitle] {
+		// Title seems specific enough, keep it
+		return currentTitle
+	}
+
+	// Extract meaningful parts from the URL to create a better title
+	urlLower := strings.ToLower(url)
+
+	// Handle Elastic Beats input documentation
+	if strings.Contains(urlLower, "filebeat-input-") {
+		// Extract the input type from URL like filebeat-input-httpjson.html
+		parts := strings.Split(url, "/")
+		if len(parts) > 0 {
+			filename := parts[len(parts)-1]
+			filename = strings.TrimSuffix(filename, ".html")
+
+			// Convert filebeat-input-httpjson to "Filebeat httpjson Input"
+			if strings.HasPrefix(filename, "filebeat-input-") {
+				inputType := strings.TrimPrefix(filename, "filebeat-input-")
+				return fmt.Sprintf("Filebeat %s Input", inputType)
+			}
+		}
+	}
+
+	// Handle Elastic documentation pages
+	if strings.Contains(urlLower, "elastic.co/guide") {
+		parts := strings.Split(url, "/")
+		if len(parts) >= 2 {
+			// Get the last meaningful part
+			lastPart := parts[len(parts)-1]
+			lastPart = strings.TrimSuffix(lastPart, ".html")
+			lastPart = strings.ReplaceAll(lastPart, "-", " ")
+			if lastPart != "" && lastPart != "current" {
+				return "Elastic: " + strings.Title(lastPart)
+			}
+		}
+	}
+
+	// Handle Citrix/NetScaler documentation
+	if strings.Contains(urlLower, "citrix.com") || strings.Contains(urlLower, "netscaler") {
+		parts := strings.Split(url, "/")
+		if len(parts) >= 2 {
+			// Get descriptive parts from the path
+			for i := len(parts) - 1; i >= 0; i-- {
+				part := parts[i]
+				part = strings.TrimSuffix(part, ".html")
+				// Skip generic parts
+				if part != "" && part != "en-us" && part != "current-release" && part != "latest" && len(part) > 3 {
+					part = strings.ReplaceAll(part, "-", " ")
+					return "Citrix: " + strings.Title(part)
+				}
+			}
+		}
+	}
+
+	// If we can't improve it, return original
+	return currentTitle
+}
+
+// extractURLsFromContent extracts all URLs from content
+func extractURLsFromContent(content string) []string {
+	urlPattern := regexp.MustCompile(`https?://[^\s\)\]]+`)
+	return urlPattern.FindAllString(content, -1)
+}
+
+// getSectionOrder extracts the section order from a document
+func getSectionOrder(content string) []string {
+	var order []string
+	lines := strings.Split(content, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "#") {
+			title := strings.TrimSpace(strings.TrimLeft(line, "# "))
+			order = append(order, title)
+		}
+	}
+	return order
+}
+
+// GenerateWithValidationLoop generates documentation with iterative validation feedback
+// This is the core generation loop used by both update documentation and evaluate mode
+func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg GenerationConfig) (*GenerationResult, error) {
+	// Set defaults
+	maxIterations := cfg.MaxIterations
+	if maxIterations == 0 {
+		maxIterations = 3
+	}
+
+	// Start a workflow span to group all iterations together for tracing
+	ctx, workflowSpan := tracing.StartWorkflowSpanWithConfig(ctx, "doc:validation_loop", maxIterations)
+	defer func() {
+		tracing.SetSpanOk(workflowSpan)
+		workflowSpan.End()
+	}()
+
+	// Load package context for validation
+	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	if err != nil {
+		tracing.SetSpanError(workflowSpan, err)
+		return nil, fmt.Errorf("failed to load package context: %w", err)
+	}
+
+	// Record package context on the workflow span
+	fieldsCount := 0
+	for _, fields := range pkgCtx.Fields {
+		fieldsCount += len(fields)
+	}
+	tracing.RecordPackageContext(workflowSpan, d.manifest.Name, d.manifest.Title, d.manifest.Version,
+		len(pkgCtx.DataStreams), fieldsCount)
+
+	result := &GenerationResult{
+		StageResults: make(map[string]*StageResult),
+		IssueHistory: make([]int, 0),
+	}
+
+	var validationFeedback string
+	extraIterationAllowed := true // Allow one extra iteration if converging
+
+	// Track best sections across iterations to avoid regression
+	// Sometimes later iterations produce worse output (truncated/summarized content) for specific sections
+	bestSections := make(map[string]*DocumentSection)
+	var sectionOrder []string // Preserve original section order
+
+	// Section-level iteration loop
+	for iteration := uint(1); iteration <= maxIterations; iteration++ {
+		result.TotalIterations = int(iteration)
+
+		// Start an iteration span for tracing
+		iterCtx, iterSpan := tracing.StartGenerationIterationSpan(ctx, int(iteration), validationFeedback != "")
+		tracing.RecordWorkflowIteration(workflowSpan, int(iteration))
+
+		// Format iteration label (with bonus indicator if applicable)
+		iterationLabel := fmt.Sprintf("%d/%d", iteration, maxIterations)
+		if result.ConvergenceBonus && iteration == maxIterations {
+			iterationLabel = fmt.Sprintf("%d (bonus - converging)", iteration)
+		}
+
+		// Generate documentation
+		fmt.Printf("📝 Generating documentation (iteration %s)...\n", iterationLabel)
+		workflowCfg := d.buildWorkflowConfig()
+
+		var content string
+		var genErr error
+
+		if validationFeedback != "" {
+			// Regenerate with validation feedback
+			content, genErr = d.regenerateDocWithFeedback(iterCtx, result.Content, validationFeedback)
+		} else {
+			// Initial generation - use full document workflow
+			content, genErr = d.GenerateFullDocumentWithWorkflow(iterCtx, workflowCfg)
+		}
+
+		if genErr != nil {
+			tracing.SetSpanError(iterSpan, genErr)
+			iterSpan.End()
+			return nil, fmt.Errorf("failed to generate documentation: %w", genErr)
+		}
+
+		// Record content length on iteration span
+		tracing.RecordGenerationContent(iterSpan, len(content))
+
+		// Parse current iteration into sections
+		currentSections := parseDocumentIntoSections(content)
+
+		// On first iteration, establish section order
+		if iteration == 1 {
+			sectionOrder = getSectionOrder(content)
+		}
+
+		// Compare each section with best and update if better
+		fmt.Printf("📊 Comparing sections with best versions...\n")
+		sectionsUpdated := 0
+		for title, currentSection := range currentSections {
+			bestSection := bestSections[title]
+			if isSectionBetter(currentSection, bestSection) {
+				bestSections[title] = currentSection
+				sectionsUpdated++
+				if bestSection != nil {
+					fmt.Printf("  📈 Section '%s': updated (length: %d → %d)\n",
+						currentSection.Title, bestSection.Length, currentSection.Length)
+				} else {
+					fmt.Printf("  📌 Section '%s': new (length: %d)\n",
+						currentSection.Title, currentSection.Length)
+				}
+			} else if bestSection != nil {
+				fmt.Printf("  ⏸️  Section '%s': kept best (current: %d, best: %d)\n",
+					currentSection.Title, currentSection.Length, bestSection.Length)
+			}
+		}
+		fmt.Printf("  Updated %d/%d sections from iteration %d\n", sectionsUpdated, len(currentSections), iteration)
+
+		// Assemble the best composite document for validation and next iteration
+		compositeContent := assembleBestDocument(bestSections, sectionOrder)
+		result.Content = compositeContent
+
+		// Save snapshot if enabled (before validation)
+		if cfg.SnapshotManager != nil {
+			// Save both the raw iteration output and the composite
+			if err := cfg.SnapshotManager.SaveSnapshot(content, fmt.Sprintf("iteration_%d_raw", iteration), int(iteration), nil); err != nil {
+				logger.Debugf("Failed to save raw iteration snapshot: %v", err)
+			}
+			if err := cfg.SnapshotManager.SaveSnapshot(compositeContent, fmt.Sprintf("iteration_%d", iteration), int(iteration), nil); err != nil {
+				logger.Debugf("Failed to save iteration snapshot: %v", err)
+			}
+		}
+
+		// Run staged validation if enabled
+		if cfg.EnableStagedValidation {
+			result.Approved = true
+			result.StageResults = make(map[string]*StageResult) // Reset for this iteration
+			fmt.Println("🔍 Running staged validation...")
+
+			// Group validators by stage to avoid double-counting issues
+			vals := specialists.AllStagedValidators()
+			validatorsByStage := make(map[string][]validators.StagedValidator)
+			for _, validator := range vals {
+				if validator.SupportsStaticValidation() {
+					stageName := validator.Stage().String()
+					validatorsByStage[stageName] = append(validatorsByStage[stageName], validator)
+				}
+			}
+
+			// Process each stage once, aggregating results from all validators in that stage
+			var allIssues []string
+			stageOrder := []string{"structure", "accuracy", "completeness", "quality", "placeholders"}
+			for _, stageName := range stageOrder {
+				stageValidators, exists := validatorsByStage[stageName]
+				if !exists || len(stageValidators) == 0 {
+					continue
+				}
+
+				// Aggregate results from all validators in this stage
+				var stageIssues []string
+				var stageWarnings []string
+				stageValid := true
+				stageScore := 0
+				validatorCount := 0
+
+				for _, validator := range stageValidators {
+					// Run static validation on the COMPOSITE (best assembled) document, not raw LLM output
+					// This ensures we validate the actual best content, not a potentially bad iteration
+					staticResult, err := validator.StaticValidate(ctx, compositeContent, pkgCtx)
+					if err != nil {
+						logger.Debugf("Static validation error for %s: %v", validator.Name(), err)
+						continue
+					}
+
+					validatorCount++
+
+					// Collect static issues (dedupe by message to avoid duplicates from similar validators)
+					for _, issue := range staticResult.Issues {
+						isDupe := false
+						for _, existing := range stageIssues {
+							if existing == issue.Message {
+								isDupe = true
+								break
+							}
+						}
+						if !isDupe {
+							stageIssues = append(stageIssues, issue.Message)
+						}
+					}
+
+					// Collect warnings (also dedupe)
+					for _, warning := range staticResult.Warnings {
+						isDupe := false
+						for _, existing := range stageWarnings {
+							if existing == warning {
+								isDupe = true
+								break
+							}
+						}
+						if !isDupe {
+							stageWarnings = append(stageWarnings, warning)
+						}
+					}
+
+					// Stage is invalid if any validator fails
+					if !staticResult.Valid {
+						stageValid = false
+					}
+
+					// Average the scores
+					stageScore += staticResult.Score
+
+					// Run LLM validation if enabled - only for specific validators that benefit from semantic understanding
+					// This matches the test harness behavior which only runs LLM validation for these validators
+					llmEnabledValidators := map[string]bool{
+						"vendor_setup_validator": true, // Setup accuracy against vendor docs
+						"style_validator":        true, // Elastic style guide compliance
+						"quality_validator":      true, // Writing quality assessment
+					}
+					if cfg.EnableLLMValidation && validator.SupportsLLMValidation() && llmEnabledValidators[validator.Name()] {
+						fmt.Printf("  🧠 LLM validating with %s...\n", validator.Name())
+						llmGenerateFunc := d.createLLMValidateFunc()
+						// Use composite content for LLM validation too
+						llmResult, err := validator.LLMValidate(ctx, compositeContent, pkgCtx, llmGenerateFunc)
+						if err != nil {
+							fmt.Printf("  ❌ LLM validation error for %s: %v\n", validator.Name(), err)
+							logger.Debugf("LLM validation error for %s: %v", validator.Name(), err)
+						} else if llmResult != nil {
+							fmt.Printf("  ✅ LLM validator %s completed\n", validator.Name())
+							// Collect LLM issues (dedupe)
+							for _, issue := range llmResult.Issues {
+								isDupe := false
+								for _, existing := range stageIssues {
+									if existing == issue.Message {
+										isDupe = true
+										break
+									}
+								}
+								if !isDupe {
+									stageIssues = append(stageIssues, issue.Message)
+								}
+							}
+
+							// LLM validation can also fail the stage
+							if !llmResult.Valid {
+								stageValid = false
+							}
+
+							// Use LLM score if available (typically more nuanced)
+							if llmResult.Score > 0 {
+								stageScore = (stageScore + llmResult.Score) / 2
+							}
+						}
+					}
+				}
+
+				if validatorCount > 0 {
+					stageScore = stageScore / validatorCount
+				}
+
+				// Store aggregated result for this stage
+				result.StageResults[stageName] = &StageResult{
+					Stage:      stageName,
+					Valid:      stageValid,
+					Score:      stageScore,
+					Iterations: int(iteration),
+					Issues:     stageIssues,
+					Warnings:   stageWarnings,
+				}
+
+				// Add to allIssues for feedback (with stage prefix)
+				for _, issue := range stageIssues {
+					allIssues = append(allIssues, fmt.Sprintf("[%s] %s", stageName, issue))
+				}
+
+				if !stageValid {
+					result.Approved = false
+				}
+
+				// Log once per stage (not per validator)
+				status := "✅"
+				if !stageValid {
+					status = "❌"
+				}
+				fmt.Printf("  %s %s: %d issues (from %d validators)\n", status, stageName, len(stageIssues), validatorCount)
+			}
+
+			// Track issue count for convergence detection
+			issueCount := len(allIssues)
+			result.IssueHistory = append(result.IssueHistory, issueCount)
+
+			// Note: Section-level best selection happens earlier in the loop
+			// The composite document (result.Content) already contains the best sections
+
+			// Check if we should continue iterating
+			if result.Approved {
+				fmt.Printf("✅ Document approved at iteration %d\n", iteration)
+				tracing.SetSpanOk(iterSpan)
+				iterSpan.End()
+				break
+			}
+
+			// Check for convergence: are issues decreasing?
+			isConverging := false
+			if len(result.IssueHistory) >= 2 {
+				prev := result.IssueHistory[len(result.IssueHistory)-2]
+				curr := result.IssueHistory[len(result.IssueHistory)-1]
+				isConverging = curr < prev
+				if isConverging {
+					fmt.Printf("📈 Issues decreasing: %d → %d (converging)\n", prev, curr)
+				}
+			}
+
+			// If not approved and we have more iterations, prepare feedback for regeneration
+			if iteration < maxIterations {
+				validationFeedback = buildDocValidationFeedback(allIssues)
+				result.ValidationFeedback = validationFeedback
+				fmt.Printf("🔄 Validation failed with %d issues, regenerating...\n", issueCount)
+			} else if iteration == maxIterations && isConverging && extraIterationAllowed && issueCount > 0 {
+				// Allow one extra iteration if we're converging but haven't hit zero
+				maxIterations++
+				extraIterationAllowed = false // Only allow one extra
+				result.ConvergenceBonus = true
+				validationFeedback = buildDocValidationFeedback(allIssues)
+				result.ValidationFeedback = validationFeedback
+				fmt.Printf("📈 Converging but not yet at zero issues (%d remaining). Allowing bonus iteration...\n", issueCount)
+			} else {
+				fmt.Printf("⚠️ Max iterations (%d) reached with %d issues remaining\n", maxIterations, issueCount)
+			}
+		} else {
+			result.Approved = true
+			tracing.SetSpanOk(iterSpan)
+			iterSpan.End()
+			break
+		}
+
+		// End the iteration span
+		tracing.SetSpanOk(iterSpan)
+		iterSpan.End()
+	}
+
+	// Record workflow result
+	tracing.RecordWorkflowResult(workflowSpan, result.Approved, result.TotalIterations, result.Content)
+
+	// Log issue history for convergence analysis
+	if len(result.IssueHistory) > 1 {
+		fmt.Printf("📊 Issue convergence history: %v\n", result.IssueHistory)
+	}
+
+	// Final document is already the composite of best sections from all iterations
+	// Log summary of section sources
+	fmt.Printf("🏆 Final document assembled from best sections across all iterations:\n")
+	for _, title := range sectionOrder {
+		normalizedTitle := strings.ToLower(title)
+		if section, exists := bestSections[normalizedTitle]; exists {
+			fmt.Printf("  - %s: %d chars\n", section.Title, section.Length)
+		}
+	}
+	result.BestIteration = result.TotalIterations // All iterations contributed
+
+	return result, nil
+}
+
+// regenerateDocWithFeedback regenerates the document using validation feedback
+func (d *DocumentationAgent) regenerateDocWithFeedback(ctx context.Context, previousContent string, feedback string) (string, error) {
+	// Build a prompt that includes the previous content and feedback
+	// Be VERY explicit that we need the full document output, not a summary
+	regeneratePrompt := fmt.Sprintf(`You previously generated the following documentation, but it has validation issues that need to be fixed.
+
+PREVIOUS DOCUMENT:
+%s
+
+VALIDATION ISSUES TO FIX:
+%s
+
+CRITICAL INSTRUCTIONS:
+1. Output the COMPLETE, FULL documentation - every single section from start to finish
+2. Do NOT output a summary or description of changes - output the ACTUAL DOCUMENT
+3. Do NOT say "I have regenerated..." or similar - just output the markdown directly
+4. Start your response with the document title (# heading)
+5. Include ALL sections from the previous document, with fixes applied
+6. Fix ALL validation issues listed above
+7. Do NOT create duplicate sections (each section should appear only once)
+8. Maintain proper heading hierarchy (start with # title, then ## sections)
+
+Your response must be the complete markdown document, nothing else. Start with:
+
+`, previousContent, feedback) + "```markdown\n# "
+
+	// Use the executor to regenerate
+	result, err := d.executor.ExecuteTask(ctx, regeneratePrompt)
+	if err != nil {
+		return "", fmt.Errorf("regeneration failed: %w", err)
+	}
+
+	// Extract markdown content from response
+	content := extractDocMarkdownContent(result.FinalContent)
+	if content == "" {
+		// If no code block found, try to extract content starting from first heading
+		content = extractContentFromHeading(result.FinalContent)
+	}
+	if content == "" {
+		content = result.FinalContent
+	}
+
+	// Validate that we got substantial content, not just a summary
+	if len(content) < 1000 {
+		// Content is suspiciously short - the LLM likely returned a summary
+		// Log a warning and return the previous content to avoid regression
+		logger.Debugf("Regenerated content too short (%d chars), may be a summary instead of full doc", len(content))
+		fmt.Printf("⚠️ Warning: Regenerated content seems incomplete (%d chars). Keeping previous version.\n", len(content))
+		return previousContent, nil
+	}
+
+	return content, nil
+}
+
+// buildDocValidationFeedback constructs feedback string from validation issues
+func buildDocValidationFeedback(issues []string) string {
+	if len(issues) == 0 {
+		return ""
+	}
+
+	feedback := "The following issues were found and must be fixed:\n"
+	for i, issue := range issues {
+		if i >= 10 {
+			feedback += fmt.Sprintf("... and %d more issues\n", len(issues)-10)
+			break
+		}
+		feedback += fmt.Sprintf("- %s\n", issue)
+	}
+	return feedback
+}
+
+// extractDocMarkdownContent extracts markdown from a response that may have code fences
+func extractDocMarkdownContent(response string) string {
+	// Look for markdown code block
+	if idx := strings.Index(response, "```markdown"); idx != -1 {
+		start := idx + len("```markdown")
+		if end := strings.Index(response[start:], "```"); end != -1 {
+			return strings.TrimSpace(response[start : start+end])
+		}
+	}
+	// Look for generic code block
+	if idx := strings.Index(response, "```"); idx != -1 {
+		start := idx + 3
+		// Skip language identifier if present
+		if newline := strings.Index(response[start:], "\n"); newline != -1 {
+			start += newline + 1
+		}
+		if end := strings.Index(response[start:], "```"); end != -1 {
+			return strings.TrimSpace(response[start : start+end])
+		}
+	}
+	return ""
+}
+
+// extractContentFromHeading extracts content starting from the first markdown heading
+func extractContentFromHeading(response string) string {
+	// Look for content starting with a markdown heading
+	lines := strings.Split(response, "\n")
+	startIdx := -1
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Found a markdown heading
+		if strings.HasPrefix(trimmed, "# ") || strings.HasPrefix(trimmed, "---") {
+			startIdx = i
+			break
+		}
+	}
+
+	if startIdx == -1 {
+		return ""
+	}
+
+	// Return everything from the heading onwards
+	return strings.TrimSpace(strings.Join(lines[startIdx:], "\n"))
+}
+
 // GetWorkflowConfig returns a workflow configuration suitable for this agent
 func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
 	return d.buildWorkflowConfig()
@@ -969,4 +1776,16 @@ func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 	}
 
 	return cfg
+}
+
+// createLLMValidateFunc creates an LLMGenerateFunc using the agent's executor
+// This allows validators to call the LLM without needing direct access to the executor
+func (d *DocumentationAgent) createLLMValidateFunc() validators.LLMGenerateFunc {
+	return func(ctx context.Context, prompt string) (string, error) {
+		result, err := d.executor.ExecuteTask(ctx, prompt)
+		if err != nil {
+			return "", err
+		}
+		return result.FinalContent, nil
+	}
 }

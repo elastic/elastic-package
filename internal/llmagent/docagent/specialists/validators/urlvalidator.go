@@ -122,6 +122,9 @@ var urlPattern = regexp.MustCompile(`https?://[^\s\)>\]"']+`)
 // markdownLinkPattern matches markdown links [text](url)
 var markdownLinkPattern = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 
+// internalLinkPattern matches internal docs-content:// links that should not appear in public docs
+var internalLinkPattern = regexp.MustCompile(`docs-content://[^\s\)>\]"']+`)
+
 // urlCheckResult holds the result of checking a single URL
 type urlCheckResult struct {
 	url       string
@@ -132,10 +135,28 @@ type urlCheckResult struct {
 
 // validateURLs extracts and validates URLs from content using HTTP requests
 func (u *URLValidatorAgent) validateURLs(ctx context.Context, content string) URLCheckResult {
+	// First, check for internal docs-content:// links that should not appear in public docs
+	internalLinks := u.extractInternalLinks(content)
+	var warnings []string
+	var invalidURLs []string
+	for _, link := range internalLinks {
+		warning := fmt.Sprintf("Internal link found (should use public URL): %s - Replace with https://www.elastic.co/guide/... equivalent", link)
+		warnings = append(warnings, warning)
+		invalidURLs = append(invalidURLs, link)
+	}
+
 	// Extract all URLs
 	urls := u.extractURLs(content)
-	if len(urls) == 0 {
+	if len(urls) == 0 && len(internalLinks) == 0 {
 		return URLCheckResult{TotalURLs: 0}
+	}
+	if len(urls) == 0 {
+		// Only internal links found
+		return URLCheckResult{
+			TotalURLs:   len(internalLinks),
+			InvalidURLs: invalidURLs,
+			Warnings:    warnings,
+		}
 	}
 
 	// Deduplicate URLs
@@ -156,8 +177,8 @@ func (u *URLValidatorAgent) validateURLs(ctx context.Context, content string) UR
 	// Check URLs concurrently with bounded parallelism
 	results := u.checkURLsConcurrently(ctx, client, uniqueURLs)
 
-	// Aggregate results
-	var validURLs, invalidURLs, soft404URLs, warnings []string
+	// Aggregate results (start with any internal link issues found earlier)
+	var validURLs, soft404URLs []string
 	for _, r := range results {
 		if r.valid {
 			validURLs = append(validURLs, r.url)
@@ -173,7 +194,7 @@ func (u *URLValidatorAgent) validateURLs(ctx context.Context, content string) UR
 	}
 
 	return URLCheckResult{
-		TotalURLs:   len(uniqueURLs),
+		TotalURLs:   len(uniqueURLs) + len(internalLinks),
 		ValidURLs:   validURLs,
 		InvalidURLs: invalidURLs,
 		Soft404URLs: soft404URLs,
@@ -197,6 +218,24 @@ func (u *URLValidatorAgent) extractURLs(content string) []string {
 	}
 
 	return urls
+}
+
+// extractInternalLinks extracts docs-content:// internal links that should not appear in public docs
+func (u *URLValidatorAgent) extractInternalLinks(content string) []string {
+	var links []string
+
+	// Extract plain internal links
+	links = append(links, internalLinkPattern.FindAllString(content, -1)...)
+
+	// Extract internal links from markdown
+	mdLinks := markdownLinkPattern.FindAllStringSubmatch(content, -1)
+	for _, match := range mdLinks {
+		if len(match) > 2 && strings.HasPrefix(match[2], "docs-content://") {
+			links = append(links, match[2])
+		}
+	}
+
+	return deduplicate(links)
 }
 
 // checkURLsConcurrently checks multiple URLs with bounded parallelism

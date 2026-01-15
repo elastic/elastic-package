@@ -180,11 +180,17 @@ func (v *StructureValidator) checkRequiredSections(content string) []ValidationI
 	h3Pattern := regexp.MustCompile(`(?m)^###\s+([^#\n]+)$`)
 	h3Matches := h3Pattern.FindAllStringSubmatch(content, -1)
 
+	// Pattern to strip anchor tags like [section-id] from section names
+	anchorPattern := regexp.MustCompile(`\s*\[[^\]]+\]\s*$`)
+
 	// Build maps of found sections
 	foundH2Sections := make(map[string]bool)
 	for _, match := range h2Matches {
 		if len(match) > 1 {
 			sectionName := strings.TrimSpace(match[1])
+			// Strip anchor tags like [overview], [data-collection] from section names
+			sectionName = anchorPattern.ReplaceAllString(sectionName, "")
+			sectionName = strings.TrimSpace(sectionName)
 			foundH2Sections[strings.ToLower(sectionName)] = true
 		}
 	}
@@ -193,6 +199,9 @@ func (v *StructureValidator) checkRequiredSections(content string) []ValidationI
 	for _, match := range h3Matches {
 		if len(match) > 1 {
 			sectionName := strings.TrimSpace(match[1])
+			// Strip anchor tags from subsection names too
+			sectionName = anchorPattern.ReplaceAllString(sectionName, "")
+			sectionName = strings.TrimSpace(sectionName)
 			foundH3Sections[strings.ToLower(sectionName)] = true
 		}
 	}
@@ -383,6 +392,9 @@ func (v *StructureValidator) checkMarkdownFormatting(content string) []Validatio
 func (v *StructureValidator) checkDuplicateSections(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
+	// Pattern to strip anchor tags like [section-id] from section names
+	anchorPattern := regexp.MustCompile(`\s*\[[^\]]+\]\s*$`)
+
 	// Check for duplicate H1 headings (title)
 	h1Pattern := regexp.MustCompile(`(?m)^#\s+([^#\n]+)$`)
 	h1Matches := h1Pattern.FindAllStringSubmatch(content, -1)
@@ -405,6 +417,9 @@ func (v *StructureValidator) checkDuplicateSections(content string) []Validation
 	for _, match := range h2Matches {
 		if len(match) > 1 {
 			sectionName := strings.TrimSpace(match[1])
+			// Strip anchor tags for consistent comparison
+			sectionName = anchorPattern.ReplaceAllString(sectionName, "")
+			sectionName = strings.TrimSpace(sectionName)
 			h2Count[sectionName]++
 		}
 	}
@@ -432,6 +447,9 @@ func (v *StructureValidator) checkDuplicateSections(content string) []Validation
 	for _, match := range h3Matches {
 		if len(match) > 1 {
 			subsectionName := strings.TrimSpace(match[1])
+			// Strip anchor tags for consistent comparison
+			subsectionName = anchorPattern.ReplaceAllString(subsectionName, "")
+			subsectionName = strings.TrimSpace(subsectionName)
 			h3Count[subsectionName]++
 		}
 	}

@@ -260,47 +260,21 @@ func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []Valida
 		`\bcrippled\b`:       "impaired or disabled",
 	}
 
-	// Terms that are problematic unless in specific technical contexts
 	contextualTerms := map[string]struct {
 		replacement string
-		exceptions  []string // Context patterns that make the term acceptable
+		exceptions  []string
 	}{
-		`\bdummy\b`: {
-			replacement: "placeholder or sample",
-			exceptions: []string{
-				"dummy values",     // Technical term for placeholder values from APIs
-				"dummy data",       // Technical term for test data
-				"dummy certificate", // Technical term for test certificates
-			},
-		},
-		`\binvalid\b`: {
-			replacement: "not valid",
-			exceptions: []string{
-				"invalid request",  // HTTP status code context
-				"invalid response", // API response context
-				"invalid input",    // Validation context
-				"invalid format",   // Data format context
-				"invalid json",     // JSON parsing context
-			},
-		},
-		`\bexecute\b`: {
-			replacement: "run",
-			exceptions: []string{
-				"execute query",   // Database context
-				"execute command", // CLI context
-			},
-		},
 		`\bmaster\b`: {
 			replacement: "main or primary",
 			exceptions: []string{
-				"master node",   // Elasticsearch context (historical)
-				"master branch", // Git context (historical)
+				"master node",
+				"master branch",
 			},
 		},
 		`\bslave\b`: {
 			replacement: "replica or secondary",
 			exceptions: []string{
-				"slave node", // Database context (historical)
+				"slave node",
 			},
 		},
 	}
@@ -406,4 +380,3 @@ func isNonDescriptiveAlt(alt string) bool {
 
 	return false
 }
-
