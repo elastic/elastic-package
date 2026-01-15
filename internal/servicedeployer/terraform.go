@@ -142,10 +142,13 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 	if err != nil {
 		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
+
 	defer func() {
 		if err == nil {
 			return
 		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
 		service.TearDown(context.WithoutCancel(ctx))
 	}()

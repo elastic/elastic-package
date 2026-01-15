@@ -155,15 +155,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("stack network is not ready: %w", err)
 	}
 
-	defer func() {
-		if err == nil {
-			return
-		}
-		// Update svcInfo with the latest info before tearing down
-		agent.agentInfo = agentInfo
-		agent.TearDown(context.WithoutCancel(ctx))
-	}()
-
 	// Clean service logs
 	if d.runTestsOnly {
 		// service logs folder must no be deleted to avoid breaking log files written
@@ -176,6 +167,22 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 			return nil, fmt.Errorf("removing service logs failed: %w", err)
 		}
 	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		agent.agentInfo = agentInfo
+		agent.TearDown(context.WithoutCancel(ctx))
+	}()
 
 	// Service name defined in the docker-compose file
 	agentInfo.Name = dockerTestAgentServiceName

@@ -160,6 +160,13 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		if err == nil {
 			return
 		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
 		service.TearDown(context.WithoutCancel(ctx))

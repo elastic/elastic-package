@@ -89,15 +89,6 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		return nil, fmt.Errorf("could not create Docker Compose project for service: %w", err)
 	}
 
-	defer func() {
-		if err == nil {
-			return
-		}
-		// Update svcInfo with the latest info before tearing down
-		service.svcInfo = svcInfo
-		service.TearDown(context.WithoutCancel(ctx))
-	}()
-
 	// Verify the Elastic stack network
 	err = stack.EnsureStackNetworkUp(d.profile)
 	if err != nil {
@@ -121,6 +112,22 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 	if d.variant.active() {
 		logger.Infof("Using service variant: %s", d.variant.String())
 	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		service.svcInfo = svcInfo
+		service.TearDown(context.WithoutCancel(ctx))
+	}()
 
 	opts := compose.CommandOptions{
 		Env:       service.Env(),
