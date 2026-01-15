@@ -270,12 +270,40 @@ The "## Performance and scaling" section is CRITICAL. You MUST provide input-spe
 - If using {{ }} template variables like {{event "datastream"}} or {{fields "datastream"}}, preserve them
 - For code blocks, ALWAYS specify the language (e.g., bash, yaml, json after the triple backticks)
 
+## CONSISTENCY REQUIREMENTS (CRITICAL)
+These ensure all integration docs look uniform:
+
+### Heading Style
+- Use sentence case for ALL headings: "### General debugging steps" NOT "### General Debugging Steps"
+- Only the first word is capitalized (plus proper nouns and acronyms like TCP, UDP, API)
+
+### Subsection Naming (use EXACTLY these names)
+Under ## Troubleshooting:
+- "### General debugging steps"
+- "### Vendor-specific issues" (NOT "Vendor resources" or "Vendor Resources")
+- "### [Input type] input troubleshooting" (e.g., "### TCP/Syslog input troubleshooting", "### Log file input troubleshooting")
+
+Under ## Reference:
+- "### Inputs used" (required)
+- "### API usage" (only for API-based integrations)
+- "### Vendor documentation links" (if consolidating links at the end)
+
+### Code Block Safety
+- NEVER put bash comments (lines starting with #) outside code blocks!
+- Wrong: # Test the connection ← This becomes an H1 heading!
+- Right: Put it inside a bash code block:
+  ` + "```" + `bash
+  # Test the connection
+  curl -v http://example.com
+  ` + "```" + `
+
 ## CRITICAL
 - Do NOT rename sections (e.g., don't use "## Setup" instead of "## How do I deploy this integration?")
 - Do NOT skip required sections
 - When including URLs from vendor documentation, copy them EXACTLY as provided - do NOT modify, shorten, or rephrase URLs
 - Output the markdown content directly without code block wrappers
 - Document ALL advanced settings with their warnings/caveats
+- Generate ONLY ONE H1 heading (the document title) - never use # for other purposes
 `
 
 // Build creates the underlying ADK agent.

@@ -143,7 +143,7 @@ func (v *StructureValidator) StaticValidate(ctx context.Context, content string,
 	}
 
 	// Check 1: Required sections present
-	result.Issues = append(result.Issues, v.checkRequiredSections(content)...)
+	result.Issues = append(result.Issues, v.checkRequiredSections(content, pkgCtx)...)
 
 	// Check 2: Heading hierarchy
 	result.Issues = append(result.Issues, v.checkHeadingHierarchy(content)...)
@@ -157,6 +157,12 @@ func (v *StructureValidator) StaticValidate(ctx context.Context, content string,
 	// Check 5: Duplicate sections
 	result.Issues = append(result.Issues, v.checkDuplicateSections(content)...)
 
+	// Check 6: Bash comments parsed as headings
+	result.Issues = append(result.Issues, v.checkBashCommentsAsHeadings(content)...)
+
+	// Check 7: Inconsistent subsection naming
+	result.Issues = append(result.Issues, v.checkSubsectionConsistency(content)...)
+
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
@@ -169,7 +175,7 @@ func (v *StructureValidator) StaticValidate(ctx context.Context, content string,
 }
 
 // checkRequiredSections verifies all required sections and subsections exist
-func (v *StructureValidator) checkRequiredSections(content string) []ValidationIssue {
+func (v *StructureValidator) checkRequiredSections(content string, pkgCtx *PackageContext) []ValidationIssue {
 	var issues []ValidationIssue
 
 	// Extract all H2 section headings
@@ -238,6 +244,11 @@ func (v *StructureValidator) checkRequiredSections(content string) []ValidationI
 
 	// Check recommended sections (minor warnings) - these are typically H3 subsections
 	for _, recommended := range recommendedSections {
+		// Skip "API usage" check for integrations without API inputs
+		if strings.ToLower(recommended) == "api usage" && !v.hasAPIInputs(pkgCtx) {
+			continue
+		}
+
 		if !foundH3Sections[strings.ToLower(recommended)] && !foundH2Sections[strings.ToLower(recommended)] {
 			issues = append(issues, ValidationIssue{
 				Severity:    SeverityMinor,
@@ -465,6 +476,147 @@ func (v *StructureValidator) checkDuplicateSections(content string) []Validation
 				Suggestion:  "Review and consolidate duplicate subsections",
 				SourceCheck: "static",
 			})
+		}
+	}
+
+	return issues
+}
+
+// hasAPIInputs checks if the integration has any API-based inputs (httpjson, http_endpoint, cel)
+func (v *StructureValidator) hasAPIInputs(pkgCtx *PackageContext) bool {
+	if pkgCtx == nil || pkgCtx.Manifest == nil {
+		return false
+	}
+
+	apiInputTypes := map[string]bool{
+		"httpjson":      true,
+		"http_endpoint": true,
+		"cel":           true,
+		"aws-s3":        true, // AWS API
+		"gcs":           true, // GCS API
+		"azure-blob":    true, // Azure API
+	}
+
+	for _, pt := range pkgCtx.Manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			if apiInputTypes[input.Type] {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// checkBashCommentsAsHeadings detects bash comments that were parsed as H1 headings
+// This catches cases like "# Test TCP connectivity" which should be inside a code block
+func (v *StructureValidator) checkBashCommentsAsHeadings(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Pattern to find H1 headings
+	h1Pattern := regexp.MustCompile(`(?m)^# (.+)$`)
+	matches := h1Pattern.FindAllStringSubmatch(content, -1)
+
+	// Common bash command patterns that indicate a comment, not a heading
+	bashPatterns := []string{
+		`^(Test|Check|Send|Run|Start|Stop|Create|Delete|Install|Configure|Verify|Enable|Disable)\s`,
+		`^[a-z_]+\s*=`,              // Variable assignment like "port=514"
+		`^(if|for|while|case|then)`, // Control structures
+		`^(echo|cat|grep|curl|nc|netstat|ss|sudo|chmod|chown)\s`, // Common commands
+		`^On the`, // "On the agent host"
+	}
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			headingText := match[1]
+
+			// Skip the main title (usually proper case with capital letters)
+			// Check if it looks like a bash comment
+			for _, pattern := range bashPatterns {
+				re := regexp.MustCompile(pattern)
+				if re.MatchString(headingText) {
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityCritical,
+						Category:    CategoryStructure,
+						Location:    fmt.Sprintf("Heading: # %s", headingText),
+						Message:     "Bash comment parsed as H1 heading - this should be inside a code block",
+						Suggestion:  "Move this line inside a ```bash code block, or if it's meant to be a heading, use ### instead of #",
+						SourceCheck: "static",
+					})
+					break
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+// checkSubsectionConsistency verifies subsections use consistent naming
+func (v *StructureValidator) checkSubsectionConsistency(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Expected subsection names (canonical forms)
+	expectedNames := map[string]string{
+		"general debugging steps":    "General debugging steps",
+		"general debugging":          "General debugging steps",
+		"vendor-specific issues":     "Vendor-specific issues",
+		"vendor specific issues":     "Vendor-specific issues",
+		"vendor resources":           "Vendor-specific issues",
+		"vendor documentation links": "Vendor documentation links",
+	}
+
+	// Title case patterns that should be sentence case
+	titleCasePatterns := []struct {
+		pattern    string
+		suggestion string
+	}{
+		{"General Debugging Steps", "General debugging steps"},
+		{"Vendor-Specific Issues", "Vendor-specific issues"},
+		{"Vendor Resources", "Vendor-specific issues"},
+		{"Log File Input", "Log file input"},
+		{"TCP/Syslog Input", "TCP/Syslog input"},
+		{"UDP/Syslog Input", "UDP/Syslog input"},
+		{"API/HTTP JSON Input", "API/HTTP JSON input"},
+	}
+
+	// Check for title case headings that should be sentence case
+	h3Pattern := regexp.MustCompile(`(?m)^###\s+(.+)$`)
+	h3Matches := h3Pattern.FindAllStringSubmatch(content, -1)
+
+	for _, match := range h3Matches {
+		if len(match) > 1 {
+			headingText := strings.TrimSpace(match[1])
+
+			// Check for title case patterns
+			for _, tc := range titleCasePatterns {
+				if strings.Contains(headingText, tc.pattern) {
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityMinor,
+						Category:    CategoryStructure,
+						Location:    fmt.Sprintf("Subsection: ### %s", headingText),
+						Message:     fmt.Sprintf("Inconsistent capitalization: '%s' should use sentence case", headingText),
+						Suggestion:  fmt.Sprintf("Use '### %s' instead", tc.suggestion),
+						SourceCheck: "static",
+					})
+					break
+				}
+			}
+
+			// Check for non-standard naming
+			normalizedHeading := strings.ToLower(headingText)
+			if expected, ok := expectedNames[normalizedHeading]; ok {
+				if headingText != expected && !strings.EqualFold(headingText, expected) {
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityMinor,
+						Category:    CategoryStructure,
+						Location:    fmt.Sprintf("Subsection: ### %s", headingText),
+						Message:     fmt.Sprintf("Non-standard subsection name: '%s'", headingText),
+						Suggestion:  fmt.Sprintf("Use '### %s' for consistency", expected),
+						SourceCheck: "static",
+					})
+				}
+			}
 		}
 	}
 

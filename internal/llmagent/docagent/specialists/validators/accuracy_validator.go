@@ -37,21 +37,26 @@ You may also receive static validation context with issues already identified.
 6. Feature descriptions match actual package capabilities
 
 ## DO NOT FLAG (these are acceptable):
-- Private IP addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) in examples - these are standard RFC 1918 documentation practice
-- ANY port numbers in examples (514, 443, 9090, 8080, etc.) - these are placeholder examples
+- Private IP addresses (192.168.x.x, 10.x.x.x, 172.16-31.x.x) in examples
+- ANY port numbers in examples (514, 443, 9090, 8080, etc.)
+- Port privilege requirements (ports under 1024 needing root/capabilities)
 - Example hostnames like "example.com" or "your-server.example.com"
-- Vendor GUI field names that may have slight variations across product versions
-- Documentation links pointing to older API versions - users can navigate to current docs
-- Missing "read-only user" or permission mentions - these are nice-to-have, not errors
-- Missing SSL/TLS certificate verification details or self-signed certificate handling - these are advanced topics
-- Syslog format recommendations (RFC 5424 vs vendor-specific) - both approaches work
-- API URL format specifics - different integration versions may handle paths differently
-- Curl command variations (-k flag for insecure, certificate paths) - users can adapt
-- Product name variations due to rebranding - vendors rebrand products and all historical names are valid
-- Performance implications of configuration choices - the LLM doesn't have vendor-specific performance data
-- Missing vendor-specific configuration fields (specific GUI settings, log formats, etc.) - the LLM cannot know every vendor field
-- Username/password permission requirements (read-only, admin, etc.) - users understand they need valid credentials
-- Global vs targeted configuration suggestions - both approaches are valid depending on user needs
+- Vendor GUI field names that may vary across product versions
+- Documentation links pointing to older API versions
+- Missing "read-only user" or permission mentions
+- Missing SSL/TLS certificate verification details
+- Syslog format recommendations (RFC 3164, RFC 5424, RFC 6587, CEF, etc.)
+- API URL format specifics
+- Product name variations due to rebranding
+- Missing vendor-specific configuration fields or CLI parameters
+- Username/password permission requirements
+- Global vs targeted configuration suggestions
+- CLI command syntax variations (different firmware versions have different syntax)
+- Process restart/reload commands (cp_log_export, systemctl, etc.)
+- Binary vs text log file format details
+- Feature-specific configuration steps beyond basic setup
+- Log facility settings
+- Missing optional configuration parameters
 
 ## Output Format
 Output a JSON object with this exact structure:
@@ -259,18 +264,26 @@ func (v *AccuracyValidator) checkVersionAccuracy(content string, pkgCtx *Package
 
 // isCommonNonField returns true if the string is likely not a field name
 func isCommonNonField(s string) bool {
+	// File extensions - these are file paths, not field references
+	fileExtensions := []string{
+		".yml", ".yaml", ".json", ".log", ".conf", ".txt", ".md",
+		".elg", ".csv", ".xml", ".html", ".py", ".sh", ".go",
+	}
+	for _, ext := range fileExtensions {
+		if strings.HasSuffix(s, ext) {
+			return true
+		}
+	}
+
+	// Common file/path patterns
 	commonPatterns := []string{
 		"manifest.yml",
 		"fields.yml",
 		"README.md",
-		".yml",
-		".yaml",
-		".json",
 		"data_stream",
 		"_dev",
 		"_meta",
 	}
-
 	for _, pattern := range commonPatterns {
 		if strings.Contains(s, pattern) {
 			return true
@@ -282,8 +295,13 @@ func isCommonNonField(s string) bool {
 		return true
 	}
 
+	// Skip domain names (contain .com, .org, .io, .net, etc.)
+	domainPattern := regexp.MustCompile(`\.(com|org|io|net|edu|gov|co|us|uk|de|fr|ca|au)$`)
+	if domainPattern.MatchString(s) {
+		return true
+	}
+
 	// Skip version strings (e.g., v13.0, v13.1, v14.1)
-	// These are product version numbers, not field references
 	versionPattern := regexp.MustCompile(`^v\d+\.\d+(\.\d+)?$`)
 	if versionPattern.MatchString(s) {
 		return true
