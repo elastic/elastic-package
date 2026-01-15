@@ -156,7 +156,7 @@ func GetStagedValidators(r *Registry) []validators.StagedValidator {
 }
 
 // AllStagedValidators returns all available staged validators.
-// This is the canonical list used by both update documentation and test documentation commands.
+// This is the canonical list used by the update documentation command.
 //
 // Validators are organized by concern:
 // - Structure: document structure, sections, headings, markdown format
@@ -197,4 +197,3 @@ func GetValidatorByStage(r *Registry, stage validators.ValidatorStage) (validato
 	}
 	return nil, false
 }
-

@@ -951,7 +951,7 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 }
 
 // NOTE: buildHeadStartContext has been consolidated into workflow.BuildHeadStartContext
-// This ensures both `update documentation` and `test documentation` use the same context builder
+// This ensures consistent context building across regular and --evaluate modes
 
 // GenerationConfig holds configuration for the generation + validation loop
 type GenerationConfig struct {
@@ -1441,11 +1441,17 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 				for _, validator := range stageValidators {
 					// Run static validation on the COMPOSITE (best assembled) document, not raw LLM output
 					// This ensures we validate the actual best content, not a potentially bad iteration
-					staticResult, err := validator.StaticValidate(ctx, compositeContent, pkgCtx)
+
+					// Start static validation span for tracing
+					staticCtx, staticSpan := tracing.StartStaticValidationSpan(ctx, validator.Name())
+					staticResult, err := validator.StaticValidate(staticCtx, compositeContent, pkgCtx)
 					if err != nil {
+						tracing.EndValidationSpanWithError(staticSpan, err)
 						logger.Debugf("Static validation error for %s: %v", validator.Name(), err)
 						continue
 					}
+					// Record validation result in span
+					tracing.EndValidationSpan(staticSpan, staticResult.Valid, staticResult.Score, len(staticResult.Issues), extractIssueMessages(staticResult.Issues))
 
 					validatorCount++
 
@@ -1495,12 +1501,20 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 					if cfg.EnableLLMValidation && validator.SupportsLLMValidation() && llmEnabledValidators[validator.Name()] {
 						fmt.Printf("  🧠 LLM validating with %s...\n", validator.Name())
 						llmGenerateFunc := d.createLLMValidateFunc()
+
+						// Start LLM validation span for tracing
+						llmCtx, llmSpan := tracing.StartLLMValidationSpan(ctx, validator.Name(), d.executor.ModelID())
+
 						// Use composite content for LLM validation too
-						llmResult, err := validator.LLMValidate(ctx, compositeContent, pkgCtx, llmGenerateFunc)
+						llmResult, err := validator.LLMValidate(llmCtx, compositeContent, pkgCtx, llmGenerateFunc)
 						if err != nil {
+							tracing.EndValidationSpanWithError(llmSpan, err)
 							fmt.Printf("  ❌ LLM validation error for %s: %v\n", validator.Name(), err)
 							logger.Debugf("LLM validation error for %s: %v", validator.Name(), err)
 						} else if llmResult != nil {
+							// Record LLM validation result in span
+							tracing.EndValidationSpan(llmSpan, llmResult.Valid, llmResult.Score, len(llmResult.Issues), extractIssueMessages(llmResult.Issues))
+
 							fmt.Printf("  ✅ LLM validator %s completed\n", validator.Name())
 							// Collect LLM issues (dedupe)
 							for _, issue := range llmResult.Issues {
@@ -1525,6 +1539,9 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 							if llmResult.Score > 0 {
 								stageScore = (stageScore + llmResult.Score) / 2
 							}
+						} else {
+							// No result but no error - just end the span
+							llmSpan.End()
 						}
 					}
 				}
@@ -1788,4 +1805,13 @@ func (d *DocumentationAgent) createLLMValidateFunc() validators.LLMGenerateFunc 
 		}
 		return result.FinalContent, nil
 	}
+}
+
+// extractIssueMessages extracts message strings from ValidationIssue slice
+func extractIssueMessages(issues []validators.ValidationIssue) []string {
+	messages := make([]string, len(issues))
+	for i, issue := range issues {
+		messages[i] = issue.Message
+	}
+	return messages
 }

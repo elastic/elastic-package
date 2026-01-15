@@ -178,6 +178,14 @@ func InitWithConfig(ctx context.Context, cfg Config) error {
 			return
 		}
 
+		// Apply defaults if not set
+		if cfg.Endpoint == "" {
+			cfg.Endpoint = DefaultEndpoint
+		}
+		if cfg.ProjectName == "" {
+			cfg.ProjectName = DefaultProjectName
+		}
+
 		tracingEnabled = true
 		tracingInitError = initTracer(ctx, cfg)
 	})
@@ -242,6 +250,15 @@ func Shutdown(ctx context.Context) error {
 		}
 	})
 	return err
+}
+
+// ForceFlush forces any pending spans to be exported.
+// This is useful before fetching trace data from Phoenix.
+func ForceFlush(ctx context.Context) error {
+	if globalProvider != nil {
+		return globalProvider.ForceFlush(ctx)
+	}
+	return nil
 }
 
 // IsEnabled returns true if tracing is enabled

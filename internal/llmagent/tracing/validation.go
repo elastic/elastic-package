@@ -7,6 +7,7 @@ package tracing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -126,6 +127,59 @@ func StartLLMValidationSpan(ctx context.Context, stageName string, modelID strin
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 	return Tracer().Start(ctx, "llm_validation:"+stageName, trace.WithAttributes(attrs...))
+}
+
+// EndValidationSpan ends a validation span with the result details
+func EndValidationSpan(span trace.Span, passed bool, score int, issueCount int, issues []string) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool(AttrValidationPassed, passed),
+		attribute.Int(AttrValidationScore, score),
+		attribute.Int(AttrValidationIssues, issueCount),
+	)
+
+	// Record issues as JSON if present (limited to first 10 to avoid large spans)
+	maxIssues := 10
+	if len(issues) > maxIssues {
+		issues = issues[:maxIssues]
+	}
+	
+	// Store validation results in the output field (Phoenix captures this)
+	output := map[string]interface{}{
+		"valid":       passed,
+		"score":       score,
+		"issue_count": issueCount,
+		"issues":      issues,
+	}
+	if outputJSON, err := json.Marshal(output); err == nil {
+		span.SetAttributes(attribute.String("output.value", string(outputJSON)))
+	}
+
+	if passed {
+		span.SetStatus(codes.Ok, "validation passed")
+	} else {
+		span.SetStatus(codes.Ok, fmt.Sprintf("validation failed with %d issues", issueCount))
+	}
+
+	span.End()
+}
+
+// EndValidationSpanWithError ends a validation span with an error
+func EndValidationSpanWithError(span trace.Span, err error) {
+	if span == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Bool(AttrValidationPassed, false),
+		attribute.String("error.message", err.Error()),
+	)
+	span.SetStatus(codes.Error, err.Error())
+	span.RecordError(err)
+	span.End()
 }
 
 // StartGenerationIterationSpan starts a span for a generation iteration

@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
@@ -147,14 +149,14 @@ type ValidationSummary struct {
 
 // StageResult holds results for a single validation stage
 type StageResult struct {
-	Stage          string                     `json:"stage"`
-	Valid          bool                       `json:"valid"`
-	Score          int                        `json:"score"`
-	Iterations     int                        `json:"iterations"`
-	Issues         []string                   `json:"issues,omitempty"`
-	DetailedIssues []ValidationIssueDetail    `json:"detailed_issues,omitempty"`
-	Warnings       []string                   `json:"warnings,omitempty"`
-	Suggestions    []string                   `json:"suggestions,omitempty"`
+	Stage          string                  `json:"stage"`
+	Valid          bool                    `json:"valid"`
+	Score          int                     `json:"score"`
+	Iterations     int                     `json:"iterations"`
+	Issues         []string                `json:"issues,omitempty"`
+	DetailedIssues []ValidationIssueDetail `json:"detailed_issues,omitempty"`
+	Warnings       []string                `json:"warnings,omitempty"`
+	Suggestions    []string                `json:"suggestions,omitempty"`
 }
 
 // ValidationIssueDetail provides full details about a validation issue
@@ -183,11 +185,15 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 		StageResults: make(map[string]*StageResult),
 	}
 
-	// Initialize tracing if enabled
+	// Initialize tracing - track span so we can end it before flushing
+	var sessionSpan trace.Span
 	if cfg.EnableTracing {
-		ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:evaluate", d.executor.ModelID())
+		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", d.executor.ModelID())
+		// Note: We'll end the span explicitly before flushing, but keep defer as safety net
 		defer func() {
-			tracing.EndSessionSpan(ctx, sessionSpan, result.GeneratedContent)
+			if sessionSpan != nil && sessionSpan.IsRecording() {
+				tracing.EndSessionSpan(ctx, sessionSpan, result.GeneratedContent)
+			}
 		}()
 
 		if tracing.IsEnabled() {
@@ -285,7 +291,18 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 
 	// Fetch trace summary from Phoenix if tracing was enabled
 	if cfg.EnableTracing && result.TraceSessionID != "" {
-		// Give Phoenix time to ingest the traces (spans may still be flushing)
+		// End the session span BEFORE flushing so it gets included in the export
+		if sessionSpan != nil {
+			tracing.EndSessionSpan(ctx, sessionSpan, result.GeneratedContent)
+			sessionSpan = nil // Mark as ended so defer doesn't double-end
+		}
+
+		// Force flush pending traces to Phoenix before fetching
+		if err := tracing.ForceFlush(ctx); err != nil {
+			logger.Debugf("Failed to flush traces: %v", err)
+		}
+
+		// Give Phoenix time to ingest the traces
 		fmt.Printf("🔍 Fetching trace summary from Phoenix...\n")
 		time.Sleep(2 * time.Second)
 

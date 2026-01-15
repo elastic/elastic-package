@@ -79,30 +79,69 @@ type SpanData struct {
 
 // TraceSummary provides aggregated trace statistics
 type TraceSummary struct {
-	TotalSpans           int                `json:"total_spans"`
-	TotalLatencyMs       float64            `json:"total_latency_ms"`
-	TotalPromptTokens    int                `json:"total_prompt_tokens"`
-	TotalCompletionTokens int               `json:"total_completion_tokens"`
-	TotalTokens          int                `json:"total_tokens"`
-	LLMCalls             int                `json:"llm_calls"`
-	AgentCalls           []AgentCallSummary `json:"agent_calls"`
-	SignificantEvents    []SignificantEvent `json:"significant_events"`
+	TotalSpans            int                `json:"total_spans"`
+	TotalLatencyMs        float64            `json:"total_latency_ms"`
+	TotalPromptTokens     int                `json:"total_prompt_tokens"`
+	TotalCompletionTokens int                `json:"total_completion_tokens"`
+	TotalTokens           int                `json:"total_tokens"`
+	LLMCalls              int                `json:"llm_calls"`
+	AgentCalls            []AgentCallSummary `json:"agent_calls"`
+	ValidationResults     []ValidationResult `json:"validation_results,omitempty"`
+	LLMCallDetails        []LLMCallDetail    `json:"llm_call_details,omitempty"`
+	SignificantEvents     []SignificantEvent `json:"significant_events"`
+	Errors                []TraceError       `json:"errors,omitempty"`
 }
 
 // AgentCallSummary summarizes an agent's activity
 type AgentCallSummary struct {
-	AgentName     string  `json:"agent_name"`
-	CallCount     int     `json:"call_count"`
+	AgentName      string  `json:"agent_name"`
+	CallCount      int     `json:"call_count"`
 	TotalLatencyMs float64 `json:"total_latency_ms"`
-	TotalTokens   int     `json:"total_tokens"`
-	Approved      *bool   `json:"approved,omitempty"`
-	Score         *int    `json:"score,omitempty"`
+	TotalTokens    int     `json:"total_tokens"`
+	Approved       *bool   `json:"approved,omitempty"`
+	Score          *int    `json:"score,omitempty"`
+}
+
+// ValidationResult captures validation stage results
+type ValidationResult struct {
+	Stage      string   `json:"stage"`
+	Validator  string   `json:"validator,omitempty"`
+	Valid      bool     `json:"valid"`
+	Score      int      `json:"score,omitempty"`
+	IssueCount int      `json:"issue_count"`
+	Issues     []string `json:"issues,omitempty"`
+	Iteration  int      `json:"iteration,omitempty"`
+	LatencyMs  float64  `json:"latency_ms,omitempty"`
+	Tokens     int      `json:"tokens,omitempty"`
+	Source     string   `json:"source,omitempty"` // "static" or "llm"
+}
+
+// LLMCallDetail captures details of an LLM call
+type LLMCallDetail struct {
+	Timestamp        time.Time `json:"timestamp"`
+	SpanName         string    `json:"span_name"`
+	Model            string    `json:"model,omitempty"`
+	PromptTokens     int       `json:"prompt_tokens"`
+	CompletionTokens int       `json:"completion_tokens"`
+	LatencyMs        float64   `json:"latency_ms"`
+	InputPreview     string    `json:"input_preview,omitempty"`  // First 500 chars
+	OutputPreview    string    `json:"output_preview,omitempty"` // First 500 chars
+	Purpose          string    `json:"purpose,omitempty"`        // e.g., "generation", "validation", "critic"
+}
+
+// TraceError captures error details from spans
+type TraceError struct {
+	Timestamp  time.Time `json:"timestamp"`
+	SpanName   string    `json:"span_name"`
+	Message    string    `json:"message"`
+	StatusCode string    `json:"status_code,omitempty"`
+	StackTrace string    `json:"stack_trace,omitempty"`
 }
 
 // SignificantEvent represents an important event during documentation generation
 type SignificantEvent struct {
 	Timestamp   time.Time `json:"timestamp"`
-	Type        string    `json:"type"` // "llm_call", "validation", "iteration", "error"
+	Type        string    `json:"type"` // "llm_call", "validation", "iteration", "error", "agent"
 	Agent       string    `json:"agent,omitempty"`
 	Description string    `json:"description"`
 	LatencyMs   float64   `json:"latency_ms,omitempty"`
@@ -313,11 +352,14 @@ func (c *PhoenixClient) FetchSessionTraces(ctx context.Context, sessionID string
 	return traces, nil
 }
 
-// generateSummary creates a summary of the trace data
+// generateSummary creates a comprehensive summary of the trace data
 func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 	summary := &TraceSummary{
 		AgentCalls:        []AgentCallSummary{},
+		ValidationResults: []ValidationResult{},
+		LLMCallDetails:    []LLMCallDetail{},
 		SignificantEvents: []SignificantEvent{},
+		Errors:            []TraceError{},
 	}
 
 	agentStats := make(map[string]*AgentCallSummary)
@@ -331,9 +373,90 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 			summary.TotalCompletionTokens += span.TokenCountCompletion
 			summary.TotalTokens += span.TokenCountTotal
 
-			// Track LLM calls
-			if span.Name == "call_llm" || strings.Contains(span.Name, "llm") {
+			// Track LLM calls - count all LLM-related spans
+			isLLMSpan := span.Name == "call_llm" || strings.HasPrefix(span.Name, "llm:")
+			if isLLMSpan {
 				summary.LLMCalls++
+			}
+
+			// Capture detailed LLM call info (only for spans with actual token data)
+			if strings.HasPrefix(span.Name, "llm:") || (span.Name == "call_llm" && span.TokenCountTotal > 0) {
+				llmDetail := LLMCallDetail{
+					Timestamp:        span.StartTime,
+					SpanName:         span.Name,
+					PromptTokens:     span.TokenCountPrompt,
+					CompletionTokens: span.TokenCountCompletion,
+					LatencyMs:        span.LatencyMs,
+				}
+
+				// Extract model name from attributes
+				if span.Attributes != nil {
+					if genAI, ok := span.Attributes["gen_ai"].(map[string]interface{}); ok {
+						if req, ok := genAI["request"].(map[string]interface{}); ok {
+							if model, ok := req["model"].(string); ok {
+								llmDetail.Model = model
+							}
+						}
+						if system, ok := genAI["system"].(string); ok {
+							if llmDetail.Model == "" {
+								llmDetail.Model = system
+							}
+						}
+					}
+					if llm, ok := span.Attributes["llm"].(map[string]interface{}); ok {
+						if model, ok := llm["model_name"].(string); ok {
+							llmDetail.Model = model
+						}
+					}
+				}
+
+				// Capture input/output previews
+				if span.Input != "" {
+					llmDetail.InputPreview = truncateString(span.Input, 500)
+				}
+				if span.Output != "" {
+					llmDetail.OutputPreview = truncateString(span.Output, 500)
+				}
+
+				// Determine purpose from span name or context
+				llmDetail.Purpose = determineLLMPurpose(span.Name, span.Attributes)
+
+				// Only add if we have meaningful data
+				if llmDetail.PromptTokens > 0 || llmDetail.CompletionTokens > 0 ||
+					llmDetail.InputPreview != "" || llmDetail.OutputPreview != "" {
+					summary.LLMCallDetails = append(summary.LLMCallDetails, llmDetail)
+				}
+			}
+
+			// Track validation spans (static and LLM)
+			if strings.HasPrefix(span.Name, "validation:") ||
+				strings.HasPrefix(span.Name, "llm_validation:") ||
+				strings.HasPrefix(span.Name, "static_validation:") {
+
+				valResult := c.parseValidationSpan(span)
+				summary.ValidationResults = append(summary.ValidationResults, valResult)
+
+				// Create significant event for validation
+				event := SignificantEvent{
+					Timestamp:   span.StartTime,
+					Type:        "validation",
+					Description: fmt.Sprintf("Validation: %s", span.Name),
+					LatencyMs:   span.LatencyMs,
+					Tokens:      span.TokenCountTotal,
+				}
+
+				if valResult.Valid {
+					event.Severity = "info"
+					event.Details = fmt.Sprintf("Passed (score: %d)", valResult.Score)
+				} else {
+					event.Severity = "warning"
+					event.Details = fmt.Sprintf("Failed with %d issues", valResult.IssueCount)
+					if len(valResult.Issues) > 0 {
+						event.Details += ": " + strings.Join(valResult.Issues[:min(3, len(valResult.Issues))], "; ")
+					}
+				}
+
+				summary.SignificantEvents = append(summary.SignificantEvents, event)
 			}
 
 			// Track agent calls and add as significant events
@@ -361,40 +484,29 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 
 				// Check for validation results in output
 				if span.Output != "" {
-					var result map[string]interface{}
-					if err := json.Unmarshal([]byte(span.Output), &result); err == nil {
-						if approved, ok := result["approved"].(bool); ok {
-							agentStats[agentName].Approved = &approved
-							if approved {
-								event.Details = "approved"
-							} else {
-								event.Details = "rejected"
-								event.Severity = "warning"
-							}
+					c.parseAgentOutput(span.Output, agentStats[agentName], &event)
+				}
+
+				summary.SignificantEvents = append(summary.SignificantEvents, event)
+			}
+
+			// Track generation iterations
+			if span.Name == "generation_iteration" {
+				event := SignificantEvent{
+					Timestamp:   span.StartTime,
+					Type:        "iteration",
+					Description: "Generation iteration",
+					LatencyMs:   span.LatencyMs,
+					Severity:    "info",
+				}
+
+				if span.Attributes != nil {
+					if gen, ok := span.Attributes["generation"].(map[string]interface{}); ok {
+						if iter, ok := gen["iteration"].(float64); ok {
+							event.Description = fmt.Sprintf("Iteration %d", int(iter))
 						}
-						if valid, ok := result["valid"].(bool); ok {
-							agentStats[agentName].Approved = &valid
-							if valid {
-								event.Details = "valid"
-							} else {
-								event.Details = "invalid"
-								event.Severity = "warning"
-							}
-						}
-						if score, ok := result["score"].(float64); ok {
-							scoreInt := int(score)
-							agentStats[agentName].Score = &scoreInt
-							event.Details = fmt.Sprintf("score: %d", scoreInt)
-						}
-						if feedback, ok := result["feedback"].(string); ok && feedback != "" {
-							if event.Details != "" {
-								event.Details += " - "
-							}
-							// Truncate long feedback
-							if len(feedback) > 100 {
-								feedback = feedback[:100] + "..."
-							}
-							event.Details += feedback
+						if feedback, ok := gen["has_feedback"].(bool); ok && feedback {
+							event.Details = "Has validation feedback"
 						}
 					}
 				}
@@ -402,8 +514,8 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 				summary.SignificantEvents = append(summary.SignificantEvents, event)
 			}
 
-			// Track workflow iterations
-			if span.Name == "workflow:section" || span.Name == "workflow:staged" {
+			// Track workflow spans
+			if strings.HasPrefix(span.Name, "workflow:") {
 				event := SignificantEvent{
 					Timestamp:   span.StartTime,
 					Type:        "workflow",
@@ -412,7 +524,7 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 					Severity:    "info",
 				}
 
-				// Check attributes for iteration info
+				// Check attributes for workflow info
 				if span.Attributes != nil {
 					if workflow, ok := span.Attributes["workflow"].(map[string]interface{}); ok {
 						if iterations, ok := workflow["total_iterations"].(float64); ok {
@@ -420,11 +532,15 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 						}
 						if approved, ok := workflow["approved"].(bool); ok {
 							if approved {
-								event.Severity = "info"
 								event.Details = "Approved"
 							} else {
 								event.Severity = "warning"
 								event.Details = "Not approved after max iterations"
+							}
+						}
+						if maxIter, ok := workflow["max_iterations"].(float64); ok {
+							if event.Details != "" {
+								event.Details += fmt.Sprintf(" (max: %.0f)", maxIter)
 							}
 						}
 					}
@@ -446,8 +562,24 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 				summary.SignificantEvents = append(summary.SignificantEvents, event)
 			}
 
-			// Track errors
-			if span.StatusCode == "ERROR" {
+			// Track errors comprehensively
+			if span.StatusCode == "ERROR" || span.StatusCode == "error" {
+				traceErr := TraceError{
+					Timestamp:  span.StartTime,
+					SpanName:   span.Name,
+					Message:    span.StatusMessage,
+					StatusCode: span.StatusCode,
+				}
+
+				// Try to extract stack trace from attributes
+				if span.Attributes != nil {
+					if stackTrace, ok := span.Attributes["exception.stacktrace"].(string); ok {
+						traceErr.StackTrace = truncateString(stackTrace, 1000)
+					}
+				}
+
+				summary.Errors = append(summary.Errors, traceErr)
+
 				event := SignificantEvent{
 					Timestamp:   span.StartTime,
 					Type:        "error",
@@ -455,6 +587,38 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 					Description: fmt.Sprintf("Error in %s", span.Name),
 					Severity:    "error",
 					Details:     span.StatusMessage,
+				}
+				summary.SignificantEvents = append(summary.SignificantEvents, event)
+			}
+
+			// Track tool calls
+			if strings.HasPrefix(span.Name, "tool:") {
+				event := SignificantEvent{
+					Timestamp:   span.StartTime,
+					Type:        "tool",
+					Description: fmt.Sprintf("Tool: %s", strings.TrimPrefix(span.Name, "tool:")),
+					LatencyMs:   span.LatencyMs,
+					Severity:    "info",
+				}
+
+				if span.Output != "" {
+					event.Details = truncateString(span.Output, 200)
+				}
+
+				summary.SignificantEvents = append(summary.SignificantEvents, event)
+			}
+
+			// Track subagent calls
+			if strings.HasPrefix(span.Name, "subagent:") {
+				subagentName := strings.TrimPrefix(span.Name, "subagent:")
+				event := SignificantEvent{
+					Timestamp:   span.StartTime,
+					Type:        "subagent",
+					Agent:       subagentName,
+					Description: fmt.Sprintf("Subagent: %s", subagentName),
+					LatencyMs:   span.LatencyMs,
+					Tokens:      span.TokenCountTotal,
+					Severity:    "info",
 				}
 				summary.SignificantEvents = append(summary.SignificantEvents, event)
 			}
@@ -476,7 +640,213 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 		return summary.SignificantEvents[i].Timestamp.Before(summary.SignificantEvents[j].Timestamp)
 	})
 
+	// Sort validation results by timestamp (stage order)
+	sort.Slice(summary.ValidationResults, func(i, j int) bool {
+		return summary.ValidationResults[i].Iteration < summary.ValidationResults[j].Iteration
+	})
+
+	// Sort LLM call details by timestamp
+	sort.Slice(summary.LLMCallDetails, func(i, j int) bool {
+		return summary.LLMCallDetails[i].Timestamp.Before(summary.LLMCallDetails[j].Timestamp)
+	})
+
 	return summary
+}
+
+// parseValidationSpan extracts validation details from a span
+func (c *PhoenixClient) parseValidationSpan(span SpanData) ValidationResult {
+	result := ValidationResult{
+		Stage:     strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(span.Name, "validation:"), "llm_validation:"), "static_validation:"),
+		LatencyMs: span.LatencyMs,
+		Tokens:    span.TokenCountTotal,
+	}
+
+	// Determine source (static vs LLM)
+	if strings.HasPrefix(span.Name, "static_validation:") {
+		result.Source = "static"
+	} else if strings.HasPrefix(span.Name, "llm_validation:") {
+		result.Source = "llm"
+	} else {
+		result.Source = "combined"
+	}
+
+	// Extract attributes - handle both flat (validation.passed) and nested (validation: {passed: true}) formats
+	if span.Attributes != nil {
+		// Try nested structure first
+		if validation, ok := span.Attributes["validation"].(map[string]interface{}); ok {
+			if stage, ok := validation["stage"].(string); ok {
+				result.Stage = stage
+			}
+			if iter, ok := validation["iteration"].(float64); ok {
+				result.Iteration = int(iter)
+			}
+			if passed, ok := validation["passed"].(bool); ok {
+				result.Valid = passed
+			}
+			if score, ok := validation["score"].(float64); ok {
+				result.Score = int(score)
+			}
+			if issueCount, ok := validation["issues"].(float64); ok {
+				result.IssueCount = int(issueCount)
+			}
+		}
+
+		// Also try flat attribute keys (validation.passed, validation.score)
+		if passed, ok := span.Attributes["validation.passed"].(bool); ok {
+			result.Valid = passed
+		}
+		if score, ok := span.Attributes["validation.score"].(float64); ok {
+			result.Score = int(score)
+		}
+		if issueCount, ok := span.Attributes["validation.issues"].(float64); ok {
+			result.IssueCount = int(issueCount)
+		}
+		if stage, ok := span.Attributes["validation.stage"].(string); ok && result.Stage == "" {
+			result.Stage = stage
+		}
+
+		// Extract validator name
+		if validator, ok := span.Attributes["validator"].(map[string]interface{}); ok {
+			if name, ok := validator["name"].(string); ok {
+				result.Validator = name
+			}
+		}
+
+		// Try to get issues from validation.issues_sample (set by EndValidationSpan)
+		if issuesSample, ok := span.Attributes["validation.issues_sample"].(string); ok {
+			var issues []string
+			if err := json.Unmarshal([]byte(issuesSample), &issues); err == nil {
+				result.Issues = issues
+				if result.IssueCount == 0 {
+					result.IssueCount = len(issues)
+				}
+			}
+		}
+	}
+
+	// Parse output for validation results (fallback if not in attributes)
+	if span.Output != "" {
+		var output map[string]interface{}
+		if err := json.Unmarshal([]byte(span.Output), &output); err == nil {
+			if valid, ok := output["valid"].(bool); ok && !result.Valid {
+				result.Valid = valid
+			}
+			if score, ok := output["score"].(float64); ok && result.Score == 0 {
+				result.Score = int(score)
+			}
+			if issues, ok := output["issues"].([]interface{}); ok && len(result.Issues) == 0 {
+				result.IssueCount = len(issues)
+				for _, issue := range issues {
+					if issueStr, ok := issue.(string); ok {
+						result.Issues = append(result.Issues, issueStr)
+					}
+				}
+			}
+			// Also check for issue_count if issues array not present
+			if count, ok := output["issue_count"].(float64); ok && result.IssueCount == 0 {
+				result.IssueCount = int(count)
+			}
+			if feedback, ok := output["feedback"].(string); ok && feedback != "" && len(result.Issues) == 0 {
+				result.Issues = append(result.Issues, feedback)
+			}
+		}
+	}
+
+	return result
+}
+
+// parseAgentOutput extracts results from agent output
+func (c *PhoenixClient) parseAgentOutput(output string, stats *AgentCallSummary, event *SignificantEvent) {
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		return
+	}
+
+	if approved, ok := result["approved"].(bool); ok {
+		stats.Approved = &approved
+		if approved {
+			event.Details = "approved"
+		} else {
+			event.Details = "rejected"
+			event.Severity = "warning"
+		}
+	}
+	if valid, ok := result["valid"].(bool); ok {
+		stats.Approved = &valid
+		if valid {
+			event.Details = "valid"
+		} else {
+			event.Details = "invalid"
+			event.Severity = "warning"
+		}
+	}
+	if score, ok := result["score"].(float64); ok {
+		scoreInt := int(score)
+		stats.Score = &scoreInt
+		if event.Details != "" {
+			event.Details += fmt.Sprintf(" (score: %d)", scoreInt)
+		} else {
+			event.Details = fmt.Sprintf("score: %d", scoreInt)
+		}
+	}
+	if feedback, ok := result["feedback"].(string); ok && feedback != "" {
+		if event.Details != "" {
+			event.Details += " - "
+		}
+		event.Details += truncateString(feedback, 200)
+	}
+	if issues, ok := result["issues"].([]interface{}); ok && len(issues) > 0 {
+		event.Severity = "warning"
+		if event.Details != "" {
+			event.Details += " - "
+		}
+		event.Details += fmt.Sprintf("%d issues found", len(issues))
+	}
+}
+
+// determineLLMPurpose determines the purpose of an LLM call from span info
+func determineLLMPurpose(spanName string, attrs map[string]interface{}) string {
+	if strings.Contains(spanName, "generator") {
+		return "generation"
+	}
+	if strings.Contains(spanName, "critic") {
+		return "critique"
+	}
+	if strings.Contains(spanName, "validator") {
+		return "validation"
+	}
+	if strings.Contains(spanName, "response") {
+		return "response"
+	}
+
+	// Check attributes for more context
+	if attrs != nil {
+		if openinf, ok := attrs["openinference"].(map[string]interface{}); ok {
+			if span, ok := openinf["span"].(map[string]interface{}); ok {
+				if kind, ok := span["kind"].(string); ok {
+					return strings.ToLower(kind)
+				}
+			}
+		}
+	}
+
+	return "llm_call"
+}
+
+// truncateString truncates a string to maxLen and adds "..." if truncated
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// min returns the minimum of two ints
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // parseTime parses an ISO timestamp
@@ -508,4 +878,3 @@ func (c *PhoenixClient) IsPhoenixAvailable(ctx context.Context) bool {
 
 	return resp.StatusCode == http.StatusOK
 }
-

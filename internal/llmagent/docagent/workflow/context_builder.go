@@ -3,8 +3,8 @@
 // you may not use this file except in compliance with the Elastic License.
 
 // Package workflow provides workflow orchestration for documentation generation.
-// This file contains the shared context builder used by both `update documentation`
-// and `test documentation` commands to ensure consistent document generation.
+// This file contains the context builder used by the `update documentation` command
+// to ensure consistent document generation across regular and evaluate modes.
 package workflow
 
 import (
@@ -15,8 +15,8 @@ import (
 )
 
 // ContextBuilder builds rich context for the documentation generator.
-// This is the single source of truth for generator context - used by both
-// `update documentation` (docagent) and `test documentation` (harness) commands.
+// This is the single source of truth for generator context used by the
+// `update documentation` command (both regular and --evaluate modes).
 type ContextBuilder struct {
 	pkgCtx   *validators.PackageContext
 	feedback []string
