@@ -6,6 +6,7 @@ package common
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -13,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -79,6 +82,8 @@ func ProcessResourceApplyResults(results resource.ApplyResults) string {
 
 // GCPCredentialFacters reads the GOOGLE_APPLICATION_CREDENTIALS environment variable
 // and returns a StaticFacter with the relevant GCP credential information.
+// If the environment variable is set but the file doesn't exist, it logs a warning
+// and returns empty credential values instead of an error.
 func GCPCredentialFacters() (resource.StaticFacter, error) {
 	defaultValue := resource.StaticFacter{
 		"google_credential_source_file":  "",
@@ -90,7 +95,11 @@ func GCPCredentialFacters() (resource.StaticFacter, error) {
 	}
 
 	if _, err := os.Stat(googleApplicationCredentials); err != nil {
-		return resource.StaticFacter{}, fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS file does not exist: %w", err)
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in configuration.")
+			return defaultValue, nil
+		}
+		return resource.StaticFacter{}, fmt.Errorf("failed to access GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
 	}
 
 	// Parse the file to check if it contains a credential source (external account)

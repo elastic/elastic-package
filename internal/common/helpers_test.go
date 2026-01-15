@@ -75,7 +75,9 @@ func TestGCPCredentialFacters(t *testing.T) {
 		{
 			name:                         "file does not exist",
 			googleApplicationCredentials: "testdata/not_existing_file.json",
-			expectError:                  true,
+			expectedCredentialSourceFile: "",
+			expectedGoogleAppCredentials: "",
+			expectError:                  false,
 		},
 	}
 
