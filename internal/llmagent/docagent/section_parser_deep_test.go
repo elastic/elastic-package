@@ -145,7 +145,7 @@ func TestParseSections_RealTemplate(t *testing.T) {
 			"Overview": 2, // 2 subsections: Compatibility, How it works
 			"What data does this integration collect?": 1, // 1 subsection: Supported use cases
 			"What do I need to use this integration?":  0, // No subsections
-			"How do I deploy this integration?":        5, // 5 subsections
+			"How do I deploy this integration?":        6, // 6 subsections: Agent-based, Onboard, Set up in {Title}, Set up in Kibana, Validation
 			"Troubleshooting":                          0, // No subsections
 			"Performance and scaling":                  0, // No subsections
 			"Reference":                                3, // 3 subsections

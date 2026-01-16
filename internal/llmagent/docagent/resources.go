@@ -9,9 +9,6 @@ import _ "embed"
 //go:embed _static/agent_instructions.md
 var AgentInstructions string
 
-//go:embed _static/initial_prompt.txt
-var InitialPrompt string
-
 //go:embed _static/revision_prompt.txt
 var RevisionPrompt string
 

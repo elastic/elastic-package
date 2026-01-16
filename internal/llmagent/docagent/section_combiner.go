@@ -38,36 +38,3 @@ func CombineSections(sections []Section) string {
 	return finalContent
 }
 
-// NormalizeMarkdown ensures consistent markdown formatting
-func NormalizeMarkdown(content string) string {
-	lines := strings.Split(content, "\n")
-	var normalized []string
-
-	for i, line := range lines {
-		// Trim trailing whitespace
-		line = strings.TrimRight(line, " \t")
-
-		// Ensure proper spacing around headers
-		if strings.HasPrefix(line, "#") {
-			// Add blank line before header (except for first line)
-			if i > 0 && normalized[len(normalized)-1] != "" {
-				normalized = append(normalized, "")
-			}
-			normalized = append(normalized, line)
-		} else {
-			normalized = append(normalized, line)
-		}
-	}
-
-	return strings.Join(normalized, "\n")
-}
-
-// PreserveSectionFormatting ensures that special directives and PRESERVE blocks are maintained
-func PreserveSectionFormatting(content string) string {
-	// This function ensures that template directives like {{ fields "name" }} are preserved
-	// They should already be in the content, but this is a safety check
-
-	// For now, we just return the content as-is since the section generation
-	// should already preserve these elements
-	return content
-}

@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	promptFileInitial              = "initial_prompt.txt"
 	promptFileRevision             = "revision_prompt.txt"
 	promptFileSectionGeneration    = "section_generation_prompt.txt"
 	promptFileModificationAnalysis = "modification_analysis_prompt.txt"
@@ -27,8 +26,7 @@ const (
 type PromptType int
 
 const (
-	PromptTypeInitial PromptType = iota
-	PromptTypeRevision
+	PromptTypeRevision PromptType = iota
 	PromptTypeSectionGeneration
 	PromptTypeModificationAnalysis
 	PromptTypeModification
@@ -95,10 +93,6 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 	var formatArgs []interface{}
 
 	switch promptType {
-	case PromptTypeInitial:
-		promptFile = promptFileInitial
-		embeddedContent = InitialPrompt
-		formatArgs = d.buildInitialPromptArgs(ctx)
 	case PromptTypeRevision:
 		promptFile = promptFileRevision
 		embeddedContent = RevisionPrompt
@@ -121,22 +115,6 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 	basePrompt := fmt.Sprintf(promptContent, formatArgs...)
 
 	return basePrompt
-}
-
-// buildInitialPromptArgs prepares arguments for initial prompt
-func (d *DocumentationAgent) buildInitialPromptArgs(ctx PromptContext) []interface{} {
-	return []interface{}{
-		ctx.TargetDocFile, // file path in task description
-		ctx.Manifest.Name,
-		ctx.Manifest.Title,
-		ctx.Manifest.Type,
-		ctx.Manifest.Version,
-		ctx.Manifest.Description,
-		ctx.TargetDocFile, // file restriction directive
-		ctx.TargetDocFile, // tool usage guideline
-		ctx.TargetDocFile, // initial analysis step
-		ctx.TargetDocFile, // write results step
-	}
 }
 
 // buildRevisionPromptArgs prepares arguments for revision prompt

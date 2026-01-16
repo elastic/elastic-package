@@ -86,34 +86,6 @@ func TestLoadPromptFile(t *testing.T) {
 	})
 }
 
-func TestBuildInitialPromptArgs(t *testing.T) {
-	agent := &DocumentationAgent{
-		targetDocFile: "docs/README.md",
-	}
-
-	ctx := PromptContext{
-		Manifest: &packages.PackageManifest{
-			Name:        "test-package",
-			Title:       "Test Package",
-			Type:        "integration",
-			Version:     "1.0.0",
-			Description: "Test description",
-		},
-		TargetDocFile: "docs/README.md",
-	}
-
-	args := agent.buildInitialPromptArgs(ctx)
-
-	// Should have 10 arguments (based on the implementation)
-	assert.Len(t, args, 10)
-	assert.Equal(t, "docs/README.md", args[0])
-	assert.Equal(t, "test-package", args[1])
-	assert.Equal(t, "Test Package", args[2])
-	assert.Equal(t, "integration", args[3])
-	assert.Equal(t, "1.0.0", args[4])
-	assert.Equal(t, "Test description", args[5])
-}
-
 func TestBuildRevisionPromptArgs(t *testing.T) {
 	agent := &DocumentationAgent{
 		targetDocFile: "docs/README.md",
@@ -155,12 +127,6 @@ func TestBuildPrompt(t *testing.T) {
 		},
 		TargetDocFile: "docs/README.md",
 	}
-
-	t.Run("builds initial prompt", func(t *testing.T) {
-		prompt := agent.buildPrompt(PromptTypeInitial, ctx)
-		assert.NotEmpty(t, prompt)
-		assert.Contains(t, prompt, "test-package")
-	})
 
 	t.Run("builds revision prompt", func(t *testing.T) {
 		ctx.Changes = "Update documentation"

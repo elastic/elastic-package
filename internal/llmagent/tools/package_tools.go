@@ -344,10 +344,9 @@ func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool
 }
 
 // getServiceInfoMappingForSection returns service_info sections for a README section
-// This is duplicated here to avoid import cycle with docagent package
+// This mapping defines which service_info.md sections are relevant for each README section
 func getServiceInfoMappingForSection(readmeSectionTitle string) []string {
 	// Mapping of README sections to service_info sections
-	// This must be kept in sync with ServiceInfoSectionMapping in docagent/service_info_mapping.go
 	mapping := map[string][]string{
 		"Overview": {
 			"Common use cases",

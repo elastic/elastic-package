@@ -25,6 +25,7 @@ const WildcardCategory = "*"
 // Use "*" as wildcard category for examples that should always be returned.
 var ExampleCategoryMap = map[string][]string{
 	"*": { // Always included
+		"fortinet_fortigate.md",
 	},
 	"security": {
 		"fortinet_fortigate.md",

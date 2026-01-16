@@ -58,10 +58,15 @@ Template Section (Structure to Follow):
 
 3. Gather Information:
    * Use list_directory to explore the package structure
-   * Use read_file to extract relevant details from package files
+   * Use read_file to extract relevant details from package files. Pay close attention to:
+     - manifest.yml: For top-level metadata, owner, license, and supported Elasticsearch versions
+     - data_stream/*/manifest.yml: For data stream types (logs, metrics) and descriptions
+     - data_stream/*/fields/fields.yml: To understand data schema and important fields
    * Use get_service_info with readme_section="%s" to get authoritative information
+   * If you find conflicting information between service_info.md and external sources, prefer service_info.md
    * Review the current README by reading it at '_dev/build/docs/README.md'
    * Focus on information relevant to THIS SECTION ONLY
+   * Your goal is to find actionable, step-by-step instructions for users on how to configure the source system to generate the data this integration collects
 
 4. Generate Section Content:
    * Start with the section header at the appropriate level (%s %s)
@@ -91,10 +96,12 @@ SUBSECTION HANDLING:
 Style and Content Guidance:
 
 * Audience & Tone: Write for a technical audience (DevOps Engineers, SREs, Security Analysts). Be professional, clear, and direct. Use active voice.
-* Be Specific: Provide concrete configuration snippets, numbered steps, and examples. Link to official documentation where appropriate.
+* Be Specific: Instead of saying "configure the service," provide concrete configuration snippets or numbered steps. Link to official documentation where appropriate to provide users with more depth.
+* Explain Why: Don't just tell users what to do - explain why a step is needed. This helps users understand and troubleshoot.
 * Follow Elastic voice and tone guidelines:
   * We're real people, writing for real people - be conversational and address users directly
   * Help users get their job done - be timely, succinct, and impactful
+  * Inspire users to think big - empower users to do more and dive into their next actions
   * Write like a minimalist - use concise, clear sentences with simple, precise words
   * Avoid "please" in documentation
   * Avoid ambiguity - choose words with clear meanings
