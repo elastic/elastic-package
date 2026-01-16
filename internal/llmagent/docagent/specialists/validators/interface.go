@@ -2,8 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-// Package specialists provides specialized documentation agents for multi-agent workflows.
-package specialists
+// Package validators provides validation agents and utilities for documentation workflows.
+package validators
 
 import (
 	"context"
@@ -34,13 +34,14 @@ const (
 
 // SectionContext holds the context needed for section generation
 type SectionContext struct {
-	SectionTitle    string
-	SectionLevel    int
-	TemplateContent string
-	ExampleContent  string
-	ExistingContent string
-	PackageName     string
-	PackageTitle    string
+	SectionTitle      string
+	SectionLevel      int
+	TemplateContent   string
+	ExampleContent    string
+	ExistingContent   string
+	PackageName       string
+	PackageTitle      string
+	AdditionalContext string // Additional context or feedback for regeneration
 }
 
 // AgentConfig holds common configuration for building agents
@@ -76,3 +77,15 @@ type AgentResult struct {
 	// Error contains any error message
 	Error string
 }
+
+// ValidationScope indicates what level of validation a validator performs
+type ValidationScope int
+
+const (
+	// ScopeSectionLevel means the validator can validate individual sections
+	ScopeSectionLevel ValidationScope = iota
+	// ScopeFullDocument means the validator requires the full document
+	ScopeFullDocument
+	// ScopeBoth means the validator works for both section-level and full document
+	ScopeBoth
+)

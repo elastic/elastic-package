@@ -138,12 +138,14 @@ func (st *SessionTokens) Total() int {
 }
 
 var (
-	globalTracer     trace.Tracer
-	globalProvider   *sdktrace.TracerProvider
-	initOnce         sync.Once
-	shutdownOnce     sync.Once
-	tracingEnabled   bool
-	tracingInitError error
+	globalTracer        trace.Tracer
+	globalProvider      *sdktrace.TracerProvider
+	initOnce            sync.Once
+	shutdownOnce        sync.Once
+	tracingEnabled      bool
+	tracingInitError    error
+	currentSessionID    string
+	currentSessionMutex sync.RWMutex
 )
 
 // Config holds LLM tracing configuration
@@ -155,20 +157,21 @@ type Config struct {
 }
 
 // ConfigFromEnv creates a Config from environment variables.
+// Tracing is DISABLED by default - set LLM_TRACING_ENABLED=true to enable.
 func ConfigFromEnv() Config {
 	cfg := Config{
-		Enabled:     true, // Enabled by default
+		Enabled:     false, // Disabled by default - opt-in
 		Endpoint:    os.Getenv(EnvTracingEndpoint),
 		APIKey:      os.Getenv(EnvTracingAPIKey),
 		ProjectName: os.Getenv(EnvTracingProjectName),
 	}
 
-	// Check if explicitly disabled
+	// Check if explicitly enabled
 	if enabledStr := os.Getenv(EnvTracingEnabled); enabledStr != "" {
 		cfg.Enabled = enabledStr == "true" || enabledStr == "1"
 	}
 
-	// Apply defaults if empty
+	// Apply defaults if empty (only matters when tracing is enabled)
 	if cfg.Endpoint == "" {
 		cfg.Endpoint = DefaultEndpoint
 	}
@@ -194,6 +197,14 @@ func InitWithConfig(ctx context.Context, cfg Config) error {
 			tracingEnabled = false
 			globalTracer = otel.Tracer(TracerName)
 			return
+		}
+
+		// Apply defaults if not set
+		if cfg.Endpoint == "" {
+			cfg.Endpoint = DefaultEndpoint
+		}
+		if cfg.ProjectName == "" {
+			cfg.ProjectName = DefaultProjectName
 		}
 
 		tracingEnabled = true
@@ -262,6 +273,15 @@ func Shutdown(ctx context.Context) error {
 	return err
 }
 
+// ForceFlush forces any pending spans to be exported.
+// This is useful before fetching trace data from Phoenix.
+func ForceFlush(ctx context.Context) error {
+	if globalProvider != nil {
+		return globalProvider.ForceFlush(ctx)
+	}
+	return nil
+}
+
 // IsEnabled returns true if tracing is enabled
 func IsEnabled() bool {
 	return tracingEnabled
@@ -328,6 +348,9 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (
 	sessionID := uuid.New().String()
 	modelID = ensureModelID(modelID)
 
+	// Store session ID at package level for retrieval
+	setCurrentSessionID(sessionID)
+
 	// Store session ID and token tracker in context for child spans
 	ctx = WithSessionID(ctx, sessionID)
 	ctx = withSessionTokens(ctx, &SessionTokens{})
@@ -358,6 +381,28 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (
 	}
 
 	return ctx, span
+}
+
+// setCurrentSessionID sets the current session ID (thread-safe)
+func setCurrentSessionID(sessionID string) {
+	currentSessionMutex.Lock()
+	defer currentSessionMutex.Unlock()
+	currentSessionID = sessionID
+}
+
+// GetSessionID returns the current session ID (thread-safe)
+// Returns empty string if no session is active
+func GetSessionID() string {
+	currentSessionMutex.RLock()
+	defer currentSessionMutex.RUnlock()
+	return currentSessionID
+}
+
+// ClearSessionID clears the current session ID
+func ClearSessionID() {
+	currentSessionMutex.Lock()
+	defer currentSessionMutex.Unlock()
+	currentSessionID = ""
 }
 
 // EndSessionSpan records the final session output and token counts, then ends the span.

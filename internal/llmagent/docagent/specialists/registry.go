@@ -7,27 +7,29 @@ package specialists
 import (
 	"fmt"
 	"sync"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 )
 
 // Registry manages available section agents and their execution order.
 // It provides a dynamic way to add, remove, and retrieve agents for workflows.
 type Registry struct {
 	mu     sync.RWMutex
-	agents map[string]SectionAgent
+	agents map[string]validators.SectionAgent
 	order  []string // maintains registration order for sequential execution
 }
 
 // NewRegistry creates a new empty agent registry.
 func NewRegistry() *Registry {
 	return &Registry{
-		agents: make(map[string]SectionAgent),
+		agents: make(map[string]validators.SectionAgent),
 		order:  make([]string, 0),
 	}
 }
 
 // Register adds an agent to the registry.
 // If an agent with the same name already exists, it will be replaced.
-func (r *Registry) Register(agent SectionAgent) {
+func (r *Registry) Register(agent validators.SectionAgent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -56,7 +58,7 @@ func (r *Registry) Unregister(name string) {
 }
 
 // Get retrieves an agent by name.
-func (r *Registry) Get(name string) (SectionAgent, bool) {
+func (r *Registry) Get(name string) (validators.SectionAgent, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -65,11 +67,11 @@ func (r *Registry) Get(name string) (SectionAgent, bool) {
 }
 
 // All returns all registered agents in registration order.
-func (r *Registry) All() []SectionAgent {
+func (r *Registry) All() []validators.SectionAgent {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	agents := make([]SectionAgent, 0, len(r.order))
+	agents := make([]validators.SectionAgent, 0, len(r.order))
 	for _, name := range r.order {
 		if agent, exists := r.agents[name]; exists {
 			agents = append(agents, agent)
@@ -114,13 +116,84 @@ func (r *Registry) SetOrder(order []string) error {
 }
 
 // DefaultRegistry creates a registry with the default set of documentation agents.
-// This includes: Generator, Critic, Validator, and URLValidator.
+// This includes: Generator, Critic, and URLValidator.
+// Note: The legacy ValidatorAgent has been removed - use staged validators instead.
 func DefaultRegistry() *Registry {
 	r := NewRegistry()
 	r.Register(NewGeneratorAgent())
 	r.Register(NewCriticAgent())
-	r.Register(NewValidatorAgent())
-	r.Register(NewURLValidatorAgent())
+	r.Register(validators.NewURLValidatorAgent())
 	return r
 }
 
+// StagedRegistry creates a registry with staged validation agents.
+// This includes all default agents plus all staged validators:
+// StructureValidator, AccuracyValidator, CompletenessValidator,
+// QualityValidator, PlaceholderValidator, ServiceInfoLinkValidator,
+// StyleValidator, and AccessibilityValidator.
+func StagedRegistry() *Registry {
+	r := DefaultRegistry()
+
+	// Register all staged validators
+	for _, validator := range AllStagedValidators() {
+		r.Register(validator)
+	}
+
+	return r
+}
+
+// GetStagedValidators returns all staged validators from the registry
+func GetStagedValidators(r *Registry) []validators.StagedValidator {
+	var vals []validators.StagedValidator
+
+	for _, agent := range r.All() {
+		if sv, ok := agent.(validators.StagedValidator); ok {
+			vals = append(vals, sv)
+		}
+	}
+
+	return vals
+}
+
+// AllStagedValidators returns all available staged validators.
+// This is the canonical list used by the update documentation command.
+//
+// Validators are organized by concern:
+// - Structure: document structure, sections, headings, markdown format
+// - Accuracy: factual correctness against package metadata
+// - Completeness: all required content present
+// - Quality: writing quality, passive voice, section length
+// - Placeholders: proper placeholder usage
+// - ServiceInfoLinks: links from service_info.md preserved
+// - Style: Elastic style guide compliance (voice, tone, grammar)
+// - Accessibility: accessibility and inclusive language
+// - VendorSetup: vendor setup instructions accuracy against docs and LLM knowledge
+// - AdvancedSettings: advanced settings gotchas from manifest.yml are documented
+// - Scaling: input-specific scaling and fault tolerance guidance
+func AllStagedValidators() []validators.StagedValidator {
+	return []validators.StagedValidator{
+		validators.NewStructureValidator(),
+		validators.NewAccuracyValidator(),
+		validators.NewCompletenessValidator(),
+		validators.NewQualityValidator(),
+		validators.NewPlaceholderValidator(),
+		validators.NewServiceInfoLinkValidator(),
+		validators.NewStyleValidator(),
+		validators.NewAccessibilityValidator(),
+		validators.NewVendorSetupValidator(),
+		validators.NewAdvancedSettingsValidator(),
+		validators.NewScalingValidator(),
+	}
+}
+
+// GetValidatorByStage returns the staged validator for a specific stage
+func GetValidatorByStage(r *Registry, stage validators.ValidatorStage) (validators.StagedValidator, bool) {
+	for _, agent := range r.All() {
+		if sv, ok := agent.(validators.StagedValidator); ok {
+			if sv.Stage() == stage {
+				return sv, true
+			}
+		}
+	}
+	return nil, false
+}

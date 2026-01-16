@@ -41,8 +41,8 @@
 ## Gemini
 # Gemini API key for Gemini models
 # llm.gemini.api_key: "your-gemini-api-key"
-# Gemini model ID (optional, defaults to gemini-2.5-pro)
-# llm.gemini.model: "gemini-2.5-pro"
+# Gemini model ID (optional, defaults to gemini-3-flash-preview)
+# llm.gemini.model: "gemini-3-flash-preview"
 
 ## Local LLM Provider
 # Local LLM endpoint for OpenAI-compatible servers (Ollama, LocalAI, etc.)
