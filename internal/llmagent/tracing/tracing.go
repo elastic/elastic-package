@@ -459,9 +459,10 @@ func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Sp
 	// Log span hierarchy for debugging
 	sc := span.SpanContext()
 	if tracingEnabled {
-		fmt.Printf("🔍 Started chain span: name=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+		sessionID, hasSession := SessionIDFromContext(ctx)
+		fmt.Printf("🔍 Started chain span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
 			name, sc.TraceID().String(), sc.SpanID().String(),
-			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
 
 	return ctx, span
@@ -488,9 +489,10 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 	// Log span hierarchy for debugging
 	sc := span.SpanContext()
 	if tracingEnabled {
-		fmt.Printf("🔍 Started agent span: name=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+		sessionID, hasSession := SessionIDFromContext(ctx)
+		fmt.Printf("🔍 Started agent span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
 			name, sc.TraceID().String(), sc.SpanID().String(),
-			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
 
 	return ctx, span
@@ -622,9 +624,10 @@ func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace
 	// Log span hierarchy for debugging
 	sc := span.SpanContext()
 	if tracingEnabled {
-		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+		sessionID, hasSession := SessionIDFromContext(ctx)
+		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
 			name, sc.TraceID().String(), sc.SpanID().String(),
-			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
 
 	return ctx, span
@@ -648,9 +651,10 @@ func StartWorkflowSpanWithConfig(ctx context.Context, name string, maxIterations
 	// Log span hierarchy for debugging
 	sc := span.SpanContext()
 	if tracingEnabled {
-		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+		sessionID, hasSession := SessionIDFromContext(ctx)
+		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
 			name, sc.TraceID().String(), sc.SpanID().String(),
-			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
 
 	return ctx, span
@@ -676,9 +680,10 @@ func StartSectionWorkflowSpan(ctx context.Context, name string, maxIterations ui
 	// Log span hierarchy for debugging
 	sc := span.SpanContext()
 	if tracingEnabled {
-		fmt.Printf("🔍 Started section workflow span: name=%s, section=%s, traceID=%s, spanID=%s, parentTraceID=%s, parentSpanID=%s\n",
+		sessionID, hasSession := SessionIDFromContext(ctx)
+		fmt.Printf("🔍 Started section workflow span: name=%s, section=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
 			name, sectionTitle, sc.TraceID().String(), sc.SpanID().String(),
-			parentSpanCtx.TraceID().String(), parentSpanCtx.SpanID().String())
+			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
 
 	return ctx, span
