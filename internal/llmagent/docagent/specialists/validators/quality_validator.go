@@ -65,6 +65,7 @@ func NewQualityValidator() *QualityValidator {
 			name:        qualityValidatorName,
 			description: qualityValidatorDescription,
 			stage:       StageQuality,
+			scope:       ScopeBoth, // Quality validation works on sections and full document
 			instruction: qualityValidatorInstruction,
 		},
 	}

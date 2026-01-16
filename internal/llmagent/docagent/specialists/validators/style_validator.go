@@ -62,6 +62,7 @@ func NewStyleValidator() *StyleValidator {
 			name:        styleValidatorName,
 			description: styleValidatorDescription,
 			stage:       StageQuality, // Style is part of quality
+			scope:       ScopeBoth,    // Style validation works on sections and full document
 			instruction: styleValidatorInstruction,
 		},
 	}

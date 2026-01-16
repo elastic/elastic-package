@@ -184,6 +184,7 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 }
 
 // UpdateDocumentationWithConfig runs documentation update with custom configuration
+// Uses section-based generation where each section has its own generate-validate loop
 func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, nonInteractive bool, genCfg GenerationConfig) error {
 	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID())
 	var sessionOutput string
@@ -209,14 +210,20 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
 
-	// Use the shared generation + validation loop
-	fmt.Printf("📊 Starting generation with validation loop (max %d iterations)...\n", genCfg.MaxIterations)
-	result, err := d.GenerateWithValidationLoop(ctx, genCfg)
+	// Load package context for validation
+	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to load package context: %w", err)
+	}
+
+	// Generate sections using section-based approach with per-section validation
+	fmt.Printf("📊 Starting section-based generation (max %d iterations per section)...\n", genCfg.MaxIterations)
+	result, err := d.GenerateAllSectionsWithValidation(ctx, pkgCtx, genCfg)
 	if err != nil {
 		return fmt.Errorf("failed to generate documentation: %w", err)
 	}
 
-	sessionOutput = fmt.Sprintf("Generated %d characters for %s in %d iterations", len(result.Content), d.targetDocFile, result.TotalIterations)
+	sessionOutput = fmt.Sprintf("Generated %d sections, %d characters for %s", len(result.SectionResults), len(result.Content), d.targetDocFile)
 
 	// Write the generated document
 	docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
@@ -232,9 +239,20 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 	} else {
 		approvedStr = " ⚠ validation issues remain"
 	}
-	fmt.Printf("\n✅ Documentation generated successfully! (%d sections, %d characters, %d iterations%s)\n",
-		len(sections), len(result.Content), result.TotalIterations, approvedStr)
+	fmt.Printf("\n✅ Documentation generated successfully! (%d sections, %d characters%s)\n",
+		len(sections), len(result.Content), approvedStr)
 	fmt.Printf("📄 Written to: _dev/build/docs/%s\n", d.targetDocFile)
+
+	// Show per-section summary
+	fmt.Println("📊 Per-section summary:")
+	for _, sr := range result.SectionResults {
+		status := "✅"
+		if !sr.Approved {
+			status = "⚠️"
+		}
+		fmt.Printf("  %s %s: %d iterations, best=%d (%d chars)\n",
+			status, sr.SectionTitle, sr.TotalIterations, sr.BestIteration, len(sr.Content))
+	}
 
 	// In interactive mode, allow review
 	if !nonInteractive {
@@ -953,6 +971,191 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 // NOTE: buildHeadStartContext has been consolidated into workflow.BuildHeadStartContext
 // This ensures consistent context building across regular and --evaluate modes
 
+// GenerateAllSectionsWithValidation generates all sections using per-section validation loops
+// Each section gets its own generate-validate iteration cycle with best-iteration tracking
+func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Context, pkgCtx *validators.PackageContext, genCfg GenerationConfig) (*GenerationResult, error) {
+	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:sections")
+	defer chainSpan.End()
+
+	// Get the template content
+	templateContent := archetype.GetPackageDocsReadmeTemplate()
+
+	// Get the example content
+	exampleContent := tools.GetDefaultExampleContent()
+
+	// Parse sections from template
+	templateSections := ParseSections(templateContent)
+	if len(templateSections) == 0 {
+		return nil, fmt.Errorf("no sections found in template")
+	}
+
+	// Parse sections from example
+	exampleSections := ParseSections(exampleContent)
+
+	// Read existing documentation if it exists
+	existingContent, _ := d.readCurrentReadme()
+	var existingSections []Section
+	if existingContent != "" {
+		existingSections = ParseSections(existingContent)
+	}
+
+	// Collect top-level sections to generate
+	var topLevelSections []Section
+	for _, s := range templateSections {
+		if s.IsTopLevel() {
+			topLevelSections = append(topLevelSections, s)
+		}
+	}
+
+	if len(topLevelSections) == 0 {
+		return nil, fmt.Errorf("no top-level sections found in template")
+	}
+
+	// Build rich context for all sections
+	headStartContext := workflow.BuildHeadStartContext(pkgCtx, nil)
+
+	fmt.Printf("📝 Generating %d sections with per-section validation...\n", len(topLevelSections))
+
+	// Channel to collect results
+	type sectionGenResult struct {
+		index  int
+		result *SectionGenerationResult
+		err    error
+	}
+	resultsChan := make(chan sectionGenResult, len(topLevelSections))
+
+	// Use WaitGroup to track goroutines
+	var wg sync.WaitGroup
+
+	// Generate sections in parallel with per-section validation loops
+	for idx, templateSection := range topLevelSections {
+		wg.Add(1)
+		go func(index int, tmplSection Section) {
+			defer wg.Done()
+
+			// Find corresponding example section
+			exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
+
+			// Find existing section
+			var existingSection *Section
+			if len(existingSections) > 0 {
+				existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
+			}
+
+			// Build section context for workflow
+			sectionCtx := validators.SectionContext{
+				SectionTitle:      tmplSection.Title,
+				SectionLevel:      tmplSection.Level,
+				PackageName:       d.manifest.Name,
+				PackageTitle:      d.manifest.Title,
+				AdditionalContext: headStartContext,
+			}
+
+			if tmplSection.Content != "" {
+				sectionCtx.TemplateContent = tmplSection.GetAllContent()
+			}
+			if exampleSection != nil {
+				sectionCtx.ExampleContent = exampleSection.GetAllContent()
+			}
+			if existingSection != nil {
+				sectionCtx.ExistingContent = existingSection.GetAllContent()
+			}
+
+			// Generate section with validation loop
+			sectionResult, err := d.GenerateSectionWithValidationLoop(ctx, sectionCtx, pkgCtx, genCfg)
+			if err != nil {
+				logger.Debugf("Section generation failed for %s: %v", tmplSection.Title, err)
+				resultsChan <- sectionGenResult{
+					index: index,
+					err:   err,
+				}
+				return
+			}
+
+			resultsChan <- sectionGenResult{
+				index:  index,
+				result: sectionResult,
+			}
+		}(idx, templateSection)
+	}
+
+	// Wait for all goroutines to complete, then close channel
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	// Collect results and maintain order
+	results := make([]*SectionGenerationResult, len(topLevelSections))
+	successCount := 0
+	failCount := 0
+	allApproved := true
+
+	for res := range resultsChan {
+		if res.err != nil {
+			failCount++
+			fmt.Printf("  ❌ Section %d: %s (failed: %v)\n", res.index+1, topLevelSections[res.index].Title, res.err)
+			// Create placeholder result for failed sections
+			results[res.index] = &SectionGenerationResult{
+				SectionTitle: topLevelSections[res.index].Title,
+				SectionLevel: topLevelSections[res.index].Level,
+				Content:      fmt.Sprintf("## %s\n\n%s", topLevelSections[res.index].Title, emptySectionPlaceholder),
+				Approved:     false,
+			}
+			allApproved = false
+		} else {
+			successCount++
+			results[res.index] = res.result
+			status := "✅"
+			if !res.result.Approved {
+				status = "⚠️"
+				allApproved = false
+			}
+			fmt.Printf("  %s Section %d: %s (iterations=%d, best=%d)\n",
+				status, res.index+1, res.result.SectionTitle, res.result.TotalIterations, res.result.BestIteration)
+		}
+	}
+
+	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
+
+	// Convert section results to Section structs for combining
+	var generatedSections []Section
+	var sectionResults []SectionGenerationResult
+	for _, sr := range results {
+		if sr != nil {
+			// Parse the content to get proper Section structure
+			parsedSections := ParseSections(sr.Content)
+			if len(parsedSections) > 0 {
+				generatedSections = append(generatedSections, parsedSections[0])
+			} else {
+				// Fallback: create section from content directly
+				generatedSections = append(generatedSections, Section{
+					Title:   sr.SectionTitle,
+					Level:   sr.SectionLevel,
+					Content: sr.Content,
+				})
+			}
+			sectionResults = append(sectionResults, *sr)
+		}
+	}
+
+	// Combine sections into final document
+	finalContent := CombineSections(generatedSections)
+
+	// Calculate total iterations (sum across all sections)
+	totalIterations := 0
+	for _, sr := range sectionResults {
+		totalIterations += sr.TotalIterations
+	}
+
+	return &GenerationResult{
+		Content:         finalContent,
+		Approved:        allApproved,
+		TotalIterations: totalIterations,
+		SectionResults:  sectionResults,
+	}, nil
+}
+
 // GenerationConfig holds configuration for the generation + validation loop
 type GenerationConfig struct {
 	// MaxIterations is the maximum number of generation-validation iterations (default: 3)
@@ -973,16 +1176,36 @@ func DefaultGenerationConfig() GenerationConfig {
 	}
 }
 
+// SectionGenerationResult holds the result of generating a single section with validation
+type SectionGenerationResult struct {
+	// SectionTitle is the title of the section
+	SectionTitle string
+	// SectionLevel is the heading level (2 = ##, 3 = ###, etc.)
+	SectionLevel int
+	// Content is the best generated content for this section
+	Content string
+	// Approved indicates if all validation stages passed for this section
+	Approved bool
+	// TotalIterations is the number of iterations performed for this section
+	TotalIterations int
+	// BestIteration is the iteration that produced the best content
+	BestIteration int
+	// IssueHistory tracks issue counts per iteration for this section
+	IssueHistory []int
+}
+
 // GenerationResult holds the result of the generation + validation loop
 type GenerationResult struct {
 	// Content is the final generated documentation
 	Content string
 	// Approved indicates if all validation stages passed
 	Approved bool
-	// TotalIterations is the number of iterations performed
+	// TotalIterations is the total number of iterations across all sections
 	TotalIterations int
 	// BestIteration is the iteration number that produced the best content (may differ from TotalIterations if later iterations regressed)
 	BestIteration int
+	// SectionResults holds per-section generation results
+	SectionResults []SectionGenerationResult
 	// StageResults holds per-stage validation results (uses StageResult from evaluation.go)
 	StageResults map[string]*StageResult
 	// ValidationFeedback contains the last validation feedback (if any)
@@ -1651,6 +1874,159 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 	result.BestIteration = result.TotalIterations // All iterations contributed
 
 	return result, nil
+}
+
+// GenerateSectionWithValidationLoop generates a single section with iterative validation
+// Each section gets its own generate-validate loop with best-iteration tracking
+func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
+	ctx context.Context,
+	sectionCtx validators.SectionContext,
+	pkgCtx *validators.PackageContext,
+	cfg GenerationConfig,
+) (*SectionGenerationResult, error) {
+	maxIterations := cfg.MaxIterations
+	if maxIterations == 0 {
+		maxIterations = 3
+	}
+
+	// Start a workflow span for this section
+	ctx, sectionSpan := tracing.StartWorkflowSpanWithConfig(ctx, fmt.Sprintf("section:%s", sectionCtx.SectionTitle), maxIterations)
+	defer func() {
+		tracing.SetSpanOk(sectionSpan)
+		sectionSpan.End()
+	}()
+
+	result := &SectionGenerationResult{
+		SectionTitle: sectionCtx.SectionTitle,
+		SectionLevel: sectionCtx.SectionLevel,
+		IssueHistory: make([]int, 0),
+	}
+
+	// Track best content across iterations
+	var bestContent string
+	var bestLength int
+	var bestStructure int
+	bestIteration := 0
+
+	var validationFeedback string
+
+	// Section-level iteration loop
+	for iteration := uint(1); iteration <= maxIterations; iteration++ {
+		result.TotalIterations = int(iteration)
+
+		// Build the generator prompt with any feedback from previous iteration
+		currentSectionCtx := sectionCtx
+		if validationFeedback != "" {
+			currentSectionCtx.AdditionalContext = validationFeedback
+		}
+
+		// Execute workflow for this section
+		workflowCfg := d.buildWorkflowConfig()
+		builder := workflow.NewBuilder(workflowCfg)
+		workflowResult, err := builder.ExecuteWorkflow(ctx, currentSectionCtx)
+		if err != nil {
+			logger.Debugf("Section workflow failed for %s (iteration %d): %v", sectionCtx.SectionTitle, iteration, err)
+			// Continue to next iteration if we have content from previous iterations
+			if bestContent != "" {
+				continue
+			}
+			return nil, fmt.Errorf("failed to generate section %s: %w", sectionCtx.SectionTitle, err)
+		}
+
+		content := workflowResult.Content
+
+		// Compare with best and update if better
+		currentLength := len(content)
+		currentStructure := countStructuralElements(content)
+
+		isBetter := false
+		if bestContent == "" {
+			isBetter = true
+		} else if currentLength > bestLength*12/10 {
+			// Significantly longer (20%+) is better
+			isBetter = true
+		} else if currentLength >= bestLength*9/10 && currentStructure > bestStructure {
+			// Similar length but more structure is better
+			isBetter = true
+		}
+
+		if isBetter {
+			bestContent = content
+			bestLength = currentLength
+			bestStructure = currentStructure
+			bestIteration = int(iteration)
+			logger.Debugf("Section %s: iteration %d is new best (%d chars, %d structure)",
+				sectionCtx.SectionTitle, iteration, currentLength, currentStructure)
+		}
+
+		// Run section-level validation if enabled
+		if cfg.EnableStagedValidation && pkgCtx != nil {
+			issues := d.validateSectionContent(ctx, content, sectionCtx.SectionTitle, pkgCtx)
+			issueCount := len(issues)
+			result.IssueHistory = append(result.IssueHistory, issueCount)
+
+			if issueCount > 0 {
+				// Build feedback for next iteration
+				validationFeedback = fmt.Sprintf("Section '%s' has %d issues:\n", sectionCtx.SectionTitle, issueCount)
+				for _, issue := range issues {
+					validationFeedback += fmt.Sprintf("- %s\n", issue)
+				}
+
+				if iteration < maxIterations {
+					logger.Debugf("Section %s: %d issues, regenerating...", sectionCtx.SectionTitle, issueCount)
+				}
+			} else {
+				result.Approved = true
+				break
+			}
+		} else {
+			// No validation, use first result
+			result.Approved = true
+			break
+		}
+	}
+
+	// Use the best content across all iterations
+	result.Content = bestContent
+	result.BestIteration = bestIteration
+
+	// If we never got content, return an error
+	if result.Content == "" {
+		return nil, fmt.Errorf("failed to generate content for section %s after %d iterations", sectionCtx.SectionTitle, maxIterations)
+	}
+
+	return result, nil
+}
+
+// validateSectionContent runs section-level validation and returns issues
+func (d *DocumentationAgent) validateSectionContent(ctx context.Context, content, sectionTitle string, pkgCtx *validators.PackageContext) []string {
+	var issues []string
+
+	// Run a subset of validators that support section-level validation
+	// Full-document validators (like structure) are deferred to assembly phase
+	vals := specialists.AllStagedValidators()
+	for _, validator := range vals {
+		if !validator.SupportsStaticValidation() {
+			continue
+		}
+
+		// Skip validators that require full document
+		if validator.Scope() == validators.ScopeFullDocument {
+			continue
+		}
+
+		staticResult, err := validator.StaticValidate(ctx, content, pkgCtx)
+		if err != nil {
+			logger.Debugf("Section validation error for %s with %s: %v", sectionTitle, validator.Name(), err)
+			continue
+		}
+
+		for _, issue := range staticResult.Issues {
+			issues = append(issues, fmt.Sprintf("[%s] %s", validator.Name(), issue.Message))
+		}
+	}
+
+	return issues
 }
 
 // regenerateDocWithFeedback regenerates the document using validation feedback

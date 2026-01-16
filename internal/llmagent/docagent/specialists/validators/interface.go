@@ -77,3 +77,15 @@ type AgentResult struct {
 	// Error contains any error message
 	Error string
 }
+
+// ValidationScope indicates what level of validation a validator performs
+type ValidationScope int
+
+const (
+	// ScopeSectionLevel means the validator can validate individual sections
+	ScopeSectionLevel ValidationScope = iota
+	// ScopeFullDocument means the validator requires the full document
+	ScopeFullDocument
+	// ScopeBoth means the validator works for both section-level and full document
+	ScopeBoth
+)

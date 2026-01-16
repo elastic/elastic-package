@@ -63,6 +63,7 @@ func NewCompletenessValidator() *CompletenessValidator {
 			name:        completenessValidatorName,
 			description: completenessValidatorDescription,
 			stage:       StageCompleteness,
+			scope:       ScopeFullDocument, // Completeness validation requires full document
 			instruction: completenessValidatorInstruction,
 		},
 	}

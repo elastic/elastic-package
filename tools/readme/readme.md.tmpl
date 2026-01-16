@@ -225,15 +225,64 @@ When using AI-powered documentation generation, **file content from your local f
 
 The command supports two modes of operation:
 
-1. **Rewrite Mode** (default): Full documentation regeneration
+1. **Rewrite Mode** (default): Full documentation regeneration using section-based generation
    - Analyzes your package structure, data streams, and configuration
-   - Generates comprehensive documentation following Elastic's templates
+   - Uses a multi-agent workflow with specialized generator, critic, and validator agents
+   - **Section-based generation**: Each section (Overview, Troubleshooting, etc.) is generated independently
+   - **Per-section validation loops**: Each section runs multiple iterations with validation feedback
+   - **Best-iteration selection**: The best version of each section is selected based on content quality
+   - **Parallel processing**: Sections are generated in parallel for faster results
    - Creates or updates the README.md file in `/_dev/build/docs/`
 
 2. **Modify Mode**: Targeted documentation changes
    - Makes specific changes to existing documentation
    - Requires existing README.md file at `/_dev/build/docs/README.md`
    - Use `--modify-prompt` flag for non-interactive modifications
+
+#### Section-Based Generation Architecture
+
+The rewrite mode uses a sophisticated architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Section-Based Generation                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
+│   │   Section 1  │    │   Section 2  │    │   Section N  │     │
+│   │   Overview   │    │ Troubleshoot │    │  Reference   │     │
+│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘     │
+│          │                   │                   │              │
+│          ▼                   ▼                   ▼              │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │         Per-Section Validation Loop (Parallel)        │     │
+│   │  ┌─────────────────────────────────────────────────┐ │     │
+│   │  │ Iteration 1 → Validate → Iteration 2 → ... → N  │ │     │
+│   │  └─────────────────────────────────────────────────┘ │     │
+│   │         ↓ Select Best Iteration for Each Section     │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │              Combine Best Sections                    │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │         Full-Document Validation (Structure)          │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│                     Final README.md                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+This approach produces higher quality documentation because:
+- Each section receives focused attention and targeted validation
+- Issues in one section don't affect other sections
+- Parallel generation is faster than sequential full-document generation
+- Best-iteration tracking prevents content regression in later iterations
 
 #### Workflow Options
 
@@ -261,7 +310,7 @@ You can configure LLM providers through **profile settings** (in `~/.elastic-pac
 * `llm.local.api_key`: API key for local LLM servers (optional, if authentication is required)
 * `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
 
-Environment variables (e.g., `GEMINI_API_KEY`, `LOCAL_LLM_ENDPOINT`) take precedence over profile configuration.
+Environment variables (e.g., `GOOGLE_API_KEY`, `LOCAL_LLM_ENDPOINT`) take precedence over profile configuration.
 
 #### Usage Examples
 
@@ -567,7 +616,7 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
-    - `GEMINI_API_KEY`: API key for Gemini LLM services
+    - `GOOGLE_API_KEY`: API key for Gemini LLM services
     - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
     - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)

@@ -140,6 +140,9 @@ type StagedValidator interface {
 	// Stage returns which pipeline stage this validator belongs to
 	Stage() ValidatorStage
 
+	// Scope returns whether this validator works on sections, full documents, or both
+	Scope() ValidationScope
+
 	// StaticValidate runs validation without LLM (fast, deterministic)
 	// Returns issues found through static analysis of content and package context
 	StaticValidate(ctx context.Context, content string, pkgCtx *PackageContext) (*StagedValidationResult, error)
@@ -163,6 +166,7 @@ type BaseStagedValidator struct {
 	name        string
 	description string
 	stage       ValidatorStage
+	scope       ValidationScope
 	instruction string
 }
 
@@ -179,6 +183,12 @@ func (v *BaseStagedValidator) Description() string {
 // Stage returns the validation stage
 func (v *BaseStagedValidator) Stage() ValidatorStage {
 	return v.stage
+}
+
+// Scope returns the validation scope (section-level, full-document, or both)
+// Default is ScopeBoth for backward compatibility
+func (v *BaseStagedValidator) Scope() ValidationScope {
+	return v.scope
 }
 
 // Build creates the LLM agent for this validator

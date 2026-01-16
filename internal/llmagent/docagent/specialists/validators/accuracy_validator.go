@@ -79,6 +79,7 @@ func NewAccuracyValidator() *AccuracyValidator {
 			name:        accuracyValidatorName,
 			description: accuracyValidatorDescription,
 			stage:       StageAccuracy,
+			scope:       ScopeBoth, // Accuracy validation works on sections and full document
 			instruction: accuracyValidatorInstruction,
 		},
 	}

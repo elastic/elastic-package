@@ -92,6 +92,7 @@ func NewVendorSetupValidator() *VendorSetupValidator {
 			name:        vendorSetupValidatorName,
 			description: vendorSetupValidatorDescription,
 			stage:       StageAccuracy, // Part of accuracy checking
+			scope:       ScopeBoth,     // Vendor setup validation works on sections and full document
 			instruction: vendorSetupValidatorInstruction,
 		},
 	}

@@ -27,9 +27,11 @@ import (
 const updateDocumentationLongDescription = `Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
 The AI agent supports three modes:
-1. Rewrite mode (default): Full documentation regeneration
+1. Rewrite mode (default): Full documentation regeneration using section-based generation
    - Analyzes your package structure, data streams, and configuration
-   - Generates comprehensive documentation following Elastic's templates
+   - Generates each section independently with its own validation loop
+   - Each section is generated multiple times (configurable iterations) and the best version is selected
+   - Sections are generated in parallel for faster processing
    - Creates or updates markdown files in /_dev/build/docs/
 2. Modify mode: Targeted documentation changes
    - Makes specific changes to existing documentation
@@ -40,6 +42,21 @@ The AI agent supports three modes:
    - Outputs to a directory instead of modifying the package
    - Computes quality metrics (structure, accuracy, completeness, quality scores)
    - Supports batch processing of multiple packages with --batch flag
+
+Section-based generation workflow:
+The rewrite mode uses a sophisticated section-based approach where:
+1. The README template is parsed into individual sections (Overview, Troubleshooting, etc.)
+2. Each section is generated independently in parallel
+3. Per-section validation loops run multiple iterations with feedback
+4. The best iteration for each section is selected based on content quality
+5. All sections are combined into the final document
+6. Full-document validation is run on the assembled document
+
+This approach produces higher quality documentation because:
+- Each section gets focused attention and validation
+- Issues in one section don't affect other sections
+- Parallel generation is faster than sequential full-document generation
+- Best-iteration tracking prevents regression in later iterations
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -71,7 +88,7 @@ Evaluation mode examples:
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
-- GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
+- GOOGLE_API_KEY / llm.gemini.api_key: API key for Gemini
 - GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
 - GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode)`
 
@@ -186,7 +203,7 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("  2. Run `elastic-package build`"))
 	cmd.Println()
 	cmd.Println(tui.Info("For AI-powered documentation updates, configure Gemini:"))
-	cmd.Println(tui.Info("  - Gemini: Set GEMINI_API_KEY or add llm.gemini.api_key to profile config"))
+	cmd.Println(tui.Info("  - Gemini: Set GOOGLE_API_KEY or add llm.gemini.api_key to profile config"))
 	cmd.Println()
 	cmd.Println(tui.Info("Profile configuration: ~/.elastic-package/profiles/<profile>/config.yml"))
 }
@@ -196,7 +213,7 @@ const defaultThinkingBudget int32 = 128
 
 // getGeminiConfig gets Gemini configuration from environment or profile
 func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, thinkingBudget *int32) {
-	apiKey = getConfigValue(profile, "GEMINI_API_KEY", "llm.gemini.api_key", "")
+	apiKey = getConfigValue(profile, "GOOGLE_API_KEY", "llm.gemini.api_key", "")
 	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", "gemini-3-flash-preview")
 
 	// Get thinking budget - defaults to 128 ("low" mode) for Gemini Pro models
@@ -394,7 +411,7 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 // handleEvaluationMode handles the --evaluate flag for documentation quality evaluation
 func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
 	if apiKey == "" {
-		return fmt.Errorf("evaluation mode requires GEMINI_API_KEY to be set")
+		return fmt.Errorf("evaluation mode requires GOOGLE_API_KEY to be set")
 	}
 
 	// Get evaluation flags

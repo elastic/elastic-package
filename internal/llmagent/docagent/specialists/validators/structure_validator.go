@@ -125,6 +125,7 @@ func NewStructureValidator() *StructureValidator {
 			name:        structureValidatorName,
 			description: structureValidatorDescription,
 			stage:       StageStructure,
+			scope:       ScopeFullDocument, // Structure validation requires full document
 			instruction: structureValidatorInstruction,
 		},
 	}

@@ -64,6 +64,7 @@ func NewAccessibilityValidator() *AccessibilityValidator {
 			name:        accessibilityValidatorName,
 			description: accessibilityValidatorDescription,
 			stage:       StageQuality, // Accessibility is part of quality
+			scope:       ScopeBoth,    // Accessibility validation works on sections and full document
 			instruction: accessibilityValidatorInstruction,
 		},
 	}

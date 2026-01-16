@@ -31,6 +31,7 @@ func NewServiceInfoLinkValidator() *ServiceInfoLinkValidator {
 			name:        serviceInfoLinkValidatorName,
 			description: serviceInfoLinkValidatorDescription,
 			stage:       StageCompleteness, // Part of completeness checking
+			scope:       ScopeBoth,         // Link validation works on sections and full document
 			instruction: serviceInfoLinkValidatorInstruction,
 		},
 	}

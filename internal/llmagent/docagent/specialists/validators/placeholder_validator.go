@@ -59,6 +59,7 @@ func NewPlaceholderValidator() *PlaceholderValidator {
 			name:        placeholderValidatorName,
 			description: placeholderValidatorDescription,
 			stage:       StagePlaceholders,
+			scope:       ScopeBoth, // Placeholder validation works on sections and full document
 			instruction: placeholderValidatorInstruction,
 		},
 	}

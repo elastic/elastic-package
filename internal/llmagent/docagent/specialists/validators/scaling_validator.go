@@ -112,6 +112,7 @@ func NewScalingValidator() *ScalingValidator {
 			name:        scalingValidatorName,
 			description: scalingValidatorDescription,
 			stage:       StageCompleteness, // Part of completeness checking
+			scope:       ScopeBoth,         // Scaling validation works on sections and full document
 			instruction: scalingValidatorInstruction,
 		},
 	}

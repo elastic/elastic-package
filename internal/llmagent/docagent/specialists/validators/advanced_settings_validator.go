@@ -73,6 +73,7 @@ func NewAdvancedSettingsValidator() *AdvancedSettingsValidator {
 			name:        advancedSettingsValidatorName,
 			description: advancedSettingsValidatorDescription,
 			stage:       StageCompleteness, // Part of completeness checking
+			scope:       ScopeBoth,         // Advanced settings validation works on sections and full document
 			instruction: advancedSettingsValidatorInstruction,
 		},
 	}

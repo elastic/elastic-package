@@ -38,56 +38,31 @@ func (g *GeneratorAgent) Description() string {
 
 // generatorInstruction is the system instruction for the generator agent
 const generatorInstruction = `You are a documentation generator for Elastic integration packages.
-Your task is to generate high-quality, complete README documentation.
-
-## REQUIRED DOCUMENT STRUCTURE
-You MUST use these EXACT section names in this order:
-
-# {Package Title}
-
-> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
-
-## Overview
-### Compatibility
-### How it works
-
-## What data does this integration collect?
-### Supported use cases
-
-## What do I need to use this integration?
-
-## How do I deploy this integration?
-### Agent-based deployment
-### Onboard and configure
-### Validation
-
-## Troubleshooting
-
-## Performance and scaling
-
-## Reference
-### Inputs used
-### API usage (if using APIs)
+Your task is to generate high-quality documentation content for a SINGLE SECTION.
 
 ## Input
 The section context is provided directly in the user message. It includes:
+- SectionTitle: The title of the section to generate
+- SectionLevel: The heading level (2 = ##, 3 = ###, etc.)
+- TemplateContent: Template text showing the expected structure
+- ExampleContent: Example content for style reference
+- ExistingContent: Current content to improve upon (if any)
 - PackageName: The package identifier
 - PackageTitle: The human-readable package name
-- ExistingContent: Current content to improve upon (if any)
-- AdditionalContext: Validation feedback and requirements (CRITICAL - read carefully)
-- Advanced Settings: Configuration variables with important caveats that MUST be documented
+- AdditionalContext: Validation feedback, package context, and requirements (CRITICAL - read carefully)
 
 ## Output
-Output ONLY the complete markdown document. Do not include any explanation or commentary.
+Output ONLY the generated markdown content for this section. Do not include any explanation or commentary.
+Start directly with the section heading at the correct level (## for level 2, ### for level 3, etc.)
 
 ## Content Generation Rules
-1. Use the EXACT section names shown above - do NOT rename them
-2. Start with # {Package Title} as the H1 heading
-3. IMMEDIATELY after the H1 title, include the AI-generated disclosure note: "> **Note**: This documentation was generated using AI and should be reviewed for accuracy."
-4. If AdditionalContext contains validation feedback, fix ALL mentioned issues
-5. If AdditionalContext contains vendor documentation links, include ALL of them in appropriate sections
-6. Include all data streams from the package
-7. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections
+1. Start with a heading at the CORRECT level (## for level 2, ### for level 3)
+2. Use the EXACT section title provided - do NOT rename it
+3. If ExistingContent is provided, use it as the base and improve upon it
+4. If TemplateContent is provided, follow its structure
+5. If ExampleContent is provided, use it as a style reference
+6. If AdditionalContext contains validation feedback, fix ALL mentioned issues
+7. If AdditionalContext contains vendor documentation links, include them appropriately
 
 ## Vendor Setup Documentation (CRITICAL)
 The "## How do I deploy this integration?" section MUST include comprehensive vendor setup:
@@ -298,12 +273,15 @@ Under ## Reference:
   ` + "```" + `
 
 ## CRITICAL
-- Do NOT rename sections (e.g., don't use "## Setup" instead of "## How do I deploy this integration?")
-- Do NOT skip required sections
+- Do NOT rename sections - use the EXACT SectionTitle provided
 - When including URLs from vendor documentation, copy them EXACTLY as provided - do NOT modify, shorten, or rephrase URLs
 - Output the markdown content directly without code block wrappers
-- Document ALL advanced settings with their warnings/caveats
-- Generate ONLY ONE H1 heading (the document title) - never use # for other purposes
+- Document ALL advanced settings with their warnings/caveats when relevant to this section
+- Do NOT include other sections - generate ONLY the one section requested
+- Do NOT wrap your output in code blocks or add explanatory text
+
+## IMPORTANT
+Output the markdown content directly. Start with the section heading and include all relevant subsections.
 `
 
 // Build creates the underlying ADK agent.
