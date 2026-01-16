@@ -439,6 +439,12 @@ Use this command to validate the contents of a package using the package specifi
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
+### `elastic-package modify`
+
+_Context: package_
+
+Use this command to apply modifications for a package.
+
 ### `elastic-package profiles`
 
 _Context: global_
