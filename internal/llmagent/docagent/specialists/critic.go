@@ -10,6 +10,8 @@ import (
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/genai"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 )
 
 const (
@@ -69,7 +71,7 @@ type CriticResult struct {
 }
 
 // Build creates the underlying ADK agent.
-func (c *CriticAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
+func (c *CriticAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
 	// JSON response mode is incompatible with function calling on some models
 	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.
 	return llmagent.New(llmagent.Config{

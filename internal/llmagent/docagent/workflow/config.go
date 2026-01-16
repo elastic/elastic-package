@@ -10,6 +10,7 @@ import (
 	"google.golang.org/adk/tool"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 )
 
 // DefaultMaxIterations is the default maximum number of workflow iterations
@@ -44,16 +45,26 @@ type Config struct {
 
 	// EnableURLValidator enables the URL validator agent in the workflow
 	EnableURLValidator bool
+
+	// EnableStaticValidation enables static validators that check against package files
+	EnableStaticValidation bool
+
+	// EnableLLMValidation enables LLM-based validation using validator instructions
+	EnableLLMValidation bool
+
+	// PackageContext provides package metadata for static validation
+	PackageContext *validators.PackageContext
 }
 
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() Config {
 	return Config{
-		Registry:           specialists.DefaultRegistry(),
-		MaxIterations:      DefaultMaxIterations,
-		EnableCritic:       true,
-		EnableValidator:    true,
-		EnableURLValidator: true,
+		Registry:            specialists.DefaultRegistry(),
+		MaxIterations:       DefaultMaxIterations,
+		EnableCritic:        true,
+		EnableValidator:     true,
+		EnableURLValidator:  true,
+		EnableLLMValidation: true, // LLM validation enabled by default for semantic checks
 	}
 }
 
@@ -90,6 +101,27 @@ func (c Config) WithMaxIterations(n uint) Config {
 // WithRegistry sets a custom agent registry
 func (c Config) WithRegistry(r *specialists.Registry) Config {
 	c.Registry = r
+	return c
+}
+
+// WithStaticValidation enables static validators with the given package context
+func (c Config) WithStaticValidation(pkgCtx *validators.PackageContext) Config {
+	c.EnableStaticValidation = true
+	c.PackageContext = pkgCtx
+	return c
+}
+
+// WithLLMValidation enables LLM-based validation using validator instructions
+func (c Config) WithLLMValidation(enabled bool) Config {
+	c.EnableLLMValidation = enabled
+	return c
+}
+
+// WithFullValidation enables both static and LLM validation
+func (c Config) WithFullValidation(pkgCtx *validators.PackageContext) Config {
+	c.EnableStaticValidation = true
+	c.EnableLLMValidation = true
+	c.PackageContext = pkgCtx
 	return c
 }
 
