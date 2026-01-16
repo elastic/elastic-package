@@ -201,6 +201,8 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 		if sessionID, ok := tracing.SessionIDFromContext(ctx); ok {
 			fmt.Printf("🔍 Tracing session ID: %s\n", sessionID)
 		}
+	} else {
+		panic("tracing is not enabled")
 	}
 
 	// Record the input request
@@ -782,7 +784,13 @@ type sectionResult struct {
 // but this can be changed via the ParallelSections config option.
 func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
 	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
-	defer chainSpan.End()
+	defer func() {
+		// Flush all child spans before ending the chain span to ensure proper trace hierarchy
+		if err := tracing.ForceFlush(ctx); err != nil {
+			logger.Debugf("Failed to flush traces before ending chain span: %v", err)
+		}
+		chainSpan.End()
+	}()
 
 	// Get the template content
 	templateContent := archetype.GetPackageDocsReadmeTemplate()
@@ -921,7 +929,13 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 // Each section gets its own generate-validate iteration cycle with best-iteration tracking
 func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Context, pkgCtx *validators.PackageContext, genCfg GenerationConfig) (*GenerationResult, error) {
 	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:sections")
-	defer chainSpan.End()
+	defer func() {
+		// Flush all child spans before ending the chain span to ensure proper trace hierarchy
+		if err := tracing.ForceFlush(ctx); err != nil {
+			logger.Debugf("Failed to flush traces before ending chain span: %v", err)
+		}
+		chainSpan.End()
+	}()
 
 	// Get the template content
 	templateContent := archetype.GetPackageDocsReadmeTemplate()
@@ -1063,6 +1077,11 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	}
 
 	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
+
+	// Flush spans from parallel goroutines before returning to ensure they're exported
+	if err := tracing.ForceFlush(ctx); err != nil {
+		logger.Debugf("Failed to flush traces after parallel section generation: %v", err)
+	}
 
 	// Convert section results to Section structs for combining
 	var generatedSections []Section
