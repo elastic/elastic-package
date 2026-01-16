@@ -426,7 +426,127 @@ func (v *CompletenessValidator) checkReferenceSection(content string, pkgCtx *Pa
 		})
 	}
 
+	// Check that {{event}} and {{fields}} templates use actual data stream names
+	if pkgCtx != nil && len(pkgCtx.DataStreams) > 0 {
+		issues = append(issues, v.checkDataStreamTemplates(content, pkgCtx)...)
+	}
+
 	return issues
+}
+
+// checkDataStreamTemplates validates that {{event}} and {{fields}} templates use actual data stream names
+func (v *CompletenessValidator) checkDataStreamTemplates(content string, pkgCtx *PackageContext) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Build a set of valid data stream names
+	validNames := make(map[string]bool)
+	dataStreamsWithExamples := make(map[string]bool)
+	for _, ds := range pkgCtx.DataStreams {
+		validNames[ds.Name] = true
+		if ds.HasExampleEvent {
+			dataStreamsWithExamples[ds.Name] = true
+		}
+	}
+
+	// Pattern to match {{fields "name"}} and {{event "name"}} templates
+	fieldsPattern := regexp.MustCompile(`\{\{fields\s+"([^"]+)"\}\}`)
+	eventPattern := regexp.MustCompile(`\{\{event\s+"([^"]+)"\}\}`)
+
+	// Check {{fields}} templates
+	fieldsMatches := fieldsPattern.FindAllStringSubmatch(content, -1)
+	foundFields := make(map[string]bool)
+	for _, match := range fieldsMatches {
+		if len(match) > 1 {
+			dsName := match[1]
+			foundFields[dsName] = true
+			// Check if "datastream" is used literally (common mistake)
+			if dsName == "datastream" {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityCritical,
+					Category:    CategoryCompleteness,
+					Location:    "Reference",
+					Message:     "{{fields \"datastream\"}} uses literal 'datastream' instead of actual data stream name",
+					Suggestion:  "Replace with actual data stream name, e.g., {{fields \"" + pkgCtx.DataStreams[0].Name + "\"}}",
+					SourceCheck: "static",
+				})
+			} else if !validNames[dsName] {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMajor,
+					Category:    CategoryCompleteness,
+					Location:    "Reference",
+					Message:     "{{fields \"" + dsName + "\"}} references unknown data stream '" + dsName + "'",
+					Suggestion:  "Use one of the valid data stream names: " + v.joinDataStreamNames(pkgCtx.DataStreams),
+					SourceCheck: "static",
+				})
+			}
+		}
+	}
+
+	// Check {{event}} templates
+	eventMatches := eventPattern.FindAllStringSubmatch(content, -1)
+	foundEvents := make(map[string]bool)
+	for _, match := range eventMatches {
+		if len(match) > 1 {
+			dsName := match[1]
+			foundEvents[dsName] = true
+			// Check if "datastream" is used literally (common mistake)
+			if dsName == "datastream" {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityCritical,
+					Category:    CategoryCompleteness,
+					Location:    "Reference",
+					Message:     "{{event \"datastream\"}} uses literal 'datastream' instead of actual data stream name",
+					Suggestion:  "Replace with actual data stream name, e.g., {{event \"" + pkgCtx.DataStreams[0].Name + "\"}}",
+					SourceCheck: "static",
+				})
+			} else if !validNames[dsName] {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMajor,
+					Category:    CategoryCompleteness,
+					Location:    "Reference",
+					Message:     "{{event \"" + dsName + "\"}} references unknown data stream '" + dsName + "'",
+					Suggestion:  "Use one of the valid data stream names: " + v.joinDataStreamNames(pkgCtx.DataStreams),
+					SourceCheck: "static",
+				})
+			}
+		}
+	}
+
+	// Check for missing {{fields}} templates for each data stream
+	for _, ds := range pkgCtx.DataStreams {
+		if !foundFields[ds.Name] {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryCompleteness,
+				Location:    "Reference",
+				Message:     "Missing {{fields \"" + ds.Name + "\"}} template for data stream '" + ds.Name + "'",
+				Suggestion:  "Add {{fields \"" + ds.Name + "\"}} in the Reference section under the data stream heading",
+				SourceCheck: "static",
+			})
+		}
+		// Check for missing {{event}} templates for data streams that have example events
+		if ds.HasExampleEvent && !foundEvents[ds.Name] {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryCompleteness,
+				Location:    "Reference",
+				Message:     "Missing {{event \"" + ds.Name + "\"}} template for data stream '" + ds.Name + "' (has sample_event.json)",
+				Suggestion:  "Add {{event \"" + ds.Name + "\"}} in the Reference section before {{fields \"" + ds.Name + "\"}}",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// joinDataStreamNames returns a comma-separated list of data stream names
+func (v *CompletenessValidator) joinDataStreamNames(dataStreams []DataStreamInfo) string {
+	names := make([]string, len(dataStreams))
+	for i, ds := range dataStreams {
+		names[i] = ds.Name
+	}
+	return strings.Join(names, ", ")
 }
 
 // checkAgentDeploymentCompleteness validates the agent deployment section has proper content

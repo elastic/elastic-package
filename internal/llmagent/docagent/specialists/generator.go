@@ -242,7 +242,7 @@ The "## Performance and scaling" section is CRITICAL. You MUST provide input-spe
 - Follow the Elastic documentation style (friendly, direct, use "you")
 - Include relevant code examples and configuration snippets where appropriate
 - Use proper markdown formatting
-- If using {{ }} template variables like {{event "datastream"}} or {{fields "datastream"}}, preserve them
+- Use {{event "<name>"}} and {{fields "<name>"}} templates in Reference section, replacing <name> with the actual data stream name (e.g., {{event "conn"}}, {{fields "conn"}})
 - For code blocks, ALWAYS specify the language (e.g., bash, yaml, json after the triple backticks)
 
 ## CONSISTENCY REQUIREMENTS (CRITICAL)

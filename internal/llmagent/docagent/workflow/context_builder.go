@@ -137,14 +137,29 @@ func (b *ContextBuilder) buildDataStreamsContext() string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("\n=== DATA STREAMS (document ALL of these) ===\n")
+	sb.WriteString("\n=== DATA STREAMS (document ALL of these in the Reference section) ===\n")
+	sb.WriteString("CRITICAL: In the ## Reference section, each data stream MUST have:\n")
+	sb.WriteString("  1. A ### heading with the data stream name\n")
+	sb.WriteString("  2. A brief description of what data it collects\n")
+	sb.WriteString("  3. {{event \"<name>\"}} template IF the data stream has an example event (marked with [has example])\n")
+	sb.WriteString("  4. {{fields \"<name>\"}} template for field documentation\n\n")
+	sb.WriteString("Data streams in this package:\n")
 	for _, ds := range b.pkgCtx.DataStreams {
 		sb.WriteString(fmt.Sprintf("- %s", ds.Name))
 		if ds.Title != "" && ds.Title != ds.Name {
 			sb.WriteString(fmt.Sprintf(" (%s)", ds.Title))
 		}
+		if ds.HasExampleEvent {
+			sb.WriteString(" [has example]")
+		}
 		if ds.Description != "" {
 			sb.WriteString(fmt.Sprintf(": %s", ds.Description))
+		}
+		sb.WriteString("\n")
+		// Show the exact templates to use
+		sb.WriteString(fmt.Sprintf("  → Use: {{fields \"%s\"}}", ds.Name))
+		if ds.HasExampleEvent {
+			sb.WriteString(fmt.Sprintf(" and {{event \"%s\"}}", ds.Name))
 		}
 		sb.WriteString("\n")
 	}
@@ -217,7 +232,7 @@ func (b *ContextBuilder) buildInstructions() string {
 	sb.WriteString("4. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
 	sb.WriteString("5. Document ALL data streams listed above\n")
 	sb.WriteString("6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections, #### for sub-subsections\n")
-	sb.WriteString("7. Use {{event \"datastream\"}} and {{fields \"datastream\"}} placeholders in Reference section\n")
+	sb.WriteString("7. In ## Reference section, use {{event \"<datastream_name>\"}} and {{fields \"<datastream_name>\"}} for EACH data stream (see DATA STREAMS section above for exact templates)\n")
 	sb.WriteString("8. Address EVERY validation issue if any are listed above\n")
 	sb.WriteString("9. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
 	sb.WriteString("10. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")

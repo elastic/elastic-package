@@ -26,16 +26,16 @@ type ServiceInfoLink struct {
 // VendorSetupContent holds parsed vendor setup information from service_info.md
 // This is used to determine if the generated documentation MUST include vendor setup
 type VendorSetupContent struct {
-	HasVendorPrerequisites bool   // Has "Vendor prerequisites" section
-	HasVendorSetupSteps    bool   // Has "Vendor set up steps" section
-	HasKibanaSetupSteps    bool   // Has "Kibana set up steps" section
-	HasValidationSteps     bool   // Has "Validation Steps" section
-	HasTroubleshooting     bool   // Has "Troubleshooting" section
-	VendorPrerequisites    string // Extracted content
-	VendorSetupSteps       string // Extracted content
-	KibanaSetupSteps       string // Extracted content
-	ValidationSteps        string // Extracted content
-	Troubleshooting        string // Extracted content
+	HasVendorPrerequisites bool              // Has "Vendor prerequisites" section
+	HasVendorSetupSteps    bool              // Has "Vendor set up steps" section
+	HasKibanaSetupSteps    bool              // Has "Kibana set up steps" section
+	HasValidationSteps     bool              // Has "Validation Steps" section
+	HasTroubleshooting     bool              // Has "Troubleshooting" section
+	VendorPrerequisites    string            // Extracted content
+	VendorSetupSteps       string            // Extracted content
+	KibanaSetupSteps       string            // Extracted content
+	ValidationSteps        string            // Extracted content
+	Troubleshooting        string            // Extracted content
 	VendorLinks            []ServiceInfoLink // Links to vendor documentation
 }
 
@@ -129,11 +129,12 @@ type PackageContext struct {
 
 // DataStreamInfo holds metadata about a single data stream
 type DataStreamInfo struct {
-	Name        string
-	Type        string // "logs", "metrics", "traces", "synthetics"
-	Title       string
-	Description string
-	Dataset     string
+	Name            string
+	Type            string // "logs", "metrics", "traces", "synthetics"
+	Title           string
+	Description     string
+	Dataset         string
+	HasExampleEvent bool // true if data_stream/<name>/sample_event.json exists
 }
 
 // FieldInfo represents a field definition from fields.yml
@@ -233,12 +234,18 @@ func loadDataStreams(packageRoot string) ([]DataStreamInfo, error) {
 			continue
 		}
 
+		// Check if sample_event.json exists for this data stream
+		sampleEventPath := filepath.Join(dataStreamDir, dsName, "sample_event.json")
+		_, sampleEventErr := os.Stat(sampleEventPath)
+		hasExampleEvent := sampleEventErr == nil
+
 		dataStreams = append(dataStreams, DataStreamInfo{
-			Name:        dsName,
-			Type:        dsManifest.Type,
-			Title:       dsManifest.Title,
-			Description: dsManifest.Description,
-			Dataset:     dsManifest.Dataset,
+			Name:            dsName,
+			Type:            dsManifest.Type,
+			Title:           dsManifest.Title,
+			Description:     dsManifest.Description,
+			Dataset:         dsManifest.Dataset,
+			HasExampleEvent: hasExampleEvent,
 		})
 	}
 
@@ -428,13 +435,13 @@ func deriveLinkTextFromURL(urlStr string) string {
 
 	// Map common domains to friendly names
 	domainNames := map[string]string{
-		"developer-docs.netscaler.com":  "NetScaler",
-		"developer-docs.citrix.com":     "Citrix",
-		"docs.netscaler.com":            "NetScaler Docs",
-		"docs.citrix.com":               "Citrix Docs",
-		"support.citrix.com":            "Citrix Support",
-		"elastic.co":                    "Elastic",
-		"www.elastic.co":                "Elastic",
+		"developer-docs.netscaler.com": "NetScaler",
+		"developer-docs.citrix.com":    "Citrix",
+		"docs.netscaler.com":           "NetScaler Docs",
+		"docs.citrix.com":              "Citrix Docs",
+		"support.citrix.com":           "Citrix Support",
+		"elastic.co":                   "Elastic",
+		"www.elastic.co":               "Elastic",
 	}
 
 	vendor := "Documentation"
