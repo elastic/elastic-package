@@ -201,8 +201,6 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 		if sessionID, ok := tracing.SessionIDFromContext(ctx); ok {
 			fmt.Printf("🔍 Tracing session ID: %s\n", sessionID)
 		}
-	} else {
-		panic("tracing is not enabled")
 	}
 
 	// Record the input request

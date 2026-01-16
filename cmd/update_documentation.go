@@ -535,10 +535,13 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		return fmt.Errorf("failed to get enable-llm-validation flag: %w", err)
 	}
 
-	// If tracing is enabled via flag, initialize tracing
+	// Get tracing configuration
+	tracingConfig := getTracingConfig(profile)
 	if enableTracing {
-		tracingConfig := getTracingConfig(profile)
 		tracingConfig.Enabled = true
+	}
+
+	if tracingConfig.Enabled {
 		if err := tracing.InitWithConfig(cmd.Context(), tracingConfig); err != nil {
 			cmd.Printf("Warning: failed to initialize tracing: %v\n", err)
 		}
@@ -599,12 +602,6 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	// Get tracing configuration
-	tracingConfig := getTracingConfig(profile)
-	if enableTracing {
-		tracingConfig.Enabled = true
-	}
-
 	// Create the documentation agent
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		APIKey:         apiKey,
@@ -624,7 +621,7 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		EnableStagedValidation: enableStagedValidation,
 		EnableLLMValidation:    enableLLMValidation,
 		MaxIterations:          maxIterations,
-		EnableTracing:          enableTracing,
+		EnableTracing:          tracingConfig.Enabled,
 		ClearResults:           clearResults,
 		EnableSnapshots:        enableSnapshots,
 		ModelID:                modelID,

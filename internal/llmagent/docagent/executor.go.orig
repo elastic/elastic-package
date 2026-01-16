@@ -75,7 +75,11 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 
 	modelID := cfg.ModelID
 	if modelID == "" {
+<<<<<<< HEAD
 		modelID = tracing.DefaultModelID
+=======
+		modelID = "gemini-3-flash-preview"
+>>>>>>> daca8c2d7fca24bdd47cf236be03b9f5afef2cd1
 	}
 
 	// Initialize LLM tracing with provided config
@@ -258,20 +262,22 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 
 				// Track function responses
 				if part.FunctionResponse != nil {
-					logger.Debugf("Function response for: %s", part.FunctionResponse.Name)
+					response := part.FunctionRespone
+
+					logger.Debugf("Function response for: %s", response.Name)
 
 					// Create tool response span
-					_, toolSpan := tracing.StartToolSpan(ctx, part.FunctionResponse.Name+"_response", nil)
+					_, toolSpan := tracing.StartToolSpan(ctx, response.Name+"_response", nil)
 
 					// Format the response content
 					var responseContent string
-					if content, exists := part.FunctionResponse.Response["content"]; exists {
+					if content, exists := response.Response["content"]; exists {
 						responseContent = fmt.Sprintf("%v", content)
-					} else if errContent, exists := part.FunctionResponse.Response["error"]; exists {
+					} else if errContent, exists := response.Response["error"]; exists {
 						responseContent = fmt.Sprintf("Error: %v", errContent)
 					} else {
 						// Marshal the entire response
-						if respJSON, err := json.Marshal(part.FunctionResponse.Response); err == nil {
+						if respJSON, err := json.Marshal(response.Response); err == nil {
 							responseContent = string(respJSON)
 						}
 					}
@@ -280,7 +286,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
-						Content: fmt.Sprintf("✅ SUCCESS: %s completed.\nResult: %s", part.FunctionResponse.Name, responseContent),
+						Content: fmt.Sprintf("✅ SUCCESS: %s completed.\nResult: %s", response.Name, responseContent),
 					})
 				}
 			}
