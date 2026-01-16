@@ -152,6 +152,12 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		preserveSection = fmt.Sprintf("\nPRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
 	}
 
+	// Get section-specific instructions
+	sectionInstructions := GetSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
+	if sectionInstructions != "" {
+		sectionInstructions = fmt.Sprintf("\nSECTION-SPECIFIC REQUIREMENTS:\n%s\n\n", sectionInstructions)
+	}
+
 	return []interface{}{
 		ctx.SectionTitle,         // section title in task description
 		ctx.SectionLevel,         // section level number
@@ -168,6 +174,7 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		ctx.SectionTitle,         // section title for get_service_info in tool guidelines
 		ctx.TemplateSection,      // template section content
 		preserveSection,          // preserve content if any
+		sectionInstructions,      // section-specific instructions
 		ctx.SectionTitle,         // section title for get_example in step 1
 		ctx.SectionTitle,         // section title for get_service_info in step 3
 		levelStr,                 // level prefix for step 4

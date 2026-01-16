@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -18,6 +19,7 @@ type SectionGenerationContext struct {
 	ExampleSection  *Section
 	PackageInfo     PromptContext
 	ExistingContent string
+	PackageContext  *validators.PackageContext // For section-specific instructions
 }
 
 // emptySectionPlaceholder is the placeholder text for sections that couldn't be populated

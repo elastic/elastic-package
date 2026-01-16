@@ -45,7 +45,7 @@ Template Section (Structure to Follow):
 %s
 ---
 
-%sYour Step-by-Step Process:
+%s%sYour Step-by-Step Process:
 
 1. Get Quality Examples:
    * Read manifest.yml to get the package categories
@@ -92,23 +92,6 @@ SUBSECTION HANDLING:
 - Do not create new ### subsections not shown in the template
 - Maintain the exact subsection structure from the template
 - Generate content for the parent section AND all its subsections in one response
-
-REFERENCE SECTION SPECIAL HANDLING:
-If you are generating the "Reference" section, you MUST follow these rules for data streams:
-- Create a ### subsection for EACH data stream in the package
-- For EACH data stream, include:
-  1. A brief description of what data the stream collects
-  2. {{event "<datastream_name>"}} - ONLY if the data stream has a sample_event.json file
-  3. {{fields "<datastream_name>"}} - ALWAYS include this for every data stream
-- Replace <datastream_name> with the ACTUAL data stream name (e.g., "conn", "dhcp", "dns")
-- NEVER use the literal string "datastream" - always use the real data stream name
-- Example for a data stream named "conn":
-  ### conn
-  The `conn` data stream collects connection logs from the service.
-  {{event "conn"}}
-  {{fields "conn"}}
-- Use list_directory on "data_stream/" to find all data stream names
-- Check each data stream folder for sample_event.json to determine if {{event}} should be included
 
 Style and Content Guidance:
 
