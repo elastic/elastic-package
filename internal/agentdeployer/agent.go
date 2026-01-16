@@ -306,6 +306,11 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		return "", nil
 	}
 
+	gcpFacters, err := common.GCPCredentialFacters()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
+	}
+
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"agent_image":            agentImage,
@@ -322,6 +327,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		"elasticsearch_password": config.ElasticsearchPassword,
 		"enrollment_token":       enrollmentToken,
 	})
+	resourceManager.AddFacter(gcpFacters)
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: customAgentDir,

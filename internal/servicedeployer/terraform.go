@@ -6,7 +6,7 @@ package servicedeployer
 
 import (
 	"context"
-	_ "embed"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,13 +29,17 @@ const (
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
 	terraformOutputJSONFile     = "tfOutputValues.json"
-)
 
-//go:embed _static/terraform_deployer.yml
-var terraformDeployerYmlContent string
+	terraformDeployerYmlTemplatePath = "_static/terraform_deployer.yml.tmpl"
+)
 
 //go:embed _static/terraform_deployer_run.sh
 var terraformDeployerRunContent string
+
+//go:embed _static
+var tfStatic embed.FS
+
+var tfStaticSource = resource.NewSourceFS(tfStatic)
 
 //go:embed _static/Dockerfile.terraform_deployer
 var terraformDeployerDockerfileContent string
@@ -178,12 +182,20 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
+	gcpFacters, err := common.GCPCredentialFacters()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
+	}
+
+	resourceManager := resource.NewManager()
+	resourceManager.AddFacter(gcpFacters)
+
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir, folder)
 
 	resources := []resource.Resource{
 		&resource.File{
 			Path:         terraformDeployerYml,
-			Content:      resource.FileContentLiteral(terraformDeployerYmlContent),
+			Content:      tfStaticSource.Template(terraformDeployerYmlTemplatePath),
 			CreateParent: true,
 		},
 		&resource.File{
@@ -198,7 +210,6 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		},
 	}
 
-	resourceManager := resource.NewManager()
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: tfDir,
 	})
