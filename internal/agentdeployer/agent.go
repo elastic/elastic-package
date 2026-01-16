@@ -168,6 +168,22 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		}
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		agent.agentInfo = agentInfo
+		agent.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	// Service name defined in the docker-compose file
 	agentInfo.Name = dockerTestAgentServiceName
 	agentName := agentInfo.Name
@@ -194,9 +210,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
