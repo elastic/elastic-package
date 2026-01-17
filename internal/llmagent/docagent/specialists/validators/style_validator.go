@@ -16,35 +16,39 @@ const (
 )
 
 const styleValidatorInstruction = `You are a documentation style validator for Elastic integration packages.
-Your task is to validate ONLY critical style issues that significantly impact readability.
+Your task is to validate critical style issues that significantly impact readability.
 
 ## Input
 The documentation content to validate is provided in the user message.
 
-## Style Guide Rules - CHECK ONLY THESE:
+## Style Guide Rules - CHECK THESE:
+
+### Bold Usage (CRITICAL - causes rejection)
+- Bold is ONLY for UI elements: **Settings** > **Logging**, **Save** button
+- Bold is NOT for: list item headings, conceptual terms, notes, warnings
+- WRONG: "- **Security monitoring**: Ingests..." or "**Note**:" or "**Fault tolerance**:"
+- RIGHT: "- Security monitoring: Ingests..." or "Note:" or "Fault tolerance:"
+
+### List Introductions (CRITICAL)
+- Every list MUST have an introductory sentence ending with a colon
+- WRONG: Starting a list immediately without context
+- RIGHT: "This integration provides the following:" followed by the list
 
 ### American English
 - Use American English spelling (-ize, -or, -ense)
-- Example: "organization" not "organisation", "color" not "colour"
+- Example: "organization" not "organisation"
 
-### Technical Accuracy
-- Code examples should be complete and syntactically correct
-- File paths and commands should be properly formatted with backticks
-- API endpoints and URLs should be valid format
+### Sentence Case Headings
+- Use sentence case: "### General debugging steps" NOT "### General Debugging Steps"
 
-## DO NOT CHECK (these are acceptable):
-- Contractions vs formal language (both are fine)
-- Bold vs italic usage (author's choice)
-- Heading case (Title Case or sentence case are both acceptable)
-- Oxford comma (optional)
-- AI-generated disclaimers (these are intentionally added)
+### Monospace for Technical Terms
+- Use backticks for code, file paths, config values: ` + "`/var/log/`" + `, ` + "`true`" + `
 
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "style", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=true unless there are significant readability issues.
-Most documents should pass - only flag truly problematic content.
+Set valid=false if bold is misused for list items or notes.
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -80,6 +84,7 @@ func (v *StyleValidator) StaticValidate(ctx context.Context, content string, pkg
 	}
 
 	result.Issues = append(result.Issues, v.checkAmericanEnglish(content)...)
+	result.Issues = append(result.Issues, v.checkBoldMisuse(content)...)
 
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
@@ -89,6 +94,40 @@ func (v *StyleValidator) StaticValidate(ctx context.Context, content string, pkg
 	}
 
 	return result, nil
+}
+
+// checkBoldMisuse detects incorrect bold usage for list items and notes
+func (v *StyleValidator) checkBoldMisuse(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Pattern: list items starting with bold text followed by colon
+	// e.g., "- **Something**:" or "* **Something**:"
+	listBoldPattern := regexp.MustCompile(`(?m)^[\s]*[-*]\s+\*\*[^*]+\*\*:`)
+	if listBoldPattern.MatchString(content) {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryStyle,
+			Location:    "List formatting",
+			Message:     "Bold should not be used for list item headings",
+			Suggestion:  "Remove bold from list items. Use plain text: '- Item name:' not '- **Item name**:'",
+			SourceCheck: "static",
+		})
+	}
+
+	// Pattern: **Note**: or **Warning**: or **Important**:
+	notePattern := regexp.MustCompile(`\*\*(Note|Warning|Important|Tip)\*\*:`)
+	if notePattern.MatchString(content) {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryStyle,
+			Location:    "Note formatting",
+			Message:     "Bold should not be used for notes or warnings",
+			Suggestion:  "Use plain text: 'Note:' not '**Note**:'",
+			SourceCheck: "static",
+		})
+	}
+
+	return issues
 }
 
 // checkAmericanEnglish validates American English spelling
