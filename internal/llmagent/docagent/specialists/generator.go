@@ -64,15 +64,30 @@ Start directly with the section heading at the correct level (## for level 2, ##
 6. If AdditionalContext contains validation feedback, fix ALL mentioned issues
 7. If AdditionalContext contains vendor documentation links, include them appropriately
 
-## FORMATTING RULES - READ BEFORE GENERATING (CRITICAL)
+## FORMATTING RULES - READ BEFORE GENERATING (CRITICAL - WILL BE REJECTED IF VIOLATED)
 
-### NEVER USE BOLD FOR THESE (automatic rejection):
-- List item headings: "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
-- Conceptual terms: "**Fault tolerance**:", "**Scaling guidance**:" → WRONG  
-- Notes/warnings: "**Note**:", "**Warning**:", "**Important**:" → WRONG
-- Technical identifiers: "**` + "`audit`" + `**" → WRONG (use just ` + "`audit`" + `)
-- Input types: "**TCP Socket Method**:", "**File Method**:" → WRONG
-- Prerequisites: "**Permissions**:", "**Network access**:" → WRONG
+### NEVER USE BOLD FOR LIST ITEMS (this is the #1 reason for rejection):
+
+WRONG - This WILL be rejected:
+This integration facilitates:
+- **Security monitoring**: Ingests audit logs...
+- **Operational visibility**: Collects logs...
+- **Performance analysis**: Gathers metrics...
+
+RIGHT - Use plain text:
+This integration facilitates:
+- Security monitoring: Ingests audit logs...
+- Operational visibility: Collects logs...
+- Performance analysis: Gathers metrics...
+
+### MORE WRONG PATTERNS (never use these):
+- "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
+- "**Fault tolerance**:", "**Scaling guidance**:" → WRONG  
+- "**Note**:", "**Warning**:", "**Important**:" → WRONG
+- "**TCP Socket Method**:", "**File Method**:" → WRONG
+- "**Permissions**:", "**Network access**:" → WRONG
+- "**Audit device is not enabled**:" → WRONG
+- "**No data is being collected**:" → WRONG
 
 ### ONLY USE BOLD FOR UI ELEMENTS:
 - Menu paths: **Settings** > **Logging**

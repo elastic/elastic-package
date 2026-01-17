@@ -26,7 +26,15 @@ OVERVIEW SECTION REQUIREMENTS:
 
   ### How it works
   - Explain the data collection method (syslog, API, log files, etc.)
-  - Describe the data flow from source to Elastic`,
+  - Describe the data flow from source to Elastic
+
+FORMATTING RULES (CRITICAL - automatic rejection if violated):
+- Do NOT use bold for list item headings
+  WRONG: - **Security monitoring**: Ingests audit logs...
+  WRONG: - **Performance analysis**: Gathers telemetry...
+  RIGHT: - Security monitoring: Ingests audit logs...
+  RIGHT: - Performance analysis: Gathers telemetry...
+- The "This integration facilitates:" list must use plain text, NOT bold`,
 
 	"what data does this integration collect?": `HEADING LEVEL: This is a MAIN section - use "## What data does this integration collect?" (H2, two #)
 DATA COLLECTION SECTION REQUIREMENTS:

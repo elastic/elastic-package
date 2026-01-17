@@ -307,8 +307,19 @@ When content diverges significantly, use these patterns:
 -   `**Bold**`: **ONLY** for user interface elements that are explicitly rendered in the UI.
     -   Examples: the `**Save**` button, the `**Discover**` app, the `**General**` tab.
     -   **NEVER** use bold for: list item headings, conceptual terms, notes, warnings, or emphasis.
-    -   **WRONG**: `- **Syslog**: Description...` or `**Note**: Some text...`
-    -   **RIGHT**: `- Syslog: Description...` or `Note: Some text...`
+    -   **WRONG pattern (ALWAYS rejected)**:
+        ```
+        This integration facilitates:
+        - **Security monitoring**: Ingests audit logs...
+        - **Operational visibility**: Collects logs...
+        ```
+    -   **RIGHT pattern**:
+        ```
+        This integration facilitates:
+        - Security monitoring: Ingests audit logs...
+        - Operational visibility: Collects logs...
+        ```
+    -   More **WRONG** examples: `**Note**:`, `**Fault tolerance**:`, `**No data collected**:`
 -   `*Italic*`: **ONLY** for introducing new terms for the first time.
     -   Example: A Metricbeat *module* defines the basic logic for collecting data.
 -   `` `Monospace` ``: **ONLY** for code, commands, file paths, filenames, field names, parameter names, values, and API endpoints.

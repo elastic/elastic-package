@@ -67,13 +67,28 @@ Evaluate against these criteria (rate each 1-10):
 
 5. **Structure**: Clear summary, scannable sections, short paragraphs
 
-## Common Issues to Flag
-- Using bold for list item headings (e.g., "**Issue name**:" should be "Issue name:")
-- Using bold for conceptual terms (e.g., "**Fault Tolerance**" should be "Fault tolerance")
-- Using bold+monospace together (e.g., "**` + "`audit`" + `**" should be just "` + "`audit`" + `")
-- Using bold for notes/warnings (e.g., "**Note**:" should be plain "Note:")
-- Missing list introductions (lists need an intro sentence ending with colon)
-- Passive/formal voice instead of direct "you" address
+## Common Issues to Flag (these MUST cause rejection)
+
+1. Bold for list item headings - ALWAYS reject if found:
+   WRONG: This integration facilitates:
+   - **Security monitoring**: Ingests audit logs...
+   - **Operational visibility**: Collects logs...
+   
+   RIGHT: This integration facilitates:
+   - Security monitoring: Ingests audit logs...
+   - Operational visibility: Collects logs...
+
+2. Other wrong bold patterns:
+   - "**No data is being collected**:" → should be "No data is being collected:"
+   - "**Audit device is not enabled**:" → should be "Audit device is not enabled:"
+   - "**Fault Tolerance**:" → should be "Fault tolerance:"
+   - "**Note**:" or "**Important**:" → should be plain text
+
+3. Bold+monospace together: "**` + "`audit`" + `**" → should be just "` + "`audit`" + `"
+
+4. Missing list introductions (lists need an intro sentence ending with colon)
+
+5. Passive/formal voice instead of direct "you" address
 
 ## Output Format
 Output a JSON object with this exact structure:
