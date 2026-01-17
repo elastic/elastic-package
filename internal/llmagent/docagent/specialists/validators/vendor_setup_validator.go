@@ -662,54 +662,6 @@ func (v *VendorSetupValidator) checkVendorSideConfiguration(setupSection string,
 	return issues
 }
 
-// buildLLMContext creates context information for the LLM validator
-func (v *VendorSetupValidator) buildLLMContext(pkgCtx *PackageContext, vendorLinks []ServiceInfoLink, setupSection string) []string {
-	var context []string
-
-	// Add product information
-	if pkgCtx.Manifest != nil {
-		context = append(context,
-			fmt.Sprintf("PRODUCT: %s", pkgCtx.Manifest.Title),
-			fmt.Sprintf("DESCRIPTION: %s", pkgCtx.Manifest.Description),
-		)
-	}
-
-	// Add vendor links for reference
-	if len(vendorLinks) > 0 {
-		linkList := []string{}
-		for _, link := range vendorLinks {
-			linkList = append(linkList, fmt.Sprintf("- %s: %s", link.Text, link.URL))
-		}
-		context = append(context,
-			"VENDOR DOCUMENTATION LINKS:",
-			strings.Join(linkList, "\n"),
-		)
-	}
-
-	// Add data streams for context
-	if len(pkgCtx.DataStreams) > 0 {
-		dsNames := []string{}
-		for _, ds := range pkgCtx.DataStreams {
-			dsNames = append(dsNames, ds.Name)
-		}
-		context = append(context,
-			fmt.Sprintf("DATA STREAMS: %s", strings.Join(dsNames, ", ")),
-		)
-	}
-
-	context = append(context,
-		"",
-		"VALIDATION INSTRUCTIONS:",
-		"1. Compare the setup instructions against your knowledge of how to configure " + pkgCtx.Manifest.Title,
-		"2. Check if the steps match what the vendor documentation links would describe",
-		"3. Flag any incorrect commands, paths, ports, or configuration values",
-		"4. Flag any missing critical setup steps",
-		"5. Be specific about what is wrong and provide corrected text",
-	)
-
-	return context
-}
-
 // CategoryVendorSetup is the category for vendor setup validation issues
 const CategoryVendorSetup ValidationCategory = "vendor_setup"
 

@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package prompts
 
 import (
 	"strings"
@@ -21,7 +21,7 @@ var sectionInstructions = map[string]string{
   ### Compatibility
   - List compatible versions of the 3rd party software/hardware
   - Include tested Elastic Stack version compatibility
-  
+
   ### How it works
   - Explain the data collection method (syslog, API, log files, etc.)
   - Describe the data flow from source to Elastic`,
@@ -82,10 +82,10 @@ var sectionInstructions = map[string]string{
   - Agent health verification
   - Integration status check
   - Diagnostics collection
-  
+
   ### Vendor-specific issues
   - Issues specific to the source system
-  
+
   ### {Input type} input troubleshooting
   - Add a subsection for each input type used (TCP, UDP, API, etc.)
   - Include troubleshooting tables with: Symptom | Cause | Solution`,
@@ -104,11 +104,11 @@ var sectionInstructions = map[string]string{
 - For EACH data stream, use this EXACT format:
 
   ### {datastream_name}
-  
+
   The {backquote}{datastream_name}{backquote} data stream collects {description}.
-  
+
   {{event "{datastream_name}"}}
-  
+
   {{fields "{datastream_name}"}}
 
 CRITICAL RULES:
@@ -164,11 +164,3 @@ func GetSectionInstructions(sectionTitle string, pkgCtx *validators.PackageConte
 
 	return instructions
 }
-
-// HasSectionInstructions returns true if there are specific instructions for this section.
-func HasSectionInstructions(sectionTitle string) bool {
-	titleLower := strings.ToLower(strings.TrimSpace(sectionTitle))
-	_, found := sectionInstructions[titleLower]
-	return found
-}
-

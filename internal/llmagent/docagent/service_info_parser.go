@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 // ServiceInfoManager manages the loading and retrieval of service_info.md sections
@@ -55,7 +57,7 @@ func (s *ServiceInfoManager) GetSections(sectionTitles []string) string {
 
 	for _, requestedTitle := range sectionTitles {
 		// Try to find the section (case-insensitive, fuzzy match)
-		section := FindSectionByTitleHierarchical(s.sections, requestedTitle)
+		section := parsing.FindSectionByTitleHierarchical(s.sections, requestedTitle)
 		if section != nil {
 			// Use GetAllContent to include subsections
 			matchedSections = append(matchedSections, section.GetAllContent())

@@ -15,6 +15,12 @@ import (
 	"strings"
 	"sync"
 
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/executor"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
@@ -55,6 +61,47 @@ type responseAnalysis struct {
 	Status  responseStatus
 	Message string // Optional message explaining the status
 }
+
+// Type aliases for subpackage types
+type (
+	Executor          = executor.Executor
+	Section           = parsing.Section
+	ConversationEntry = executor.ConversationEntry
+)
+
+// ParseSections parses markdown content into hierarchical sections
+var ParseSections = parsing.ParseSections
+
+// FindSectionByTitle finds a section by title
+var FindSectionByTitle = parsing.FindSectionByTitle
+
+// CombineSections combines sections into markdown
+var CombineSections = parsing.CombineSections
+
+// CombineSectionsWithTitle combines sections with a document title
+var CombineSectionsWithTitle = parsing.CombineSectionsWithTitle
+
+// EnsureDocumentTitle ensures the document has the correct title
+var EnsureDocumentTitle = parsing.EnsureDocumentTitle
+
+// AgentInstructions is the system prompt for the agent
+var AgentInstructions = prompts.AgentInstructions
+
+// StructureRevisionPrompt is the prompt for structure revision
+var StructureRevisionPrompt = prompts.StructureRevisionPrompt
+
+// TaskResult is the result of an executor task
+type TaskResult = executor.TaskResult
+
+// PromptType constants
+type PromptType = prompts.Type
+
+const (
+	PromptTypeRevision             = prompts.TypeRevision
+	PromptTypeSectionGeneration    = prompts.TypeSectionGeneration
+	PromptTypeModificationAnalysis = prompts.TypeModificationAnalysis
+	PromptTypeModification         = prompts.TypeModification
+)
 
 // DocumentationAgent handles documentation updates for packages
 type DocumentationAgent struct {
@@ -119,7 +166,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	mcpToolsets := mcptools.LoadToolsets()
 
 	// Create executor configuration with system instructions
-	execCfg := ExecutorConfig{
+	execCfg := executor.Config{
 		APIKey:         cfg.APIKey,
 		ModelID:        cfg.ModelID,
 		Instruction:    AgentInstructions,
@@ -128,7 +175,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	}
 
 	// Create executor with tools and toolsets
-	executor, err := NewExecutorWithToolsets(ctx, execCfg, packageTools, mcpToolsets)
+	exec, err := executor.NewWithToolsets(ctx, execCfg, packageTools, mcpToolsets)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create executor: %w", err)
 	}
@@ -140,7 +187,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 
 	responseAnalyzer := NewResponseAnalyzer()
 	return &DocumentationAgent{
-		executor:           executor,
+		executor:           exec,
 		packageRoot:        cfg.PackageRoot,
 		repositoryRoot:     cfg.RepositoryRoot,
 		targetDocFile:      cfg.DocFile,
@@ -161,7 +208,7 @@ func (d *DocumentationAgent) ConfirmInstructionsUnderstood(ctx context.Context) 
 
 Briefly summarize the key principles you will adhere to:
 1. The cumulative documentation model and applies_to mechanism
-2. Voice and tone requirements  
+2. Voice and tone requirements
 3. Accessibility and inclusivity requirements
 
 End your response with "CONFIRMED: I will follow all guidelines." if you understand.`
@@ -426,22 +473,6 @@ func (d *DocumentationAgent) logAgentResponse(result *TaskResult) {
 	}
 }
 
-// executeTaskWithLogging executes a task and logs the result
-func (d *DocumentationAgent) executeTaskWithLogging(ctx context.Context, prompt string) (*TaskResult, error) {
-	fmt.Println("🤖 LLM Agent is working...")
-
-	result, err := d.executor.ExecuteTask(ctx, prompt)
-	if err != nil {
-		fmt.Println("❌ Agent task failed")
-		fmt.Printf("❌ result is %v\n", result)
-		return nil, fmt.Errorf("agent task failed: %w", err)
-	}
-
-	fmt.Println("✅ Task completed")
-	d.logAgentResponse(result)
-	return result, nil
-}
-
 // NewResponseAnalyzer creates a new ResponseAnalyzer with default patterns
 //
 // These responses should be chosen to represent LLM responses to states, but are unlikely to appear in generated
@@ -546,39 +577,6 @@ func (ra *responseAnalyzer) hasRecentSuccessfulTools(conversation []Conversation
 		}
 	}
 	return false
-}
-
-// buildSectionPrompt builds a prompt for generating a single section
-func (d *DocumentationAgent) buildSectionPrompt(sectionCtx SectionGenerationContext) string {
-	// Create a prompt context with section-specific information
-	promptCtx := PromptContext{
-		Manifest:       sectionCtx.PackageInfo.Manifest,
-		TargetDocFile:  sectionCtx.PackageInfo.TargetDocFile,
-		SectionTitle:   sectionCtx.Section.Title,
-		SectionLevel:   sectionCtx.Section.Level,
-		PackageContext: sectionCtx.PackageContext,
-	}
-
-	// Add template section content - use FullContent to include subsections
-	if sectionCtx.TemplateSection != nil {
-		promptCtx.TemplateSection = sectionCtx.TemplateSection.GetAllContent()
-	} else {
-		promptCtx.TemplateSection = "No template section available for this section."
-	}
-
-	// Add example section content - use FullContent to include subsections
-	if sectionCtx.ExampleSection != nil {
-		promptCtx.ExampleSection = sectionCtx.ExampleSection.GetAllContent()
-	} else {
-		promptCtx.ExampleSection = "No example section available for this section."
-	}
-
-	// Add preserve content if any
-	if sectionCtx.Section.HasPreserve {
-		promptCtx.PreserveContent = sectionCtx.Section.PreserveContent
-	}
-
-	return d.buildPrompt(PromptTypeSectionGeneration, promptCtx)
 }
 
 // writeDocumentation writes the documentation content to a file
@@ -1442,7 +1440,7 @@ func generateDescriptiveLinkTitle(currentTitle, url string) string {
 			lastPart = strings.TrimSuffix(lastPart, ".html")
 			lastPart = strings.ReplaceAll(lastPart, "-", " ")
 			if lastPart != "" && lastPart != "current" {
-				return "Elastic: " + strings.Title(lastPart)
+				return "Elastic: " + cases.Title(language.English).String(lastPart)
 			}
 		}
 	}
@@ -1458,7 +1456,7 @@ func generateDescriptiveLinkTitle(currentTitle, url string) string {
 				// Skip generic parts
 				if part != "" && part != "en-us" && part != "current-release" && part != "latest" && len(part) > 3 {
 					part = strings.ReplaceAll(part, "-", " ")
-					return "Citrix: " + strings.Title(part)
+					return "Citrix: " + cases.Title(language.English).String(part)
 				}
 			}
 		}
@@ -2237,10 +2235,10 @@ func (d *DocumentationAgent) GetWorkflowConfig() workflow.Config {
 // buildWorkflowConfig creates a workflow configuration with the agent's model and tools
 func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 	cfg := workflow.DefaultConfig().
-		WithModel(d.executor.llmModel).
+		WithModel(d.executor.Model()).
 		WithModelID(d.executor.ModelID()).
-		WithTools(d.executor.tools).
-		WithToolsets(d.executor.toolsets)
+		WithTools(d.executor.Tools()).
+		WithToolsets(d.executor.Toolsets())
 
 	// Load package context for static validation
 	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
@@ -2547,10 +2545,11 @@ func (d *DocumentationAgent) validateDocumentStructure(content string, pkgCtx *v
 	// Check for missing sections
 	for _, required := range requiredSections {
 		if foundSections[required] == 0 {
+			titleCaser := cases.Title(language.English)
 			issues = append(issues, StructuralIssue{
 				Type:       "missing",
-				Location:   fmt.Sprintf("## %s", strings.Title(required)),
-				Message:    fmt.Sprintf("Required section '## %s' is missing", strings.Title(required)),
+				Location:   fmt.Sprintf("## %s", titleCaser.String(required)),
+				Message:    fmt.Sprintf("Required section '## %s' is missing", titleCaser.String(required)),
 				Suggestion: "Add the missing section with appropriate content",
 			})
 		}

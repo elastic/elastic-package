@@ -2,7 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+// Package prompts provides embedded prompt templates and loading utilities for LLM documentation generation.
+package prompts
 
 import _ "embed"
 
@@ -23,3 +24,4 @@ var ModificationPrompt string
 
 //go:embed _static/structure_revision_prompt.txt
 var StructureRevisionPrompt string
+

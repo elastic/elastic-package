@@ -2,7 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+// Package executor provides LLM execution capabilities for documentation generation.
+package executor
 
 import (
 	"context"
@@ -29,8 +30,8 @@ const (
 	defaultUserID = "default-user"
 )
 
-// ExecutorConfig holds configuration for creating an Executor.
-type ExecutorConfig struct {
+// Config holds configuration for creating an Executor.
+type Config struct {
 	APIKey         string
 	ModelID        string
 	Instruction    string
@@ -62,13 +63,13 @@ type Executor struct {
 	thinkingBudget *int32
 }
 
-// NewExecutor creates a new ADK-based executor with tools only.
-func NewExecutor(ctx context.Context, cfg ExecutorConfig, tools []tool.Tool) (*Executor, error) {
-	return NewExecutorWithToolsets(ctx, cfg, tools, nil)
+// New creates a new ADK-based executor with tools only.
+func New(ctx context.Context, cfg Config, tools []tool.Tool) (*Executor, error) {
+	return NewWithToolsets(ctx, cfg, tools, nil)
 }
 
-// NewExecutorWithToolsets creates a new ADK-based executor with tools and optional toolsets.
-func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []tool.Tool, toolsets []tool.Toolset) (*Executor, error) {
+// NewWithToolsets creates a new ADK-based executor with tools and optional toolsets.
+func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolsets []tool.Toolset) (*Executor, error) {
 	if cfg.APIKey == "" {
 		return nil, fmt.Errorf("API key is required")
 	}
@@ -111,6 +112,21 @@ func NewExecutorWithToolsets(ctx context.Context, cfg ExecutorConfig, tools []to
 // ModelID returns the model ID used by this executor.
 func (e *Executor) ModelID() string {
 	return e.modelID
+}
+
+// Model returns the underlying LLM model.
+func (e *Executor) Model() model.LLM {
+	return e.llmModel
+}
+
+// Tools returns the tools available to this executor.
+func (e *Executor) Tools() []tool.Tool {
+	return e.tools
+}
+
+// Toolsets returns the toolsets available to this executor.
+func (e *Executor) Toolsets() []tool.Toolset {
+	return e.toolsets
 }
 
 // ExecuteTask runs the executor to complete a task.
@@ -308,3 +324,4 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 		Conversation: conversation,
 	}, nil
 }
+

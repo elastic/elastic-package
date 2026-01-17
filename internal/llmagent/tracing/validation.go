@@ -146,7 +146,7 @@ func EndValidationSpan(span trace.Span, passed bool, score int, issueCount int, 
 	if len(issues) > maxIssues {
 		issues = issues[:maxIssues]
 	}
-	
+
 	// Store validation results in the output field (Phoenix captures this)
 	output := map[string]interface{}{
 		"valid":       passed,

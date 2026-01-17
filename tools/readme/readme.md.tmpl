@@ -311,13 +311,12 @@ If no LLM provider is configured, the command will print manual instructions for
 You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
 
 * `llm.gemini.api_key`: API key for Google Gemini LLM services  
-* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
-* `llm.local.endpoint`: Endpoint URL for local OpenAI-compatible LLM servers
-* `llm.local.model`: Model name for local LLM servers (defaults to `llama2`)
-* `llm.local.api_key`: API key for local LLM servers (optional, if authentication is required)
+* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-pro-preview`)
+* `llm.gemini.thinking_budget`: Thinking budget in tokens for Gemini Pro models (defaults to `128` for "low" mode)
+* `llm.parallel_sections`: Enable parallel section generation for faster results (defaults to `true`)
 * `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
 
-Environment variables (e.g., `GOOGLE_API_KEY`, `LOCAL_LLM_ENDPOINT`) take precedence over profile configuration.
+Environment variables (e.g., `GOOGLE_API_KEY`) take precedence over profile configuration.
 
 #### Usage Examples
 
@@ -546,10 +545,9 @@ There are available some environment variables that could be used to change some
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
     - `GOOGLE_API_KEY`: API key for Gemini LLM services
-    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
-    - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
-    - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
-    - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)
+    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-pro-preview`)
+    - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
+    - `ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS`: Enable parallel section generation (defaults to `true`)
     - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
     - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
     - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)

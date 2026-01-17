@@ -2,7 +2,8 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+// Package parsing provides markdown parsing utilities for documentation generation.
+package parsing
 
 import (
 	"bufio"
@@ -168,18 +169,14 @@ func buildSectionTree(section *Section) Section {
 	section.Subsections = processedSubsections
 
 	// Build FullContent: section's own content + all subsection contents
-	buildFullContentForSection(section)
+	BuildFullContent(section)
 
 	return *section
 }
 
-// buildFullContent is a backward-compatible wrapper for buildFullContentForSection
-func buildFullContent(section *Section) {
-	buildFullContentForSection(section)
-}
-
-// buildFullContentForSection populates FullContent field with section content plus all subsections
-func buildFullContentForSection(section *Section) {
+// BuildFullContent populates FullContent field with section content plus all subsections.
+// Exported for use by tests.
+func BuildFullContent(section *Section) {
 	// Extract own content (content before first subsection)
 	ownContent := extractOwnContent(section.Content, section.Subsections)
 

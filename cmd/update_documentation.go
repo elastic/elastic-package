@@ -89,7 +89,7 @@ If no LLM provider is configured, this command will print instructions for updat
 
 Configuration options for LLM providers (environment variables or profile config):
 - GOOGLE_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-pro-preview)
 - GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode)`
 
 const (

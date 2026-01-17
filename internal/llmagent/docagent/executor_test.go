@@ -8,10 +8,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/executor"
 )
 
 func TestExecutorConfig(t *testing.T) {
-	cfg := ExecutorConfig{
+	cfg := executor.Config{
 		APIKey:      "test-api-key",
 		ModelID:     "gemini-2.5-pro",
 		Instruction: "You are a helpful assistant",

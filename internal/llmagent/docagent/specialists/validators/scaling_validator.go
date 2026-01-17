@@ -25,7 +25,7 @@ The documentation content and a list of inputs used by this integration are prov
 
 ### TCP Input (syslog/tcp)
 - **Fault Tolerance**: TCP provides guaranteed delivery with acknowledgments. Recommend TCP over UDP for production.
-- **Scaling**: 
+- **Scaling**:
   - Multiple TCP listeners can be configured on different ports
   - Use load balancer to distribute across multiple Elastic Agents
   - Consider connection pooling limits on source systems

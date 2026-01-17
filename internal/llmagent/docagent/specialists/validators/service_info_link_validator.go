@@ -60,7 +60,7 @@ Output a JSON object with:
       "severity": "critical|major|minor",
       "category": "completeness",
       "location": "string",
-      "message": "string", 
+      "message": "string",
       "suggestion": "string"
     }
   ],
@@ -134,7 +134,7 @@ func (v *ServiceInfoLinkValidator) StaticValidate(ctx context.Context, content s
 		}
 
 		// Group missing links by severity for clearer feedback
-		var criticalLinks, majorLinks, minorLinks []string
+		var criticalLinks, majorLinks []string
 		for _, issue := range issues {
 			linkStr := issue.Suggestion
 			switch issue.Severity {
@@ -142,8 +142,6 @@ func (v *ServiceInfoLinkValidator) StaticValidate(ctx context.Context, content s
 				criticalLinks = append(criticalLinks, linkStr)
 			case SeverityMajor:
 				majorLinks = append(majorLinks, linkStr)
-			case SeverityMinor:
-				minorLinks = append(minorLinks, linkStr)
 			}
 		}
 
@@ -182,7 +180,7 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 	// Strategy 3: Match domain + path components (more lenient)
 	if urlObj, err := url.Parse(link.URL); err == nil {
 		domain := strings.ToLower(urlObj.Host)
-		
+
 		// Check if domain is present
 		if strings.Contains(contentLower, domain) {
 			// Extract meaningful path parts (skip common ones)
@@ -192,7 +190,7 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 				"latest": true, "12.0": true, "projects": true, "s": true,
 				"article": true, "docs": true, "v1": true, "api": true,
 			}
-			
+
 			meaningfulParts := 0
 			matchedParts := 0
 			for _, part := range pathParts {
@@ -206,7 +204,7 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 					}
 				}
 			}
-			
+
 			// If at least one meaningful path part matches, consider it found
 			if matchedParts >= 1 {
 				return true
@@ -217,19 +215,19 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 	// Strategy 4: If link text is meaningful, check variations
 	if len(link.Text) > 10 && strings.ToLower(link.Text) != "link" {
 		textLower := strings.ToLower(link.Text)
-		
+
 		// Direct match
 		if strings.Contains(contentLower, textLower) {
 			return true
 		}
-		
+
 		// Check for key words from the link text (ignore common filler words)
 		fillerWords := map[string]bool{
 			"the": true, "a": true, "an": true, "to": true, "and": true,
 			"of": true, "in": true, "for": true, "en": true, "us": true,
 			"current": true, "release": true, "docs": true, "how": true,
 		}
-		
+
 		words := strings.Fields(textLower)
 		meaningfulWords := 0
 		matchedWords := 0
@@ -242,7 +240,7 @@ func isLinkPresent(contentLower string, link ServiceInfoLink) bool {
 				}
 			}
 		}
-		
+
 		// If most meaningful words match, consider it found
 		if meaningfulWords > 0 && matchedWords >= (meaningfulWords+1)/2 {
 			return true

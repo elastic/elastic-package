@@ -70,15 +70,40 @@ The main documentation agent that orchestrates the generation process.
 | File | Description |
 |------|-------------|
 | `docagent.go` | Main DocumentationAgent with section-based generation |
-| `executor.go` | LLM executor for running agent tasks |
+| `prompts.go` | Prompt building and context management |
 | `evaluation.go` | Documentation quality evaluation |
 | `batch.go` | Batch processing for multiple packages |
 | `interactive.go` | Interactive review and modification UI |
-| `section_parser.go` | Markdown section parsing utilities |
-| `section_combiner.go` | Combines sections into final document |
 | `section_generator.go` | Section content extraction |
-| `prompts.go` | Prompt templates and builders |
+| `service_info_parser.go` | Service knowledge base parsing |
 | `metrics.go` | Quality metrics calculation |
+| `file_ops.go` | File read/write operations |
+| `modification_analyzer.go` | Modification request analysis |
+
+### `/docagent/parsing`
+Markdown parsing utilities for documentation processing.
+
+| File | Description |
+|------|-------------|
+| `section.go` | Section struct, ParseSections, and related utilities |
+| `combiner.go` | CombineSections, EnsureDocumentTitle |
+
+### `/docagent/executor`
+LLM execution capabilities.
+
+| File | Description |
+|------|-------------|
+| `executor.go` | ADK-based LLM executor with tracing |
+
+### `/docagent/prompts`
+Prompt management and templates.
+
+| File | Description |
+|------|-------------|
+| `resources.go` | Embedded prompt templates |
+| `loader.go` | External prompt file loading |
+| `section_instructions.go` | Section-specific generation instructions |
+| `_static/` | Prompt template files |
 
 **Key functions in `docagent.go`:**
 
@@ -119,6 +144,12 @@ Staged validators for content validation.
 | `accessibility_validator.go` | Quality | Both | Validates accessibility requirements |
 | `vendor_setup_validator.go` | Accuracy | Both | Validates vendor setup documentation |
 | `scaling_validator.go` | Completeness | Both | Validates scaling documentation |
+| `service_info_link_validator.go` | Accuracy | Both | Validates vendor links from service_info.md |
+| `advanced_settings_validator.go` | Completeness | Both | Validates advanced settings documentation |
+| `interface.go` | - | - | Validator interface definitions |
+| `package_context.go` | - | - | Package context for validators |
+| `staged_validator.go` | - | - | Base staged validator types |
+| `urlvalidator.go` | - | - | URL validation utilities |
 
 ### `/docagent/workflow`
 Workflow orchestration for multi-agent pipelines.

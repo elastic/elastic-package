@@ -981,7 +981,7 @@ If ` + "`error.message`" + ` is populated, review the raw event for format issue
 **5. Verify Data is Flowing**
 In Kibana Discover, check if documents are being indexed:
 ` + "```" + `
-data_stream.dataset:<integration_name>.* 
+data_stream.dataset:<integration_name>.*
 ` + "```" + `
 Sort by ` + "`@timestamp`" + ` descending to see the most recent events.
 
@@ -1184,7 +1184,7 @@ aws s3 ls s3://bucket-name/prefix/ --region <region>
       "Effect": "Allow",
       "Action": [
         "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams", 
+        "logs:DescribeLogStreams",
         "logs:GetLogEvents",
         "logs:FilterLogEvents"
       ],

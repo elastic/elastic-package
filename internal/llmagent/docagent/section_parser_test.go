@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 func TestParseSections_Hierarchical(t *testing.T) {
@@ -161,7 +163,7 @@ func TestBuildFullContent(t *testing.T) {
 		},
 	}
 
-	buildFullContent(&section)
+	parsing.BuildFullContent(&section)
 
 	assert.NotEmpty(t, section.FullContent)
 	assert.Contains(t, section.FullContent, "Parent content")
@@ -186,7 +188,7 @@ func TestFlattenSections(t *testing.T) {
 		},
 	}
 
-	flat := FlattenSections(hierarchical)
+	flat := parsing.FlattenSections(hierarchical)
 
 	// Should have 4 total: Parent1, Child1, Child2, Parent2
 	assert.Len(t, flat, 4)
@@ -227,7 +229,7 @@ func TestFindSectionByTitleHierarchical(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FindSectionByTitleHierarchical(sections, tt.searchTitle)
+			result := parsing.FindSectionByTitleHierarchical(sections, tt.searchTitle)
 			if tt.shouldFind {
 				require.NotNil(t, result, "should find section")
 				assert.Equal(t, tt.expectedLevel, result.Level)
@@ -272,7 +274,7 @@ func TestGetParentSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parent := GetParentSection(sections, tt.subsectionTitle)
+			parent := parsing.GetParentSection(sections, tt.subsectionTitle)
 			if tt.shouldFind {
 				require.NotNil(t, parent, "should find parent")
 				assert.Equal(t, tt.expectedParent, parent.Title)

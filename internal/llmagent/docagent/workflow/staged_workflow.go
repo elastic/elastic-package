@@ -93,7 +93,7 @@ func NewStagedWorkflowBuilder(cfg Config, stagedCfg StagedWorkflowConfig) *Stage
 			validators.StagePlaceholders, // Section F
 		}
 	}
-	if stagedCfg.EnableStaticValidation == false && stagedCfg.EnableLLMValidation == false {
+	if !stagedCfg.EnableStaticValidation && !stagedCfg.EnableLLMValidation {
 		stagedCfg.EnableStaticValidation = true
 		stagedCfg.EnableLLMValidation = true
 	}

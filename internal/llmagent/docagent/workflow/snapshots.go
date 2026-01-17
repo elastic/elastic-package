@@ -282,11 +282,9 @@ type SnapshotDiff struct {
 
 // GenerateProgressReport creates a report showing progression through stages
 func (sm *SnapshotManager) GenerateProgressReport() string {
-	var report string
-
-	report += fmt.Sprintf("# Workflow Progress Report\n\n")
-	report += fmt.Sprintf("**Session**: %s\n", sm.SessionID)
-	report += fmt.Sprintf("**Package**: %s\n", sm.PackageName)
+	report := "# Workflow Progress Report\n\n"
+	report += "**Session**: " + sm.SessionID + "\n"
+	report += "**Package**: " + sm.PackageName + "\n"
 	report += fmt.Sprintf("**Snapshots**: %d\n\n", len(sm.snapshots))
 
 	report += "## Stage Progression\n\n"

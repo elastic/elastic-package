@@ -310,11 +310,7 @@ func isCommonNonField(s string) bool {
 
 	// Skip plain version numbers (e.g., 8.12.0, 13.0, 14.1)
 	plainVersionPattern := regexp.MustCompile(`^\d+\.\d+(\.\d+)?$`)
-	if plainVersionPattern.MatchString(s) {
-		return true
-	}
-
-	return false
+	return plainVersionPattern.MatchString(s)
 }
 
 // isLikelyFieldReference returns true if string looks like a field reference
