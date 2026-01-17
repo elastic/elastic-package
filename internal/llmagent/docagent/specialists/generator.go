@@ -64,6 +64,37 @@ Start directly with the section heading at the correct level (## for level 2, ##
 6. If AdditionalContext contains validation feedback, fix ALL mentioned issues
 7. If AdditionalContext contains vendor documentation links, include them appropriately
 
+## FORMATTING RULES - READ BEFORE GENERATING (CRITICAL)
+
+### NEVER USE BOLD FOR THESE (automatic rejection):
+- List item headings: "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
+- Conceptual terms: "**Fault tolerance**:", "**Scaling guidance**:" → WRONG  
+- Notes/warnings: "**Note**:", "**Warning**:", "**Important**:" → WRONG
+- Technical identifiers: "**` + "`audit`" + `**" → WRONG (use just ` + "`audit`" + `)
+- Input types: "**TCP Socket Method**:", "**File Method**:" → WRONG
+- Prerequisites: "**Permissions**:", "**Network access**:" → WRONG
+
+### ONLY USE BOLD FOR UI ELEMENTS:
+- Menu paths: **Settings** > **Logging**
+- Buttons: Click **Save**
+- Field names in UI: In the **Host** field
+
+### EVERY LIST MUST HAVE AN INTRODUCTION:
+WRONG:
+- Item one
+- Item two
+
+RIGHT:
+This integration supports the following:
+- Item one
+- Item two
+
+### USE MONOSPACE FOR:
+- Code: ` + "`vault audit enable`" + `
+- File paths: ` + "`/var/log/vault/`" + `  
+- Config values: ` + "`true`" + `, ` + "`8200`" + `
+- Data streams: ` + "`audit`" + `, ` + "`log`" + `
+
 ## Vendor Setup Documentation (CRITICAL)
 The "## How do I deploy this integration?" section MUST include comprehensive vendor setup:
 
@@ -271,43 +302,6 @@ Scaling guidance:
 
 WRONG: "The user must configure the integration before data can be collected."
 RIGHT: "Before you can collect data, configure the integration settings."
-
-WRONG: "It is recommended that..."
-RIGHT: "We recommend..." or "You should..."
-
-## Formatting Rules (CRITICAL - Common Rejection Reasons)
-
-### Bold Text - ONLY for UI Elements
-DO NOT use bold for:
-- List item headings (e.g., "**Issue name**:" is WRONG)
-- Conceptual terms (e.g., "**Fault Tolerance**" is WRONG)
-- Notes or warnings (e.g., "**Note**:" or "**Warning**:" is WRONG)
-- Technical identifiers (e.g., "**` + "`audit`" + `**" is WRONG - use just ` + "`audit`" + `)
-- Product or integration names (e.g., "**Hashicorp Vault**" is WRONG)
-
-DO use bold ONLY for:
-- UI element names: Navigate to **Settings** > **Logging**
-- Button names: Click **Save**
-- Field labels: In the **Host** field, enter...
-
-### Monospace Formatting
-Use backticks for:
-- Code and commands: ` + "`vault audit enable`" + `
-- File paths: ` + "`/var/log/vault/`" + `
-- Configuration values: ` + "`true`" + `, ` + "`8200`" + `
-- Data stream names: ` + "`audit`" + `, ` + "`log`" + `, ` + "`metrics`" + `
-- Field names: ` + "`event.original`" + `
-
-### List Introductions
-Every bulleted or numbered list MUST have an introductory sentence ending with a colon:
-- WRONG: Just starting a list without context
-- RIGHT: "This integration collects the following data types:"
-
-### Troubleshooting Format
-For issue/solution pairs, use plain text or subheadings (no bold for issue names):
-- WRONG: ` + "`- **No data is collected**: Verify network...`" + `
-- RIGHT: ` + "`- No data is collected: Verify network...`" + `
-- ALSO RIGHT: Use ` + "`### No data is collected`" + ` as a subheading for major issues
 
 ## CONSISTENCY REQUIREMENTS (CRITICAL)
 These ensure all integration docs look uniform:

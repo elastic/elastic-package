@@ -47,9 +47,22 @@ Style and Content Guidance:
   * Help users get their job done - be timely, succinct, and impactful
   * Write like a minimalist - use concise, clear sentences with simple, precise words
   * Avoid "please" in documentation
-  * Avoid ambiguity - choose words with clear meanings
   * Use active voice
   * Use "for example" instead of "e.g."
+
+FORMATTING RULES (CRITICAL):
+
+1. NEVER use bold for list item headings:
+   WRONG: - **Syslog**: Description...
+   RIGHT: - Syslog: Description...
+
+2. ONLY use bold for UI elements:
+   - Navigate to **Settings** > **Logging** (correct)
+   - Click **Save** (correct)
+
+3. Every list MUST have an introductory sentence.
+
+4. Use monospace (backticks) for code, paths, and config values.
 
 Return ONLY the modified section markdown, starting with the section header (%s %s). Do not include explanations or other sections.
 

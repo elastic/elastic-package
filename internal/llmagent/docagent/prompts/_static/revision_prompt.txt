@@ -55,15 +55,27 @@ Style and Content Guidance:
 * Examples Show FORMAT, Not Content: Examples demonstrate the target quality, level of detail, and formatting. Emulate their style, especially in the "Configuration" and "Setup" sections. Explain *why* a step is needed, not just *what* the step is. Do NOT copy example content - derive all specific information from the package you are documenting.
 * Be Specific: Instead of saying "configure the service," provide a concrete configuration snippet or a numbered list of steps. Link to official external documentation where appropriate to provide users with more depth.
 * Follow these guidelines for voice and tone:
-  * **We're real people, writing for real people** Being conversational without exaggerating or forcing our traits makes our products more human and easier to interact with daily. We address users directly.
-  * **We help users get their job done** With timely, succinct, and impactful content, we can make our users' jobs easier and help them be more efficient.
-  * **We inspire users to think big** Through our content, we empower users to do more and to dive into their next actions. We help them achieve their potential and trust them to forge their best path forward.
-  * **Write like a minimalist** Concise, clear sentences not only save space, but are easy to understand. Use simple words with precise meanings, and remove words that don’t add substance.
-  * **Please avoid please, please!** In most cases, saying "please" is unnecessary in documentation.
-  * **Avoid ambiguity** Many English words have more than one meaning, so whenever possible, choose words that have one clear meaning.
-  * **Active vs. passive voice** Voice is either active or passive. Keep it active whenever you can.
-  * **Avoid Latin Abbreviations** Instead of e.g., use for example.
-ß
+  * We're real people, writing for real people. Be conversational and address users directly.
+  * We help users get their job done. Be timely, succinct, and impactful.
+  * Write like a minimalist. Use concise, clear sentences with simple, precise words.
+  * Avoid "please" in documentation.
+  * Use active voice.
+  * Avoid Latin abbreviations. Use "for example" instead of "e.g."
+
+FORMATTING RULES (CRITICAL - WILL BE REJECTED IF VIOLATED):
+
+1. NEVER use bold for list item headings:
+   WRONG: - **Syslog**: Description...
+   RIGHT: - Syslog: Description...
+
+2. ONLY use bold for UI elements:
+   - Navigate to **Settings** > **Logging** (correct)
+   - Click **Save** (correct)
+
+3. Every list MUST have an introductory sentence before it.
+
+4. Use monospace (backticks) for code, paths, and config values.
+
 User-Requested Changes:
 %s
 
