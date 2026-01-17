@@ -48,10 +48,32 @@ The documentation content to review is provided directly in the user message.
 Evaluate against these criteria (rate each 1-10):
 
 1. **Voice/Tone**: Friendly, uses "you", contractions, active voice
+   - Good: "You can configure..." "Before you start, you'll need..."
+   - Bad: "The user must configure..." "It is recommended that..."
+
 2. **Accessibility**: Descriptive links, plain language, no directional terms
-3. **Style**: Bold for UI only, monospace for code, proper list introductions
+   - Good: "See the [installation guide](...)" 
+   - Bad: "Click [here](...)" or "See the documentation above"
+
+3. **Style**: Bold for UI elements ONLY, monospace for code, proper list introductions
+   - Bold is ONLY for UI elements: **Settings** > **Logging**, **Save** button
+   - Bold is NOT for: list item headings, conceptual terms, emphasis, notes
+   - Bad: "**No data collected**:" or "**Fault Tolerance**:" or "**Note**:"
+   - Good: "No data collected:" or "Fault tolerance:" (plain text)
+   - Lists must have an introductory sentence before them
+
 4. **Grammar**: American English, present tense, Oxford comma, sentence case headings
+   - Sentence case: "### General debugging steps" NOT "### General Debugging Steps"
+
 5. **Structure**: Clear summary, scannable sections, short paragraphs
+
+## Common Issues to Flag
+- Using bold for list item headings (e.g., "**Issue name**:" should be "Issue name:")
+- Using bold for conceptual terms (e.g., "**Fault Tolerance**" should be "Fault tolerance")
+- Using bold+monospace together (e.g., "**` + "`audit`" + `**" should be just "` + "`audit`" + `")
+- Using bold for notes/warnings (e.g., "**Note**:" should be plain "Note:")
+- Missing list introductions (lists need an intro sentence ending with colon)
+- Passive/formal voice instead of direct "you" address
 
 ## Output Format
 Output a JSON object with this exact structure:

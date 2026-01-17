@@ -68,174 +68,192 @@ Start directly with the section heading at the correct level (## for level 2, ##
 The "## How do I deploy this integration?" section MUST include comprehensive vendor setup:
 
 ### Required Subsections
-1. **Prerequisites** - Document what users need before starting:
+1. Prerequisites - Document what users need before starting:
    - Credentials (admin username, password, API keys)
    - Network access (ports, firewall rules)
    - Required permissions on the vendor system
 
-2. **Vendor-Side Configuration** - Step-by-step GUI/CLI instructions:
+2. Vendor-Side Configuration - Step-by-step GUI/CLI instructions:
    - Navigate to specific screens in the vendor's admin interface
    - Enable required features (logging, API access, etc.)
    - Configure export settings (syslog, API endpoints)
-   - Example: "1. Navigate to **Security** > **Application Firewall**. 2. Click **Change Engine Settings**. 3. Enable **CEF Logging**."
+   - Example: "1. Navigate to **Security** > **Application Firewall**. 2. Click **Change Engine Settings**. 3. Enable **CEF Logging**." (Bold is correct here because these are UI element names)
 
-3. **Kibana/Fleet Setup** - Step-by-step integration setup:
-   - Go to **Management** > **Integrations**
+3. Kibana/Fleet Setup - Step-by-step integration setup:
+   - Go to **Management** > **Integrations** (Bold for UI elements)
    - Search for and select the integration
    - Configure connection parameters (host, credentials)
    - Configure data collection settings (logs, metrics)
 
-4. **Validation** - How to verify the setup works:
+4. Validation - How to verify the setup works:
    - Check dashboards for data
    - Verify in Discover
    - Common validation queries
 
 ### Best Practices
 - Use numbered steps (1. 2. 3.) for sequential instructions
-- Include screenshots or descriptions of UI elements in bold: **Settings** > **Configuration**
+- Use bold ONLY for UI elements: **Settings** > **Configuration**
 - Document BOTH vendor-side AND Elastic-side configuration
 - Reference vendor documentation links for detailed procedures
 
 ## Advanced Settings Documentation
 When the context includes Advanced Settings, you MUST document them properly:
-1. **Security Warnings**: Include clear warnings for settings that compromise security or expose sensitive data
-   - Example: "⚠️ **Warning**: Enabling request tracing compromises security and should only be used for debugging."
-2. **Debug/Development Settings**: Warn that these should NOT be enabled in production
+1. Security Warnings: Include clear warnings for settings that compromise security or expose sensitive data
+   - Example: "⚠️ Enabling request tracing compromises security and should only be used for debugging."
+2. Debug/Development Settings: Warn that these should NOT be enabled in production
    - Document in the Troubleshooting section or a dedicated Advanced Settings subsection
-3. **SSL/TLS Configuration**: Document certificate setup and configuration options
+3. SSL/TLS Configuration: Document certificate setup and configuration options
    - Include example YAML snippets showing how to configure certificates
-4. **Sensitive Fields**: Mention secure credential handling
+4. Sensitive Fields: Mention secure credential handling
    - Reference Fleet's secret management or environment variables
-5. **Complex Configurations**: Provide YAML/JSON examples for complex settings
+5. Complex Configurations: Provide YAML/JSON examples for complex settings
 
 ## Performance and Scaling Documentation
 The "## Performance and scaling" section is CRITICAL. You MUST provide input-specific guidance based on the inputs used by the integration:
 
 ### TCP Input (syslog/tcp)
-- **Fault Tolerance**: TCP provides guaranteed delivery with acknowledgments - suitable for production.
-- **Scaling Guidance**:
-  - Configure multiple TCP listeners on different ports for high availability
-  - Use a load balancer to distribute connections across multiple Elastic Agents
-  - Monitor connection limits on both source systems and the agent
-  - TCP handles backpressure naturally - connections queue when Elasticsearch is slow
+Fault tolerance: TCP provides guaranteed delivery with acknowledgments - suitable for production.
+
+Scaling guidance:
+- Configure multiple TCP listeners on different ports for high availability
+- Use a load balancer to distribute connections across multiple Elastic Agents
+- Monitor connection limits on both source systems and the agent
+- TCP handles backpressure naturally - connections queue when Elasticsearch is slow
 
 ### UDP Input (syslog/udp) - CRITICAL WARNINGS REQUIRED
-- **Fault Tolerance**: UDP provides NO delivery guarantee. Data loss WILL occur.
-- **⚠️ CRITICAL**: You MUST include this warning: "UDP does not guarantee message delivery. For production systems requiring data integrity, consider using TCP instead."
-- **Scaling Guidance**:
-  - Increase receive buffer size (SO_RCVBUF) for high-volume environments
-  - Consider multiple agents with DNS round-robin for redundancy
-  - Monitor for packet loss using system metrics
+Fault tolerance: UDP provides NO delivery guarantee. Data loss WILL occur.
+
+⚠️ You MUST include this warning: "UDP does not guarantee message delivery. For production systems requiring data integrity, consider using TCP instead."
+
+Scaling guidance:
+- Increase receive buffer size (SO_RCVBUF) for high-volume environments
+- Consider multiple agents with DNS round-robin for redundancy
+- Monitor for packet loss using system metrics
 
 ### HTTP JSON Input (httpjson/API polling)
-- **Fault Tolerance**: Built-in retry mechanism with configurable exponential backoff.
-- **Scaling Guidance**:
-  - Adjust polling interval to balance data freshness vs API load
-  - Configure request rate limiting to avoid overwhelming source APIs
-  - Be aware of vendor API rate limits and adjust accordingly
-  - Use pagination for large datasets to avoid timeouts
+Fault tolerance: Built-in retry mechanism with configurable exponential backoff.
+
+Scaling guidance:
+- Adjust polling interval to balance data freshness vs API load
+- Configure request rate limiting to avoid overwhelming source APIs
+- Be aware of vendor API rate limits and adjust accordingly
+- Use pagination for large datasets to avoid timeouts
 
 ### Log File Input (logfile/filestream)
-- **Fault Tolerance**: File position tracking in registry survives agent restarts.
-- **Scaling Guidance**:
-  - Use glob patterns to monitor multiple log files efficiently
-  - Configure harvester_limit to control resource usage with many files
-  - Use close_inactive setting to release file handles for rotated logs
+Fault tolerance: File position tracking in registry survives agent restarts.
+
+Scaling guidance:
+- Use glob patterns to monitor multiple log files efficiently
+- Configure ` + "`harvester_limit`" + ` to control resource usage with many files
+- Use ` + "`close_inactive`" + ` setting to release file handles for rotated logs
 
 ### AWS S3 Input
-- **Fault Tolerance**: SQS provides guaranteed delivery with automatic retries.
-- **Scaling Guidance**:
-  - Use SQS notifications instead of polling for efficient, event-driven processing
-  - Configure visibility_timeout based on expected processing time
-  - Use multiple agents consuming from the same SQS queue for horizontal scaling
-  - Configure Dead Letter Queue for failed message handling
+Fault tolerance: SQS provides guaranteed delivery with automatic retries.
+
+Scaling guidance:
+- Use SQS notifications instead of polling for efficient, event-driven processing
+- Configure ` + "`visibility_timeout`" + ` based on expected processing time
+- Use multiple agents consuming from the same SQS queue for horizontal scaling
+- Configure Dead Letter Queue for failed message handling
 
 ### Kafka Input
-- **Fault Tolerance**: Consumer group offsets provide at-least-once delivery.
-- **Scaling Guidance**:
-  - Use consumer groups for horizontal scaling across multiple agents
-  - Ensure partition count allows for desired parallelism
+Fault tolerance: Consumer group offsets provide at-least-once delivery.
+
+Scaling guidance:
+- Use consumer groups for horizontal scaling across multiple agents
+- Ensure partition count allows for desired parallelism
 
 ### HTTP Endpoint Input (webhook)
-- **Fault Tolerance**: Returns acknowledgment to sender, enabling retry.
-- **Scaling Guidance**:
-  - Deploy behind a load balancer for high availability
-  - Configure appropriate connection limits and timeouts
+Fault tolerance: Returns acknowledgment to sender, enabling retry.
+
+Scaling guidance:
+- Deploy behind a load balancer for high availability
+- Configure appropriate connection limits and timeouts
 
 ### CloudWatch Input
-- **Scaling Guidance**:
-  - Adjust scan_frequency to balance freshness vs CloudWatch API costs
-  - Be aware of CloudWatch API rate limits (10 requests/second by default)
+Scaling guidance:
+- Adjust ` + "`scan_frequency`" + ` to balance freshness vs CloudWatch API costs
+- Be aware of CloudWatch API rate limits (10 requests/second by default)
 
 ### CEL Input (Common Expression Language)
-- **Fault Tolerance**: Built-in retry mechanism with configurable backoff.
-- **Scaling Guidance**:
-  - Adjust the interval setting to balance data freshness vs source system load
-  - Configure request rate limiting if the source API has rate limits
-  - Use pagination (if supported by the API) for large result sets
-  - Consider the complexity of CEL expressions - simpler expressions perform better
-  - Monitor memory usage for large response payloads
+Fault tolerance: Built-in retry mechanism with configurable backoff.
+
+Scaling guidance:
+- Adjust the ` + "`interval`" + ` setting to balance data freshness vs source system load
+- Configure request rate limiting if the source API has rate limits
+- Use pagination (if supported by the API) for large result sets
+- Consider the complexity of CEL expressions - simpler expressions perform better
+- Monitor memory usage for large response payloads
 
 ### Azure Event Hub Input
-- **Fault Tolerance**: Consumer groups track offsets; at-least-once delivery.
-- **Scaling Guidance**:
-  - Use consumer groups for horizontal scaling across multiple agents
-  - Ensure partition count allows for desired parallelism
-  - Configure appropriate storage account for checkpointing
+Fault tolerance: Consumer groups track offsets; at-least-once delivery.
+
+Scaling guidance:
+- Use consumer groups for horizontal scaling across multiple agents
+- Ensure partition count allows for desired parallelism
+- Configure appropriate storage account for checkpointing
 
 ### Azure Blob Storage Input
-- **Fault Tolerance**: State tracking prevents duplicate processing.
-- **Scaling Guidance**:
-  - Use Event Grid notifications for efficient, event-driven processing
-  - Configure container name filters to limit scope
-  - Set appropriate poll_interval for polling mode
+Fault tolerance: State tracking prevents duplicate processing.
+
+Scaling guidance:
+- Use Event Grid notifications for efficient, event-driven processing
+- Configure container name filters to limit scope
+- Set appropriate ` + "`poll_interval`" + ` for polling mode
 
 ### GCP Pub/Sub Input
-- **Fault Tolerance**: Pub/Sub provides at-least-once delivery with acknowledgments.
-- **Scaling Guidance**:
-  - Use multiple subscriptions for horizontal scaling
-  - Configure appropriate ack_deadline based on processing time
-  - Monitor subscription backlog for capacity planning
+Fault tolerance: Pub/Sub provides at-least-once delivery with acknowledgments.
+
+Scaling guidance:
+- Use multiple subscriptions for horizontal scaling
+- Configure appropriate ` + "`ack_deadline`" + ` based on processing time
+- Monitor subscription backlog for capacity planning
 
 ### Google Cloud Storage (GCS) Input
-- **Fault Tolerance**: Tracks processed objects; survives restarts.
-- **Scaling Guidance**:
-  - Use Pub/Sub notifications for event-driven processing
-  - Configure appropriate poll_interval for polling mode
-  - Use bucket prefixes to limit scope
+Fault tolerance: Tracks processed objects; survives restarts.
+
+Scaling guidance:
+- Use Pub/Sub notifications for event-driven processing
+- Configure appropriate ` + "`poll_interval`" + ` for polling mode
+- Use bucket prefixes to limit scope
 
 ### SQL/Database Input
-- **Fault Tolerance**: Tracks last processed record; survives restarts.
-- **Scaling Guidance**:
-  - Use appropriate sql_query pagination (LIMIT/OFFSET or cursor-based)
-  - Index the tracking column for efficient queries
-  - Configure connection pooling for high-volume scenarios
+Fault tolerance: Tracks last processed record; survives restarts.
+
+Scaling guidance:
+- Use appropriate ` + "`sql_query`" + ` pagination (LIMIT/OFFSET or cursor-based)
+- Index the tracking column for efficient queries
+- Configure connection pooling for high-volume scenarios
 
 ### Netflow/IPFIX Input
-- **Fault Tolerance**: UDP-based; similar caveats to UDP syslog.
-- **Scaling Guidance**:
-  - Increase receive buffer size for high-volume environments
-  - Consider multiple collectors behind a load balancer
-  - Monitor for packet loss
+Fault tolerance: UDP-based; similar caveats to UDP syslog.
+
+Scaling guidance:
+- Increase receive buffer size for high-volume environments
+- Consider multiple collectors behind a load balancer
+- Monitor for packet loss
 
 ### Windows Event Log Input (winlog)
-- **Fault Tolerance**: Bookmark tracking ensures no data loss across restarts.
-- **Scaling Guidance**:
-  - Use specific event IDs and channels to limit scope
-  - Configure batch_read_size for optimal throughput
-  - Monitor agent memory usage for high-volume channels
+Fault tolerance: Bookmark tracking ensures no data loss across restarts.
+
+Scaling guidance:
+- Use specific event IDs and channels to limit scope
+- Configure ` + "`batch_read_size`" + ` for optimal throughput
+- Monitor agent memory usage for high-volume channels
 
 ### Journald Input
-- **Fault Tolerance**: Cursor tracking ensures no data loss.
-- **Scaling Guidance**:
-  - Filter by specific systemd units to limit scope
-  - Configure appropriate seek position for initial collection
+Fault tolerance: Cursor tracking ensures no data loss.
+
+Scaling guidance:
+- Filter by specific systemd units to limit scope
+- Configure appropriate seek position for initial collection
 
 ### Entity Analytics Input
-- **Fault Tolerance**: State tracking for incremental sync.
-- **Scaling Guidance**:
-  - Configure appropriate sync_interval based on data change frequency
-  - Use incremental sync when possible to reduce API calls
+Fault tolerance: State tracking for incremental sync.
+
+Scaling guidance:
+- Configure appropriate ` + "`sync_interval`" + ` based on data change frequency
+- Use incremental sync when possible to reduce API calls
 
 ## Guidelines
 - Write clear, concise, and accurate documentation
@@ -244,6 +262,52 @@ The "## Performance and scaling" section is CRITICAL. You MUST provide input-spe
 - Use proper markdown formatting
 - Use {{event "<name>"}} and {{fields "<name>"}} templates in Reference section, replacing <name> with the actual data stream name (e.g., {{event "conn"}}, {{fields "conn"}})
 - For code blocks, ALWAYS specify the language (e.g., bash, yaml, json after the triple backticks)
+
+## Voice and Tone (REQUIRED)
+- Address the user directly with "you" - ALWAYS
+- Use contractions: "you'll", "don't", "can't", "it's"
+- Use active voice: "You configure..." not "The configuration is..."
+- Be direct and friendly, not formal
+
+WRONG: "The user must configure the integration before data can be collected."
+RIGHT: "Before you can collect data, configure the integration settings."
+
+WRONG: "It is recommended that..."
+RIGHT: "We recommend..." or "You should..."
+
+## Formatting Rules (CRITICAL - Common Rejection Reasons)
+
+### Bold Text - ONLY for UI Elements
+DO NOT use bold for:
+- List item headings (e.g., "**Issue name**:" is WRONG)
+- Conceptual terms (e.g., "**Fault Tolerance**" is WRONG)
+- Notes or warnings (e.g., "**Note**:" or "**Warning**:" is WRONG)
+- Technical identifiers (e.g., "**` + "`audit`" + `**" is WRONG - use just ` + "`audit`" + `)
+- Product or integration names (e.g., "**Hashicorp Vault**" is WRONG)
+
+DO use bold ONLY for:
+- UI element names: Navigate to **Settings** > **Logging**
+- Button names: Click **Save**
+- Field labels: In the **Host** field, enter...
+
+### Monospace Formatting
+Use backticks for:
+- Code and commands: ` + "`vault audit enable`" + `
+- File paths: ` + "`/var/log/vault/`" + `
+- Configuration values: ` + "`true`" + `, ` + "`8200`" + `
+- Data stream names: ` + "`audit`" + `, ` + "`log`" + `, ` + "`metrics`" + `
+- Field names: ` + "`event.original`" + `
+
+### List Introductions
+Every bulleted or numbered list MUST have an introductory sentence ending with a colon:
+- WRONG: Just starting a list without context
+- RIGHT: "This integration collects the following data types:"
+
+### Troubleshooting Format
+For issue/solution pairs, use plain text or subheadings (no bold for issue names):
+- WRONG: ` + "`- **No data is collected**: Verify network...`" + `
+- RIGHT: ` + "`- No data is collected: Verify network...`" + `
+- ALSO RIGHT: Use ` + "`### No data is collected`" + ` as a subheading for major issues
 
 ## CONSISTENCY REQUIREMENTS (CRITICAL)
 These ensure all integration docs look uniform:
