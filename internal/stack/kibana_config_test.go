@@ -43,19 +43,9 @@ func createTestProfile(t *testing.T, profileName string) *profile.Profile {
 	return p
 }
 
-func TestKibanaConfigWithCustomContent_NoCustomConfig(t *testing.T) {
-	// Create a test profile
-	p := createTestProfile(t, "test-profile")
-
-	// Capture log output to test warning message
-	var logBuffer bytes.Buffer
-	log.SetOutput(&logBuffer)
-	defer log.SetOutput(os.Stderr)
-
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
-
-	// Create a resource manager and context
+// createTestResourceContext creates a resource context with default test values.
+// This helper reduces duplication across test functions.
+func createTestResourceContext() resource.Context {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"kibana_version":        "8.11.0",
@@ -77,9 +67,23 @@ func TestKibanaConfigWithCustomContent_NoCustomConfig(t *testing.T) {
 		"api_key":               "",
 		"enrollment_token":      "",
 	})
+	return resourceManager.Context(context.Background())
+}
 
-	// Create a context from the manager
-	ctx := resourceManager.Context(context.Background())
+func TestKibanaConfigWithCustomContent_NoCustomConfig(t *testing.T) {
+	// Create a test profile
+	p := createTestProfile(t, "test-profile")
+
+	// Capture log output to test warning message
+	var logBuffer bytes.Buffer
+	log.SetOutput(&logBuffer)
+	defer log.SetOutput(os.Stderr)
+
+	// Create the config generator function
+	configGenerator := kibanaConfigWithCustomContent(p)
+
+	// Create a resource context with default test values
+	ctx := createTestResourceContext()
 
 	// Generate the config
 	var output bytes.Buffer
@@ -114,31 +118,8 @@ func TestKibanaConfigWithCustomContent_WithCustomConfig(t *testing.T) {
 	// Create the config generator function
 	configGenerator := kibanaConfigWithCustomContent(p)
 
-	// Create a resource manager and context
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
-
-	// Create a context from the manager
-	ctx := resourceManager.Context(context.Background())
+	// Create a resource context with default test values
+	ctx := createTestResourceContext()
 
 	// Generate the config
 	var output bytes.Buffer
@@ -179,29 +160,8 @@ func TestKibanaConfigWithCustomContent_FileNaming(t *testing.T) {
 	// Create the config generator function
 	configGenerator := kibanaConfigWithCustomContent(p)
 
-	// Create a resource manager and context
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
-	ctx := resourceManager.Context(context.Background())
+	// Create a resource context with default test values
+	ctx := createTestResourceContext()
 
 	// Generate the config
 	var output bytes.Buffer
@@ -228,29 +188,8 @@ func TestKibanaConfigWithCustomContent_NoTemplateProcessing(t *testing.T) {
 	// Create the config generator function
 	configGenerator := kibanaConfigWithCustomContent(p)
 
-	// Create a resource manager and context
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
-	ctx := resourceManager.Context(context.Background())
+	// Create a resource context with default test values
+	ctx := createTestResourceContext()
 
 	// Generate the config
 	var output bytes.Buffer
@@ -276,29 +215,8 @@ func TestKibanaConfigWithCustomContent_ErrorCases(t *testing.T) {
 	// Create the config generator function
 	configGenerator := kibanaConfigWithCustomContent(p)
 
-	// Create a resource manager and context
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
-	ctx := resourceManager.Context(context.Background())
+	// Create a resource context with default test values
+	ctx := createTestResourceContext()
 
 	// Generate the config
 	var output bytes.Buffer
@@ -342,7 +260,22 @@ func BenchmarkKibanaConfigWithCustomContent(b *testing.B) {
 	// Create the config generator function
 	configGenerator := kibanaConfigWithCustomContent(p)
 
-	// Create a resource manager and context
+	// Create a resource context with default test values
+	ctx := createBenchmarkResourceContext()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		var output bytes.Buffer
+		err := configGenerator(ctx, &output)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// createBenchmarkResourceContext creates a resource context for benchmarks.
+// Similar to createTestResourceContext but doesn't require testing.T.
+func createBenchmarkResourceContext() resource.Context {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"kibana_version":        "8.11.0",
@@ -364,14 +297,5 @@ func BenchmarkKibanaConfigWithCustomContent(b *testing.B) {
 		"api_key":               "",
 		"enrollment_token":      "",
 	})
-	ctx := resourceManager.Context(context.Background())
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		var output bytes.Buffer
-		err := configGenerator(ctx, &output)
-		if err != nil {
-			b.Fatal(err)
-		}
-	}
+	return resourceManager.Context(context.Background())
 }
