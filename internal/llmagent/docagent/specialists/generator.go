@@ -281,12 +281,12 @@ RIGHT: "Before you can collect data, configure the integration settings."
 These ensure all integration docs look uniform:
 
 ### Heading Style
-- Use sentence case for ALL headings: "### General debugging steps" NOT "### General Debugging Steps"
+- Use sentence case for ALL headings: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
 - Only the first word is capitalized (plus proper nouns and acronyms like TCP, UDP, API)
 
 ### Subsection Naming (use EXACTLY these names)
 Under ## Troubleshooting:
-- "### General debugging steps"
+- "### Vendor-specific issues"
 - "### Vendor-specific issues" (NOT "Vendor resources" or "Vendor Resources")
 - "### [Input type] input troubleshooting" (e.g., "### TCP/Syslog input troubleshooting", "### Log file input troubleshooting")
 

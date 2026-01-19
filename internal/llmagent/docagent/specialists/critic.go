@@ -57,7 +57,7 @@ Evaluate against these criteria (rate each 1-10):
    - Bad: "Click [here](...)" or "See the documentation above"
 
 3. **Grammar**: American English, present tense, Oxford comma, sentence case headings
-   - Sentence case: "### General debugging steps" NOT "### General Debugging Steps"
+   - Sentence case: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
 
 4. **Structure**: Clear summary, scannable sections, short paragraphs
 

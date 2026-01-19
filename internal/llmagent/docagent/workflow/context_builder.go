@@ -245,7 +245,7 @@ func (b *ContextBuilder) buildInstructions() string {
 	sb.WriteString("\n=== CONSISTENCY REQUIREMENTS ===\n")
 	sb.WriteString("17. NEVER put bash comments (lines starting with #) outside code blocks - they will be parsed as H1 headings!\n")
 	sb.WriteString("18. Use these EXACT subsection names in Troubleshooting:\n")
-	sb.WriteString("    - '### General debugging steps' (NOT 'General Debugging Steps')\n")
+	sb.WriteString("    - '### Vendor-specific issues' (NOT 'Vendor-Specific Issues')\n")
 	sb.WriteString("    - '### Vendor-specific issues' (NOT 'Vendor resources' or 'Vendor Resources')\n")
 	sb.WriteString("    - '### [Input type] input troubleshooting' (e.g., 'TCP/Syslog input troubleshooting')\n")
 	sb.WriteString("19. Use sentence case for ALL subsections (capitalize only first word): '### Log file input troubleshooting' NOT '### Log File Input Troubleshooting'\n")
@@ -922,15 +922,15 @@ func (b *ContextBuilder) buildTroubleshootingGuidance() string {
 
 	var sb strings.Builder
 	sb.WriteString("\n=== TROUBLESHOOTING GUIDANCE (MUST include in ## Troubleshooting section) ===\n")
-	sb.WriteString("CRITICAL: Include ALL of the following troubleshooting content. The Troubleshooting section must contain:\n")
-	sb.WriteString("1. General debugging steps (agent health, integration status, diagnostics)\n")
-	sb.WriteString("2. Input-specific troubleshooting tables for EACH input type this integration uses\n")
-	sb.WriteString("3. Vendor-specific issues (from service_info.md if any)\n\n")
+	sb.WriteString("CRITICAL: ALL troubleshooting content must be SPECIFIC to this integration.\n")
+	sb.WriteString("DO NOT include generic Elastic Agent debugging steps - those belong in common documentation.\n\n")
+	sb.WriteString("Start with a link to common troubleshooting:\n")
+	sb.WriteString("\"For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).\"\n\n")
+	sb.WriteString("The Troubleshooting section must contain:\n")
+	sb.WriteString("1. Vendor-specific issues (from service_info.md if any)\n")
+	sb.WriteString("2. Input-specific troubleshooting tables for EACH input type this integration uses\n\n")
 
-	// Always include general debugging steps
-	sb.WriteString(getGeneralDebuggingSteps())
-
-	// Add input-specific troubleshooting
+	// Add input-specific troubleshooting (no generic steps)
 	troubleshootingKB := getTroubleshootingKnowledgeBase()
 	for inputType := range inputTypes {
 		if guidance, ok := troubleshootingKB[inputType]; ok {
@@ -942,51 +942,6 @@ func (b *ContextBuilder) buildTroubleshootingGuidance() string {
 	return sb.String()
 }
 
-// getGeneralDebuggingSteps returns common debugging steps applicable to all integrations
-func getGeneralDebuggingSteps() string {
-	return `
-### General Debugging Steps (include for ALL integrations)
-
-**1. Verify Elastic Agent Health**
-- In Kibana, navigate to **Management** → **Fleet** → **Agents**
-- Confirm the agent status is **Healthy** (green)
-- If unhealthy, check the agent logs for errors
-
-**2. Check Integration Status**
-- Go to **Management** → **Fleet** → **Agent policies**
-- Select the policy containing this integration
-- Verify the integration is listed and shows no errors
-
-**3. Capture Agent Diagnostics**
-For detailed troubleshooting, collect agent diagnostics:
-` + "```bash" + `
-# On the agent host, run:
-elastic-agent diagnostics collect
-
-# This creates a ZIP file containing:
-# - Agent logs
-# - Configuration (sanitized)
-# - System information
-# - Integration-specific debug data
-` + "```" + `
-Upload this diagnostic bundle when opening a support case.
-
-**4. Check for Ingestion Errors**
-In Kibana Discover, search for parsing or ingestion errors:
-` + "```" + `
-error.message:* AND data_stream.dataset:<integration_name>.*
-` + "```" + `
-If ` + "`error.message`" + ` is populated, review the raw event for format issues.
-
-**5. Verify Data is Flowing**
-In Kibana Discover, check if documents are being indexed:
-` + "```" + `
-data_stream.dataset:<integration_name>.*
-` + "```" + `
-Sort by ` + "`@timestamp`" + ` descending to see the most recent events.
-
-`
-}
 
 // getTroubleshootingKnowledgeBase returns input-specific troubleshooting guidance
 func getTroubleshootingKnowledgeBase() map[string]string {

@@ -99,24 +99,32 @@ FORMATTING REMINDERS FOR THIS SECTION:
 
 	"troubleshooting": `HEADING LEVEL: This is a MAIN section - use "## Troubleshooting" (H2, two #)
 TROUBLESHOOTING SECTION REQUIREMENTS:
+- ALL troubleshooting content MUST be specific to THIS integration
+- DO NOT include generic Elastic Agent debugging steps
+- Start with a link to common Elastic ingest troubleshooting:
+  "For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems)."
 - Format as Issue / Solution pairs
-- Include common issues specific to this integration
 - Include subsections for different issue types (H3, three #):
-  ### General debugging steps
-  - Agent health verification
-  - Integration status check
-  - Diagnostics collection
 
   ### Vendor-specific issues
-  - Issues specific to the source system
+  - Issues specific to the source system (e.g., blocked audit devices, service blocking)
+  - Configuration problems unique to this vendor's product
+  - Permission or access issues specific to this system
 
   ### {Input type} input troubleshooting
-  - Add a subsection for each input type used (TCP, UDP, API, etc.)
+  - Add a subsection for each input type used (TCP, UDP, API, logfile, etc.)
   - Include troubleshooting tables with: Symptom | Cause | Solution
+  - Focus on input-specific issues, not generic agent health
+
+WHAT TO EXCLUDE (will be rejected):
+- Generic "Verify Elastic Agent health" steps
+- Generic "Check integration status" steps
+- Generic "Capture agent diagnostics" steps
+- Any troubleshooting that applies to ALL integrations (these belong in common docs)
 
 FORMATTING RULES (CRITICAL - will be rejected if violated):
 - NEVER use bold for issue names in lists:
-  WRONG: "- **No data is being collected**" 
+  WRONG: "- **No data is being collected**"
   RIGHT: "- No data is being collected:"
 - Use ### subheadings for major issue categories, not bold list items
 - Vendor resources list MUST have an introductory sentence before it

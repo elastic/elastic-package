@@ -666,35 +666,18 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 		}
 	}
 
-	// Check for general debugging steps
-	hasGeneralDebugging := strings.Contains(troubleshootingLower, "agent") &&
-		(strings.Contains(troubleshootingLower, "health") ||
-			strings.Contains(troubleshootingLower, "status") ||
-			strings.Contains(troubleshootingLower, "diagnostic"))
+	// Check for link to common troubleshooting documentation
+	hasCommonTroubleshootingLink := strings.Contains(troubleshootingLower, "common-problems") ||
+		strings.Contains(troubleshootingLower, "common problems") ||
+		strings.Contains(troubleshootingLower, "elastic.co/docs/troubleshoot")
 
-	if !hasGeneralDebugging {
+	if !hasCommonTroubleshootingLink {
 		issues = append(issues, ValidationIssue{
 			Severity:    SeverityMinor,
 			Category:    CategoryCompleteness,
 			Location:    "Troubleshooting",
-			Message:     "Missing general agent debugging steps",
-			Suggestion:  "Add steps to verify agent health and collect diagnostics",
-			SourceCheck: "static",
-		})
-	}
-
-	// Check for Kibana-based debugging
-	hasKibanaDebugging := strings.Contains(troubleshootingLower, "discover") ||
-		strings.Contains(troubleshootingLower, "kibana") ||
-		strings.Contains(troubleshootingLower, "data_stream")
-
-	if !hasKibanaDebugging {
-		issues = append(issues, ValidationIssue{
-			Severity:    SeverityMinor,
-			Category:    CategoryCompleteness,
-			Location:    "Troubleshooting",
-			Message:     "Missing Kibana-based debugging instructions",
-			Suggestion:  "Add instructions for checking data in Discover and identifying ingestion errors",
+			Message:     "Missing link to common Elastic troubleshooting documentation",
+			Suggestion:  "Add: 'For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).'",
 			SourceCheck: "static",
 		})
 	}

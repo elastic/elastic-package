@@ -1325,8 +1325,10 @@ func getSectionOrder(content string) []string {
 	var order []string
 	lines := strings.Split(content, "\n")
 	for _, line := range lines {
-		if strings.HasPrefix(line, "#") {
-			title := strings.TrimSpace(strings.TrimLeft(line, "# "))
+		// Only include top-level sections (## headers), not subsections (###, ####, etc.)
+		// Subsections are already included via their parent's GetAllContent()
+		if strings.HasPrefix(line, "## ") && !strings.HasPrefix(line, "### ") {
+			title := strings.TrimSpace(strings.TrimPrefix(line, "## "))
 			order = append(order, title)
 		}
 	}

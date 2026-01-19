@@ -15,7 +15,7 @@ const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 - NEVER use bold as pseudo-headers: '**Network requirements**' is WRONG, use '#### Network requirements'
 - Bold is ONLY for UI elements: **Settings** > **Save**, **Discover** app
 - Every list MUST have an introductory sentence ending with colon
-- Use sentence case for headings: "General debugging steps" not "General Debugging Steps"
+- Use sentence case for headings: "Vendor-specific issues" not "Vendor-Specific Issues"
 `
 
 // CriticRejectionCriteria provides criteria for the critic to check.
@@ -27,7 +27,7 @@ const CriticRejectionCriteria = `## REJECT if you find ANY of these:
 - Bold used for concepts: '**Fault tolerance**:' should be 'Fault tolerance:'
 - Bold used for input types: '**Audit logs (file)**' should be plain text or a heading
 - Lists without an introductory sentence before them
-- Title Case headings: '### General Debugging Steps' should be '### General debugging steps'
+- Title Case headings: '### Vendor-Specific Issues' should be '### Vendor-specific issues'
 `
 
 // FullFormattingRules contains the complete formatting guidance for LLM system prompts.
@@ -83,6 +83,6 @@ This integration supports the following:
 - Data streams: ` + "`audit`" + `, ` + "`log`" + `
 
 ### HEADINGS:
-- Use sentence case: "### General debugging steps" NOT "### General Debugging Steps"
+- Use sentence case: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
 `
 

@@ -559,8 +559,6 @@ func (v *StructureValidator) checkSubsectionConsistency(content string) []Valida
 
 	// Expected subsection names (canonical forms)
 	expectedNames := map[string]string{
-		"general debugging steps":    "General debugging steps",
-		"general debugging":          "General debugging steps",
 		"vendor-specific issues":     "Vendor-specific issues",
 		"vendor specific issues":     "Vendor-specific issues",
 		"vendor resources":           "Vendor-specific issues",
@@ -572,7 +570,6 @@ func (v *StructureValidator) checkSubsectionConsistency(content string) []Valida
 		pattern    string
 		suggestion string
 	}{
-		{"General Debugging Steps", "General debugging steps"},
 		{"Vendor-Specific Issues", "Vendor-specific issues"},
 		{"Vendor Resources", "Vendor-specific issues"},
 		{"Log File Input", "Log file input"},

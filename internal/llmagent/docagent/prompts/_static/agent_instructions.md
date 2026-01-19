@@ -89,7 +89,7 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
 ### Headings
 
 -   **ALWAYS** use sentence case for headings (only first word capitalized, plus proper nouns and acronyms).
-    -   **Good**: `### General debugging steps`
+    -   **Good**: `### Vendor-specific issues`
     -   **Bad**: `### General Debugging Steps`
 
 ### Grammar and spelling
