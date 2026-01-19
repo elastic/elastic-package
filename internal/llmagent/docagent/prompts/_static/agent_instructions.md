@@ -55,6 +55,10 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
     - `**Fault tolerance**:` → use plain text  
     - `**No data collected**:` → use plain text
     - `**Syslog**:` or `**TCP**:` → use plain text
+    - `1. **Verify agent status**` → use plain text in numbered lists
+    - `**Network requirements**` as pseudo-header → use `#### Network requirements` heading
+    - `**Option 1: File method**` → use `##### Option 1: File method` heading
+    - `**Audit logs (file)**` → use plain text or a proper heading
 
 -   `*Italic*`: **ONLY** for introducing new terms for the first time.
     -   Example: A Metricbeat *module* defines the basic logic for collecting data.

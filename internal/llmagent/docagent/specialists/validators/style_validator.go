@@ -114,6 +114,33 @@ func (v *StyleValidator) checkBoldMisuse(content string) []ValidationIssue {
 		})
 	}
 
+	// Pattern: numbered list items with bold: "1. **Something**" or "1.  **Something**"
+	numberedBoldPattern := regexp.MustCompile(`(?m)^\s*\d+\.\s+\*\*[^*]+\*\*`)
+	if numberedBoldPattern.MatchString(content) {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryStyle,
+			Location:    "Numbered list formatting",
+			Message:     "Bold should not be used in numbered list items",
+			Suggestion:  "Use plain text: '1. Verify status' not '1. **Verify status**'",
+			SourceCheck: "static",
+		})
+	}
+
+	// Pattern: bold pseudo-headers (bold on its own line, not a list item)
+	// e.g., "**Network requirements**" on its own line
+	pseudoHeaderPattern := regexp.MustCompile(`(?m)^[\s]*\*\*[^*]+\*\*[\s]*$`)
+	if pseudoHeaderPattern.MatchString(content) {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMajor,
+			Category:    CategoryStyle,
+			Location:    "Pseudo-header formatting",
+			Message:     "Bold should not be used as a pseudo-header",
+			Suggestion:  "Use a proper markdown heading: '#### Heading' not '**Heading**'",
+			SourceCheck: "static",
+		})
+	}
+
 	return issues
 }
 

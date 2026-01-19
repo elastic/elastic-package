@@ -54,7 +54,12 @@ PREREQUISITES SECTION REQUIREMENTS:
 - Include Elastic-side requirements:
   - Elastic Stack version
   - Fleet/Agent requirements
-  - Any required subscriptions/licenses`,
+  - Any required subscriptions/licenses
+
+FORMATTING RULES:
+- For subsection titles, use ### or #### headings, NOT "**bold pseudo-headers**"
+- For method options, use ##### headings: "##### File method" NOT "**File method**"
+- Plain text for list items, never bold`,
 
 	"how do i deploy this integration?": `HEADING LEVEL: This is a MAIN section - use "## How do I deploy this integration?" (H2, two #)
 DEPLOYMENT SECTION REQUIREMENTS:
@@ -63,7 +68,7 @@ DEPLOYMENT SECTION REQUIREMENTS:
   ### Agent-based deployment
   - Standard Elastic Agent installation guidance
   - Link to installation instructions
-  - Network requirements table if applicable
+  - For network requirements, use "#### Network requirements" heading, NOT "**Network requirements**"
 
   ### Onboard and configure
   - Overview of the configuration process
@@ -71,21 +76,26 @@ DEPLOYMENT SECTION REQUIREMENTS:
   ### Set up steps in {Product}
   - VENDOR-SIDE configuration steps
   - Numbered steps with specific UI paths (e.g., "Navigate to **Settings** > **Logging**")
+  - For options/methods, use headings: "##### Option 1: File method" NOT "**Option 1: File method**"
   - Include CLI commands where applicable
   - Show example configurations
 
   ### Set up steps in Kibana
   - Elastic-side configuration steps
   - Navigate to Integrations, search, add
-  - Document each configuration field
+  - For input descriptions, use plain text NOT bold: "Audit logs (file)" not "**Audit logs (file)**"
 
   ### Validation
-  - Steps to verify data is flowing
-  - Check Fleet agent status
+  - Steps to verify data is flowing - use plain numbered lists, NOT bold
+  - WRONG: "1. **Verify agent status**" - never bold numbered list items
+  - RIGHT: "1. Verify agent status" - plain text for steps
   - Check Discover for data using ACTUAL data stream dataset names (see DATA STREAMS FOR VALIDATION below)
   - DO NOT assume dataset names - use the exact names provided
-  - For KQL filters, use data_stream.dataset with the exact values listed
-  - Verify dashboards are populated`,
+
+FORMATTING REMINDERS FOR THIS SECTION:
+- Use #### or ##### headings for subsection titles, NOT **bold pseudo-headers**
+- Numbered validation steps must NOT have bold: "1. Verify status" not "1. **Verify status**"
+- Input type descriptions must be plain text: "Audit logs (file)" not "**Audit logs (file)**"`,
 
 	"troubleshooting": `HEADING LEVEL: This is a MAIN section - use "## Troubleshooting" (H2, two #)
 TROUBLESHOOTING SECTION REQUIREMENTS:
@@ -104,8 +114,12 @@ TROUBLESHOOTING SECTION REQUIREMENTS:
   - Add a subsection for each input type used (TCP, UDP, API, etc.)
   - Include troubleshooting tables with: Symptom | Cause | Solution
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
+FORMATTING RULES (CRITICAL - will be rejected if violated):
+- NEVER use bold for issue names in lists:
+  WRONG: "- **No data is being collected**" 
+  RIGHT: "- No data is being collected:"
 - Use ### subheadings for major issue categories, not bold list items
+- Vendor resources list MUST have an introductory sentence before it
 - Use monospace for configuration values, file paths, and commands`,
 
 	"performance and scaling": `HEADING LEVEL: This is a MAIN section - use "## Performance and scaling" (H2, two #)
@@ -118,7 +132,13 @@ PERFORMANCE AND SCALING SECTION REQUIREMENTS:
 - Include the standard architecture link:
   "For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation."
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
+FORMATTING RULES (CRITICAL - will be rejected if violated):
+- NEVER use bold for concepts:
+  WRONG: "- **Fault tolerance**: The agent tracks..."
+  RIGHT: "- Fault tolerance: The agent tracks..."
+  WRONG: "**Log file input**" as pseudo-header
+  RIGHT: "#### Log file input" as proper heading
+- Use #### headings for input type subsections, NOT bold text
 - Use monospace for configuration settings: {backquote}harvester_limit{backquote}, {backquote}close_inactive{backquote}`,
 
 	"reference": `HEADING LEVEL: This is a MAIN section - use "## Reference" (H2, two #)

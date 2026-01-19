@@ -11,6 +11,8 @@ package stylerules
 // in user prompts to reinforce the system instruction.
 const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 - NEVER use bold for list items: '- **Item**:' is WRONG, use '- Item:'
+- NEVER use bold for numbered list items: '1. **Step name**' is WRONG, use '1. Step name'
+- NEVER use bold as pseudo-headers: '**Network requirements**' is WRONG, use '#### Network requirements'
 - Bold is ONLY for UI elements: **Settings** > **Save**, **Discover** app
 - Every list MUST have an introductory sentence ending with colon
 - Use sentence case for headings: "General debugging steps" not "General Debugging Steps"
@@ -19,8 +21,11 @@ const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 // CriticRejectionCriteria provides criteria for the critic to check.
 const CriticRejectionCriteria = `## REJECT if you find ANY of these:
 - Bold used for list items: '- **Security monitoring**:' should be '- Security monitoring:'
+- Bold used for numbered list items: '1. **Verify agent status**' should be '1. Verify agent status'
+- Bold used as pseudo-headers: '**Network requirements**' should be '#### Network requirements'
 - Bold used for notes: '**Note**:' should be 'Note:'
 - Bold used for concepts: '**Fault tolerance**:' should be 'Fault tolerance:'
+- Bold used for input types: '**Audit logs (file)**' should be plain text or a heading
 - Lists without an introductory sentence before them
 - Title Case headings: '### General Debugging Steps' should be '### General debugging steps'
 `
@@ -51,6 +56,10 @@ This integration facilitates:
 - "**Permissions**:", "**Network access**:" → WRONG
 - "**Audit device is not enabled**:" → WRONG
 - "**No data is being collected**:" → WRONG
+- "1. **Verify agent status**" → WRONG (numbered list with bold)
+- "**Network requirements**" as standalone → WRONG (use #### heading instead)
+- "**Option 1: File method**" → WRONG (use ##### heading instead)
+- "**Audit logs (file)**" → WRONG (use plain text or heading)
 
 ### ONLY USE BOLD FOR UI ELEMENTS:
 - Menu paths: **Settings** > **Logging**
