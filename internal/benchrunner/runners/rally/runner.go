@@ -580,9 +580,9 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
+		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents, time.Now().Unix())
 	case "gotext":
-		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents)
+		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents, time.Now().Unix())
 	}
 
 	if err != nil {
