@@ -113,6 +113,11 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		logger.Infof("Using service variant: %s", d.variant.String())
 	}
 
+	opts := compose.CommandOptions{
+		Env:       service.Env(),
+		ExtraArgs: []string{"--build", "-d"},
+	}
+
 	defer func() {
 		if err == nil {
 			return
@@ -120,6 +125,10 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		// If running with --setup or --tear-down flags or a regular test system execution,
 		// force to tear down the service in case of setup error.
 		if d.runTestsOnly {
+			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
+			processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
+				Env: opts.Env,
+			}, svcInfo.Name)
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
 			return
 		}
@@ -128,11 +137,6 @@ func (d *DockerComposeServiceDeployer) SetUp(ctx context.Context, svcInfo Servic
 		service.svcInfo = svcInfo
 		service.TearDown(context.WithoutCancel(ctx))
 	}()
-
-	opts := compose.CommandOptions{
-		Env:       service.Env(),
-		ExtraArgs: []string{"--build", "-d"},
-	}
 
 	serviceName := svcInfo.Name
 	if d.runTearDown || d.runTestsOnly {

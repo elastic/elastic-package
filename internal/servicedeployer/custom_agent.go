@@ -163,6 +163,10 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		// If running with --setup or --tear-down flags or a regular test system execution,
 		// force to tear down the service in case of setup error.
 		if d.runTestsOnly {
+			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
+			processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
+				Env: opts.Env,
+			}, svcInfo.Name)
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
 			return
 		}
