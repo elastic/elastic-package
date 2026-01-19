@@ -69,21 +69,6 @@ type (
 	ConversationEntry = executor.ConversationEntry
 )
 
-// ParseSections parses markdown content into hierarchical sections
-var ParseSections = parsing.ParseSections
-
-// FindSectionByTitle finds a section by title
-var FindSectionByTitle = parsing.FindSectionByTitle
-
-// CombineSections combines sections into markdown
-var CombineSections = parsing.CombineSections
-
-// CombineSectionsWithTitle combines sections with a document title
-var CombineSectionsWithTitle = parsing.CombineSectionsWithTitle
-
-// EnsureDocumentTitle ensures the document has the correct title
-var EnsureDocumentTitle = parsing.EnsureDocumentTitle
-
 // AgentInstructions is the system prompt for the agent
 var AgentInstructions = prompts.AgentInstructions
 
@@ -284,7 +269,7 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 	}
 
 	// Count sections for display
-	sections := ParseSections(result.Content)
+	sections := parsing.ParseSections(result.Content)
 	approvedStr := ""
 	if result.Approved {
 		approvedStr = " ✓ validated"
@@ -385,7 +370,7 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	if err != nil {
 		return fmt.Errorf("failed to read current documentation: %w", err)
 	}
-	existingSections := ParseSections(existingContent)
+	existingSections := parsing.ParseSections(existingContent)
 
 	if len(existingSections) == 0 {
 		return fmt.Errorf("no sections found in existing documentation")
@@ -393,7 +378,7 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 
 	// Get template sections for reference (structure)
 	templateContent := archetype.GetPackageDocsReadmeTemplate()
-	templateSections := ParseSections(templateContent)
+	templateSections := parsing.ParseSections(templateContent)
 
 	// Analyze modification scope
 	scope, err := d.analyzeModificationScope(ctx, instructions, templateSections)
@@ -442,7 +427,7 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 	}
 
 	// Combine and write
-	finalContent := CombineSections(finalSections)
+	finalContent := parsing.CombineSections(finalSections)
 	sessionOutput = fmt.Sprintf("Modified %d sections, %d characters for %s", len(finalSections), len(finalContent), d.targetDocFile)
 
 	if err := d.writeDocumentation(docPath, finalContent); err != nil {
@@ -717,7 +702,7 @@ func (d *DocumentationAgent) modifySpecificSections(ctx context.Context, existin
 			}
 
 			// Parse the generated content to extract hierarchical structure
-			parsedModified := ParseSections(modifiedSection.Content)
+			parsedModified := parsing.ParseSections(modifiedSection.Content)
 			if len(parsedModified) > 0 {
 				modifiedSection = parsedModified[0] // Take the full hierarchical section
 			}
@@ -797,19 +782,19 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 	exampleContent := tools.GetDefaultExampleContent()
 
 	// Parse sections from template
-	templateSections := ParseSections(templateContent)
+	templateSections := parsing.ParseSections(templateContent)
 	if len(templateSections) == 0 {
 		return nil, fmt.Errorf("no sections found in template")
 	}
 
 	// Parse sections from example
-	exampleSections := ParseSections(exampleContent)
+	exampleSections := parsing.ParseSections(exampleContent)
 
 	// Read existing documentation if it exists
 	existingContent, _ := d.readCurrentReadme()
 	var existingSections []Section
 	if existingContent != "" {
-		existingSections = ParseSections(existingContent)
+		existingSections = parsing.ParseSections(existingContent)
 	}
 
 	// Collect top-level sections to generate
@@ -942,19 +927,19 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	exampleContent := tools.GetDefaultExampleContent()
 
 	// Parse sections from template
-	templateSections := ParseSections(templateContent)
+	templateSections := parsing.ParseSections(templateContent)
 	if len(templateSections) == 0 {
 		return nil, fmt.Errorf("no sections found in template")
 	}
 
 	// Parse sections from example
-	exampleSections := ParseSections(exampleContent)
+	exampleSections := parsing.ParseSections(exampleContent)
 
 	// Read existing documentation if it exists
 	existingContent, _ := d.readCurrentReadme()
 	var existingSections []Section
 	if existingContent != "" {
-		existingSections = ParseSections(existingContent)
+		existingSections = parsing.ParseSections(existingContent)
 	}
 
 	// Collect top-level sections to generate
@@ -992,12 +977,12 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 			defer wg.Done()
 
 			// Find corresponding example section
-			exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
+			exampleSection := parsing.FindSectionByTitle(exampleSections, tmplSection.Title)
 
 			// Find existing section
 			var existingSection *Section
 			if len(existingSections) > 0 {
-				existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
+				existingSection = parsing.FindSectionByTitle(existingSections, tmplSection.Title)
 			}
 
 			// Build section context for workflow
@@ -1087,7 +1072,7 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	for _, sr := range results {
 		if sr != nil {
 			// Parse the content to get proper Section structure
-			parsedSections := ParseSections(sr.Content)
+			parsedSections := parsing.ParseSections(sr.Content)
 			if len(parsedSections) > 0 {
 				generatedSections = append(generatedSections, parsedSections[0])
 			} else {
@@ -1107,7 +1092,7 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	if pkgCtx != nil && pkgCtx.Manifest != nil {
 		packageTitle = pkgCtx.Manifest.Title
 	}
-	finalContent := CombineSectionsWithTitle(generatedSections, packageTitle)
+	finalContent := parsing.CombineSectionsWithTitle(generatedSections, packageTitle)
 
 	// Post-assembly structure validation
 	fmt.Printf("🔍 Validating document structure...\n")
@@ -1199,147 +1184,10 @@ type GenerationResult struct {
 	ConvergenceBonus bool
 }
 
-// DocumentSection represents a section of the documentation
-type DocumentSection struct {
-	Title   string // Section title (e.g., "## Troubleshooting")
-	Level   int    // Heading level (1 = #, 2 = ##, etc.)
-	Content string // Full section content including title and body
-	Length  int    // Length of content in characters
-}
-
-// parseDocumentIntoSections parses a markdown document into sections
-func parseDocumentIntoSections(content string) map[string]*DocumentSection {
-	sections := make(map[string]*DocumentSection)
-	lines := strings.Split(content, "\n")
-
-	var currentSection *DocumentSection
-	var currentContent strings.Builder
-	var currentTitle string
-
-	for i, line := range lines {
-		// Check if this is a heading
-		if strings.HasPrefix(line, "#") {
-			// Save previous section
-			if currentSection != nil {
-				currentSection.Content = currentContent.String()
-				currentSection.Length = len(currentSection.Content)
-				sections[currentTitle] = currentSection
-			}
-
-			// Determine heading level
-			level := 0
-			for _, ch := range line {
-				if ch == '#' {
-					level++
-				} else {
-					break
-				}
-			}
-
-			// Extract title (normalized for comparison)
-			title := strings.TrimSpace(strings.TrimLeft(line, "# "))
-			normalizedTitle := strings.ToLower(title)
-
-			currentSection = &DocumentSection{
-				Title: title,
-				Level: level,
-			}
-			currentTitle = normalizedTitle
-			currentContent.Reset()
-			currentContent.WriteString(line)
-			currentContent.WriteString("\n")
-		} else if currentSection != nil {
-			currentContent.WriteString(line)
-			if i < len(lines)-1 {
-				currentContent.WriteString("\n")
-			}
-		}
-	}
-
-	// Save last section
-	if currentSection != nil {
-		currentSection.Content = currentContent.String()
-		currentSection.Length = len(currentSection.Content)
-		sections[currentTitle] = currentSection
-	}
-
-	return sections
-}
-
-// isSectionBetter determines if newSection is better than oldSection
-// Better means: more detailed (longer) content with substantive information
-func isSectionBetter(newSection, oldSection *DocumentSection) bool {
-	if oldSection == nil {
-		return true
-	}
-	if newSection == nil {
-		return false
-	}
-
-	// Significantly longer content is better (20% or more)
-	if newSection.Length > oldSection.Length*12/10 {
-		return true
-	}
-
-	// Slightly shorter but within 10% is acceptable if it has more structure
-	// (more subsections, bullet points, tables)
-	if newSection.Length >= oldSection.Length*9/10 {
-		newStructure := countStructuralElements(newSection.Content)
-		oldStructure := countStructuralElements(oldSection.Content)
-		if newStructure > oldStructure {
-			return true
-		}
-	}
-
-	return false
-}
-
-// countStructuralElements counts structural elements in content
-func countStructuralElements(content string) int {
-	count := 0
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Count bullet points
-		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
-			count++
-		}
-		// Count numbered items
-		if len(trimmed) > 2 && trimmed[0] >= '1' && trimmed[0] <= '9' && trimmed[1] == '.' {
-			count++
-		}
-		// Count table rows
-		if strings.HasPrefix(trimmed, "|") {
-			count++
-		}
-		// Count code blocks
-		if strings.HasPrefix(trimmed, "```") {
-			count++
-		}
-		// Count subheadings
-		if strings.HasPrefix(trimmed, "##") {
-			count++
-		}
-	}
-	return count
-}
-
-// assembleBestDocument assembles a document from the best sections
-func assembleBestDocument(bestSections map[string]*DocumentSection, sectionOrder []string) string {
-	var result strings.Builder
-
-	for _, title := range sectionOrder {
-		normalizedTitle := strings.ToLower(title)
-		if section, exists := bestSections[normalizedTitle]; exists {
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(section.Content)
-		}
-	}
-
+// assembleBestDocument assembles a document from the best sections and post-processes it
+func assembleBestDocument(bestSections map[string]*Section, sectionOrder []string) string {
+	assembled := parsing.AssembleBestSections(bestSections, sectionOrder)
 	// Post-process to deduplicate links in the Vendor Documentation Links section
-	assembled := result.String()
 	return deduplicateVendorLinks(assembled)
 }
 
@@ -1526,7 +1374,7 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 
 	// Track best sections across iterations to avoid regression
 	// Sometimes later iterations produce worse output (truncated/summarized content) for specific sections
-	bestSections := make(map[string]*DocumentSection)
+	bestSections := make(map[string]*Section)
 	var sectionOrder []string // Preserve original section order
 
 	// Section-level iteration loop
@@ -1568,7 +1416,7 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 		tracing.RecordGenerationContent(iterSpan, len(content))
 
 		// Parse current iteration into sections
-		currentSections := parseDocumentIntoSections(content)
+		currentSections := parsing.ParseSectionsToMap(content)
 
 		// On first iteration, establish section order
 		if iteration == 1 {
@@ -1580,19 +1428,19 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 		sectionsUpdated := 0
 		for title, currentSection := range currentSections {
 			bestSection := bestSections[title]
-			if isSectionBetter(currentSection, bestSection) {
+			if parsing.IsSectionBetter(currentSection, bestSection) {
 				bestSections[title] = currentSection
 				sectionsUpdated++
 				if bestSection != nil {
 					fmt.Printf("  📈 Section '%s': updated (length: %d → %d)\n",
-						currentSection.Title, bestSection.Length, currentSection.Length)
+						currentSection.Title, bestSection.ContentLength(), currentSection.ContentLength())
 				} else {
 					fmt.Printf("  📌 Section '%s': new (length: %d)\n",
-						currentSection.Title, currentSection.Length)
+						currentSection.Title, currentSection.ContentLength())
 				}
 			} else if bestSection != nil {
 				fmt.Printf("  ⏸️  Section '%s': kept best (current: %d, best: %d)\n",
-					currentSection.Title, currentSection.Length, bestSection.Length)
+					currentSection.Title, currentSection.ContentLength(), bestSection.ContentLength())
 			}
 		}
 		fmt.Printf("  Updated %d/%d sections from iteration %d\n", sectionsUpdated, len(currentSections), iteration)
@@ -1851,7 +1699,7 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 	for _, title := range sectionOrder {
 		normalizedTitle := strings.ToLower(title)
 		if section, exists := bestSections[normalizedTitle]; exists {
-			fmt.Printf("  - %s: %d chars\n", section.Title, section.Length)
+			fmt.Printf("  - %s: %d chars\n", section.Title, section.ContentLength())
 		}
 	}
 	result.BestIteration = result.TotalIterations // All iterations contributed
@@ -1920,7 +1768,7 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 
 		// Compare with best and update if better
 		currentLength := len(content)
-		currentStructure := countStructuralElements(content)
+		currentStructure := parsing.CountStructuralElements(content)
 
 		isBetter := false
 		if bestContent == "" {
@@ -2045,10 +1893,10 @@ Your response must be the complete markdown document, nothing else. Start with:
 	}
 
 	// Extract markdown content from response
-	content := extractDocMarkdownContent(result.FinalContent)
+	content := parsing.ExtractMarkdownFromCodeBlock(result.FinalContent)
 	if content == "" {
 		// If no code block found, try to extract content starting from first heading
-		content = extractContentFromHeading(result.FinalContent)
+		content = parsing.ExtractContentFromHeading(result.FinalContent)
 	}
 	if content == "" {
 		content = result.FinalContent
@@ -2083,52 +1931,6 @@ func buildDocValidationFeedback(issues []string) string {
 	return feedback
 }
 
-// extractDocMarkdownContent extracts markdown from a response that may have code fences
-func extractDocMarkdownContent(response string) string {
-	// Look for markdown code block
-	if idx := strings.Index(response, "```markdown"); idx != -1 {
-		start := idx + len("```markdown")
-		if end := strings.Index(response[start:], "```"); end != -1 {
-			return strings.TrimSpace(response[start : start+end])
-		}
-	}
-	// Look for generic code block
-	if idx := strings.Index(response, "```"); idx != -1 {
-		start := idx + 3
-		// Skip language identifier if present
-		if newline := strings.Index(response[start:], "\n"); newline != -1 {
-			start += newline + 1
-		}
-		if end := strings.Index(response[start:], "```"); end != -1 {
-			return strings.TrimSpace(response[start : start+end])
-		}
-	}
-	return ""
-}
-
-// extractContentFromHeading extracts content starting from the first markdown heading
-func extractContentFromHeading(response string) string {
-	// Look for content starting with a markdown heading
-	lines := strings.Split(response, "\n")
-	startIdx := -1
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Found a markdown heading
-		if strings.HasPrefix(trimmed, "# ") || strings.HasPrefix(trimmed, "---") {
-			startIdx = i
-			break
-		}
-	}
-
-	if startIdx == -1 {
-		return ""
-	}
-
-	// Return everything from the heading onwards
-	return strings.TrimSpace(strings.Join(lines[startIdx:], "\n"))
-}
-
 // generateSectionsSequential generates all sections one at a time
 func (d *DocumentationAgent) generateSectionsSequential(ctx context.Context, workflowCfg workflow.Config, topLevelSections, exampleSections, existingSections []Section) ([]Section, error) {
 	fmt.Printf("📝 Generating %d sections sequentially...\n", len(topLevelSections))
@@ -2161,12 +1963,12 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, workflow
 	builder := workflow.NewBuilder(workflowCfg)
 
 	// Find corresponding example section
-	exampleSection := FindSectionByTitle(exampleSections, tmplSection.Title)
+	exampleSection := parsing.FindSectionByTitle(exampleSections, tmplSection.Title)
 
 	// Find existing section
 	var existingSection *Section
 	if len(existingSections) > 0 {
-		existingSection = FindSectionByTitle(existingSections, tmplSection.Title)
+		existingSection = parsing.FindSectionByTitle(existingSections, tmplSection.Title)
 	}
 
 	// Build section context for workflow
@@ -2213,7 +2015,7 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, workflow
 	}
 
 	// Parse to extract hierarchical structure
-	parsedGenerated := ParseSections(generatedSection.Content)
+	parsedGenerated := parsing.ParseSections(generatedSection.Content)
 	if len(parsedGenerated) > 0 {
 		generatedSection = parsedGenerated[0]
 	}
@@ -2293,7 +2095,7 @@ func (d *DocumentationAgent) DebugRunCriticOnly(ctx context.Context, printer Pri
 	}
 
 	// Parse into sections
-	sections := ParseSections(existingContent)
+	sections := parsing.ParseSections(existingContent)
 	if len(sections) == 0 {
 		return fmt.Errorf("no sections found in existing documentation")
 	}
@@ -2355,7 +2157,7 @@ func (d *DocumentationAgent) DebugRunValidatorOnly(ctx context.Context, printer 
 	}
 
 	// Parse into sections
-	sections := ParseSections(existingContent)
+	sections := parsing.ParseSections(existingContent)
 	if len(sections) == 0 {
 		return fmt.Errorf("no sections found in existing documentation")
 	}
@@ -2435,7 +2237,7 @@ func (d *DocumentationAgent) UpdateDocumentationGeneratorOnly(ctx context.Contex
 	}
 
 	// Combine sections into final document
-	finalContent := CombineSections(sections)
+	finalContent := parsing.CombineSections(sections)
 	sessionOutput = fmt.Sprintf("Generated %d sections, %d characters for %s (generator-only)", len(sections), len(finalContent), d.targetDocFile)
 
 	// Write the combined document
@@ -2633,7 +2435,7 @@ func (d *DocumentationAgent) ValidateAndFixDocumentStructure(ctx context.Context
 	}
 
 	// First, ensure the title is correct (this can be done programmatically)
-	content = EnsureDocumentTitle(content, packageTitle)
+	content = parsing.EnsureDocumentTitle(content, packageTitle)
 
 	// Validate structure
 	issues := d.validateDocumentStructure(content, pkgCtx)
@@ -2673,7 +2475,7 @@ func (d *DocumentationAgent) ValidateAndFixDocumentStructure(ctx context.Context
 	}
 
 	// Extract the fixed content from the result
-	fixedContent := extractMarkdownContent(result.FinalContent)
+	fixedContent := parsing.ExtractMarkdownContent(result.FinalContent)
 	if fixedContent == "" {
 		fixedContent = result.FinalContent
 	}
@@ -2686,32 +2488,6 @@ func (d *DocumentationAgent) ValidateAndFixDocumentStructure(ctx context.Context
 	}
 
 	return fixedContent, finalIssues, nil
-}
-
-// extractMarkdownContent extracts markdown content from LLM response
-func extractMarkdownContent(content string) string {
-	// Check if content is wrapped in markdown code blocks
-	if strings.HasPrefix(strings.TrimSpace(content), "```") {
-		lines := strings.Split(content, "\n")
-		var result strings.Builder
-		inCodeBlock := false
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "```") {
-				inCodeBlock = !inCodeBlock
-				continue
-			}
-			if inCodeBlock {
-				result.WriteString(line)
-				result.WriteString("\n")
-			}
-		}
-		extracted := result.String()
-		if extracted != "" {
-			return strings.TrimSpace(extracted)
-		}
-	}
-	return content
 }
 
 // min returns the smaller of two integers

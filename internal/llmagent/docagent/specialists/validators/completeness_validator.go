@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 const (
@@ -258,7 +260,7 @@ func (v *CompletenessValidator) checkValidationSteps(content string) []Validatio
 	}
 
 	// Extract validation section for detailed checks
-	validationSection := v.extractSection(content, "validation")
+	validationSection := parsing.ExtractSectionByKeyword(content, []string{"validation"})
 	if validationSection == "" {
 		validationSection = content // Fall back to full content
 	}
@@ -566,7 +568,7 @@ func (v *CompletenessValidator) checkAgentDeploymentCompleteness(content string,
 	}
 
 	// Extract the agent deployment section
-	deploymentSection := v.extractSection(content, "agent")
+	deploymentSection := parsing.ExtractSectionByKeyword(content, []string{"agent"})
 
 	// Check for key agent deployment content
 	deploymentLower := strings.ToLower(deploymentSection)
@@ -648,7 +650,7 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 	}
 
 	// Extract the troubleshooting section
-	troubleshootingSection := v.extractSection(content, "troubleshooting")
+	troubleshootingSection := parsing.ExtractSectionByKeyword(content, []string{"troubleshooting"})
 	troubleshootingLower := strings.ToLower(troubleshootingSection)
 
 	// If section extraction failed, fall back to searching entire content from troubleshooting header
@@ -773,71 +775,6 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 	}
 
 	return issues
-}
-
-// extractSection extracts a section by keyword, including all subsections
-func (v *CompletenessValidator) extractSection(content string, sectionKeyword string) string {
-	contentLower := strings.ToLower(content)
-	keyword := strings.ToLower(sectionKeyword)
-
-	// Find section start - try H2 first (## Section), then H3 (### Section)
-	patterns := []struct {
-		pattern string
-		level   int // 2 for ##, 3 for ###
-	}{
-		{"## " + keyword, 2},
-		{"### " + keyword, 3},
-	}
-
-	for _, p := range patterns {
-		idx := strings.Index(contentLower, p.pattern)
-		if idx == -1 {
-			continue
-		}
-
-		// Find next section at SAME or HIGHER level (fewer #'s)
-		// For ## section, stop at next ## or #
-		// For ### section, stop at next ###, ##, or #
-		rest := content[idx:]
-		nextSection := -1
-
-		lines := strings.Split(rest, "\n")
-		charCount := 0
-		for i, line := range lines {
-			if i == 0 {
-				// Skip the first line (the section header itself)
-				charCount += len(line) + 1 // +1 for newline
-				continue
-			}
-
-			trimmed := strings.TrimSpace(line)
-			if strings.HasPrefix(trimmed, "#") {
-				// Count heading level
-				headingLevel := 0
-				for _, c := range trimmed {
-					if c == '#' {
-						headingLevel++
-					} else {
-						break
-					}
-				}
-
-				// Stop only at same level or higher (fewer #'s = higher level)
-				if headingLevel > 0 && headingLevel <= p.level {
-					nextSection = charCount
-					break
-				}
-			}
-			charCount += len(line) + 1 // +1 for newline
-		}
-
-		if nextSection == -1 {
-			return rest
-		}
-		return rest[:nextSection]
-	}
-
-	return ""
 }
 
 // extractInputTypes gets all input types from the manifest

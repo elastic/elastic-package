@@ -213,4 +213,3 @@ Reference info.
 		t.Error("Expected valid result for properly structured document")
 	}
 }
-

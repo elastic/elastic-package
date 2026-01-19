@@ -89,7 +89,7 @@ Troubleshooting content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sections := ParseSections(tt.content)
+			sections := parsing.ParseSections(tt.content)
 
 			// Check number of top-level sections
 			assert.Len(t, sections, tt.expectedSections, "number of top-level sections")
@@ -304,7 +304,7 @@ Subsection content.
 
 More content.`
 
-	sections := ParseSections(content)
+	sections := parsing.ParseSections(content)
 
 	require.Len(t, sections, 2)
 	assert.True(t, sections[0].HasPreserve, "Section 1 should have preserve block")
@@ -318,7 +318,7 @@ func TestParseSections_EdgeCases(t *testing.T) {
 
 This starts with level 3.`
 
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 
 		// Should still parse, but subsection becomes a top-level item
 		// (This is an edge case - ideally shouldn't happen, but parser should handle it gracefully)
@@ -327,13 +327,13 @@ This starts with level 3.`
 
 	t.Run("empty content", func(t *testing.T) {
 		content := ""
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 		assert.Len(t, sections, 0)
 	})
 
 	t.Run("no headers", func(t *testing.T) {
 		content := "Just some text without headers"
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 		assert.Len(t, sections, 0)
 	})
 }

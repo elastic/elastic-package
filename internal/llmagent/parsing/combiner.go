@@ -52,87 +52,6 @@ func CombineSectionsWithTitle(sections []Section, packageTitle string) string {
 	return title + sectionsContent
 }
 
-// IsSectionBetter determines if newSection is better than oldSection.
-// Better means: more detailed (longer) content with substantive information.
-func IsSectionBetter(newSection, oldSection *Section) bool {
-	if oldSection == nil {
-		return true
-	}
-	if newSection == nil {
-		return false
-	}
-
-	newLength := newSection.ContentLength()
-	oldLength := oldSection.ContentLength()
-
-	// Significantly longer content is better (20% or more)
-	if newLength > oldLength*12/10 {
-		return true
-	}
-
-	// Slightly shorter but within 10% is acceptable if it has more structure
-	// (more subsections, bullet points, tables)
-	if newLength >= oldLength*9/10 {
-		newStructure := CountStructuralElements(newSection.GetAllContent())
-		oldStructure := CountStructuralElements(oldSection.GetAllContent())
-		if newStructure > oldStructure {
-			return true
-		}
-	}
-
-	return false
-}
-
-// CountStructuralElements counts structural elements in content.
-// Counts bullet points, numbered items, table rows, code blocks, and subheadings.
-func CountStructuralElements(content string) int {
-	count := 0
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		// Count bullet points
-		if strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "- ") {
-			count++
-		}
-		// Count numbered items
-		if len(trimmed) > 2 && trimmed[0] >= '1' && trimmed[0] <= '9' && trimmed[1] == '.' {
-			count++
-		}
-		// Count table rows
-		if strings.HasPrefix(trimmed, "|") {
-			count++
-		}
-		// Count code blocks
-		if strings.HasPrefix(trimmed, "```") {
-			count++
-		}
-		// Count subheadings
-		if strings.HasPrefix(trimmed, "##") {
-			count++
-		}
-	}
-	return count
-}
-
-// AssembleBestSections assembles a document from the best sections.
-// Takes a map of sections keyed by normalized (lowercase) title and a slice of titles in order.
-// Returns the assembled document content.
-func AssembleBestSections(bestSections map[string]*Section, sectionOrder []string) string {
-	var result strings.Builder
-
-	for _, title := range sectionOrder {
-		normalizedTitle := strings.ToLower(title)
-		if section, exists := bestSections[normalizedTitle]; exists {
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(section.GetAllContent())
-		}
-	}
-
-	return result.String()
-}
-
 // EnsureDocumentTitle ensures the document starts with the correct title format.
 // If the document already has an H1 title, it checks if it matches the expected format.
 // Returns the content with the correct title.
@@ -174,4 +93,3 @@ func EnsureDocumentTitle(content, packageTitle string) string {
 	// No H1 title, prepend one
 	return expectedTitle + "\n\n" + aiNotice + "\n\n" + content
 }
-

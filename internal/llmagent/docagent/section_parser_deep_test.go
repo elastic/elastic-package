@@ -7,8 +7,10 @@ package docagent
 import (
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
 func TestParseSections_DeepNesting(t *testing.T) {
@@ -29,7 +31,7 @@ Level 4 content.
 
 More level 3 content.`
 
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 
 		// Should have 1 top-level section (level 2)
 		assert.Len(t, sections, 1)
@@ -60,7 +62,7 @@ More level 3 content.`
 
 Deep content.`
 
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 
 		assert.Len(t, sections, 1)
 		assert.Equal(t, 2, sections[0].Level)
@@ -90,7 +92,7 @@ Content 3B (should be under 2A, not 4A).
 
 Content 2B.`
 
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 
 		// Should have 2 top-level sections
 		assert.Len(t, sections, 2)
@@ -120,7 +122,7 @@ Content 2.
 
 Content 4.`
 
-		sections := ParseSections(content)
+		sections := parsing.ParseSections(content)
 
 		assert.Len(t, sections, 1)
 		assert.Equal(t, 2, sections[0].Level)
@@ -135,7 +137,7 @@ Content 4.`
 func TestParseSections_RealTemplate(t *testing.T) {
 	t.Run("correctly parses package readme template", func(t *testing.T) {
 		templateContent := archetype.GetPackageDocsReadmeTemplate()
-		sections := ParseSections(templateContent)
+		sections := parsing.ParseSections(templateContent)
 
 		// Verify we have the expected top-level sections
 		assert.Len(t, sections, 7)

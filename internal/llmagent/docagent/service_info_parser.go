@@ -40,7 +40,7 @@ func (s *ServiceInfoManager) Load() error {
 	}
 
 	// Parse the content into sections
-	s.sections = ParseSections(string(content))
+	s.sections = parsing.ParseSections(string(content))
 	s.loaded = true
 
 	return nil
@@ -79,7 +79,7 @@ func (s *ServiceInfoManager) GetAllSections() string {
 	}
 
 	// Combine all top-level sections using CombineSections
-	return CombineSections(s.sections)
+	return parsing.CombineSections(s.sections)
 }
 
 // IsAvailable checks if service_info.md has been successfully loaded

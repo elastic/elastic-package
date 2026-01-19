@@ -53,7 +53,7 @@ Evaluate against these criteria (rate each 1-10):
    - Bad: "The user must configure..." "It is recommended that..."
 
 2. **Accessibility**: Descriptive links, plain language, no directional terms
-   - Good: "See the [installation guide](...)" 
+   - Good: "See the [installation guide](...)"
    - Bad: "Click [here](...)" or "See the documentation above"
 
 3. **Grammar**: American English, present tense, Oxford comma, sentence case headings

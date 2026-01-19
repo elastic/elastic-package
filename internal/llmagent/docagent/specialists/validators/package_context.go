@@ -14,6 +14,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -108,6 +109,9 @@ type PackageContext struct {
 	// DataStreams contains information about each data stream
 	DataStreams []DataStreamInfo
 
+	// InputTypes contains unique input types used in this package (e.g., "logfile", "tcp", "httpjson")
+	InputTypes []string
+
 	// Fields maps data stream names to their field definitions
 	Fields map[string][]FieldInfo
 
@@ -160,6 +164,7 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 	ctx := &PackageContext{
 		PackageRoot: packageRoot,
 		DataStreams: []DataStreamInfo{},
+		InputTypes:  []string{},
 		Fields:      make(map[string][]FieldInfo),
 	}
 
@@ -170,7 +175,10 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 	}
 	ctx.Manifest = manifest
 
-	// 2. Enumerate and load data streams
+	// 2. Extract input types from policy templates
+	ctx.InputTypes = extractInputTypes(manifest)
+
+	// 3. Enumerate and load data streams
 	dataStreams, err := loadDataStreams(packageRoot)
 	if err != nil {
 		// Non-fatal: package might not have data streams
@@ -178,7 +186,7 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 	}
 	ctx.DataStreams = dataStreams
 
-	// 3. Load fields for each data stream
+	// 4. Load fields for each data stream
 	for _, ds := range dataStreams {
 		fields, err := loadFieldsForDataStream(packageRoot, ds.Name)
 		if err != nil {
@@ -188,7 +196,7 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 		ctx.Fields[ds.Name] = fields
 	}
 
-	// 4. Load service_info.md (if exists) and extract links + vendor setup content
+	// 5. Load service_info.md (if exists) and extract links + vendor setup content
 	serviceInfoPath := filepath.Join(packageRoot, "docs", "knowledge_base", "service_info.md")
 	if content, err := os.ReadFile(serviceInfoPath); err == nil {
 		ctx.ServiceInfo = string(content)
@@ -196,13 +204,36 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 		ctx.VendorSetup = extractVendorSetupContent(ctx.ServiceInfo)
 	}
 
-	// 5. Load existing README (if exists)
+	// 6. Load existing README (if exists)
 	readmePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
 	if content, err := os.ReadFile(readmePath); err == nil {
 		ctx.ExistingReadme = string(content)
 	}
 
 	return ctx, nil
+}
+
+// extractInputTypes extracts unique input types from the package manifest
+func extractInputTypes(manifest *packages.PackageManifest) []string {
+	seen := make(map[string]bool)
+	var inputTypes []string
+
+	for _, pt := range manifest.PolicyTemplates {
+		// Check inputs within policy template
+		for _, input := range pt.Inputs {
+			if input.Type != "" && !seen[input.Type] {
+				seen[input.Type] = true
+				inputTypes = append(inputTypes, input.Type)
+			}
+		}
+		// Check input package style (pt.Input field)
+		if pt.Input != "" && !seen[pt.Input] {
+			seen[pt.Input] = true
+			inputTypes = append(inputTypes, pt.Input)
+		}
+	}
+
+	return inputTypes
 }
 
 // loadDataStreams enumerates all data streams in the package
@@ -539,25 +570,25 @@ func extractVendorSetupContent(content string) *VendorSetupContent {
 		strings.Contains(contentLower, "## troubleshooting")
 
 	// Extract actual content for each section
-	setup.VendorPrerequisites = extractSection(content, []string{
+	setup.VendorPrerequisites = parsing.ExtractSectionByKeyword(content, []string{
 		"## Vendor prerequisites",
 		"## Prerequisites",
 	})
-	setup.VendorSetupSteps = extractSection(content, []string{
+	setup.VendorSetupSteps = parsing.ExtractSectionByKeyword(content, []string{
 		"## Vendor set up steps",
 		"## Vendor setup steps",
 		"## Vendor Configuration",
 	})
-	setup.KibanaSetupSteps = extractSection(content, []string{
+	setup.KibanaSetupSteps = parsing.ExtractSectionByKeyword(content, []string{
 		"## Kibana set up steps",
 		"## Kibana setup",
 		"## Fleet Setup",
 	})
-	setup.ValidationSteps = extractSection(content, []string{
+	setup.ValidationSteps = parsing.ExtractSectionByKeyword(content, []string{
 		"# Validation Steps",
 		"## Validation",
 	})
-	setup.Troubleshooting = extractSection(content, []string{
+	setup.Troubleshooting = parsing.ExtractSectionByKeyword(content, []string{
 		"# Troubleshooting",
 		"## Troubleshooting",
 	})
@@ -571,57 +602,6 @@ func extractVendorSetupContent(content string) *VendorSetupContent {
 	}
 
 	return setup
-}
-
-// extractSection extracts content from a section until the next same-level or higher heading
-func extractSection(content string, headers []string) string {
-	contentLower := strings.ToLower(content)
-
-	for _, header := range headers {
-		headerLower := strings.ToLower(header)
-		idx := strings.Index(contentLower, headerLower)
-		if idx == -1 {
-			continue
-		}
-
-		// Find the start of the section content (after the header line)
-		startIdx := idx
-		newlineIdx := strings.Index(content[startIdx:], "\n")
-		if newlineIdx != -1 {
-			startIdx += newlineIdx + 1
-		}
-
-		// Determine header level
-		headerLevel := strings.Count(header, "#")
-
-		// Find the next section at the same or higher level
-		rest := content[startIdx:]
-		lines := strings.Split(rest, "\n")
-		var sectionContent []string
-
-		for _, line := range lines {
-			// Check if this is a header at the same or higher level
-			if strings.HasPrefix(line, "#") {
-				lineHeaderLevel := 0
-				for _, c := range line {
-					if c == '#' {
-						lineHeaderLevel++
-					} else {
-						break
-					}
-				}
-				if lineHeaderLevel > 0 && lineHeaderLevel <= headerLevel {
-					// Found the next section at same or higher level
-					break
-				}
-			}
-			sectionContent = append(sectionContent, line)
-		}
-
-		return strings.TrimSpace(strings.Join(sectionContent, "\n"))
-	}
-
-	return ""
 }
 
 // AdvancedSetting represents a configuration variable with important caveats

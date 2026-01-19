@@ -12,40 +12,30 @@ import (
 
 // sectionInstructions contains section-specific generation instructions.
 // Keys are lowercase section titles for case-insensitive matching.
-// IMPORTANT: Each section includes a heading level reminder to prevent H2/H3 confusion.
 var sectionInstructions = map[string]string{
-	"overview": `HEADING LEVEL: This is a MAIN section - use "## Overview" (H2, two #)
-OVERVIEW SECTION REQUIREMENTS:
+	"overview": `OVERVIEW SECTION REQUIREMENTS:
 - Start with a summary of what data this integration collects and what use cases it enables
 - Use format: "The {Title} integration for Elastic enables collection of..."
 - Include what the integration facilitates (security monitoring, traffic analysis, etc.)
-- MUST include these subsections (H3, three #):
+- MUST include these subsections:
   ### Compatibility
   - List compatible versions of the 3rd party software/hardware
   - Include tested Elastic Stack version compatibility
 
   ### How it works
   - Explain the data collection method (syslog, API, log files, etc.)
-  - Describe the data flow from source to Elastic
+  - Describe the data flow from source to Elastic`,
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.`,
-
-	"what data does this integration collect?": `HEADING LEVEL: This is a MAIN section - use "## What data does this integration collect?" (H2, two #)
-DATA COLLECTION SECTION REQUIREMENTS:
+	"what data does this integration collect?": `DATA COLLECTION SECTION REQUIREMENTS:
 - List specific data types collected (logs, metrics, traces)
 - Use bullet points to enumerate data types with brief descriptions
-- Start every list with an introductory sentence ending with a colon
-- MUST include this subsection (H3, three #):
+- MUST include this subsection:
   ### Supported use cases
   - List 3-5 key use cases this integration enables
   - Focus on value to the user (threat detection, compliance, monitoring)
-  - Be specific: "Real-time threat detection" not just "security"
+  - Be specific: "Real-time threat detection" not just "security"`,
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
-- Use monospace for data stream names: {backquote}audit{backquote}, {backquote}log{backquote}`,
-
-	"what do i need to use this integration?": `HEADING LEVEL: This is a MAIN section - use "## What do I need to use this integration?" (H2, two #)
-PREREQUISITES SECTION REQUIREMENTS:
+	"what do i need to use this integration?": `PREREQUISITES SECTION REQUIREMENTS:
 - List ALL prerequisites before installation
 - Include vendor-side requirements:
   - Admin access/credentials needed
@@ -56,9 +46,8 @@ PREREQUISITES SECTION REQUIREMENTS:
   - Fleet/Agent requirements
   - Any required subscriptions/licenses`,
 
-	"how do i deploy this integration?": `HEADING LEVEL: This is a MAIN section - use "## How do I deploy this integration?" (H2, two #)
-DEPLOYMENT SECTION REQUIREMENTS:
-- MUST include these subsections in order (H3, three #):
+	"how do i deploy this integration?": `DEPLOYMENT SECTION REQUIREMENTS:
+- MUST include these subsections in order:
 
   ### Agent-based deployment
   - Standard Elastic Agent installation guidance
@@ -82,16 +71,13 @@ DEPLOYMENT SECTION REQUIREMENTS:
   ### Validation
   - Steps to verify data is flowing
   - Check Fleet agent status
-  - Check Discover for data using ACTUAL data stream dataset names (see DATA STREAMS FOR VALIDATION below)
-  - DO NOT assume dataset names - use the exact names provided
-  - For KQL filters, use data_stream.dataset with the exact values listed
+  - Check Discover for data
   - Verify dashboards are populated`,
 
-	"troubleshooting": `HEADING LEVEL: This is a MAIN section - use "## Troubleshooting" (H2, two #)
-TROUBLESHOOTING SECTION REQUIREMENTS:
+	"troubleshooting": `TROUBLESHOOTING SECTION REQUIREMENTS:
 - Format as Issue / Solution pairs
 - Include common issues specific to this integration
-- Include subsections for different issue types (H3, three #):
+- Include subsections for different issue types:
   ### General debugging steps
   - Agent health verification
   - Integration status check
@@ -102,28 +88,19 @@ TROUBLESHOOTING SECTION REQUIREMENTS:
 
   ### {Input type} input troubleshooting
   - Add a subsection for each input type used (TCP, UDP, API, etc.)
-  - Include troubleshooting tables with: Symptom | Cause | Solution
+  - Include troubleshooting tables with: Symptom | Cause | Solution`,
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
-- Use ### subheadings for major issue categories, not bold list items
-- Use monospace for configuration values, file paths, and commands`,
-
-	"performance and scaling": `HEADING LEVEL: This is a MAIN section - use "## Performance and scaling" (H2, two #)
-PERFORMANCE AND SCALING SECTION REQUIREMENTS:
+	"performance and scaling": `PERFORMANCE AND SCALING SECTION REQUIREMENTS:
 - Provide input-specific scaling guidance based on inputs used:
   - TCP: fault tolerance, load balancing
   - UDP: data loss warnings, buffer sizing
   - HTTP/API: rate limiting, polling intervals
   - File: harvester limits, file rotation
 - Include the standard architecture link:
-  "For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation."
+  "For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation."`,
 
-REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
-- Use monospace for configuration settings: {backquote}harvester_limit{backquote}, {backquote}close_inactive{backquote}`,
-
-	"reference": `HEADING LEVEL: This is a MAIN section - use "## Reference" (H2, two #)
-REFERENCE SECTION REQUIREMENTS:
-- Create a ### subsection (H3, three #) for EACH data stream in the package
+	"reference": `REFERENCE SECTION REQUIREMENTS:
+- Create a ### subsection for EACH data stream in the package
 - For EACH data stream, use this EXACT format:
 
   ### {datastream_name}
@@ -141,7 +118,7 @@ CRITICAL RULES:
 4. Use list_directory on "data_stream/" to discover all data stream names
 5. Check each data_stream/{name}/ folder for sample_event.json
 
-ALSO INCLUDE (H3, three #):
+ALSO INCLUDE:
   ### Inputs used
   {{inputDocs}}
 
@@ -180,23 +157,18 @@ func GetSectionInstructions(sectionTitle string, pkgCtx *validators.PackageConte
 		}
 	}
 
-	// For deployment section, add package title and data stream info for validation
+	// For deployment section, add package title if available
 	if titleLower == "how do i deploy this integration?" && pkgCtx != nil && pkgCtx.Manifest != nil {
 		instructions = strings.ReplaceAll(instructions, "{Product}", pkgCtx.Manifest.Title)
-
-		// Add data stream info for validation section
-		if len(pkgCtx.DataStreams) > 0 {
-			instructions += "\n\nDATA STREAMS FOR VALIDATION:\n"
-			for _, ds := range pkgCtx.DataStreams {
-				dataset := ds.Dataset
-				if dataset == "" {
-					dataset = pkgCtx.Manifest.Name + "." + ds.Name
-				}
-				instructions += "- `" + dataset + "` (type: " + ds.Type + ")\n"
-			}
-			instructions += "\nUse these EXACT dataset names in KQL filters, not assumed names.\n"
-		}
 	}
 
 	return instructions
 }
+
+// HasSectionInstructions returns true if there are specific instructions for this section.
+func HasSectionInstructions(sectionTitle string) bool {
+	titleLower := strings.ToLower(strings.TrimSpace(sectionTitle))
+	_, found := sectionInstructions[titleLower]
+	return found
+}
+

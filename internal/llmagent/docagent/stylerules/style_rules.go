@@ -45,7 +45,7 @@ This integration facilitates:
 
 ### MORE WRONG PATTERNS (never use these):
 - "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
-- "**Fault tolerance**:", "**Scaling guidance**:" → WRONG  
+- "**Fault tolerance**:", "**Scaling guidance**:" → WRONG
 - "**Note**:", "**Warning**:", "**Important**:" → WRONG
 - "**TCP Socket Method**:", "**File Method**:" → WRONG
 - "**Permissions**:", "**Network access**:" → WRONG

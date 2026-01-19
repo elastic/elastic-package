@@ -65,7 +65,7 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
 ### Lists and tables
 
 -   **Lists**: Use numbered lists (`1.`) for sequential steps. Use bulleted lists (`*` or `-`) for non-sequential items.
--   **ALWAYS** introduce a list with a complete sentence or a fragment ending in a colon.
+-   **ALWAYS** introduce a list with a complete sentence or a fragment ending in a colon.m
 
     **WRONG**:
     ```

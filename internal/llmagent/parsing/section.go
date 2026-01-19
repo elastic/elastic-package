@@ -41,11 +41,6 @@ func (s Section) GetAllContent() string {
 	return s.Content
 }
 
-// ContentLength returns the length of the section's full content
-func (s Section) ContentLength() int {
-	return len(s.GetAllContent())
-}
-
 // ParseSections extracts sections from markdown content based on headers (##, ###, ####, etc.)
 // and builds a hierarchical tree where sections at level N+1 are children of sections at level N
 func ParseSections(content string) []Section {
@@ -139,15 +134,6 @@ func ParseSections(content string) []Section {
 	}
 
 	return sections
-}
-
-// StartsWithHeader checks if a line starts with a markdown header of the given level and title
-func StartsWithHeader(line, title string, level int) bool {
-	lineLevel, lineTitle := parseHeaderLine(line)
-	if lineLevel != level {
-		return false
-	}
-	return strings.EqualFold(strings.TrimSpace(lineTitle), strings.TrimSpace(title))
 }
 
 // parseHeaderLine checks if a line is a markdown header and returns its level and title
@@ -244,23 +230,6 @@ func extractOwnContent(content string, subsections []Section) string {
 	return strings.Join(ownLines, "\n")
 }
 
-// ParseSectionsToMap parses markdown content and returns a map of sections keyed by normalized (lowercase) title.
-// This flattens the hierarchy into a single map for easy lookup.
-func ParseSectionsToMap(content string) map[string]*Section {
-	sections := ParseSections(content)
-	flat := FlattenSections(sections)
-
-	result := make(map[string]*Section)
-	for i := range flat {
-		normalizedTitle := strings.ToLower(strings.TrimSpace(flat[i].Title))
-		// Only keep first occurrence if duplicate titles exist
-		if _, exists := result[normalizedTitle]; !exists {
-			result[normalizedTitle] = &flat[i]
-		}
-	}
-	return result
-}
-
 // FindSectionByTitle finds a section with the given title (case-insensitive, fuzzy match)
 func FindSectionByTitle(sections []Section, title string) *Section {
 	titleLower := strings.ToLower(strings.TrimSpace(title))
@@ -354,84 +323,4 @@ func GetParentSection(sections []Section, subsectionTitle string) *Section {
 		}
 	}
 	return nil
-}
-
-// ExtractSectionByKeyword extracts content from a section by keyword(s).
-// It searches for headers containing the keyword(s) and returns the section content
-// up until the next same-level or higher-level heading.
-// The keywords are matched case-insensitively.
-func ExtractSectionByKeyword(content string, keywords []string) string {
-	contentLower := strings.ToLower(content)
-
-	for _, keyword := range keywords {
-		keywordLower := strings.ToLower(keyword)
-
-		// If keyword starts with #, treat it as a full header pattern
-		var idx int
-		var headerLevel int
-		if strings.HasPrefix(keyword, "#") {
-			idx = strings.Index(contentLower, keywordLower)
-			if idx == -1 {
-				continue
-			}
-			// Count # characters to determine level
-			headerLevel = 0
-			for _, c := range keyword {
-				if c == '#' {
-					headerLevel++
-				} else {
-					break
-				}
-			}
-		} else {
-			// Try "## keyword" first, then "### keyword"
-			idx = strings.Index(contentLower, "## "+keywordLower)
-			headerLevel = 2
-			if idx == -1 {
-				idx = strings.Index(contentLower, "### "+keywordLower)
-				headerLevel = 3
-			}
-			if idx == -1 {
-				continue
-			}
-		}
-
-		// Find the start of the section content (after the header line)
-		startIdx := idx
-		newlineIdx := strings.Index(content[startIdx:], "\n")
-		if newlineIdx != -1 {
-			startIdx += newlineIdx + 1
-		}
-
-		// Find the next section at the same or higher level
-		rest := content[startIdx:]
-		lines := strings.Split(rest, "\n")
-		var sectionContent []string
-
-		for _, line := range lines {
-			// Check if this is a header at the same or higher level
-			if strings.HasPrefix(line, "#") {
-				lineHeaderLevel := 0
-				for _, c := range line {
-					if c == '#' {
-						lineHeaderLevel++
-					} else {
-						break
-					}
-				}
-				if lineHeaderLevel > 0 && lineHeaderLevel <= headerLevel {
-					// Found the next section at same or higher level
-					break
-				}
-			}
-			sectionContent = append(sectionContent, line)
-		}
-
-		result := strings.TrimSpace(strings.Join(sectionContent, "\n"))
-		if result != "" {
-			return result
-		}
-	}
-
-	return ""
 }
