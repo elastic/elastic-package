@@ -11,6 +11,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 
 const (
@@ -36,8 +37,8 @@ func (g *GeneratorAgent) Description() string {
 	return generatorAgentDescription
 }
 
-// generatorInstruction is the system instruction for the generator agent
-const generatorInstruction = `You are a documentation generator for Elastic integration packages.
+// generatorInstructionPrefix is the first part of the system instruction
+const generatorInstructionPrefix = `You are a documentation generator for Elastic integration packages.
 Your task is to generate high-quality documentation content for a SINGLE SECTION.
 
 ## Input
@@ -64,52 +65,10 @@ Start directly with the section heading at the correct level (## for level 2, ##
 6. If AdditionalContext contains validation feedback, fix ALL mentioned issues
 7. If AdditionalContext contains vendor documentation links, include them appropriately
 
-## FORMATTING RULES - READ BEFORE GENERATING (CRITICAL - WILL BE REJECTED IF VIOLATED)
+`
 
-### NEVER USE BOLD FOR LIST ITEMS (this is the #1 reason for rejection):
-
-WRONG - This WILL be rejected:
-This integration facilitates:
-- **Security monitoring**: Ingests audit logs...
-- **Operational visibility**: Collects logs...
-- **Performance analysis**: Gathers metrics...
-
-RIGHT - Use plain text:
-This integration facilitates:
-- Security monitoring: Ingests audit logs...
-- Operational visibility: Collects logs...
-- Performance analysis: Gathers metrics...
-
-### MORE WRONG PATTERNS (never use these):
-- "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
-- "**Fault tolerance**:", "**Scaling guidance**:" → WRONG  
-- "**Note**:", "**Warning**:", "**Important**:" → WRONG
-- "**TCP Socket Method**:", "**File Method**:" → WRONG
-- "**Permissions**:", "**Network access**:" → WRONG
-- "**Audit device is not enabled**:" → WRONG
-- "**No data is being collected**:" → WRONG
-
-### ONLY USE BOLD FOR UI ELEMENTS:
-- Menu paths: **Settings** > **Logging**
-- Buttons: Click **Save**
-- Field names in UI: In the **Host** field
-
-### EVERY LIST MUST HAVE AN INTRODUCTION:
-WRONG:
-- Item one
-- Item two
-
-RIGHT:
-This integration supports the following:
-- Item one
-- Item two
-
-### USE MONOSPACE FOR:
-- Code: ` + "`vault audit enable`" + `
-- File paths: ` + "`/var/log/vault/`" + `  
-- Config values: ` + "`true`" + `, ` + "`8200`" + `
-- Data streams: ` + "`audit`" + `, ` + "`log`" + `
-
+// generatorInstructionSuffix is the second part of the system instruction (after formatting rules)
+const generatorInstructionSuffix = `
 ## Vendor Setup Documentation (CRITICAL)
 The "## How do I deploy this integration?" section MUST include comprehensive vendor setup:
 
@@ -359,6 +318,9 @@ Output the markdown content directly. Start with the section heading and include
 
 // Build creates the underlying ADK agent.
 func (g *GeneratorAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
+	// Build the full instruction by combining prefix, shared formatting rules, and suffix
+	instruction := generatorInstructionPrefix + stylerules.FullFormattingRules + generatorInstructionSuffix
+
 	// Note: CachedContent is not compatible with ADK llmagent because
 	// Gemini doesn't allow CachedContent with system_instruction or tools.
 	// We rely on Gemini's implicit caching for repeated content.
@@ -366,7 +328,7 @@ func (g *GeneratorAgent) Build(ctx context.Context, cfg validators.AgentConfig) 
 		Name:        generatorAgentName,
 		Description: generatorAgentDescription,
 		Model:       cfg.Model,
-		Instruction: generatorInstruction,
+		Instruction: instruction,
 		Tools:       cfg.Tools,
 		Toolsets:    cfg.Toolsets,
 	})

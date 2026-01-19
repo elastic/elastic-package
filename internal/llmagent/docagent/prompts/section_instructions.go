@@ -28,13 +28,7 @@ OVERVIEW SECTION REQUIREMENTS:
   - Explain the data collection method (syslog, API, log files, etc.)
   - Describe the data flow from source to Elastic
 
-FORMATTING RULES (CRITICAL - automatic rejection if violated):
-- Do NOT use bold for list item headings
-  WRONG: - **Security monitoring**: Ingests audit logs...
-  WRONG: - **Performance analysis**: Gathers telemetry...
-  RIGHT: - Security monitoring: Ingests audit logs...
-  RIGHT: - Performance analysis: Gathers telemetry...
-- The "This integration facilitates:" list must use plain text, NOT bold`,
+REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.`,
 
 	"what data does this integration collect?": `HEADING LEVEL: This is a MAIN section - use "## What data does this integration collect?" (H2, two #)
 DATA COLLECTION SECTION REQUIREMENTS:
@@ -47,9 +41,7 @@ DATA COLLECTION SECTION REQUIREMENTS:
   - Focus on value to the user (threat detection, compliance, monitoring)
   - Be specific: "Real-time threat detection" not just "security"
 
-FORMATTING RULES:
-- Do NOT use bold for list item headings (e.g., "**Traffic logs**:" is WRONG)
-- Use plain text: "Traffic logs: Records of firewall decisions..."
+REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
 - Use monospace for data stream names: {backquote}audit{backquote}, {backquote}log{backquote}`,
 
 	"what do i need to use this integration?": `HEADING LEVEL: This is a MAIN section - use "## What do I need to use this integration?" (H2, two #)
@@ -110,12 +102,8 @@ TROUBLESHOOTING SECTION REQUIREMENTS:
   - Add a subsection for each input type used (TCP, UDP, API, etc.)
   - Include troubleshooting tables with: Symptom | Cause | Solution
 
-FORMATTING RULES (CRITICAL):
-- Do NOT use bold for issue names in lists
-  WRONG: - **No data is being collected**: Verify network...
-  RIGHT: - No data is being collected: Verify network...
+REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
 - Use ### subheadings for major issue categories, not bold list items
-- Do NOT use **Note**: or **Warning**: - use plain text instead
 - Use monospace for configuration values, file paths, and commands`,
 
 	"performance and scaling": `HEADING LEVEL: This is a MAIN section - use "## Performance and scaling" (H2, two #)
@@ -128,9 +116,7 @@ PERFORMANCE AND SCALING SECTION REQUIREMENTS:
 - Include the standard architecture link:
   "For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation."
 
-FORMATTING RULES:
-- Do NOT use bold for conceptual terms like "**Fault Tolerance**:" or "**Scaling Guidance**:"
-- Use plain text or subheadings instead
+REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
 - Use monospace for configuration settings: {backquote}harvester_limit{backquote}, {backquote}close_inactive{backquote}`,
 
 	"reference": `HEADING LEVEL: This is a MAIN section - use "## Reference" (H2, two #)

@@ -12,6 +12,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 
 const (
@@ -37,8 +38,8 @@ func (c *CriticAgent) Description() string {
 	return criticAgentDescription
 }
 
-// criticInstruction is the system instruction for the critic agent
-const criticInstruction = `You are a documentation style critic for Elastic integration packages.
+// criticInstructionPrefix is the first part of the critic system instruction
+const criticInstructionPrefix = `You are a documentation style critic for Elastic integration packages.
 Your task is to review documentation content for voice, tone, accessibility, and readability.
 
 ## Input
@@ -55,41 +56,15 @@ Evaluate against these criteria (rate each 1-10):
    - Good: "See the [installation guide](...)" 
    - Bad: "Click [here](...)" or "See the documentation above"
 
-3. **Style**: Bold for UI elements ONLY, monospace for code, proper list introductions
-   - Bold is ONLY for UI elements: **Settings** > **Logging**, **Save** button
-   - Bold is NOT for: list item headings, conceptual terms, emphasis, notes
-   - Bad: "**No data collected**:" or "**Fault Tolerance**:" or "**Note**:"
-   - Good: "No data collected:" or "Fault tolerance:" (plain text)
-   - Lists must have an introductory sentence before them
-
-4. **Grammar**: American English, present tense, Oxford comma, sentence case headings
+3. **Grammar**: American English, present tense, Oxford comma, sentence case headings
    - Sentence case: "### General debugging steps" NOT "### General Debugging Steps"
 
-5. **Structure**: Clear summary, scannable sections, short paragraphs
+4. **Structure**: Clear summary, scannable sections, short paragraphs
 
-## Common Issues to Flag (these MUST cause rejection)
+`
 
-1. Bold for list item headings - ALWAYS reject if found:
-   WRONG: This integration facilitates:
-   - **Security monitoring**: Ingests audit logs...
-   - **Operational visibility**: Collects logs...
-   
-   RIGHT: This integration facilitates:
-   - Security monitoring: Ingests audit logs...
-   - Operational visibility: Collects logs...
-
-2. Other wrong bold patterns:
-   - "**No data is being collected**:" → should be "No data is being collected:"
-   - "**Audit device is not enabled**:" → should be "Audit device is not enabled:"
-   - "**Fault Tolerance**:" → should be "Fault tolerance:"
-   - "**Note**:" or "**Important**:" → should be plain text
-
-3. Bold+monospace together: "**` + "`audit`" + `**" → should be just "` + "`audit`" + `"
-
-4. Missing list introductions (lists need an intro sentence ending with colon)
-
-5. Passive/formal voice instead of direct "you" address
-
+// criticInstructionSuffix is the final part of the critic system instruction
+const criticInstructionSuffix = `
 ## Output Format
 Output a JSON object with this exact structure:
 {"approved": true/false, "score": 1-10, "feedback": "specific feedback if not approved"}
@@ -109,13 +84,16 @@ type CriticResult struct {
 
 // Build creates the underlying ADK agent.
 func (c *CriticAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
+	// Build the full instruction by combining prefix, shared rules, and suffix
+	instruction := criticInstructionPrefix + stylerules.FullFormattingRules + "\n" + stylerules.CriticRejectionCriteria + criticInstructionSuffix
+
 	// JSON response mode is incompatible with function calling on some models
 	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.
 	return llmagent.New(llmagent.Config{
 		Name:                     criticAgentName,
 		Description:              criticAgentDescription,
 		Model:                    cfg.Model,
-		Instruction:              criticInstruction,
+		Instruction:              instruction,
 		DisallowTransferToParent: true,
 		DisallowTransferToPeers:  true,
 		GenerateContentConfig: &genai.GenerateContentConfig{

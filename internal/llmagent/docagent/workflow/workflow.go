@@ -18,6 +18,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -289,6 +290,9 @@ func truncate(s string, maxLen int) string {
 func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *specialists.StateStore, pkgCtx *validators.PackageContext) string {
 	var prompt strings.Builder
 
+	// Add critical formatting rules at the start for maximum visibility
+	prompt.WriteString(stylerules.CriticalFormattingRules)
+	prompt.WriteString("\n")
 	prompt.WriteString("Generate documentation for the following section.\n\n")
 	prompt.WriteString("## Section Context\n")
 	prompt.WriteString(fmt.Sprintf("- **SectionTitle**: %s\n", sectionCtx.SectionTitle))
@@ -352,7 +356,7 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 
 // buildCriticPrompt creates a prompt for the critic with content embedded.
 func buildCriticPrompt(content string) string {
-	return fmt.Sprintf("Review this documentation for style, voice, tone, and accessibility:\n\n%s", content)
+	return fmt.Sprintf("%s\nReview this documentation for style, voice, tone, and accessibility:\n\n%s", stylerules.CriticRejectionCriteria, content)
 }
 
 // buildValidatorPromptSimple creates a simple prompt for the validator with content embedded.

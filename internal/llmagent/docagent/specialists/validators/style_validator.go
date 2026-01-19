@@ -8,6 +8,8 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 
 const (
@@ -15,35 +17,17 @@ const (
 	styleValidatorDescription = "Validates documentation against Elastic style guide (voice, tone, formatting, grammar)"
 )
 
-const styleValidatorInstruction = `You are a documentation style validator for Elastic integration packages.
+// styleValidatorInstructionPrefix is the first part of the style validator instruction
+const styleValidatorInstructionPrefix = `You are a documentation style validator for Elastic integration packages.
 Your task is to validate critical style issues that significantly impact readability.
 
 ## Input
 The documentation content to validate is provided in the user message.
 
-## Style Guide Rules - CHECK THESE:
+`
 
-### Bold Usage (CRITICAL - causes rejection)
-- Bold is ONLY for UI elements: **Settings** > **Logging**, **Save** button
-- Bold is NOT for: list item headings, conceptual terms, notes, warnings
-- WRONG: "- **Security monitoring**: Ingests..." or "**Note**:" or "**Fault tolerance**:"
-- RIGHT: "- Security monitoring: Ingests..." or "Note:" or "Fault tolerance:"
-
-### List Introductions (CRITICAL)
-- Every list MUST have an introductory sentence ending with a colon
-- WRONG: Starting a list immediately without context
-- RIGHT: "This integration provides the following:" followed by the list
-
-### American English
-- Use American English spelling (-ize, -or, -ense)
-- Example: "organization" not "organisation"
-
-### Sentence Case Headings
-- Use sentence case: "### General debugging steps" NOT "### General Debugging Steps"
-
-### Monospace for Technical Terms
-- Use backticks for code, file paths, config values: ` + "`/var/log/`" + `, ` + "`true`" + `
-
+// styleValidatorInstructionSuffix is the final part of the style validator instruction
+const styleValidatorInstructionSuffix = `
 ## Output Format
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "style", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
@@ -60,13 +44,16 @@ type StyleValidator struct {
 
 // NewStyleValidator creates a new style validator
 func NewStyleValidator() *StyleValidator {
+	// Build the full instruction by combining prefix, shared formatting rules, and suffix
+	instruction := styleValidatorInstructionPrefix + stylerules.FullFormattingRules + styleValidatorInstructionSuffix
+
 	return &StyleValidator{
 		BaseStagedValidator: BaseStagedValidator{
 			name:        styleValidatorName,
 			description: styleValidatorDescription,
 			stage:       StageQuality, // Style is part of quality
 			scope:       ScopeBoth,    // Style validation works on sections and full document
-			instruction: styleValidatorInstruction,
+			instruction: instruction,
 		},
 	}
 }

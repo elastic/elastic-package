@@ -108,49 +108,6 @@ Style and Content Guidance:
   * Use active voice
   * Do not use initialisms - Use "for example" instead of "e.g."
 
-FORMATTING RULES (CRITICAL - WILL BE REJECTED IF VIOLATED):
-
-1. NEVER use bold for list item headings. This is the #1 reason for rejection.
-
-   WRONG - This pattern is ALWAYS rejected:
-   This integration facilitates:
-   - **Security monitoring**: Ingests audit logs...
-   - **Operational visibility**: Collects logs...
-   - **Performance analysis**: Gathers metrics...
-
-   RIGHT - Use plain text:
-   This integration facilitates:
-   - Security monitoring: Ingests audit logs...
-   - Operational visibility: Collects logs...
-   - Performance analysis: Gathers metrics...
-
-   More WRONG patterns (never use):
-   - **Syslog**: Description...
-   - **Fault tolerance**: Description...
-   - **No data is being collected**: Verify...
-   - **Audit device is not enabled**: Check...
-   - **Note**: Some information...
-
-2. ONLY use bold for UI elements:
-   - Navigate to **Settings** > **Logging** (correct - these are UI menu items)
-   - Click **Save** (correct - this is a button)
-   - In the **Host** field (correct - this is a UI field label)
-
-3. Every list MUST have an introductory sentence:
-   WRONG:
-   - Item one
-   - Item two
-   
-   RIGHT:
-   This integration supports the following methods:
-   - Item one
-   - Item two
-
-4. Use monospace (backticks) for code, paths, and config values:
-   - Commands: `vault audit enable`
-   - Paths: `/var/log/vault/`
-   - Values: `true`, `8200`
-
 Begin by analyzing the package to gather information for this specific section, then generate ONLY this section's content (including all its subsections).
 
 IMPORTANT: Your final response MUST contain the generated markdown content for the section. Do not end your turn without providing the section content as text output.

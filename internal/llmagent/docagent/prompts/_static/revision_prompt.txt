@@ -62,32 +62,6 @@ Style and Content Guidance:
   * Use active voice.
   * Avoid Latin abbreviations. Use "for example" instead of "e.g."
 
-FORMATTING RULES (CRITICAL - WILL BE REJECTED IF VIOLATED):
-
-1. NEVER use bold for list item headings. This is the #1 reason for rejection.
-
-   WRONG - This pattern is ALWAYS rejected:
-   This integration facilitates:
-   - **Security monitoring**: Ingests audit logs...
-   - **Operational visibility**: Collects logs...
-
-   RIGHT - Use plain text:
-   This integration facilitates:
-   - Security monitoring: Ingests audit logs...
-   - Operational visibility: Collects logs...
-
-   More WRONG patterns (never use):
-   - **No data is being collected**: Verify...
-   - **Fault tolerance**: Description...
-
-2. ONLY use bold for UI elements:
-   - Navigate to **Settings** > **Logging** (correct)
-   - Click **Save** (correct)
-
-3. Every list MUST have an introductory sentence before it.
-
-4. Use monospace (backticks) for code, paths, and config values.
-
 User-Requested Changes:
 %s
 
