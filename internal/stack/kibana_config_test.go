@@ -20,6 +20,28 @@ import (
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
+// testFacterData contains default test values for resource facters.
+var testFacterData = resource.StaticFacter{
+	"kibana_version":        "8.11.0",
+	"elasticsearch_version": "8.11.0",
+	"agent_version":         "8.11.0",
+	"username":              "elastic",
+	"password":              "changeme",
+	"kibana_host":           "https://kibana:5601",
+	"elasticsearch_host":    "https://elasticsearch:9200",
+	"fleet_url":             "https://fleet-server:8220",
+	"apm_enabled":           "false",
+	"logstash_enabled":      "false",
+	"self_monitor_enabled":  "false",
+	"kibana_http2_enabled":  "true",
+	"logsdb_enabled":        "false",
+	"elastic_subscription":  "basic",
+	"geoip_dir":             "./ingest-geoip",
+	"agent_publish_ports":   "6791",
+	"api_key":               "",
+	"enrollment_token":      "",
+}
+
 // Helper function to create a test profile
 func createTestProfile(t *testing.T, profileName string) *profile.Profile {
 	tempDir := t.TempDir()
@@ -47,26 +69,7 @@ func createTestProfile(t *testing.T, profileName string) *profile.Profile {
 // This helper reduces duplication across test functions.
 func createTestResourceContext() resource.Context {
 	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
+	resourceManager.AddFacter(testFacterData)
 	return resourceManager.Context(context.Background())
 }
 
@@ -277,25 +280,6 @@ func BenchmarkKibanaConfigWithCustomContent(b *testing.B) {
 // Similar to createTestResourceContext but doesn't require testing.T.
 func createBenchmarkResourceContext() resource.Context {
 	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(resource.StaticFacter{
-		"kibana_version":        "8.11.0",
-		"elasticsearch_version": "8.11.0",
-		"agent_version":         "8.11.0",
-		"username":              "elastic",
-		"password":              "changeme",
-		"kibana_host":           "https://kibana:5601",
-		"elasticsearch_host":    "https://elasticsearch:9200",
-		"fleet_url":             "https://fleet-server:8220",
-		"apm_enabled":           "false",
-		"logstash_enabled":      "false",
-		"self_monitor_enabled":  "false",
-		"kibana_http2_enabled":  "true",
-		"logsdb_enabled":        "false",
-		"elastic_subscription":  "basic",
-		"geoip_dir":             "./ingest-geoip",
-		"agent_publish_ports":   "6791",
-		"api_key":               "",
-		"enrollment_token":      "",
-	})
+	resourceManager.AddFacter(testFacterData)
 	return resourceManager.Context(context.Background())
 }
