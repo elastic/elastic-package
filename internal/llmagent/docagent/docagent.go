@@ -892,9 +892,6 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 		sectionCtx.ExistingContent = pkgCtx.ExistingReadme
 	}
 
-	// Build rich context with all package information (using shared context builder)
-	sectionCtx.AdditionalContext = workflow.BuildHeadStartContext(pkgCtx, nil)
-
 	// Execute workflow
 	builder := workflow.NewBuilder(workflowCfg)
 	result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
@@ -904,9 +901,6 @@ func (d *DocumentationAgent) GenerateFullDocumentWithWorkflow(ctx context.Contex
 
 	return result.Content, nil
 }
-
-// NOTE: buildHeadStartContext has been consolidated into workflow.BuildHeadStartContext
-// This ensures consistent context building across regular and --evaluate modes
 
 // GenerateAllSectionsWithValidation generates all sections using per-section validation loops
 // Each section gets its own generate-validate iteration cycle with best-iteration tracking
@@ -954,9 +948,6 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 		return nil, fmt.Errorf("no top-level sections found in template")
 	}
 
-	// Build rich context for all sections
-	headStartContext := workflow.BuildHeadStartContext(pkgCtx, nil)
-
 	fmt.Printf("📝 Generating %d sections with per-section validation...\n", len(topLevelSections))
 
 	// Channel to collect results
@@ -987,11 +978,10 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 
 			// Build section context for workflow
 			sectionCtx := validators.SectionContext{
-				SectionTitle:      tmplSection.Title,
-				SectionLevel:      tmplSection.Level,
-				PackageName:       d.manifest.Name,
-				PackageTitle:      d.manifest.Title,
-				AdditionalContext: headStartContext,
+				SectionTitle: tmplSection.Title,
+				SectionLevel: tmplSection.Level,
+				PackageName:  d.manifest.Name,
+				PackageTitle: d.manifest.Title,
 			}
 
 			if tmplSection.Content != "" {

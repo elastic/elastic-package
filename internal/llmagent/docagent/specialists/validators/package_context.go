@@ -14,7 +14,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -43,57 +42,6 @@ type VendorSetupContent struct {
 // HasAnyVendorSetup returns true if service_info.md contains any vendor setup content
 func (v *VendorSetupContent) HasAnyVendorSetup() bool {
 	return v.HasVendorPrerequisites || v.HasVendorSetupSteps || v.HasKibanaSetupSteps
-}
-
-// GetFormattedContent returns the vendor setup content formatted for the generator
-func (v *VendorSetupContent) GetFormattedContent() string {
-	if !v.HasAnyVendorSetup() {
-		return ""
-	}
-
-	var sb strings.Builder
-	sb.WriteString("=== VENDOR SETUP INSTRUCTIONS (MUST include in documentation) ===\n\n")
-	sb.WriteString("The following vendor setup content from service_info.md MUST be incorporated:\n\n")
-
-	if v.HasVendorPrerequisites && v.VendorPrerequisites != "" {
-		sb.WriteString("### Vendor Prerequisites\n")
-		sb.WriteString(v.VendorPrerequisites)
-		sb.WriteString("\n\n")
-	}
-
-	if v.HasVendorSetupSteps && v.VendorSetupSteps != "" {
-		sb.WriteString("### Vendor Setup Steps (CRITICAL - include GUI/CLI instructions)\n")
-		sb.WriteString(v.VendorSetupSteps)
-		sb.WriteString("\n\n")
-	}
-
-	if v.HasKibanaSetupSteps && v.KibanaSetupSteps != "" {
-		sb.WriteString("### Kibana/Fleet Setup Steps\n")
-		sb.WriteString(v.KibanaSetupSteps)
-		sb.WriteString("\n\n")
-	}
-
-	if v.HasValidationSteps && v.ValidationSteps != "" {
-		sb.WriteString("### Validation Steps\n")
-		sb.WriteString(v.ValidationSteps)
-		sb.WriteString("\n\n")
-	}
-
-	if v.HasTroubleshooting && v.Troubleshooting != "" {
-		sb.WriteString("### Troubleshooting\n")
-		sb.WriteString(v.Troubleshooting)
-		sb.WriteString("\n\n")
-	}
-
-	if len(v.VendorLinks) > 0 {
-		sb.WriteString("### Vendor Documentation Links (MUST include these)\n")
-		for _, link := range v.VendorLinks {
-			sb.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
 }
 
 // PackageContext holds parsed package metadata for static validation.
@@ -201,7 +149,6 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 	if content, err := os.ReadFile(serviceInfoPath); err == nil {
 		ctx.ServiceInfo = string(content)
 		ctx.ServiceInfoLinks = extractMarkdownLinks(ctx.ServiceInfo)
-		ctx.VendorSetup = extractVendorSetupContent(ctx.ServiceInfo)
 	}
 
 	// 6. Load existing README (if exists)
@@ -531,77 +478,6 @@ func (ctx *PackageContext) GetServiceInfoLinks() []ServiceInfoLink {
 // HasServiceInfoLinks returns true if there are links extracted from service_info.md
 func (ctx *PackageContext) HasServiceInfoLinks() bool {
 	return len(ctx.ServiceInfoLinks) > 0
-}
-
-// HasVendorSetupContent returns true if service_info.md contains vendor setup instructions
-func (ctx *PackageContext) HasVendorSetupContent() bool {
-	return ctx.VendorSetup != nil && ctx.VendorSetup.HasAnyVendorSetup()
-}
-
-// GetVendorSetupForGenerator returns formatted vendor setup content for the generator
-func (ctx *PackageContext) GetVendorSetupForGenerator() string {
-	if ctx.VendorSetup == nil {
-		return ""
-	}
-	return ctx.VendorSetup.GetFormattedContent()
-}
-
-// extractVendorSetupContent parses service_info.md for vendor setup sections
-func extractVendorSetupContent(content string) *VendorSetupContent {
-	if content == "" {
-		return nil
-	}
-
-	setup := &VendorSetupContent{}
-	contentLower := strings.ToLower(content)
-
-	// Detect presence of key sections
-	setup.HasVendorPrerequisites = strings.Contains(contentLower, "vendor prerequisites") ||
-		strings.Contains(contentLower, "## prerequisites")
-	setup.HasVendorSetupSteps = strings.Contains(contentLower, "vendor set up steps") ||
-		strings.Contains(contentLower, "vendor setup steps") ||
-		strings.Contains(contentLower, "## vendor configuration")
-	setup.HasKibanaSetupSteps = strings.Contains(contentLower, "kibana set up steps") ||
-		strings.Contains(contentLower, "kibana setup") ||
-		strings.Contains(contentLower, "fleet setup")
-	setup.HasValidationSteps = strings.Contains(contentLower, "validation steps") ||
-		strings.Contains(contentLower, "# validation")
-	setup.HasTroubleshooting = strings.Contains(contentLower, "# troubleshooting") ||
-		strings.Contains(contentLower, "## troubleshooting")
-
-	// Extract actual content for each section
-	setup.VendorPrerequisites = parsing.ExtractSectionByKeyword(content, []string{
-		"## Vendor prerequisites",
-		"## Prerequisites",
-	})
-	setup.VendorSetupSteps = parsing.ExtractSectionByKeyword(content, []string{
-		"## Vendor set up steps",
-		"## Vendor setup steps",
-		"## Vendor Configuration",
-	})
-	setup.KibanaSetupSteps = parsing.ExtractSectionByKeyword(content, []string{
-		"## Kibana set up steps",
-		"## Kibana setup",
-		"## Fleet Setup",
-	})
-	setup.ValidationSteps = parsing.ExtractSectionByKeyword(content, []string{
-		"# Validation Steps",
-		"## Validation",
-	})
-	setup.Troubleshooting = parsing.ExtractSectionByKeyword(content, []string{
-		"# Troubleshooting",
-		"## Troubleshooting",
-	})
-
-	// Extract vendor-specific links (not Elastic links)
-	allLinks := extractMarkdownLinks(content)
-	for _, link := range allLinks {
-		if !strings.Contains(link.URL, "elastic.co") {
-			setup.VendorLinks = append(setup.VendorLinks, link)
-		}
-	}
-
-	return setup
 }
 
 // AdvancedSetting represents a configuration variable with important caveats

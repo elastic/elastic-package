@@ -351,58 +351,30 @@ func getServiceInfoMappingForSection(readmeSectionTitle string) []string {
 		"Overview": {
 			"Common use cases",
 			"Data types collected",
-			"Vendor Resources",
-			"Documentation sites",
-		},
-		"Compatibility": {
 			"Compatibility",
-		},
-		"How it works": {
-			"Data types collected",
-			"Vendor prerequisites",
-			"Elastic prerequisites",
-			"Vendor set up steps",
-			"Kibana set up steps",
-			"Validation steps",
-		},
-		"What data does this integration collect?": {
-			"Data types collected",
-		},
-		"Supported use cases": {
-			"Supported use cases",
-			"Data types collected",
-			"Vendor Resources",
 		},
 		"What do I need to use this integration?": {
 			"Vendor prerequisites",
 			"Elastic prerequisites",
 		},
+		"What data does this integration collect?": {
+			"Data types collected",
+		},
 		"How do I deploy this integration?": {
 			"Vendor set up steps",
 			"Kibana set up steps",
+			"Validation steps",
 		},
-		"Onboard and configure": {
-			"Vendor set up steps",
-			"Kibana set up steps",
-		},
-		"Set up steps in *": {
-			"Vendor set up steps",
-		},
-		"Set up steps in Kibana": {
-			"Kibana set up steps",
-		},
-		"Validation Steps": {
-			"Validation Steps",
-		},
-		"Troubleshooting": {
-			"Troubleshooting",
+		"Reference": {
+			"Vendor resources",
+			"Documentation sites",
 		},
 		"Performance and scaling": {
 			"Performance and scaling",
+			"Scaling and performance",
 		},
-		"Reference": {
-			"Documentation sites",
-			"Vendor Resources",
+		"Troubleshooting": {
+			"Troubleshooting",
 		},
 	}
 

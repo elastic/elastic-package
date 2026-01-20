@@ -309,7 +309,7 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 
 	if sectionCtx.ExampleContent != "" {
 		prompt.WriteString("\n## Style Reference (Example)\n")
-		prompt.WriteString("Use this as a style guide:\n```\n")
+		prompt.WriteString("Use this as a style guide ONLY. Do not use it as a source of information:\n```\n")
 		prompt.WriteString(sectionCtx.ExampleContent)
 		prompt.WriteString("\n```\n")
 	}
@@ -321,37 +321,15 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 		prompt.WriteString("\n```\n")
 	}
 
-	// Add advanced settings context if available
-	if pkgCtx != nil {
-		advSettingsContext := pkgCtx.FormatAdvancedSettingsForGenerator()
-		if advSettingsContext != "" {
-			prompt.WriteString("\n## Advanced Settings (document with appropriate warnings)\n")
-			prompt.WriteString(advSettingsContext)
-			prompt.WriteString("\n")
-		}
-
-		// Add vendor documentation links if available
-		if pkgCtx.HasServiceInfoLinks() {
-			prompt.WriteString("\n## Vendor Documentation Links (include ALL in documentation)\n")
-			prompt.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
-			for _, link := range pkgCtx.GetServiceInfoLinks() {
-				prompt.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
-			}
-		}
-
-		// Add vendor setup content from service_info.md if available
-		// This is CRITICAL for "How do I deploy" and related sections
-		if pkgCtx.HasVendorSetupContent() {
-			prompt.WriteString("\n## Vendor Setup Instructions (from service_info.md - AUTHORITATIVE SOURCE)\n")
-			prompt.WriteString("Use this as the PRIMARY source of truth for vendor-side setup steps.\n")
-			prompt.WriteString(pkgCtx.GetVendorSetupForGenerator())
-			prompt.WriteString("\n")
-		}
+	// Build package context directly from pkgCtx
+	if pkgCtx != nil && pkgCtx.Manifest != nil {
+		prompt.WriteString("\n## Package Context\n")
+		prompt.WriteString(buildPackageContext(pkgCtx))
 	}
 
-	// Add additional context (e.g., feedback from validation)
+	// Add validation feedback if passed via AdditionalContext (used in iteration loops)
 	if sectionCtx.AdditionalContext != "" {
-		prompt.WriteString("\n## Additional Instructions\n")
+		prompt.WriteString("\n## Validation Feedback\n")
 		prompt.WriteString(sectionCtx.AdditionalContext)
 		prompt.WriteString("\n")
 	}
@@ -604,12 +582,6 @@ func (b *Builder) buildValidatorPrompt(validator validators.StagedValidator, con
 			}
 		}
 
-		// Add vendor setup content if available
-		if pkgCtx.HasVendorSetupContent() {
-			prompt.WriteString("\n=== VENDOR SETUP FROM service_info.md ===\n")
-			prompt.WriteString(pkgCtx.GetVendorSetupForGenerator())
-		}
-
 		prompt.WriteString("\n")
 	}
 
@@ -632,4 +604,152 @@ func (b *Builder) RunValidatorOnContent(ctx context.Context, content string) (st
 	prompt := buildValidatorPromptSimple(content)
 	output, _, _, err := b.runAgent(ctx, "validator", prompt)
 	return output, err
+}
+
+// buildPackageContext builds complete context for the generator from package metadata
+func buildPackageContext(pkgCtx *validators.PackageContext) string {
+	if pkgCtx == nil || pkgCtx.Manifest == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	// Required document structure
+	sb.WriteString(fmt.Sprintf(`
+REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
+# %s
+
+> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
+
+## Overview
+### Compatibility
+### How it works
+
+## What data does this integration collect?
+### Supported use cases
+
+## What do I need to use this integration?
+
+## How do I deploy this integration?
+### Agent-based deployment
+### Onboard and configure
+### Validation
+
+## Troubleshooting
+
+## Performance and scaling
+
+## Reference
+### Inputs used
+### API usage (if applicable)
+
+`, pkgCtx.Manifest.Title))
+
+	// Package information
+	sb.WriteString("=== PACKAGE INFORMATION ===\n")
+	sb.WriteString(fmt.Sprintf("Package Name: %s\n", pkgCtx.Manifest.Name))
+	sb.WriteString(fmt.Sprintf("Package Title: %s\n", pkgCtx.Manifest.Title))
+	if pkgCtx.Manifest.Description != "" {
+		sb.WriteString(fmt.Sprintf("Description: %s\n", pkgCtx.Manifest.Description))
+	}
+
+	// Data streams
+	if len(pkgCtx.DataStreams) > 0 {
+		sb.WriteString("\n=== DATA STREAMS (document ALL of these in the Reference section) ===\n")
+		sb.WriteString("CRITICAL: In the ## Reference section, each data stream MUST have:\n")
+		sb.WriteString("  1. A ### heading with the data stream name\n")
+		sb.WriteString("  2. A brief description of what data it collects\n")
+		sb.WriteString("  3. {{event \"<name>\"}} template IF the data stream has an example event (marked with [has example])\n")
+		sb.WriteString("  4. {{fields \"<name>\"}} template for field documentation\n\n")
+		sb.WriteString("Data streams in this package:\n")
+		for _, ds := range pkgCtx.DataStreams {
+			sb.WriteString(fmt.Sprintf("- %s", ds.Name))
+			if ds.Title != "" && ds.Title != ds.Name {
+				sb.WriteString(fmt.Sprintf(" (%s)", ds.Title))
+			}
+			if ds.HasExampleEvent {
+				sb.WriteString(" [has example]")
+			}
+			if ds.Description != "" {
+				sb.WriteString(fmt.Sprintf(": %s", ds.Description))
+			}
+			sb.WriteString("\n")
+			sb.WriteString(fmt.Sprintf("  → Use: {{fields \"%s\"}}", ds.Name))
+			if ds.HasExampleEvent {
+				sb.WriteString(fmt.Sprintf(" and {{event \"%s\"}}", ds.Name))
+			}
+			sb.WriteString("\n")
+		}
+	}
+
+	// Service info links
+	if pkgCtx.HasServiceInfoLinks() {
+		sb.WriteString("\n=== VENDOR DOCUMENTATION LINKS (MUST include ALL in documentation - use EXACT URLs) ===\n")
+		sb.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
+		for _, link := range pkgCtx.GetServiceInfoLinks() {
+			sb.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
+		}
+	}
+
+	// Service info content
+	if pkgCtx.ServiceInfo != "" {
+		sb.WriteString("\n=== SERVICE INFO CONTENT (use this for context) ===\n")
+		sb.WriteString(pkgCtx.ServiceInfo)
+		sb.WriteString("\n")
+	}
+
+	// Instructions
+	sb.WriteString(buildInstructions())
+
+	return sb.String()
+}
+
+// extractInputTypes extracts unique input types from policy templates
+func extractInputTypes(pkgCtx *validators.PackageContext) map[string]bool {
+	inputTypes := make(map[string]bool)
+	if pkgCtx == nil || pkgCtx.Manifest == nil {
+		return inputTypes
+	}
+	for _, pt := range pkgCtx.Manifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			if input.Type != "" {
+				inputTypes[input.Type] = true
+			}
+		}
+	}
+	return inputTypes
+}
+
+// buildInstructions returns the final instructions for the generator
+func buildInstructions() string {
+	var sb strings.Builder
+	sb.WriteString("\n=== INSTRUCTIONS ===\n")
+	sb.WriteString("1. Use the EXACT section names shown above (## Overview, ## What data does this integration collect?, etc.)\n")
+	sb.WriteString("2. Do NOT rename sections (e.g., don't use \"## Setup\" instead of \"## How do I deploy this integration?\")\n")
+	sb.WriteString("3. IMMEDIATELY after the H1 title, add: \"> **Note**: This documentation was generated using AI and should be reviewed for accuracy.\"\n")
+	sb.WriteString("4. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
+	sb.WriteString("5. Document ALL data streams listed above\n")
+	sb.WriteString("6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections, #### for sub-subsections\n")
+	sb.WriteString("7. In ## Reference section, use {{event \"<datastream_name>\"}} and {{fields \"<datastream_name>\"}} for EACH data stream (see DATA STREAMS section above for exact templates)\n")
+	sb.WriteString("8. Address EVERY validation issue if any are listed above\n")
+	sb.WriteString("9. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
+	sb.WriteString("10. Document ALL advanced settings with appropriate warnings (security, debug, SSL, etc.)\n")
+	sb.WriteString("11. Use sentence case for headings (e.g., 'Vendor-side configuration' NOT 'Vendor-Side Configuration')\n")
+	sb.WriteString("12. When showing example values like example.com, 10.0.0.1, or <placeholder>, add '(replace with your actual value)' or use format like `<your-hostname>`\n")
+	sb.WriteString("13. Generate ONLY ONE H1 heading (the title) - all other headings should be H2 or lower\n")
+	sb.WriteString("14. NEVER use # for code examples or configuration sections - use ### or #### instead\n")
+	sb.WriteString("15. Heading levels must be sequential: H1 → H2 → H3 → H4 (never skip levels like H2 → H4)\n")
+	sb.WriteString("16. In ## Troubleshooting, use Problem-Solution bullet format (NOT tables)\n")
+	sb.WriteString("\n=== CONSISTENCY REQUIREMENTS ===\n")
+	sb.WriteString("17. NEVER put bash comments (lines starting with #) outside code blocks - they will be parsed as H1 headings!\n")
+	sb.WriteString("18. Use these EXACT subsection names in Troubleshooting:\n")
+	sb.WriteString("    - '### Common configuration issues' (use Problem-Solution bullet format)\n")
+	sb.WriteString("    - '### Vendor resources' (links to vendor documentation)\n")
+	sb.WriteString("19. Use sentence case for ALL subsections (capitalize only first word): '### Vendor-specific issues' NOT '### Vendor-Specific Issues'\n")
+	sb.WriteString("20. Under ## Reference, use:\n")
+	sb.WriteString("    - '### Inputs used' (required)\n")
+	sb.WriteString("    - '### API usage' (only for API-based integrations like httpjson)\n")
+	sb.WriteString("    - '### Vendor documentation links' OR include links inline in relevant sections\n")
+	sb.WriteString("21. All code blocks MUST have language specified: ```bash, ```yaml, ```json - NEVER use bare ``` blocks\n")
+	return sb.String()
 }

@@ -177,12 +177,11 @@ func AllStagedValidators() []validators.StagedValidator {
 		validators.NewCompletenessValidator(),
 		validators.NewQualityValidator(),
 		validators.NewPlaceholderValidator(),
-		validators.NewServiceInfoLinkValidator(),
+		//		validators.NewServiceInfoLinkValidator(),
 		validators.NewStyleValidator(),
 		validators.NewAccessibilityValidator(),
-		validators.NewVendorSetupValidator(),
-		validators.NewAdvancedSettingsValidator(),
-		validators.NewScalingValidator(),
+		//		validators.NewAdvancedSettingsValidator(),
+		//		validators.NewScalingValidator(),
 	}
 }
 
