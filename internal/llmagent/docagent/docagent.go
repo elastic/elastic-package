@@ -1185,10 +1185,14 @@ type GenerationResult struct {
 }
 
 // assembleBestDocument assembles a document from the best sections and post-processes it
-func assembleBestDocument(bestSections map[string]*Section, sectionOrder []string) string {
+// It also ensures the document starts with the proper H1 title and AI disclosure notice.
+func assembleBestDocument(bestSections map[string]*Section, sectionOrder []string, packageTitle string) string {
 	assembled := parsing.AssembleBestSections(bestSections, sectionOrder)
 	// Post-process to deduplicate links in the Vendor Documentation Links section
-	return deduplicateVendorLinks(assembled)
+	assembled = deduplicateVendorLinks(assembled)
+	// Ensure the document starts with the proper H1 title
+	assembled = parsing.EnsureDocumentTitle(assembled, packageTitle)
+	return assembled
 }
 
 // cleanupVendorLinks cleans up the Vendor Documentation Links section by:
@@ -1448,7 +1452,7 @@ func (d *DocumentationAgent) GenerateWithValidationLoop(ctx context.Context, cfg
 		fmt.Printf("  Updated %d/%d sections from iteration %d\n", sectionsUpdated, len(currentSections), iteration)
 
 		// Assemble the best composite document for validation and next iteration
-		compositeContent := assembleBestDocument(bestSections, sectionOrder)
+		compositeContent := assembleBestDocument(bestSections, sectionOrder, d.manifest.Title)
 		result.Content = compositeContent
 
 		// Save snapshot if enabled (before validation)

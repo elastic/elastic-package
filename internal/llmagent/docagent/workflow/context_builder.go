@@ -241,20 +241,18 @@ func (b *ContextBuilder) buildInstructions() string {
 	sb.WriteString("13. Generate ONLY ONE H1 heading (the title) - all other headings should be H2 or lower\n")
 	sb.WriteString("14. NEVER use # for code examples or configuration sections - use ### or #### instead\n")
 	sb.WriteString("15. Heading levels must be sequential: H1 → H2 → H3 → H4 (never skip levels like H2 → H4)\n")
-	sb.WriteString("16. In ## Troubleshooting, include BOTH vendor-specific issues AND input-specific troubleshooting tables from the guidance above\n")
+	sb.WriteString("16. In ## Troubleshooting, use Problem-Solution bullet format (NOT tables)\n")
 	sb.WriteString("\n=== CONSISTENCY REQUIREMENTS ===\n")
 	sb.WriteString("17. NEVER put bash comments (lines starting with #) outside code blocks - they will be parsed as H1 headings!\n")
 	sb.WriteString("18. Use these EXACT subsection names in Troubleshooting:\n")
-	sb.WriteString("    - '### Vendor-specific issues' (NOT 'Vendor-Specific Issues')\n")
-	sb.WriteString("    - '### Vendor-specific issues' (NOT 'Vendor resources' or 'Vendor Resources')\n")
-	sb.WriteString("    - '### [Input type] input troubleshooting' (e.g., 'TCP/Syslog input troubleshooting')\n")
-	sb.WriteString("19. Use sentence case for ALL subsections (capitalize only first word): '### Log file input troubleshooting' NOT '### Log File Input Troubleshooting'\n")
+	sb.WriteString("    - '### Common configuration issues' (use Problem-Solution bullet format)\n")
+	sb.WriteString("    - '### Vendor resources' (links to vendor documentation)\n")
+	sb.WriteString("19. Use sentence case for ALL subsections (capitalize only first word): '### Vendor-specific issues' NOT '### Vendor-Specific Issues'\n")
 	sb.WriteString("20. Under ## Reference, use:\n")
 	sb.WriteString("    - '### Inputs used' (required)\n")
 	sb.WriteString("    - '### API usage' (only for API-based integrations like httpjson)\n")
-	sb.WriteString("    - '### Vendor documentation links' OR include links inline in relevant sections (NOT 'Vendor resources')\n")
+	sb.WriteString("    - '### Vendor documentation links' OR include links inline in relevant sections\n")
 	sb.WriteString("21. All code blocks MUST have language specified: ```bash, ```yaml, ```json - NEVER use bare ``` blocks\n")
-	sb.WriteString("17. Include troubleshooting tables with columns: Symptom | Cause | Solution for each input type used\n")
 	return sb.String()
 }
 
@@ -926,15 +924,21 @@ func (b *ContextBuilder) buildTroubleshootingGuidance() string {
 	sb.WriteString("DO NOT include generic Elastic Agent debugging steps - those belong in common documentation.\n\n")
 	sb.WriteString("Start with a link to common troubleshooting:\n")
 	sb.WriteString("\"For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).\"\n\n")
-	sb.WriteString("The Troubleshooting section must contain:\n")
-	sb.WriteString("1. Vendor-specific issues (from service_info.md if any)\n")
-	sb.WriteString("2. Input-specific troubleshooting tables for EACH input type this integration uses\n\n")
+	sb.WriteString("FORMAT: Use Problem-Solution bullet points, NOT tables.\n")
+	sb.WriteString("Structure:\n")
+	sb.WriteString("  ### Common configuration issues\n")
+	sb.WriteString("  - Problem description:\n")
+	sb.WriteString("    * Solution step one\n")
+	sb.WriteString("    * Solution step two\n\n")
+	sb.WriteString("  ### Vendor resources\n")
+	sb.WriteString("  - Links to vendor documentation\n\n")
 
-	// Add input-specific troubleshooting (no generic steps)
-	troubleshootingKB := getTroubleshootingKnowledgeBase()
+	// Add input-specific troubleshooting hints (not full content)
+	sb.WriteString("Consider these common issues for the input types used by this integration:\n")
+	troubleshootingHints := getTroubleshootingHints()
 	for inputType := range inputTypes {
-		if guidance, ok := troubleshootingKB[inputType]; ok {
-			sb.WriteString(guidance)
+		if hints, ok := troubleshootingHints[inputType]; ok {
+			sb.WriteString(hints)
 			sb.WriteString("\n")
 		}
 	}
@@ -943,494 +947,23 @@ func (b *ContextBuilder) buildTroubleshootingGuidance() string {
 }
 
 
-// getTroubleshootingKnowledgeBase returns input-specific troubleshooting guidance
-func getTroubleshootingKnowledgeBase() map[string]string {
+// getTroubleshootingHints returns concise input-specific troubleshooting hints
+// These are hints for the LLM to incorporate into Problem-Solution bullet format
+func getTroubleshootingHints() map[string]string {
 	return map[string]string{
-		"httpjson": `### API/HTTP JSON Input Troubleshooting
-
-**No Data from API**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid API credentials | Verify username/password or API key in integration settings. Test credentials using curl or Postman. |
-| No documents indexed | API key lacks permissions | Ensure API key has read access to required endpoints. Check vendor documentation for required scopes/permissions. |
-| No documents indexed | Incorrect API URL | Verify the base URL format (include https://, correct port). Test URL accessibility from agent host. |
-| Intermittent data gaps | Rate limiting | Check agent logs for HTTP 429 errors. Increase polling interval in integration settings. |
-| Connection timeouts | Network/firewall issues | Verify agent can reach API endpoint: ` + "`curl -v <api_url>`" + `. Check proxy settings if applicable. |
-
-**Authentication Errors**
-- Check agent logs for HTTP 401 (Unauthorized) or 403 (Forbidden) errors
-- For OAuth: verify token endpoint URL, client ID/secret, and grant type
-- For API keys: confirm key is active and not expired
-- For basic auth: ensure username/password are URL-encoded if they contain special characters
-
-**Debug API Requests**
-Enable debug logging to see full request/response:
-` + "```yaml" + `
-# In agent policy, set log level to debug temporarily
-# Check logs at: /var/lib/elastic-agent/data/elastic-agent-*/logs/
-` + "```" + `
-`,
-
-		"cel": `### CEL (Common Expression Language) Input Troubleshooting
-
-**No Data from CEL Input**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify API credentials (username/password, API key, or OAuth tokens). Test authentication independently. |
-| No documents indexed | Incorrect API scope/permissions | Ensure credentials have access to required API endpoints. Check vendor docs for required OAuth scopes. |
-| No documents indexed | CEL program error | Check agent logs for CEL evaluation errors. Validate CEL syntax using the CEL playground. |
-| Partial data | Pagination issues | Review CEL program's cursor/pagination logic. Ensure state is properly maintained between polls. |
-| Timeout errors | Large responses | Increase request timeout. Consider adding pagination to limit response size. |
-
-**CEL Expression Debugging**
-- Check agent logs for ` + "`cel`" + ` related errors
-- Common issues: incorrect field paths, type mismatches, null pointer access
-- Test CEL expressions with sample data before deployment
-
-**API Credential Issues**
-- OAuth tokens: verify refresh token flow is working
-- API keys: check expiration, ensure correct scopes (read vs write)
-- Service accounts: confirm account is active and has required roles
-`,
-
-		"tcp": `### TCP/Syslog Input Troubleshooting
-
-**No Syslog Data Received**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Port not listening | Verify agent is listening: ` + "`netstat -tlnp | grep <port>`" + ` or ` + "`ss -tlnp | grep <port>`" + ` |
-| No documents indexed | Firewall blocking | Check firewall rules allow inbound TCP on configured port. Test with ` + "`nc -zv <agent_ip> <port>`" + ` from source. |
-| No documents indexed | Wrong destination IP | Verify source device is sending to correct agent IP address |
-| Port conflict error | Port already in use | Choose a different port or stop the conflicting process. Check with ` + "`lsof -i :<port>`" + ` |
-| Connection refused | Agent not started | Verify Elastic Agent service is running: ` + "`systemctl status elastic-agent`" + ` |
-
-**Verify TCP Connectivity**
-From the source device (or a test host):
-` + "```bash" + `
-# Test TCP connectivity
-nc -zv <elastic_agent_ip> <syslog_port>
-
-# Send a test message
-echo "<14>Test syslog message" | nc <elastic_agent_ip> <syslog_port>
-` + "```" + `
-
-**Parsing Errors**
-- If logs appear but fields are not parsed: verify log format matches expected format (RFC 3164, RFC 5424, CEF)
-- Check for custom log formats that may need custom ingest pipeline
-`,
-
-		"udp": `### UDP/Syslog Input Troubleshooting
-
-**No Syslog Data Received**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Port not listening | Verify agent is listening: ` + "`netstat -ulnp | grep <port>`" + ` or ` + "`ss -ulnp | grep <port>`" + ` |
-| No documents indexed | Firewall blocking | Check firewall rules allow inbound UDP on configured port |
-| No documents indexed | Packet loss | UDP doesn't guarantee delivery. Check for network congestion. Consider TCP instead. |
-| Intermittent data loss | Buffer overflow | Increase UDP receive buffer: ` + "`sysctl -w net.core.rmem_max=26214400`" + ` |
-
-**⚠️ UDP Data Loss Warning**
-UDP does NOT guarantee delivery. Data loss occurs during:
-- Network congestion
-- Agent restarts
-- Elasticsearch backpressure
-
-**Strongly recommend TCP for production systems requiring data integrity.**
-
-**Test UDP Reception**
-` + "```bash" + `
-# Send test UDP syslog message
-echo "<14>Test syslog message" | nc -u <elastic_agent_ip> <syslog_port>
-` + "```" + `
-`,
-
-		"logfile": `### Log File Input Troubleshooting
-
-**No Log Data Collected**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Wrong file path | Verify path pattern matches actual log location. Use ` + "`ls -la <path>`" + ` to confirm. |
-| No documents indexed | Permission denied | Ensure Elastic Agent user can read log files: ` + "`sudo -u elastic-agent cat <logfile>`" + ` |
-| No documents indexed | File doesn't exist | Check log rotation - file may have been rotated. Verify logging is enabled on source. |
-| Stale data only | File rotated | Configure ` + "`close_inactive`" + ` and ` + "`ignore_older`" + ` settings appropriately |
-| Duplicate events | Registry corruption | Stop agent, remove registry file, restart agent (caution: may reprocess old logs) |
-
-**Verify File Permissions**
-` + "```bash" + `
-# Check file exists and permissions
-ls -la /path/to/logfile
-
-# Test read access as elastic-agent user
-sudo -u elastic-agent head /path/to/logfile
-
-# Check parent directory permissions (need execute permission)
-ls -la /path/to/
-` + "```" + `
-
-**Check File Position Registry**
-The agent tracks its position in each file. If data seems stuck:
-` + "```bash" + `
-# View registry (location varies by OS)
-cat /var/lib/elastic-agent/data/elastic-agent-*/run/filebeat/data/registry/filebeat/log.json
-` + "```" + `
-`,
-
-		"filestream": `### Filestream Input Troubleshooting
-
-**No Log Data Collected**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Path not matched | Verify path pattern. Use glob patterns like ` + "`/var/log/*.log`" + ` |
-| No documents indexed | Permission denied | Ensure agent has read permissions on files and execute on directories |
-| No documents indexed | Prospector not running | Check agent logs for prospector errors |
-| Old data only | Fingerprint mismatch | File may have been truncated/recreated. Check prospector fingerprint settings |
-
-**Verify File Discovery**
-Check agent logs for messages about file discovery and harvesting.
-`,
-
-		"aws-s3": `### AWS S3 Input Troubleshooting
-
-**No Data from S3**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify AWS access key/secret or IAM role has s3:GetObject permission |
-| No documents indexed | Wrong bucket/prefix | Confirm bucket name and object prefix are correct |
-| No documents indexed | SQS not configured | If using SQS notifications, verify queue URL and permissions |
-| Access denied errors | Missing IAM permissions | Required: s3:GetObject, s3:ListBucket. For SQS: sqs:ReceiveMessage, sqs:DeleteMessage |
-
-**Required IAM Permissions**
-` + "```json" + `
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:GetObject", "s3:ListBucket"],
-      "Resource": ["arn:aws:s3:::bucket-name", "arn:aws:s3:::bucket-name/*"]
-    }
-  ]
-}
-` + "```" + `
-
-**Test AWS Credentials**
-` + "```bash" + `
-# Test S3 access from agent host
-aws s3 ls s3://bucket-name/prefix/ --region <region>
-` + "```" + `
-`,
-
-		"aws-cloudwatch": `### AWS CloudWatch Input Troubleshooting
-
-**No CloudWatch Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify AWS credentials have cloudwatch:GetLogEvents permission |
-| No documents indexed | Wrong log group | Confirm log group name/prefix matches existing CloudWatch log groups |
-| No documents indexed | Region mismatch | Ensure region setting matches where log groups exist |
-| Rate limit errors | API throttling | Increase scan_frequency to reduce API calls |
-
-**Required IAM Permissions**
-` + "```json" + `
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "logs:DescribeLogGroups",
-        "logs:DescribeLogStreams",
-        "logs:GetLogEvents",
-        "logs:FilterLogEvents"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-` + "```" + `
-`,
-
-		"kafka": `### Kafka Input Troubleshooting
-
-**No Data from Kafka**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Connection failed | Verify broker addresses and port (default 9092) |
-| No documents indexed | Authentication failed | Check SASL credentials or SSL certificates |
-| No documents indexed | Consumer group issue | Verify consumer group has no conflicting consumers |
-| Lag building up | Slow processing | Check agent resources, consider scaling horizontally |
-
-**Test Kafka Connectivity**
-` + "```bash" + `
-# Test broker connectivity
-nc -zv <broker_host> 9092
-
-# List topics (requires kafka-topics CLI)
-kafka-topics --bootstrap-server <broker>:9092 --list
-` + "```" + `
-`,
-
-		"http_endpoint": `### HTTP Endpoint (Webhook) Input Troubleshooting
-
-**No Webhook Data Received**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Port not listening | Verify agent is listening on configured port |
-| No documents indexed | Firewall blocking | Ensure inbound HTTP/HTTPS traffic is allowed |
-| No documents indexed | Wrong URL path | Verify sender is using correct webhook URL path |
-| SSL errors | Certificate issues | Check SSL certificate validity and trust chain |
-
-**Test Webhook Endpoint**
-` + "```bash" + `
-# Send test POST request
-curl -X POST http://<agent_ip>:<port>/<path> \
-  -H "Content-Type: application/json" \
-  -d '{"test": "message"}'
-` + "```" + `
-`,
-
-		"azure-eventhub": `### Azure Event Hub Input Troubleshooting
-
-**No Event Hub Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Connection string invalid | Verify connection string includes EntityPath or separate event hub name |
-| No documents indexed | Consumer group issue | Ensure consumer group exists and no other consumers are conflicting |
-| No documents indexed | Storage account issue | Check storage account for checkpoint container access |
-| Permission errors | Missing permissions | Verify shared access policy has Listen permission |
-
-**Test Event Hub Connectivity**
-Verify connection string format:
-` + "`Endpoint=sb://<namespace>.servicebus.windows.net/;SharedAccessKeyName=<policy>;SharedAccessKey=<key>;EntityPath=<eventhub>`" + `
-`,
-
-		"gcp-pubsub": `### GCP Pub/Sub Input Troubleshooting
-
-**No Pub/Sub Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify service account JSON key or workload identity |
-| No documents indexed | Wrong subscription | Confirm subscription name and project ID are correct |
-| No documents indexed | Permission denied | Service account needs roles/pubsub.subscriber role |
-| Messages not acked | Timeout too short | Increase ack_deadline to allow for processing time |
-
-**Required IAM Roles**
-- roles/pubsub.subscriber (to receive messages)
-- roles/pubsub.viewer (to list subscriptions)
-`,
-
-		"sql": `### SQL/Database Input Troubleshooting
-
-**No Database Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Connection failed | Verify hostname, port, database name |
-| No documents indexed | Authentication failed | Check username/password, SSL requirements |
-| No documents indexed | Query returns empty | Test SQL query directly on database |
-| No new data | Tracking column issue | Verify tracking column is indexed and updating |
-`,
-
-		"netflow": `### Netflow/IPFIX Input Troubleshooting
-
-**No Netflow Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | UDP port not listening | Verify agent listening: ` + "`netstat -ulnp | grep 2055`" + ` |
-| No documents indexed | Source not sending | Verify netflow export is enabled on network devices |
-| No documents indexed | Firewall blocking | Ensure UDP 2055 (or custom port) is open |
-| Template errors | Version mismatch | Check Netflow version (v5, v9, IPFIX) matches configuration |
-`,
-
-		"winlog": `### Windows Event Log Input Troubleshooting
-
-**No Windows Events**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Wrong channel name | Verify event log channel name (e.g., Security, Application) |
-| No documents indexed | Permission denied | Run agent as user with Event Log Readers group membership |
-| No documents indexed | Channel disabled | Enable the event log channel in Windows Event Viewer |
-| Missing events | Event ID filter | Check event_id filter isn't excluding desired events |
-`,
-
-		"journald": `### Journald Input Troubleshooting
-
-**No Journald Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Permission denied | Ensure agent user is in 'systemd-journal' group |
-| No documents indexed | Wrong unit filter | Verify systemd unit names in filter |
-| No documents indexed | Journal not persistent | Check if journald is configured for persistent storage |
-`,
-
-		"prometheus/metrics": `### Prometheus Metrics Input Troubleshooting
-
-**No Prometheus Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Wrong endpoint URL | Verify metrics endpoint path (usually /metrics) |
-| No documents indexed | Target not exposing metrics | Check target is running and exposing Prometheus format metrics |
-| No documents indexed | Authentication required | Configure bearer token or basic auth if endpoint requires it |
-| Connection refused | Firewall/network | Verify agent can reach endpoint: ` + "`curl http://<host>:9090/metrics`" + ` |
-`,
-
-		"kubernetes/metrics": `### Kubernetes Metrics Input Troubleshooting
-
-**No Kubernetes Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Missing RBAC permissions | Verify ServiceAccount has required ClusterRole bindings |
-| No documents indexed | Wrong API server URL | Confirm kube_config or in_cluster settings |
-| No documents indexed | Certificate issues | Check CA certificate configuration for API server |
-| Authentication failed | Invalid credentials | Verify bearer token or kubeconfig is valid |
-`,
-
-		"aws/metrics": `### AWS Metrics Input Troubleshooting
-
-**No AWS CloudWatch Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify AWS access key/secret or IAM role |
-| No documents indexed | Missing permissions | Ensure cloudwatch:GetMetricData, cloudwatch:ListMetrics permissions |
-| No documents indexed | Wrong region | Confirm region matches where resources exist |
-| Incomplete metrics | Namespace filter | Check namespace and metric_name filters |
-`,
-
-		"azure/metrics": `### Azure Metrics Input Troubleshooting
-
-**No Azure Monitor Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify client_id, client_secret, tenant_id |
-| No documents indexed | Missing permissions | Ensure service principal has Monitoring Reader role |
-| No documents indexed | Wrong subscription | Confirm subscription_id is correct |
-| No metrics for resource | Resource not supported | Not all Azure resources expose metrics |
-`,
-
-		"gcp/metrics": `### GCP Metrics Input Troubleshooting
-
-**No GCP Cloud Monitoring Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify service account JSON key |
-| No documents indexed | Missing permissions | Service account needs roles/monitoring.viewer |
-| No documents indexed | Wrong project | Confirm project_id is correct |
-| API errors | Quota exceeded | Check Cloud Monitoring API quotas |
-`,
-
-		"connectors-py": `### Python Connector Input Troubleshooting
-
-**No Data from Connector**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify API credentials for the data source |
-| No documents indexed | Connector not running | Check connector service status and logs |
-| No documents indexed | Network issues | Verify connectivity to both data source and Elasticsearch |
-| Sync failures | Permission errors | Ensure credentials have read access to required data |
-`,
-
-		"packet": `### Network Packet Capture Input Troubleshooting
-
-**No Packet Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Wrong interface | Verify network interface name in configuration |
-| No documents indexed | Permission denied | Agent needs CAP_NET_RAW capability or root privileges |
-| No documents indexed | No traffic | Ensure there's traffic on the monitored interface |
-| Missing packets | BPF filter too restrictive | Review BPF filter syntax |
-`,
-
-		"websocket": `### WebSocket Input Troubleshooting
-
-**No WebSocket Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Connection failed | Verify WebSocket URL (wss:// or ws://) |
-| No documents indexed | Authentication failed | Check authentication credentials or tokens |
-| Connection drops | Timeout/keepalive | Adjust ping_interval settings |
-| SSL errors | Certificate issues | Configure SSL certificate authorities if using self-signed certs |
-`,
-
-		"etw": `### Event Tracing for Windows (ETW) Input Troubleshooting
-
-**No ETW Events**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Wrong provider | Verify ETW provider GUID or name |
-| No documents indexed | Permission denied | Agent must run with administrative privileges |
-| No documents indexed | Provider not registered | Ensure ETW provider is registered on system |
-| Session conflict | Trace session exists | Check for existing trace sessions using the provider |
-`,
-
-		"salesforce": `### Salesforce Input Troubleshooting
-
-**No Salesforce Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Invalid credentials | Verify client_id, client_secret, username, password |
-| No documents indexed | Security token missing | Append security token to password |
-| No documents indexed | API access disabled | Enable API access for Salesforce user |
-| Authentication failed | IP restrictions | Add agent IP to Salesforce trusted IP ranges |
-`,
-
-		"osquery": `### osquery Input Troubleshooting
-
-**No osquery Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | osquery not running | Start osqueryd service: ` + "`systemctl start osqueryd`" + ` |
-| No documents indexed | Wrong socket path | Verify osquery extensions socket path |
-| No documents indexed | Permission denied | Agent needs access to osquery socket |
-`,
-
-		"apm": `### APM Input Troubleshooting
-
-**No APM Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Port not listening | Verify APM server is listening on configured port (default 8200) |
-| No documents indexed | Firewall blocking | Ensure inbound traffic allowed on APM port |
-| No documents indexed | Agent not instrumented | Verify APM agents are configured to send to correct endpoint |
-| Authentication failed | Secret token mismatch | Ensure APM agents use same secret_token as server |
-`,
-
-		"docker/metrics": `### Docker Metrics Input Troubleshooting
-
-**No Docker Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Socket permission denied | Add agent user to docker group or configure socket permissions |
-| No documents indexed | Wrong socket path | Default is /var/run/docker.sock - verify path |
-| No documents indexed | Docker not running | Check Docker daemon status: ` + "`systemctl status docker`" + ` |
-`,
-
-		"containerd/metrics": `### Containerd Metrics Input Troubleshooting
-
-**No Containerd Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Socket permission denied | Verify agent has access to containerd socket |
-| No documents indexed | Wrong socket path | Check containerd socket location (usually /run/containerd/containerd.sock) |
-`,
-
-		"statsd/metrics": `### StatsD Metrics Input Troubleshooting
-
-**No StatsD Metrics**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | Port not listening | Verify agent is listening on UDP port (default 8125) |
-| No documents indexed | Wrong port in client | Ensure StatsD clients send to correct agent port |
-| Metric name issues | Invalid metric format | Check StatsD metric format: ` + "`<metric_name>:<value>|<type>`" + ` |
-`,
-
-		"audit/auditd": `### Linux Audit (auditd) Input Troubleshooting
-
-**No Audit Data**
-| Symptom | Cause | Solution |
-|---------|-------|----------|
-| No documents indexed | auditd not running | Start auditd service: ` + "`systemctl start auditd`" + ` |
-| No documents indexed | Permission denied | Agent needs root or CAP_AUDIT_READ capability |
-| No documents indexed | No audit rules | Configure audit rules: ` + "`auditctl -l`" + ` to list rules |
-`,
+		"httpjson": `- API/HTTP: Invalid credentials, wrong URL, rate limiting, authentication errors (401/403)`,
+		"cel":      `- CEL input: Invalid credentials, CEL expression errors, pagination issues`,
+		"tcp":      `- TCP/Syslog: Port not listening, firewall blocking, wrong destination IP, parsing errors`,
+		"udp":      `- UDP/Syslog: Port not listening, packet loss (UDP has no delivery guarantee), buffer overflow`,
+		"logfile":  `- Log file: Wrong file path, permission denied, file rotation issues`,
+		"filestream": `- Filestream: Path not matched, permission denied, fingerprint mismatch`,
+		"aws-s3":   `- AWS S3: Invalid credentials, wrong bucket/prefix, missing IAM permissions`,
+		"aws-cloudwatch": `- AWS CloudWatch: Invalid credentials, wrong log group, region mismatch`,
+		"kafka":    `- Kafka: Connection failed, authentication failed, consumer group conflicts`,
+		"http_endpoint": `- HTTP Endpoint/Webhook: Port not listening, firewall blocking, SSL errors`,
+		"azure-eventhub": `- Azure Event Hub: Invalid connection string, consumer group issues, missing permissions`,
+		"gcp-pubsub": `- GCP Pub/Sub: Invalid credentials, wrong subscription, permission denied`,
+		"prometheus/metrics": `- Prometheus: Wrong endpoint URL, authentication required, connection refused`,
 	}
 }
 

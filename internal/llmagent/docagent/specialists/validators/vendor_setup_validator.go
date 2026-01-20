@@ -278,27 +278,6 @@ func (v *VendorSetupValidator) validateAgainstServiceInfo(setupSection string, p
 		}
 	}
 
-	// Check if vendor documentation links are included
-	if len(pkgCtx.VendorSetup.VendorLinks) > 0 {
-		missingLinks := 0
-		for _, link := range pkgCtx.VendorSetup.VendorLinks {
-			if !strings.Contains(setupSection, link.URL) {
-				missingLinks++
-			}
-		}
-
-		if missingLinks > 0 && missingLinks == len(pkgCtx.VendorSetup.VendorLinks) {
-			issues = append(issues, ValidationIssue{
-				Severity:    SeverityMajor,
-				Category:    CategoryVendorSetup,
-				Location:    "Setup section",
-				Message:     fmt.Sprintf("Missing vendor documentation links - service_info.md contains %d vendor links", len(pkgCtx.VendorSetup.VendorLinks)),
-				Suggestion:  "Include vendor documentation links from service_info.md",
-				SourceCheck: "static",
-			})
-		}
-	}
-
 	return issues
 }
 
@@ -664,4 +643,3 @@ func (v *VendorSetupValidator) checkVendorSideConfiguration(setupSection string,
 
 // CategoryVendorSetup is the category for vendor setup validation issues
 const CategoryVendorSetup ValidationCategory = "vendor_setup"
-

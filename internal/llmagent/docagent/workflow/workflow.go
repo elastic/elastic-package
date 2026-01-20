@@ -329,6 +329,24 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 			prompt.WriteString(advSettingsContext)
 			prompt.WriteString("\n")
 		}
+
+		// Add vendor documentation links if available
+		if pkgCtx.HasServiceInfoLinks() {
+			prompt.WriteString("\n## Vendor Documentation Links (include ALL in documentation)\n")
+			prompt.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
+			for _, link := range pkgCtx.GetServiceInfoLinks() {
+				prompt.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
+			}
+		}
+
+		// Add vendor setup content from service_info.md if available
+		// This is CRITICAL for "How do I deploy" and related sections
+		if pkgCtx.HasVendorSetupContent() {
+			prompt.WriteString("\n## Vendor Setup Instructions (from service_info.md - AUTHORITATIVE SOURCE)\n")
+			prompt.WriteString("Use this as the PRIMARY source of truth for vendor-side setup steps.\n")
+			prompt.WriteString(pkgCtx.GetVendorSetupForGenerator())
+			prompt.WriteString("\n")
+		}
 	}
 
 	// Add additional context (e.g., feedback from validation)

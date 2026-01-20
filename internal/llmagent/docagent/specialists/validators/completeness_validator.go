@@ -29,11 +29,10 @@ You may also receive static validation context including data stream names and i
 1. All data streams from the package are documented
 2. Setup instructions cover both vendor-side and Kibana-side configuration
 3. Validation steps are provided to verify the integration works
-4. Troubleshooting section addresses common issues WITH input-specific guidance
+4. Troubleshooting section addresses common issues specific to this integration
 5. Reference section includes field documentation
 6. Agent deployment section includes Fleet enrollment and integration setup steps
-7. Troubleshooting section includes input-specific guidance tables
-8. Validation section includes agent status, Discover data check, and dashboard verification
+7. Validation section includes agent status, Discover data check, and dashboard verification
 
 ## DO NOT FLAG (these are acceptable):
 - LLM-generated content disclosure format (any mention of AI/LLM generation is fine)
@@ -682,79 +681,20 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 		})
 	}
 
-	// Check for troubleshooting tables (| Symptom | Cause | Solution |)
-	hasTroubleshootingTable := strings.Contains(troubleshootingLower, "| symptom |") ||
-		strings.Contains(troubleshootingLower, "| cause |") ||
-		strings.Contains(troubleshootingLower, "| solution |") ||
-		strings.Contains(troubleshootingLower, "|---------|")
+	// Check for vendor-specific issues subsection
+	hasVendorSpecificIssues := strings.Contains(troubleshootingLower, "vendor-specific") ||
+		strings.Contains(troubleshootingLower, "vendor resources") ||
+		strings.Contains(troubleshootingLower, "common configuration")
 
-	// Check for input-specific troubleshooting
-	if pkgCtx != nil && pkgCtx.Manifest != nil {
-		inputTypes := v.extractInputTypes(pkgCtx)
-		troubleshootingInputs := v.getTroubleshootingSensitiveInputs()
-
-		missingInputCount := 0
-		for inputType := range inputTypes {
-			if hints, ok := troubleshootingInputs[inputType]; ok {
-				// First check if there's a dedicated section for this input type
-				// Look for section headers like "### TCP" or "### api" or input type name
-				hasDedicatedSection := strings.Contains(troubleshootingLower, "### "+inputType) ||
-					strings.Contains(troubleshootingLower, inputType+" input") ||
-					strings.Contains(troubleshootingLower, inputType+" troubleshoot")
-
-				// Also check for common variations in section names
-				inputAliases := map[string][]string{
-					"httpjson": {"http json", "api", "http/json", "api/http"},
-					"logfile":  {"log file", "file input", "log input"},
-					"tcp":      {"tcp", "syslog", "tcp/syslog"},
-					"udp":      {"udp", "syslog", "udp/syslog"},
-				}
-
-				if aliases, hasAlias := inputAliases[inputType]; hasAlias {
-					for _, alias := range aliases {
-						if strings.Contains(troubleshootingLower, alias) {
-							hasDedicatedSection = true
-							break
-						}
-					}
-				}
-
-				// If no dedicated section, check for hints
-				hasInputTroubleshooting := hasDedicatedSection
-				if !hasInputTroubleshooting {
-					for _, hint := range hints {
-						if strings.Contains(troubleshootingLower, hint) {
-							hasInputTroubleshooting = true
-							break
-						}
-					}
-				}
-
-				if !hasInputTroubleshooting {
-					missingInputCount++
-					issues = append(issues, ValidationIssue{
-						Severity:    SeverityMajor,
-						Category:    CategoryCompleteness,
-						Location:    "Troubleshooting",
-						Message:     fmt.Sprintf("Missing troubleshooting guidance for %s input", inputType),
-						Suggestion:  fmt.Sprintf("Add troubleshooting table for %s with common issues like: %s", inputType, hints[0]),
-						SourceCheck: "static",
-					})
-				}
-			}
-		}
-
-		// If multiple inputs are missing troubleshooting AND no tables exist, flag as critical
-		if missingInputCount > 1 && !hasTroubleshootingTable {
-			issues = append(issues, ValidationIssue{
-				Severity:    SeverityMajor,
-				Category:    CategoryCompleteness,
-				Location:    "Troubleshooting",
-				Message:     "Troubleshooting section lacks input-specific troubleshooting tables",
-				Suggestion:  "Add troubleshooting tables with columns: Symptom | Cause | Solution for each input type",
-				SourceCheck: "static",
-			})
-		}
+	if !hasVendorSpecificIssues {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityMinor,
+			Category:    CategoryCompleteness,
+			Location:    "Troubleshooting",
+			Message:     "Missing vendor-specific or configuration issues subsection",
+			Suggestion:  "Add '### Common configuration issues' or '### Vendor-specific issues' with integration-specific problems and solutions",
+			SourceCheck: "static",
+		})
 	}
 
 	return issues
@@ -802,22 +742,3 @@ func (v *CompletenessValidator) getNetworkSensitiveInputs() map[string]string {
 	}
 }
 
-// getTroubleshootingSensitiveInputs returns inputs with specific troubleshooting hints
-func (v *CompletenessValidator) getTroubleshootingSensitiveInputs() map[string][]string {
-	return map[string][]string{
-		"tcp":            {"port", "listen", "firewall", "connection"},
-		"udp":            {"port", "listen", "buffer", "packet"},
-		"httpjson":       {"api", "credential", "rate limit", "timeout", "401", "403"},
-		"cel":            {"api", "credential", "expression", "timeout"},
-		"http_endpoint":  {"port", "listen", "firewall", "webhook"},
-		"logfile":        {"permission", "path", "rotate", "file"},
-		"filestream":     {"permission", "path", "file"},
-		"aws-s3":         {"iam", "permission", "bucket", "sqs"},
-		"aws-cloudwatch": {"iam", "permission", "log group", "throttl"},
-		"kafka":          {"broker", "consumer", "partition", "offset"},
-		"sql":            {"connection", "credential", "query", "timeout"},
-		"netflow":        {"port", "buffer", "udp"},
-		"winlog":         {"event", "channel", "permission"},
-		"journald":       {"permission", "unit", "cursor"},
-	}
-}

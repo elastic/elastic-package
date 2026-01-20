@@ -10,61 +10,19 @@ package stylerules
 // These rules address the most common rejection reasons and should be included
 // in user prompts to reinforce the system instruction.
 const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
-- NEVER use bold for list items: '- **Item**:' is WRONG, use '- Item:'
-- NEVER use bold for numbered list items: '1. **Step name**' is WRONG, use '1. Step name'
-- NEVER use bold as pseudo-headers: '**Network requirements**' is WRONG, use '#### Network requirements'
-- Bold is ONLY for UI elements: **Settings** > **Save**, **Discover** app
 - Every list MUST have an introductory sentence ending with colon
 - Use sentence case for headings: "Vendor-specific issues" not "Vendor-Specific Issues"
 `
 
 // CriticRejectionCriteria provides criteria for the critic to check.
 const CriticRejectionCriteria = `## REJECT if you find ANY of these:
-- Bold used for list items: '- **Security monitoring**:' should be '- Security monitoring:'
-- Bold used for numbered list items: '1. **Verify agent status**' should be '1. Verify agent status'
-- Bold used as pseudo-headers: '**Network requirements**' should be '#### Network requirements'
-- Bold used for notes: '**Note**:' should be 'Note:'
-- Bold used for concepts: '**Fault tolerance**:' should be 'Fault tolerance:'
-- Bold used for input types: '**Audit logs (file)**' should be plain text or a heading
 - Lists without an introductory sentence before them
 - Title Case headings: '### Vendor-Specific Issues' should be '### Vendor-specific issues'
 `
 
 // FullFormattingRules contains the complete formatting guidance for LLM system prompts.
-// This is extracted from agent_instructions.md to ensure consistency.
-const FullFormattingRules = `## FORMATTING RULES - READ BEFORE GENERATING (CRITICAL - WILL BE REJECTED IF VIOLATED)
 
-### NEVER USE BOLD FOR LIST ITEMS (this is the #1 reason for rejection):
-
-WRONG - This WILL be rejected:
-This integration facilitates:
-- **Security monitoring**: Ingests audit logs...
-- **Operational visibility**: Collects logs...
-- **Performance analysis**: Gathers metrics...
-
-RIGHT - Use plain text:
-This integration facilitates:
-- Security monitoring: Ingests audit logs...
-- Operational visibility: Collects logs...
-- Performance analysis: Gathers metrics...
-
-### MORE WRONG PATTERNS (never use these):
-- "**Syslog**:", "**TCP**:", "**Audit logs**:" → WRONG
-- "**Fault tolerance**:", "**Scaling guidance**:" → WRONG
-- "**Note**:", "**Warning**:", "**Important**:" → WRONG
-- "**TCP Socket Method**:", "**File Method**:" → WRONG
-- "**Permissions**:", "**Network access**:" → WRONG
-- "**Audit device is not enabled**:" → WRONG
-- "**No data is being collected**:" → WRONG
-- "1. **Verify agent status**" → WRONG (numbered list with bold)
-- "**Network requirements**" as standalone → WRONG (use #### heading instead)
-- "**Option 1: File method**" → WRONG (use ##### heading instead)
-- "**Audit logs (file)**" → WRONG (use plain text or heading)
-
-### ONLY USE BOLD FOR UI ELEMENTS:
-- Menu paths: **Settings** > **Logging**
-- Buttons: Click **Save**
-- Field names in UI: In the **Host** field
+const FullFormattingRules = `## FORMATTING RULES - READ BEFORE GENERATING
 
 ### EVERY LIST MUST HAVE AN INTRODUCTION:
 WRONG:
@@ -84,5 +42,58 @@ This integration supports the following:
 
 ### HEADINGS:
 - Use sentence case: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
-`
 
+## Guidelines
+- Write clear, concise, and accurate documentation
+- Follow the Elastic documentation style (friendly, direct, use "you")
+- Include relevant code examples and configuration snippets where appropriate
+- Use proper markdown formatting
+- Use {{event "<name>"}} and {{fields "<name>"}} templates in Reference section, replacing <name> with the actual data stream name (e.g., {{event "conn"}}, {{fields "conn"}})
+- For code blocks, ALWAYS specify the language (e.g., bash, yaml, json after the triple backticks)
+
+## Voice and Tone (REQUIRED)
+- Address the user directly with "you" - ALWAYS
+- Use contractions: "you'll", "don't", "can't", "it's"
+- Use active voice: "You configure..." not "The configuration is..."
+- Be direct and friendly, not formal
+
+WRONG: "The user must configure the integration before data can be collected."
+RIGHT: "Before you can collect data, configure the integration settings."
+
+## CONSISTENCY REQUIREMENTS (CRITICAL)
+These ensure all integration docs look uniform:
+
+### Heading Style
+- Use sentence case for ALL headings: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
+- Only the first word is capitalized (plus proper nouns and acronyms like TCP, UDP, API)
+
+### Subsection Naming (use EXACTLY these names)
+Under ## Troubleshooting:
+- "### Common configuration issues" (use Problem-Solution bullet format, NOT tables)
+- "### Vendor resources" (links to vendor documentation)
+
+Under ## Reference:
+- "### Inputs used" (required)
+- "### API usage" (only for API-based integrations)
+- "### Vendor documentation links" (if consolidating links at the end)
+
+### Code Block Safety
+- NEVER put bash comments (lines starting with #) outside code blocks!
+- Wrong: # Test the connection ← This becomes an H1 heading!
+- Right: Put it inside a bash code block:
+  ` + "```" + `bash
+  # Test the connection
+  curl -v http://example.com
+  ` + "```" + `
+
+## CRITICAL
+- Do NOT rename sections - use the EXACT SectionTitle provided
+- When including URLs from vendor documentation, copy them EXACTLY as provided - do NOT modify, shorten, or rephrase URLs
+- Output the markdown content directly without code block wrappers
+- Document ALL advanced settings with their warnings/caveats when relevant to this section
+- Do NOT include other sections - generate ONLY the one section requested
+- Do NOT wrap your output in code blocks or add explanatory text
+
+## IMPORTANT
+Output the markdown content directly. Start with the section heading and include all relevant subsections.
+`

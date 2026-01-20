@@ -32,7 +32,7 @@ const styleValidatorInstructionSuffix = `
 Output a JSON object with this exact structure:
 {"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "style", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
 
-Set valid=false if bold is misused for list items or notes.
+Set valid=false for critical formatting issues.
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
@@ -71,7 +71,6 @@ func (v *StyleValidator) StaticValidate(ctx context.Context, content string, pkg
 	}
 
 	result.Issues = append(result.Issues, v.checkAmericanEnglish(content)...)
-	result.Issues = append(result.Issues, v.checkBoldMisuse(content)...)
 
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
@@ -81,67 +80,6 @@ func (v *StyleValidator) StaticValidate(ctx context.Context, content string, pkg
 	}
 
 	return result, nil
-}
-
-// checkBoldMisuse detects incorrect bold usage for list items and notes
-func (v *StyleValidator) checkBoldMisuse(content string) []ValidationIssue {
-	var issues []ValidationIssue
-
-	// Pattern: list items starting with bold text followed by colon
-	// e.g., "- **Something**:" or "* **Something**:"
-	listBoldPattern := regexp.MustCompile(`(?m)^[\s]*[-*]\s+\*\*[^*]+\*\*:`)
-	if listBoldPattern.MatchString(content) {
-		issues = append(issues, ValidationIssue{
-			Severity:    SeverityMajor,
-			Category:    CategoryStyle,
-			Location:    "List formatting",
-			Message:     "Bold should not be used for list item headings",
-			Suggestion:  "Remove bold from list items. Use plain text: '- Item name:' not '- **Item name**:'",
-			SourceCheck: "static",
-		})
-	}
-
-	// Pattern: **Note**: or **Warning**: or **Important**:
-	notePattern := regexp.MustCompile(`\*\*(Note|Warning|Important|Tip)\*\*:`)
-	if notePattern.MatchString(content) {
-		issues = append(issues, ValidationIssue{
-			Severity:    SeverityMajor,
-			Category:    CategoryStyle,
-			Location:    "Note formatting",
-			Message:     "Bold should not be used for notes or warnings",
-			Suggestion:  "Use plain text: 'Note:' not '**Note**:'",
-			SourceCheck: "static",
-		})
-	}
-
-	// Pattern: numbered list items with bold: "1. **Something**" or "1.  **Something**"
-	numberedBoldPattern := regexp.MustCompile(`(?m)^\s*\d+\.\s+\*\*[^*]+\*\*`)
-	if numberedBoldPattern.MatchString(content) {
-		issues = append(issues, ValidationIssue{
-			Severity:    SeverityMajor,
-			Category:    CategoryStyle,
-			Location:    "Numbered list formatting",
-			Message:     "Bold should not be used in numbered list items",
-			Suggestion:  "Use plain text: '1. Verify status' not '1. **Verify status**'",
-			SourceCheck: "static",
-		})
-	}
-
-	// Pattern: bold pseudo-headers (bold on its own line, not a list item)
-	// e.g., "**Network requirements**" on its own line
-	pseudoHeaderPattern := regexp.MustCompile(`(?m)^[\s]*\*\*[^*]+\*\*[\s]*$`)
-	if pseudoHeaderPattern.MatchString(content) {
-		issues = append(issues, ValidationIssue{
-			Severity:    SeverityMajor,
-			Category:    CategoryStyle,
-			Location:    "Pseudo-header formatting",
-			Message:     "Bold should not be used as a pseudo-header",
-			Suggestion:  "Use a proper markdown heading: '#### Heading' not '**Heading**'",
-			SourceCheck: "static",
-		})
-	}
-
-	return issues
 }
 
 // checkAmericanEnglish validates American English spelling

@@ -47,18 +47,33 @@ REMINDER: Apply the CRITICAL FORMATTING RULES from the style guide.
 	"what do i need to use this integration?": `HEADING LEVEL: This is a MAIN section - use "## What do I need to use this integration?" (H2, two #)
 PREREQUISITES SECTION REQUIREMENTS:
 - List ALL prerequisites before installation
-- Include vendor-side requirements:
-  - Admin access/credentials needed
-  - API keys or tokens required
-  - Network connectivity requirements
-- Include Elastic-side requirements:
-  - Elastic Stack version
-  - Fleet/Agent requirements
-  - Any required subscriptions/licenses
+- Use ### headings (H3, three #) for prerequisite categories - NEVER use #### directly under ##
+
+EXAMPLE STRUCTURE (follow this pattern):
+  ### General prerequisites
+  - An active Elastic deployment
+  - Elastic Agent installed...
+  - Administrative access to...
+
+  ### For audit log collection
+  - Specific requirements for this data stream...
+
+  ### For metrics collection
+  - Specific requirements for this data stream...
+
+CONTENT TO INCLUDE:
+- Vendor-side requirements: admin access, API keys, network connectivity
+- Elastic-side requirements: Stack version, Fleet/Agent, subscriptions
+
+HEADING HIERARCHY RULES (CRITICAL):
+- Main section uses ## (H2)
+- Subsections MUST use ### (H3) - never skip from ## to ####
+- Sub-subsections (if needed) use #### (H4) under ### headings
+- WRONG: "## Section" followed by "#### Subsection" (skips H3)
+- RIGHT: "## Section" followed by "### Subsection"
 
 FORMATTING RULES:
-- For subsection titles, use ### or #### headings, NOT "**bold pseudo-headers**"
-- For method options, use ##### headings: "##### File method" NOT "**File method**"
+- NEVER use "**bold pseudo-headers**" - use ### headings instead
 - Plain text for list items, never bold`,
 
 	"how do i deploy this integration?": `HEADING LEVEL: This is a MAIN section - use "## How do I deploy this integration?" (H2, two #)
@@ -103,49 +118,51 @@ TROUBLESHOOTING SECTION REQUIREMENTS:
 - DO NOT include generic Elastic Agent debugging steps
 - Start with a link to common Elastic ingest troubleshooting:
   "For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems)."
-- Format as Issue / Solution pairs
-- Include subsections for different issue types (H3, three #):
 
-  ### Vendor-specific issues
-  - Issues specific to the source system (e.g., blocked audit devices, service blocking)
-  - Configuration problems unique to this vendor's product
-  - Permission or access issues specific to this system
+STRUCTURE (use Problem-Solution bullet format, NOT tables):
+  ### Common configuration issues
+  Use bullet points with Problem followed by nested Solution bullets:
+  - Problem description:
+    * Solution step one
+    * Solution step two
+  - Another problem:
+    * Solution for this problem
 
-  ### {Input type} input troubleshooting
-  - Add a subsection for each input type used (TCP, UDP, API, logfile, etc.)
-  - Include troubleshooting tables with: Symptom | Cause | Solution
-  - Focus on input-specific issues, not generic agent health
+  ### Vendor resources
+  - Link to vendor documentation
+  - Link to vendor troubleshooting guides
+
+EXAMPLE FORMAT (follow this style):
+  ### Common configuration issues
+
+  - No data is being collected:
+    * Verify network connectivity between the source and Elastic Agent host.
+    * Ensure there are no firewalls or network ACLs blocking the configured port.
+    * Confirm the listening port in the integration matches the destination port on the source device.
+  - TCP framing issues:
+    * When using TCP input with reliable syslog mode, ensure both the source and integration settings use matching framing (e.g., {backquote}rfc6587{backquote}).
 
 WHAT TO EXCLUDE (will be rejected):
 - Generic "Verify Elastic Agent health" steps
 - Generic "Check integration status" steps
 - Generic "Capture agent diagnostics" steps
 - Any troubleshooting that applies to ALL integrations (these belong in common docs)
+- Tables with Symptom | Cause | Solution columns (use bullet points instead)
+- Separate per-input subsections (consolidate into Common configuration issues)
 
 FORMATTING RULES (CRITICAL - will be rejected if violated):
-- NEVER use bold for issue names in lists:
-  WRONG: "- **No data is being collected**"
-  RIGHT: "- No data is being collected:"
 - Use ### subheadings for major issue categories, not bold list items
 - Vendor resources list MUST have an introductory sentence before it
-- Use monospace for configuration values, file paths, and commands`,
+- Use monospace for configuration values, file paths, and commands
+- Use nested bullet points (* or -) for solutions, NOT tables`,
 
 	"performance and scaling": `HEADING LEVEL: This is a MAIN section - use "## Performance and scaling" (H2, two #)
 PERFORMANCE AND SCALING SECTION REQUIREMENTS:
-- Provide input-specific scaling guidance based on inputs used:
-  - TCP: fault tolerance, load balancing
-  - UDP: data loss warnings, buffer sizing
-  - HTTP/API: rate limiting, polling intervals
-  - File: harvester limits, file rotation
+- Provide input-specific scaling guidance based on inputs used by this integration
 - Include the standard architecture link:
   "For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation."
 
 FORMATTING RULES (CRITICAL - will be rejected if violated):
-- NEVER use bold for concepts:
-  WRONG: "- **Fault tolerance**: The agent tracks..."
-  RIGHT: "- Fault tolerance: The agent tracks..."
-  WRONG: "**Log file input**" as pseudo-header
-  RIGHT: "#### Log file input" as proper heading
 - Use #### headings for input type subsections, NOT bold text
 - Use monospace for configuration settings: {backquote}harvester_limit{backquote}, {backquote}close_inactive{backquote}`,
 
