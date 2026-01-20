@@ -177,6 +177,26 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
+			processAgentContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
+				Env: opts.Env,
+			}, agentInfo.Name)
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		agent.agentInfo = agentInfo
+		agent.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	if d.runTestsOnly || d.runTearDown {
 		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
@@ -194,9 +214,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
