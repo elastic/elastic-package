@@ -9,7 +9,8 @@ This module implements an LLM-based documentation generation system that:
 - **Generates comprehensive README documentation** following Elastic's templates and style guidelines
 - **Uses section-based generation** for higher quality output
 - **Validates content** using both static and LLM-based validators
-- **Supports iterative refinement** with feedback loops
+- **Supports iterative refinement** with critic feedback loops
+- **Leverages authoritative knowledge bases** via `service_info.md` files
 - **Provides tracing and metrics** for debugging and evaluation
 
 ## Architecture
@@ -87,6 +88,7 @@ Markdown parsing utilities for documentation processing.
 |------|-------------|
 | `section.go` | Section struct, ParseSections, and related utilities |
 | `combiner.go` | CombineSections, EnsureDocumentTitle |
+| `extraction.go` | Extract markdown content from LLM responses |
 
 ### `/docagent/executor`
 LLM execution capabilities.
@@ -94,6 +96,13 @@ LLM execution capabilities.
 | File | Description |
 |------|-------------|
 | `executor.go` | ADK-based LLM executor with tracing |
+
+### `/docagent/generation`
+Generation-specific utilities.
+
+| File | Description |
+|------|-------------|
+| `structure.go` | Structure-related generation helpers |
 
 ### `/docagent/prompts`
 Prompt management and templates.
@@ -103,13 +112,26 @@ Prompt management and templates.
 | `resources.go` | Embedded prompt templates |
 | `loader.go` | External prompt file loading |
 | `section_instructions.go` | Section-specific generation instructions |
-| `_static/` | Prompt template files |
+| `_static/agent_instructions.md` | Main agent style guide and instructions |
+| `_static/modification_analysis_prompt.txt` | Modification request analysis prompt |
+| `_static/modification_prompt.txt` | Content modification prompt |
+| `_static/revision_prompt.txt` | Content revision prompt |
+| `_static/section_generation_prompt.txt` | Section generation prompt |
+| `_static/structure_revision_prompt.txt` | Structure revision prompt |
+
+### `/docagent/stylerules`
+Shared formatting rules to avoid import cycles.
+
+| File | Description |
+|------|-------------|
+| `style_rules.go` | Formatting rules constants (CriticalFormattingRules, FullFormattingRules, CriticRejectionCriteria) |
 
 **Key functions in `docagent.go`:**
 
 | Function | Description |
 |----------|-------------|
 | `UpdateDocumentation()` | Main entry point for documentation generation |
+| `UpdateDocumentationWithConfig()` | Generation with custom configuration |
 | `ModifyDocumentation()` | Targeted modification of existing documentation |
 | `GenerateAllSectionsWithValidation()` | Per-section generation with validation loops |
 | `GenerateSectionWithValidationLoop()` | Single section generation with iteration tracking |
@@ -119,6 +141,7 @@ Prompt management and templates.
 | `DebugRunCriticOnly()` | Run critic agent in isolation for debugging |
 | `DebugRunValidatorOnly()` | Run validator agent in isolation for debugging |
 | `UpdateDocumentationGeneratorOnly()` | Run generator without critic/validator |
+| `ValidateAndFixDocumentStructure()` | Validate and auto-fix document structure issues |
 
 ### `/docagent/specialists`
 Specialized agents for different tasks in the workflow.
@@ -150,6 +173,7 @@ Staged validators for content validation.
 | `package_context.go` | - | - | Package context for validators |
 | `staged_validator.go` | - | - | Base staged validator types |
 | `urlvalidator.go` | - | - | URL validation utilities |
+| `validator.go` | - | - | Core validator types |
 
 ### `/docagent/workflow`
 Workflow orchestration for multi-agent pipelines.
@@ -157,10 +181,40 @@ Workflow orchestration for multi-agent pipelines.
 | File | Description |
 |------|-------------|
 | `workflow.go` | Main workflow builder and executor |
-| `config.go` | Workflow configuration |
+| `config.go` | Workflow configuration with fluent API |
 | `context_builder.go` | Builds context for generation |
 | `staged_workflow.go` | Staged validation workflow |
 | `snapshots.go` | Iteration snapshot management |
+
+### `/executor`
+Top-level LLM execution capabilities.
+
+| File | Description |
+|------|-------------|
+| `executor.go` | ADK-based LLM executor with tracing and session management |
+
+### `/generation`
+Top-level generation configuration and utilities.
+
+| File | Description |
+|------|-------------|
+| `config.go` | GenerationConfig and Result types |
+| `structure.go` | Document structure validation and repair |
+
+### `/parsing`
+Top-level markdown parsing utilities.
+
+| File | Description |
+|------|-------------|
+| `section.go` | Section struct, ParseSections, and related utilities |
+| `combiner.go` | CombineSections, EnsureDocumentTitle |
+
+### `/validation`
+Simplified entry point for validation (re-exports from validators).
+
+| File | Description |
+|------|-------------|
+| `validation.go` | Re-exports core types from validators package |
 
 ### `/tools`
 Package inspection and utility tools available to agents.
@@ -169,6 +223,7 @@ Package inspection and utility tools available to agents.
 |------|-------------|
 | `package_tools.go` | Tools for reading package content |
 | `examples.go` | Example documentation loader |
+| `_static/examples/` | Example README files for style reference |
 
 ### `/mcptools`
 Model Context Protocol (MCP) toolset integration.
@@ -188,6 +243,46 @@ User interface components.
 | File | Description |
 |------|-------------|
 | `browser_preview.go` | Browser-based documentation preview |
+
+## Service Info Knowledge Base
+
+The generator uses `service_info.md` as an authoritative knowledge base for vendor-specific documentation. This file should be located at `docs/knowledge_base/service_info.md` within the package.
+
+### How It Works
+
+1. **Mandatory Tool Call**: The generator MUST call `get_service_info(readme_section=<SectionTitle>)` before generating content
+2. **Primary Source of Truth**: Content from `service_info.md` takes precedence over other sources
+3. **Section Matching**: The tool returns relevant sections based on the requested README section
+4. **Graceful Fallback**: If the file doesn't exist, the generator proceeds with other sources
+
+### service_info.md Structure
+
+```markdown
+## Vendor set up steps
+### For Syslog Collection (GUI Method):
+1. Log in to the management interface...
+2. Navigate to **Configuration > System > Auditing**...
+
+### For Syslog Collection (CLI Method):
+1. SSH to the management IP...
+
+## Kibana set up steps
+1. Navigate to **Management > Integrations**...
+
+## Validation Steps
+### 1. Trigger Data Flow:
+- Generate authentication event: ...
+
+### 2. Check Data in Kibana:
+1. Navigate to **Analytics > Discover**...
+
+## Troubleshooting
+### Common Configuration Issues
+- Policy Not Bound: ...
+
+## Documentation sites
+- [Vendor Documentation](https://...)
+```
 
 ## Section-Based Generation
 
@@ -244,29 +339,46 @@ sequenceDiagram
     participant DA as DocAgent
     participant WF as Workflow
     participant GEN as Generator
+    participant CRT as Critic
     participant VAL as Validators
     
-    DA->>WF: GenerateSectionWithValidationLoop(sectionCtx)
+    DA->>WF: ExecuteWorkflow(sectionCtx)
     
     loop Max Iterations
         WF->>GEN: Generate section content
+        GEN->>GEN: Call get_service_info tool
         GEN-->>WF: Content
         
-        WF->>WF: Track best iteration
+        WF->>CRT: Review content
+        CRT-->>WF: Feedback (approved/rejected)
         
-        WF->>VAL: Validate content
-        VAL-->>WF: Issues
-        
-        alt No Issues
-            WF-->>DA: Return best content
-        else Has Issues
-            WF->>WF: Build feedback
+        alt Critic Rejects
+            WF->>WF: Store feedback
             Note right of WF: Continue to next iteration
+        else Critic Approves
+            WF->>VAL: Run static validators
+            VAL-->>WF: Issues
+            
+            alt No Issues
+                WF-->>DA: Return approved content
+            else Has Issues
+                WF->>WF: Build feedback from issues
+                Note right of WF: Continue to next iteration
+            end
         end
     end
     
     WF-->>DA: Return best content from all iterations
 ```
+
+### Critic-Generator Feedback Loop
+
+The workflow includes a critic agent that reviews generated content:
+
+1. **Critic Reviews**: After generation, the critic evaluates content for style, voice, and quality
+2. **Feedback Storage**: Rejections are stored in `StateKeyFeedback`
+3. **Generator Receives Feedback**: Next iteration includes "## Feedback to Address" section
+4. **Iterative Improvement**: Generator addresses issues in subsequent attempts
 
 ### Best Iteration Selection
 
@@ -277,17 +389,6 @@ The system tracks the best version of each section across iterations:
 3. **Validation Score**: Lower issue count is preferred
 
 This prevents regression where later iterations might produce worse output due to context window limitations or model fatigue.
-
-### Convergence Detection
-
-The validation loop includes convergence detection to optimize iteration count:
-
-1. **Issue Tracking**: Each iteration records the number of validation issues found
-2. **Convergence Check**: If issues are decreasing between iterations, the system is "converging"
-3. **Bonus Iteration**: If max iterations is reached but issues are still decreasing (converging), one bonus iteration is granted
-4. **Early Exit**: If all validations pass, the loop exits immediately
-
-This ensures the system doesn't stop prematurely when making progress, while avoiding infinite loops.
 
 ## Validation Pipeline
 
@@ -321,41 +422,11 @@ flowchart LR
 ### GenerationConfig
 
 ```go
-type GenerationConfig struct {
-    MaxIterations          uint              // Max iterations per section (default: 3)
-    EnableStagedValidation bool              // Enable validation after generation
-    EnableLLMValidation    bool              // Enable LLM-based semantic validation
-    SnapshotManager        *SnapshotManager  // For saving iteration snapshots
-}
-```
-
-### GenerationResult
-
-```go
-type GenerationResult struct {
-    Content            string                      // Final generated documentation
-    Approved           bool                        // Whether all validation stages passed
-    TotalIterations    int                         // Total iterations across all sections
-    BestIteration      int                         // Iteration that produced best content
-    SectionResults     []SectionGenerationResult   // Per-section results
-    StageResults       map[string]*StageResult     // Per-stage validation results
-    ValidationFeedback string                      // Last validation feedback
-    IssueHistory       []int                       // Issue counts per iteration
-    ConvergenceBonus   bool                        // Whether bonus iteration was granted
-}
-```
-
-### SectionGenerationResult
-
-```go
-type SectionGenerationResult struct {
-    SectionTitle    string  // Title of the section
-    SectionLevel    int     // Heading level (2 = ##, 3 = ###, etc.)
-    Content         string  // Best generated content
-    Approved        bool    // Whether validation passed
-    TotalIterations int     // Iterations performed
-    BestIteration   int     // Iteration that produced best content
-    IssueHistory    []int   // Issue counts per iteration
+type Config struct {
+    MaxIterations          uint                      // Max iterations per section (default: 3)
+    EnableStagedValidation bool                      // Enable validation after generation
+    EnableLLMValidation    bool                      // Enable LLM-based semantic validation
+    SnapshotManager        *workflow.SnapshotManager // For saving iteration snapshots
 }
 ```
 
@@ -363,16 +434,30 @@ type SectionGenerationResult struct {
 
 ```go
 type Config struct {
-    Model               model.LLM
-    ModelID             string
-    MaxIterations       uint
-    EnableCritic        bool
-    EnableValidator     bool
-    EnableURLValidator  bool
-    EnableStaticValidation bool
-    EnableLLMValidation    bool
-    PackageContext      *validators.PackageContext
+    Registry               *specialists.Registry
+    MaxIterations          uint                      // Default: 3
+    Model                  model.LLM
+    ModelID                string
+    Tools                  []tool.Tool
+    Toolsets               []tool.Toolset
+    EnableCritic           bool                      // Enable critic agent
+    EnableValidator        bool                      // Enable validator agent
+    EnableURLValidator     bool                      // Enable URL validation
+    EnableStaticValidation bool                      // Enable static validators
+    EnableLLMValidation    bool                      // Enable LLM-based validation
+    PackageContext         *validators.PackageContext
 }
+```
+
+### Fluent Configuration API
+
+```go
+cfg := workflow.DefaultConfig().
+    WithModel(model).
+    WithModelID("gemini-3-flash-preview").
+    WithTools(tools).
+    WithMaxIterations(3).
+    WithFullValidation(pkgCtx)  // Enables both static and LLM validation
 ```
 
 ## Usage
@@ -392,7 +477,7 @@ agent, err := docagent.NewDocumentationAgent(ctx, docagent.AgentConfig{
 err = agent.UpdateDocumentation(ctx, nonInteractive)
 
 // Or with custom config
-cfg := docagent.GenerationConfig{
+cfg := generation.Config{
     MaxIterations:          3,
     EnableStagedValidation: true,
     EnableLLMValidation:    true,
@@ -463,6 +548,8 @@ export LLM_TRACING_ENDPOINT=http://localhost:6006/v1/traces
 elastic-package update documentation
 ```
 
+Traces are also saved to `traces.json` in the working directory for offline analysis.
+
 ## Testing
 
 ```bash
@@ -482,19 +569,18 @@ go test -v ./internal/llmagent/docagent/...
 
 2. **Per-section best-iteration tracking**: Keeps the best version of each section across iterations to prevent regression.
 
-3. **Validation scope separation**: Full-document validators (structure, completeness) run only on the combined document, while section-level validators run during generation.
+3. **Critic-generator feedback loop**: Critic agent reviews content and provides feedback that's passed to subsequent generator iterations.
 
-4. **Parallel generation**: Sections are generated in parallel goroutines for faster results.
+4. **Validation scope separation**: Full-document validators (structure, completeness) run only on the combined document, while section-level validators run during generation.
 
-5. **Rich context building**: Uses `BuildHeadStartContext()` to provide comprehensive package information to the generator.
+5. **Parallel generation**: Sections are generated in parallel goroutines for faster results.
 
-6. **Static + LLM validation**: Combines fast static checks with semantic LLM-based validation for comprehensive quality assurance.
+6. **Service info as primary source**: The `get_service_info` tool provides authoritative vendor documentation that takes precedence over other sources.
 
-7. **Convergence-aware iteration**: Grants bonus iterations when issues are decreasing, preventing premature termination.
+7. **Static + LLM validation**: Combines fast static checks with semantic LLM-based validation for comprehensive quality assurance.
 
-8. **Debug mode isolation**: Individual agents (generator, critic, validator) can be run in isolation for troubleshooting and development.
+8. **Style rules isolation**: The `stylerules` package provides shared formatting rules without import cycles.
 
-9. **SectionContext in validators package**: The `SectionContext` type lives in the `validators` package to provide proper encapsulation for validation logic.
+9. **Debug mode isolation**: Individual agents (generator, critic, validator) can be run in isolation for troubleshooting and development.
 
-10. **Helper function extraction**: Common section generation logic is extracted into `generateSingleSection()` for reuse between parallel and sequential modes.
-
+10. **Fluent configuration API**: Workflow configuration uses a fluent API for clean, readable setup.
