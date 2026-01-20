@@ -995,7 +995,10 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 			}
 
 			if tmplSection.Content != "" {
-				sectionCtx.TemplateContent = tmplSection.GetAllContent()
+				// Render template placeholders with package-specific values
+				templateContent := tmplSection.GetAllContent()
+				templateContent = strings.ReplaceAll(templateContent, "{[.Manifest.Title]}", d.manifest.Title)
+				sectionCtx.TemplateContent = templateContent
 			}
 			if exampleSection != nil {
 				sectionCtx.ExampleContent = exampleSection.GetAllContent()
@@ -1986,7 +1989,10 @@ func (d *DocumentationAgent) generateSingleSection(ctx context.Context, workflow
 	}
 
 	if tmplSection.Content != "" {
-		sectionCtx.TemplateContent = tmplSection.GetAllContent()
+		// Render template placeholders with package-specific values
+		templateContent := tmplSection.GetAllContent()
+		templateContent = strings.ReplaceAll(templateContent, "{[.Manifest.Title]}", d.manifest.Title)
+		sectionCtx.TemplateContent = templateContent
 	}
 	if exampleSection != nil {
 		sectionCtx.ExampleContent = exampleSection.GetAllContent()
