@@ -13,7 +13,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creack/pty v1.1.19
 	github.com/dustin/go-humanize v1.0.1
-	github.com/elastic/elastic-integration-corpus-generator-tool v0.10.0
+	github.com/elastic/elastic-integration-corpus-generator-tool v0.11.0
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
