@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
@@ -123,6 +124,9 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 			PackageRoot:    policy.PackageRoot,
 			Absent:         agentPolicy.Absent,
 			RepositoryRoot: repostoryRoot,
+			SchemaURLs: fields.SchemaURLs{
+				ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+			},
 		})
 	}
 	return append(resources, agentPolicy)

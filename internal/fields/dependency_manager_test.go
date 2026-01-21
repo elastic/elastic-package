@@ -790,10 +790,15 @@ func TestDependencyManagerWithECS(t *testing.T) {
 }
 
 func TestValidate_SetExternalECS(t *testing.T) {
+	urls := SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
-		WithEnabledImportAllECSSChema(true))
+		WithEnabledImportAllECSSChema(true),
+		WithSchemaURLs(urls),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 

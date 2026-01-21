@@ -131,7 +131,11 @@ func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
-		WithEnabledImportAllECSSChema(true))
+		WithEnabledImportAllECSSChema(true),
+		WithSchemaURLs(SchemaURLs{
+			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+		}),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -144,7 +148,11 @@ func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
-		WithEnabledImportAllECSSChema(false))
+		WithEnabledImportAllECSSChema(false),
+		WithSchemaURLs(SchemaURLs{
+			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+		}),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
@@ -977,7 +985,11 @@ func TestValidateGeoPoint(t *testing.T) {
 
 func TestValidateExternalMultiField(t *testing.T) {
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "parallel", "mongodb", "status")
-	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir)
+	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
+		WithSchemaURLs(SchemaURLs{
+			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+		}),
+	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
 
