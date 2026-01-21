@@ -40,8 +40,6 @@ const (
 	logstashImageName                   = "docker.elastic.co/logstash/logstash"
 	isReadyImageName                    = "tianon/true:multiarch"
 
-	defaultECSSchemaBaseURL = "https://raw.githubusercontent.com/elastic/ecs"
-
 	applicationConfigurationYmlFile = "config.yml"
 )
 
@@ -72,7 +70,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
-	config.c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
+	config.c.SchemaURLs.ECSBase = fields.DefaultECSSchemaBaseURL
 
 	return &config
 }
@@ -272,8 +270,9 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 
 	var c configFile
 	// Required for those scenarios that the configuration file existed previously
-	// to adding schema_urls section (elastic-package was previously installed).
-	c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
+	// to adding schema_urls section and therefore this field does not exist in the
+	// configuration (elastic-package was previously installed).
+	c.SchemaURLs.ECSBase = fields.DefaultECSSchemaBaseURL
 
 	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {

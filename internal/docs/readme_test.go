@@ -52,9 +52,7 @@ Introduction to the package`,
 			expected:               "",
 		},
 	}
-	urls := fields.SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
-	}
+	urls := fields.SchemaURLs{}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			dir := t.TempDir()
@@ -112,9 +110,7 @@ http://www.example.com/bar
 			linksMap: minimumLinksMap,
 		},
 	}
-	urls := fields.SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
-	}
+	urls := fields.SchemaURLs{}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
@@ -172,9 +168,7 @@ An example event for ` + "`example`" + ` looks as following:
 	}
 
 	linksMap := newEmptyLinkMap()
-	urls := fields.SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
-	}
+	urls := fields.SchemaURLs{}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)
@@ -300,9 +294,7 @@ Introduction to the package
 
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
-	urls := fields.SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
-	}
+	urls := fields.SchemaURLs{}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -328,9 +320,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 }
 
 func TestUpdateReadmeWithFields(t *testing.T) {
-	urls := fields.SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
-	}
+	urls := fields.SchemaURLs{}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
