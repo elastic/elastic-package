@@ -1039,6 +1039,9 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 
 	// Programmatic structure fixup (ensure title is correct)
 	finalContent = d.FixDocumentStructure(finalContent, pkgCtx)
+
+	// Ensure all data stream templates are present in Reference section
+	finalContent = d.EnsureDataStreamTemplates(finalContent, pkgCtx)
 	fmt.Printf("✅ Document assembled\n")
 
 	// Calculate total iterations (sum across all sections)
@@ -1063,8 +1066,6 @@ type GenerationConfig struct {
 	EnableStagedValidation bool
 	// EnableLLMValidation enables LLM-based semantic validation in addition to static checks
 	EnableLLMValidation bool
-	// SnapshotManager for saving iteration snapshots (optional)
-	SnapshotManager *workflow.SnapshotManager
 }
 
 // DefaultGenerationConfig returns default configuration for generation
@@ -1089,8 +1090,6 @@ type SectionGenerationResult struct {
 	TotalIterations int
 	// BestIteration is the iteration that produced the best content
 	BestIteration int
-	// IssueHistory tracks issue counts per iteration for this section
-	IssueHistory []int
 }
 
 // GenerationResult holds the result of the generation + validation loop
@@ -1105,14 +1104,8 @@ type GenerationResult struct {
 	BestIteration int
 	// SectionResults holds per-section generation results
 	SectionResults []SectionGenerationResult
-	// StageResults holds per-stage validation results (uses StageResult from evaluation.go)
-	StageResults map[string]*StageResult
 	// ValidationFeedback contains the last validation feedback (if any)
 	ValidationFeedback string
-	// IssueHistory tracks issue counts per iteration (for convergence analysis)
-	IssueHistory []int
-	// ConvergenceBonus indicates if an extra iteration was granted due to convergence
-	ConvergenceBonus bool
 }
 
 // normalizeSectionContent ensures a section has a proper header and non-empty content
@@ -1217,7 +1210,6 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 	result := &SectionGenerationResult{
 		SectionTitle: sectionCtx.SectionTitle,
 		SectionLevel: sectionCtx.SectionLevel,
-		IssueHistory: make([]int, 0),
 	}
 
 	// Track best content across iterations
@@ -1281,8 +1273,6 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 		if cfg.EnableStagedValidation && pkgCtx != nil {
 			issues := d.validateSectionContent(ctx, content, sectionCtx.SectionTitle, pkgCtx)
 			issueCount := len(issues)
-			result.IssueHistory = append(result.IssueHistory, issueCount)
-
 			if issueCount > 0 {
 				// Build feedback for next iteration
 				validationFeedback = fmt.Sprintf("Section '%s' has %d issues:\n", sectionCtx.SectionTitle, issueCount)

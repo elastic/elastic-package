@@ -81,18 +81,30 @@ const (
 	WeightPlaceholders = 0.10
 )
 
-// Required sections for structure scoring
-var requiredSections = []string{
+// Required sections for structure scoring (must be H2 ## sections)
+// These match the structure defined in package-docs-readme.md.tmpl
+var requiredH2Sections = []string{
 	"overview",
-	"compatibility",
-	"setup",
+	"what data does this integration collect",
+	"what do i need to use this integration",
+	"how do i deploy this integration",
+	"troubleshooting",
+	"performance and scaling",
+	"reference",
+}
+
+// Required subsections (H3 ### sections under specific parents)
+var requiredH3Sections = []string{
+	"compatibility",       // under Overview
+	"how it works",        // under Overview
+	"supported use cases", // under What data
+	"validation",          // under How do I deploy
 }
 
 // Recommended sections
 var recommendedSections = []string{
-	"data streams",
-	"reference",
-	"troubleshooting",
+	"api usage",
+	"inputs used",
 }
 
 // ComputeMetrics calculates quality metrics for documentation content
@@ -135,16 +147,35 @@ func ComputeMetrics(content string, pkgCtx *validators.PackageContext) *QualityM
 func computeStructureScore(content, contentLower string, details *MetricsDetails) float64 {
 	score := 0.0
 
-	// Check required sections (60 points)
-	details.RequiredSectionsTotal = len(requiredSections)
-	for _, section := range requiredSections {
-		pattern := `(?m)^##\s+` + section
-		if regexp.MustCompile(`(?i)` + pattern).MatchString(content) {
-			details.RequiredSectionsFound++
+	// Check required H2 sections (40 points)
+	h2Found := 0
+	h2Total := len(requiredH2Sections)
+	for _, section := range requiredH2Sections {
+		// Match ## followed by the section name (case insensitive)
+		pattern := `(?im)^##\s+` + regexp.QuoteMeta(section)
+		if regexp.MustCompile(pattern).MatchString(content) {
+			h2Found++
 		} else {
-			details.MissingSections = append(details.MissingSections, section)
+			details.MissingSections = append(details.MissingSections, "## "+section)
 		}
 	}
+
+	// Check required H3 sections (20 points)
+	h3Found := 0
+	h3Total := len(requiredH3Sections)
+	for _, section := range requiredH3Sections {
+		// Match ### followed by the section name (case insensitive)
+		pattern := `(?im)^###\s+` + regexp.QuoteMeta(section)
+		if regexp.MustCompile(pattern).MatchString(content) {
+			h3Found++
+		} else {
+			details.MissingSections = append(details.MissingSections, "### "+section)
+		}
+	}
+
+	// Calculate total required sections score
+	details.RequiredSectionsTotal = h2Total + h3Total
+	details.RequiredSectionsFound = h2Found + h3Found
 	if details.RequiredSectionsTotal > 0 {
 		score += (float64(details.RequiredSectionsFound) / float64(details.RequiredSectionsTotal)) * 60
 	}
@@ -152,8 +183,11 @@ func computeStructureScore(content, contentLower string, details *MetricsDetails
 	// Check recommended sections (20 points)
 	recommendedFound := 0
 	for _, section := range recommendedSections {
-		if strings.Contains(contentLower, "## "+section) ||
-			strings.Contains(contentLower, "##"+section) {
+		// Check for both H2 and H3 versions
+		h2Pattern := `(?im)^##\s+` + regexp.QuoteMeta(section)
+		h3Pattern := `(?im)^###\s+` + regexp.QuoteMeta(section)
+		if regexp.MustCompile(h2Pattern).MatchString(content) ||
+			regexp.MustCompile(h3Pattern).MatchString(content) {
 			recommendedFound++
 		}
 	}
@@ -301,8 +335,10 @@ func isECSField(fieldRef string) bool {
 func computeCompletenessScore(content, contentLower string, pkgCtx *validators.PackageContext, details *MetricsDetails) float64 {
 	score := 0.0
 
-	// Check setup section (25 points)
-	details.HasSetupSection = strings.Contains(contentLower, "## setup") ||
+	// Check setup/deployment section (25 points)
+	// Template uses "How do I deploy this integration?" as the main setup section
+	details.HasSetupSection = strings.Contains(contentLower, "## how do i deploy") ||
+		strings.Contains(contentLower, "## setup") ||
 		strings.Contains(contentLower, "## installation") ||
 		strings.Contains(contentLower, "## getting started")
 	if details.HasSetupSection {

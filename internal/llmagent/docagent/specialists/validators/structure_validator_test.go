@@ -51,10 +51,6 @@ Prerequisites.
 
 Deploy stuff.
 
-### Onboard and configure
-
-Config.
-
 ### Validation
 
 Validate.
@@ -169,10 +165,6 @@ Deployment info.
 ### Agent-based deployment
 
 Agent setup.
-
-### Onboard and configure
-
-Configuration.
 
 ### Validation
 

@@ -12,6 +12,7 @@ package stylerules
 const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 - Every list MUST have an introductory sentence ending with colon
 - Use sentence case for headings: "Vendor-specific issues" not "Vendor-Specific Issues"
+- In lists, do not use bolding for conceptual emphasis.
 `
 
 // CriticRejectionCriteria provides criteria for the critic to check.

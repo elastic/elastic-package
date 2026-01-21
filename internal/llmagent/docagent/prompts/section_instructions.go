@@ -85,9 +85,6 @@ DEPLOYMENT SECTION REQUIREMENTS:
   - Link to installation instructions
   - For network requirements, use "#### Network requirements" heading, NOT "**Network requirements**"
 
-  ### Onboard and configure
-  - Overview of the configuration process
-
   ### Set up steps in {Product}
   - VENDOR-SIDE configuration steps
   - Numbered steps with specific UI paths (e.g., "Navigate to **Settings** > **Logging**")

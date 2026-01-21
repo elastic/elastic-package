@@ -14,8 +14,8 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/workflow"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -25,23 +25,11 @@ type EvaluationConfig struct {
 	// OutputDir is the directory to save evaluation results
 	OutputDir string
 
-	// EnableStagedValidation enables staged validation
-	EnableStagedValidation bool
-
-	// EnableLLMValidation enables LLM-based semantic validation
-	EnableLLMValidation bool
-
-	// MaxIterations limits retries per validation stage
+	// MaxIterations limits retries per section generation
 	MaxIterations uint
 
 	// EnableTracing enables Phoenix tracing
 	EnableTracing bool
-
-	// ClearResults clears previous results before running
-	ClearResults bool
-
-	// EnableSnapshots enables saving iteration snapshots
-	EnableSnapshots bool
 
 	// ModelID is the LLM model to use
 	ModelID string
@@ -50,13 +38,10 @@ type EvaluationConfig struct {
 // DefaultEvaluationConfig returns default evaluation configuration
 func DefaultEvaluationConfig() EvaluationConfig {
 	return EvaluationConfig{
-		OutputDir:              "./doc_eval_results",
-		EnableStagedValidation: true,
-		MaxIterations:          3,
-		EnableTracing:          false,
-		ClearResults:           true,
-		EnableSnapshots:        true,
-		ModelID:                "gemini-3-flash-preview",
+		OutputDir:     "./doc_eval_results",
+		MaxIterations: 3,
+		EnableTracing: false,
+		ModelID:       "gemini-3-flash-preview",
 	}
 }
 
@@ -89,26 +74,11 @@ type EvaluationResult struct {
 	// Approved indicates if all validation stages passed
 	Approved bool `json:"approved"`
 
-	// TotalIterations across all stages
-	TotalIterations int `json:"total_iterations"`
-
-	// IssueHistory tracks issue counts per iteration (for convergence analysis)
-	IssueHistory []int `json:"issue_history,omitempty"`
-
-	// ConvergenceBonus indicates if an extra iteration was granted due to convergence
-	ConvergenceBonus bool `json:"convergence_bonus,omitempty"`
-
 	// Metrics holds computed quality metrics
 	Metrics *QualityMetrics `json:"metrics,omitempty"`
 
 	// ValidationSummary provides a quick overview of validation results
 	ValidationSummary *ValidationSummary `json:"validation_summary,omitempty"`
-
-	// StageResults holds per-stage validation results
-	StageResults map[string]*StageResult `json:"stage_results,omitempty"`
-
-	// SnapshotDir is where iteration snapshots are saved
-	SnapshotDir string `json:"snapshot_dir,omitempty"`
 
 	// Error contains any error message
 	Error string `json:"error,omitempty"`
@@ -141,7 +111,7 @@ type ValidationSummary struct {
 	PassedStages []string `json:"passed_stages,omitempty"`
 
 	// TopIssues lists the most critical issues (up to 5) for quick reference
-	TopIssues []string `json:"top_issues,omitempty"`
+	TopIssues []string `json:"top_issues"`
 
 	// FailureReason provides a human-readable summary of why validation failed
 	FailureReason string `json:"failure_reason,omitempty"`
@@ -177,12 +147,11 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	runID := fmt.Sprintf("%s_%s", d.manifest.Name, startTime.Format("20060102_150405"))
 
 	result := &EvaluationResult{
-		PackageName:  d.manifest.Name,
-		PackagePath:  d.packageRoot,
-		RunID:        runID,
-		Timestamp:    startTime,
-		Config:       cfg,
-		StageResults: make(map[string]*StageResult),
+		PackageName: d.manifest.Name,
+		PackagePath: d.packageRoot,
+		RunID:       runID,
+		Timestamp:   startTime,
+		Config:      cfg,
 	}
 
 	// Initialize tracing - track span so we can end it before flushing
@@ -202,15 +171,6 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 				fmt.Printf("🔍 Tracing session ID: %s\n", sessionID)
 			}
 		}
-	}
-
-	// Create snapshot manager if enabled
-	var snapshotMgr *workflow.SnapshotManager
-	if cfg.EnableSnapshots && cfg.OutputDir != "" {
-		snapshotDir := filepath.Join(cfg.OutputDir, "snapshots", d.manifest.Name)
-		snapshotMgr = workflow.NewSnapshotManager(snapshotDir, d.manifest.Name)
-		result.SnapshotDir = snapshotMgr.GetSessionDir()
-		fmt.Printf("📸 Snapshots will be saved to: %s\n", result.SnapshotDir)
 	}
 
 	// Confirm LLM understands the documentation guidelines
@@ -237,17 +197,15 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	// Build generation config from evaluation config
 	genCfg := GenerationConfig{
 		MaxIterations:          cfg.MaxIterations,
-		EnableStagedValidation: cfg.EnableStagedValidation,
-		EnableLLMValidation:    cfg.EnableLLMValidation,
-		SnapshotManager:        snapshotMgr,
+		EnableStagedValidation: true,
+		EnableLLMValidation:    true,
 	}
 	if genCfg.MaxIterations == 0 {
 		genCfg.MaxIterations = 3
 	}
 
-	// TODO: Replace this stub with GenerateAllSectionsWithValidation
-	// The evaluate mode should use the same generation method as --non-interactive
-	fmt.Printf("📊 Starting generation with validation loop (max %d iterations)...\n", genCfg.MaxIterations)
+	// Use the same section-based generation method as --non-interactive mode
+	fmt.Printf("📊 Starting section-based generation (max %d iterations per section)...\n", genCfg.MaxIterations)
 	genResult, err := d.GenerateAllSectionsWithValidation(ctx, pkgCtx, genCfg)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to generate documentation: %v", err)
@@ -257,35 +215,22 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 
 	// Copy results from generation
 	result.GeneratedContent = genResult.Content
-	result.Approved = genResult.Approved
-	result.TotalIterations = genResult.TotalIterations
-	result.StageResults = genResult.StageResults
-	result.IssueHistory = genResult.IssueHistory
-	result.ConvergenceBonus = genResult.ConvergenceBonus
+
+	// Validate the final assembled document
+	stageResults, finalApproved := d.validateFinalDocument(ctx, genResult.Content, pkgCtx)
+	result.Approved = finalApproved
 
 	// Compute quality metrics
 	result.Metrics = ComputeMetrics(genResult.Content, pkgCtx)
 
-	// Build validation summary from stage results
-	result.ValidationSummary = buildValidationSummary(result.StageResults, result.Approved)
-
-	// Save final snapshot if enabled
-	if snapshotMgr != nil {
-		// Create a workflow result for the final snapshot
-		workflowResult := &workflow.StagedWorkflowResult{
-			Approved:        result.Approved,
-			TotalIterations: result.TotalIterations,
-		}
-		if err := snapshotMgr.SaveFinalSnapshot(result.GeneratedContent, workflowResult); err != nil {
-			logger.Debugf("Failed to save final snapshot: %v", err)
-		}
-	}
+	// Build validation summary from final document validation
+	result.ValidationSummary = buildValidationSummary(stageResults, result.Approved)
 
 	// Log final status
 	if result.Approved {
-		fmt.Printf("✅ Document approved at iteration %d\n", result.TotalIterations)
+		fmt.Printf("✅ Final document approved after generation\n")
 	} else {
-		fmt.Printf("⚠️ Max iterations (%d) reached. Final score: %.1f\n", genCfg.MaxIterations, result.Metrics.CompositeScore)
+		fmt.Printf("⚠️ Final document failed validation. Score: %.1f\n", result.Metrics.CompositeScore)
 	}
 
 	result.Duration = time.Since(startTime)
@@ -327,6 +272,88 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	return result, nil
 }
 
+// validateFinalDocument runs all validators against the final assembled document.
+func (d *DocumentationAgent) validateFinalDocument(ctx context.Context, content string, pkgCtx *validators.PackageContext) (map[string]*StageResult, bool) {
+	stageResults := make(map[string]*StageResult)
+	generate := d.createLLMValidateFunc()
+
+	for _, validator := range specialists.AllStagedValidators() {
+		if validator.Scope() == validators.ScopeSectionLevel {
+			continue
+		}
+
+		stageName := validator.Stage().String()
+		stageResult, ok := stageResults[stageName]
+		if !ok {
+			stageResult = &StageResult{
+				Stage: stageName,
+				Valid: true,
+				Score: 100,
+			}
+			stageResults[stageName] = stageResult
+		}
+
+		var staticResult *validators.StagedValidationResult
+		if validator.SupportsStaticValidation() {
+			res, err := validator.StaticValidate(ctx, content, pkgCtx)
+			if err != nil {
+				logger.Debugf("Static validation error for %s: %v", validator.Name(), err)
+			} else {
+				staticResult = res
+			}
+		}
+
+		var llmResult *validators.StagedValidationResult
+		if validator.SupportsLLMValidation() {
+			res, err := validator.LLMValidate(ctx, content, pkgCtx, generate)
+			if err != nil {
+				logger.Debugf("LLM validation error for %s: %v", validator.Name(), err)
+			} else {
+				llmResult = res
+			}
+		}
+
+		merged := validators.MergeValidationResults(staticResult, llmResult)
+		if merged == nil {
+			continue
+		}
+
+		stageResult.Valid = stageResult.Valid && merged.Valid
+		if merged.Score < stageResult.Score {
+			stageResult.Score = merged.Score
+		}
+
+		for _, issue := range merged.Issues {
+			message := issue.Message
+			if issue.Location != "" {
+				message = fmt.Sprintf("%s: %s", issue.Location, issue.Message)
+			}
+			stageResult.Issues = append(stageResult.Issues, fmt.Sprintf("[%s] %s", validator.Name(), message))
+			stageResult.DetailedIssues = append(stageResult.DetailedIssues, ValidationIssueDetail{
+				Severity:    string(issue.Severity),
+				Category:    string(issue.Category),
+				Location:    issue.Location,
+				Message:     issue.Message,
+				Suggestion:  issue.Suggestion,
+				SourceCheck: issue.SourceCheck,
+			})
+		}
+
+		stageResult.Warnings = append(stageResult.Warnings, merged.Warnings...)
+		stageResult.Suggestions = append(stageResult.Suggestions, merged.Suggestions...)
+	}
+
+	approved := true
+	for _, stageResult := range stageResults {
+		if !stageResult.Valid {
+			approved = false
+			break
+		}
+	}
+
+	return stageResults, approved
+}
+
 // fetchTraceSummaryFromPhoenix fetches trace data from Phoenix
 func fetchTraceSummaryFromPhoenix(ctx context.Context, sessionID string) (*tracing.TraceSummary, error) {
 	client := tracing.NewPhoenixClient(tracing.DefaultEndpoint)
@@ -352,7 +379,9 @@ func fetchTraceSummaryFromPhoenix(ctx context.Context, sessionID string) (*traci
 
 // buildValidationSummary creates a summary of validation results
 func buildValidationSummary(stageResults map[string]*StageResult, approved bool) *ValidationSummary {
-	summary := &ValidationSummary{}
+	summary := &ValidationSummary{
+		TopIssues: make([]string, 0),
+	}
 
 	for stageName, stageRes := range stageResults {
 		if stageRes.Valid {
@@ -361,7 +390,11 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 			summary.FailedStages = append(summary.FailedStages, stageName)
 		}
 
-		summary.TotalIssues += len(stageRes.Issues)
+		issueCount := len(stageRes.Issues)
+		if len(stageRes.DetailedIssues) > 0 {
+			issueCount = len(stageRes.DetailedIssues)
+		}
+		summary.TotalIssues += issueCount
 
 		// Count by severity from detailed issues if available
 		for _, detail := range stageRes.DetailedIssues {
@@ -376,7 +409,17 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 		}
 
 		// Add top issues (up to 5)
-		for _, issue := range stageRes.Issues {
+		issuesForSummary := stageRes.Issues
+		if len(issuesForSummary) == 0 && len(stageRes.DetailedIssues) > 0 {
+			for _, detail := range stageRes.DetailedIssues {
+				message := detail.Message
+				if detail.Location != "" {
+					message = fmt.Sprintf("%s: %s", detail.Location, detail.Message)
+				}
+				issuesForSummary = append(issuesForSummary, message)
+			}
+		}
+		for _, issue := range issuesForSummary {
 			if len(summary.TopIssues) < 5 {
 				summary.TopIssues = append(summary.TopIssues, fmt.Sprintf("[%s] %s", stageName, issue))
 			}
@@ -425,32 +468,6 @@ func saveEvaluationResult(result *EvaluationResult, outputDir string) error {
 		originalPath := filepath.Join(resultDir, result.RunID+"_original.md")
 		if err := os.WriteFile(originalPath, []byte(result.OriginalContent), 0644); err != nil {
 			logger.Debugf("Failed to save original markdown: %v", err)
-		}
-	}
-
-	return nil
-}
-
-// ClearResultsDirectory clears the results from the output directory
-func ClearResultsDirectory(outputDir string) error {
-	resultsDir := filepath.Join(outputDir, "results")
-	if _, err := os.Stat(resultsDir); err == nil {
-		if err := os.RemoveAll(resultsDir); err != nil {
-			return err
-		}
-	}
-
-	batchDir := filepath.Join(outputDir, "batch_results")
-	if _, err := os.Stat(batchDir); err == nil {
-		if err := os.RemoveAll(batchDir); err != nil {
-			return err
-		}
-	}
-
-	snapshotsDir := filepath.Join(outputDir, "snapshots")
-	if _, err := os.Stat(snapshotsDir); err == nil {
-		if err := os.RemoveAll(snapshotsDir); err != nil {
-			return err
 		}
 	}
 

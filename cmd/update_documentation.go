@@ -510,29 +510,9 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		return fmt.Errorf("failed to get max-iterations flag: %w", err)
 	}
 
-	enableStagedValidation, err := cmd.Flags().GetBool("enable-staged-validation")
-	if err != nil {
-		return fmt.Errorf("failed to get enable-staged-validation flag: %w", err)
-	}
-
-	clearResults, err := cmd.Flags().GetBool("clear-results")
-	if err != nil {
-		return fmt.Errorf("failed to get clear-results flag: %w", err)
-	}
-
 	enableTracing, err := cmd.Flags().GetBool("enable-tracing")
 	if err != nil {
 		return fmt.Errorf("failed to get enable-tracing flag: %w", err)
-	}
-
-	enableSnapshots, err := cmd.Flags().GetBool("enable-snapshots")
-	if err != nil {
-		return fmt.Errorf("failed to get enable-snapshots flag: %w", err)
-	}
-
-	enableLLMValidation, err := cmd.Flags().GetBool("enable-llm-validation")
-	if err != nil {
-		return fmt.Errorf("failed to get enable-llm-validation flag: %w", err)
 	}
 
 	// Get tracing configuration
@@ -563,20 +543,16 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		cmd.Printf("🔄 Starting batch evaluation of %d packages...\n", len(packageNames))
 
 		batchCfg := docagent.BatchEvaluationConfig{
-			IntegrationsPath:       integrationsPath,
-			OutputDir:              outputDir,
-			PackageNames:           packageNames,
-			Parallelism:            parallelism,
-			APIKey:                 apiKey,
-			ModelID:                modelID,
-			EnableStagedValidation: enableStagedValidation,
-			EnableLLMValidation:    enableLLMValidation,
-			MaxIterations:          maxIterations,
-			EnableTracing:          enableTracing,
-			ClearResults:           clearResults,
-			EnableSnapshots:        enableSnapshots,
-			Profile:                profile,
-			ThinkingBudget:         thinkingBudget,
+			IntegrationsPath: integrationsPath,
+			OutputDir:        outputDir,
+			PackageNames:     packageNames,
+			Parallelism:      parallelism,
+			APIKey:           apiKey,
+			ModelID:          modelID,
+			MaxIterations:    maxIterations,
+			EnableTracing:    enableTracing,
+			Profile:          profile,
+			ThinkingBudget:   thinkingBudget,
 		}
 
 		result, err := docagent.RunBatchEvaluation(cmd.Context(), batchCfg)
@@ -617,14 +593,10 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 	}
 
 	evalCfg := docagent.EvaluationConfig{
-		OutputDir:              outputDir,
-		EnableStagedValidation: enableStagedValidation,
-		EnableLLMValidation:    enableLLMValidation,
-		MaxIterations:          maxIterations,
-		EnableTracing:          tracingConfig.Enabled,
-		ClearResults:           clearResults,
-		EnableSnapshots:        enableSnapshots,
-		ModelID:                modelID,
+		OutputDir:     outputDir,
+		MaxIterations: maxIterations,
+		EnableTracing: tracingConfig.Enabled,
+		ModelID:       modelID,
 	}
 
 	result, err := docAgent.EvaluateDocumentation(cmd.Context(), evalCfg)
@@ -643,16 +615,9 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		cmd.Printf("   Placeholder Count: %d\n", result.Metrics.PlaceholderCount)
 	}
 	cmd.Printf("   Approved: %v\n", result.Approved)
-	cmd.Printf("   Total Iterations: %d\n", result.TotalIterations)
 	cmd.Printf("   Duration: %s\n", result.Duration.Round(time.Second))
 	if outputDir != "" {
 		cmd.Printf("   Results saved to: %s\n", outputDir)
-	}
-	if result.SnapshotDir != "" {
-		cmd.Printf("   Snapshots saved to: %s\n", result.SnapshotDir)
-	}
-	if len(result.IssueHistory) > 0 {
-		cmd.Printf("   Issue convergence: %v\n", result.IssueHistory)
 	}
 
 	return nil

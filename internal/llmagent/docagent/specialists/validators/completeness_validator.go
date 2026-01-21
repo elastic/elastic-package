@@ -450,8 +450,9 @@ func (v *CompletenessValidator) checkDataStreamTemplates(content string, pkgCtx 
 	}
 
 	// Pattern to match {{fields "name"}} and {{event "name"}} templates
-	fieldsPattern := regexp.MustCompile(`\{\{fields\s+"([^"]+)"\}\}`)
-	eventPattern := regexp.MustCompile(`\{\{event\s+"([^"]+)"\}\}`)
+	// Allow flexible whitespace: {{ fields "name" }} or {{fields "name"}}
+	fieldsPattern := regexp.MustCompile(`\{\{\s*fields\s+"([^"]+)"\s*\}\}`)
+	eventPattern := regexp.MustCompile(`\{\{\s*event\s+"([^"]+)"\s*\}\}`)
 
 	// Check {{fields}} templates
 	fieldsMatches := fieldsPattern.FindAllStringSubmatch(content, -1)

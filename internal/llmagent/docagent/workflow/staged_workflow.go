@@ -32,9 +32,6 @@ type StagedWorkflowConfig struct {
 	// PackageContext provides package metadata for static validation
 	PackageContext *validators.PackageContext
 
-	// SnapshotManager handles saving intermediate documents
-	SnapshotManager *SnapshotManager
-
 	// EnableStaticValidation enables static (non-LLM) validation
 	EnableStaticValidation bool
 
@@ -71,10 +68,10 @@ type StagedWorkflowResult struct {
 
 // StagedWorkflowBuilder builds and executes staged validation workflows
 type StagedWorkflowBuilder struct {
-	config      Config
-	stagedCfg   StagedWorkflowConfig
-	vals        map[validators.ValidatorStage]validators.StagedValidator
-	stateStore  *specialists.StateStore
+	config     Config
+	stagedCfg  StagedWorkflowConfig
+	vals       map[validators.ValidatorStage]validators.StagedValidator
+	stateStore *specialists.StateStore
 }
 
 // NewStagedWorkflowBuilder creates a new staged workflow builder
@@ -143,11 +140,6 @@ func (b *StagedWorkflowBuilder) ExecuteStagedWorkflow(ctx context.Context, secti
 	result.Content = content
 	result.TotalIterations = 1
 
-	// Save initial snapshot
-	if b.stagedCfg.SnapshotManager != nil {
-		b.stagedCfg.SnapshotManager.SaveSnapshot(content, "initial", 0, nil)
-	}
-
 	// Step 2: Run each validation stage
 	for _, stage := range b.stagedCfg.Stages {
 		validator, ok := b.vals[stage]
@@ -181,11 +173,6 @@ func (b *StagedWorkflowBuilder) ExecuteStagedWorkflow(ctx context.Context, secti
 		if newContent != "" {
 			content = newContent
 			result.Content = content
-		}
-
-		// Save post-stage snapshot
-		if b.stagedCfg.SnapshotManager != nil {
-			b.stagedCfg.SnapshotManager.SaveSnapshot(content, stage.String(), iterations, stageResult)
 		}
 
 		logger.Debugf("Stage %s completed: valid=%v, iterations=%d", stage.String(), stageResult.Valid, iterations)
@@ -248,12 +235,6 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 					return staticResult, content, iterations, fmt.Errorf("regeneration failed: %w", err)
 				}
 				content = newContent
-
-				// Save intermediate snapshot
-				if b.stagedCfg.SnapshotManager != nil {
-					b.stagedCfg.SnapshotManager.SaveSnapshot(content, validator.Stage().String()+"_static", int(iteration), staticResult)
-				}
-
 				continue
 			}
 		}
@@ -306,11 +287,6 @@ func (b *StagedWorkflowBuilder) runValidationStage(
 				return lastResult, content, iterations, fmt.Errorf("regeneration failed: %w", err)
 			}
 			content = newContent
-
-			// Save intermediate snapshot
-			if b.stagedCfg.SnapshotManager != nil {
-				b.stagedCfg.SnapshotManager.SaveSnapshot(content, validator.Stage().String()+"_regen", int(iteration), lastResult)
-			}
 		} else if iteration == b.stagedCfg.MaxIterationsPerStage-1 && isConverging && extraIterationAllowed && issueCount > 0 {
 			// Allow one extra iteration if we're converging but haven't hit zero
 			effectiveMaxIterations = b.stagedCfg.MaxIterationsPerStage + 1
@@ -540,4 +516,3 @@ func (result *StagedWorkflowResult) GenerateAuditReport() string {
 
 	return report.String()
 }
-

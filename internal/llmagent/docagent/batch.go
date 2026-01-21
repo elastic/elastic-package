@@ -39,23 +39,11 @@ type BatchEvaluationConfig struct {
 	// ModelID is the LLM model ID to use
 	ModelID string
 
-	// EnableStagedValidation enables staged validation
-	EnableStagedValidation bool
-
 	// MaxIterations limits retries per validation stage
 	MaxIterations uint
 
 	// EnableTracing enables Phoenix tracing
 	EnableTracing bool
-
-	// ClearResults clears previous results before running
-	ClearResults bool
-
-	// EnableSnapshots enables saving iteration snapshots
-	EnableSnapshots bool
-
-	// EnableLLMValidation enables LLM-based semantic validation
-	EnableLLMValidation bool
 
 	// Profile is the elastic-package profile for configuration
 	Profile *profile.Profile
@@ -75,11 +63,10 @@ type BatchEvaluationResult struct {
 
 // BatchSummary provides aggregate statistics for batch evaluation
 type BatchSummary struct {
-	TotalPackages   int     `json:"total_packages"`
-	PassedPackages  int     `json:"passed_packages"`
-	FailedPackages  int     `json:"failed_packages"`
-	AverageScore    float64 `json:"average_score"`
-	TotalIterations int     `json:"total_iterations"`
+	TotalPackages  int     `json:"total_packages"`
+	PassedPackages int     `json:"passed_packages"`
+	FailedPackages int     `json:"failed_packages"`
+	AverageScore   float64 `json:"average_score"`
 }
 
 // batchJob represents a package to evaluate
@@ -104,14 +91,6 @@ func RunBatchEvaluation(ctx context.Context, cfg BatchEvaluationConfig) (*BatchE
 		RunID:     runID,
 		Timestamp: startTime,
 		Results:   make([]*EvaluationResult, 0, len(cfg.PackageNames)),
-	}
-
-	// Clear previous results if requested
-	if cfg.ClearResults && cfg.OutputDir != "" {
-		fmt.Printf("🧹 Clearing previous results from %s...\n", cfg.OutputDir)
-		if err := ClearResultsDirectory(cfg.OutputDir); err != nil {
-			return nil, fmt.Errorf("failed to clear results directory: %w", err)
-		}
 	}
 
 	// Ensure output directory exists
@@ -220,14 +199,10 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 
 	// Run evaluation
 	evalCfg := EvaluationConfig{
-		OutputDir:              cfg.OutputDir,
-		EnableStagedValidation: cfg.EnableStagedValidation,
-		EnableLLMValidation:    cfg.EnableLLMValidation,
-		MaxIterations:          cfg.MaxIterations,
-		EnableTracing:          cfg.EnableTracing,
-		ClearResults:           false, // Already cleared at batch level
-		EnableSnapshots:        cfg.EnableSnapshots,
-		ModelID:                cfg.ModelID,
+		OutputDir:     cfg.OutputDir,
+		MaxIterations: cfg.MaxIterations,
+		EnableTracing: cfg.EnableTracing,
+		ModelID:       cfg.ModelID,
 	}
 
 	result, err := agent.EvaluateDocumentation(ctx, evalCfg)
@@ -338,8 +313,6 @@ func computeBatchSummary(results []*EvaluationResult) *BatchSummary {
 		} else {
 			summary.FailedPackages++
 		}
-		summary.TotalIterations += result.TotalIterations
-
 		if result.Metrics != nil {
 			totalScore += result.Metrics.CompositeScore
 		}

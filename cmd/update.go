@@ -37,14 +37,10 @@ func setupUpdateCommand() *cobraext.Command {
 	updateDocumentationCmd.Flags().String("output-dir", "./doc_eval_results", "directory for evaluation results (used with --evaluate)")
 	updateDocumentationCmd.Flags().String("batch", "", "comma-separated list of package names for batch processing (requires --evaluate)")
 	updateDocumentationCmd.Flags().String("integrations-path", "", "path to integrations repository (required for batch mode, or set INTEGRATIONS_PATH env var)")
-	updateDocumentationCmd.Flags().Uint("max-iterations", 3, "maximum validation iterations per stage")
+	updateDocumentationCmd.Flags().Uint("max-iterations", 3, "maximum generation iterations per section")
 	updateDocumentationCmd.Flags().Int("parallel", 4, "parallelism for batch mode")
 	updateDocumentationCmd.Flags().String("model", "", "LLM model ID to use (overrides GEMINI_MODEL env var)")
-	updateDocumentationCmd.Flags().Bool("enable-staged-validation", true, "enable staged validation")
-	updateDocumentationCmd.Flags().Bool("enable-llm-validation", true, "enable LLM-based semantic validation (slower, more thorough)")
-	updateDocumentationCmd.Flags().Bool("clear-results", true, "clear previous results from output directory before running (used with --evaluate)")
 	updateDocumentationCmd.Flags().Bool("enable-tracing", false, "enable Phoenix tracing for documentation generation")
-	updateDocumentationCmd.Flags().Bool("enable-snapshots", true, "save iteration snapshots for analysis (used with --evaluate)")
 
 	cmd := &cobra.Command{
 		Use:   "update",
