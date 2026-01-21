@@ -266,6 +266,7 @@ func WithSchemaURLs(schemaURLs SchemaURLs) ValidatorOption {
 		return nil
 	}
 }
+
 // CreateValidator creates a validator for a given fields directory, contained under the indicated repository and package roots.
 func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
