@@ -245,9 +245,10 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 		genCfg.MaxIterations = 3
 	}
 
-	// Use the shared generation + validation loop (same as update documentation)
+	// TODO: Replace this stub with GenerateAllSectionsWithValidation
+	// The evaluate mode should use the same generation method as --non-interactive
 	fmt.Printf("📊 Starting generation with validation loop (max %d iterations)...\n", genCfg.MaxIterations)
-	genResult, err := d.GenerateWithValidationLoop(ctx, genCfg)
+	genResult, err := d.GenerateAllSectionsWithValidation(ctx, pkgCtx, genCfg)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to generate documentation: %v", err)
 		result.Duration = time.Since(startTime)

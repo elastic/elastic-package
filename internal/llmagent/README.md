@@ -97,13 +97,6 @@ LLM execution capabilities.
 |------|-------------|
 | `executor.go` | ADK-based LLM executor with tracing |
 
-### `/docagent/generation`
-Generation-specific utilities.
-
-| File | Description |
-|------|-------------|
-| `structure.go` | Structure-related generation helpers |
-
 ### `/docagent/prompts`
 Prompt management and templates.
 
@@ -134,8 +127,6 @@ Shared formatting rules to avoid import cycles.
 | `ModifyDocumentation()` | Targeted modification of existing documentation |
 | `GenerateAllSectionsWithValidation()` | Per-section generation with validation loops |
 | `GenerateSectionWithValidationLoop()` | Single section generation with iteration tracking |
-| `GenerateFullDocumentWithWorkflow()` | Full document generation in one pass |
-| `GenerateWithValidationLoop()` | Full document validation loop with best-section tracking |
 | `GenerateAllSectionsWithWorkflow()` | Section generation using workflow builder |
 | `DebugRunCriticOnly()` | Run critic agent in isolation for debugging |
 | `DebugRunValidatorOnly()` | Run validator agent in isolation for debugging |
@@ -181,32 +172,8 @@ Workflow orchestration for multi-agent pipelines.
 |------|-------------|
 | `workflow.go` | Main workflow builder and executor |
 | `config.go` | Workflow configuration with fluent API |
-| `context_builder.go` | Builds context for generation |
 | `staged_workflow.go` | Staged validation workflow |
 | `snapshots.go` | Iteration snapshot management |
-
-### `/executor`
-Top-level LLM execution capabilities.
-
-| File | Description |
-|------|-------------|
-| `executor.go` | ADK-based LLM executor with tracing and session management |
-
-### `/generation`
-Top-level generation configuration and utilities.
-
-| File | Description |
-|------|-------------|
-| `config.go` | GenerationConfig and Result types |
-| `structure.go` | Document structure validation and repair |
-
-### `/parsing`
-Top-level markdown parsing utilities.
-
-| File | Description |
-|------|-------------|
-| `section.go` | Section struct, ParseSections, and related utilities |
-| `combiner.go` | CombineSections, EnsureDocumentTitle |
 
 ### `/validation`
 Simplified entry point for validation (re-exports from validators).
@@ -418,10 +385,10 @@ flowchart LR
 
 ## Configuration
 
-### GenerationConfig
+### GenerationConfig (in docagent package)
 
 ```go
-type Config struct {
+type GenerationConfig struct {
     MaxIterations          uint                      // Max iterations per section (default: 3)
     EnableStagedValidation bool                      // Enable validation after generation
     EnableLLMValidation    bool                      // Enable LLM-based semantic validation
@@ -476,7 +443,7 @@ agent, err := docagent.NewDocumentationAgent(ctx, docagent.AgentConfig{
 err = agent.UpdateDocumentation(ctx, nonInteractive)
 
 // Or with custom config
-cfg := generation.Config{
+cfg := docagent.GenerationConfig{
     MaxIterations:          3,
     EnableStagedValidation: true,
     EnableLLMValidation:    true,
