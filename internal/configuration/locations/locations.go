@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/environment"
 )
 
@@ -94,7 +95,8 @@ func (loc LocationManager) ServiceOutputDir() string {
 
 // CacheDir returns the directory with cached fields
 func (loc LocationManager) CacheDir(name string) string {
-	return filepath.Join(loc.stackPath, cacheDir, name)
+	defaultPath := filepath.Join(loc.stackPath, cacheDir, name)
+	return filepath.Join(defaultPath, common.CreateTestRunID())
 }
 
 // configurationDir returns the configuration directory location
