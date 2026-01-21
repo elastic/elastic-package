@@ -323,7 +323,7 @@ func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool
 		}
 
 		// Get mapping for the specified README section (hardcoded here to avoid import cycle)
-		serviceInfoSections := getServiceInfoMappingForSection(args.ReadmeSection)
+		serviceInfoSections := GetServiceInfoMappingForSection(args.ReadmeSection)
 
 		if len(serviceInfoSections) == 0 {
 			// No mapping exists for this section, return all sections
@@ -343,9 +343,9 @@ func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool
 	}
 }
 
-// getServiceInfoMappingForSection returns service_info sections for a README section
+// GetServiceInfoMappingForSection returns service_info sections for a README section
 // This mapping defines which service_info.md sections are relevant for each README section
-func getServiceInfoMappingForSection(readmeSectionTitle string) []string {
+func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 	// Mapping of README sections to service_info sections
 	mapping := map[string][]string{
 		"Overview": {

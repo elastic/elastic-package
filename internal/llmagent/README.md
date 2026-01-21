@@ -117,7 +117,6 @@ Prompt management and templates.
 | `_static/modification_prompt.txt` | Content modification prompt |
 | `_static/revision_prompt.txt` | Content revision prompt |
 | `_static/section_generation_prompt.txt` | Section generation prompt |
-| `_static/structure_revision_prompt.txt` | Structure revision prompt |
 
 ### `/docagent/stylerules`
 Shared formatting rules to avoid import cycles.

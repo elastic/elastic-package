@@ -16,9 +16,11 @@ import (
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
+	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -324,7 +326,7 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *spec
 	// Build package context directly from pkgCtx
 	if pkgCtx != nil && pkgCtx.Manifest != nil {
 		prompt.WriteString("\n## Package Context\n")
-		prompt.WriteString(buildPackageContext(pkgCtx))
+		prompt.WriteString(buildPackageContext(pkgCtx, sectionCtx.SectionTitle))
 	}
 
 	// Add validation feedback if passed via AdditionalContext (used in iteration loops)
@@ -607,43 +609,13 @@ func (b *Builder) RunValidatorOnContent(ctx context.Context, content string) (st
 }
 
 // buildPackageContext builds complete context for the generator from package metadata
-func buildPackageContext(pkgCtx *validators.PackageContext) string {
+// sectionTitle is used to filter service info content to only relevant sections
+func buildPackageContext(pkgCtx *validators.PackageContext, sectionTitle string) string {
 	if pkgCtx == nil || pkgCtx.Manifest == nil {
 		return ""
 	}
 
 	var sb strings.Builder
-
-	// Required document structure
-	sb.WriteString(fmt.Sprintf(`
-REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
-# %s
-
-> **Note**: This documentation was generated using AI and should be reviewed for accuracy.
-
-## Overview
-### Compatibility
-### How it works
-
-## What data does this integration collect?
-### Supported use cases
-
-## What do I need to use this integration?
-
-## How do I deploy this integration?
-### Agent-based deployment
-### Onboard and configure
-### Validation
-
-## Troubleshooting
-
-## Performance and scaling
-
-## Reference
-### Inputs used
-### API usage (if applicable)
-
-`, pkgCtx.Manifest.Title))
 
 	// Package information
 	sb.WriteString("=== PACKAGE INFORMATION ===\n")
@@ -655,12 +627,6 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 
 	// Data streams
 	if len(pkgCtx.DataStreams) > 0 {
-		sb.WriteString("\n=== DATA STREAMS (document ALL of these in the Reference section) ===\n")
-		sb.WriteString("CRITICAL: In the ## Reference section, each data stream MUST have:\n")
-		sb.WriteString("  1. A ### heading with the data stream name\n")
-		sb.WriteString("  2. A brief description of what data it collects\n")
-		sb.WriteString("  3. {{event \"<name>\"}} template IF the data stream has an example event (marked with [has example])\n")
-		sb.WriteString("  4. {{fields \"<name>\"}} template for field documentation\n\n")
 		sb.WriteString("Data streams in this package:\n")
 		for _, ds := range pkgCtx.DataStreams {
 			sb.WriteString(fmt.Sprintf("- %s", ds.Name))
@@ -682,20 +648,14 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 		}
 	}
 
-	// Service info links
-	if pkgCtx.HasServiceInfoLinks() {
-		sb.WriteString("\n=== VENDOR DOCUMENTATION LINKS (MUST include ALL in documentation - use EXACT URLs) ===\n")
-		sb.WriteString("IMPORTANT: Copy these URLs exactly as shown. Do NOT modify, shorten, or rephrase them.\n")
-		for _, link := range pkgCtx.GetServiceInfoLinks() {
-			sb.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
-		}
-	}
-
-	// Service info content
+	// Service info content - filtered to relevant sections for this doc section
 	if pkgCtx.ServiceInfo != "" {
-		sb.WriteString("\n=== SERVICE INFO CONTENT (use this for context) ===\n")
-		sb.WriteString(pkgCtx.ServiceInfo)
-		sb.WriteString("\n")
+		serviceInfoContent := getRelevantServiceInfo(pkgCtx.ServiceInfo, sectionTitle)
+		if serviceInfoContent != "" {
+			sb.WriteString("\n=== SERVICE INFO CONTENT (use this for context) ===\n")
+			sb.WriteString(serviceInfoContent)
+			sb.WriteString("\n")
+		}
 	}
 
 	// Instructions
@@ -704,20 +664,36 @@ REQUIRED DOCUMENT STRUCTURE (use these EXACT section names):
 	return sb.String()
 }
 
-// extractInputTypes extracts unique input types from policy templates
-func extractInputTypes(pkgCtx *validators.PackageContext) map[string]bool {
-	inputTypes := make(map[string]bool)
-	if pkgCtx == nil || pkgCtx.Manifest == nil {
-		return inputTypes
+// getRelevantServiceInfo extracts only the service info sections relevant to the given doc section
+func getRelevantServiceInfo(fullServiceInfo string, sectionTitle string) string {
+	// Get the mapping of which service_info sections are relevant for this doc section
+	relevantSectionTitles := tools.GetServiceInfoMappingForSection(sectionTitle)
+
+	// If no specific mapping, return empty (don't include all service info)
+	if len(relevantSectionTitles) == 0 {
+		return ""
 	}
-	for _, pt := range pkgCtx.Manifest.PolicyTemplates {
-		for _, input := range pt.Inputs {
-			if input.Type != "" {
-				inputTypes[input.Type] = true
-			}
+
+	// Parse the service info content
+	sections := parsing.ParseSections(fullServiceInfo)
+	if len(sections) == 0 {
+		return ""
+	}
+
+	// Find and collect matching sections
+	var matchedContent []string
+	for _, requestedTitle := range relevantSectionTitles {
+		section := parsing.FindSectionByTitleHierarchical(sections, requestedTitle)
+		if section != nil {
+			matchedContent = append(matchedContent, section.GetAllContent())
 		}
 	}
-	return inputTypes
+
+	if len(matchedContent) == 0 {
+		return ""
+	}
+
+	return strings.Join(matchedContent, "\n\n")
 }
 
 // buildInstructions returns the final instructions for the generator

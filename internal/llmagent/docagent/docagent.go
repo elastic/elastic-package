@@ -72,9 +72,6 @@ type (
 // AgentInstructions is the system prompt for the agent
 var AgentInstructions = prompts.AgentInstructions
 
-// StructureRevisionPrompt is the prompt for structure revision
-var StructureRevisionPrompt = prompts.StructureRevisionPrompt
-
 // TaskResult is the result of an executor task
 type TaskResult = executor.TaskResult
 
@@ -1064,18 +1061,8 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	var sectionResults []SectionGenerationResult
 	for _, sr := range results {
 		if sr != nil {
-			// Parse the content to get proper Section structure
-			parsedSections := parsing.ParseSections(sr.Content)
-			if len(parsedSections) > 0 {
-				generatedSections = append(generatedSections, parsedSections[0])
-			} else {
-				// Fallback: create section from content directly
-				generatedSections = append(generatedSections, Section{
-					Title:   sr.SectionTitle,
-					Level:   sr.SectionLevel,
-					Content: sr.Content,
-				})
-			}
+			section := normalizeSectionContent(sr.SectionTitle, sr.SectionLevel, sr.Content)
+			generatedSections = append(generatedSections, section)
 			sectionResults = append(sectionResults, *sr)
 		}
 	}
@@ -1087,21 +1074,9 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 	}
 	finalContent := parsing.CombineSectionsWithTitle(generatedSections, packageTitle)
 
-	// Post-assembly structure validation
-	fmt.Printf("🔍 Validating document structure...\n")
-	validatedContent, structureIssues, err := d.ValidateAndFixDocumentStructure(ctx, finalContent, pkgCtx)
-	if err != nil {
-		logger.Debugf("Structure validation failed: %v", err)
-		// Continue with original content if validation fails
-	} else {
-		finalContent = validatedContent
-		if len(structureIssues) > 0 {
-			fmt.Printf("⚠️  %d structural issues remain (may need manual review)\n", len(structureIssues))
-			allApproved = false
-		} else {
-			fmt.Printf("✅ Document structure validated\n")
-		}
-	}
+	// Programmatic structure fixup (ensure title is correct)
+	finalContent = d.FixDocumentStructure(finalContent, pkgCtx)
+	fmt.Printf("✅ Document assembled\n")
 
 	// Calculate total iterations (sum across all sections)
 	totalIterations := 0
@@ -1330,6 +1305,85 @@ func getSectionOrder(content string) []string {
 		}
 	}
 	return order
+}
+
+// normalizeSectionContent ensures a section has a proper header and non-empty content
+// - Strips out any H1 titles or AI notes that the generator may have incorrectly included
+// - Verifies the section header exists and is at the correct level
+// - If the content is empty, adds a placeholder comment
+func normalizeSectionContent(sectionTitle string, sectionLevel int, content string) Section {
+	content = strings.TrimSpace(content)
+
+	// Strip out H1 titles and AI notes that generators may incorrectly include
+	// The document title and AI note are added separately by CombineSectionsWithTitle
+	content = stripDocumentPreamble(content)
+
+	// Build expected header prefix
+	headerPrefix := strings.Repeat("#", sectionLevel) + " "
+	expectedHeader := headerPrefix + sectionTitle
+
+	// Check if content starts with the correct header
+	if content == "" || !strings.HasPrefix(content, headerPrefix) {
+		// Content is missing or doesn't start with header - add header
+		if content == "" {
+			content = expectedHeader + "\n\n<!-- SECTION NOT POPULATED! Add required information -->"
+		} else {
+			content = expectedHeader + "\n\n" + content
+		}
+	}
+
+	// Parse the content to get proper Section structure with subsections
+	parsedSections := parsing.ParseSections(content)
+	if len(parsedSections) > 0 {
+		return parsedSections[0]
+	}
+
+	// Fallback: create section from content directly
+	return Section{
+		Title:       sectionTitle,
+		Level:       sectionLevel,
+		Content:     content,
+		FullContent: content,
+	}
+}
+
+// stripDocumentPreamble removes H1 titles and AI notes from the beginning of content.
+// Generators sometimes incorrectly include these, but they should be added only once
+// by the document assembly process.
+func stripDocumentPreamble(content string) string {
+	lines := strings.Split(content, "\n")
+	startIdx := 0
+
+	for startIdx < len(lines) {
+		line := strings.TrimSpace(lines[startIdx])
+
+		// Skip H1 titles (should only be one at document level)
+		if strings.HasPrefix(line, "# ") && !strings.HasPrefix(line, "## ") {
+			startIdx++
+			continue
+		}
+
+		// Skip AI-generated notice
+		if strings.HasPrefix(line, "> **Note**: This documentation was generated") {
+			startIdx++
+			continue
+		}
+
+		// Skip empty lines at the beginning
+		if line == "" {
+			startIdx++
+			continue
+		}
+
+		// Found actual content
+		break
+	}
+
+	if startIdx == 0 {
+		return content // Nothing to strip
+	}
+
+	return strings.TrimSpace(strings.Join(lines[startIdx:], "\n"))
 }
 
 // GenerateWithValidationLoop generates documentation with iterative validation feedback
@@ -2264,232 +2318,18 @@ func parseJSON(data string, v any) error {
 	return json.Unmarshal([]byte(data), v)
 }
 
-// StructuralIssue represents a structural problem in the document
-type StructuralIssue struct {
-	Type       string // "title", "order", "missing", "duplicate", "naming"
-	Location   string
-	Message    string
-	Suggestion string
-}
-
-// validateDocumentStructure checks the document for structural issues
-func (d *DocumentationAgent) validateDocumentStructure(content string, pkgCtx *validators.PackageContext) []StructuralIssue {
-	var issues []StructuralIssue
+// FixDocumentStructure programmatically fixes document structure issues
+// Ensures title is correct and returns the fixed content
+func (d *DocumentationAgent) FixDocumentStructure(content string, pkgCtx *validators.PackageContext) string {
 	packageTitle := d.manifest.Title
 	if pkgCtx != nil && pkgCtx.Manifest != nil {
 		packageTitle = pkgCtx.Manifest.Title
 	}
 
-	lines := strings.Split(content, "\n")
-
-	// Required section order (H2 sections)
-	requiredSections := []string{
-		"overview",
-		"what data does this integration collect?",
-		"what do i need to use this integration?",
-		"how do i deploy this integration?",
-		"troubleshooting",
-		"performance and scaling",
-		"reference",
-	}
-
-	// Check title format
-	expectedTitle := fmt.Sprintf("# %s Integration for Elastic", packageTitle)
-	if len(lines) == 0 || !strings.HasPrefix(lines[0], "# ") {
-		issues = append(issues, StructuralIssue{
-			Type:       "title",
-			Location:   "Document start",
-			Message:    "Document does not start with H1 title",
-			Suggestion: fmt.Sprintf("Add title: %s", expectedTitle),
-		})
-	} else if strings.TrimSpace(lines[0]) != expectedTitle {
-		issues = append(issues, StructuralIssue{
-			Type:       "title",
-			Location:   "Document title",
-			Message:    fmt.Sprintf("Title format incorrect: got '%s'", strings.TrimSpace(lines[0])),
-			Suggestion: fmt.Sprintf("Use: %s", expectedTitle),
-		})
-	}
-
-	// Check for AI notice
-	aiNotice := "> **Note**: This documentation was generated using AI and should be reviewed for accuracy."
-	hasAINotice := false
-	for i := 1; i < min(5, len(lines)); i++ {
-		if strings.TrimSpace(lines[i]) == aiNotice {
-			hasAINotice = true
-			break
-		}
-	}
-	if !hasAINotice {
-		issues = append(issues, StructuralIssue{
-			Type:       "title",
-			Location:   "After title",
-			Message:    "Missing AI-generated notice",
-			Suggestion: "Add notice after title: " + aiNotice,
-		})
-	}
-
-	// Parse H2 sections and check order
-	h2Pattern := regexp.MustCompile(`(?m)^##\s+(.+)$`)
-	h2Matches := h2Pattern.FindAllStringSubmatch(content, -1)
-
-	foundSections := make(map[string]int) // section name -> count
-	var sectionOrder []string
-
-	for _, match := range h2Matches {
-		if len(match) > 1 {
-			sectionName := strings.ToLower(strings.TrimSpace(match[1]))
-			foundSections[sectionName]++
-			if foundSections[sectionName] == 1 {
-				sectionOrder = append(sectionOrder, sectionName)
-			}
-		}
-	}
-
-	// Check for missing sections
-	for _, required := range requiredSections {
-		if foundSections[required] == 0 {
-			titleCaser := cases.Title(language.English)
-			issues = append(issues, StructuralIssue{
-				Type:       "missing",
-				Location:   fmt.Sprintf("## %s", titleCaser.String(required)),
-				Message:    fmt.Sprintf("Required section '## %s' is missing", titleCaser.String(required)),
-				Suggestion: "Add the missing section with appropriate content",
-			})
-		}
-	}
-
-	// Check for duplicate sections
-	for section, count := range foundSections {
-		if count > 1 {
-			issues = append(issues, StructuralIssue{
-				Type:       "duplicate",
-				Location:   fmt.Sprintf("## %s", section),
-				Message:    fmt.Sprintf("Section '## %s' appears %d times", section, count),
-				Suggestion: "Remove duplicate sections, keeping the first occurrence",
-			})
-		}
-	}
-
-	// Check section order
-	expectedOrder := []string{}
-	for _, req := range requiredSections {
-		for _, found := range sectionOrder {
-			if found == req {
-				expectedOrder = append(expectedOrder, req)
-				break
-			}
-		}
-	}
-
-	// Compare actual order with expected
-	actualIdx := 0
-	for _, expected := range expectedOrder {
-		found := false
-		for i := actualIdx; i < len(sectionOrder); i++ {
-			if sectionOrder[i] == expected {
-				actualIdx = i + 1
-				found = true
-				break
-			}
-		}
-		if !found {
-			// Section exists but is out of order
-			for _, s := range sectionOrder {
-				if s == expected {
-					issues = append(issues, StructuralIssue{
-						Type:       "order",
-						Location:   fmt.Sprintf("## %s", expected),
-						Message:    fmt.Sprintf("Section '## %s' is out of order", expected),
-						Suggestion: "Reorder sections to match the required structure",
-					})
-					break
-				}
-			}
-		}
-	}
-
-	return issues
-}
-
-// formatStructuralIssues converts issues to a readable string
-func formatStructuralIssues(issues []StructuralIssue) string {
-	if len(issues) == 0 {
-		return "No structural issues found."
-	}
-
-	var sb strings.Builder
-	for i, issue := range issues {
-		sb.WriteString(fmt.Sprintf("%d. [%s] %s\n", i+1, issue.Type, issue.Message))
-		if issue.Suggestion != "" {
-			sb.WriteString(fmt.Sprintf("   Suggestion: %s\n", issue.Suggestion))
-		}
-	}
-	return sb.String()
-}
-
-// ValidateAndFixDocumentStructure validates the document structure and optionally fixes issues using LLM
-// Returns the corrected content and any remaining issues
-func (d *DocumentationAgent) ValidateAndFixDocumentStructure(ctx context.Context, content string, pkgCtx *validators.PackageContext) (string, []StructuralIssue, error) {
-	packageTitle := d.manifest.Title
-	if pkgCtx != nil && pkgCtx.Manifest != nil {
-		packageTitle = pkgCtx.Manifest.Title
-	}
-
-	// First, ensure the title is correct (this can be done programmatically)
+	// Ensure the title is correct
 	content = parsing.EnsureDocumentTitle(content, packageTitle)
 
-	// Validate structure
-	issues := d.validateDocumentStructure(content, pkgCtx)
-
-	// Filter out title issues since we already fixed them
-	var remainingIssues []StructuralIssue
-	for _, issue := range issues {
-		if issue.Type != "title" {
-			remainingIssues = append(remainingIssues, issue)
-		}
-	}
-
-	// If no significant issues remain, return the content
-	if len(remainingIssues) == 0 {
-		return content, nil, nil
-	}
-
-	// For significant structural issues, use LLM to fix
-	fmt.Printf("⚠️  Found %d structural issues, attempting to fix...\n", len(remainingIssues))
-
-	// Build the structure revision prompt
-	prompt := fmt.Sprintf(StructureRevisionPrompt,
-		d.manifest.Name,                         // Package name
-		packageTitle,                            // Package title
-		packageTitle,                            // For title in structure
-		packageTitle,                            // For "Set up steps in {Product}"
-		content,                                 // Current document
-		formatStructuralIssues(remainingIssues), // Issues found
-		packageTitle,                            // For title fix instruction
-	)
-
-	// Execute the LLM to fix structural issues
-	result, err := d.executor.ExecuteTask(ctx, prompt)
-	if err != nil {
-		logger.Debugf("Failed to fix structural issues with LLM: %v", err)
-		return content, remainingIssues, nil // Return original with issues
-	}
-
-	// Extract the fixed content from the result
-	fixedContent := parsing.ExtractMarkdownContent(result.FinalContent)
-	if fixedContent == "" {
-		fixedContent = result.FinalContent
-	}
-
-	// Validate again to check remaining issues
-	finalIssues := d.validateDocumentStructure(fixedContent, pkgCtx)
-
-	if len(finalIssues) < len(issues) {
-		fmt.Printf("✅ Fixed %d structural issues\n", len(issues)-len(finalIssues))
-	}
-
-	return fixedContent, finalIssues, nil
+	return content
 }
 
 // min returns the smaller of two integers

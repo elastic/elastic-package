@@ -22,6 +22,3 @@ var ModificationAnalysisPrompt string
 //go:embed _static/modification_prompt.txt
 var ModificationPrompt string
 
-//go:embed _static/structure_revision_prompt.txt
-var StructureRevisionPrompt string
-

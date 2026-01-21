@@ -210,7 +210,7 @@ func BuildFullContent(section *Section) {
 				}
 			}
 		}
-		builder.WriteString(subsection.Content)
+		builder.WriteString(subsection.GetAllContent())
 	}
 
 	section.FullContent = builder.String()

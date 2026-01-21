@@ -20,7 +20,6 @@ const (
 	PromptFileSectionGeneration    = "section_generation_prompt.txt"
 	PromptFileModificationAnalysis = "modification_analysis_prompt.txt"
 	PromptFileModification         = "modification_prompt.txt"
-	PromptFileStructureRevision    = "structure_revision_prompt.txt"
 )
 
 // Type represents the type of prompt to load
@@ -31,7 +30,6 @@ const (
 	TypeSectionGeneration
 	TypeModificationAnalysis
 	TypeModification
-	TypeStructureRevision
 )
 
 // LoadFile loads a prompt file from external location if enabled, otherwise uses embedded content
@@ -100,8 +98,6 @@ func Load(promptType Type, p *profile.Profile) string {
 		return LoadFile(PromptFileModificationAnalysis, ModificationAnalysisPrompt, p)
 	case TypeModification:
 		return LoadFile(PromptFileModification, ModificationPrompt, p)
-	case TypeStructureRevision:
-		return LoadFile(PromptFileStructureRevision, StructureRevisionPrompt, p)
 	default:
 		return ""
 	}
