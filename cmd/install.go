@@ -87,12 +87,18 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 	defer repositoryRoot.Close()
 
+	config, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         kibanaClient,
 		PackageRoot:    packageRoot,
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
 		RepositoryRoot: repositoryRoot,
+		SchemaURLs:     config.SchemaURLs(),
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)
