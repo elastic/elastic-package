@@ -32,6 +32,9 @@ func (u *packedURL) Unpack(s string) error {
 }
 
 func (s SkipConfig) String() string {
+	if s.Link.URL == nil {
+		return s.Reason
+	}
 	return fmt.Sprintf("%s [%s]", s.Reason, s.Link)
 }
 

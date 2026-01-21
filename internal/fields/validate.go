@@ -10,9 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -24,6 +24,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -265,26 +266,8 @@ func WithSchemaURLs(schemaURLs SchemaURLs) ValidatorOption {
 		return nil
 	}
 }
-
-type packageRootFinder interface {
-	FindPackageRoot() (string, error)
-}
-
-type packageRoot struct {
-	from string
-}
-
-func (p packageRoot) FindPackageRoot() (string, error) {
-	return packages.FindPackageRootFrom(p.from)
-}
-
-// CreateValidatorForDirectory function creates a validator for the directory.
-func CreateValidatorForDirectory(fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
-	finder := packageRoot{from: fieldsParentDir}
-	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, finder, opts...)
-}
-
-func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
+// CreateValidator creates a validator for a given fields directory, contained under the indicated repository and package roots.
+func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	// In validator, inject fields with settings used for validation, such as `allowed_values`.
 	v.injectFieldsOptions.IncludeValidationSettings = true
@@ -296,30 +279,28 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	fieldsDir := filepath.Join(fieldsParentDir, "fields")
-
-	var fdm *DependencyManager
-	if !v.disabledDependencyManagement {
-		packageRoot, err := finder.FindPackageRoot()
+	if _, err := os.Stat(fieldsDir); err == nil {
+		linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
 		if err != nil {
-			if errors.Is(err, packages.ErrPackageRootNotFound) {
-				return nil, errors.New("package root not found and dependency management is enabled")
+			return nil, fmt.Errorf("can't create links filesystem: %w", err)
+
+		}
+
+		var fdm *DependencyManager
+		if !v.disabledDependencyManagement {
+			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema, v.schemaURLs)
+			if err != nil {
+				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 			}
-			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
 
-		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema, v.schemaURLs)
+		fields, err := loadFieldsFromDir(linksFS, fdm, v.injectFieldsOptions)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+			return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 		}
+		v.Schema = append(fields, v.Schema...)
 	}
 
-	fields, err := loadFieldsFromDir(fieldsDir, fdm, v.injectFieldsOptions)
-	if err != nil {
-		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
-	}
-
-	v.Schema = append(fields, v.Schema...)
 	return v, nil
 }
 
@@ -523,15 +504,21 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-func loadFieldsFromDir(fieldsDir string, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
-	files, err := filepath.Glob(filepath.Join(fieldsDir, "*.yml"))
+// loadFieldsFromDir loads all the fields from a directory with fields files. The directory is passed as a filesystem.
+func loadFieldsFromDir(fieldsFS fs.FS, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
+	files, err := fs.Glob(fieldsFS, "*.yml")
 	if err != nil {
-		return nil, fmt.Errorf("reading directory with fields failed (path: %s): %w", fieldsDir, err)
+		return nil, err
 	}
+	links, err := fs.Glob(fieldsFS, "*.yml.link")
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, links...)
 
 	var fields []FieldDefinition
 	for _, file := range files {
-		body, err := os.ReadFile(file)
+		body, err := fs.ReadFile(fieldsFS, file)
 		if err != nil {
 			return nil, fmt.Errorf("reading fields file failed: %w", err)
 		}

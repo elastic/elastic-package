@@ -371,6 +371,7 @@ func createBuildDirectory(dirs ...string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer root.Close()
 
 	p := []string{root.Name(), "build"}
 	if len(dirs) > 0 {

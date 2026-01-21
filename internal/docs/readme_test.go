@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -51,13 +52,19 @@ Introduction to the package`,
 			expected:               "",
 		},
 	}
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-
 			dir := t.TempDir()
 			createReadmeTemplateFile(t, dir, c.readmeTemplateContents)
 
-			rendered, isTemplate, err := generateReadme(c.filename, "", dir)
+			root, err := os.OpenRoot(dir)
+			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
+
+			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir, urls)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -105,6 +112,9 @@ http://www.example.com/bar
 			linksMap: minimumLinksMap,
 		},
 	}
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
@@ -113,7 +123,11 @@ http://www.example.com/bar
 
 			createReadmeTemplateFile(t, c.packageRoot, c.readmeTemplateContents)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, c.linksMap)
+			root, err := os.OpenRoot(c.packageRoot)
+			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
+
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, c.linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -158,6 +172,9 @@ An example event for ` + "`example`" + ` looks as following:
 	}
 
 	linksMap := newEmptyLinkMap()
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)
@@ -167,7 +184,11 @@ An example event for ` + "`example`" + ` looks as following:
 			createSampleEventFile(t, c.packageRoot, c.dataStreamName, c.sampleEventJsonContents)
 			createManifestFile(t, c.packageRoot)
 
-			rendered, err := renderReadme(filename, c.packageRoot, templatePath, linksMap)
+			root, err := os.OpenRoot(c.packageRoot)
+			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
+
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -279,6 +300,9 @@ Introduction to the package
 
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -290,7 +314,11 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
 
-			rendered, err := renderReadme(filename, packageRoot, templatePath, linksMap)
+			root, err := os.OpenRoot(packageRoot)
+			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
+
+			rendered, err := renderReadme(root, filename, packageRoot, templatePath, linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -300,6 +328,9 @@ func TestRenderReadmeWithFields(t *testing.T) {
 }
 
 func TestUpdateReadmeWithFields(t *testing.T) {
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -313,7 +344,11 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			buildPackageRoot := t.TempDir()
 			createManifestFile(t, buildPackageRoot)
 
-			readmePath, err := updateReadme(filename, "", packageRoot, buildPackageRoot)
+			root, err := os.OpenRoot(packageRoot)
+			require.NoError(t, err)
+			t.Cleanup(func() { root.Close() })
+
+			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
 			require.NoError(t, err)
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)

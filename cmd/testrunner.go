@@ -57,6 +57,11 @@ These tests allow you to test a package's ability to ingest data end-to-end.
 
 For details on how to configure and run system tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/system_testing.md).
 
+#### Script Tests
+These tests allow you to run scripted testing to exercise specific behaviors in a package.
+
+For details on how to configure and run script tests, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/script_testing.md).
+
 #### Policy Tests
 These tests allow you to test different configuration options and the policies they generate, without needing to run a full scenario.
 
@@ -160,6 +165,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
@@ -360,6 +366,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -520,6 +527,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	runSetup, err := cmd.Flags().GetBool(cobraext.SetupFlagName)
 	if err != nil {
@@ -659,6 +667,44 @@ func getTestRunnerScriptCommand() *cobra.Command {
 
 func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Run script tests for the package")
+
+	var (
+		opts script.Options
+		err  error
+	)
+	opts.Dir, err = cmd.Flags().GetString(cobraext.ScriptsFlagName)
+	if err != nil {
+		return err
+	}
+	opts.Streams, err = cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
+	}
+	opts.ExternalStack, err = cmd.Flags().GetBool(cobraext.ExternalStackFlagName)
+	if err != nil {
+		return err
+	}
+	opts.RunPattern, err = cmd.Flags().GetString(cobraext.RunPatternFlagName)
+	if err != nil {
+		return err
+	}
+	opts.Verbose, err = cmd.Flags().GetBool(cobraext.VerboseScriptFlagName)
+	if err != nil {
+		return err
+	}
+	opts.UpdateScripts, err = cmd.Flags().GetBool(cobraext.UpdateScriptTestArchiveFlagName)
+	if err != nil {
+		return err
+	}
+	opts.ContinueOnError, err = cmd.Flags().GetBool(cobraext.ContinueOnErrorFlagName)
+	if err != nil {
+		return err
+	}
+	opts.TestWork, err = cmd.Flags().GetBool(cobraext.WorkScriptTestFlagName)
+	if err != nil {
+		return err
+	}
+
 	pkgRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		if err == packages.ErrPackageRootNotFound {
@@ -666,12 +712,36 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
-	pkg := filepath.Base(pkgRoot)
-	cmd.Printf("--- Test results for package: %s - START ---\n", pkg)
-	err = script.Run(cmd.OutOrStderr(), cmd, args)
-	cmd.Printf("--- Test results for package: %s - END ---\n", pkg)
-	cmd.Println("Done")
-	return err
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", pkgRoot, err)
+	}
+
+	reportFormat, err := cmd.Flags().GetString(cobraext.ReportFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportFormatFlagName)
+	}
+	reportOutput, err := cmd.Flags().GetString(cobraext.ReportOutputFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.ReportOutputFlagName)
+	}
+	testCoverage, err := cmd.Flags().GetBool(cobraext.TestCoverageFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TestCoverageFlagName)
+	}
+	testCoverageFormat, err := cmd.Flags().GetString(cobraext.TestCoverageFormatFlagName)
+	if err != nil {
+		return cobraext.FlagParsingError(err, cobraext.TestCoverageFormatFlagName)
+	}
+
+	opts.Package = manifest.Name
+
+	var results []testrunner.TestResult
+	err = script.Run(&results, cmd.OutOrStderr(), opts)
+	if err != nil {
+		return err
+	}
+	return processResults(results, "script", reportFormat, reportOutput, pkgRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
@@ -741,6 +811,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
 	if err != nil {

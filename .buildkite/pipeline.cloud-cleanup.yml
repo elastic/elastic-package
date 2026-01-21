@@ -19,6 +19,11 @@ steps:
         - label: "False"
           value: "false"
       default: "true"
+    - text: "RESOURCE_RETENTION_PERIOD"
+      key: "RESOURCE_RETENTION_PERIOD"
+      required: false
+      default: "24 hours"
+    if: "build.source == 'ui'"
 
   - wait: ~
     if: "build.source == 'ui'"

@@ -141,6 +141,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -306,6 +307,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
@@ -480,6 +482,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
+	defer repositoryRoot.Close()
 
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {

@@ -16,15 +16,16 @@ import (
 
 // Policy represents an Agent Policy in Fleet.
 type Policy struct {
-	ID                   string   `json:"id,omitempty"`
-	Name                 string   `json:"name"`
-	Description          string   `json:"description"`
-	Namespace            string   `json:"namespace"`
-	Revision             int      `json:"revision,omitempty"`
-	MonitoringEnabled    []string `json:"monitoring_enabled,omitempty"`
-	MonitoringOutputID   string   `json:"monitoring_output_id,omitempty"`
-	DataOutputID         string   `json:"data_output_id,omitempty"`
-	IsDefaultFleetServer bool     `json:"is_default_fleet_server,omitempty"`
+	ID                   string         `json:"id,omitempty"`
+	Name                 string         `json:"name"`
+	Description          string         `json:"description"`
+	Namespace            string         `json:"namespace"`
+	Revision             int            `json:"revision,omitempty"`
+	MonitoringEnabled    []string       `json:"monitoring_enabled,omitempty"`
+	MonitoringOutputID   string         `json:"monitoring_output_id,omitempty"`
+	DataOutputID         string         `json:"data_output_id,omitempty"`
+	IsDefaultFleetServer bool           `json:"is_default_fleet_server,omitempty"`
+	Overrides            map[string]any `json:"overrides,omitempty"`
 }
 
 // DownloadedPolicy represents a policy as returned by the download policy API.

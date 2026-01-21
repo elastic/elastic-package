@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/go-resource"
 
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 //go:embed _static
@@ -64,6 +65,7 @@ const (
 	configLogsDBEnabled       = "stack.logsdb_enabled"
 	configLogstashEnabled     = "stack.logstash_enabled"
 	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
+	configElasticEPRProxyTo   = "stack.epr.proxy_to"
 	configElasticSubscription = "stack.elastic_subscription"
 )
 
@@ -180,6 +182,7 @@ func applyResources(profile *profile.Profile, stackVersion string, agentVersion 
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
+		"epr_proxy_to":         profile.Config(configElasticEPRProxyTo, registry.ProductionURL),
 		"elastic_subscription": elasticSubscriptionProfile,
 	})
 
