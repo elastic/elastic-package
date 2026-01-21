@@ -281,6 +281,10 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		option(&configOptions)
 	}
 
+	if c.SchemaURLs.ECSBase == "" {
+		c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
+	}
+
 	configuration := ApplicationConfiguration{
 		c:              c,
 		agentBaseImage: configOptions.agentBaseImage,
