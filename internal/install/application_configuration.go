@@ -271,6 +271,10 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 	}
 
 	var c configFile
+	// Required for those scenarios that the configuration file existed previously
+	// to adding schema_urls section (elastic-package was previously installed).
+	c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
+
 	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)
@@ -279,10 +283,6 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 	configOptions := configurationOptions{}
 	for _, option := range options {
 		option(&configOptions)
-	}
-
-	if c.SchemaURLs.ECSBase == "" {
-		c.SchemaURLs.ECSBase = defaultECSSchemaBaseURL
 	}
 
 	configuration := ApplicationConfiguration{
