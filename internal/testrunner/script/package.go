@@ -13,6 +13,7 @@ import (
 
 	"github.com/rogpeppe/go-internal/testscript"
 
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 )
@@ -56,6 +57,11 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
+	config, err := install.Configuration()
+	if err != nil {
+		ts.Fatalf("can't load install configuration: %s", err)
+	}
+
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
@@ -63,6 +69,7 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		Absent:         false,
 		Force:          true,
 		RepositoryRoot: root,
+		SchemaURLs:     config.SchemaURLs(),
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
