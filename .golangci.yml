@@ -1,0 +1,32 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  disable:
+    - errcheck # TODO: Fix these errors and enable it.
+  enable:
+    - forbidigo
+    - staticcheck
+  settings:
+    staticcheck:
+      checks:
+        - "SA*"  # Only SA checks, matching original staticcheck default behavior
+    forbidigo:
+      forbid:
+        - pattern: ^os\.Getwd$
+          msg: "os.Getwd is forbidden, use locations.NewLocationManager instead"
+        - pattern: ^os\.Chdir$
+          msg: "os.Chdir is forbidden, use locations.NewLocationManager instead"
+        - pattern: ^filepath\.Abs$
+          msg: "filepath.Abs is forbidden, it uses os.Getwd internally"
+      analyze-types: true
+      exclude-godoc-examples: true
+  exclusions:
+    rules:
+      # Exclude forbidigo from test files (matches original -tests=false behavior)
+      - linters:
+          - forbidigo
+        path: _test\.go$

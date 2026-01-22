@@ -17,9 +17,9 @@ func Getwd(cmd *cobra.Command) (string, error) {
 		return "", FlagParsingError(err, ChangeDirectoryFlagName)
 	}
 	if cwd == "" {
-		return os.Getwd() //permit:os.Getwd // This should be the only place where this is needed.
+		return os.Getwd() //nolint:forbidigo // This should be the only place where this is needed.
 	}
-	abs, err := filepath.Abs(cwd) //permit:filepath.Abs // This should be the only place where this is needed.
+	abs, err := filepath.Abs(cwd) //nolint:forbidigo // This should be the only place where this is needed.
 	if err != nil {
 		return "", FlagParsingError(err, ChangeDirectoryFlagName)
 	}
@@ -33,7 +33,7 @@ func AbsolutePathFlag(cmd *cobra.Command, name string) (string, error) {
 		return "", FlagParsingError(err, name)
 	}
 	if pathFlag != "" {
-		abs, err := filepath.Abs(pathFlag) //permit:filepath.Abs // This should be the only place where this is needed.
+		abs, err := filepath.Abs(pathFlag) //nolint:forbidigo // This should be the only place where this is needed.
 		if err != nil {
 			return "", FlagParsingError(err, ChangeDirectoryFlagName)
 		}

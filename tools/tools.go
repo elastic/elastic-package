@@ -9,11 +9,10 @@ package tools
 // Add dependencies on tools.
 // https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
 import (
-	_ "github.com/ashanbrown/forbidigo/v2"
 	_ "github.com/boumenot/gocover-cobertura"
+	_ "github.com/golangci/golangci-lint/v2/cmd/golangci-lint"
 	_ "golang.org/x/tools/cmd/goimports"
 	_ "gotest.tools/gotestsum"
-	_ "honnef.co/go/tools/cmd/staticcheck"
 
 	_ "github.com/elastic/go-licenser"
 )

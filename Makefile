@@ -30,9 +30,7 @@ install:
 	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
 lint:
-	# TODO: Migrate to golangci-lint
-	go run honnef.co/go/tools/cmd/staticcheck ./...
-	go run github.com/ashanbrown/forbidigo/v2 -tests=false "^os.(Getwd|Chdir)$$" "^filepath.Abs$$" -- ./...
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 
 licenser:
 	go run github.com/elastic/go-licenser -license Elastic
