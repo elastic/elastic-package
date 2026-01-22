@@ -36,6 +36,10 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	// if the list is not empty, format the list as a markdown list
 	transformPaths, err := findTransformPaths(packageRoot)
 	if err != nil {
+		// if the directory does not exist, return an empty string
+		if os.IsNotExist(err) {
+			return "", nil
+		}
 		return "", fmt.Errorf("finding transform paths failed: %w", err)
 	}
 	if len(transformPaths) == 0 {
@@ -57,7 +61,17 @@ func findTransformPaths(packageRoot string) (map[string]Transform, error) {
 	result := make(map[string]Transform)
 
 	transformsRoot := filepath.Join(packageRoot, "elasticsearch", "transform")
-	err := filepath.WalkDir(transformsRoot, func(path string, d fs.DirEntry, err error) error {
+
+	// make sure the directory exists
+	stat, err := os.Stat(transformsRoot)
+	if err != nil {
+		return nil, err
+	}
+	if !stat.IsDir() {
+		return nil, fmt.Errorf("%s is not a directory", transformsRoot)
+	}
+
+	err = filepath.WalkDir(transformsRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
