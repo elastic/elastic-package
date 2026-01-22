@@ -11,22 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type Transform struct {
 	Description string `yaml:"description"`
-	Source      struct {
-		Index []string `yaml:"index"`
-	} `yaml:"source"`
-	Dest struct {
-		Index    string `yaml:"index"`
-		Pipeline string `yaml:"pipeline"`
-	} `yaml:"dest"`
-	Meta struct {
-		FleetTransformVersion string `yaml:"fleet_transform_version"`
-	} `yaml:"_meta"`
 }
 
 func renderTransformPaths(packageRoot string) (string, error) {
