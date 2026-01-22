@@ -28,6 +28,7 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -178,6 +179,7 @@ var (
 	dumpScenarioDocsEnv          = environment.WithElasticPackagePrefix("TEST_DUMP_SCENARIO_DOCS")
 	fieldValidationTestMethodEnv = environment.WithElasticPackagePrefix("FIELD_VALIDATION_TEST_METHOD")
 	prefixServiceTestRunIDEnv    = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
+	kibanaPolicyOverridesEnv     = environment.WithElasticPackagePrefix("KIBANA_POLICY_OVERRIDES")
 )
 
 type fieldValidationMethod int
@@ -217,18 +219,21 @@ type tester struct {
 
 	pipelines []ingest.Pipeline
 
-	dataStreamPath     string
-	stackVersion       kibana.VersionInfo
-	locationManager    *locations.LocationManager
-	resourcesManager   *resources.Manager
-	pkgManifest        *packages.PackageManifest
-	dataStreamManifest *packages.DataStreamManifest
-	withCoverage       bool
-	coverageType       string
+	dataStreamPath       string
+	stackVersion         kibana.VersionInfo
+	locationManager      *locations.LocationManager
+	resourcesManager     *resources.Manager
+	pkgManifest          *packages.PackageManifest
+	dataStreamManifest   *packages.DataStreamManifest
+	withCoverage         bool
+	coverageType         string
+	overrideAgentVersion string
 
 	serviceStateFilePath string
 
 	globalTestConfig testrunner.GlobalRunnerTestConfig
+
+	kibanaPolicyOverrides map[string]any
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
@@ -252,12 +257,13 @@ type SystemTesterOptions struct {
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
 
-	DeferCleanup     time.Duration
-	ServiceVariant   string
-	ConfigFileName   string
-	GlobalTestConfig testrunner.GlobalRunnerTestConfig
-	WithCoverage     bool
-	CoverageType     string
+	DeferCleanup         time.Duration
+	ServiceVariant       string
+	ConfigFileName       string
+	GlobalTestConfig     testrunner.GlobalRunnerTestConfig
+	WithCoverage         bool
+	CoverageType         string
+	OverrideAgentVersion string
 
 	RunSetup     bool
 	RunTearDown  bool
@@ -283,6 +289,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		globalTestConfig:           options.GlobalTestConfig,
 		withCoverage:               options.WithCoverage,
 		coverageType:               options.CoverageType,
+		overrideAgentVersion:       options.OverrideAgentVersion,
 		runIndependentElasticAgent: true,
 	}
 	r.resourcesManager = resources.NewManager()
@@ -345,6 +352,20 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 			return nil, fmt.Errorf("invalid field method option: %s", v)
 		}
 		r.fieldValidationMethod = method
+	}
+
+	// kibana policy overrides
+	v, ok = os.LookupEnv(kibanaPolicyOverridesEnv)
+	if ok {
+		data, err := os.ReadFile(v)
+		if err != nil {
+			return nil, fmt.Errorf("error reading file %q specified in %s: %w", v, kibanaPolicyOverridesEnv, err)
+		}
+		overrides := make(map[string]any)
+		if err = yaml.Unmarshal(data, &overrides); err != nil {
+			return nil, fmt.Errorf("error reading yaml from %s: %w", v, err)
+		}
+		r.kibanaPolicyOverrides = overrides
 	}
 
 	return &r, nil
@@ -456,20 +477,21 @@ type resourcesOptions struct {
 
 func (r *tester) createAgentOptions(policyName, deployerName string) agentdeployer.FactoryOptions {
 	return agentdeployer.FactoryOptions{
-		Profile:            r.profile,
-		WorkDir:            r.workDir,
-		PackageRootPath:    r.packageRootPath,
-		DataStreamRootPath: r.dataStreamPath,
-		DevDeployDir:       DevDeployDir,
-		Type:               agentdeployer.TypeTest,
-		StackVersion:       r.stackVersion.Version(),
-		PackageName:        r.testFolder.Package,
-		DataStream:         r.testFolder.DataStream,
-		PolicyName:         policyName,
-		DeployerName:       deployerName,
-		RunTearDown:        r.runTearDown,
-		RunTestsOnly:       r.runTestsOnly,
-		RunSetup:           r.runSetup,
+		Profile:              r.profile,
+		WorkDir:              r.workDir,
+		PackageRootPath:      r.packageRootPath,
+		DataStreamRootPath:   r.dataStreamPath,
+		DevDeployDir:         DevDeployDir,
+		Type:                 agentdeployer.TypeTest,
+		StackVersion:         r.stackVersion.Version(),
+		OverrideAgentVersion: r.overrideAgentVersion,
+		PackageName:          r.testFolder.Package,
+		DataStream:           r.testFolder.DataStream,
+		PolicyName:           policyName,
+		DeployerName:         deployerName,
+		RunTearDown:          r.runTearDown,
+		RunTestsOnly:         r.runTestsOnly,
+		RunSetup:             r.runSetup,
 	}
 }
 
@@ -482,6 +504,7 @@ func (r *tester) createServiceOptions(variantName, deployerName string) serviced
 		Variant:                variantName,
 		Type:                   servicedeployer.TypeTest,
 		StackVersion:           r.stackVersion.Version(),
+		OverrideAgentVersion:   r.overrideAgentVersion,
 		RunTearDown:            r.runTearDown,
 		RunTestsOnly:           r.runTestsOnly,
 		RunSetup:               r.runSetup,
@@ -1369,6 +1392,7 @@ func (r *tester) createOrGetKibanaPolicies(ctx context.Context, serviceStateData
 			Name:        fmt.Sprintf("ep-test-system-%s-%s-%s-%s-%s", r.testFolder.Package, r.testFolder.DataStream, r.serviceVariant, r.configFileName, testTime),
 			Description: fmt.Sprintf("test policy created by elastic-package test system for data stream %s/%s", r.testFolder.Package, r.testFolder.DataStream),
 			Namespace:   common.CreateTestRunID(),
+			Overrides:   r.kibanaPolicyOverrides,
 		}
 		// Assign the data_output_id to the agent policy to configure the output to logstash. The value is inferred from stack/_static/kibana.yml.tmpl
 		// TODO: Migrate from stack.logstash_enabled to the stack config.
@@ -1637,6 +1661,12 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		logger.Warn("Validation for packages using OpenTelemetry Collector input is experimental")
 	}
 
+	repositoryRoot, err := files.FindRepositoryRoot(r.packageRootPath)
+	if err != nil {
+		return result.WithErrorf("finding repository root failed: %w", err)
+	}
+	defer repositoryRoot.Close()
+
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -1646,6 +1676,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithDisableNormalization(scenario.syntheticEnabled),
 		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
 		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplateInput)),
+		fields.WithRepositoryRoot(repositoryRoot),
 	)
 	if err != nil {
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", r.dataStreamPath, err)
@@ -2231,6 +2262,12 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		}
 
 		transformRootPath := filepath.Dir(transform.Path)
+		repositoryRoot, err := files.FindRepositoryRoot(r.packageRootPath)
+		if err != nil {
+			return fmt.Errorf("finding repository root failed: %w", err)
+		}
+		defer repositoryRoot.Close()
+
 		fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
@@ -2238,6 +2275,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 			fields.WithDisableNormalization(syntheticEnabled),
 			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
 			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(policyTemplateInput)),
+			fields.WithRepositoryRoot(repositoryRoot),
 		)
 		if err != nil {
 			return fmt.Errorf("creating fields validator for data stream failed (path: %s): %w", transformRootPath, err)

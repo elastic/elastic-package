@@ -77,6 +77,11 @@ func defaultConfig() *scenario {
 	}
 }
 
+// readRawConfig reads the configuration without applying any template
+func readRawConfig(benchPath string, scenario string) (*scenario, error) {
+	return readConfig(benchPath, scenario, nil)
+}
+
 func readConfig(benchPath string, scenario string, svcInfo *servicedeployer.ServiceInfo) (*scenario, error) {
 	configPath := filepath.Clean(filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario)))
 	data, err := os.ReadFile(configPath)

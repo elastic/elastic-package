@@ -349,6 +349,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	validatorOptions = append(slices.Clone(validatorOptions),
 		fields.WithNumericKeywordFields(tc.config.NumericKeywordFields),
 		fields.WithStringNumberFields(tc.config.StringNumberFields),
+		fields.WithRepositoryRoot(r.repositoryRoot),
 	)
 	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, dsPath, validatorOptions...)
 	if err != nil {

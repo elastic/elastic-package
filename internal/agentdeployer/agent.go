@@ -44,9 +44,10 @@ var staticSource = resource.NewSourceFS(static)
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
-	profile      *profile.Profile
-	workDir      string
-	stackVersion string
+	profile              *profile.Profile
+	workDir              string
+	stackVersion         string
+	overrideAgentVersion string
 
 	policyName string
 
@@ -60,10 +61,11 @@ type DockerComposeAgentDeployer struct {
 }
 
 type DockerComposeAgentDeployerOptions struct {
-	Profile      *profile.Profile
-	WorkDir      string
-	StackVersion string
-	PolicyName   string
+	Profile              *profile.Profile
+	WorkDir              string
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	PackageName string
 	DataStream  string
@@ -89,14 +91,15 @@ var _ DeployedAgent = new(dockerComposeDeployedAgent)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
 	return &DockerComposeAgentDeployer{
-		profile:      options.Profile,
-		workDir:      options.WorkDir,
-		stackVersion: options.StackVersion,
-		packageName:  options.PackageName,
-		dataStream:   options.DataStream,
-		policyName:   options.PolicyName,
-		runTearDown:  options.RunTearDown,
-		runTestsOnly: options.RunTestsOnly,
+		profile:              options.Profile,
+		workDir:              options.WorkDir,
+		stackVersion:         options.StackVersion,
+		overrideAgentVersion: options.OverrideAgentVersion,
+		packageName:          options.PackageName,
+		dataStream:           options.DataStream,
+		policyName:           options.PolicyName,
+		runTearDown:          options.RunTearDown,
+		runTestsOnly:         options.RunTestsOnly,
 	}, nil
 }
 
@@ -105,7 +108,13 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	logger.Debug("setting up agent using Docker Compose agent deployer")
 	d.agentRunID = agentInfo.Test.RunID
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion))
+	// default agent version to stack version
+	agentVersion := d.stackVersion
+	if d.overrideAgentVersion != "" {
+		agentVersion = d.overrideAgentVersion
+	}
+
+	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -128,7 +137,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		return nil, fmt.Errorf("could not create resources for custom agent: %w", err)
 	}
 
-	composeProjectName := fmt.Sprintf("elastic-package-agent-%s-%s", d.agentName(), agentInfo.Test.RunID)
+	composeProjectName := d.ProjectName(agentInfo.Test.RunID)
 
 	agent := dockerComposeDeployedAgent{
 		ymlPaths:  []string{filepath.Join(configDir, dockerTestAgentDockerCompose)},
@@ -173,6 +182,26 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		ExtraArgs: []string{"--build", "-d"},
 	}
 
+	defer func() {
+		if err == nil {
+			return
+		}
+		// If running with --setup or --tear-down flags or a regular test system execution,
+		// force to tear down the service in case of setup error.
+		if d.runTestsOnly {
+			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
+			processAgentContainerLogs(context.WithoutCancel(ctx), d.workDir, p, compose.CommandOptions{
+				Env: opts.Env,
+			}, agentInfo.Name)
+			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		agent.agentInfo = agentInfo
+		agent.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	if d.runTestsOnly || d.runTearDown {
 		logger.Debug("Skipping bringing up docker-compose project and connect container to network (non setup steps)")
 	} else {
@@ -190,9 +219,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	// requires to be connected the service to the stack network
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processAgentContainerLogs(ctx, d.workDir, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, agentName)
 		return nil, fmt.Errorf("service is unhealthy: %w", err)
 	}
 
@@ -290,9 +316,20 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		stackVersion = version
 	}
 
-	agentImage, err := selectElasticAgentImage(stackVersion, agentInfo.Agent.BaseImage)
+	agentVersion := stackVersion
+	// Allow overriding the agent version if specified by the flag
+	if d.overrideAgentVersion != "" {
+		agentVersion = d.overrideAgentVersion
+	}
+
+	agentImage, err := selectElasticAgentImage(agentVersion, agentInfo.Agent.BaseImage)
 	if err != nil {
 		return "", nil
+	}
+
+	gcpFacters, err := common.GCPCredentialFacters()
+	if err != nil {
+		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
 	}
 
 	resourceManager := resource.NewManager()
@@ -304,13 +341,14 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 		"pid_mode":               agentInfo.Agent.PidMode,
 		"ports":                  strings.Join(agentInfo.Agent.Ports, ","),
 		"dockerfile_hash":        hex.EncodeToString(hashDockerfile),
-		"stack_version":          stackVersion,
+		"agent_version":          agentVersion,
 		"fleet_url":              fleetURL,
 		"kibana_host":            stack.DockerInternalHost(kibanaHost),
 		"elasticsearch_username": config.ElasticsearchUsername,
 		"elasticsearch_password": config.ElasticsearchPassword,
 		"enrollment_token":       enrollmentToken,
 	})
+	resourceManager.AddFacter(gcpFacters)
 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: customAgentDir,

@@ -152,6 +152,17 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		Env:       service.env,
 		ExtraArgs: []string{"--build", "-d"},
 	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+		logger.Debug("Tearing down service due to setup error")
+		// Update svcInfo with the latest info before tearing down
+		service.svcInfo = svcInfo
+		service.TearDown(context.WithoutCancel(ctx))
+	}()
+
 	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
@@ -159,9 +170,6 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		processServiceContainerLogs(ctx, p, compose.CommandOptions{
-			Env: opts.Env,
-		}, tsd.workDir, svcInfo.Name)
 		//lint:ignore ST1005 error starting with product name can be capitalized
 		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
 	}

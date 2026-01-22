@@ -25,12 +25,13 @@ type FactoryOptions struct {
 	Profile *profile.Profile
 	WorkDir string
 
-	PackageRootPath    string
-	DataStreamRootPath string
-	DevDeployDir       string
-	Type               string
-	StackVersion       string
-	PolicyName         string
+	PackageRootPath      string
+	DataStreamRootPath   string
+	DevDeployDir         string
+	Type                 string
+	StackVersion         string
+	OverrideAgentVersion string
+	PolicyName           string
 
 	DeployerName string
 
@@ -56,14 +57,15 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 			return nil, fmt.Errorf("agent deployer is not supported for type %s", options.Type)
 		}
 		opts := DockerComposeAgentDeployerOptions{
-			Profile:      options.Profile,
-			WorkDir:      options.WorkDir,
-			StackVersion: options.StackVersion,
-			PackageName:  options.PackageName,
-			PolicyName:   options.PolicyName,
-			DataStream:   options.DataStream,
-			RunTearDown:  options.RunTearDown,
-			RunTestsOnly: options.RunTestsOnly,
+			Profile:              options.Profile,
+			WorkDir:              options.WorkDir,
+			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
+			PackageName:          options.PackageName,
+			PolicyName:           options.PolicyName,
+			DataStream:           options.DataStream,
+			RunTearDown:          options.RunTearDown,
+			RunTestsOnly:         options.RunTestsOnly,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
@@ -72,13 +74,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		return nil, nil
 	case "k8s":
 		opts := KubernetesAgentDeployerOptions{
-			Profile:      options.Profile,
-			StackVersion: options.StackVersion,
-			PolicyName:   options.PolicyName,
-			DataStream:   options.DataStream,
-			RunSetup:     options.RunSetup,
-			RunTestsOnly: options.RunTestsOnly,
-			RunTearDown:  options.RunTearDown,
+			Profile:              options.Profile,
+			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
+			PolicyName:           options.PolicyName,
+			DataStream:           options.DataStream,
+			RunSetup:             options.RunSetup,
+			RunTestsOnly:         options.RunTestsOnly,
+			RunTearDown:          options.RunTearDown,
 		}
 		return NewKubernetesAgentDeployer(opts)
 	}
