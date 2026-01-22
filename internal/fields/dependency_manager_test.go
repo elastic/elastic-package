@@ -622,7 +622,7 @@ func TestDependencyManagerWithECS(t *testing.T) {
 		},
 	}
 	urls := SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+		ECSBase: DefaultECSSchemaBaseURL,
 	}
 	dm, err := CreateFieldDependencyManager(deps, urls)
 	require.NoError(t, err)
@@ -791,7 +791,7 @@ func TestDependencyManagerWithECS(t *testing.T) {
 
 func TestValidate_SetExternalECS(t *testing.T) {
 	urls := SchemaURLs{
-		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+		ECSBase: DefaultECSSchemaBaseURL,
 	}
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,

@@ -133,7 +133,7 @@ func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
 		WithSpecVersion("2.3.0"),
 		WithEnabledImportAllECSSChema(true),
 		WithSchemaURLs(SchemaURLs{
-			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+			ECSBase: DefaultECSSchemaBaseURL,
 		}),
 	)
 	require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 		WithSpecVersion("2.3.0"),
 		WithEnabledImportAllECSSChema(false),
 		WithSchemaURLs(SchemaURLs{
-			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+			ECSBase: DefaultECSSchemaBaseURL,
 		}),
 	)
 	require.NoError(t, err)
@@ -987,7 +987,7 @@ func TestValidateExternalMultiField(t *testing.T) {
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "parallel", "mongodb", "status")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSchemaURLs(SchemaURLs{
-			ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+			ECSBase: DefaultECSSchemaBaseURL,
 		}),
 	)
 	require.NoError(t, err)

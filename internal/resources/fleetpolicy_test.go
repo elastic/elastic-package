@@ -125,7 +125,7 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 			Absent:         agentPolicy.Absent,
 			RepositoryRoot: repostoryRoot,
 			SchemaURLs: fields.SchemaURLs{
-				ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+				ECSBase: fields.DefaultECSSchemaBaseURL,
 			},
 		})
 	}

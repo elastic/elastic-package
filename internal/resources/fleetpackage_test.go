@@ -65,7 +65,7 @@ func TestPackageLifecycle(t *testing.T) {
 				PackageRoot:    packageRoot,
 				RepositoryRoot: repositoryRoot,
 				SchemaURLs: fields.SchemaURLs{
-					ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+					ECSBase: fields.DefaultECSSchemaBaseURL,
 				},
 			}
 			manager := resource.NewManager()
