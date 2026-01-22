@@ -24,13 +24,14 @@ import (
 )
 
 type runner struct {
-	profile         *profile.Profile
-	workDir         string
-	repositoryRoot  *os.Root
-	packageRootPath string
-	kibanaClient    *kibana.Client
-	esAPI           *elasticsearch.API
-	esClient        *elasticsearch.Client
+	profile              *profile.Profile
+	workDir              string
+	repositoryRoot       *os.Root
+	packageRootPath      string
+	kibanaClient         *kibana.Client
+	esAPI                *elasticsearch.API
+	esClient             *elasticsearch.Client
+	overrideAgentVersion string
 
 	dataStreams    []string
 	serviceVariant string
@@ -55,12 +56,13 @@ type runner struct {
 var _ testrunner.TestRunner = new(runner)
 
 type SystemTestRunnerOptions struct {
-	Profile         *profile.Profile
-	WorkDir         string
-	PackageRootPath string
-	RepositoryRoot  *os.Root
-	KibanaClient    *kibana.Client
-	API             *elasticsearch.API
+	Profile              *profile.Profile
+	WorkDir              string
+	PackageRootPath      string
+	RepositoryRoot       *os.Root
+	KibanaClient         *kibana.Client
+	API                  *elasticsearch.API
+	OverrideAgentVersion string
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -84,25 +86,26 @@ type SystemTestRunnerOptions struct {
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		workDir:            options.WorkDir,
-		packageRootPath:    options.PackageRootPath,
-		kibanaClient:       options.KibanaClient,
-		esAPI:              options.API,
-		esClient:           options.ESClient,
-		profile:            options.Profile,
-		dataStreams:        options.DataStreams,
-		serviceVariant:     options.ServiceVariant,
-		configFilePath:     options.ConfigFilePath,
-		runSetup:           options.RunSetup,
-		runTestsOnly:       options.RunTestsOnly,
-		runTearDown:        options.RunTearDown,
-		failOnMissingTests: options.FailOnMissingTests,
-		generateTestResult: options.GenerateTestResult,
-		deferCleanup:       options.DeferCleanup,
-		globalTestConfig:   options.GlobalTestConfig,
-		withCoverage:       options.WithCoverage,
-		coverageType:       options.CoverageType,
-		repositoryRoot:     options.RepositoryRoot,
+		workDir:              options.WorkDir,
+		packageRootPath:      options.PackageRootPath,
+		kibanaClient:         options.KibanaClient,
+		esAPI:                options.API,
+		esClient:             options.ESClient,
+		profile:              options.Profile,
+		overrideAgentVersion: options.OverrideAgentVersion,
+		dataStreams:          options.DataStreams,
+		serviceVariant:       options.ServiceVariant,
+		configFilePath:       options.ConfigFilePath,
+		runSetup:             options.RunSetup,
+		runTestsOnly:         options.RunTestsOnly,
+		runTearDown:          options.RunTearDown,
+		failOnMissingTests:   options.FailOnMissingTests,
+		generateTestResult:   options.GenerateTestResult,
+		deferCleanup:         options.DeferCleanup,
+		globalTestConfig:     options.GlobalTestConfig,
+		withCoverage:         options.WithCoverage,
+		coverageType:         options.CoverageType,
+		repositoryRoot:       options.RepositoryRoot,
 	}
 
 	r.resourcesManager = resources.NewManager()

@@ -1,0 +1,34 @@
+{{- $google_application_credentials := fact "google_application_credentials" -}}
+{{- $google_credential_source_file := fact "google_credential_source_file" -}}
+services:
+  terraform:
+    build: .
+    tty: true
+    stop_grace_period: 5m
+    environment:
+      - TF_VAR_TEST_RUN_ID=${TF_VAR_TEST_RUN_ID:-detached}
+      - TF_VAR_CREATED_DATE=${CREATED_DATE:-unknown}
+      - TF_VAR_BRANCH=${BRANCH_NAME_LOWER_CASE:-unknown}
+      - TF_VAR_BUILD_ID=${BUILD_ID:-unknown}
+      - TF_VAR_ENVIRONMENT=${ENVIRONMENT:-unknown}
+      - TF_VAR_REPO=${REPO:-unknown}
+    volumes:
+      - ${TF_DIR}:/stage
+      - ${TF_OUTPUT_DIR}:/output
+      - ${SERVICE_LOGS_DIR}:/tmp/service_logs/
+      {{ if ne $google_application_credentials "" }}
+      # Mount Google Application Credentials file provided
+      # Required for authenticating when resources must be created/deleted in GCP
+      - type: bind
+        source: {{ $google_application_credentials }}
+        target: {{ $google_application_credentials }}
+        read_only: true
+      {{ end }}
+      {{ if ne $google_credential_source_file "" }}
+      # Mount Google credential source file (token file) provided
+      # Required for external accounts authentication when resources must be created/deleted in GCP
+      - type: bind
+        source: {{ $google_credential_source_file }}
+        target: {{ $google_credential_source_file }}
+        read_only: true
+      {{ end }}

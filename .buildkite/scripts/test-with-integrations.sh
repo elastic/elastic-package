@@ -3,6 +3,18 @@ source .buildkite/scripts/install_deps.sh
 
 set -euo pipefail
 
+TMP_FOLDER_TEMPLATE_BASE="tmp.${GITHUB_PR_BASE_REPO}"
+TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
+
+cleanup() {
+    echo "Deleting temporal files..."
+    cd "${WORKSPACE}"
+    rm -rf ${TMP_FOLDER_TEMPLATE_BASE}.*
+    echo "Done."
+}
+
+trap cleanup EXIT
+
 add_bin_path
 
 echo "--- Install gh cli"

@@ -24,6 +24,7 @@ STACK_COMMAND_TESTS=(
     test-stack-command-with-apm-server
     test-stack-command-with-basic-subscription
     test-stack-command-with-self-monitor
+    test-stack-command-agent-version-flag
 )
 
 for test in "${STACK_COMMAND_TESTS[@]}"; do
@@ -44,6 +45,7 @@ CHECK_PACKAGES_TESTS=(
     test-check-packages-with-kind
     test-check-packages-with-custom-agent
     test-check-packages-benchmarks
+    test-check-packages-independent-script
 )
 for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     test_name=${test#"test-check-packages-"}

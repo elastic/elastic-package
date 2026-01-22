@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/common"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -435,6 +436,46 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 			enabled, err := isSyntheticSourceModeEnabled(t.Context(), client.API, c.dataStreamName)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, enabled)
+		})
+	}
+}
+
+func TestGetExpectedDatasetForTest(t *testing.T) {
+	cases := []struct {
+		title    string
+		expected string
+
+		packageType     string
+		datasetInPolicy string
+		vars            common.MapStr
+	}{
+		{
+			title:           "data stream in integration package",
+			expected:        "foo.bar",
+			packageType:     "integration",
+			datasetInPolicy: "foo.bar",
+		},
+		{
+			title:           "input package",
+			expected:        "foo.bar",
+			packageType:     "input",
+			datasetInPolicy: "foo.bar",
+		},
+		{
+			title:           "input package with user-defined variable",
+			expected:        "foo.custom",
+			packageType:     "input",
+			datasetInPolicy: "foo.bar",
+			vars: common.MapStr{
+				"data_stream.dataset": "foo.custom",
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			found := getExpectedDatasetForTest(c.packageType, c.datasetInPolicy, c.vars)
+			assert.Equal(t, c.expected, found)
 		})
 	}
 }

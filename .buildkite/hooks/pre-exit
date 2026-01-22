@@ -17,7 +17,6 @@ if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" && "${BU
 fi
 
 echo "--- Cleanup"
-cleanup
 unset_secrets
 
 exit "$exit_code"

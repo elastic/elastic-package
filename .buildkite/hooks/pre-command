@@ -47,8 +47,6 @@ export CREATED_DATE
 # Secrets must be redacted
 # https://buildkite.com/docs/pipelines/managing-log-output#redacted-environment-variables
 
-export TMP_FOLDER_TEMPLATE_BASE="tmp.${REPO}"
-export TMP_FOLDER_TEMPLATE="${TMP_FOLDER_TEMPLATE_BASE}.XXXXXXXXX"
 export JOB_GCS_BUCKET_INTERNAL="ecosystem-ci-internal"
 
 if [[ "${BUILDKITE_PIPELINE_SLUG}" == "elastic-package-test-serverless" ]]; then

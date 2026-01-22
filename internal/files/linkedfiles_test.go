@@ -238,11 +238,8 @@ func TestLinkedFilesByPackageFrom(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = root.Close() })
 
-	fromDir, err := filepath.Rel(root.Name(), basePath)
-	require.NoError(t, err)
-
 	// Create LinksFS
-	linksFS, err := CreateLinksFSFromPath(root, fromDir)
+	linksFS, err := CreateLinksFSFromPath(root, basePath)
 	require.NoError(t, err)
 
 	// Get linked files organized by package
@@ -539,11 +536,7 @@ func TestLinksFSSecurityIsolation(t *testing.T) {
 	require.NoError(t, err)
 	defer root.Close()
 
-	// Get the relative path from repo root to work directory
-	relWorkDir, err := filepath.Rel(repoDir, workDir)
-	require.NoError(t, err)
-
-	lfs, err := CreateLinksFSFromPath(root, relWorkDir)
+	lfs, err := CreateLinksFSFromPath(root, workDir)
 	require.NoError(t, err)
 
 	// Test opening the linked file - this should work and use the repository root
@@ -693,83 +686,6 @@ func TestLinksFS_Open(t *testing.T) {
 	}
 }
 
-// TestLinksFS_RelativeWorkDir tests LinksFS with relative workDir paths.
-func TestLinksFS_RelativeWorkDir(t *testing.T) {
-	tempDir := t.TempDir()
-
-	// Create repository structure
-	repoDir := filepath.Join(tempDir, "repo")
-	err := os.MkdirAll(repoDir, 0755)
-	require.NoError(t, err)
-
-	workDir := createPackageStructure(t, repoDir, "work")
-
-	// Create test files
-	regularFile := filepath.Join(workDir, "regular.txt")
-	regularContent := "regular file content"
-	err = os.WriteFile(regularFile, []byte(regularContent), 0644)
-	require.NoError(t, err)
-
-	includedFile := filepath.Join(workDir, "included.txt")
-	includedContent := "included file content"
-	err = os.WriteFile(includedFile, []byte(includedContent), 0644)
-	require.NoError(t, err)
-
-	// Create link file with correct checksum
-	linkFile := filepath.Join(workDir, "linked.txt.link")
-	hash := sha256.Sum256([]byte(includedContent))
-	checksum := hex.EncodeToString(hash[:])
-	linkContent := fmt.Sprintf("./included.txt %s", checksum)
-	err = os.WriteFile(linkFile, []byte(linkContent), 0644)
-	require.NoError(t, err)
-
-	// Setup LinksFS with relative workDir
-	root, err := os.OpenRoot(repoDir)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = root.Close() })
-
-	// Use relative path "work" instead of absolute path
-	lfs, err := CreateLinksFSFromPath(root, "work")
-	require.NoError(t, err)
-
-	tests := []struct {
-		name            string
-		fileName        string
-		expectedContent string
-		expectError     bool
-	}{
-		{
-			name:            "read regular file",
-			fileName:        "regular.txt",
-			expectedContent: regularContent,
-		},
-		{
-			name:            "read linked file returns included content",
-			fileName:        "linked.txt.link",
-			expectedContent: includedContent,
-		},
-		{
-			name:        "read non-existent file should fail",
-			fileName:    "nonexistent.txt",
-			expectError: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			content, err := lfs.ReadFile(tc.fileName)
-
-			if tc.expectError {
-				assert.Error(t, err)
-				assert.Nil(t, content)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tc.expectedContent, string(content))
-			}
-		})
-	}
-}
-
 // TestLinksFS_ErrorConditions tests various error conditions in LinksFS.
 func TestLinksFS_ErrorConditions(t *testing.T) {
 	tempDir := t.TempDir()
@@ -872,7 +788,7 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 	}{
 		{
 			name:    "valid relative workDir",
-			workDir: "inside",
+			workDir: filepath.Join(repoDir, "inside"),
 		},
 		{
 			name:    "valid absolute workDir",
@@ -886,7 +802,7 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 		},
 		{
 			name:        "invalid relative workDir escaping repo",
-			workDir:     "../outside",
+			workDir:     filepath.Join(repoDir, "..", "outside"),
 			expectError: true,
 			errorMsg:    "path escapes from parent",
 		},

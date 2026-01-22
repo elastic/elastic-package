@@ -224,6 +224,10 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	return &agent, nil
 }
 
+func (d *DockerComposeAgentDeployer) ProjectName(runID string) string {
+	return fmt.Sprintf("elastic-package-agent-%s-%s", d.agentName(), runID)
+}
+
 func (d *DockerComposeAgentDeployer) agentHostname() string {
 	return fmt.Sprintf("%s-%s", dockerTestAgentServiceName, d.agentRunID)
 }

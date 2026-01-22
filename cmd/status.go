@@ -167,7 +167,6 @@ func getPackageStatus(workDir string, packageName string, options registry.Searc
 	if packageName != "" {
 		return status.RemotePackage(packageName, options)
 	}
-
 	packageRootPath, err := packages.FindPackageRoot(workDir)
 	if err != nil {
 		if errors.Is(err, packages.ErrPackageRootNotFound) {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,9 +30,11 @@ const (
 
 	ParamServerlessLocalStackVersion = "serverless_local_stack_version"
 
-	configRegion          = "stack.serverless.region"
-	configProjectType     = "stack.serverless.type"
-	configElasticCloudURL = "stack.elastic_cloud.host"
+	configRegion              = "stack.serverless.region"
+	configProjectType         = "stack.serverless.type"
+	configElasticCloudURL     = "stack.elastic_cloud.host"
+	configProjectFleetPeriod  = "stack.serverless.fleet.wait_period"
+	configProjectFleetTimeout = "stack.serverless.fleet.wait_timeout"
 
 	defaultRegion      = "aws-us-east-1"
 	defaultProjectType = "observability"
@@ -257,13 +260,33 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		return nil, fmt.Errorf("can't create serverless provider: %w", err)
 	}
 
+	retriesPeriod := defaultRetriesDefaultFleetServerPeriod
+	if v := profile.Config(configProjectFleetPeriod, ""); v != "" {
+		if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
+			retriesPeriod = time.Duration(sec) * time.Second
+		} else {
+			logger.Warnf("invalid value for %s=%q, using default %s",
+				configProjectFleetPeriod, v, defaultRetriesDefaultFleetServerPeriod)
+		}
+	}
+
+	retriesTimeout := defaultRetriesDefaultFleetServerTimeout
+	if v := profile.Config(configProjectFleetTimeout, ""); v != "" {
+		if sec, err := strconv.Atoi(v); err == nil && sec > 0 {
+			retriesTimeout = time.Duration(sec) * time.Second
+		} else {
+			logger.Warnf("invalid value for %s=%q, using default %s",
+				configProjectFleetTimeout, v, defaultRetriesDefaultFleetServerTimeout)
+		}
+	}
+
 	return &serverlessProvider{
 		profile:                          profile,
 		client:                           client,
 		elasticsearchClient:              nil,
 		kibanaClient:                     nil,
-		retriesDefaultFleetServerTimeout: defaultRetriesDefaultFleetServerTimeout,
-		retriesDefaultFleetServerPeriod:  defaultRetriesDefaultFleetServerPeriod,
+		retriesDefaultFleetServerTimeout: retriesTimeout,
+		retriesDefaultFleetServerPeriod:  retriesPeriod,
 	}, nil
 }
 
@@ -345,7 +368,7 @@ func (sp *serverlessProvider) localServicesComposeProject() (*compose.Project, e
 }
 
 func (sp *serverlessProvider) startLocalServices(ctx context.Context, options Options, config Config) error {
-	err := applyLocalResources(sp.profile, options.StackVersion, config)
+	err := applyLocalResources(sp.profile, options.StackVersion, options.OverrideAgentVersion, config)
 	if err != nil {
 		return fmt.Errorf("could not initialize compose files for local services: %w", err)
 	}

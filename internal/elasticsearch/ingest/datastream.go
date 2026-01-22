@@ -49,8 +49,8 @@ type RerouteProcessor struct {
 	Namespace []string `yaml:"namespace"`
 }
 
-func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamPath string, repositoryRoot *os.Root) (string, []Pipeline, error) {
-	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamPath, packages.DataStreamManifestFile))
+func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamRoot string, repositoryRoot *os.Root) (string, []Pipeline, error) {
+	dataStreamManifest, err := packages.ReadDataStreamManifest(filepath.Join(dataStreamRoot, packages.DataStreamManifestFile))
 	if err != nil {
 		return "", nil, fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
@@ -58,7 +58,7 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 	nonce := time.Now().UnixNano()
 
 	mainPipeline := GetPipelineNameWithNonce(dataStreamManifest.GetPipelineNameOrDefault(), nonce)
-	pipelines, err := LoadIngestPipelineFiles(dataStreamPath, nonce, repositoryRoot)
+	pipelines, err := LoadIngestPipelineFiles(dataStreamRoot, nonce, repositoryRoot)
 	if err != nil {
 		return "", nil, fmt.Errorf("loading ingest pipeline files failed: %w", err)
 	}
@@ -73,8 +73,8 @@ func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dat
 // LoadIngestPipelineFiles returns the set of pipelines found in the directory
 // elasticsearch/ingest_pipeline under the provided data stream path. The names
 // of the pipelines are decorated with the provided nonce.
-func LoadIngestPipelineFiles(dataStreamPath string, nonce int64, repositoryRoot *os.Root) ([]Pipeline, error) {
-	elasticsearchPath := filepath.Join(dataStreamPath, "elasticsearch", "ingest_pipeline")
+func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot *os.Root) ([]Pipeline, error) {
+	elasticsearchPath := filepath.Join(dataStreamRoot, "elasticsearch", "ingest_pipeline")
 
 	var pipelineFiles []string
 	for _, pattern := range []string{"*.json", "*.yml", "*.link"} {
@@ -109,7 +109,7 @@ func LoadIngestPipelineFiles(dataStreamPath string, nonce int64, repositoryRoot 
 			return nil, err
 		}
 
-		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamPath, path)
+		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamRoot, path)
 		if err != nil {
 			return nil, err
 		}
@@ -126,16 +126,16 @@ func LoadIngestPipelineFiles(dataStreamPath string, nonce int64, repositoryRoot 
 	return pipelines, nil
 }
 
-func addRerouteProcessors(pipeline []byte, dataStreamPath, path string) ([]byte, error) {
+func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) ([]byte, error) {
 	// Only attach routing_rules.yml reroute processors after the default pipeline
-	filename := filepath.Base(path)
+	filename := filepath.Base(pipelinePath)
 	if filename != defaultPipelineJSON && filename != defaultPipelineYML &&
 		filename != defaultPipelineJSONLink && filename != defaultPipelineYMLLink {
 		return pipeline, nil
 	}
 
 	// Read routing_rules.yml and convert it into reroute processors in ingest pipeline
-	rerouteProcessors, err := loadRoutingRuleFile(dataStreamPath)
+	rerouteProcessors, err := loadRoutingRuleFile(dataStreamRoot)
 	if err != nil {
 		return nil, fmt.Errorf("failed loading routing rules: %v", err)
 	}
@@ -146,7 +146,7 @@ func addRerouteProcessors(pipeline []byte, dataStreamPath, path string) ([]byte,
 	var yamlPipeline map[string]any
 	err = yaml.Unmarshal(pipeline, &yamlPipeline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ingest pipeline YAML data (path: %s): %w", path, err)
+		return nil, fmt.Errorf("failed to unmarshal ingest pipeline YAML data (path: %s): %w", pipelinePath, err)
 	}
 
 	var processors []any

@@ -17,7 +17,7 @@ import (
 func TestCreateCoverageReport(t *testing.T) {
 	workDir, err := os.Getwd()
 	require.NoError(t, err)
-	packageRootPath := filepath.Join(workDir, "my", "path", "package")
+	packageRoot := filepath.Join(workDir, "my", "path", "package")
 	tests := []struct {
 		name           string
 		rootPath       string
@@ -31,7 +31,7 @@ func TestCreateCoverageReport(t *testing.T) {
 		{
 			name:           "use provided generic coverage",
 			testType:       "system",
-			rootPath:       packageRootPath,
+			rootPath:       packageRoot,
 			packageName:    "mypackage",
 			packageType:    "integration",
 			coverageFormat: "generic",

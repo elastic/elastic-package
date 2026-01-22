@@ -27,8 +27,8 @@ type GlobalRunnerTestConfig struct {
 	SkippableConfig `config:",inline"`
 }
 
-func ReadGlobalTestConfig(packageRootPath string) (*globalTestConfig, error) {
-	configFilePath := filepath.Join(packageRootPath, "_dev", "test", "config.yml")
+func ReadGlobalTestConfig(packageRoot string) (*globalTestConfig, error) {
+	configFilePath := filepath.Join(packageRoot, "_dev", "test", "config.yml")
 
 	data, err := os.ReadFile(configFilePath)
 	if errors.Is(err, os.ErrNotExist) {
