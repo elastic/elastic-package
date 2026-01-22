@@ -110,7 +110,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		agentVersion = d.overrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(d.stackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -365,7 +365,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 }
 
 func selectElasticAgentImage(agentVersion, agentBaseImage string) (string, error) {
-	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithAgentBaseImage(agentBaseImage), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}

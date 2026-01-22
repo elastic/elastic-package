@@ -215,31 +215,25 @@ func selectElasticAgentSystemDImageName(version *semver.Version) string {
 	return elasticAgentLegacyImageName
 }
 
-type configurationOptions struct {
-	agentBaseImage string
-	stackVersion   string
-	agentVersion   string
-}
+type ConfigurationOption func(*ApplicationConfiguration)
 
-type ConfigurationOption func(*configurationOptions)
-
-// OptionWithAgentBaseImage sets the agent image type to be used.
-func OptionWithAgentBaseImage(agentBaseImage string) ConfigurationOption {
-	return func(opts *configurationOptions) {
+// WithAgentBaseImage sets the agent image type to be used.
+func WithAgentBaseImage(agentBaseImage string) ConfigurationOption {
+	return func(opts *ApplicationConfiguration) {
 		opts.agentBaseImage = agentBaseImage
 	}
 }
 
-// OptionWithStackVersion sets the Elastic Stack version to be used.
-func OptionWithStackVersion(stackVersion string) ConfigurationOption {
-	return func(opts *configurationOptions) {
+// WithStackVersion sets the Elastic Stack version to be used.
+func WithStackVersion(stackVersion string) ConfigurationOption {
+	return func(opts *ApplicationConfiguration) {
 		opts.stackVersion = stackVersion
 	}
 }
 
-// OptionWithAgentVersion sets the Elastic Agent version to be used.
-func OptionWithAgentVersion(agentVersion string) ConfigurationOption {
-	return func(opts *configurationOptions) {
+// WithAgentVersion sets the Elastic Agent version to be used.
+func WithAgentVersion(agentVersion string) ConfigurationOption {
+	return func(opts *ApplicationConfiguration) {
 		opts.agentVersion = agentVersion
 	}
 }
@@ -253,7 +247,11 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 
 	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
 	if errors.Is(err, os.ErrNotExist) {
-		return DefaultConfiguration(), nil
+		configuration := DefaultConfiguration()
+		for _, option := range options {
+			option(configuration)
+		}
+		return configuration, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("can't read configuration file: %w", err)
@@ -265,16 +263,12 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)
 	}
 
-	configOptions := configurationOptions{}
-	for _, option := range options {
-		option(&configOptions)
+	configuration := ApplicationConfiguration{
+		c: c,
 	}
 
-	configuration := ApplicationConfiguration{
-		c:              c,
-		agentBaseImage: configOptions.agentBaseImage,
-		stackVersion:   configOptions.stackVersion,
-		agentVersion:   configOptions.agentVersion,
+	for _, option := range options {
+		option(&configuration)
 	}
 
 	return &configuration, nil

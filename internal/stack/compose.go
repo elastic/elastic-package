@@ -62,7 +62,7 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 		agentVersion = options.OverrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(options.StackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -93,7 +93,7 @@ func dockerComposePull(ctx context.Context, options Options) error {
 		agentVersion = options.OverrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(options.StackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -129,7 +129,7 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 		agentVersion = options.OverrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(options.StackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -161,7 +161,7 @@ func dockerComposeDown(ctx context.Context, options Options) error {
 		agentVersion = options.OverrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(options.StackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(options.StackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}

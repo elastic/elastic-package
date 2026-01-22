@@ -238,7 +238,7 @@ var elasticAgentManagedYamlTmpl string
 func getElasticAgentYAML(profile *profile.Profile, agentVersion, policyName string) ([]byte, error) {
 	logger.Debugf("Prepare YAML definition for Elastic Agent (v%s) running in stack ", agentVersion)
 
-	appConfig, err := install.Configuration(install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}

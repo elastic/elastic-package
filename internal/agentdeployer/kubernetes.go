@@ -218,7 +218,7 @@ func getElasticAgentYAML(ctx context.Context, profile *profile.Profile, agentInf
 		agentVersion = overrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}

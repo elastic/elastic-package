@@ -46,7 +46,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion, overrideAgentVe
 		agentVersion = overrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(stackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(stackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return fmt.Errorf("can't read application configuration: %w", err)
 	}

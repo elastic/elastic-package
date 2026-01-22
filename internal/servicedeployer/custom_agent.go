@@ -80,7 +80,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		agentVersion = d.overrideAgentVersion
 	}
 
-	appConfig, err := install.Configuration(install.OptionWithStackVersion(d.stackVersion), install.OptionWithAgentVersion(agentVersion))
+	appConfig, err := install.Configuration(install.WithStackVersion(d.stackVersion), install.WithAgentVersion(agentVersion))
 	if err != nil {
 		return nil, fmt.Errorf("can't read application configuration: %w", err)
 	}
