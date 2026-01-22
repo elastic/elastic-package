@@ -77,8 +77,6 @@ func defaultConfig() *scenario {
 	}
 }
 
-
-
 func readConfig(benchPath string, scenario string, svcInfo *servicedeployer.ServiceInfo) (*scenario, error) {
 	configPath := filepath.Clean(filepath.Join(benchPath, fmt.Sprintf("%s.yml", scenario)))
 	data, err := os.ReadFile(configPath)

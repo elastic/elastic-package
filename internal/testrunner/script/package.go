@@ -59,10 +59,10 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRootPath:    pkgRoot,
-		Absent:         false,
-		Force:          true,
-		RepositoryRoot: root,
+		PackageRootPath: pkgRoot,
+		Absent:          false,
+		Force:           true,
+		RepositoryRoot:  root,
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
@@ -111,10 +111,10 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRootPath:    pkgRoot,
-		Absent:         true,
-		Force:          true,
-		RepositoryRoot: root, // Apparently not required, but adding for safety.
+		PackageRootPath: pkgRoot,
+		Absent:          true,
+		Force:           true,
+		RepositoryRoot:  root, // Apparently not required, but adding for safety.
 	}})
 	ts.Check(decoratedWith("removing package resources", err))
 

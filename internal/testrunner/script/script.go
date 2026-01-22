@@ -309,8 +309,8 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 			PackageRootPath: pkgRoot,
-			Absent:      true,
-			Force:       true,
+			Absent:          true,
+			Force:           true,
 		}})
 
 		if stk.external {
