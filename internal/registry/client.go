@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -45,6 +47,8 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
+
+	logger.Tracef("Sending request to Package Registry API: %s", u.String())
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {

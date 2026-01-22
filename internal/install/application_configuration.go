@@ -85,6 +85,11 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
+	PackageRegistry packageRegistrySettings `yaml:"package_registry,omitempty"`
+}
+
+type packageRegistrySettings struct {
+	BaseURL string `yaml:"base_url,omitempty"`
 }
 
 type stack struct {
@@ -154,6 +159,15 @@ func (ac *ApplicationConfiguration) CurrentProfile() string {
 // SetCurrentProfile sets the current profile.
 func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
+}
+
+// GetPackageRegistryBaseURL returns the configured package registry URL,
+// falling back to production if not specified
+func (ac *ApplicationConfiguration) GetPackageRegistryBaseURL() string {
+	if ac.c.PackageRegistry.BaseURL != "" {
+		return ac.c.PackageRegistry.BaseURL
+	}
+	return "https://epr.elastic.co"
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.

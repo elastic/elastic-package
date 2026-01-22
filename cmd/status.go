@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/packages/status"
@@ -110,6 +111,16 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating info paramaters failed: %w", err)
 
 	}
+
+	// Load application configuration for custom registry URL
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("failed to load application configuration: %w", err)
+	}
+
+	// Create registry client with configured URL
+	customRegistry := registry.NewClient(appConfig.GetPackageRegistryBaseURL())
+
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
@@ -118,7 +129,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
-	packageStatus, err := getPackageStatus(packageName, options)
+	packageStatus, err := getPackageStatus(packageName, options, customRegistry)
 	if err != nil {
 		return err
 	}
@@ -127,7 +138,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if packageName == "" && packageStatus.Local != nil {
 			packageName = packageStatus.Local.Name
 		}
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options)
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry)
 		if err != nil {
 			return err
 		}
@@ -159,9 +170,9 @@ func validateExtraInfoParameters(extraParameters []string) error {
 	return nil
 }
 
-func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
+func getPackageStatus(packageName string, options registry.SearchOptions, registryClient *registry.Client) (*status.PackageStatus, error) {
 	if packageName != "" {
-		return status.RemotePackage(packageName, options)
+		return status.RemotePackage(packageName, options, registryClient)
 	}
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -170,10 +181,10 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
-	return status.LocalPackage(packageRoot, options)
+	return status.LocalPackage(packageRoot, options, registryClient)
 }
 
-func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {
+func getServerlessManifests(packageName string, options registry.SearchOptions, registryClient *registry.Client) ([]status.ServerlessManifests, error) {
 	if packageName == "" {
 		return nil, nil
 	}
@@ -187,7 +198,7 @@ func getServerlessManifests(packageName string, options registry.SearchOptions) 
 		options.Capabilities = projectType.Capabilities
 		options.SpecMax = projectType.SpecMax
 		options.SpecMin = projectType.SpecMin
-		manifests, err := registry.Production.Revisions(packageName, options)
+		manifests, err := registryClient.Revisions(packageName, options)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get packages available for serverless projects of type %s: %w", projectType.Name, err)
 		}
