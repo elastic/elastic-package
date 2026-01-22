@@ -2,18 +2,16 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package executor
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/executor"
 )
 
 func TestExecutorConfig(t *testing.T) {
-	cfg := executor.Config{
+	cfg := Config{
 		APIKey:      "test-api-key",
 		ModelID:     "gemini-2.5-pro",
 		Instruction: "You are a helpful assistant",

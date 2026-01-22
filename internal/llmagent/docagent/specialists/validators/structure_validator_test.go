@@ -210,3 +210,90 @@ Reference info.
 		t.Error("Expected valid result for properly structured document")
 	}
 }
+
+func TestCheckBrokenLinkPatterns(t *testing.T) {
+	tests := []struct {
+		name           string
+		content        string
+		wantIssues     int
+		wantSeverity   string
+		wantInMessage  string
+	}{
+		{
+			name:           "anchor link detected",
+			content:        `See the [Reference](#reference) section for more details.`,
+			wantIssues:     1,
+			wantSeverity:   "critical",
+			wantInMessage:  "Anchor link found",
+		},
+		{
+			name:           "docs-content protocol link detected",
+			content:        `Check the [installation instructions](docs-content://reference/fleet/install-elastic-agents.md).`,
+			wantIssues:     1,
+			wantSeverity:   "critical",
+			wantInMessage:  "docs-content://",
+		},
+		{
+			name:           "multiple anchor links detected",
+			content:        `See [Overview](#overview) and [Reference](#reference).`,
+			wantIssues:     2,
+			wantSeverity:   "critical",
+			wantInMessage:  "Anchor link found",
+		},
+		{
+			name:           "valid https link passes",
+			content:        `Check the [documentation](https://www.elastic.co/guide/en/fleet/current/install.html).`,
+			wantIssues:     0,
+			wantSeverity:   "",
+			wantInMessage:  "",
+		},
+		{
+			name:           "bare docs-content URL detected",
+			content:        `For more info: docs-content://reference/fleet/agents.md`,
+			wantIssues:     1,
+			wantSeverity:   "critical",
+			wantInMessage:  "docs-content://",
+		},
+	}
+
+	v := NewStructureValidator()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			issues := v.checkBrokenLinkPatterns(tt.content)
+
+			if len(issues) != tt.wantIssues {
+				t.Errorf("checkBrokenLinkPatterns() got %d issues, want %d", len(issues), tt.wantIssues)
+				for _, issue := range issues {
+					t.Logf("  Issue: %s", issue.Message)
+				}
+				return
+			}
+
+			if tt.wantIssues > 0 {
+				for _, issue := range issues {
+					if string(issue.Severity) != tt.wantSeverity {
+						t.Errorf("Expected severity %s, got %s", tt.wantSeverity, issue.Severity)
+					}
+					if tt.wantInMessage != "" && !contains(issue.Message, tt.wantInMessage) {
+						t.Errorf("Expected message to contain %q, got %q", tt.wantInMessage, issue.Message)
+					}
+				}
+			}
+		})
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && searchString(s, substr)))
+}
+
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}

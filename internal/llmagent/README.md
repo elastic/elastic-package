@@ -172,7 +172,6 @@ Workflow orchestration for multi-agent pipelines.
 |------|-------------|
 | `workflow.go` | Main workflow builder and executor |
 | `config.go` | Workflow configuration with fluent API |
-| `staged_workflow.go` | Staged validation workflow |
 | `snapshots.go` | Iteration snapshot management |
 
 ### `/validation`
@@ -407,7 +406,6 @@ type Config struct {
     Tools                  []tool.Tool
     Toolsets               []tool.Toolset
     EnableCritic           bool                      // Enable critic agent
-    EnableValidator        bool                      // Enable validator agent
     EnableURLValidator     bool                      // Enable URL validation
     EnableStaticValidation bool                      // Enable static validators
     EnableLLMValidation    bool                      // Enable LLM-based validation

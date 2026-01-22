@@ -40,9 +40,6 @@ type Config struct {
 	// EnableCritic enables the critic agent in the workflow
 	EnableCritic bool
 
-	// EnableValidator enables the validator agent in the workflow
-	EnableValidator bool
-
 	// EnableURLValidator enables the URL validator agent in the workflow
 	EnableURLValidator bool
 
@@ -62,7 +59,6 @@ func DefaultConfig() Config {
 		Registry:            specialists.DefaultRegistry(),
 		MaxIterations:       DefaultMaxIterations,
 		EnableCritic:        true,
-		EnableValidator:     true,
 		EnableURLValidator:  true,
 		EnableLLMValidation: true, // LLM validation enabled by default for semantic checks
 	}
@@ -135,10 +131,9 @@ func GeneratorOnly() Config {
 	}
 }
 
-// WithGeneratorOnly disables critic, validator, and URL validator
+// WithGeneratorOnly disables critic and URL validator
 func (c Config) WithGeneratorOnly() Config {
 	c.EnableCritic = false
-	c.EnableValidator = false
 	c.EnableURLValidator = false
 	c.MaxIterations = 1
 	return c

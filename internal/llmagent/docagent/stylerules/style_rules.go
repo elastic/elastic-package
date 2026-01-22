@@ -13,12 +13,16 @@ const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 - Every list MUST have an introductory sentence ending with colon
 - Use sentence case for headings: "Vendor-specific issues" not "Vendor-Specific Issues"
 - In lists, do not use bolding for conceptual emphasis.
+- NEVER use anchor links like [text](#section-name) - these break when published
+- NEVER use docs-content:// protocol links - use full https://www.elastic.co/... URLs
 `
 
 // CriticRejectionCriteria provides criteria for the critic to check.
 const CriticRejectionCriteria = `## REJECT if you find ANY of these:
 - Lists without an introductory sentence before them
 - Title Case headings: '### Vendor-Specific Issues' should be '### Vendor-specific issues'
+- Anchor links like [Reference](#reference) - these break when published
+- Internal docs-content:// links - must use full https://www.elastic.co/... URLs
 `
 
 // FullFormattingRules contains the complete formatting guidance for LLM system prompts.
@@ -40,6 +44,11 @@ This integration supports the following:
 - File paths: ` + "`/var/log/vault/`" + `
 - Config values: ` + "`true`" + `, ` + "`8200`" + `
 - Data streams: ` + "`audit`" + `, ` + "`log`" + `
+
+### FORBIDDEN LINK STYLES (will break when published):
+- Anchor links: NEVER use [text](#section-name) - these internal anchors break in the published docs
+- docs-content:// protocol: NEVER use docs-content://path - use full URLs like https://www.elastic.co/guide/...
+- To reference another section, describe it by name without linking: "see the Reference section below"
 
 ### HEADINGS:
 - Use sentence case: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"

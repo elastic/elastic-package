@@ -257,43 +257,6 @@ func RecordComparison(span trace.Span, comparison *ComparisonAttrs) {
 	)
 }
 
-// StartStagedWorkflowSpan starts a span for the entire staged validation workflow
-func StartStagedWorkflowSpan(ctx context.Context, packageName string, stages []string) (context.Context, trace.Span) {
-	attrs := []attribute.KeyValue{
-		attribute.String(AttrOpenInferenceSpanKind, SpanKindWorkflow),
-		attribute.String(AttrWorkflowName, "staged_validation"),
-		attribute.String(AttrPackageName, packageName),
-		attribute.Int("staged.total_stages", len(stages)),
-	}
-
-	if stagesJSON, err := json.Marshal(stages); err == nil {
-		attrs = append(attrs, attribute.String("staged.stages", string(stagesJSON)))
-	}
-
-	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, "staged_workflow:"+packageName, trace.WithAttributes(attrs...))
-}
-
-// EndStagedWorkflowSpan records the final result and ends the workflow span
-func EndStagedWorkflowSpan(span trace.Span, approved bool, totalIterations int, metrics *QualityMetricsAttrs) {
-	span.SetAttributes(
-		attribute.Bool("workflow.approved", approved),
-		attribute.Int("workflow.total_iterations", totalIterations),
-	)
-
-	if metrics != nil {
-		RecordQualityMetrics(span, metrics)
-	}
-
-	if approved {
-		span.SetStatus(codes.Ok, "staged validation approved")
-	} else {
-		span.SetStatus(codes.Ok, "staged validation needs revision")
-	}
-
-	span.End()
-}
-
 // StartTestRunSpan starts a span for a complete test run
 func StartTestRunSpan(ctx context.Context, runID, packageName string, config map[string]interface{}) (context.Context, trace.Span) {
 	attrs := []attribute.KeyValue{

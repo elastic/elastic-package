@@ -163,6 +163,9 @@ func (v *StructureValidator) StaticValidate(ctx context.Context, content string,
 	// Check 7: Inconsistent subsection naming
 	result.Issues = append(result.Issues, v.checkSubsectionConsistency(content)...)
 
+	// Check 8: Broken link patterns (anchor links and docs-content:// protocol)
+	result.Issues = append(result.Issues, v.checkBrokenLinkPatterns(content)...)
+
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
@@ -614,6 +617,73 @@ func (v *StructureValidator) checkSubsectionConsistency(content string) []Valida
 					})
 				}
 			}
+		}
+	}
+
+	return issues
+}
+
+// checkBrokenLinkPatterns detects link patterns that will break when published.
+// This includes anchor links like [text](#section) and docs-content:// protocol links.
+func (v *StructureValidator) checkBrokenLinkPatterns(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Pattern for markdown anchor links: [text](#anchor)
+	anchorLinkPattern := regexp.MustCompile(`\[([^\]]+)\]\(#[^)]+\)`)
+	anchorMatches := anchorLinkPattern.FindAllStringSubmatch(content, -1)
+
+	for _, match := range anchorMatches {
+		if len(match) > 0 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryStructure,
+				Location:    "Links",
+				Message:     fmt.Sprintf("Anchor link found: %s - these break when published", match[0]),
+				Suggestion:  "Remove the link and reference the section by name: 'see the Reference section below'",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Pattern for docs-content:// protocol links
+	docsContentPattern := regexp.MustCompile(`\[([^\]]+)\]\(docs-content://[^)]+\)`)
+	docsContentMatches := docsContentPattern.FindAllStringSubmatch(content, -1)
+
+	for _, match := range docsContentMatches {
+		if len(match) > 0 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryStructure,
+				Location:    "Links",
+				Message:     fmt.Sprintf("Internal docs-content:// link found: %s", match[0]),
+				Suggestion:  "Replace with full URL: https://www.elastic.co/guide/... or https://www.elastic.co/docs/...",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Also check for bare docs-content:// URLs (not in markdown links)
+	bareDocsContentPattern := regexp.MustCompile(`docs-content://[^\s\)>\]"']+`)
+	bareMatches := bareDocsContentPattern.FindAllString(content, -1)
+
+	// Filter out matches already caught by the markdown pattern
+	for _, match := range bareMatches {
+		alreadyCaught := false
+		for _, mdMatch := range docsContentMatches {
+			if len(mdMatch) > 0 && strings.Contains(mdMatch[0], match) {
+				alreadyCaught = true
+				break
+			}
+		}
+		if !alreadyCaught {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryStructure,
+				Location:    "Links",
+				Message:     fmt.Sprintf("Internal docs-content:// URL found: %s", match),
+				Suggestion:  "Replace with full URL: https://www.elastic.co/guide/... or https://www.elastic.co/docs/...",
+				SourceCheck: "static",
+			})
 		}
 	}
 
