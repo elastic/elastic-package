@@ -232,6 +232,9 @@ func renderReadme(fileName, workDir, sourceFilesRoot, templatePath string, links
 		"generatedHeader": func() string {
 			return doNotModifyStr
 		},
+		"alertRuleTemplates": func() (string, error) {
+			return renderAlertRuleTemplates(sourceFilesRoot, linksMap)
+		},
 	}).ParseFiles(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("parsing README template failed (path: %s): %w", templatePath, err)
