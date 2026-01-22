@@ -233,6 +233,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 					e.Setenv("DATA_STREAM", d)
 					e.Setenv("DATA_STREAM_ROOT", dsRoot)
 				}
+				e.Setenv("ECS_BASE_SCHEMA_URL", config.SchemaURLs().ECSBase)
 				e.Values[deployedServiceTag{}] = t.deployedService
 				e.Values[runningStackTag{}] = t.runningStack
 				e.Values[installedAgentsTag{}] = t.installedAgents

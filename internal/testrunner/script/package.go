@@ -13,7 +13,7 @@ import (
 
 	"github.com/rogpeppe/go-internal/testscript"
 
-	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 )
@@ -30,6 +30,10 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
 		ts.Fatalf("PACKAGE_NAME is not set")
+	}
+	ecsBaseSchemaURL := ts.Getenv("ECS_BASE_SCHEMA_URL")
+	if ecsBaseSchemaURL == "" {
+		ts.Fatalf("ECS_BASE_SCHEMA_URL is not set")
 	}
 
 	stacks, ok := ts.Value(runningStackTag{}).(map[string]*runningStack)
@@ -57,11 +61,6 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
-	config, err := install.Configuration()
-	if err != nil {
-		ts.Fatalf("can't load install configuration: %s", err)
-	}
-
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
@@ -69,7 +68,7 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		Absent:         false,
 		Force:          true,
 		RepositoryRoot: root,
-		SchemaURLs:     config.SchemaURLs(),
+		SchemaURLs:     fields.SchemaURLs{ECSBase: ecsBaseSchemaURL},
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
