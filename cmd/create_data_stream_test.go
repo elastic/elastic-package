@@ -16,7 +16,7 @@ import (
 
 func TestGetSurveyQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.1.9")
-	questions := getInitialSurveyQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version, t.TempDir())
 
 	require.Len(t, questions, 3, "should return 3 questions for spec version < 3.2.0")
 
@@ -30,7 +30,7 @@ func TestGetSurveyQuestionsForVersion_BelowSemver3_2_0(t *testing.T) {
 
 func TestGetSurveyQuestionsForVersion_EqualSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.2.0")
-	questions := getInitialSurveyQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version, t.TempDir())
 
 	require.Len(t, questions, 4, "should return 4 questions for spec version >= 3.2.0")
 
@@ -40,7 +40,7 @@ func TestGetSurveyQuestionsForVersion_EqualSemver3_2_0(t *testing.T) {
 
 func TestGetSurveyQuestionsForVersion_AboveSemver3_2_0(t *testing.T) {
 	version := semver.MustParse("3.3.0")
-	questions := getInitialSurveyQuestionsForVersion(version)
+	questions := getInitialSurveyQuestionsForVersion(version, t.TempDir())
 
 	require.Len(t, questions, 4, "should return 4 questions for spec version > 3.2.0")
 

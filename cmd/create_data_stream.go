@@ -64,7 +64,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
 
-	qs := getInitialSurveyQuestionsForVersion(sv)
+	qs := getInitialSurveyQuestionsForVersion(sv, packageRoot)
 
 	var answers newDataStreamAnswers
 	err = tui.Ask(qs, &answers)
@@ -202,8 +202,8 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 	}
 }
 
-func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*tui.Question {
-	validator := tui.Validator{Cwd: "."}
+func getInitialSurveyQuestionsForVersion(specVersion *semver.Version, cwd string) []*tui.Question {
+	validator := tui.Validator{Cwd: cwd}
 	qs := []*tui.Question{
 		{
 			Name:     "name",

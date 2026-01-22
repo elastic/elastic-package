@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
@@ -42,8 +43,12 @@ type newPackageAnswers struct {
 
 func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new package")
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 
-	validator := tui.Validator{Cwd: "."}
+	validator := tui.Validator{Cwd: cwd}
 
 	// Create license select with description
 	licenseSelect := tui.NewSelect("License", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
@@ -136,7 +141,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	var answers newPackageAnswers
-	err := tui.Ask(qs, &answers)
+	err = tui.Ask(qs, &answers)
 	if err != nil {
 		return fmt.Errorf("prompt failed: %w", err)
 	}
@@ -169,7 +174,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	descriptor.Manifest.SpecVersion = specVersion.String()
 
-	err = archetype.CreatePackage(descriptor)
+	err = archetype.CreatePackage(descriptor, cwd)
 	if err != nil {
 		return fmt.Errorf("can't create new package: %w", err)
 	}

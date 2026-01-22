@@ -43,7 +43,7 @@ func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
 	defer repositoryRoot.Close()
 
 	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
-	err = createPackageInDir(pd, packagesDir)
+	err = CreatePackage(pd, packagesDir)
 	require.NoError(t, err)
 
 	checkPackage(t, repositoryRoot, ".", filepath.Join(packagesDir, pd.Manifest.Name), valid)

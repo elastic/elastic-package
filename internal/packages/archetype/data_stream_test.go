@@ -81,7 +81,7 @@ func createAndCheckDataStream(t *testing.T, pd PackageDescriptor, dd DataStreamD
 	err := os.MkdirAll(packagesDir, 0o755)
 	require.NoError(t, err)
 
-	err = createPackageInDir(pd, packagesDir)
+	err = CreatePackage(pd, packagesDir)
 	require.NoError(t, err)
 
 	packageRoot := filepath.Join(packagesDir, pd.Manifest.Name)
