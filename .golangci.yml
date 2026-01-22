@@ -17,11 +17,11 @@ linters:
     forbidigo:
       forbid:
         - pattern: ^os\.Getwd$
-          msg: "os.Getwd is forbidden, use locations.NewLocationManager instead"
+          msg: "Please don't rely on current path in subcommands"
         - pattern: ^os\.Chdir$
-          msg: "os.Chdir is forbidden, use locations.NewLocationManager instead"
+          msg: "Please use absolute paths in subcommands"
         - pattern: ^filepath\.Abs$
-          msg: "filepath.Abs is forbidden, it uses os.Getwd internally"
+          msg: "filepath.Abs relies on the current working path, what is not allowed in subcommands"
       analyze-types: true
       exclude-godoc-examples: true
   exclusions:
