@@ -294,7 +294,9 @@ Introduction to the package
 
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
-	urls := fields.SchemaURLs{}
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -320,7 +322,9 @@ func TestRenderReadmeWithFields(t *testing.T) {
 }
 
 func TestUpdateReadmeWithFields(t *testing.T) {
-	urls := fields.SchemaURLs{}
+	urls := fields.SchemaURLs{
+		ECSBase: "https://raw.githubusercontent.com/elastic/ecs",
+	}
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
