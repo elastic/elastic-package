@@ -115,7 +115,7 @@ http://www.example.com/bar
 			err := createReadmeFile(c.packageRoot, c.readmeTemplateContents)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, templatePath, c.linksMap)
+			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, c.packageRoot, templatePath, c.linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -174,7 +174,7 @@ An example event for ` + "`example`" + ` looks as following:
 			err = createManifestFile(c.packageRoot)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, templatePath, linksMap)
+			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -276,7 +276,7 @@ Introduction to the package
 			err = createFieldsFile(c.packageRoot, c.dataStreamName, c.fieldsContents)
 			require.NoError(t, err)
 
-			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, templatePath, linksMap)
+			rendered, err := renderReadme(nil, filename, ".", c.packageRoot, c.packageRoot, templatePath, linksMap)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)

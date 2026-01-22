@@ -24,7 +24,7 @@ type fieldsTableRecord struct {
 
 var escaper = strings.NewReplacer("*", "\\*", "{", "\\{", "}", "\\}", "<", "\\<", ">", "\\>")
 
-func renderExportedFields(repositoryRoot *os.Root, fieldsParentDir string) (string, error) {
+func renderExportedFields(repositoryRoot *os.Root, workDir, fieldsDir string) (string, error) {
 	injectOptions := fields.InjectFieldsOptions{
 		// Keep External parameter when rendering fields, so we can render
 		// documentation for empty groups imported from ECS, for backwards compatibility.
@@ -38,9 +38,9 @@ func renderExportedFields(repositoryRoot *os.Root, fieldsParentDir string) (stri
 	if repositoryRoot != nil {
 		opts = append(opts, fields.WithRepositoryRoot(repositoryRoot))
 	}
-	validator, err := fields.CreateValidatorForDirectory(fieldsParentDir, fieldsParentDir, opts...)
+	validator, err := fields.CreateValidatorForDirectory(workDir, fieldsDir, opts...)
 	if err != nil {
-		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsParentDir, err)
+		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsDir, err)
 	}
 
 	collected := collectFieldsFromDefinitions(validator)

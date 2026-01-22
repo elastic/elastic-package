@@ -364,6 +364,7 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 
 	if r.withCoverage {
 		options := PipelineTesterOptions{
+			WorkDir:         r.workDir,
 			TestFolder:      r.testFolder,
 			API:             r.esAPI,
 			PackageRootPath: r.packageRootPath,

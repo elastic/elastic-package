@@ -180,7 +180,7 @@ func generateReadme(repositoryRoot *os.Root, fileName, linksFilePath, workDir, p
 
 	// templatePath lives under the _dev/build/docs directory at the package root.
 	// builtPackageRoot is the root directory of the built package.
-	rendered, err := renderReadme(repositoryRoot, fileName, workDir, sourceFilesRoot, templatePath, linksMap)
+	rendered, err := renderReadme(repositoryRoot, fileName, workDir, packageRoot, sourceFilesRoot, templatePath, linksMap)
 	if err != nil {
 		return nil, true, fmt.Errorf("rendering Readme failed: %w", err)
 	}
@@ -201,7 +201,7 @@ func findReadmeTemplatePath(fileName, packageRoot string) (string, bool, error) 
 }
 
 // renderReadme function renders the readme file reading from
-func renderReadme(repositoryRoot *os.Root, fileName, workDir, sourceFilesRoot, templatePath string, linksMap linkMap) ([]byte, error) {
+func renderReadme(repositoryRoot *os.Root, fileName, workDir, packageRoot, sourceFilesRoot, templatePath string, linksMap linkMap) ([]byte, error) {
 	logger.Debugf("Render %s file (package: %s, templatePath: %s)", fileName, sourceFilesRoot, templatePath)
 
 	t := template.New(fileName)
@@ -213,11 +213,11 @@ func renderReadme(repositoryRoot *os.Root, fileName, workDir, sourceFilesRoot, t
 			return renderSampleEvent(sourceFilesRoot, "")
 		},
 		"fields": func(args ...string) (string, error) {
+			fieldsDir := filepath.Join(packageRoot, "fields")
 			if len(args) > 0 {
-				dataStreamPath := filepath.Join(sourceFilesRoot, "data_stream", args[0])
-				return renderExportedFields(repositoryRoot, dataStreamPath)
+				fieldsDir = filepath.Join(packageRoot, "data_stream", args[0], "fields")
 			}
-			return renderExportedFields(repositoryRoot, sourceFilesRoot)
+			return renderExportedFields(repositoryRoot, packageRoot, fieldsDir)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}
