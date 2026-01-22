@@ -215,31 +215,31 @@ func selectElasticAgentSystemDImageName(version *semver.Version) string {
 	return elasticAgentLegacyImageName
 }
 
-type ConfigurationOption func(*ApplicationConfiguration)
+type configurationOption func(*ApplicationConfiguration)
 
 // WithAgentBaseImage sets the agent image type to be used.
-func WithAgentBaseImage(agentBaseImage string) ConfigurationOption {
+func WithAgentBaseImage(agentBaseImage string) configurationOption {
 	return func(opts *ApplicationConfiguration) {
 		opts.agentBaseImage = agentBaseImage
 	}
 }
 
 // WithStackVersion sets the Elastic Stack version to be used.
-func WithStackVersion(stackVersion string) ConfigurationOption {
+func WithStackVersion(stackVersion string) configurationOption {
 	return func(opts *ApplicationConfiguration) {
 		opts.stackVersion = stackVersion
 	}
 }
 
 // WithAgentVersion sets the Elastic Agent version to be used.
-func WithAgentVersion(agentVersion string) ConfigurationOption {
+func WithAgentVersion(agentVersion string) configurationOption {
 	return func(opts *ApplicationConfiguration) {
 		opts.agentVersion = agentVersion
 	}
 }
 
 // Configuration function returns the elastic-package configuration.
-func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, error) {
+func Configuration(options ...configurationOption) (*ApplicationConfiguration, error) {
 	configPath, err := locations.NewLocationManager()
 	if err != nil {
 		return nil, fmt.Errorf("can't read configuration directory: %w", err)
