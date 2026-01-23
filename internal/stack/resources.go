@@ -29,6 +29,9 @@ const (
 	// ComposeFile is the docker compose file.
 	ComposeFile = "docker-compose.yml"
 
+	// DockerfilePackageRegistryFile is the dockerfile for package-registry container.
+	DockerfilePackageRegistryFile = "Dockerfile.package-registry"
+
 	// ElasticsearchConfigFile is the elasticsearch config file.
 	ElasticsearchConfigFile = "elasticsearch.yml"
 
@@ -77,7 +80,7 @@ var (
 	staticSource   = resource.NewSourceFS(static).WithTemplateFuncs(templateFuncs)
 	stackResources = []resource.Resource{
 		&resource.File{
-			Path:    "Dockerfile.package-registry",
+			Path:    DockerfilePackageRegistryFile,
 			Content: staticSource.Template("_static/Dockerfile.package-registry.tmpl"),
 		},
 		&resource.File{
