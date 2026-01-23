@@ -21,10 +21,8 @@ type Transform struct {
 }
 
 func renderTransformPaths(packageRoot string) (string, error) {
-	// look for transform/ from the packageRoot/elasticsearch/transform/<transform_name>/transform.yml
-	// add the transform_name to the list
-	// if the list is empty, return ""
-	// if the list is not empty, format the list as a markdown list
+	// gather the mapping of transforms defined in the package
+	// if the directory does not exist, or there are no transforms defined, return an empty string
 	transformPaths, err := findTransformPaths(packageRoot)
 	if err != nil {
 		// if the directory does not exist, return an empty string
@@ -47,6 +45,8 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	return renderedDocs.String(), nil
 }
 
+// findTransformPaths scans a given package path for transforms that have been defined
+// and returns a mapping of all transform names to their descriptions.
 func findTransformPaths(packageRoot string) (map[string]Transform, error) {
 
 	result := make(map[string]Transform)
@@ -62,6 +62,9 @@ func findTransformPaths(packageRoot string) (map[string]Transform, error) {
 		return nil, fmt.Errorf("%s is not a directory", transformsRoot)
 	}
 
+	// walk the transformsRoot directory and collect the transform names and descriptions
+	// the transform name is the base name of the directory
+	// the transform description is the description field in the transform.yml file
 	err = filepath.WalkDir(transformsRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

@@ -12,8 +12,7 @@ import (
 )
 
 func renderILMPaths(packageRoot string) (string, error) {
-	// look for ilm/ from the packageRoot/data_stream/<data_stream_name>/elastsicsearch/ilm/
-	// add the data_stream_name to the list
+	// gather the list of data streams that have ILM policies defined
 	// if the list is empty, return ""
 	// if the list is not empty, format the list as a markdown list
 	ilmPaths, err := findILMPaths(packageRoot)
@@ -33,7 +32,11 @@ func renderILMPaths(packageRoot string) (string, error) {
 	return renderedDocs.String(), nil
 }
 
+// findILMPaths scans a given package path for data streams that have ILM policies
+// and returns a list of all data stream names that have ILM policies defined.
 func findILMPaths(packageRoot string) ([]string, error) {
+	// look for ilm/ from the packageRoot/data_stream/<data_stream_name>/elastsicsearch/ilm/
+	// add the data_stream_name to the list
 	ilmPaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "elasticsearch", "ilm"))
 	if err != nil {
 		return nil, fmt.Errorf("finding ILM paths failed: %w", err)
