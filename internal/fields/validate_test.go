@@ -132,9 +132,7 @@ func TestValidate_WithEnabledImportAllECSSchema(t *testing.T) {
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
 		WithEnabledImportAllECSSChema(true),
-		WithSchemaURLs(SchemaURLs{
-			ECSBase: DefaultECSSchemaBaseURL,
-		}),
+		WithSchemaURLs(NewSchemaURLs()),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -149,9 +147,7 @@ func TestValidate_WithDisabledImportAllECSSchema(t *testing.T) {
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),
 		WithEnabledImportAllECSSChema(false),
-		WithSchemaURLs(SchemaURLs{
-			ECSBase: DefaultECSSchemaBaseURL,
-		}),
+		WithSchemaURLs(NewSchemaURLs()),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)
@@ -986,9 +982,7 @@ func TestValidateGeoPoint(t *testing.T) {
 func TestValidateExternalMultiField(t *testing.T) {
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "parallel", "mongodb", "status")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
-		WithSchemaURLs(SchemaURLs{
-			ECSBase: DefaultECSSchemaBaseURL,
-		}),
+		WithSchemaURLs(NewSchemaURLs()),
 	)
 	require.NoError(t, err)
 	require.NotNil(t, validator)

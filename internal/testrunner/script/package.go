@@ -68,7 +68,7 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		Absent:         false,
 		Force:          true,
 		RepositoryRoot: root,
-		SchemaURLs:     fields.SchemaURLs{ECSBase: ecsBaseSchemaURL},
+		SchemaURLs:     fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 

@@ -70,7 +70,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
-	config.c.SchemaURLs.ECSBase = fields.DefaultECSSchemaBaseURL
+	config.c.SchemaURLs = fields.NewSchemaURLs()
 
 	return &config
 }
@@ -269,11 +269,6 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 	}
 
 	var c configFile
-	// Required for those scenarios that the configuration file existed previously
-	// to adding schema_urls section and therefore this field does not exist in the
-	// configuration (elastic-package was previously installed).
-	c.SchemaURLs.ECSBase = fields.DefaultECSSchemaBaseURL
-
 	err = yaml.Unmarshal(cfg, &c)
 	if err != nil {
 		return nil, fmt.Errorf("can't unmarshal configuration file: %w", err)

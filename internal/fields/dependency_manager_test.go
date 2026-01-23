@@ -621,9 +621,7 @@ func TestDependencyManagerWithECS(t *testing.T) {
 			Reference: "file://" + ecsNestedPath8_10_0,
 		},
 	}
-	urls := SchemaURLs{
-		ECSBase: DefaultECSSchemaBaseURL,
-	}
+	urls := NewSchemaURLs()
 	dm, err := CreateFieldDependencyManager(deps, urls)
 	require.NoError(t, err)
 
@@ -790,9 +788,7 @@ func TestDependencyManagerWithECS(t *testing.T) {
 }
 
 func TestValidate_SetExternalECS(t *testing.T) {
-	urls := SchemaURLs{
-		ECSBase: DefaultECSSchemaBaseURL,
-	}
+	urls := NewSchemaURLs()
 	repositoryRoot, packageRoot, fieldsDir := pathsForValidator(t, "other", "imported_mappings_tests", "first")
 	validator, err := CreateValidator(repositoryRoot, packageRoot, fieldsDir,
 		WithSpecVersion("2.3.0"),

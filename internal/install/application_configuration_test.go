@@ -5,10 +5,15 @@
 package install
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 func TestSelectElasticAgentImageName_NoVersion(t *testing.T) {
@@ -118,4 +123,58 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	version := stackVersion715
 	selected := selectElasticAgentImageName(version, "systemd")
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
+}
+
+func TestNewApplicationConfigurationDefaultECSSchemaURLs(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+
+	config, err := Configuration()
+	require.NoError(t, err)
+	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().EcsBase())
+}
+
+func TestExistingApplicationConfigurationNoECSSchemaDefined(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+
+	// Write configuration file with custom ECS URL
+	configPath, err := locations.NewLocationManager()
+	require.NoError(t, err)
+
+	configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
+
+	minimalConfigFile := `
+stack:
+  image_refs_overrides: {}
+profiles:
+  current: default
+`
+	err = os.WriteFile(configFilePath, []byte(minimalConfigFile), 0644)
+	require.NoError(t, err)
+
+	config, err := Configuration()
+	require.NoError(t, err)
+	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().EcsBase())
+}
+
+func TestExistingApplicationConfigurationCustomECSSchemaURL(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+
+	expectedBaseEPR := "https://localhost/elastic/ecs"
+
+	// Write configuration file with custom ECS URL
+	configPath, err := locations.NewLocationManager()
+	require.NoError(t, err)
+
+	configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
+
+	settingData := fmt.Sprintf("schema_urls:\n  ecs_base: %q", expectedBaseEPR)
+	err = os.WriteFile(configFilePath, []byte(settingData), 0644)
+	require.NoError(t, err)
+
+	config, err := Configuration()
+	require.NoError(t, err)
+	assert.Equal(t, expectedBaseEPR, config.SchemaURLs().EcsBase())
 }

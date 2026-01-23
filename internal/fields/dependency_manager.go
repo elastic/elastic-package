@@ -28,8 +28,6 @@ const (
 	localFilePrefix    = "file://"
 
 	ecsSchemaFile = "ecs_nested.yml"
-
-	DefaultECSSchemaBaseURL = "https://raw.githubusercontent.com/elastic/ecs"
 )
 
 // DependencyManager is responsible for resolving external field dependencies.
@@ -37,18 +35,8 @@ type DependencyManager struct {
 	schema map[string][]FieldDefinition
 }
 
-type SchemaURLs struct {
-	ECSBase string `yaml:"ecs_base,omitempty"`
-}
-
 // CreateFieldDependencyManager function creates a new instance of the DependencyManager.
 func CreateFieldDependencyManager(deps buildmanifest.Dependencies, urls SchemaURLs) (*DependencyManager, error) {
-	if urls.ECSBase == "" {
-		// Ensure that ECSBase URL is set to the default value if none is provided.
-		// It helps to ensure do not update all the code that uses this function to provide this value.
-		logger.Warnf("ECS schema base URL is not set, using default value: %s", DefaultECSSchemaBaseURL)
-		urls.ECSBase = DefaultECSSchemaBaseURL
-	}
 	schema, err := buildFieldsSchema(deps, urls)
 	if err != nil {
 		return nil, fmt.Errorf("can't build fields schema: %w", err)
@@ -60,7 +48,7 @@ func CreateFieldDependencyManager(deps buildmanifest.Dependencies, urls SchemaUR
 
 func buildFieldsSchema(deps buildmanifest.Dependencies, urls SchemaURLs) (map[string][]FieldDefinition, error) {
 	schema := map[string][]FieldDefinition{}
-	ecsSchema, err := loadECSFieldsSchema(deps.ECS, urls.ECSBase)
+	ecsSchema, err := loadECSFieldsSchema(deps.ECS, urls.EcsBase())
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields: %w", err)
 	}

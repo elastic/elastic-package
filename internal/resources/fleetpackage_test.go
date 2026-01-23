@@ -64,9 +64,7 @@ func TestPackageLifecycle(t *testing.T) {
 			fleetPackage := FleetPackage{
 				PackageRoot:    packageRoot,
 				RepositoryRoot: repositoryRoot,
-				SchemaURLs: fields.SchemaURLs{
-					ECSBase: fields.DefaultECSSchemaBaseURL,
-				},
+				SchemaURLs:     fields.NewSchemaURLs(),
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})

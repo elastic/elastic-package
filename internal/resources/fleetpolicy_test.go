@@ -124,9 +124,7 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 			PackageRoot:    policy.PackageRoot,
 			Absent:         agentPolicy.Absent,
 			RepositoryRoot: repostoryRoot,
-			SchemaURLs: fields.SchemaURLs{
-				ECSBase: fields.DefaultECSSchemaBaseURL,
-			},
+			SchemaURLs:     fields.NewSchemaURLs(),
 		})
 	}
 	return append(resources, agentPolicy)
