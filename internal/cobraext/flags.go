@@ -275,7 +275,7 @@ const (
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
 	NoProvisionFlagName        = "no-provision"
-	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+	NoProvisionFlagDescription = "trigger just system tests without setup nor teardown"
 
 	UpdateScriptTestArchiveFlagName        = "update"
 	UpdateScriptTestArchiveFlagDescription = "update archive file if a cmp fails"
