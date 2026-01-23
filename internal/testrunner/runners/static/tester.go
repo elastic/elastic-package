@@ -174,7 +174,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	}
 	defer repositoryRoot.Close()
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, filepath.Dir(sampleEventPath),
+	fieldsValidator, err := fields.CreateValidator(r.workDir, filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),

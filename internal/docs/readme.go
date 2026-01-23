@@ -213,11 +213,11 @@ func renderReadme(repositoryRoot *os.Root, fileName, workDir, packageRoot, sourc
 			return renderSampleEvent(sourceFilesRoot, "")
 		},
 		"fields": func(args ...string) (string, error) {
-			fieldsDir := filepath.Join(packageRoot, "fields")
+			fieldsParentDir := packageRoot
 			if len(args) > 0 {
-				fieldsDir = filepath.Join(packageRoot, "data_stream", args[0], "fields")
+				fieldsParentDir = filepath.Join(packageRoot, "data_stream", args[0])
 			}
-			return renderExportedFields(repositoryRoot, packageRoot, fieldsDir)
+			return renderExportedFields(repositoryRoot, workDir, fieldsParentDir)
 		},
 		"url": func(args ...string) (string, error) {
 			options := linkOptions{}

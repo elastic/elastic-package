@@ -38,7 +38,7 @@ func renderExportedFields(repositoryRoot *os.Root, workDir, fieldsDir string) (s
 	if repositoryRoot != nil {
 		opts = append(opts, fields.WithRepositoryRoot(repositoryRoot))
 	}
-	validator, err := fields.CreateValidatorForDirectory(workDir, fieldsDir, opts...)
+	validator, err := fields.CreateValidator(workDir, fieldsDir, opts...)
 	if err != nil {
 		return "", fmt.Errorf("can't create fields validator instance (path: %s): %w", fieldsDir, err)
 	}

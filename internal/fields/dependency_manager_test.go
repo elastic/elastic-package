@@ -787,7 +787,7 @@ func TestDependencyManagerWithECS(t *testing.T) {
 }
 
 func TestValidate_SetExternalECS(t *testing.T) {
-	validator, err := CreateValidatorForDirectory(
+	validator, err := CreateValidator(
 		"../../test/packages/other/imported_mappings_tests",
 		"../../test/packages/other/imported_mappings_tests/data_stream/first",
 		WithSpecVersion("2.3.0"),

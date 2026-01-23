@@ -163,7 +163,7 @@ type Validator struct {
 	repositoryRoot *os.Root
 }
 
-// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
+// ValidatorOption represents an optional flag that can be passed to  CreateValidator.
 type ValidatorOption func(*Validator) error
 
 // WithSpecVersion enables validation dependant of the spec version used by the package.
@@ -280,8 +280,8 @@ func (p packageRoot) FindPackageRoot() (string, error) {
 	return packages.FindPackageRoot(p.Cwd)
 }
 
-// CreateValidatorForDirectory function creates a validator for the directory.
-func CreateValidatorForDirectory(workDir string, fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+// CreateValidator function creates a validator for the directory.
+func CreateValidator(workDir string, fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	p := packageRoot{Cwd: workDir}
 	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, p, opts...)
 }
@@ -316,22 +316,25 @@ func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder pa
 		}
 	}
 
-	var fieldsFS fs.FS
-	if v.repositoryRoot != nil {
-		fieldsFS, err = files.CreateLinksFSFromPath(v.repositoryRoot, fieldsDir)
-		if err != nil {
-			return nil, fmt.Errorf("can't create links filesystem: %w", err)
+	if _, err := os.Stat(fieldsDir); err == nil {
+		var fieldsFS fs.FS
+		if v.repositoryRoot != nil {
+			fieldsFS, err = files.CreateLinksFSFromPath(v.repositoryRoot, fieldsDir)
+			if err != nil {
+				return nil, fmt.Errorf("can't create links filesystem: %w", err)
+			}
+		} else {
+			fieldsFS = os.DirFS(fieldsDir)
 		}
-	} else {
-		fieldsFS = os.DirFS(fieldsDir)
+
+		fields, err := loadFieldsFromDir(fieldsFS, fdm, v.injectFieldsOptions)
+		if err != nil {
+			return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
+		}
+
+		v.Schema = append(fields, v.Schema...)
 	}
 
-	fields, err := loadFieldsFromDir(fieldsFS, fdm, v.injectFieldsOptions)
-	if err != nil {
-		return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
-	}
-
-	v.Schema = append(fields, v.Schema...)
 	return v, nil
 }
 

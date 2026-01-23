@@ -1667,7 +1667,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 	defer repositoryRoot.Close()
 
-	fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, r.dataStreamPath,
+	fieldsValidator, err := fields.CreateValidator(r.workDir, r.dataStreamPath,
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),
@@ -2268,7 +2268,7 @@ func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgMan
 		}
 		defer repositoryRoot.Close()
 
-		fieldsValidator, err := fields.CreateValidatorForDirectory(r.workDir, transformRootPath,
+		fieldsValidator, err := fields.CreateValidator(r.workDir, transformRootPath,
 			fields.WithSpecVersion(pkgManifest.SpecVersion),
 			fields.WithNumericKeywordFields(config.NumericKeywordFields),
 			fields.WithEnabledImportAllECSSChema(true),
