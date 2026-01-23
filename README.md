@@ -443,7 +443,12 @@ The command ensures that the package is aligned with the package spec and the RE
 
 _Context: package_
 
-Use this command to apply modifications for a package.
+Use this command to apply modifications to a package.
+
+These modifications can range from applying best practices, generating ingest pipeline tags, and more. Run this command without any arguments to see a list of modifiers.
+
+Use --modifiers to specify which modifiers to run, separated by commas.
+
 
 ### `elastic-package profiles`
 

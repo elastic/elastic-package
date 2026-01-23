@@ -20,6 +20,13 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
+const modifyLongDescription = `Use this command to apply modifications to a package.
+
+These modifications can range from applying best practices, generating ingest pipeline tags, and more. Run this command without any arguments to see a list of modifiers.
+
+Use --modifiers to specify which modifiers to run, separated by commas.
+`
+
 func setupModifyCommand() *cobraext.Command {
 	modifiers := []*modify.Modifier{
 		pipelinetag.Modifier,
@@ -50,7 +57,7 @@ func setupModifyCommand() *cobraext.Command {
 	cmd := &cobra.Command{
 		Use:   "modify",
 		Short: "Modify package assets",
-		Long:  "Use this command to apply modifications for a package.",
+		Long:  modifyLongDescription,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Println("Modify package assets")
 
