@@ -48,7 +48,7 @@ func CreateFieldDependencyManager(deps buildmanifest.Dependencies, urls SchemaUR
 
 func buildFieldsSchema(deps buildmanifest.Dependencies, urls SchemaURLs) (map[string][]FieldDefinition, error) {
 	schema := map[string][]FieldDefinition{}
-	ecsSchema, err := loadECSFieldsSchema(deps.ECS, urls.EcsBase())
+	ecsSchema, err := loadECSFieldsSchema(deps.ECS, urls.ECSBase())
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields: %w", err)
 	}

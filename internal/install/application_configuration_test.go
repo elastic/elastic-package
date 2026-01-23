@@ -131,7 +131,7 @@ func TestNewApplicationConfigurationDefaultECSSchemaURLs(t *testing.T) {
 
 	config, err := Configuration()
 	require.NoError(t, err)
-	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().EcsBase())
+	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().ECSBase())
 }
 
 func TestExistingApplicationConfigurationNoECSSchemaDefined(t *testing.T) {
@@ -155,14 +155,14 @@ profiles:
 
 	config, err := Configuration()
 	require.NoError(t, err)
-	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().EcsBase())
+	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().ECSBase())
 }
 
 func TestExistingApplicationConfigurationCustomECSSchemaURL(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
 
-	expectedBaseEPR := "https://localhost/elastic/ecs"
+	expectedBaseURL := "https://localhost/elastic/ecs"
 
 	// Write configuration file with custom ECS URL
 	configPath, err := locations.NewLocationManager()
@@ -170,11 +170,11 @@ func TestExistingApplicationConfigurationCustomECSSchemaURL(t *testing.T) {
 
 	configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
 
-	settingData := fmt.Sprintf("schema_urls:\n  ecs_base: %q", expectedBaseEPR)
+	settingData := fmt.Sprintf("schema_urls:\n  ecs_base: %q", expectedBaseURL)
 	err = os.WriteFile(configFilePath, []byte(settingData), 0644)
 	require.NoError(t, err)
 
 	config, err := Configuration()
 	require.NoError(t, err)
-	assert.Equal(t, expectedBaseEPR, config.SchemaURLs().EcsBase())
+	assert.Equal(t, expectedBaseURL, config.SchemaURLs().ECSBase())
 }

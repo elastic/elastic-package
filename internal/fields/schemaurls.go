@@ -66,7 +66,7 @@ func NewSchemaURLs(opts ...schemaURLOption) SchemaURLs {
 	return s
 }
 
-func (s SchemaURLs) EcsBase() string {
+func (s SchemaURLs) ECSBase() string {
 	// Safe return default if empty
 	if s.ecsBase == "" {
 		return defaultECSSchemaBaseURL
