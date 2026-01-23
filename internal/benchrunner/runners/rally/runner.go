@@ -432,7 +432,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	if r.options.DryRun {
-		dummy := reporters.NewReport(r.scenario.Package, nil)
+		dummy := reporters.NewReport(r.scenario.Package, r.options.WorkDir, nil)
 		return dummy, ErrDryRun
 	}
 
@@ -450,7 +450,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
+	return createReport(r.options.BenchName, r.corpusFile, r.options.WorkDir, r.scenario, msum, rallyStats)
 }
 
 func (r *runner) installPackage(ctx context.Context) error {

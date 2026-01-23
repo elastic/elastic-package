@@ -304,7 +304,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+	return createReport(r.options.BenchName, r.corporaFile, r.options.WorkDir, r.scenario, msum)
 }
 
 func (r *runner) serviceDefinedInConfig() (string, error) {

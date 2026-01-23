@@ -15,6 +15,7 @@ import (
 type Options struct {
 	BenchName      string
 	Folder         testrunner.TestFolder
+	WorkDir        string
 	PackageRoot    string
 	API            *elasticsearch.API
 	NumTopProcs    int
@@ -35,6 +36,12 @@ func NewOptions(fns ...OptionFunc) Options {
 func WithFolder(f testrunner.TestFolder) OptionFunc {
 	return func(opts *Options) {
 		opts.Folder = f
+	}
+}
+
+func WithWorkDir(path string) OptionFunc {
+	return func(opts *Options) {
+		opts.WorkDir = path
 	}
 }
 

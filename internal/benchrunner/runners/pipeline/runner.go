@@ -87,11 +87,12 @@ func (r *runner) run(ctx context.Context) (reporters.Reportable, error) {
 
 	switch r.options.Format {
 	case ReportFormatHuman:
-		return reporters.NewReport(r.options.Folder.Package, formattedReport), nil
+		return reporters.NewReport(r.options.Folder.Package, r.options.WorkDir, formattedReport), nil
 	}
 
 	return reporters.NewFileReport(
 		r.options.BenchName,
+		r.options.WorkDir,
 		filenameByFormat(r.options.BenchName, r.options.Format),
 		formattedReport,
 	), nil

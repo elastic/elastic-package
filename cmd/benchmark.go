@@ -208,6 +208,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		opts := pipeline.NewOptions(
 			pipeline.WithBenchmarkName(fmt.Sprintf("%s-%d", folder.Package, idx+1)),
 			pipeline.WithFolder(folder),
+			pipeline.WithWorkDir(cwd),
 			pipeline.WithPackageRoot(packageRootPath),
 			pipeline.WithESAPI(esClient.API),
 			pipeline.WithNumTopProcs(numTopProcs),

@@ -55,7 +55,7 @@ func reportSingle(report reporters.Reportable) error {
 		return errors.New("this output requires a reportable file")
 	}
 
-	dest, err := reportsDir()
+	dest, err := reportsDir(report.WorkDir())
 	if err != nil {
 		return fmt.Errorf("could not determine benchmark reports folder: %w", err)
 	}
@@ -84,8 +84,8 @@ func reportSingle(report reporters.Reportable) error {
 }
 
 // reportsDir returns the location of the directory to store reports.
-func reportsDir() (string, error) {
-	buildDir, err := builder.BuildDirectory(".")
+func reportsDir(workDir string) (string, error) {
+	buildDir, err := builder.BuildDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}
