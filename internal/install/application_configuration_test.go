@@ -5,7 +5,6 @@
 package install
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -125,56 +124,55 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
 }
 
-func TestNewApplicationConfigurationDefaultECSSchemaURLs(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
-
-	config, err := Configuration()
-	require.NoError(t, err)
-	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().ECSBase())
-}
-
-func TestExistingApplicationConfigurationNoECSSchemaDefined(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
-
-	// Write configuration file with custom ECS URL
-	configPath, err := locations.NewLocationManager()
-	require.NoError(t, err)
-
-	configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
-
-	minimalConfigFile := `
-stack:
-  image_refs_overrides: {}
+func TestExistingApplicationConfigurationECSSchema(t *testing.T) {
+	cases := []struct {
+		name              string
+		create            bool
+		settingData       string
+		expectedECSSchema string
+	}{
+		{
+			name:   "custom ECS schema",
+			create: true,
+			settingData: `
+schema_urls:
+  ecs_base: "https://custom-ecs.example"
+`,
+			expectedECSSchema: "https://custom-ecs.example",
+		},
+		{
+			name:   "no customizations",
+			create: true,
+			settingData: `
 profiles:
   current: default
-`
-	err = os.WriteFile(configFilePath, []byte(minimalConfigFile), 0644)
-	require.NoError(t, err)
+`,
+			expectedECSSchema: "https://raw.githubusercontent.com/elastic/ecs",
+		},
+		{
+			name:              "config file not created",
+			create:            false,
+			expectedECSSchema: "https://raw.githubusercontent.com/elastic/ecs",
+		},
+	}
 
-	config, err := Configuration()
-	require.NoError(t, err)
-	assert.Equal(t, "https://raw.githubusercontent.com/elastic/ecs", config.SchemaURLs().ECSBase())
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+			configPath, err := locations.NewLocationManager()
+			require.NoError(t, err)
 
-func TestExistingApplicationConfigurationCustomECSSchemaURL(t *testing.T) {
-	tmpDir := t.TempDir()
-	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+			if tc.create {
+				configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
 
-	expectedBaseURL := "https://localhost/elastic/ecs"
+				err = os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
+				require.NoError(t, err)
+			}
 
-	// Write configuration file with custom ECS URL
-	configPath, err := locations.NewLocationManager()
-	require.NoError(t, err)
-
-	configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
-
-	settingData := fmt.Sprintf("schema_urls:\n  ecs_base: %q", expectedBaseURL)
-	err = os.WriteFile(configFilePath, []byte(settingData), 0644)
-	require.NoError(t, err)
-
-	config, err := Configuration()
-	require.NoError(t, err)
-	assert.Equal(t, expectedBaseURL, config.SchemaURLs().ECSBase())
+			config, err := Configuration()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedECSSchema, config.SchemaURLs().ECSBase())
+		})
+	}
 }
