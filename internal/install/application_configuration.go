@@ -86,8 +86,10 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
-	PackageRegistry  packageRegistrySettings  `yaml:"package_registry,omitempty"`
-	KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
+	Status struct {
+		PackageRegistry  packageRegistrySettings  `yaml:"package_registry,omitempty"`
+		KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
+	} `yaml:"status,omitempty"`
 }
 
 type packageRegistrySettings struct {
@@ -170,8 +172,8 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // PackageRegistryBaseURL returns the configured package registry URL,
 // falling back to production if not specified
 func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
-	if ac.c.PackageRegistry.BaseURL != "" {
-		return ac.c.PackageRegistry.BaseURL
+	if ac.c.Status.PackageRegistry.BaseURL != "" {
+		return ac.c.Status.PackageRegistry.BaseURL
 	}
 	return registry.ProductionURL
 }
@@ -179,8 +181,8 @@ func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
 // KibanaRepositoryBaseURL returns the configured Kibana repository URL,
 // falling back to the default GitHub URL if not specified
 func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
-	if ac.c.KibanaRepository.BaseURL != "" {
-		return ac.c.KibanaRepository.BaseURL
+	if ac.c.Status.KibanaRepository.BaseURL != "" {
+		return ac.c.Status.KibanaRepository.BaseURL
 	}
 	return "https://raw.githubusercontent.com/elastic/kibana"
 }

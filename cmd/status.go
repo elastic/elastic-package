@@ -39,8 +39,8 @@ The status command can be customized through the elastic-package configuration f
 (see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 Configuration options:
-- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
-- Set a custom Kibana Repository URL using the 'kibana_repository.base_url' parameter`
+- Set a custom Package Registry URL using the 'status.package_registry.base_url' parameter
+- Set a custom Kibana Repository URL using the 'status.kibana_repository.base_url' parameter`
 
 const (
 	kibanaVersionParameter             = "kibana.version"

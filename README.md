@@ -608,8 +608,8 @@ The status command can be customized through the elastic-package configuration f
 (see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 Configuration options:
-- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
-- Set a custom Kibana Repository URL using the 'kibana_repository.base_url' parameter
+- Set a custom Package Registry URL using the 'status.package_registry.base_url' parameter
+- Set a custom Kibana Repository URL using the 'status.kibana_repository.base_url' parameter
 
 ### `elastic-package test`
 
@@ -712,9 +712,9 @@ In this configuration file you can:
 - override the schema URLs to be used when building or validating packages.
     - URL to download the ECS schema definition for fields.
     - If not specified, the default value is `https://raw.githubusercontent.com/elastic/ecs`.
-- override the Package Registry URL.
+- override the Package Registry URL used in the `elastic-package status` command.
     - If not specified, the default value is `https://epr.elastic.co`.
-- override the Kibana Repository URL.
+- override the Kibana Repository URL used in the `elastic-package status` command.
     - If not specified, the default value is `https://raw.githubusercontent.com/elastic/kibana`.
 
 Complete example of the `config.yml` file:
@@ -725,10 +725,11 @@ profile:
     current: default
 schema_urls:
   ecs_base:  https://raw.githubusercontent.com/elastic/ecs
-package_registry:
-  base_url: https://epr.elastic.co
-kibana_repository:
-  base_url: https://raw.githubusercontent.com/elastic/kibana
+status:
+  package_registry:
+    base_url: https://epr.elastic.co
+  kibana_repository:
+    base_url: https://raw.githubusercontent.com/elastic/kibana
 ```
 
 ## Elastic Package profiles
