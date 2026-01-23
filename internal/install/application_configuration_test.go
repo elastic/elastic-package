@@ -6,9 +6,13 @@ package install
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
 func TestSelectElasticAgentImageName_NoVersion(t *testing.T) {
@@ -118,4 +122,65 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	version := stackVersion715
 	selected := selectElasticAgentImageName(version, "systemd")
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
+}
+
+func TestExistingApplicationConfigurationCustomStatusSettings(t *testing.T) {
+	cases := []struct {
+		name              string
+		create            bool
+		settingData       string
+		expectedEPRURL    string
+		expectedKibanaURL string
+	}{
+		{
+			name:   "both URLs customized",
+			create: true,
+			settingData: `
+status:
+  package_registry:
+    base_url: "https://custom-epr.example"
+  kibana_repository:
+    base_url: "https://custom-kibana-repo.example"`,
+
+			expectedEPRURL:    "https://custom-epr.example",
+			expectedKibanaURL: "https://custom-kibana-repo.example",
+		},
+		{
+			name:   "no customizations",
+			create: true,
+			settingData: `
+profiles:
+  current: default
+`,
+			expectedEPRURL:    "https://epr.elastic.co",
+			expectedKibanaURL: "https://raw.githubusercontent.com/elastic/kibana",
+		},
+		{
+			name:              "config file not created",
+			create:            false,
+			expectedEPRURL:    "https://epr.elastic.co",
+			expectedKibanaURL: "https://raw.githubusercontent.com/elastic/kibana",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
+			configPath, err := locations.NewLocationManager()
+			require.NoError(t, err)
+
+			if tc.create {
+				configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
+
+				err = os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
+				require.NoError(t, err)
+			}
+
+			config, err := Configuration()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEPRURL, config.PackageRegistryBaseURL())
+			assert.Equal(t, tc.expectedKibanaURL, config.KibanaRepositoryBaseURL())
+		})
+	}
 }
