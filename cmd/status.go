@@ -33,7 +33,14 @@ const statusLongDescription = `Use this command to display the current deploymen
 
 If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
-package directory and reports its status.`
+package directory and reports its status.
+
+The status command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
+
+Configuration options:
+- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
+- Set a custom Kibana Repository URL using the 'kibana_repository.base_url' parameter`
 
 const (
 	kibanaVersionParameter             = "kibana.version"

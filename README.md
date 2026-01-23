@@ -604,6 +604,13 @@ If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
 package directory and reports its status.
 
+The status command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
+
+Configuration options:
+- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
+- Set a custom Kibana Repository URL using the 'kibana_repository.base_url' parameter
+
 ### `elastic-package test`
 
 _Context: package_
@@ -691,6 +698,38 @@ _Context: global_
 Use this command to print the version of elastic-package that you have installed. This is especially useful when reporting bugs.
 
 
+
+## Elastic Package configuration
+
+The main configuration is stored in a `config.yml` file located in the elastic-package data directory (`~/.elastic-package`).
+This file contains settings that apply globally to all commands and profiles.
+
+In this configuration file you can:
+- override docker images used by the stacks created byelastic-package (more info at [custom_images docs](./docs/howto/custom_images.md)).
+    - By default, there is no override and the default images of the given stack version are used.
+- check the current profile in use (more info at [Elastic Package profiles](#elastic-package-profiles)).
+    - This value is updated automatically by the `elastic-package profiles use` command.
+- override the schema URLs to be used when building or validating packages.
+    - URL to download the ECS schema definition for fields.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/ecs`.
+- override the Package Registry URL.
+    - If not specified, the default value is `https://epr.elastic.co`.
+- override the Kibana Repository URL.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/kibana`.
+
+Complete example of the `config.yml` file:
+```yaml
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default
+schema_urls:
+  ecs_base:  https://raw.githubusercontent.com/elastic/ecs
+package_registry:
+  base_url: https://epr.elastic.co
+kibana_repository:
+  base_url: https://raw.githubusercontent.com/elastic/kibana
+```
 
 ## Elastic Package profiles
 
