@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 const (
@@ -172,7 +173,7 @@ func (ac *ApplicationConfiguration) GetPackageRegistryBaseURL() string {
 	if ac.c.PackageRegistry.BaseURL != "" {
 		return ac.c.PackageRegistry.BaseURL
 	}
-	return "https://epr.elastic.co"
+	return registry.ProductionURL
 }
 
 // GetKibanaRepositoryBaseURL returns the configured Kibana repository URL,
