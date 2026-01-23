@@ -167,18 +167,18 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
 }
 
-// GetPackageRegistryBaseURL returns the configured package registry URL,
+// PackageRegistryBaseURL returns the configured package registry URL,
 // falling back to production if not specified
-func (ac *ApplicationConfiguration) GetPackageRegistryBaseURL() string {
+func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
 	if ac.c.PackageRegistry.BaseURL != "" {
 		return ac.c.PackageRegistry.BaseURL
 	}
 	return registry.ProductionURL
 }
 
-// GetKibanaRepositoryBaseURL returns the configured Kibana repository URL,
+// KibanaRepositoryBaseURL returns the configured Kibana repository URL,
 // falling back to the default GitHub URL if not specified
-func (ac *ApplicationConfiguration) GetKibanaRepositoryBaseURL() string {
+func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
 	if ac.c.KibanaRepository.BaseURL != "" {
 		return ac.c.KibanaRepository.BaseURL
 	}

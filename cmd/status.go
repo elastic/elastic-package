@@ -119,7 +119,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create registry client with configured URL
-	customRegistry := registry.NewClient(appConfig.GetPackageRegistryBaseURL())
+	customRegistry := registry.NewClient(appConfig.PackageRegistryBaseURL())
 
 	options := registry.SearchOptions{
 		All:           showAll,
@@ -138,7 +138,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if packageName == "" && packageStatus.Local != nil {
 			packageName = packageStatus.Local.Name
 		}
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry, appConfig.GetKibanaRepositoryBaseURL())
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry, appConfig.KibanaRepositoryBaseURL())
 		if err != nil {
 			return err
 		}
