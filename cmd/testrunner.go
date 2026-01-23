@@ -156,20 +156,24 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
@@ -180,7 +184,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRoot)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
@@ -193,7 +197,8 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s\n", stackVersion.Version())
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
-		PackageRoot:      packageRoot,
+		WorkDir:          cwd,
+		PackageRootPath:  packageRootPath,
 		KibanaClient:     kibanaClient,
 		GlobalTestConfig: globalTestConfig.Asset,
 		WithCoverage:     testCoverage,
@@ -206,7 +211,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("error running package %s tests: %w", testType, err)
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerStaticCommand() *cobra.Command {
@@ -257,17 +262,21 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
 		return err
 	}
@@ -275,14 +284,15 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRoot)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
 	logger.Info(version.Version())
 	runner := static.NewStaticTestRunner(static.StaticTestRunnerOptions{
-		PackageRoot:        packageRoot,
+		WorkDir:            cwd,
+		PackageRootPath:    packageRootPath,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
 		GlobalTestConfig:   globalTestConfig.Static,
@@ -295,7 +305,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerPipelineCommand() *cobra.Command {
@@ -362,18 +372,22 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.DeferCleanupFlagName)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	packageRoot, err := packages.FindPackageRoot()
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
 		return err
 	}
@@ -390,12 +404,12 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRoot)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
@@ -409,7 +423,8 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 	logger.Infof("elastic-stack: %s\n", esClientInfo.Version.Number)
 	runner := pipeline.NewPipelineTestRunner(pipeline.PipelineTestRunnerOptions{
 		Profile:            profile,
-		PackageRoot:        packageRoot,
+		WorkDir:            cwd,
+		PackageRootPath:    packageRootPath,
 		API:                esClient.API,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
@@ -426,7 +441,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerSystemCommand() *cobra.Command {
@@ -518,12 +533,17 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.VariantFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -542,22 +562,17 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.NoProvisionFlagName)
 	}
 
-	configFileFlag, err := cmd.Flags().GetString(cobraext.ConfigFileFlagName)
+	configFileFlag, err := cobraext.AbsolutePathFlag(cmd, cobraext.ConfigFileFlagName)
 	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ConfigFileFlagName)
+		return err
 	}
 	if configFileFlag != "" {
-		absPath, err := filepath.Abs(configFileFlag)
-		if err != nil {
-			return fmt.Errorf("cannot obtain the absolute path for config file path: %s", configFileFlag)
-		}
-		if _, err := os.Stat(absPath); err != nil {
+		if _, err := os.Stat(configFileFlag); err != nil {
 			return fmt.Errorf("can't find config file %s: %w", configFileFlag, err)
 		}
-		configFileFlag = absPath
 	}
 
-	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
 		return err
 	}
@@ -590,12 +605,12 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRoot)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
@@ -609,7 +624,8 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	logger.Infof("elastic-stack: %s", info.Version.Number)
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
 		Profile:              profile,
-		PackageRoot:          packageRoot,
+		WorkDir:              cwd,
+		PackageRootPath:      packageRootPath,
 		KibanaClient:         kibanaClient,
 		API:                  esClient.API,
 		ESClient:             esClient,
@@ -635,7 +651,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err = processResults(results, runner.Type(), reportFormat, reportOutput, packageRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	err = processResults(results, runner.Type(), reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 	if err != nil {
 		return fmt.Errorf("failed to process results: %w", err)
 	}
@@ -705,7 +721,14 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	pkgRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	opts.WorkDir = cwd
+
+	pkgRoot, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		if err == packages.ErrPackageRootNotFound {
 			return errors.New("package root not found")
@@ -741,7 +764,7 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	return processResults(results, "script", reportFormat, reportOutput, pkgRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testrunner.TestType("script"), reportFormat, reportOutput, cwd, pkgRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
 func getTestRunnerPolicyCommand() *cobra.Command {
@@ -802,18 +825,23 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(fmt.Errorf("coverage format not available: %s", testCoverageFormat), cobraext.TestCoverageFormatFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	dataStreams, err := getDataStreamsFlag(cmd, packageRoot)
+	dataStreams, err := getDataStreamsFlag(cmd, packageRootPath)
 	if err != nil {
 		return err
 	}
@@ -826,12 +854,12 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	if err != nil {
-		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRootPath, err)
 	}
 
-	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRoot)
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(packageRootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
@@ -844,7 +872,8 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", stackVersion.Version())
 	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
-		PackageRoot:        packageRoot,
+		WorkDir:            cwd,
+		PackageRootPath:    packageRootPath,
 		KibanaClient:       kibanaClient,
 		DataStreams:        dataStreams,
 		FailOnMissingTests: failOnMissing,
@@ -860,10 +889,10 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return processResults(results, testType, reportFormat, reportOutput, packageRoot, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
+	return processResults(results, testType, reportFormat, reportOutput, cwd, packageRootPath, manifest.Name, manifest.Type, testCoverageFormat, testCoverage)
 }
 
-func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, packageRoot, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
+func processResults(results []testrunner.TestResult, testType testrunner.TestType, reportFormat, reportOutput, workDir, packageRootPath, packageName, packageType, testCoverageFormat string, testCoverage bool) error {
 	sort.Slice(results, func(i, j int) bool {
 		if results[i].Package != results[j].Package {
 			return results[i].Package < results[j].Package
@@ -882,12 +911,12 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 		return fmt.Errorf("error formatting test report: %w", err)
 	}
 
-	if err := testrunner.WriteReport(packageName, testType, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
+	if err := testrunner.WriteReport(packageName, workDir, testType, testrunner.TestReportOutput(reportOutput), report, format); err != nil {
 		return fmt.Errorf("error writing test report: %w", err)
 	}
 
 	if testCoverage {
-		err := testrunner.WriteCoverage(packageRoot, packageName, packageType, testType, results, testCoverageFormat)
+		err := testrunner.WriteCoverage(workDir, packageRootPath, packageName, packageType, testType, results, testCoverageFormat)
 		if err != nil {
 			return fmt.Errorf("error writing test coverage: %w", err)
 		}
@@ -902,9 +931,9 @@ func processResults(results []testrunner.TestResult, testType testrunner.TestTyp
 	return nil
 }
 
-func validateDataStreamsFlag(packageRoot string, dataStreams []string) error {
+func validateDataStreamsFlag(packageRootPath string, dataStreams []string) error {
 	for _, dataStream := range dataStreams {
-		path := filepath.Join(packageRoot, "data_stream", dataStream)
+		path := filepath.Join(packageRootPath, "data_stream", dataStream)
 		fileInfo, err := os.Stat(path)
 		if err != nil {
 			return fmt.Errorf("stat directory failed (path: %s): %w", path, err)
@@ -917,14 +946,14 @@ func validateDataStreamsFlag(packageRoot string, dataStreams []string) error {
 	return nil
 }
 
-func getDataStreamsFlag(cmd *cobra.Command, packageRoot string) ([]string, error) {
+func getDataStreamsFlag(cmd *cobra.Command, packageRootPath string) ([]string, error) {
 	dataStreams, err := cmd.Flags().GetStringSlice(cobraext.DataStreamsFlagName)
 	common.TrimStringSlice(dataStreams)
 	if err != nil {
 		return []string{}, cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 	}
 
-	err = validateDataStreamsFlag(packageRoot, dataStreams)
+	err = validateDataStreamsFlag(packageRootPath, dataStreams)
 	if err != nil {
 		return []string{}, cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 	}

@@ -21,10 +21,11 @@ const (
 
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
+	WorkDir string
 	Profile *profile.Profile
 
-	PackageRoot            string
-	DataStreamRoot         string
+	PackageRootPath        string
+	DataStreamRootPath     string
 	DevDeployDir           string
 	Type                   string
 	StackVersion           string
@@ -69,12 +70,12 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				Profile:                options.Profile,
 				DefinitionsDir:         serviceDeployerPath,
 				StackVersion:           options.StackVersion,
+				OverrideAgentVersion:   options.OverrideAgentVersion,
 				PolicyName:             options.PolicyName,
 				RunSetup:               options.RunSetup,
 				RunTestsOnly:           options.RunTestsOnly,
 				RunTearDown:            options.RunTearDown,
 				DeployIndependentAgent: options.DeployIndependentAgent,
-				OverrideAgentVersion:   options.OverrideAgentVersion,
 			}
 			return NewKubernetesServiceDeployer(opts)
 		}
@@ -86,6 +87,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 				return nil, fmt.Errorf("can't use service variant: %w", err)
 			}
 			opts := DockerComposeServiceDeployerOptions{
+				WorkDir:                options.WorkDir,
 				Profile:                options.Profile,
 				YmlPaths:               []string{dockerComposeYMLPath},
 				Variant:                sv,
@@ -107,6 +109,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		policyName := getTokenPolicyName(options.StackVersion, options.PolicyName)
 
 		opts := CustomAgentDeployerOptions{
+			WorkDir:              options.WorkDir,
 			Profile:              options.Profile,
 			DockerComposeFile:    customAgentCfgYMLPath,
 			StackVersion:         options.StackVersion,
@@ -123,6 +126,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 		}
 		if _, err := os.Stat(serviceDeployerPath); err == nil {
 			opts := TerraformServiceDeployerOptions{
+				WorkDir:        options.WorkDir,
 				DefinitionsDir: serviceDeployerPath,
 			}
 			return NewTerraformServiceDeployer(opts)
@@ -133,7 +137,7 @@ func Factory(options FactoryOptions) (ServiceDeployer, error) {
 
 // FindDevDeployPath function returns a path reference to the "_dev/deploy" directory.
 func FindDevDeployPath(options FactoryOptions) (string, error) {
-	dataStreamDevDeployPath := filepath.Join(options.DataStreamRoot, options.DevDeployDir)
+	dataStreamDevDeployPath := filepath.Join(options.DataStreamRootPath, options.DevDeployDir)
 	info, err := os.Stat(dataStreamDevDeployPath)
 	if err == nil && info.IsDir() {
 		return dataStreamDevDeployPath, nil
@@ -141,7 +145,7 @@ func FindDevDeployPath(options FactoryOptions) (string, error) {
 		return "", fmt.Errorf("stat failed for data stream (path: %s): %w", dataStreamDevDeployPath, err)
 	}
 
-	packageDevDeployPath := filepath.Join(options.PackageRoot, options.DevDeployDir)
+	packageDevDeployPath := filepath.Join(options.PackageRootPath, options.DevDeployDir)
 	info, err = os.Stat(packageDevDeployPath)
 	if err == nil && info.IsDir() {
 		return packageDevDeployPath, nil

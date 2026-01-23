@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/builder"
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -42,10 +43,10 @@ func createAndCheckPackage(t *testing.T, pd PackageDescriptor, valid bool) {
 	defer repositoryRoot.Close()
 
 	packagesDir := filepath.Join(repositoryRoot.Name(), "packages")
-	err = createPackageInDir(pd, packagesDir)
+	err = CreatePackage(pd, packagesDir)
 	require.NoError(t, err)
 
-	checkPackage(t, repositoryRoot, filepath.Join(packagesDir, pd.Manifest.Name), valid)
+	checkPackage(t, repositoryRoot, ".", filepath.Join(packagesDir, pd.Manifest.Name), valid)
 }
 
 func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDescriptor {
@@ -95,29 +96,36 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
-func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
+func buildPackage(t *testing.T, repositoryRoot *os.Root, workDir, packageRootPath string) error {
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
+	_, err = docs.UpdateReadmes(repositoryRoot, workDir, packageRootPath, buildDir)
+	if err != nil {
+		return err
+	}
+
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
 
 	_, err = builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
+		WorkDir:         cwd,
+		PackageRootPath: packageRootPath,
+		BuildDir:        buildDir,
+		RepositoryRoot:  repositoryRoot,
 	})
 	return err
 }
 
-func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, valid bool) {
-	err := buildPackage(t, repositoryRoot, packageRoot)
+func checkPackage(t *testing.T, repositoryRoot *os.Root, workDir, packageRootPath string, valid bool) {
+	err := buildPackage(t, repositoryRoot, workDir, packageRootPath)
 	if !valid {
 		assert.Error(t, err)
 		return
 	}
 	require.NoError(t, err)
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRootPath)
 	require.NoError(t, err)
 
 	// Running in subtests because manifest subobjects can be pointers that can panic when dereferenced by assertions.
@@ -131,7 +139,7 @@ func checkPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string, val
 
 	if manifest.Type == "integration" {
 		t.Run("integration", func(t *testing.T) {
-			ds, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*"))
+			ds, err := filepath.Glob(filepath.Join(packageRootPath, "data_stream", "*"))
 			require.NoError(t, err)
 			for _, d := range ds {
 				manifest, err := packages.ReadDataStreamManifest(filepath.Join(d, "manifest.yml"))

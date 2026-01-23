@@ -23,8 +23,9 @@ const (
 )
 
 type runner struct {
-	packageRoot  string
-	kibanaClient *kibana.Client
+	workDir         string
+	packageRootPath string
+	kibanaClient    *kibana.Client
 
 	dataStreams        []string
 	failOnMissingTests bool
@@ -43,8 +44,9 @@ type runner struct {
 var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
+	WorkDir            string
 	KibanaClient       *kibana.Client
-	PackageRoot        string
+	PackageRootPath    string
 	DataStreams        []string
 	FailOnMissingTests bool
 	GenerateTestResult bool
@@ -56,7 +58,8 @@ type PolicyTestRunnerOptions struct {
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
-		packageRoot:        options.PackageRoot,
+		workDir:            options.WorkDir,
+		packageRootPath:    options.PackageRootPath,
 		kibanaClient:       options.KibanaClient,
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
@@ -95,9 +98,9 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRoot, err)
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
 	}
 
 	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
@@ -111,7 +114,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			dataStreams = r.dataStreams
 		}
 
-		folders, err = testrunner.FindTestFolders(r.packageRoot, dataStreams, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -123,7 +126,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			return nil, fmt.Errorf("no %s tests found", r.Type())
 		}
 	} else {
-		folders, err = testrunner.FindTestFolders(r.packageRoot, nil, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -140,7 +143,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 		for _, test := range tests {
 			testers = append(testers, NewPolicyTester(PolicyTesterOptions{
-				PackageRoot:        r.packageRoot,
+				WorkDir:            r.workDir,
+				PackageRootPath:    r.packageRootPath,
 				TestFolder:         folder,
 				KibanaClient:       r.kibanaClient,
 				GenerateTestResult: r.generateTestResult,
@@ -161,8 +165,9 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		PackageRoot:    r.packageRoot,
-		RepositoryRoot: r.repositoryRoot,
+		WorkDir:         r.workDir,
+		PackageRootPath: r.packageRootPath,
+		RepositoryRoot:  r.repositoryRoot,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

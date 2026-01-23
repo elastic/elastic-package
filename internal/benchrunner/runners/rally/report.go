@@ -43,18 +43,18 @@ type report struct {
 	RallyStats          []rallyStat
 }
 
-func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, stats []rallyStat) (reporters.Reportable, error) {
+func createReport(benchName, corporaFile, workDir string, s *scenario, sum *metricsSummary, stats []rallyStat) (reporters.Reportable, error) {
 	r := newReport(benchName, corporaFile, s, sum, stats)
-	human := reporters.NewReport(s.Package, reportHumanFormat(r))
+	human := reporters.NewReport(s.Package, workDir, reportHumanFormat(r))
 
 	jsonBytes, err := reportJSONFormat(r)
 	if err != nil {
 		return nil, fmt.Errorf("rendering JSON report: %w", err)
 	}
 
-	jsonFile := reporters.NewFileReport(s.Package, fmt.Sprintf("system/%s/report.json", sum.RunID), jsonBytes)
+	jsonFile := reporters.NewFileReport(s.Package, workDir, fmt.Sprintf("system/%s/report.json", sum.RunID), jsonBytes)
 
-	mr := reporters.NewMultiReport(s.Package, []reporters.Reportable{human, jsonFile})
+	mr := reporters.NewMultiReport(s.Package, workDir, []reporters.Reportable{human, jsonFile})
 
 	return mr, nil
 }

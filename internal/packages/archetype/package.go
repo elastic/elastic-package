@@ -25,11 +25,7 @@ type PackageDescriptor struct {
 }
 
 // CreatePackage function bootstraps the new package based on the provided descriptor.
-func CreatePackage(packageDescriptor PackageDescriptor) error {
-	return createPackageInDir(packageDescriptor, ".")
-}
-
-func createPackageInDir(packageDescriptor PackageDescriptor, cwd string) error {
+func CreatePackage(packageDescriptor PackageDescriptor, cwd string) error {
 	baseDir := filepath.Join(cwd, packageDescriptor.Manifest.Name)
 	_, err := os.Stat(baseDir)
 	if err == nil {

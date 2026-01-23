@@ -13,16 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func FindRepositoryRoot() (*os.Root, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("locating working directory failed: %w", err)
-	}
-	return FindRepositoryRootFrom(workDir)
-}
-
-func FindRepositoryRootFrom(workDir string) (*os.Root, error) {
-	rootPath, err := findRepositoryRootDirectoryFrom(workDir)
+func FindRepositoryRoot(workDir string) (*os.Root, error) {
+	rootPath, err := FindRepositoryRootDirectory(workDir)
 	if err != nil {
 		return nil, fmt.Errorf("root not found: %w", err)
 	}
@@ -36,7 +28,11 @@ func FindRepositoryRootFrom(workDir string) (*os.Root, error) {
 	return dirRoot, nil
 }
 
-func findRepositoryRootDirectoryFrom(workDir string) (string, error) {
+func FindRepositoryRootDirectory(workDir string) (string, error) {
+	return findRepositoryRootDirectory(workDir)
+}
+
+func findRepositoryRootDirectory(workDir string) (string, error) {
 	// VolumeName() will return something like "C:" in Windows, and "" in other OSs
 	// rootDir will be something like "C:\" in Windows, and "/" everywhere else.
 	rootDir := filepath.VolumeName(workDir) + string(filepath.Separator)

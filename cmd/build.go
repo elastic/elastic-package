@@ -7,11 +7,13 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -59,36 +61,51 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	packageRoot, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	// Currently the build directory is placed inside the repository build/ folder.
 	// In the future we might want to make this configurable.
-	buildDir, err := builder.BuildDirectory()
+	buildDir, err := builder.BuildDirectory(cwd)
 	if err != nil {
 		return fmt.Errorf("can't prepare build directory: %w", err)
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
+		WorkDir:         cwd,
+		PackageRootPath: packageRoot,
+		BuildDir:        buildDir,
+		CreateZip:       createZip,
+		SignPackage:     signPackage,
+		SkipValidation:  skipValidation,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
+	}
+
+	targets, err := docs.UpdateReadmes(repositoryRoot, cwd, packageRoot, buildDir)
+	if err != nil {
+		return fmt.Errorf("updating files failed: %w", err)
+	}
+
+	for _, target := range targets {
+		fileName := filepath.Base(target)
+		cmd.Printf("%s file rendered: %s\n", fileName, target)
 	}
 
 	cmd.Printf("Package built: %s\n", target)

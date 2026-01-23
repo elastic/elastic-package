@@ -23,15 +23,17 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
-	packageRoot      string
+	workDir          string
+	packageRootPath  string
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
 }
 
 type StaticTesterOptions struct {
+	WorkDir          string
 	TestFolder       testrunner.TestFolder
-	PackageRoot      string
+	PackageRootPath  string
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
@@ -40,7 +42,8 @@ type StaticTesterOptions struct {
 func NewStaticTester(options StaticTesterOptions) *tester {
 	runner := tester{
 		testFolder:       options.TestFolder,
-		packageRoot:      options.PackageRoot,
+		workDir:          options.WorkDir,
+		packageRootPath:  options.PackageRootPath,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
@@ -93,16 +96,16 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithSkip(skip)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
 	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvent(pkgManifest)...), nil
+	return append(r.verifyStreamConfig(ctx, r.packageRootPath), r.verifySampleEvent(pkgManifest)...), nil
 }
 
-func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []testrunner.TestResult {
+func (r tester) verifyStreamConfig(ctx context.Context, packageRootPath string) []testrunner.TestResult {
 	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify benchmark config",
 		TestType:   TestType,
@@ -111,7 +114,7 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []te
 	})
 
 	withOpts := []stream.OptionFunc{
-		stream.WithPackageRoot(packageRoot),
+		stream.WithPackageRootPath(packageRootPath),
 	}
 
 	ctx, stop := signal.Enable(ctx, logger.Info)
@@ -150,7 +153,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	}
 
 	if r.withCoverage {
-		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
+		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), r.workDir, sampleEventPath, r.coverageType, true)
 		if err != nil {
 			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
 			return results
@@ -163,19 +166,21 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		results, _ := resultComposer.WithError(err)
 		return results
 	}
-	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+
+	repositoryRoot, err := files.FindRepositoryRoot(r.packageRootPath)
 	if err != nil {
-		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		results, _ := resultComposer.WithError(fmt.Errorf("finding repository root failed: %w", err))
 		return results
 	}
 	defer repositoryRoot.Close()
-	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
-	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+
+	fieldsValidator, err := fields.CreateValidator(r.workDir, filepath.Dir(sampleEventPath),
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
+		fields.WithRepositoryRoot(repositoryRoot),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
@@ -205,12 +210,12 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	var sampleEventPath string
 	if r.testFolder.DataStream != "" {
 		sampleEventPath = filepath.Join(
-			r.packageRoot,
+			r.packageRootPath,
 			"data_stream",
 			r.testFolder.DataStream,
 			sampleEventJSON)
 	} else {
-		sampleEventPath = filepath.Join(r.packageRoot, sampleEventJSON)
+		sampleEventPath = filepath.Join(r.packageRootPath, sampleEventJSON)
 	}
 	_, err := os.Stat(sampleEventPath)
 	if errors.Is(err, os.ErrNotExist) {
@@ -231,7 +236,7 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 		return nil, nil
 	}
 
-	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRoot, dsName)
+	dataStreamManifest, err := packages.ReadDataStreamManifestFromPackageRoot(r.packageRootPath, dsName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}

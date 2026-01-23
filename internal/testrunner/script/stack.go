@@ -270,7 +270,6 @@ func getDocs(ts *testscript.TestScript, neg bool, args []string) {
 			stk.es.Search.WithBody(strings.NewReader(system.FieldsQuery)),
 			stk.es.Search.WithIgnoreUnavailable(true),
 		)
-		resp.String()
 		ts.Check(decoratedWith("performing search", err))
 		body.Reset()
 		_, err = io.Copy(&body, resp.Body)

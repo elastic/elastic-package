@@ -78,9 +78,14 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Warning: %s\n", message)
 	}
 
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
 	// Just query for dashboards if none were provided as flags
 	if len(dashboardIDs) == 0 {
-		packageRoot, err := packages.MustFindPackageRoot()
+		packageRoot, err := packages.MustFindPackageRoot(cwd)
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
@@ -106,7 +111,7 @@ func exportDashboardsCmd(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	err = export.Dashboards(cmd.Context(), kibanaClient, dashboardIDs)
+	err = export.Dashboards(cmd.Context(), kibanaClient, cwd, dashboardIDs)
 	if err != nil {
 		return fmt.Errorf("dashboards export failed: %w", err)
 	}

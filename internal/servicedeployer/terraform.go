@@ -6,7 +6,7 @@ package servicedeployer
 
 import (
 	"context"
-	"embed"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,27 +29,25 @@ const (
 	terraformDeployerRun        = "run.sh"
 	terraformOutputPrefix       = "TF_OUTPUT_"
 	terraformOutputJSONFile     = "tfOutputValues.json"
-
-	terraformDeployerYmlTemplatePath = "_static/terraform_deployer.yml.tmpl"
 )
+
+//go:embed _static/terraform_deployer.yml
+var terraformDeployerYmlContent string
 
 //go:embed _static/terraform_deployer_run.sh
 var terraformDeployerRunContent string
-
-//go:embed _static
-var tfStatic embed.FS
-
-var tfStaticSource = resource.NewSourceFS(tfStatic)
 
 //go:embed _static/Dockerfile.terraform_deployer
 var terraformDeployerDockerfileContent string
 
 // TerraformServiceDeployer is responsible for deploying infrastructure described with Terraform definitions.
 type TerraformServiceDeployer struct {
+	workDir        string
 	definitionsDir string
 }
 
 type TerraformServiceDeployerOptions struct {
+	WorkDir        string
 	DefinitionsDir string
 }
 
@@ -93,6 +91,7 @@ func addTerraformOutputs(svcInfo *ServiceInfo) error {
 // NewTerraformServiceDeployer creates an instance of TerraformServiceDeployer.
 func NewTerraformServiceDeployer(opts TerraformServiceDeployerOptions) (*TerraformServiceDeployer, error) {
 	return &TerraformServiceDeployer{
+		workDir:        opts.WorkDir,
 		definitionsDir: opts.DefinitionsDir,
 	}, nil
 }
@@ -121,6 +120,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		env:             tfEnvironment,
 		shutdownTimeout: 300 * time.Second,
 		configDir:       configDir,
+		workDir:         tsd.workDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -147,6 +147,12 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		return nil, fmt.Errorf("can't build Terraform aliases: %w", err)
 	}
 
+	// Boot up service
+	opts = compose.CommandOptions{
+		Env:       service.env,
+		ExtraArgs: []string{"--build", "-d"},
+	}
+
 	defer func() {
 		if err == nil {
 			return
@@ -157,11 +163,6 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		service.TearDown(context.WithoutCancel(ctx))
 	}()
 
-	// Boot up service
-	opts = compose.CommandOptions{
-		Env:       service.env,
-		ExtraArgs: []string{"--build", "-d"},
-	}
 	err = p.Up(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("could not boot up service using Docker Compose: %w", err)
@@ -189,20 +190,12 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		return "", fmt.Errorf("failed to find the configuration directory: %w", err)
 	}
 
-	gcpFacters, err := common.GCPCredentialFacters()
-	if err != nil {
-		return "", fmt.Errorf("failed to get GCP credential facters: %w", err)
-	}
-
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(gcpFacters)
-
 	tfDir := filepath.Join(locationManager.DeployerDir(), terraformDeployerDir, folder)
 
 	resources := []resource.Resource{
 		&resource.File{
 			Path:         terraformDeployerYml,
-			Content:      tfStaticSource.Template(terraformDeployerYmlTemplatePath),
+			Content:      resource.FileContentLiteral(terraformDeployerYmlContent),
 			CreateParent: true,
 		},
 		&resource.File{
@@ -217,6 +210,7 @@ func (tsd TerraformServiceDeployer) installDockerfile(folder string) (string, er
 		},
 	}
 
+	resourceManager := resource.NewManager()
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: tfDir,
 	})

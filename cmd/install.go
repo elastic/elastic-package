@@ -45,7 +45,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.ZipPackageFilePathFlagName)
 	}
-	packageRoot, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
+	packageRootPath, err := cmd.Flags().GetString(cobraext.PackageRootFlagName)
 	if err != nil {
 		return cobraext.FlagParsingError(err, cobraext.PackageRootFlagName)
 	}
@@ -73,26 +73,32 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
 
-	if zipPathFile == "" && packageRoot == "" {
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	if zipPathFile == "" && packageRootPath == "" {
 		var err error
-		packageRoot, err = packages.FindPackageRoot()
+		packageRootPath, err = packages.FindPackageRoot(cwd)
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kibanaClient,
-		PackageRoot:    packageRoot,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
-		RepositoryRoot: repositoryRoot,
+		Kibana:          kibanaClient,
+		WorkDir:         cwd,
+		PackageRootPath: packageRootPath,
+		SkipValidation:  skipValidation,
+		ZipPath:         zipPathFile,
+		RepositoryRoot:  repositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

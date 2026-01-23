@@ -22,7 +22,8 @@ type Options struct {
 	ReindexData         bool
 	ESMetricsAPI        *elasticsearch.API
 	BenchName           string
-	PackageRoot         string
+	WorkDir             string
+	PackageRootPath     string
 	Variant             string
 	Profile             *profile.Profile
 	RallyTrackOutputDir string
@@ -60,9 +61,15 @@ func WithKibanaClient(c *kibana.Client) OptionFunc {
 	}
 }
 
-func WithPackageRoot(path string) OptionFunc {
+func WithWorkDir(workDir string) OptionFunc {
 	return func(opts *Options) {
-		opts.PackageRoot = path
+		opts.WorkDir = workDir
+	}
+}
+
+func WithPackageRootPath(path string) OptionFunc {
+	return func(opts *Options) {
+		opts.PackageRootPath = path
 	}
 }
 

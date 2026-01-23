@@ -23,7 +23,7 @@ type Options struct {
 	PeriodDuration  time.Duration
 	PerformCleanup  bool
 	TimestampField  string
-	PackageRoot     string
+	PackageRootPath string
 	Variant         string
 	Profile         *profile.Profile
 	RepositoryRoot  *os.Root
@@ -56,9 +56,9 @@ func WithKibanaClient(c *kibana.Client) OptionFunc {
 	}
 }
 
-func WithPackageRoot(path string) OptionFunc {
+func WithPackageRootPath(path string) OptionFunc {
 	return func(opts *Options) {
-		opts.PackageRoot = path
+		opts.PackageRootPath = path
 	}
 }
 

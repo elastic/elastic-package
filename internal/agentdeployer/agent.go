@@ -45,6 +45,7 @@ var staticSource = resource.NewSourceFS(static)
 // a Docker Compose file.
 type DockerComposeAgentDeployer struct {
 	profile              *profile.Profile
+	workDir              string
 	stackVersion         string
 	overrideAgentVersion string
 
@@ -61,6 +62,7 @@ type DockerComposeAgentDeployer struct {
 
 type DockerComposeAgentDeployerOptions struct {
 	Profile              *profile.Profile
+	WorkDir              string
 	StackVersion         string
 	OverrideAgentVersion string
 	PolicyName           string
@@ -81,6 +83,7 @@ type dockerComposeDeployedAgent struct {
 	project   string
 	env       []string
 	configDir string
+	workDir   string
 }
 
 var _ DeployedAgent = new(dockerComposeDeployedAgent)
@@ -89,6 +92,7 @@ var _ DeployedAgent = new(dockerComposeDeployedAgent)
 func NewCustomAgentDeployer(options DockerComposeAgentDeployerOptions) (*DockerComposeAgentDeployer, error) {
 	return &DockerComposeAgentDeployer{
 		profile:              options.Profile,
+		workDir:              options.WorkDir,
 		stackVersion:         options.StackVersion,
 		overrideAgentVersion: options.OverrideAgentVersion,
 		packageName:          options.PackageName,
@@ -140,6 +144,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		project:   composeProjectName,
 		env:       env,
 		configDir: configDir,
+		workDir:   d.workDir,
 	}
 
 	agentInfo.NetworkName = fmt.Sprintf("%s_default", composeProjectName)
@@ -185,7 +190,7 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		// force to tear down the service in case of setup error.
 		if d.runTestsOnly {
 			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
-			processAgentContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
+			processAgentContainerLogs(context.WithoutCancel(ctx), d.workDir, p, compose.CommandOptions{
 				Env: opts.Env,
 			}, agentInfo.Name)
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
@@ -245,7 +250,6 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 	return &agent, nil
 }
 
-// ProjectName returns the Docker Compose project name for the agent.
 func (d *DockerComposeAgentDeployer) ProjectName(runID string) string {
 	return fmt.Sprintf("elastic-package-agent-%s-%s", d.agentName(), runID)
 }
@@ -364,8 +368,8 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 	return customAgentDir, nil
 }
 
-func selectElasticAgentImage(agentVersion, agentBaseImage string) (string, error) {
-	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithAgentVersion(agentVersion))
+func selectElasticAgentImage(stackVersion, agentBaseImage string) (string, error) {
+	appConfig, err := install.Configuration(install.OptionWithAgentBaseImage(agentBaseImage), install.OptionWithStackVersion(stackVersion))
 	if err != nil {
 		return "", fmt.Errorf("can't read application configuration: %w", err)
 	}
@@ -469,7 +473,7 @@ func (s *dockerComposeDeployedAgent) TearDown(ctx context.Context) error {
 	}
 
 	opts := compose.CommandOptions{Env: s.env}
-	processAgentContainerLogs(ctx, p, opts, s.agentInfo.Name)
+	processAgentContainerLogs(ctx, s.workDir, p, opts, s.agentInfo.Name)
 
 	if err := p.Down(ctx, compose.CommandOptions{
 		Env:       opts.Env,

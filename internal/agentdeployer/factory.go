@@ -23,9 +23,10 @@ const (
 // FactoryOptions defines options used to create an instance of a service deployer.
 type FactoryOptions struct {
 	Profile *profile.Profile
+	WorkDir string
 
-	PackageRoot          string
-	DataStreamRoot       string
+	PackageRootPath      string
+	DataStreamRootPath   string
 	DevDeployDir         string
 	Type                 string
 	StackVersion         string
@@ -57,13 +58,14 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 		}
 		opts := DockerComposeAgentDeployerOptions{
 			Profile:              options.Profile,
+			WorkDir:              options.WorkDir,
 			StackVersion:         options.StackVersion,
+			OverrideAgentVersion: options.OverrideAgentVersion,
 			PackageName:          options.PackageName,
 			PolicyName:           options.PolicyName,
 			DataStream:           options.DataStream,
 			RunTearDown:          options.RunTearDown,
 			RunTestsOnly:         options.RunTestsOnly,
-			OverrideAgentVersion: options.OverrideAgentVersion,
 		}
 		return NewCustomAgentDeployer(opts)
 	case "agent":
@@ -88,9 +90,10 @@ func Factory(options FactoryOptions) (AgentDeployer, error) {
 
 func selectAgentDeployerType(options FactoryOptions) (string, error) {
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		DataStreamRoot: options.DataStreamRoot,
-		DevDeployDir:   options.DevDeployDir,
-		PackageRoot:    options.PackageRoot,
+		WorkDir:            options.WorkDir,
+		DataStreamRootPath: options.DataStreamRootPath,
+		DevDeployDir:       options.DevDeployDir,
+		PackageRootPath:    options.PackageRootPath,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		return "default", nil

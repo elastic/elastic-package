@@ -24,16 +24,17 @@ import (
 )
 
 type runner struct {
-	profile        *profile.Profile
-	repositoryRoot *os.Root
-	packageRoot    string
-	kibanaClient   *kibana.Client
-	esAPI          *elasticsearch.API
-	esClient       *elasticsearch.Client
-
-	dataStreams          []string
-	serviceVariant       string
+	profile              *profile.Profile
+	workDir              string
+	repositoryRoot       *os.Root
+	packageRootPath      string
+	kibanaClient         *kibana.Client
+	esAPI                *elasticsearch.API
+	esClient             *elasticsearch.Client
 	overrideAgentVersion string
+
+	dataStreams    []string
+	serviceVariant string
 
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	failOnMissingTests bool
@@ -56,7 +57,8 @@ var _ testrunner.TestRunner = new(runner)
 
 type SystemTestRunnerOptions struct {
 	Profile              *profile.Profile
-	PackageRoot          string
+	WorkDir              string
+	PackageRootPath      string
 	RepositoryRoot       *os.Root
 	KibanaClient         *kibana.Client
 	API                  *elasticsearch.API
@@ -84,11 +86,13 @@ type SystemTestRunnerOptions struct {
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRoot:          options.PackageRoot,
+		workDir:              options.WorkDir,
+		packageRootPath:      options.PackageRootPath,
 		kibanaClient:         options.KibanaClient,
 		esAPI:                options.API,
 		esClient:             options.ESClient,
 		profile:              options.Profile,
+		overrideAgentVersion: options.OverrideAgentVersion,
 		dataStreams:          options.DataStreams,
 		serviceVariant:       options.ServiceVariant,
 		configFilePath:       options.ConfigFilePath,
@@ -102,7 +106,6 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		withCoverage:         options.WithCoverage,
 		coverageType:         options.CoverageType,
 		repositoryRoot:       options.RepositoryRoot,
-		overrideAgentVersion: options.OverrideAgentVersion,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -151,9 +154,9 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRoot, err)
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
 	}
 
 	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
@@ -194,13 +197,13 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			if r.runTearDown || r.runTestsOnly {
 				configFilePath = serviceState.ConfigFilePath
 			}
-			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRoot)
+			dataStream := testrunner.ExtractDataStreamFromPath(configFilePath, r.packageRootPath)
 			dataStreams = append(dataStreams, dataStream)
 		} else if len(r.dataStreams) > 0 {
 			dataStreams = r.dataStreams
 		}
 
-		folders, err = testrunner.FindTestFolders(r.packageRoot, dataStreams, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -212,7 +215,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			return nil, fmt.Errorf("no %s tests found", r.Type())
 		}
 	} else {
-		folders, err = testrunner.FindTestFolders(r.packageRoot, nil, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -253,7 +256,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				logger.Debugf("System runner: data stream %q config file %q variant %q", t.DataStream, config, variant)
 				tester, err := NewSystemTester(SystemTesterOptions{
 					Profile:              r.profile,
-					PackageRoot:          r.packageRoot,
+					WorkDir:              r.workDir,
+					PackageRootPath:      r.packageRootPath,
 					KibanaClient:         r.kibanaClient,
 					API:                  r.esAPI,
 					ESClient:             r.esClient,
@@ -290,10 +294,11 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !opts.installedPackage,
-			Force:          opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
+			WorkDir:         r.workDir,
+			PackageRootPath: r.packageRootPath,
+			Absent:          !opts.installedPackage,
+			Force:           opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }
@@ -315,7 +320,7 @@ func (r *runner) selectVariants(variantsFile *servicedeployer.VariantsFile) []st
 
 func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) {
 	var variants []string
-	dataStreamRoot, found, err := packages.FindDataStreamRootForPath(folder.Path)
+	dataStreamPath, found, err := packages.FindDataStreamRootForPath(folder.Path)
 	if err != nil {
 		return nil, fmt.Errorf("locating data stream root failed: %w", err)
 	}
@@ -325,9 +330,9 @@ func (r *runner) getAllVariants(folder testrunner.TestFolder) ([]string, error) 
 		logger.Debug("Running system tests for package")
 	}
 	devDeployPath, err := servicedeployer.FindDevDeployPath(servicedeployer.FactoryOptions{
-		PackageRoot:    r.packageRoot,
-		DataStreamRoot: dataStreamRoot,
-		DevDeployDir:   DevDeployDir,
+		PackageRootPath:    r.packageRootPath,
+		DataStreamRootPath: dataStreamPath,
+		DevDeployDir:       DevDeployDir,
 	})
 	switch {
 	case errors.Is(err, os.ErrNotExist):

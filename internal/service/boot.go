@@ -25,12 +25,11 @@ import (
 type Options struct {
 	Profile *profile.Profile
 
-	ServiceName          string
-	PackageRoot          string
-	DevDeployDir         string
-	DataStreamRoot       string
-	StackVersion         string
-	OverrideAgentVersion string
+	ServiceName        string
+	PackageRootPath    string
+	DevDeployDir       string
+	DataStreamRootPath string
+	StackVersion       string
 
 	Variant string
 }
@@ -40,13 +39,12 @@ func BootUp(ctx context.Context, options Options) error {
 	logger.Debugf("Create new instance of the service deployer")
 	serviceDeployer, err := servicedeployer.Factory(servicedeployer.FactoryOptions{
 		Profile:                options.Profile,
-		PackageRoot:            options.DataStreamRoot,
-		DataStreamRoot:         options.DataStreamRoot,
+		PackageRootPath:        options.DataStreamRootPath,
+		DataStreamRootPath:     options.DataStreamRootPath,
 		DevDeployDir:           options.DevDeployDir,
 		Variant:                options.Variant,
 		StackVersion:           options.StackVersion,
 		DeployIndependentAgent: false,
-		OverrideAgentVersion:   options.OverrideAgentVersion,
 	})
 	if errors.Is(err, os.ErrNotExist) {
 		fmt.Println("No service defined.")

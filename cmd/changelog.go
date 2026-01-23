@@ -60,7 +60,12 @@ func setupChangelogCommand() *cobraext.Command {
 }
 
 func changelogAddCmd(cmd *cobra.Command, args []string) error {
-	packageRoot, err := packages.MustFindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRoot, err := packages.MustFindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}

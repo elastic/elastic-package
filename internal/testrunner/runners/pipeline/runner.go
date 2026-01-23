@@ -23,10 +23,11 @@ const (
 )
 
 type runner struct {
-	packageRoot string
-	profile     *profile.Profile
-	esAPI       *elasticsearch.API
-	dataStreams []string
+	workDir         string
+	packageRootPath string
+	profile         *profile.Profile
+	esAPI           *elasticsearch.API
+	dataStreams     []string
 
 	failOnMissingTests bool
 	generateTestResult bool
@@ -40,8 +41,9 @@ type runner struct {
 }
 
 type PipelineTestRunnerOptions struct {
+	WorkDir            string
 	Profile            *profile.Profile
-	PackageRoot        string
+	PackageRootPath    string
 	API                *elasticsearch.API
 	DataStreams        []string
 	FailOnMissingTests bool
@@ -56,7 +58,7 @@ type PipelineTestRunnerOptions struct {
 func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 	runner := runner{
 		profile:            options.Profile,
-		packageRoot:        options.PackageRoot,
+		packageRootPath:    options.PackageRootPath,
 		esAPI:              options.API,
 		dataStreams:        options.DataStreams,
 		failOnMissingTests: options.FailOnMissingTests,
@@ -66,6 +68,7 @@ func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
 		repositoryRoot:     options.RepositoryRoot,
+		workDir:            options.WorkDir,
 	}
 	return &runner
 }
@@ -86,9 +89,9 @@ func (r *runner) TearDownRunner(ctx context.Context) error {
 
 func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	var folders []testrunner.TestFolder
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRoot, err)
+		return nil, fmt.Errorf("reading package manifest failed (path: %s): %w", r.packageRootPath, err)
 	}
 
 	hasDataStreams, err := testrunner.PackageHasDataStreams(manifest)
@@ -102,7 +105,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			dataStreams = r.dataStreams
 		}
 
-		folders, err = testrunner.FindTestFolders(r.packageRoot, dataStreams, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, dataStreams, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -114,7 +117,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			return nil, fmt.Errorf("no %s tests found", r.Type())
 		}
 	} else {
-		folders, err = testrunner.FindTestFolders(r.packageRoot, nil, r.Type())
+		folders, err = testrunner.FindTestFolders(r.packageRootPath, nil, r.Type())
 		if err != nil {
 			return nil, fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -133,7 +136,8 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		for _, caseFile := range testCaseFiles {
 			t, err := NewPipelineTester(PipelineTesterOptions{
 				TestFolder:         folder,
-				PackageRoot:        r.packageRoot,
+				WorkDir:            r.workDir,
+				PackageRootPath:    r.packageRootPath,
 				GenerateTestResult: r.generateTestResult,
 				WithCoverage:       r.withCoverage,
 				CoverageType:       r.coverageType,

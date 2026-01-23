@@ -5,8 +5,6 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
 	"sort"
 
 	"github.com/spf13/cobra"
@@ -82,18 +80,6 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 		logger.EnableDebugMode()
 	} else if verbose > 1 {
 		logger.EnableTraceMode()
-	}
-
-	changeDirectory, err := cmd.Flags().GetString(cobraext.ChangeDirectoryFlagName)
-	if err != nil {
-		return cobraext.FlagParsingError(err, cobraext.ChangeDirectoryFlagName)
-	}
-	if changeDirectory != "" {
-		err := os.Chdir(changeDirectory)
-		if err != nil {
-			return fmt.Errorf("failed to change directory: %w", err)
-		}
-		logger.Debugf("Running command in directory \"%s\"", changeDirectory)
 	}
 
 	return nil

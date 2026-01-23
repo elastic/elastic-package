@@ -137,13 +137,18 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchNumTopProcsFlagName)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	packageRoot, err := packages.FindPackageRoot()
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -156,7 +161,7 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 	if len(dataStreams) > 0 {
 		common.TrimStringSlice(dataStreams)
 
-		if err := validateDataStreamsFlag(packageRoot, dataStreams); err != nil {
+		if err := validateDataStreamsFlag(packageRootPath, dataStreams); err != nil {
 			return cobraext.FlagParsingError(err, cobraext.DataStreamsFlagName)
 		}
 	}
@@ -164,13 +169,13 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 	ctx, stop := signal.Enable(cmd.Context(), logger.Info)
 	defer stop()
 
-	benchFolders, err := pipeline.FindBenchmarkFolders(packageRoot, dataStreams)
+	benchFolders, err := pipeline.FindBenchmarkFolders(packageRootPath, dataStreams)
 	if err != nil {
 		return fmt.Errorf("unable to determine benchmark folder paths: %w", err)
 	}
 
 	if useTestSamples {
-		testFolders, err := testrunner.FindTestFolders(packageRoot, dataStreams, testrunner.TestType(pipeline.BenchType))
+		testFolders, err := testrunner.FindTestFolders(packageRootPath, dataStreams, testrunner.TestType(pipeline.BenchType))
 		if err != nil {
 			return fmt.Errorf("unable to determine test folder paths: %w", err)
 		}
@@ -203,7 +208,8 @@ func pipelineCommandAction(cmd *cobra.Command, args []string) error {
 		opts := pipeline.NewOptions(
 			pipeline.WithBenchmarkName(fmt.Sprintf("%s-%d", folder.Package, idx+1)),
 			pipeline.WithFolder(folder),
-			pipeline.WithPackageRoot(packageRoot),
+			pipeline.WithWorkDir(cwd),
+			pipeline.WithPackageRoot(packageRootPath),
 			pipeline.WithESAPI(esClient.API),
 			pipeline.WithNumTopProcs(numTopProcs),
 			pipeline.WithFormat(reportFormat),
@@ -295,15 +301,20 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("getting package name and version failed, expected format: <package>-<version>: %w", err)
 	}
 
-	var packageRoot string
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	var packageRootPath string
 	if len(packageName) == 0 {
-		packageRoot, err = packages.FindPackageRoot()
+		packageRootPath, err = packages.FindPackageRoot(cwd)
 		if err != nil {
 			return fmt.Errorf("locating package root failed: %w", err)
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -335,7 +346,8 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithVariant(variant),
 		rally.WithBenchmarkName(benchName),
 		rally.WithDataReindexing(dataReindex),
-		rally.WithPackageRoot(packageRoot),
+		rally.WithWorkDir(cwd),
+		rally.WithPackageRootPath(packageRootPath),
 		rally.WithESAPI(esClient.API),
 		rally.WithKibanaClient(kc),
 		rally.WithProfile(profile),
@@ -473,12 +485,17 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchStreamTimestampFieldFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating repository root failed: %w", err)
 	}
@@ -514,7 +531,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithPeriodDuration(periodDuration),
 		stream.WithPerformCleanup(performCleanup),
 		stream.WithTimestampField(timestampField),
-		stream.WithPackageRoot(packageRoot),
+		stream.WithPackageRootPath(packageRootPath),
 		stream.WithESAPI(esClient.API),
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
@@ -584,7 +601,12 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.BenchReindexToMetricstoreFlagName)
 	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -612,13 +634,14 @@ func systemCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	withOpts := []system.OptionFunc{
+		system.WithWorkDir(cwd),
 		system.WithVariant(variant),
 		system.WithBenchmarkPath(benchPath),
 		system.WithBenchmarkName(benchName),
 		system.WithDeferCleanup(deferCleanup),
 		system.WithMetricsInterval(metricsInterval),
 		system.WithDataReindexing(dataReindex),
-		system.WithPackageRoot(packageRoot),
+		system.WithPackageRootPath(packageRootPath),
 		system.WithESAPI(esClient.API),
 		system.WithKibanaClient(kc),
 		system.WithProfile(profile),

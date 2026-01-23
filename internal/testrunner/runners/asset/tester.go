@@ -20,7 +20,8 @@ import (
 
 type tester struct {
 	testFolder       testrunner.TestFolder
-	packageRoot      string
+	workDir          string
+	packageRootPath  string
 	kibanaClient     *kibana.Client
 	resourcesManager *resources.Manager
 	globalTestConfig testrunner.GlobalRunnerTestConfig
@@ -31,7 +32,8 @@ type tester struct {
 
 type AssetTesterOptions struct {
 	TestFolder       testrunner.TestFolder
-	PackageRoot      string
+	WorkDir          string
+	PackageRootPath  string
 	KibanaClient     *kibana.Client
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
@@ -42,7 +44,8 @@ type AssetTesterOptions struct {
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
 		testFolder:       options.TestFolder,
-		packageRoot:      options.PackageRoot,
+		workDir:          options.WorkDir,
+		packageRootPath:  options.PackageRootPath,
 		kibanaClient:     options.KibanaClient,
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
@@ -84,10 +87,11 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !installedPackage,
-			Force:          installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
+			WorkDir:         r.workDir,
+			PackageRootPath: r.packageRootPath,
+			Absent:          !installedPackage,
+			Force:           installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:  r.repositoryRoot,
 		},
 	}
 }
@@ -125,9 +129,9 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("can't install the package: %w", err))
 	}
 
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRoot)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(r.packageRootPath)
 	if err != nil {
-		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRoot, err))
+		return result.WithError(fmt.Errorf("cannot read the package manifest from %s: %w", r.packageRootPath, err))
 	}
 	installedPackage, err := r.kibanaClient.GetPackage(ctx, manifest.Name)
 	if err != nil {
@@ -142,7 +146,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 	// In these tests, mainly it is required to test Kibana assets, therefore it is not added
 	// support for Elasticsearch assets in input packages.
 	// Related issue: https://github.com/elastic/elastic-package/issues/1623
-	expectedAssets, err := packages.LoadPackageAssets(r.packageRoot)
+	expectedAssets, err := packages.LoadPackageAssets(r.packageRootPath)
 	if err != nil {
 		return result.WithError(fmt.Errorf("could not load expected package assets: %w", err))
 	}
@@ -167,7 +171,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		}
 		result := tr[0]
 		if r.withCoverage && e.SourcePath != "" {
-			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), e.SourcePath, r.coverageType, true)
+			result.Coverage, err = testrunner.GenerateBaseFileCoverageReport(rc.CoveragePackageName(), r.workDir, e.SourcePath, r.coverageType, true)
 			if err != nil {
 				tr, _ = rc.WithError(testrunner.ErrTestCaseFailed{
 					Reason:  "could not generate test coverage",

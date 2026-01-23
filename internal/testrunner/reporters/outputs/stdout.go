@@ -19,7 +19,7 @@ const (
 	ReportOutputSTDOUT testrunner.TestReportOutput = "stdout"
 )
 
-func reportToSTDOUT(pkg, report string, _ testrunner.TestType, _ testrunner.TestReportFormat) error {
+func reportToSTDOUT(pkg, _, report string, _ testrunner.TestType, _ testrunner.TestReportFormat) error {
 	fmt.Printf("--- Test results for package: %s - START ---\n", pkg)
 	fmt.Println(report)
 	fmt.Printf("--- Test results for package: %s - END   ---\n", pkg)

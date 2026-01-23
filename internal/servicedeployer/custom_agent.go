@@ -35,22 +35,24 @@ var dockerCustomAgentDockerfileContent []byte
 // CustomAgentDeployer knows how to deploy a custom elastic-agent defined via
 // a Docker Compose file.
 type CustomAgentDeployer struct {
+	workDir              string
 	profile              *profile.Profile
 	dockerComposeFile    string
 	stackVersion         string
-	policyName           string
 	overrideAgentVersion string
+	policyName           string
 
 	runTearDown  bool
 	runTestsOnly bool
 }
 
 type CustomAgentDeployerOptions struct {
+	WorkDir              string
 	Profile              *profile.Profile
 	DockerComposeFile    string
 	StackVersion         string
-	PolicyName           string
 	OverrideAgentVersion string
+	PolicyName           string
 
 	RunTearDown  bool
 	RunTestsOnly bool
@@ -61,6 +63,7 @@ var _ ServiceDeployer = new(CustomAgentDeployer)
 // NewCustomAgentDeployer returns a new instance of a deployedCustomAgent.
 func NewCustomAgentDeployer(options CustomAgentDeployerOptions) (*CustomAgentDeployer, error) {
 	return &CustomAgentDeployer{
+		workDir:              options.WorkDir,
 		profile:              options.Profile,
 		dockerComposeFile:    options.DockerComposeFile,
 		stackVersion:         options.StackVersion,
@@ -122,6 +125,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			Env:  env,
 		},
 		configDir: configDir,
+		workDir:   d.workDir,
 	}
 
 	p, err := compose.NewProject(service.project, service.ymlPaths...)
@@ -166,7 +170,7 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 			// In case of running only tests (--no-provision flag), container logs are still useful for debugging.
 			processServiceContainerLogs(context.WithoutCancel(ctx), p, compose.CommandOptions{
 				Env: opts.Env,
-			}, svcInfo.Name)
+			}, d.workDir, svcInfo.Name)
 			logger.Debug("Skipping tearing down service due to runTestsOnly flag")
 			return
 		}

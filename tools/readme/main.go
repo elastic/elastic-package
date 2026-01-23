@@ -86,7 +86,7 @@ func loadReadmeTemplate() *template.Template {
 }
 
 func generateReadme(readmeTmpl *template.Template, cmdsDoc string) {
-	readmePath, err := filepath.Abs("../../README.md")
+	readmePath, err := filepath.Abs("../../README.md") //nolint:forbidigo // Allowing this here as this is a script.
 	if err != nil {
 		log.Fatalf("Creating README absolute file path failed: %v", err)
 	}

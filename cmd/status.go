@@ -110,6 +110,10 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating info paramaters failed: %w", err)
 
 	}
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
@@ -118,7 +122,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
-	packageStatus, err := getPackageStatus(packageName, options)
+	packageStatus, err := getPackageStatus(cwd, packageName, options)
 	if err != nil {
 		return err
 	}
@@ -159,18 +163,18 @@ func validateExtraInfoParameters(extraParameters []string) error {
 	return nil
 }
 
-func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
+func getPackageStatus(workDir string, packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
 	if packageName != "" {
 		return status.RemotePackage(packageName, options)
 	}
-	packageRoot, err := packages.FindPackageRoot()
+	packageRootPath, err := packages.FindPackageRoot(workDir)
 	if err != nil {
 		if errors.Is(err, packages.ErrPackageRootNotFound) {
 			return nil, errors.New("no package specified and package root not found")
 		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
-	return status.LocalPackage(packageRoot, options)
+	return status.LocalPackage(packageRootPath, options)
 }
 
 func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {

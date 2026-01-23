@@ -21,7 +21,8 @@ import (
 
 type tester struct {
 	testFolder         testrunner.TestFolder
-	packageRoot        string
+	workDir            string
+	packageRootPath    string
 	kibanaClient       *kibana.Client
 	testPath           string
 	generateTestResult bool
@@ -36,10 +37,11 @@ type tester struct {
 var _ testrunner.Tester = new(tester)
 
 type PolicyTesterOptions struct {
+	WorkDir            string
 	TestFolder         testrunner.TestFolder
 	TestPath           string
 	KibanaClient       *kibana.Client
-	PackageRoot        string
+	PackageRootPath    string
 	GenerateTestResult bool
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
@@ -48,9 +50,10 @@ type PolicyTesterOptions struct {
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
 	tester := tester{
+		workDir:            options.WorkDir,
 		kibanaClient:       options.KibanaClient,
 		testFolder:         options.TestFolder,
-		packageRoot:        options.PackageRoot,
+		packageRootPath:    options.PackageRootPath,
 		generateTestResult: options.GenerateTestResult,
 		testPath:           options.TestPath,
 		globalTestConfig:   options.GlobalTestConfig,
@@ -116,12 +119,12 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:           fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
-				PackageRoot:    r.packageRoot,
-				DataStreamName: r.testFolder.DataStream,
-				InputName:      testConfig.Input,
-				Vars:           testConfig.Vars,
-				DataStreamVars: testConfig.DataStream.Vars,
+				Name:            fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
+				PackageRootPath: r.packageRootPath,
+				DataStreamName:  r.testFolder.DataStream,
+				InputName:       testConfig.Input,
+				Vars:            testConfig.Vars,
+				DataStreamVars:  testConfig.DataStream.Vars,
 			},
 		},
 	}
@@ -146,7 +149,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	}
 
 	if r.withCoverage {
-		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.packageRoot, r.testFolder.DataStream, r.coverageType)
+		coverage, err := generateCoverageReport(result.CoveragePackageName(), r.workDir, r.packageRootPath, r.testFolder.DataStream, r.coverageType)
 		if err != nil {
 			return result.WithErrorf("coverage report generation failed: %w", err)
 		}
@@ -162,7 +165,7 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 // generateCoverageReport generates a coverage report that includes the manifests and template files in the package or data stream.
 // TODO: For manifests, mark as covered only the variables used.
 // TODO: For templates, mark as covered only the parts used, but this requires introspection in handlebars.
-func generateCoverageReport(pkgName, rootPath, dataStream, coverageType string) (testrunner.CoverageReport, error) {
+func generateCoverageReport(pkgName, workDir, rootPath, dataStream, coverageType string) (testrunner.CoverageReport, error) {
 	dsPattern := "*"
 	if dataStream != "" {
 		dsPattern = dataStream
@@ -176,7 +179,7 @@ func generateCoverageReport(pkgName, rootPath, dataStream, coverageType string) 
 		filepath.Join(rootPath, "data_stream", dsPattern, "agent", "stream", "*.yml.hbs"),
 	}
 
-	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, patterns, coverageType, true)
+	return testrunner.GenerateBaseFileCoverageReportGlob(pkgName, workDir, patterns, coverageType, true)
 }
 
 func testNameFromPath(path string) string {

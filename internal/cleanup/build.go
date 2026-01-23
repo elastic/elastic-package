@@ -16,10 +16,10 @@ import (
 )
 
 // Build function removes package resources from build/.
-func Build() (string, error) {
+func Build(workDir string) (string, error) {
 	logger.Debug("Clean build resources")
 
-	packageRoot, err := packages.MustFindPackageRoot()
+	packageRoot, err := packages.MustFindPackageRoot(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -29,7 +29,7 @@ func Build() (string, error) {
 		return "", fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
 	}
 
-	buildDir, found, err := builder.FindBuildPackagesDirectory()
+	buildDir, found, err := builder.FindBuildPackagesDirectory(workDir)
 	if err != nil {
 		return "", fmt.Errorf("locating build directory failed: %w", err)
 	}

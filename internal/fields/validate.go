@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -158,9 +159,11 @@ type Validator struct {
 	enabledOTelValidation bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	repositoryRoot *os.Root
 }
 
-// ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
+// ValidatorOption represents an optional flag that can be passed to  CreateValidator.
 type ValidatorOption func(*Validator) error
 
 // WithSpecVersion enables validation dependant of the spec version used by the package.
@@ -257,8 +260,33 @@ func WithOTelValidation(otelValidation bool) ValidatorOption {
 	}
 }
 
-// CreateValidator creates a validator for a given fields directory, contained under the indicated repository and package roots.
-func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir string, opts ...ValidatorOption) (v *Validator, err error) {
+// WithRepositoryRoot configures the validator to use the given repository root to resolve linked files.
+func WithRepositoryRoot(root *os.Root) ValidatorOption {
+	return func(v *Validator) error {
+		v.repositoryRoot = root
+		return nil
+	}
+}
+
+type packageRootFinder interface {
+	FindPackageRoot() (string, error)
+}
+
+type packageRoot struct {
+	Cwd string
+}
+
+func (p packageRoot) FindPackageRoot() (string, error) {
+	return packages.FindPackageRoot(p.Cwd)
+}
+
+// CreateValidator function creates a validator for the directory.
+func CreateValidator(workDir string, fieldsParentDir string, opts ...ValidatorOption) (v *Validator, err error) {
+	p := packageRoot{Cwd: workDir}
+	return createValidatorForDirectoryAndPackageRoot(fieldsParentDir, p, opts...)
+}
+
+func createValidatorForDirectoryAndPackageRoot(fieldsParentDir string, finder packageRootFinder, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
 	// In validator, inject fields with settings used for validation, such as `allowed_values`.
 	v.injectFieldsOptions.IncludeValidationSettings = true
@@ -270,25 +298,40 @@ func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir stri
 
 	v.allowedCIDRs = initializeAllowedCIDRsList()
 
-	if _, err := os.Stat(fieldsDir); err == nil {
-		linksFS, err := files.CreateLinksFSFromPath(repositoryRoot, fieldsDir)
+	fieldsDir := filepath.Join(fieldsParentDir, "fields")
+
+	var fdm *DependencyManager
+	if !v.disabledDependencyManagement {
+		packageRoot, err := finder.FindPackageRoot()
 		if err != nil {
-			return nil, fmt.Errorf("can't create links filesystem: %w", err)
-
-		}
-
-		var fdm *DependencyManager
-		if !v.disabledDependencyManagement {
-			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+			if errors.Is(err, packages.ErrPackageRootNotFound) {
+				return nil, errors.New("package root not found and dependency management is enabled")
 			}
+			return nil, fmt.Errorf("can't find package root: %w", err)
 		}
 
-		fields, err := loadFieldsFromDir(linksFS, fdm, v.injectFieldsOptions)
+		fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
+		}
+	}
+
+	if _, err := os.Stat(fieldsDir); err == nil {
+		var fieldsFS fs.FS
+		if v.repositoryRoot != nil {
+			fieldsFS, err = files.CreateLinksFSFromPath(v.repositoryRoot, fieldsDir)
+			if err != nil {
+				return nil, fmt.Errorf("can't create links filesystem: %w", err)
+			}
+		} else {
+			fieldsFS = os.DirFS(fieldsDir)
+		}
+
+		fields, err := loadFieldsFromDir(fieldsFS, fdm, v.injectFieldsOptions)
 		if err != nil {
 			return nil, fmt.Errorf("can't load fields from directory (path: %s): %w", fieldsDir, err)
 		}
+
 		v.Schema = append(fields, v.Schema...)
 	}
 
@@ -495,20 +538,19 @@ func initializeAllowedCIDRsList() (cidrs []*net.IPNet) {
 	return cidrs
 }
 
-// loadFieldsFromDir loads all the fields from a directory with fields files. The directory is passed as a filesystem.
 func loadFieldsFromDir(fieldsFS fs.FS, fdm *DependencyManager, injectOptions InjectFieldsOptions) ([]FieldDefinition, error) {
-	files, err := fs.Glob(fieldsFS, "*.yml")
+	ymlFiles, err := fs.Glob(fieldsFS, "*.yml")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading directory with fields failed: %w", err)
 	}
-	links, err := fs.Glob(fieldsFS, "*.yml.link")
+	linkFiles, err := fs.Glob(fieldsFS, "*.yml.link")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("reading directory with linked fields failed: %w", err)
 	}
-	files = append(files, links...)
+	allFiles := append(ymlFiles, linkFiles...)
 
 	var fields []FieldDefinition
-	for _, file := range files {
+	for _, file := range allFiles {
 		body, err := fs.ReadFile(fieldsFS, file)
 		if err != nil {
 			return nil, fmt.Errorf("reading fields file failed: %w", err)

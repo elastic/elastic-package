@@ -34,7 +34,12 @@ func setupUninstallCommand() *cobraext.Command {
 }
 
 func uninstallCommandAction(cmd *cobra.Command, args []string) error {
-	packageRoot, err := packages.FindPackageRoot()
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
+
+	packageRootPath, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
@@ -48,7 +53,7 @@ func uninstallCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not create kibana client: %w", err)
 	}
-	packageInstaller, err := installer.CreateForManifest(kibanaClient, packageRoot)
+	packageInstaller, err := installer.CreateForManifest(kibanaClient, packageRootPath)
 	if err != nil {
 		return fmt.Errorf("can't create the package installer: %w", err)
 	}

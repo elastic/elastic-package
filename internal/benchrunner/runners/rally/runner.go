@@ -259,12 +259,12 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("could not create local rally track dir %w", err)
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
 
-	scenario, err := readConfig(r.options.PackageRoot, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
+	scenario, err := readConfig(r.options.PackageRootPath, r.options.BenchName, pkgManifest.Name, pkgManifest.Version)
 	if err != nil {
 		return err
 	}
@@ -284,7 +284,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			common.DataStreamPath(r.options.PackageRoot, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -432,7 +432,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	}
 
 	if r.options.DryRun {
-		dummy := reporters.NewReport(r.scenario.Package, nil)
+		dummy := reporters.NewReport(r.scenario.Package, r.options.WorkDir, nil)
 		return dummy, ErrDryRun
 	}
 
@@ -450,7 +450,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corpusFile, r.scenario, msum, rallyStats)
+	return createReport(r.options.BenchName, r.corpusFile, r.options.WorkDir, r.scenario, msum, rallyStats)
 }
 
 func (r *runner) installPackage(ctx context.Context) error {
@@ -486,10 +486,11 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		PackageRoot:    r.options.PackageRoot,
-		SkipValidation: true,
-		RepositoryRoot: r.options.RepositoryRoot,
+		Kibana:          r.options.KibanaClient,
+		WorkDir:         r.options.WorkDir,
+		PackageRootPath: r.options.PackageRootPath,
+		SkipValidation:  true,
+		RepositoryRoot:  r.options.RepositoryRoot,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to initialize package installer: %w", err)

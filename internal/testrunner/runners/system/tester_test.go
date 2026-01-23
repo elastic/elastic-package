@@ -441,19 +441,12 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 }
 
 func TestGetExpectedDatasetForTest(t *testing.T) {
-	defaultValue := func(v any) *packages.VarValue {
-		vv := &packages.VarValue{}
-		vv.Unpack(v)
-		return vv
-	}
-
 	cases := []struct {
 		title    string
 		expected string
 
 		packageType     string
 		datasetInPolicy string
-		policyTemplate  packages.PolicyTemplate
 		vars            common.MapStr
 	}{
 		{
@@ -461,54 +454,18 @@ func TestGetExpectedDatasetForTest(t *testing.T) {
 			expected:        "foo.bar",
 			packageType:     "integration",
 			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
 		},
 		{
 			title:           "input package",
-			expected:        "bar",
+			expected:        "foo.bar",
 			packageType:     "input",
 			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-		},
-		{
-			title:           "input package with default value",
-			expected:        "foo.default",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
-				},
-			},
 		},
 		{
 			title:           "input package with user-defined variable",
 			expected:        "foo.custom",
 			packageType:     "input",
 			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-			vars: common.MapStr{
-				"data_stream.dataset": "foo.custom",
-			},
-		},
-		{
-			title:           "input package with default value and user-defined variable",
-			expected:        "foo.custom",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
-				},
-			},
 			vars: common.MapStr{
 				"data_stream.dataset": "foo.custom",
 			},
@@ -517,7 +474,7 @@ func TestGetExpectedDatasetForTest(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			found := getExpectedDatasetForTest(c.packageType, c.datasetInPolicy, c.policyTemplate, c.vars)
+			found := getExpectedDatasetForTest(c.packageType, c.datasetInPolicy, c.vars)
 			assert.Equal(t, c.expected, found)
 		})
 	}

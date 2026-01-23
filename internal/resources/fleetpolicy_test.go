@@ -21,7 +21,10 @@ import (
 )
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
@@ -37,7 +40,10 @@ func TestRequiredProviderFleetPolicy(t *testing.T) {
 }
 
 func TestPolicyLifecycle(t *testing.T) {
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
@@ -52,9 +58,9 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "one-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:           "nginx-1",
-					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName: "stubstatus",
+					Name:            "nginx-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName:  "stubstatus",
 				},
 			},
 		},
@@ -62,14 +68,14 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "multiple-packages",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:           "nginx-1",
-					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
-					DataStreamName: "stubstatus",
+					Name:            "nginx-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "nginx"),
+					DataStreamName:  "stubstatus",
 				},
 				{
-					Name:           "system-1",
-					PackageRoot:    filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
-					DataStreamName: "process",
+					Name:            "system-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "system"),
+					DataStreamName:  "process",
 				},
 			},
 		},
@@ -77,8 +83,8 @@ func TestPolicyLifecycle(t *testing.T) {
 			title: "input-package",
 			packagePolicies: []FleetPackagePolicy{
 				{
-					Name:        "input-1",
-					PackageRoot: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
+					Name:            "input-1",
+					PackageRootPath: filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", "sql_input"),
 				},
 			},
 		},
@@ -100,14 +106,14 @@ func TestPolicyLifecycle(t *testing.T) {
 				Namespace:       "eptest",
 				PackagePolicies: c.packagePolicies,
 			}
-			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy, repositoryRoot) })
+			t.Cleanup(func() { deletePolicy(t, manager, agentPolicy, repositoryRoot, cwd) })
 
-			_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
+			_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot, cwd))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, true, agentPolicy.ID)
 
 			agentPolicy.Absent = true
-			_, err = manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
+			_, err = manager.Apply(withPackageResources(&agentPolicy, repositoryRoot, cwd))
 			assert.NoError(t, err)
 			assertPolicyPresent(t, kibanaClient, false, agentPolicy.ID)
 		})
@@ -116,13 +122,14 @@ func TestPolicyLifecycle(t *testing.T) {
 
 // withPackageResources prepares a list of resources that ensures that all required packages are installed
 // before creating the policy.
-func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root) resource.Resources {
+func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root, workDir string) resource.Resources {
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			PackageRoot:    policy.PackageRoot,
-			Absent:         agentPolicy.Absent,
-			RepositoryRoot: repostoryRoot,
+			WorkDir:         workDir,
+			PackageRootPath: policy.PackageRootPath,
+			Absent:          agentPolicy.Absent,
+			RepositoryRoot:  repostoryRoot,
 		})
 	}
 	return append(resources, agentPolicy)
@@ -143,10 +150,10 @@ func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, pol
 	return false
 }
 
-func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy, repositoryRoot *os.Root) {
+func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy, repositoryRoot *os.Root, workDir string) {
 	t.Helper()
 
 	agentPolicy.Absent = true
-	_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
+	_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot, workDir))
 	assert.NoError(t, err, "cleanup execution")
 }

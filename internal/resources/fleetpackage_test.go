@@ -7,6 +7,7 @@ package resources
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -22,14 +23,18 @@ import (
 func TestRequiredProvider(t *testing.T) {
 	manager := resource.NewManager()
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
-			PackageRoot:    "../../test/packages/parallel/nginx",
-			RepositoryRoot: repositoryRoot,
+			WorkDir:         cwd,
+			PackageRootPath: "../../test/packages/parallel/nginx",
+			RepositoryRoot:  repositoryRoot,
 		},
 	})
 	if assert.Error(t, err) {
@@ -46,6 +51,9 @@ func TestPackageLifecycle(t *testing.T) {
 		{title: "package not found", name: "sql_input"},
 	}
 
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			recordPath := filepath.Join("testdata", "kibana-8-mock-package-lifecycle-"+c.name)
@@ -54,15 +62,16 @@ func TestPackageLifecycle(t *testing.T) {
 				t.FailNow()
 			}
 
-			repositoryRoot, err := files.FindRepositoryRoot()
+			repositoryRoot, err := files.FindRepositoryRoot(cwd)
 			require.NoError(t, err)
 			defer repositoryRoot.Close()
 
-			packageRoot := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
+			packageRootPath := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
 
 			fleetPackage := FleetPackage{
-				PackageRoot:    packageRoot,
-				RepositoryRoot: repositoryRoot,
+				WorkDir:         cwd,
+				PackageRootPath: packageRootPath,
+				RepositoryRoot:  repositoryRoot,
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})
@@ -84,14 +93,18 @@ func TestSystemPackageIsNotRemoved(t *testing.T) {
 		t.FailNow()
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+
+	repositoryRoot, err := files.FindRepositoryRoot(cwd)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = repositoryRoot.Close() })
 
 	fleetPackage := FleetPackage{
-		PackageRoot:    "../../test/packages/parallel/system",
-		Absent:         true,
-		RepositoryRoot: repositoryRoot,
+		WorkDir:         cwd,
+		PackageRootPath: "../../test/packages/parallel/system",
+		Absent:          true,
+		RepositoryRoot:  repositoryRoot,
 	}
 	manager := resource.NewManager()
 	manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})

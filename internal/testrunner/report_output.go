@@ -12,7 +12,7 @@ import (
 type TestReportOutput string
 
 // ReportOutputFunc defines the report writer function.
-type ReportOutputFunc func(pkg, report string, testType TestType, format TestReportFormat) error
+type ReportOutputFunc func(pkg, workDir, report string, testType TestType, format TestReportFormat) error
 
 var reportOutputs = map[TestReportOutput]ReportOutputFunc{}
 
@@ -22,11 +22,11 @@ func RegisterReporterOutput(name TestReportOutput, outputFunc ReportOutputFunc) 
 }
 
 // WriteReport delegates writing of test results to the registered test report output
-func WriteReport(pkg string, testType TestType, name TestReportOutput, report string, format TestReportFormat) error {
+func WriteReport(pkg string, workDir string, testType TestType, name TestReportOutput, report string, format TestReportFormat) error {
 	outputFunc, defined := reportOutputs[name]
 	if !defined {
 		return fmt.Errorf("unregistered test report output: %s", name)
 	}
 
-	return outputFunc(pkg, report, testType, format)
+	return outputFunc(pkg, workDir, report, testType, format)
 }

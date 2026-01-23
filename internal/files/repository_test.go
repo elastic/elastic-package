@@ -49,7 +49,7 @@ func TestRepositoryGitDirectory(t *testing.T) {
 			err := os.MkdirAll(otherDir, 0o755)
 			require.NoError(t, err)
 
-			dir, err := findRepositoryRootDirectoryFrom(otherDir)
+			dir, err := findRepositoryRootDirectory(otherDir)
 			if c.valid {
 				require.NoError(t, err)
 				assert.Equal(t, c.repoDir, dir)
@@ -123,7 +123,7 @@ func TestRepositoryGitWorktree(t *testing.T) {
 			err := os.MkdirAll(otherDir, 0o755)
 			require.NoError(t, err)
 
-			dir, err := findRepositoryRootDirectoryFrom(otherDir)
+			dir, err := findRepositoryRootDirectory(otherDir)
 			if c.valid {
 				require.NoError(t, err)
 				assert.Equal(t, c.repoDir, dir)

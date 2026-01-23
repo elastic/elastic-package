@@ -95,7 +95,7 @@ func findPackage(cmd *cobra.Command) ([]packages.PackageDirNameAndManifest, erro
 		return nil, fmt.Errorf("validating filter options failed: %w", err)
 	}
 
-	currDir, err := os.Getwd()
+	currDir, err := cobraext.Getwd(cmd)
 	if err != nil {
 		return nil, fmt.Errorf("getting current directory failed: %w", err)
 	}

@@ -41,6 +41,7 @@ import (
 // Options is the script testing configuration type.
 type Options struct {
 	Package string // The package being tested.
+	WorkDir string // Working directory.
 
 	Dir     string   // Path to directory containing script tests.
 	Streams []string // Data streams to test.
@@ -105,7 +106,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	}
 	var pkgRoot, currVersion, prevVersion string
 	if len(dirs) == 0 {
-		pkgRoot, err = packages.FindPackageRoot()
+		pkgRoot, err = packages.FindPackageRoot(opt.WorkDir)
 		if err != nil {
 			if err == packages.ErrPackageRootNotFound {
 				return errors.New("package root not found")
@@ -307,9 +308,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-			PackageRoot: pkgRoot,
-			Absent:      true,
-			Force:       true,
+			PackageRootPath: pkgRoot,
+			Absent:          true,
+			Force:           true,
 		}})
 
 		if stk.external {

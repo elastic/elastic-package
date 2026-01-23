@@ -13,6 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -36,8 +37,12 @@ type newDataStreamAnswers struct {
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
+	cwd, err := cobraext.Getwd(cmd)
+	if err != nil {
+		return err
+	}
 
-	packageRoot, err := packages.FindPackageRoot()
+	packageRoot, err := packages.FindPackageRoot(cwd)
 	if err != nil {
 		if errors.Is(err, packages.ErrPackageRootNotFound) {
 			return errors.New("package root not found, you can only create new data stream in the package context")
@@ -59,7 +64,7 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
 
-	qs := getInitialSurveyQuestionsForVersion(sv)
+	qs := getInitialSurveyQuestionsForVersion(sv, packageRoot)
 
 	var answers newDataStreamAnswers
 	err = tui.Ask(qs, &answers)
@@ -197,8 +202,8 @@ func createDataStreamDescriptorFromAnswers(answers newDataStreamAnswers, package
 	}
 }
 
-func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*tui.Question {
-	validator := tui.Validator{Cwd: "."}
+func getInitialSurveyQuestionsForVersion(specVersion *semver.Version, cwd string) []*tui.Question {
+	validator := tui.Validator{Cwd: cwd}
 	qs := []*tui.Question{
 		{
 			Name:     "name",

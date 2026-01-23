@@ -30,7 +30,7 @@ install:
 	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
 lint:
-	go run honnef.co/go/tools/cmd/staticcheck ./...
+	go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 
 licenser:
 	go run github.com/elastic/go-licenser -license Elastic

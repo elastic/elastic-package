@@ -187,7 +187,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		}
 	}
 
-	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRoot)
+	pkgManifest, err := packages.ReadPackageManifestFromPackageRoot(r.options.PackageRootPath)
 	if err != nil {
 		return fmt.Errorf("reading package manifest failed: %w", err)
 	}
@@ -213,7 +213,7 @@ func (r *runner) setUp(ctx context.Context) error {
 
 	dataStreamManifest, err := packages.ReadDataStreamManifest(
 		filepath.Join(
-			common.DataStreamPath(r.options.PackageRoot, r.scenario.DataStream.Name),
+			common.DataStreamPath(r.options.PackageRootPath, r.scenario.DataStream.Name),
 			packages.DataStreamManifestFile,
 		),
 	)
@@ -263,21 +263,6 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) serviceDefinedInConfig() (string, error) {
-	// Read of the configuration to know if a service deployer is needed.
-	// No need to render any template at this point.
-	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
-	if err != nil {
-		return "", err
-	}
-
-	if scenario.Corpora.InputService == nil {
-		return "", nil
-	}
-
-	return scenario.Corpora.InputService.Name, nil
-}
-
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
 	r.startMetricsColletion(ctx)
 	defer r.mcollector.stop()
@@ -319,7 +304,22 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+	return createReport(r.options.BenchName, r.corporaFile, r.options.WorkDir, r.scenario, msum)
+}
+
+func (r *runner) serviceDefinedInConfig() (string, error) {
+	// Read of the configuration to know if a service deployer is needed.
+	// No need to render any template at this point.
+	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
+	if err != nil {
+		return "", err
+	}
+
+	if scenario.Corpora.InputService == nil {
+		return "", nil
+	}
+
+	return scenario.Corpora.InputService.Name, nil
 }
 
 func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
@@ -332,7 +332,8 @@ func (r *runner) setupService(ctx context.Context, serviceName string) (serviced
 	logger.Debug("Setting up service...")
 	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
-		PackageRoot:            r.options.PackageRoot,
+		WorkDir:                r.options.WorkDir,
+		PackageRootPath:        r.options.PackageRootPath,
 		DevDeployDir:           devDeployDir,
 		Variant:                r.options.Variant,
 		Profile:                r.options.Profile,
