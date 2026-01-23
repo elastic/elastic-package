@@ -85,10 +85,15 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
-	PackageRegistry packageRegistrySettings `yaml:"package_registry,omitempty"`
+	PackageRegistry  packageRegistrySettings  `yaml:"package_registry,omitempty"`
+	KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
 }
 
 type packageRegistrySettings struct {
+	BaseURL string `yaml:"base_url,omitempty"`
+}
+
+type kibanaRepositorySettings struct {
 	BaseURL string `yaml:"base_url,omitempty"`
 }
 
@@ -168,6 +173,15 @@ func (ac *ApplicationConfiguration) GetPackageRegistryBaseURL() string {
 		return ac.c.PackageRegistry.BaseURL
 	}
 	return "https://epr.elastic.co"
+}
+
+// GetKibanaRepositoryBaseURL returns the configured Kibana repository URL,
+// falling back to the default GitHub URL if not specified
+func (ac *ApplicationConfiguration) GetKibanaRepositoryBaseURL() string {
+	if ac.c.KibanaRepository.BaseURL != "" {
+		return ac.c.KibanaRepository.BaseURL
+	}
+	return "https://raw.githubusercontent.com/elastic/kibana"
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.

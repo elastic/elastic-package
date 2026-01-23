@@ -138,7 +138,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if packageName == "" && packageStatus.Local != nil {
 			packageName = packageStatus.Local.Name
 		}
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry)
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry, appConfig.GetKibanaRepositoryBaseURL())
 		if err != nil {
 			return err
 		}
@@ -184,12 +184,12 @@ func getPackageStatus(packageName string, options registry.SearchOptions, regist
 	return status.LocalPackage(packageRoot, options, registryClient)
 }
 
-func getServerlessManifests(packageName string, options registry.SearchOptions, registryClient *registry.Client) ([]status.ServerlessManifests, error) {
+func getServerlessManifests(packageName string, options registry.SearchOptions, registryClient *registry.Client, kibanaRepoBaseURL string) ([]status.ServerlessManifests, error) {
 	if packageName == "" {
 		return nil, nil
 	}
 	var serverless []status.ServerlessManifests
-	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
+	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient, kibanaRepoBaseURL)
 	for _, projectType := range projectTypes {
 		if slices.Contains(projectType.ExcludePackages, packageName) {
 			continue
