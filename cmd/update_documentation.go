@@ -177,8 +177,17 @@ func selectDocumentationFile(cmd *cobra.Command, packageRoot string, nonInteract
 		return "", err
 	}
 
-	// If only one file or non-interactive mode, use README.md (default)
-	if len(mdFiles) == 1 || nonInteractive {
+	// If only one file, use it (no prompt)
+	if len(mdFiles) == 1 {
+		return mdFiles[0], nil
+	}
+
+	// Non-interactive mode: warn when multiple files exist and default to README.md
+	if nonInteractive {
+		cmd.Println(tui.Warning(fmt.Sprintf(
+			"Multiple documentation files found (%s). Using README.md by default. Use --doc-file to specify a different file.",
+			strings.Join(mdFiles, ", "),
+		)))
 		return "README.md", nil
 	}
 

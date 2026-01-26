@@ -16,23 +16,25 @@ import (
 // ServiceInfoManager manages the loading and retrieval of service_info.md sections
 type ServiceInfoManager struct {
 	packageRoot string
+	targetDocFile string
 	sections    []Section
 	loaded      bool
 }
 
 // NewServiceInfoManager creates a new ServiceInfoManager for the given package root
-func NewServiceInfoManager(packageRoot string) *ServiceInfoManager {
+func NewServiceInfoManager(packageRoot, targetDocFile string) *ServiceInfoManager {
 	return &ServiceInfoManager{
-		packageRoot: packageRoot,
-		sections:    []Section{},
-		loaded:      false,
+		packageRoot:   packageRoot,
+		targetDocFile: targetDocFile,
+		sections:      []Section{},
+		loaded:        false,
 	}
 }
 
 // Load reads and parses the service_info.md file
 // Returns error if file doesn't exist or can't be parsed
 func (s *ServiceInfoManager) Load() error {
-	serviceInfoPath := filepath.Join(s.packageRoot, "docs", "knowledge_base", "service_info.md")
+	serviceInfoPath := s.serviceInfoPath()
 
 	content, err := os.ReadFile(serviceInfoPath)
 	if err != nil {
@@ -44,6 +46,15 @@ func (s *ServiceInfoManager) Load() error {
 	s.loaded = true
 
 	return nil
+}
+
+func (s *ServiceInfoManager) serviceInfoPath() string {
+	if s.targetDocFile == "" || s.targetDocFile == "README.md" {
+		return filepath.Join(s.packageRoot, "docs", "knowledge_base", "service_info.md")
+	}
+
+	docBase := strings.TrimSuffix(filepath.Base(s.targetDocFile), filepath.Ext(s.targetDocFile))
+	return filepath.Join(s.packageRoot, "docs", "knowledge_base", docBase, "service_info.md")
 }
 
 // GetSections returns the combined content of specified sections by title

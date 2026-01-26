@@ -187,7 +187,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	}
 
 	// Load package context for metrics computation
-	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	pkgCtx, err := validators.LoadPackageContextForDoc(d.packageRoot, d.targetDocFile)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to load package context: %v", err)
 		result.Duration = time.Since(startTime)

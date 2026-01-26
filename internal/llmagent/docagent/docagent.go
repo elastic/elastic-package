@@ -133,7 +133,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	}
 
 	// Initialize and load service info manager
-	serviceInfoManager := NewServiceInfoManager(cfg.PackageRoot)
+	serviceInfoManager := NewServiceInfoManager(cfg.PackageRoot, cfg.DocFile)
 	// Attempt to load service_info (don't fail if it doesn't exist)
 	_ = serviceInfoManager.Load()
 
@@ -241,7 +241,7 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 	d.backupOriginalReadme()
 
 	// Load package context for validation
-	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	pkgCtx, err := validators.LoadPackageContextForDoc(d.packageRoot, d.targetDocFile)
 	if err != nil {
 		return fmt.Errorf("failed to load package context: %w", err)
 	}
@@ -1452,7 +1452,7 @@ func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 		WithToolsets(d.executor.Toolsets())
 
 	// Load package context for static validation
-	pkgCtx, err := validators.LoadPackageContext(d.packageRoot)
+	pkgCtx, err := validators.LoadPackageContextForDoc(d.packageRoot, d.targetDocFile)
 	if err != nil {
 		logger.Debugf("Could not load package context for static validation: %v", err)
 	} else {

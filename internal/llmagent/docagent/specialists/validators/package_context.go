@@ -109,6 +109,11 @@ type DataStreamManifest struct {
 // LoadPackageContext loads all package files needed for validation.
 // This parses manifest.yml, data streams, fields, and other metadata.
 func LoadPackageContext(packageRoot string) (*PackageContext, error) {
+	return LoadPackageContextForDoc(packageRoot, "README.md")
+}
+
+// LoadPackageContextForDoc loads package context using a specific documentation file.
+func LoadPackageContextForDoc(packageRoot, targetDocFile string) (*PackageContext, error) {
 	ctx := &PackageContext{
 		PackageRoot: packageRoot,
 		DataStreams: []DataStreamInfo{},
@@ -145,19 +150,31 @@ func LoadPackageContext(packageRoot string) (*PackageContext, error) {
 	}
 
 	// 5. Load service_info.md (if exists) and extract links + vendor setup content
-	serviceInfoPath := filepath.Join(packageRoot, "docs", "knowledge_base", "service_info.md")
+	serviceInfoPath := serviceInfoPathForDoc(packageRoot, targetDocFile)
 	if content, err := os.ReadFile(serviceInfoPath); err == nil {
 		ctx.ServiceInfo = string(content)
 		ctx.ServiceInfoLinks = extractMarkdownLinks(ctx.ServiceInfo)
 	}
 
-	// 6. Load existing README (if exists)
-	readmePath := filepath.Join(packageRoot, "_dev", "build", "docs", "README.md")
+	// 6. Load existing documentation file (if exists)
+	if targetDocFile == "" {
+		targetDocFile = "README.md"
+	}
+	readmePath := filepath.Join(packageRoot, "_dev", "build", "docs", targetDocFile)
 	if content, err := os.ReadFile(readmePath); err == nil {
 		ctx.ExistingReadme = string(content)
 	}
 
 	return ctx, nil
+}
+
+func serviceInfoPathForDoc(packageRoot, targetDocFile string) string {
+	if targetDocFile == "" || targetDocFile == "README.md" {
+		return filepath.Join(packageRoot, "docs", "knowledge_base", "service_info.md")
+	}
+
+	docBase := strings.TrimSuffix(filepath.Base(targetDocFile), filepath.Ext(targetDocFile))
+	return filepath.Join(packageRoot, "docs", "knowledge_base", docBase, "service_info.md")
 }
 
 // extractInputTypes extracts unique input types from the package manifest

@@ -30,7 +30,7 @@ Logs and metrics.`
 
 		require.NoError(t, os.WriteFile(serviceInfoPath, []byte(content), 0o644))
 
-		manager := NewServiceInfoManager(tmpDir)
+		manager := NewServiceInfoManager(tmpDir, "README.md")
 		err := manager.Load()
 
 		assert.NoError(t, err)
@@ -40,7 +40,7 @@ Logs and metrics.`
 
 	t.Run("returns error when file doesn't exist", func(t *testing.T) {
 		tmpDir := t.TempDir()
-		manager := NewServiceInfoManager(tmpDir)
+		manager := NewServiceInfoManager(tmpDir, "README.md")
 		err := manager.Load()
 
 		assert.Error(t, err)
@@ -68,7 +68,7 @@ Install and configure the service.`
 
 	require.NoError(t, os.WriteFile(serviceInfoPath, []byte(content), 0o644))
 
-	manager := NewServiceInfoManager(tmpDir)
+	manager := NewServiceInfoManager(tmpDir, "README.md")
 	require.NoError(t, manager.Load())
 
 	t.Run("retrieves single section", func(t *testing.T) {
@@ -91,7 +91,7 @@ Install and configure the service.`
 	})
 
 	t.Run("returns empty when not loaded", func(t *testing.T) {
-		emptyManager := NewServiceInfoManager(tmpDir)
+		emptyManager := NewServiceInfoManager(tmpDir, "README.md")
 		result := emptyManager.GetSections([]string{"Common use cases"})
 		assert.Empty(t, result)
 	})
@@ -113,7 +113,7 @@ Logs and metrics.`
 
 	require.NoError(t, os.WriteFile(serviceInfoPath, []byte(content), 0o644))
 
-	manager := NewServiceInfoManager(tmpDir)
+	manager := NewServiceInfoManager(tmpDir, "README.md")
 	require.NoError(t, manager.Load())
 
 	result := manager.GetAllSections()
@@ -143,7 +143,7 @@ Content 2`
 
 	require.NoError(t, os.WriteFile(serviceInfoPath, []byte(content), 0o644))
 
-	manager := NewServiceInfoManager(tmpDir)
+	manager := NewServiceInfoManager(tmpDir, "README.md")
 	require.NoError(t, manager.Load())
 
 	titles := manager.GetSectionTitles()
