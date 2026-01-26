@@ -79,7 +79,7 @@ test-stack-command-8x:
 	./scripts/test-stack-command.sh 8.19.11-9b6b6ffa-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.4.0-8b03330f-SNAPSHOT
+	./scripts/test-stack-command.sh 9.4.0-54c69169-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
