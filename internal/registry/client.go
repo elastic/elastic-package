@@ -17,11 +17,6 @@ const (
 	ProductionURL = "https://epr.elastic.co"
 )
 
-var (
-	// Production is a pre-configured production client
-	Production = NewClient(ProductionURL)
-)
-
 // Client is responsible for exporting dashboards from Kibana.
 type Client struct {
 	baseURL string
