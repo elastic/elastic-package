@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/registry"
+
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 )
 
@@ -124,17 +126,15 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
 }
 
-func TestExistingApplicationConfigurationCustomStatusSettings(t *testing.T) {
+func TestExistingApplicationConfigurationCustomURLs(t *testing.T) {
 	cases := []struct {
 		name              string
-		create            bool
 		settingData       string
 		expectedEPRURL    string
 		expectedKibanaURL string
 	}{
 		{
-			name:   "both URLs customized",
-			create: true,
+			name: "both URLs customized",
 			settingData: `
 status:
   package_registry:
@@ -146,20 +146,19 @@ status:
 			expectedKibanaURL: "https://custom-kibana-repo.example",
 		},
 		{
-			name:   "no customizations",
-			create: true,
+			name: "no customizations",
 			settingData: `
 profiles:
   current: default
 `,
-			expectedEPRURL:    "https://epr.elastic.co",
-			expectedKibanaURL: "https://raw.githubusercontent.com/elastic/kibana",
+			expectedEPRURL:    registry.ProductionURL,
+			expectedKibanaURL: defaultKibanaRepositoryBaseURL,
 		},
 		{
 			name:              "config file not created",
-			create:            false,
-			expectedEPRURL:    "https://epr.elastic.co",
-			expectedKibanaURL: "https://raw.githubusercontent.com/elastic/kibana",
+			settingData:       "",
+			expectedEPRURL:    registry.ProductionURL,
+			expectedKibanaURL: defaultKibanaRepositoryBaseURL,
 		},
 	}
 
@@ -170,7 +169,7 @@ profiles:
 			configPath, err := locations.NewLocationManager()
 			require.NoError(t, err)
 
-			if tc.create {
+			if tc.settingData != "" {
 				configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
 
 				err = os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
