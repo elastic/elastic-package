@@ -41,6 +41,8 @@ const (
 	isReadyImageName                    = "tianon/true:multiarch"
 
 	applicationConfigurationYmlFile = "config.yml"
+
+	defaultKibanaRepositoryBaseURL = "https://raw.githubusercontent.com/elastic/kibana"
 )
 
 var (
@@ -69,6 +71,9 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//		Kibana:       kibanaImageName + `@sha256:78ae3b1ca09efee242d2c77597dfab18670e984adb96c2407ec03fe07ceca4f6`,
 	//	},
 	//  }
+
+	config.c.Status.PackageRegistry.BaseURL = registry.ProductionURL
+	config.c.Status.KibanaRepository.BaseURL = defaultKibanaRepositoryBaseURL
 
 	return &config
 }
@@ -184,7 +189,7 @@ func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
 	if ac.c.Status.KibanaRepository.BaseURL != "" {
 		return ac.c.Status.KibanaRepository.BaseURL
 	}
-	return "https://raw.githubusercontent.com/elastic/kibana"
+	return defaultKibanaRepositoryBaseURL
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
