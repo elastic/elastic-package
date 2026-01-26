@@ -127,6 +127,11 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			config, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			// Parameters provided through the CLI are not persisted.
 			// Stack providers can get them with `profile.Config`, and they
 			// need to handle and store them if they need it.
@@ -143,6 +148,7 @@ func setupStackCommand() *cobraext.Command {
 				OverrideAgentVersion: agentVersion,
 				Services:             services,
 				Profile:              profile,
+				AppConfig:            config,
 				Printer:              cmd,
 			})
 			if err != nil {
@@ -218,10 +224,16 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
 
+			appConfig, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion:         stackVersion,
 				Profile:              profile,
 				Printer:              cmd,
+				AppConfig:            appConfig,
 				OverrideAgentVersion: agentVersion,
 			})
 			if err != nil {
@@ -317,9 +329,15 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			appConfig, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
-				Profile: profile,
-				Printer: cmd,
+				Profile:   profile,
+				Printer:   cmd,
+				AppConfig: appConfig,
 			})
 			if err != nil {
 				return fmt.Errorf("failed getting stack status: %w", err)

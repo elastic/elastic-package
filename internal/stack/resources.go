@@ -18,6 +18,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
 )
@@ -149,7 +150,24 @@ var (
 	}
 )
 
-func applyResources(profile *profile.Profile, stackVersion string, agentVersion string) error {
+// packageRegistryURL returns the package registry URL to be used, considering
+// profile settings and application configuration. The priority is given to
+// profile settings over application configuration.
+func packageRegistryURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
+	customURL := profile.Config(configElasticEPRProxyTo, "")
+	if customURL != "" {
+		return customURL
+	}
+	if appConfig != nil {
+		configURL := appConfig.PackageRegistryBaseURL()
+		if configURL != "" {
+			return configURL
+		}
+	}
+	return registry.ProductionURL
+}
+
+func applyResources(profile *profile.Profile, appConfig *install.ApplicationConfiguration, stackVersion, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
 
 	var agentPorts []string
@@ -185,7 +203,7 @@ func applyResources(profile *profile.Profile, stackVersion string, agentVersion 
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"epr_proxy_to":         profile.Config(configElasticEPRProxyTo, registry.ProductionURL),
+		"epr_proxy_to":         packageRegistryURL(profile, appConfig),
 		"elastic_subscription": elasticSubscriptionProfile,
 	})
 

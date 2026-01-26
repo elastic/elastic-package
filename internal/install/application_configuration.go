@@ -177,6 +177,9 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // PackageRegistryBaseURL returns the configured package registry URL,
 // falling back to production if not specified
 func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
+	if ac == nil {
+		return registry.ProductionURL
+	}
 	if ac.c.Status.PackageRegistry.BaseURL != "" {
 		return ac.c.Status.PackageRegistry.BaseURL
 	}
@@ -186,6 +189,9 @@ func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
 // KibanaRepositoryBaseURL returns the configured Kibana repository URL,
 // falling back to the default GitHub URL if not specified
 func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
+	if ac == nil {
+		return "https://raw.githubusercontent.com/elastic/kibana"
+	}
 	if ac.c.Status.KibanaRepository.BaseURL != "" {
 		return ac.c.Status.KibanaRepository.BaseURL
 	}

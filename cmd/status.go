@@ -120,13 +120,13 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Load application configuration for custom registry URL
-	appConfig, err := install.Configuration()
+	config, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("failed to load application configuration: %w", err)
 	}
 
 	// Create registry client with configured URL
-	customRegistry := registry.NewClient(appConfig.PackageRegistryBaseURL())
+	registryClient := registry.NewClient(config.PackageRegistryBaseURL())
 
 	options := registry.SearchOptions{
 		All:           showAll,
@@ -136,7 +136,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
-	packageStatus, err := getPackageStatus(packageName, options, customRegistry)
+	packageStatus, err := getPackageStatus(packageName, options, registryClient)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,8 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if packageName == "" && packageStatus.Local != nil {
 			packageName = packageStatus.Local.Name
 		}
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options, customRegistry, appConfig.KibanaRepositoryBaseURL())
+		kibanaRepositoryURL := config.KibanaRepositoryBaseURL()
+		packageStatus.Serverless, err = getServerlessManifests(packageName, options, registryClient, kibanaRepositoryURL)
 		if err != nil {
 			return err
 		}
