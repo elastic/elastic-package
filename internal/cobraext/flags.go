@@ -139,8 +139,49 @@ const (
 	FailOnMissingFlagName        = "fail-on-missing"
 	FailOnMissingFlagDescription = "fail if tests are missing"
 
-	FailFastFlagName                  = "fail-fast"
-	FailFastFlagDescription           = "fail immediately if any file requires updates (do not overwrite)"
+	FailFastFlagName        = "fail-fast"
+	FailFastFlagDescription = "fail immediately if any file requires updates (do not overwrite)"
+
+	FilterCategoriesFlagName        = "categories"
+	FilterCategoriesFlagDescription = "integration categories to filter by (comma-separated values)"
+
+	FilterCodeOwnerFlagName        = "code-owners"
+	FilterCodeOwnerFlagDescription = "code owners to filter by (comma-separated values)"
+
+	FilterDepthFlagName        = "depth"
+	FilterDepthFlagDescription = "maximum depth to search for packages"
+	FilterDepthFlagDefault     = 2
+	FilterDepthFlagShorthand   = "d"
+
+	FilterExcludeDirFlagName        = "exclude-dirs"
+	FilterExcludeDirFlagDescription = "comma-separated list of directories to exclude from search"
+
+	FilterInputFlagName        = "inputs"
+	FilterInputFlagDescription = "name of the inputs to filter by (comma-separated values)"
+
+	FilterKibanaVersionFlagName        = "kibana-version"
+	FilterKibanaVersionFlagDescription = "kibana version to filter by (semver)"
+
+	FilterOutputFlagName        = "output"
+	FilterOutputFlagDescription = "format of the output. Available options: json, yaml (leave empty for newline-separated list)"
+	FilterOutputFlagShorthand   = "o"
+
+	FilterOutputInfoFlagName        = "output-info"
+	FilterOutputInfoFlagDescription = "output information about the packages. Available options: package_name, dir_name, absolute_path"
+	FilterOutputInfoFlagDefault     = "absolute_path"
+
+	FilterPackageDirNameFlagName        = "package-dirs"
+	FilterPackageDirNameFlagDescription = "package directories to filter by (comma-separated values)"
+
+	FilterPackagesFlagName        = "packages"
+	FilterPackagesFlagDescription = "package names to filter by (comma-separated values)"
+
+	FilterPackageTypeFlagName        = "package-types"
+	FilterPackageTypeFlagDescription = "package types to filter by (comma-separated values)"
+
+	FilterSpecVersionFlagName        = "spec-version"
+	FilterSpecVersionFlagDescription = "Package spec version to filter by (semver)"
+
 	GenerateTestResultFlagName        = "generate"
 	GenerateTestResultFlagDescription = "generate test result file"
 
@@ -234,7 +275,7 @@ const (
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
 	NoProvisionFlagName        = "no-provision"
-	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+	NoProvisionFlagDescription = "trigger just system tests without setup nor teardown"
 
 	UpdateScriptTestArchiveFlagName        = "update"
 	UpdateScriptTestArchiveFlagDescription = "update archive file if a cmp fails"

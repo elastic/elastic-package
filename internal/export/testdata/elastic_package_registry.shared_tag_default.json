@@ -1,0 +1,15 @@
+{
+    "attributes": {
+        "color": "#FFFFFF",
+        "description": "",
+        "name": "Managed"
+    },
+    "coreMigrationVersion": "8.7.0",
+    "created_at": "2023-04-04T16:50:46.882Z",
+    "id": "elastic_package_registry-fleet-shared-tag-elastic_package_registry-default",
+    "migrationVersion": {
+        "tag": "8.0.0"
+    },
+    "references": [],
+    "type": "tag"
+}

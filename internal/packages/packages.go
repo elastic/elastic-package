@@ -21,6 +21,8 @@ import (
 
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -210,6 +212,12 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+}
+
+type PackageDirNameAndManifest struct {
+	DirName  string
+	Path     string
+	Manifest *PackageManifest
 }
 
 type ManifestIndexTemplate struct {
@@ -431,6 +439,89 @@ func ReadPackageManifest(path string) (*PackageManifest, error) {
 		return nil, fmt.Errorf("unpacking package manifest failed (path: %s): %w", path, err)
 	}
 	return &m, nil
+}
+
+// ReadAllPackageManifestsFromRepo reads all the package manifests in the given directory.
+// It recursively searches for manifest.yml files up to the specified depth.
+// - depth: maximum depth to search (1 = current dir + immediate sub dirs)
+// - excludeDirs: comma-separated list of directory names to exclude (always excludes .git, build)
+func ReadAllPackageManifestsFromRepo(searchRoot string, depth int, excludeDirs string) ([]PackageDirNameAndManifest, error) {
+	// Parse exclude directories
+	excludeMap := map[string]bool{
+		".git":  true, // Always exclude .git
+		"build": true, // Always exclude build
+	}
+
+	if excludeDirs != "" {
+		for dir := range strings.SplitSeq(excludeDirs, ",") {
+			excludeMap[strings.TrimSpace(dir)] = true
+		}
+	}
+
+	var packages []PackageDirNameAndManifest
+	searchRootDepth := strings.Count(searchRoot, string(filepath.Separator))
+
+	err := filepath.WalkDir(searchRoot, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Calculate current depth relative to search root
+		currentDepth := strings.Count(path, string(filepath.Separator)) - searchRootDepth
+
+		// If it's a directory, check if we should skip it
+		if d.IsDir() {
+			dirName := d.Name()
+
+			// Skip excluded directories (but not the search root)
+			if excludeMap[dirName] && searchRoot != path {
+				return filepath.SkipDir
+			}
+
+			// Skip if we've exceeded the depth limit (but allow processing the current level)
+			if currentDepth > depth {
+				return filepath.SkipDir
+			}
+
+			return nil
+		}
+
+		// Check if this is a manifest file
+		if d.Name() != PackageManifestFile {
+			return nil
+		}
+
+		// Validate it's a package manifest
+		ok, err := isPackageManifest(path)
+		if err != nil {
+			logger.Debugf("failed to validate package manifest (path: %s): %v", path, err)
+			return nil
+		}
+		if !ok {
+			return nil
+		}
+
+		// Extract directory name (just the package directory name, not the full path)
+		dirName := filepath.Base(filepath.Dir(path))
+		manifest, err := ReadPackageManifest(path)
+		if err != nil {
+			return fmt.Errorf("failed to read package manifest (path: %s): %w", path, err)
+		}
+
+		packages = append(packages, PackageDirNameAndManifest{
+			DirName:  dirName,
+			Manifest: manifest,
+			Path:     filepath.Dir(path),
+		})
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed walking directory tree: %w", err)
+	}
+
+	return packages, nil
 }
 
 // ReadTransformDefinitionFile reads and parses the transform definition (elasticsearch/transform/<name>/transform.yml)

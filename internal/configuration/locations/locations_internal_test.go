@@ -36,22 +36,18 @@ func Test_configurationDirError(t *testing.T) {
 	default:
 		env = "HOME"
 	}
-	homeEnv := os.Getenv(env)
-	os.Unsetenv(env)
+	t.Setenv(env, "")
 
 	_, err := configurationDir()
 	assert.Error(t, err)
-
-	os.Setenv(env, homeEnv)
 }
 
 func Test_configurationDirOverride(t *testing.T) {
 	expected := "/tmp/foobar"
-	os.Setenv(elasticPackageDataHome, expected)
+	t.Setenv(elasticPackageDataHome, expected)
 
 	actual, err := configurationDir()
 	assert.Nil(t, err)
 
 	assert.Equal(t, expected, actual)
-	os.Setenv(elasticPackageDataHome, "")
 }

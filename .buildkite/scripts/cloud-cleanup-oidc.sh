@@ -19,29 +19,28 @@ set -euo pipefail
 AWS_RESOURCES_FILE="aws.resources.txt"
 AWS_REDSHIFT_RESOURCES_FILE="redshift_clusters.json"
 
-RESOURCE_RETENTION_PERIOD="${RESOURCE_RETENTION_PERIOD:-"24 hours"}"
+DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
+RESOURCE_RETENTION_PERIOD="$(buildkite-agent meta-data get RESOURCE_RETENTION_PERIOD --default "${RESOURCE_RETENTION_PERIOD:-"24 hours"}")"
 DELETE_RESOURCES_BEFORE_DATE=$(date -Is -d "${RESOURCE_RETENTION_PERIOD} ago")
 export DELETE_RESOURCES_BEFORE_DATE
 
 CLOUD_REAPER_IMAGE="${DOCKER_REGISTRY}/observability-ci/cloud-reaper:0.3.0"
 
-DRY_RUN="$(buildkite-agent meta-data get DRY_RUN --default "${DRY_RUN:-"true"}")"
 
 resources_to_delete=0
+resources_failed_to_delete=0
 
 COMMAND="validate"
 redshift_message=""
 if [[ "${DRY_RUN}" != "true" ]]; then
-    # TODO: to be changed to "destroy --confirm" once it can be tested
-    # that filters work as expected
-    COMMAND="plan"
+    COMMAND="destroy --confirm"
     redshift_message=" - stale redshift clusters will be deleted"
 else
     COMMAND="plan"
 fi
 
 buildkite-agent annotate \
-  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\"${redshift_message}" \
+  "[${BUILDKITE_STEP_KEY}] Running DRY_RUN (${DRY_RUN}) using cloud-reaper command \"${COMMAND}\" to detect resources older than \"${RESOURCE_RETENTION_PERIOD}\"${redshift_message}" \
   --context "ctx-cloud-reaper-info" \
   --style "info"
 
@@ -53,20 +52,42 @@ any_resources_to_delete() {
     # ✓ Succeeded to load configuration
     # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
     
-    # FIXME:: When running with "destroy --confirm" there could be more lines.
-    # In the case, there is nothing to delete, there is one more line:
-    # ⇒ Nothing to destroy !
-    # but there are no examples when resources are deleted to add the required logic
     if [[ "${DRY_RUN}" == false ]] ; then
-        if tail -n 1 ${file} | grep -q "Nothing to destroy" ; then
-            return 1
-        fi
+        # if DRY_RUN is false, it needs to check whether or not there are failures deleting them
+        # via any_resources_failed_to_delete function
+        return 1
     fi
     number=$(tail -n +4 "${file}" | wc -l)
     if [ "${number}" -eq 0 ]; then
         return 1
     fi
     return 0
+}
+
+any_resources_failed_to_delete() {
+    local file=$1
+    # In the case, there is nothing to delete, there is one more line:
+    # ⇒ Nothing to destroy !
+    if [[ "${DRY_RUN}" == false ]] ; then
+        if tail -n 1 "${file}" | grep -q "Nothing to destroy" ; then
+            return 1
+        fi
+        # cloud-reaper should show FAILED in case there is some error deleting resources
+        # if everything runs successfully, it is shown SUCCEEDED
+        # successful example:
+        # Scanning resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+        # ObjectStorageBucket( name=elastic-package-sinkhole-http-bucket-771d12318 )
+        # ObjectStorageBucket( name=elastic-package-spectrum-event-bucket-44ec66812 )
+        # ObjectStorageBucket( name=elastic-package-sinkhole-http-bucket-771d12318 ):
+        # SUCCEEDED
+        # ObjectStorageBucket( name=elastic-package-spectrum-event-bucket-44ec66812 ):
+        # SUCCEEDED
+        # Destroying resources... ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 100% 0:00:00
+        if grep -q FAILED "${file}" ; then
+            return 0
+        fi
+    fi
+    return 1
 }
 
 # As long as cloud reaper does not support OIDC authentication.
@@ -115,7 +136,11 @@ cloud_reaper_aws() {
           --config /etc/cloud-reaper/config.yml \
           validate
 
-    echo "--- Scanning resources"
+    if [[ "${DRY_RUN}" == "true" ]]; then
+        echo "--- Scanning resources (DRY_RUN ${DRY_RUN})"
+    else 
+        echo "--- Scanning and deleting resources (DRY_RUN ${DRY_RUN})"
+    fi
     docker run --rm -v "$(pwd)/.buildkite/configs/cleanup.aws.yml":/etc/cloud-reaper/config.yml \
       -e AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID_EPHEMERAL" \
       -e AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY_EPHEMERAL" \
@@ -138,13 +163,29 @@ if any_resources_to_delete "${AWS_RESOURCES_FILE}" ; then
     resources_to_delete=1
 fi
 
+if any_resources_failed_to_delete "${AWS_RESOURCES_FILE}" ; then
+    echo "Failed to delete at least one resource. Check output."
+    resources_failed_to_delete=1
+fi
+
 if [ "${resources_to_delete}" -eq 1 ]; then
     message="There are resources to be deleted"
     echo "${message}"
     if running_on_buildkite ; then
          buildkite-agent annotate \
              "${message}" \
-             --context "ctx-cloud-reaper-error" \
+             --context "ctx-cloud-reaper-error-pending" \
+             --style "error"
+    fi
+fi
+
+if [ "${resources_failed_to_delete}" -eq 1 ]; then
+    message="There are resources that could not be deleted. Check the logs for details."
+    echo "${message}"
+    if running_on_buildkite ; then
+         buildkite-agent annotate \
+             "${message}" \
+             --context "ctx-cloud-reaper-error-deleting" \
              --style "error"
     fi
 fi
@@ -232,7 +273,7 @@ if [ "${redshift_clusters_to_delete}" -eq 1 ]; then
     if running_on_buildkite ; then
          buildkite-agent annotate \
              "${message}" \
-             --context "ctx-aws-readshift-error" \
+             --context "ctx-aws-redshift-error-pending" \
              --style "error"
     fi
 fi
@@ -243,5 +284,9 @@ echo "--- TODO: Cleaning up IAM policies"
 echo "--- TODO: Cleaning up Schedulers"
 
 if [ "${resources_to_delete}" -eq 1 ]; then
+    exit 1
+fi
+
+if [ "${resources_failed_to_delete}" -eq 1 ]; then
     exit 1
 fi
