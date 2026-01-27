@@ -194,3 +194,20 @@ func Copy(containerName, containerPath, localPath string) error {
 	}
 	return nil
 }
+
+// CheckDaemonRunning checks if the Docker daemon is running.
+// Returns nil if the daemon is running, or an error if it's not.
+func CheckDaemonRunning() error {
+	cmd := exec.Command("docker", "info")
+	errOutput := new(bytes.Buffer)
+	cmd.Stderr = errOutput
+
+	logger.Debugf("running command to check Docker daemon: %s", cmd)
+	if err := cmd.Run(); err != nil {
+		daemonError := fmt.Errorf("docker daemon is not running (stderr=%q): %w", errOutput.String(), err)
+		logger.Error(": Docker daemon is not running or not accessible")
+		logger.Error(": Please make sure Docker is installed and running before executing commands that require Docker")
+		return daemonError
+	}
+	return nil
+}
