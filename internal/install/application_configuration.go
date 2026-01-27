@@ -72,7 +72,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
-	config.c.Status.PackageRegistry.BaseURL = registry.ProductionURL
+	config.c.PackageRegistry.BaseURL = registry.ProductionURL
 	config.c.Status.KibanaRepository.BaseURL = defaultKibanaRepositoryBaseURL
 
 	return &config
@@ -91,8 +91,8 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
-	Status struct {
-		PackageRegistry  packageRegistrySettings  `yaml:"package_registry,omitempty"`
+	PackageRegistry packageRegistrySettings `yaml:"package_registry,omitempty"`
+	Status          struct {
 		KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
 	} `yaml:"status,omitempty"`
 }
@@ -180,8 +180,8 @@ func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
 	if ac == nil {
 		return registry.ProductionURL
 	}
-	if ac.c.Status.PackageRegistry.BaseURL != "" {
-		return ac.c.Status.PackageRegistry.BaseURL
+	if ac.c.PackageRegistry.BaseURL != "" {
+		return ac.c.PackageRegistry.BaseURL
 	}
 	return registry.ProductionURL
 }

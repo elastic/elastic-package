@@ -108,9 +108,8 @@ stack.epr.proxy_to: "https://localhost"
 			name:        "define package registry URL in config",
 			profileData: "",
 			configData: `
-status:
-  package_registry:
-    base_url: "https://default.com"
+package_registry:
+  base_url: "https://default.com"
 `,
 			expectedEPRProfile:    "",
 			expectedEPRConfig:     "https://default.com",
@@ -122,9 +121,8 @@ status:
 stack.epr.proxy_to: "https://localhost"
 `,
 			configData: `
-status:
-  package_registry:
-    base_url: "https://default.com"
+package_registry:
+  base_url: "https://default.com"
 `,
 			expectedEPRProfile:    "https://localhost",
 			expectedEPRConfig:     "https://default.com",

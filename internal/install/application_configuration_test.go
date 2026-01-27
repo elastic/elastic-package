@@ -136,9 +136,9 @@ func TestExistingApplicationConfigurationCustomURLs(t *testing.T) {
 		{
 			name: "both URLs customized",
 			settingData: `
+package_registry:
+  base_url: "https://custom-epr.example"
 status:
-  package_registry:
-    base_url: "https://custom-epr.example"
   kibana_repository:
     base_url: "https://custom-kibana-repo.example"`,
 
