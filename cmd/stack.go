@@ -38,6 +38,12 @@ You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
+The stack command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
+
+Configuration options:
+- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
+
 You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
