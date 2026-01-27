@@ -150,18 +150,18 @@ var (
 	}
 )
 
-// packageRegistryURL returns the package registry URL to be used, considering
+// packageRegistryProxyToURL returns the package registry URL to be used, considering
 // profile settings and application configuration. The priority is given to
 // profile settings over application configuration.
-func packageRegistryURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
-	customURL := profile.Config(configElasticEPRProxyTo, "")
-	if customURL != "" {
-		return customURL
+func packageRegistryProxyToURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
+	registryURL := profile.Config(configElasticEPRProxyTo, "")
+	if registryURL != "" {
+		return registryURL
 	}
 	if appConfig != nil {
-		configURL := appConfig.PackageRegistryBaseURL()
-		if configURL != "" {
-			return configURL
+		registryURL = appConfig.PackageRegistryBaseURL()
+		if registryURL != "" {
+			return registryURL
 		}
 	}
 	return registry.ProductionURL
@@ -203,7 +203,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
 		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
 		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"epr_proxy_to":         packageRegistryURL(profile, appConfig),
+		"epr_proxy_to":         packageRegistryProxyToURL(profile, appConfig),
 		"elastic_subscription": elasticSubscriptionProfile,
 	})
 

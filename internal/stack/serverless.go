@@ -232,7 +232,7 @@ func (sp *serverlessProvider) createClients(project *serverless.Project, appConf
 		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
 
-	logger.Tracef(">> Using package registry URL (TO BE REMOVED): %s", packageRegistryURL(sp.profile, appConfig))
+	logger.Tracef(">> Using package registry URL (TO BE REMOVED): %s", packageRegistryProxyToURL(sp.profile, appConfig))
 	sp.registryClient = registry.NewClient(appConfig.PackageRegistryBaseURL())
 
 	return nil
