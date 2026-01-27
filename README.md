@@ -522,10 +522,6 @@ Be aware that a common issue while trying to boot up the stack is that your Dock
 The stack command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
 (see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
-Configuration options:
-- Set a custom Package Registry URL using the 'package_registry.base_url' parameter.
-
-
 You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).
@@ -611,12 +607,9 @@ If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
 package directory and reports its status.
 
-The status command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+The status command can be customized the URLS for package-registry and the Kibana repository
+through the elastic-package configuration file located at ~/.elastic-package/config.yml
 (see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
-
-Configuration options:
-- Set a custom Package Registry URL using the 'package_registry.base_url' parameter
-- Set a custom Kibana Repository URL using the 'status.kibana_repository.base_url' parameter
 
 ### `elastic-package test`
 
