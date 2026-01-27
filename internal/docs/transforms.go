@@ -12,12 +12,28 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type Transform struct {
-	Description string `yaml:"description"`
+	Path      string
+	NestedMap map[string]string
+}
+
+func getTransformPolicyMap(path string) (map[string]string, error) {
+	fmt.Printf("getting Transform policy map for path: %s", path)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading Transform policy file failed: %w", err)
+	}
+	var policy map[string]interface{}
+	err = yaml.Unmarshal(content, &policy)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling Transform policy failed: %w", err)
+	}
+
+	flatMap := make(map[string]string)
+	flattenNestedMap("", policy, flatMap)
+	return flatMap, nil
 }
 
 func renderTransformPaths(packageRoot string) (string, error) {
@@ -37,10 +53,33 @@ func renderTransformPaths(packageRoot string) (string, error) {
 
 	var renderedDocs strings.Builder
 	renderedDocs.WriteString("\n### Transforms used:\n")
-	for name, transform := range transformPaths {
-		// Render each input documentation into a collapsible section.
-		fmt.Fprintf(&renderedDocs, "<details>\n<summary>%s</summary>\n\n%s\n</details>\n", name, transform.Description)
 
+	// render the transform map as a markdown table
+	renderedDocs.WriteString("| Name | Description | Source | Dest |\n")
+	renderedDocs.WriteString("|---|---|---|---|\n")
+	for name, transform := range transformPaths {
+		// get the description from the nested map
+		description, ok := transform.NestedMap["description"]
+		if !ok {
+			description = ""
+		}
+		// get the source from the nested map
+		source, ok := transform.NestedMap["source.index"]
+		if !ok {
+			source, ok = transform.NestedMap["source.index.0"]
+			if !ok {
+				source = ""
+			}
+		}
+		// get the dest from the nested map
+		dest, ok := transform.NestedMap["dest.index"]
+		if !ok {
+			dest, ok = transform.NestedMap["dest.index.0"]
+			if !ok {
+				dest = ""
+			}
+		}
+		renderedDocs.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", name, description, source, dest))
 	}
 	return renderedDocs.String(), nil
 }
@@ -76,16 +115,12 @@ func findTransformPaths(packageRoot string) (map[string]Transform, error) {
 			return nil
 		}
 
-		yamlFile, err := os.ReadFile(path)
-		if err != nil {
-			logger.Warnf("could not read %s", path)
-			return nil // Continue walking even if one file fails.
-		}
-
 		var transform Transform
-		if err := yaml.Unmarshal(yamlFile, &transform); err != nil {
-			logger.Errorf("Error unmarshalling YAML from %s: %v", path, err)
-			return nil
+		transform.Path = path
+		// read the file into a map
+		transform.NestedMap, err = getTransformPolicyMap(path)
+		if err != nil {
+			return fmt.Errorf("getting Transform policy map failed: %w", err)
 		}
 
 		// get the transform name from the transformPath
