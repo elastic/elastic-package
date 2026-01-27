@@ -309,9 +309,9 @@ Introduction to the package
 #### example
 | Key | Value |
 |---|---|
+| policy.phases.delete.min_age | 30d |
 | policy.phases.hot.actions.rollover.max_age | 30d |
 | policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
-| policy.phases.delete.min_age | 30d |
 
 `,
 		dataStreamName: "example",

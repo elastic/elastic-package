@@ -58,6 +58,17 @@ func getILMPolicyMap(path string) (map[string]string, error) {
 	return flatMap, nil
 }
 
+func renderILMPolicyMap(output *strings.Builder, policyMap map[string]string) {
+	keys := make([]string, 0, len(policyMap))
+	for key := range policyMap {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		output.WriteString(fmt.Sprintf("| %s | %s |\n", key, policyMap[key]))
+	}
+}
+
 func renderILMPaths(packageRoot string) (string, error) {
 	// gather the list of data streams that have ILM policies defined
 	// if the list is empty, return ""
@@ -86,9 +97,7 @@ func renderILMPaths(packageRoot string) (string, error) {
 		// render the policy map as a markdown table
 		renderedDocs.WriteString("| Key | Value |\n")
 		renderedDocs.WriteString("|---|---|\n")
-		for key, value := range policyMap {
-			renderedDocs.WriteString(fmt.Sprintf("| %s | %s |\n", key, value))
-		}
+		renderILMPolicyMap(&renderedDocs, policyMap)
 	}
 	return renderedDocs.String(), nil
 }
