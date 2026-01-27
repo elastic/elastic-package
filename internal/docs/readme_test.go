@@ -327,7 +327,7 @@ Introduction to the package
 
 `,
 		dataStreamName: "example",
-		transformName:  "latest_ioc",
+		transformName:  "latest",
 		fieldsContents: `
 - name: data_stream.type
   type: constant_keyword
@@ -560,7 +560,7 @@ latest:
     - resource.id
     - data_stream.namespace
   sort: "@timestamp"
-description: Latest Configuration Findings from Cloud Synergy
+description: Latest Findings from Cloud Synergy
 frequency: 5m
 sync:
   time:
