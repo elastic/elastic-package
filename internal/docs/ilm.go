@@ -5,13 +5,12 @@
 package docs
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"encoding/json"
-	"os"
 )
 
 // flatten the ilm policy (a nested json object) into a flat map with dot-separated keys
@@ -42,7 +41,6 @@ func flattenNestedMap(prefix string, nested map[string]interface{}, flatMap map[
 }
 
 func getILMPolicyMap(path string) (map[string]string, error) {
-	fmt.Printf("getting ILM policy map for path: %s", path)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading ILM policy file failed: %w", err)
@@ -89,8 +87,7 @@ func renderILMPaths(packageRoot string) (string, error) {
 		// get the policy map
 		policyMap, err := getILMPolicyMap(ilmPolicyPath)
 		if err != nil {
-			fmt.Printf("error getting ILM policy map for path: %s: %v", ilmPolicyPath, err)
-			continue
+			return "", fmt.Errorf("getting ILM policy map for path %s failed: %w", ilmPolicyPath, err)
 		}
 		renderedDocs.WriteString(fmt.Sprintf("#### %s\n", ilmPath))
 
@@ -105,7 +102,7 @@ func renderILMPaths(packageRoot string) (string, error) {
 // findILMPaths scans a given package path for data streams that have ILM policies
 // and returns a list of all data stream names that have ILM policies defined.
 func findILMPaths(packageRoot string) ([]string, error) {
-	// look for ilm/ from the packageRoot/data_stream/<data_stream_name>/elastsicsearch/ilm/
+	// look for ilm/ from the packageRoot/data_stream/<data_stream_name>/elasticsearch/ilm/
 	// add the data_stream_name to the list
 	ilmPaths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", "*", "elasticsearch", "ilm"))
 	if err != nil {

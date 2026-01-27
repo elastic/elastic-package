@@ -9,18 +9,18 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
-type Transform struct {
+type transformInfo struct {
 	Path      string
 	NestedMap map[string]string
 }
 
 func getTransformPolicyMap(path string) (map[string]string, error) {
-	fmt.Printf("getting Transform policy map for path: %s", path)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading Transform policy file failed: %w", err)
@@ -57,7 +57,16 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	// render the transform map as a markdown table
 	renderedDocs.WriteString("| Name | Description | Source | Dest |\n")
 	renderedDocs.WriteString("|---|---|---|---|\n")
-	for name, transform := range transformPaths {
+
+	// get the keys of the transformPaths map and sort them
+	keys := make([]string, 0, len(transformPaths))
+	for key := range transformPaths {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	for _, name := range keys {
+		transform := transformPaths[name]
 		// get the description from the nested map
 		description, ok := transform.NestedMap["description"]
 		if !ok {
@@ -86,9 +95,9 @@ func renderTransformPaths(packageRoot string) (string, error) {
 
 // findTransformPaths scans a given package path for transforms that have been defined
 // and returns a mapping of all transform names to their descriptions.
-func findTransformPaths(packageRoot string) (map[string]Transform, error) {
+func findTransformPaths(packageRoot string) (map[string]transformInfo, error) {
 
-	result := make(map[string]Transform)
+	result := make(map[string]transformInfo)
 
 	transformsRoot := filepath.Join(packageRoot, "elasticsearch", "transform")
 
@@ -115,7 +124,7 @@ func findTransformPaths(packageRoot string) (map[string]Transform, error) {
 			return nil
 		}
 
-		var transform Transform
+		var transform transformInfo
 		transform.Path = path
 		// read the file into a map
 		transform.NestedMap, err = getTransformPolicyMap(path)
