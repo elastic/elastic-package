@@ -88,7 +88,8 @@ func renderTransformPaths(packageRoot string) (string, error) {
 				dest = ""
 			}
 		}
-		renderedDocs.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n", name, description, source, dest))
+		renderedDocs.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
+			escaper.Replace(name), escaper.Replace(description), escaper.Replace(source), escaper.Replace(dest)))
 	}
 	return renderedDocs.String(), nil
 }

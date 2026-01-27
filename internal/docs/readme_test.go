@@ -323,7 +323,7 @@ Introduction to the package
 ### Transforms used:
 | Name | Description | Source | Dest |
 |---|---|---|---|
-| latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-* | cloud_solution-cloud_synergy.latest-v1 |
+| latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-\* | cloud_solution-cloud_synergy.latest-v1 |
 
 `,
 		dataStreamName: "example",

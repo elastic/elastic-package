@@ -13,7 +13,8 @@ import (
 	"strings"
 )
 
-// flatten the ilm policy (a nested json object) into a flat map with dot-separated keys
+// flattenNestedMap flattens a nested JSON-like structure (maps and slices) into
+// a flat map with dot-separated keys.
 func flattenNestedMap(prefix string, nested map[string]interface{}, flatMap map[string]string) {
 	for k, v := range nested {
 		key := k
