@@ -12,9 +12,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/registry"
-
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 func TestSelectElasticAgentImageName_NoVersion(t *testing.T) {
