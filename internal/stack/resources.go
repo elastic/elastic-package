@@ -20,7 +20,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
-	"github.com/elastic/elastic-package/internal/registry"
 )
 
 //go:embed _static
@@ -70,6 +69,7 @@ const (
 	configLogstashEnabled     = "stack.logstash_enabled"
 	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
 	configElasticEPRProxyTo   = "stack.epr.proxy_to"
+	configElasticEPRURL       = "stack.epr.base_url"
 	configElasticSubscription = "stack.elastic_subscription"
 )
 
@@ -149,23 +149,6 @@ var (
 		"trial",
 	}
 )
-
-// packageRegistryProxyToURL returns the package registry URL to be used, considering
-// profile settings and application configuration. The priority is given to
-// profile settings over application configuration.
-func packageRegistryProxyToURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
-	registryURL := profile.Config(configElasticEPRProxyTo, "")
-	if registryURL != "" {
-		return registryURL
-	}
-	if appConfig != nil {
-		registryURL = appConfig.PackageRegistryBaseURL()
-		if registryURL != "" {
-			return registryURL
-		}
-	}
-	return registry.ProductionURL
-}
 
 func applyResources(profile *profile.Profile, appConfig *install.ApplicationConfiguration, stackVersion, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)

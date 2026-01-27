@@ -759,6 +759,8 @@ The following settings are available per profile:
   the Elastic Cloud APIs. It defaults to `https://cloud.elastic.co`.
 * `stack.epr.proxy_to` indicates the local Package Registry to proxy requests to the configured
   endpoint. When not set, it uses `https://epr.elastic.co`.
+* `stack.epr.base_url` indicates the Package Registry endpoint to use for requests. When not set,
+  it uses `https://epr.elastic.co`.
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.

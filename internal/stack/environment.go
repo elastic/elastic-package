@@ -21,13 +21,17 @@ import (
 )
 
 type environmentProvider struct {
+	profile *profile.Profile
+
 	registry      *registry.Client
 	kibana        *kibana.Client
 	elasticsearch *elasticsearch.Client
 }
 
 func newEnvironmentProvider(profile *profile.Profile) (*environmentProvider, error) {
-	return &environmentProvider{}, nil
+	return &environmentProvider{
+		profile: profile,
+	}, nil
 }
 
 // BootUp configures the profile to use as stack the one indicated using environment variables.
@@ -150,7 +154,7 @@ func (p *environmentProvider) initClients(appConfig *install.ApplicationConfigur
 	}
 	p.elasticsearch = elasticsearch
 
-	p.registry = registry.NewClient(appConfig.PackageRegistryBaseURL())
+	p.registry = registry.NewClient(packageRegistryBaseURL(p.profile, appConfig))
 
 	return nil
 }
