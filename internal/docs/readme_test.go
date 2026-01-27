@@ -286,6 +286,40 @@ Introduction to the package
 		dataStreamName: "example",
 		fieldsContents: "",
 	},
+	{
+		title:        "README with ilm",
+		templatePath: "_dev/build/docs/README.md",
+		readmeTemplateContents: `# README
+Introduction to the package
+{{ fields "example" }}
+
+{{ ilm }}
+`,
+		expected: `# README
+Introduction to the package
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| data_stream.type | Data stream type. | constant_keyword |
+
+
+
+### Data streams using ILM policies:
+#### example
+| Key | Value |
+|---|---|
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+| policy.phases.delete.min_age | 30d |
+
+`,
+		dataStreamName: "example",
+		fieldsContents: `
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.`,
+	},
 }
 
 func TestRenderReadmeWithFields(t *testing.T) {
@@ -300,6 +334,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
+			createILMFile(t, packageRoot, c.dataStreamName)
 
 			root, err := os.OpenRoot(packageRoot)
 			require.NoError(t, err)
@@ -324,6 +359,7 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
+			createILMFile(t, packageRoot, c.dataStreamName)
 
 			buildPackageRoot := t.TempDir()
 			createManifestFile(t, buildPackageRoot)
@@ -437,4 +473,50 @@ func createBuildFile(t *testing.T, packageRoot string) {
 	buildFile := filepath.Join(buildDir, "build.yml")
 	err = os.WriteFile(buildFile, []byte(content), 0644)
 	require.NoError(t, err)
+}
+
+// create ilm file
+func createILMFile(t *testing.T, packageRoot, dataStreamName string) {
+	t.Helper()
+	if dataStreamName == "" {
+		return
+	}
+
+	ilmFolder := createILMFolder(t, packageRoot, dataStreamName)
+	ilmFile := filepath.Join(ilmFolder, "default_policy.json")
+	err := os.WriteFile(ilmFile, []byte(`{
+	"policy": {
+		"phases": {
+			"hot": {
+				"actions": {
+					"rollover": {
+						"max_age": "30d",
+						"max_primary_shard_size": "50gb"
+					}
+				}
+			},
+			"delete": {
+				"min_age": "30d",
+				"actions": {
+					"delete": {}
+				}
+			}
+		}
+	}
+}
+`), 0644)
+	require.NoError(t, err)
+}
+
+func createILMFolder(t *testing.T, packageRoot, dataStreamName string) string {
+	t.Helper()
+
+	if dataStreamName == "" {
+		return ""
+	}
+
+	ilmFolder := filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ilm")
+	err := os.MkdirAll(ilmFolder, 0755)
+	require.NoError(t, err)
+	return ilmFolder
 }

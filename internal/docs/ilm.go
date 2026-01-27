@@ -9,7 +9,54 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"encoding/json"
+	"os"
 )
+
+// flatten the ilm policy (a nested json object) into a flat map with dot-separated keys
+func flattenNestedMap(prefix string, nested map[string]interface{}, flatMap map[string]string) {
+	for k, v := range nested {
+		key := k
+		if prefix != "" {
+			key = fmt.Sprintf("%s.%s", prefix, k)
+		}
+
+		switch child := v.(type) {
+		case map[string]interface{}:
+			flattenNestedMap(key, child, flatMap)
+		case []interface{}:
+			for i, val := range child {
+				// handle slices with index
+				newKey := fmt.Sprintf("%s.%d", key, i)
+				if nextMap, ok := val.(map[string]interface{}); ok {
+					flattenNestedMap(newKey, nextMap, flatMap)
+				} else {
+					flatMap[newKey] = fmt.Sprintf("%v", val)
+				}
+			}
+		default:
+			flatMap[key] = fmt.Sprintf("%v", v)
+		}
+	}
+}
+
+func getILMPolicyMap(path string) (map[string]string, error) {
+	fmt.Printf("getting ILM policy map for path: %s", path)
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading ILM policy file failed: %w", err)
+	}
+	var policy map[string]interface{}
+	err = json.Unmarshal(content, &policy)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshalling ILM policy failed: %w", err)
+	}
+
+	flatMap := make(map[string]string)
+	flattenNestedMap("", policy, flatMap)
+	return flatMap, nil
+}
 
 func renderILMPaths(packageRoot string) (string, error) {
 	// gather the list of data streams that have ILM policies defined
@@ -27,7 +74,21 @@ func renderILMPaths(packageRoot string) (string, error) {
 	var renderedDocs strings.Builder
 	renderedDocs.WriteString("\n### Data streams using ILM policies:\n")
 	for _, ilmPath := range ilmPaths {
-		renderedDocs.WriteString(fmt.Sprintf("- [%s](./%s.md)\n", ilmPath, ilmPath))
+		ilmPolicyPath := filepath.Join(packageRoot, "data_stream", ilmPath, "elasticsearch", "ilm", "default_policy.json")
+		// get the policy map
+		policyMap, err := getILMPolicyMap(ilmPolicyPath)
+		if err != nil {
+			fmt.Printf("error getting ILM policy map for path: %s: %v", ilmPolicyPath, err)
+			continue
+		}
+		renderedDocs.WriteString(fmt.Sprintf("#### %s\n", ilmPath))
+
+		// render the policy map as a markdown table
+		renderedDocs.WriteString("| Key | Value |\n")
+		renderedDocs.WriteString("|---|---|\n")
+		for key, value := range policyMap {
+			renderedDocs.WriteString(fmt.Sprintf("| %s | %s |\n", key, value))
+		}
 	}
 	return renderedDocs.String(), nil
 }
