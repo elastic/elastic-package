@@ -94,7 +94,11 @@ You can configure FortiGate to send logs to the Elastic Agent using either the G
     end
     ```
 
-For more detailed information, refer to the [FortiGate CLI reference](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting).
+#### Vendor resources
+
+-   [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
+-   [Fortinet Documentation Library](https://docs.fortinet.com/)
+-   [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
 
 ### Set up steps in Kibana
 
@@ -102,6 +106,8 @@ For more detailed information, refer to the [FortiGate CLI reference](https://do
 2.  Search for "Fortinet FortiGate Firewall Logs" and select the integration.
 3.  Click **Add Fortinet FortiGate Firewall Logs**.
 4.  Configure the integration by selecting an input type and providing the necessary settings. This integration supports `TCP`, `UDP`, and `Log file` inputs.
+
+Choose the setup instructions below that match your configuration. The input type should correspond to how you configured your FortiGate to send logs in the vendor setup steps above.
 
 #### TCP Input Configuration
 

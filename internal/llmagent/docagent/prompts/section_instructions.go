@@ -91,10 +91,14 @@ DEPLOYMENT SECTION REQUIREMENTS:
   - For options/methods, use headings: "##### Option 1: File method" NOT "**Option 1: File method**"
   - Include CLI commands where applicable
   - Show example configurations
+  - End with a vendor resources subsection using H4:
+    #### Vendor resources
+    - Add links from the service_info "Vendor set up resources" section
 
   ### Set up steps in Kibana
   - Elastic-side configuration steps
   - Navigate to Integrations, search, add
+  - When multiple input types are available, guide users to "choose the setup instructions that match your configuration" NOT "choose your destination" (destination was set in vendor config)
   - For input descriptions, use plain text NOT bold: "Audit logs (file)" not "**Audit logs (file)**"
 
   ### Validation

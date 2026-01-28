@@ -89,6 +89,9 @@ func (v *QualityValidator) StaticValidate(ctx context.Context, content string, p
 	// Check 2: Generic/vague phrases
 	result.Issues = append(result.Issues, v.checkVaguePhrases(content)...)
 
+	// Check 2b: Misleading phrases (major issues)
+	result.Issues = append(result.Issues, v.checkMisleadingPhrases(content)...)
+
 	// Note: Incomplete content/placeholder checks removed - now handled by PlaceholderValidator
 	// to avoid duplicate validation of [INSERT...], <ADD...>, ???, etc.
 
@@ -160,6 +163,32 @@ func (v *QualityValidator) checkVaguePhrases(content string) []ValidationIssue {
 				Location:    "Document",
 				Message:     suggestion,
 				Suggestion:  "Replace with specific, actionable language",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// checkMisleadingPhrases identifies phrases that could confuse users
+func (v *QualityValidator) checkMisleadingPhrases(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	misleadingPhrases := map[string]string{
+		`(?i)choose\s+your\s+destination`: "In Kibana setup, use 'choose the setup instructions that match your configuration' instead of 'choose your destination' (destination is configured in vendor setup)",
+		`(?i)select\s+your\s+destination`: "In Kibana setup, use 'choose the setup instructions that match your configuration' instead of 'select your destination' (destination is configured in vendor setup)",
+	}
+
+	for pattern, message := range misleadingPhrases {
+		re := regexp.MustCompile(pattern)
+		if re.MatchString(content) {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryQuality,
+				Location:    "Set up steps in Kibana",
+				Message:     message,
+				Suggestion:  "Rewrite to clarify that users are choosing configuration instructions, not setting the data destination",
 				SourceCheck: "static",
 			})
 		}

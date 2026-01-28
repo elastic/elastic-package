@@ -362,6 +362,7 @@ func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 		},
 		"How do I deploy this integration?": {
 			"Vendor set up steps",
+		"Vendor set up resources",
 			"Kibana set up steps",
 			"Validation steps",
 		},
