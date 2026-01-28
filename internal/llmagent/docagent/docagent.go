@@ -282,6 +282,12 @@ func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, 
 		}
 		fmt.Printf("  %s %s: %d iterations, best=%d (%d chars)\n",
 			status, sr.SectionTitle, sr.TotalIterations, sr.BestIteration, len(sr.Content))
+		// Show validation issues for sections that failed validation
+		if !sr.Approved && len(sr.ValidationIssues) > 0 {
+			for _, issue := range sr.ValidationIssues {
+				fmt.Printf("      - %s\n", issue)
+			}
+		}
 	}
 
 	// In interactive mode, allow review
@@ -1090,6 +1096,8 @@ type SectionGenerationResult struct {
 	TotalIterations int
 	// BestIteration is the iteration that produced the best content
 	BestIteration int
+	// ValidationIssues contains unresolved validation issues (if not approved)
+	ValidationIssues []string
 }
 
 // GenerationResult holds the result of the generation + validation loop
@@ -1219,6 +1227,7 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 	bestIteration := 0
 
 	var validationFeedback string
+	var lastValidationIssues []string
 
 	// Section-level iteration loop
 	for iteration := uint(1); iteration <= maxIterations; iteration++ {
@@ -1274,6 +1283,9 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 			issues := d.validateSectionContent(ctx, content, sectionCtx.SectionTitle, pkgCtx)
 			issueCount := len(issues)
 			if issueCount > 0 {
+				// Store issues for reporting if this is the last iteration
+				lastValidationIssues = issues
+
 				// Build feedback for next iteration
 				validationFeedback = fmt.Sprintf("Section '%s' has %d issues:\n", sectionCtx.SectionTitle, issueCount)
 				for _, issue := range issues {
@@ -1285,6 +1297,7 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 				}
 			} else {
 				result.Approved = true
+				lastValidationIssues = nil // Clear issues on success
 				break
 			}
 		} else {
@@ -1297,6 +1310,7 @@ func (d *DocumentationAgent) GenerateSectionWithValidationLoop(
 	// Use the best content across all iterations
 	result.Content = bestContent
 	result.BestIteration = bestIteration
+	result.ValidationIssues = lastValidationIssues
 
 	// If we never got content, return an error
 	if result.Content == "" {

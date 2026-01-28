@@ -13,6 +13,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
@@ -490,7 +491,7 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 	sc := span.SpanContext()
 	if tracingEnabled {
 		sessionID, hasSession := SessionIDFromContext(ctx)
-		fmt.Printf("🔍 Started agent span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
+		logger.Debugf("Started agent span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)",
 			name, sc.TraceID().String(), sc.SpanID().String(),
 			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
@@ -625,7 +626,7 @@ func StartWorkflowSpan(ctx context.Context, name string) (context.Context, trace
 	sc := span.SpanContext()
 	if tracingEnabled {
 		sessionID, hasSession := SessionIDFromContext(ctx)
-		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
+		logger.Debugf("Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)",
 			name, sc.TraceID().String(), sc.SpanID().String(),
 			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
@@ -652,7 +653,7 @@ func StartWorkflowSpanWithConfig(ctx context.Context, name string, maxIterations
 	sc := span.SpanContext()
 	if tracingEnabled {
 		sessionID, hasSession := SessionIDFromContext(ctx)
-		fmt.Printf("🔍 Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)\n",
+		logger.Debugf("Started workflow span: name=%s, traceID=%s, spanID=%s, parentSpanID=%s, sessionID=%s (found=%v)",
 			name, sc.TraceID().String(), sc.SpanID().String(),
 			parentSpanCtx.SpanID().String(), sessionID, hasSession)
 	}
