@@ -201,6 +201,10 @@ For more information on architectures that can be used for scaling this integrat
 
 ## Reference
 
+### Inputs used
+
+{{ inputDocs }}
+
 ### log
 
 The `log` data stream collects all log types from the FortiGate firewall, including traffic, UTM, event, and authentication logs.
@@ -212,8 +216,3 @@ The `log` data stream collects all log types from the FortiGate firewall, includ
 #### log sample event
 
 {{ event "log" }}
-
-### Inputs used
-
-{{ inputDocs }}
-

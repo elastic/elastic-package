@@ -165,7 +165,13 @@ FORMATTING RULES (CRITICAL - will be rejected if violated):
 
 	"reference": `HEADING LEVEL: This is a MAIN section - use "## Reference" (H2, two #)
 REFERENCE SECTION REQUIREMENTS:
-- Create a ### subsection (H3, three #) for EACH data stream in the package
+INCLUDE THESE SUBSECTIONS (H3, three #):
+-  (Keep this section verbatim, do not modify it):
+   ### Inputs used
+   {{inputDocs}}
+
+-  ### API usage (only if the integration makes use of 3rd party APIs or httpjson/cel inputs are used)
+   List APIs used with links to vendor documentation- Create a ### subsection (H3, three #) for EACH data stream in the package
 - For EACH data stream, use this EXACT format:
 
   ### {datastream_name}
@@ -181,14 +187,7 @@ CRITICAL RULES:
 2. Include {{event "name"}} ONLY if the data stream has a sample_event.json file
 3. ALWAYS include {{fields "name"}} for every data stream
 4. Use list_directory on "data_stream/" to discover all data stream names
-5. Check each data_stream/{name}/ folder for sample_event.json
-
-ALSO INCLUDE (H3, three #):
-  ### Inputs used
-  {{inputDocs}}
-
-  ### API usage (only if httpjson/cel inputs are used)
-  List APIs used with links to vendor documentation`,
+5. Check each data_stream/{name}/ folder for sample_event.json`,
 }
 
 // GetSectionInstructions returns section-specific instructions for the given section title.
