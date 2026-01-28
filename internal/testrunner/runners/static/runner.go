@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -28,6 +29,7 @@ type runner struct {
 	globalTestConfig   testrunner.GlobalRunnerTestConfig
 	withCoverage       bool
 	coverageType       string
+	schemaURLs         fields.SchemaURLs
 }
 
 type StaticTestRunnerOptions struct {
@@ -37,6 +39,7 @@ type StaticTestRunnerOptions struct {
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	WithCoverage       bool
 	CoverageType       string
+	SchemaURLs         fields.SchemaURLs
 }
 
 func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
@@ -47,6 +50,7 @@ func NewStaticTestRunner(options StaticTestRunnerOptions) *runner {
 		globalTestConfig:   options.GlobalTestConfig,
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
+		schemaURLs:         options.SchemaURLs,
 	}
 	return &runner
 }
@@ -103,6 +107,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			GlobalTestConfig: r.globalTestConfig,
 			WithCoverage:     r.withCoverage,
 			CoverageType:     r.coverageType,
+			SchemaURLs:       r.schemaURLs,
 		}))
 	}
 	return testers, nil

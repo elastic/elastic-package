@@ -203,6 +203,7 @@ type tester struct {
 	esAPI              *elasticsearch.API
 	esClient           *elasticsearch.Client
 	kibanaClient       *kibana.Client
+	schemaURLs         fields.SchemaURLs
 
 	runIndependentElasticAgent bool
 
@@ -251,6 +252,7 @@ type SystemTesterOptions struct {
 	GenerateTestResult bool
 	API                *elasticsearch.API
 	KibanaClient       *kibana.Client
+	SchemaURLs         fields.SchemaURLs
 
 	OverrideAgentVersion string
 
@@ -278,6 +280,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		esAPI:                      options.API,
 		esClient:                   options.ESClient,
 		kibanaClient:               options.KibanaClient,
+		schemaURLs:                 options.SchemaURLs,
 		deferCleanup:               options.DeferCleanup,
 		serviceVariant:             options.ServiceVariant,
 		configFileName:             options.ConfigFileName,
@@ -1671,6 +1674,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fieldsDir = filepath.Join(r.dataStream, "fields")
 	}
 	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+		fields.WithSchemaURLs(r.schemaURLs),
 		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
 		fields.WithNumericKeywordFields(config.NumericKeywordFields),
 		fields.WithStringNumberFields(config.StringNumberFields),

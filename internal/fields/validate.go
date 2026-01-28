@@ -158,6 +158,8 @@ type Validator struct {
 	enabledOTelValidation bool
 
 	injectFieldsOptions InjectFieldsOptions
+
+	schemaURLs SchemaURLs
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -257,6 +259,14 @@ func WithOTelValidation(otelValidation bool) ValidatorOption {
 	}
 }
 
+// WithSchemaURLs configures the validator to use custom sources for schemas.
+func WithSchemaURLs(schemaURLs SchemaURLs) ValidatorOption {
+	return func(v *Validator) error {
+		v.schemaURLs = schemaURLs
+		return nil
+	}
+}
+
 // CreateValidator creates a validator for a given fields directory, contained under the indicated repository and package roots.
 func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir string, opts ...ValidatorOption) (v *Validator, err error) {
 	v = new(Validator)
@@ -279,7 +289,7 @@ func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir stri
 
 		var fdm *DependencyManager
 		if !v.disabledDependencyManagement {
-			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema)
+			fdm, v.Schema, err = initDependencyManagement(packageRoot, v.specVersion, v.enabledImportAllECSSchema, v.schemaURLs)
 			if err != nil {
 				return nil, fmt.Errorf("failed to initialize dependency management: %w", err)
 			}
@@ -295,7 +305,7 @@ func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir stri
 	return v, nil
 }
 
-func initDependencyManagement(packageRoot string, specVersion semver.Version, importECSSchema bool) (*DependencyManager, []FieldDefinition, error) {
+func initDependencyManagement(packageRoot string, specVersion semver.Version, importECSSchema bool, urls SchemaURLs) (*DependencyManager, []FieldDefinition, error) {
 	buildManifest, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't read build manifest: %w", err)
@@ -305,7 +315,7 @@ func initDependencyManagement(packageRoot string, specVersion semver.Version, im
 		return nil, nil, nil
 	}
 
-	fdm, err := CreateFieldDependencyManager(buildManifest.Dependencies)
+	fdm, err := CreateFieldDependencyManager(buildManifest.Dependencies, urls)
 	if err != nil {
 		return nil, nil, fmt.Errorf("can't create field dependency manager: %w", err)
 	}

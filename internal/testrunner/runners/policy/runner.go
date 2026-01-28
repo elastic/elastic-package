@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -37,6 +38,8 @@ type runner struct {
 	cleanup          func(context.Context) error
 
 	repositoryRoot *os.Root
+
+	schemaURLs fields.SchemaURLs
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -52,6 +55,7 @@ type PolicyTestRunnerOptions struct {
 	WithCoverage       bool
 	CoverageType       string
 	RepositoryRoot     *os.Root
+	SchemaURLs         fields.SchemaURLs
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
@@ -65,6 +69,7 @@ func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 		withCoverage:       options.WithCoverage,
 		coverageType:       options.CoverageType,
 		repositoryRoot:     options.RepositoryRoot,
+		schemaURLs:         options.SchemaURLs,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -86,6 +91,9 @@ func (r *runner) SetupRunner(ctx context.Context) error {
 // after the test runner has finished executing all its tests.
 func (r *runner) TearDownRunner(ctx context.Context) error {
 	logger.Debug("Uninstalling package...")
+	if r.cleanup == nil {
+		return nil
+	}
 	err := r.cleanup(context.WithoutCancel(ctx))
 	if err != nil {
 		return fmt.Errorf("failed to clean up test runner: %w", err)
@@ -163,6 +171,7 @@ func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cl
 	packageResource := resources.FleetPackage{
 		PackageRoot:    r.packageRoot,
 		RepositoryRoot: r.repositoryRoot,
+		SchemaURLs:     r.schemaURLs,
 	}
 	setupResources := resources.Resources{
 		&packageResource,
