@@ -21,7 +21,7 @@ const (
 
 // createFleetServerPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
-func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, namespace string) (*kibana.Policy, error) {
+func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, registryClient *registry.Client, stackVersion string, namespace string) (*kibana.Policy, error) {
 	policy := kibana.Policy{
 		Name:                 "Fleet Server (elastic-package)",
 		ID:                   managedFleetServerPolicyID,
@@ -43,7 +43,7 @@ func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, s
 		return nil, fmt.Errorf("error while creating agent policy: %w", err)
 	}
 
-	err = createFleetServerPackagePolicy(ctx, kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
+	err = createFleetServerPackagePolicy(ctx, kibanaClient, registryClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -51,8 +51,8 @@ func createFleetServerPolicy(ctx context.Context, kibanaClient *kibana.Client, s
 	return newPolicy, nil
 }
 
-func createFleetServerPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
-	packages, err := registry.Production.Revisions("fleet_server", registry.SearchOptions{
+func createFleetServerPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, registryClient *registry.Client, stackVersion, agentPolicyID, namespace string) error {
+	packages, err := registryClient.Revisions("fleet_server", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
 	if err != nil {

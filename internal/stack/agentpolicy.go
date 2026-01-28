@@ -26,7 +26,7 @@ const (
 
 // createAgentPolicy creates an agent policy with the initial configuration used for
 // agents managed by elastic-package.
-func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion string, outputId string, selfMonitor bool) (*kibana.Policy, error) {
+func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, registryClient *registry.Client, stackVersion string, outputId string, selfMonitor bool) (*kibana.Policy, error) {
 	policy := kibana.Policy{
 		ID:                managedAgentPolicyID,
 		Name:              "Elastic-Agent (elastic-package)",
@@ -52,7 +52,7 @@ func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVe
 	}
 
 	if selfMonitor {
-		err := createSystemPackagePolicy(ctx, kibanaClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
+		err := createSystemPackagePolicy(ctx, kibanaClient, registryClient, stackVersion, newPolicy.ID, newPolicy.Namespace)
 		if err != nil {
 			return nil, err
 		}
@@ -61,8 +61,8 @@ func createAgentPolicy(ctx context.Context, kibanaClient *kibana.Client, stackVe
 	return newPolicy, nil
 }
 
-func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, stackVersion, agentPolicyID, namespace string) error {
-	systemPackages, err := registry.Production.Revisions("system", registry.SearchOptions{
+func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client, registryClient *registry.Client, stackVersion, agentPolicyID, namespace string) error {
+	systemPackages, err := registryClient.Revisions("system", registry.SearchOptions{
 		KibanaVersion: strings.TrimSuffix(stackVersion, kibana.SNAPSHOT_SUFFIX),
 	})
 	if err != nil {

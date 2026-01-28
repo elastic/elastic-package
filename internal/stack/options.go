@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 )
 
@@ -16,6 +17,7 @@ type Options struct {
 
 	Services []string
 
-	Profile *profile.Profile
-	Printer Printer
+	Profile   *profile.Profile
+	AppConfig *install.ApplicationConfiguration
+	Printer   Printer
 }
