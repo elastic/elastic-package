@@ -91,8 +91,17 @@ To include a sample event from `sample_event.json`, uncomment and use:
 
 */}}
 
+<!-- Export ILM Policies
+     This accepts a list of data stream names as arguments, and will export the ILM Policies
+     for each given data stream name. If no arguments are provided, all ILM Policies will be
+     exported. 
+     
+     If there are no ILM Policies defined, this will be an empty string. -->
 {{ ilm }}
 
+<!-- Export Transforms
+     This will export the transforms used by this integration.
+     If there are no transforms defined, this will be an empty string. -->
 {{ transform }}
 
 ### Inputs used

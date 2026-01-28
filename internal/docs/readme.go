@@ -222,9 +222,9 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 		"inputDocs": func() (string, error) {
 			return renderInputDocs(packageRoot)
 		},
-		"ilm": func() (string, error) {
+		"ilm": func(args ...string) (string, error) {
 			logger.Debug("renderILMPaths")
-			return renderILMPaths(packageRoot)
+			return renderILMPaths(packageRoot, args)
 		},
 		"transform": func() (string, error) {
 			logger.Debug("renderTransformPaths")

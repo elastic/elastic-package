@@ -298,6 +298,49 @@ Introduction to the package
 Introduction to the package
 {{ fields "example" }}
 
+{{ ilm "example" }}
+{{ transform }}
+`,
+		expected: `# README
+Introduction to the package
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| data_stream.type | Data stream type. | constant_keyword |
+
+
+
+### Data streams using ILM policies
+
+#### example Policy
+| Key | Value |
+|---|---|
+| policy.phases.delete.min_age | 30d |
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+
+
+### Transforms used
+| Name | Description | Source | Dest |
+|---|---|---|---|
+| latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-\* | cloud_solution-cloud_synergy.latest-v1 |
+
+`,
+		dataStreamName: "example",
+		transformName:  "latest",
+		fieldsContents: `
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.`,
+	},
+	{
+		title:        "README with multiple ilm policies",
+		templatePath: "_dev/build/docs/README.md",
+		readmeTemplateContents: `# README
+Introduction to the package
+{{ fields "example" }}
+
 {{ ilm }}
 {{ transform }}
 `,
@@ -311,8 +354,16 @@ Introduction to the package
 
 
 
-### Data streams using ILM policies:
-#### example
+### Data streams using ILM policies
+
+#### example Policy
+| Key | Value |
+|---|---|
+| policy.phases.delete.min_age | 30d |
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+
+#### example2 Policy
 | Key | Value |
 |---|---|
 | policy.phases.delete.min_age | 30d |
@@ -320,7 +371,7 @@ Introduction to the package
 | policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
 
 
-### Transforms used:
+### Transforms used
 | Name | Description | Source | Dest |
 |---|---|---|---|
 | latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-\* | cloud_solution-cloud_synergy.latest-v1 |
@@ -348,6 +399,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
 			createILMFile(t, packageRoot, c.dataStreamName)
+			createILMFile(t, packageRoot, "example2")
 			createTransformFile(t, packageRoot, c.transformName)
 
 			root, err := os.OpenRoot(packageRoot)
@@ -375,6 +427,7 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
 			createILMFile(t, packageRoot, c.dataStreamName)
 			createTransformFile(t, packageRoot, c.transformName)
+			createILMFile(t, packageRoot, "example2")
 
 			buildPackageRoot := t.TempDir()
 			createManifestFile(t, buildPackageRoot)

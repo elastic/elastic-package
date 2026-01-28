@@ -52,7 +52,7 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	}
 
 	var renderedDocs strings.Builder
-	renderedDocs.WriteString("\n### Transforms used:\n")
+	renderedDocs.WriteString("\n### Transforms used\n")
 
 	// render the transform map as a markdown table
 	renderedDocs.WriteString("| Name | Description | Source | Dest |\n")

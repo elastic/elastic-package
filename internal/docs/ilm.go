@@ -64,33 +64,52 @@ func renderILMPolicyMap(output *strings.Builder, policyMap map[string]string) {
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		output.WriteString(fmt.Sprintf("| %s | %s |\n", key, policyMap[key]))
+		output.WriteString(fmt.Sprintf("| %s | %s |\n", escaper.Replace(key), escaper.Replace(policyMap[key])))
 	}
 }
 
-func renderILMPaths(packageRoot string) (string, error) {
+func getILMPolicyFilePath(packageRoot, dataStreamName string) (string, error) {
+	paths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ilm", "*.json"))
+	if err != nil {
+		return "", err
+	} else if len(paths) == 0 {
+		return "", fmt.Errorf("no ILM policy files found for data stream %s", dataStreamName)
+	}
+	return paths[0], nil
+}
+
+func renderILMPaths(packageRoot string, args []string) (string, error) {
 	// gather the list of data streams that have ILM policies defined
 	// if the list is empty, return ""
 	// if the list is not empty, format the list as a markdown list
-	ilmPaths, err := findILMPaths(packageRoot)
-	if err != nil {
-		return "", fmt.Errorf("finding ILM paths failed: %w", err)
-	}
-	if len(ilmPaths) == 0 {
-		return "", nil
+	var dataStreamNames []string
+	var err error
+	if len(args) > 0 {
+		// filter the list of data streams to only include the data stream name in the args
+		for _, arg := range args {
+			dataStreamNames = append(dataStreamNames, arg)
+		}
+	} else {
+		dataStreamNames, err = findILMPaths(packageRoot)
+		if err != nil {
+			return "", fmt.Errorf("finding ILM paths failed: %w", err)
+		}
 	}
 
-	sort.Strings(ilmPaths)
 	var renderedDocs strings.Builder
-	renderedDocs.WriteString("\n### Data streams using ILM policies:\n")
-	for _, ilmPath := range ilmPaths {
-		ilmPolicyPath := filepath.Join(packageRoot, "data_stream", ilmPath, "elasticsearch", "ilm", "default_policy.json")
-		// get the policy map
-		policyMap, err := getILMPolicyMap(ilmPolicyPath)
+	renderedDocs.WriteString("\n### Data streams using ILM policies\n")
+	for _, dataStreamName := range dataStreamNames {
+		ilmPath, err := getILMPolicyFilePath(packageRoot, dataStreamName)
 		if err != nil {
-			return "", fmt.Errorf("getting ILM policy map for path %s failed: %w", ilmPolicyPath, err)
+			return "", fmt.Errorf("getting ILM policy file path for data stream %s failed: %w", dataStreamName, err)
 		}
-		renderedDocs.WriteString(fmt.Sprintf("#### %s\n", ilmPath))
+
+		// get the policy map from the ILM policy file
+		policyMap, err := getILMPolicyMap(ilmPath)
+		if err != nil {
+			return "", fmt.Errorf("getting ILM policy map for path %s failed: %w", ilmPath, err)
+		}
+		renderedDocs.WriteString(fmt.Sprintf("\n#### %s Policy\n", dataStreamName))
 
 		// render the policy map as a markdown table
 		renderedDocs.WriteString("| Key | Value |\n")
