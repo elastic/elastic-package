@@ -287,7 +287,12 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		return nil, fmt.Errorf("can't read configuration directory: %w", err)
 	}
 
-	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	return configurationFromDir(configPath.RootDir(), options...)
+}
+
+func configurationFromDir(dir string, options ...ConfigurationOption) (*ApplicationConfiguration, error) {
+	configFilePath := filepath.Join(dir, applicationConfigurationYmlFile)
+	cfg, err := os.ReadFile(configFilePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return DefaultConfiguration(), nil
 	}
