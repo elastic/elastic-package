@@ -51,16 +51,16 @@ func stackUp(ts *testscript.TestScript, neg bool, args []string) {
 	}
 	version := flg.Arg(0)
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		ts.Fatalf("can't load configuration: %v", err)
+	}
+
 	ctx := context.Background()
 	if *timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, *timeout)
 		defer cancel()
-	}
-
-	appConfig, err := install.Configuration()
-	if err != nil {
-		ts.Fatalf("can't load configuration: %s", err)
 	}
 
 	prof, err := profile.LoadProfileFrom(ts.MkAbs("profiles"), *profName)

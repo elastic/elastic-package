@@ -134,7 +134,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
-	packageStatus, err := getPackageStatus(packageName, options, registryClient)
+	packageStatus, err := getPackageStatus(registryClient, packageName, options)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 			packageName = packageStatus.Local.Name
 		}
 		kibanaRepositoryURL := config.KibanaRepositoryBaseURL()
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options, registryClient, kibanaRepositoryURL)
+		packageStatus.Serverless, err = getServerlessManifests(registryClient, packageName, options, kibanaRepositoryURL)
 		if err != nil {
 			return err
 		}
@@ -176,9 +176,9 @@ func validateExtraInfoParameters(extraParameters []string) error {
 	return nil
 }
 
-func getPackageStatus(packageName string, options registry.SearchOptions, registryClient *registry.Client) (*status.PackageStatus, error) {
+func getPackageStatus(registryClient *registry.Client, packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
 	if packageName != "" {
-		return status.RemotePackage(packageName, options, registryClient)
+		return status.RemotePackage(registryClient, packageName, options)
 	}
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -187,10 +187,10 @@ func getPackageStatus(packageName string, options registry.SearchOptions, regist
 		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
-	return status.LocalPackage(packageRoot, options, registryClient)
+	return status.LocalPackage(registryClient, packageRoot, options)
 }
 
-func getServerlessManifests(packageName string, options registry.SearchOptions, registryClient *registry.Client, kibanaRepoBaseURL string) ([]status.ServerlessManifests, error) {
+func getServerlessManifests(registryClient *registry.Client, packageName string, options registry.SearchOptions, kibanaRepoBaseURL string) ([]status.ServerlessManifests, error) {
 	if packageName == "" {
 		return nil, nil
 	}

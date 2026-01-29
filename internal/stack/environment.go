@@ -155,7 +155,6 @@ func (p *environmentProvider) initClients(appConfig *install.ApplicationConfigur
 	p.elasticsearch = elasticsearch
 
 	p.registry = registry.NewClient(packageRegistryBaseURL(p.profile, appConfig))
-
 	return nil
 }
 

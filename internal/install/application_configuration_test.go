@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/registry"
 )
 
@@ -164,18 +163,15 @@ profiles:
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", tmpDir)
-			configPath, err := locations.NewLocationManager()
-			require.NoError(t, err)
 
 			if tc.settingData != "" {
-				configFilePath := filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile)
+				configFilePath := filepath.Join(tmpDir, applicationConfigurationYmlFile)
 
-				err = os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
+				err := os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
 				require.NoError(t, err)
 			}
 
-			config, err := Configuration()
+			config, err := configurationFromDir(tmpDir)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedEPRURL, config.PackageRegistryBaseURL())
 			assert.Equal(t, tc.expectedKibanaURL, config.KibanaRepositoryBaseURL())

@@ -177,25 +177,19 @@ func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 // PackageRegistryBaseURL returns the configured package registry URL,
 // falling back to production if not specified
 func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
-	if ac == nil {
+	if ac == nil || ac.c.PackageRegistry.BaseURL == "" {
 		return registry.ProductionURL
 	}
-	if ac.c.PackageRegistry.BaseURL != "" {
-		return ac.c.PackageRegistry.BaseURL
-	}
-	return registry.ProductionURL
+	return ac.c.PackageRegistry.BaseURL
 }
 
 // KibanaRepositoryBaseURL returns the configured Kibana repository URL,
 // falling back to the default GitHub URL if not specified
 func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
-	if ac == nil {
-		return "https://raw.githubusercontent.com/elastic/kibana"
+	if ac == nil || ac.c.Status.KibanaRepository.BaseURL == "" {
+		return defaultKibanaRepositoryBaseURL
 	}
-	if ac.c.Status.KibanaRepository.BaseURL != "" {
-		return ac.c.Status.KibanaRepository.BaseURL
-	}
-	return defaultKibanaRepositoryBaseURL
+	return ac.c.Status.KibanaRepository.BaseURL
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
@@ -293,7 +287,12 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		return nil, fmt.Errorf("can't read configuration directory: %w", err)
 	}
 
-	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	return configurationFromDir(configPath.RootDir(), options...)
+}
+
+func configurationFromDir(dir string, options ...ConfigurationOption) (*ApplicationConfiguration, error) {
+	configFilePath := filepath.Join(dir, applicationConfigurationYmlFile)
+	cfg, err := os.ReadFile(configFilePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return DefaultConfiguration(), nil
 	}
