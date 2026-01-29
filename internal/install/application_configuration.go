@@ -17,6 +17,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/environment"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
@@ -72,6 +73,7 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
+	config.c.SchemaURLs = fields.NewSchemaURLs()
 	config.c.PackageRegistry.BaseURL = registry.ProductionURL
 	config.c.Status.KibanaRepository.BaseURL = defaultKibanaRepositoryBaseURL
 
@@ -91,10 +93,15 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
+	SchemaURLs      fields.SchemaURLs       `yaml:"schema_urls"`
 	PackageRegistry packageRegistrySettings `yaml:"package_registry,omitempty"`
 	Status          struct {
 		KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
 	} `yaml:"status,omitempty"`
+}
+
+type stack struct {
+	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
 type packageRegistrySettings struct {
@@ -103,10 +110,6 @@ type packageRegistrySettings struct {
 
 type kibanaRepositorySettings struct {
 	BaseURL string `yaml:"base_url,omitempty"`
-}
-
-type stack struct {
-	ImageRefOverrides map[string]ImageRefs `yaml:"image_ref_overrides"`
 }
 
 func checkImageRefOverride(envVar, fallback string) string {
@@ -172,6 +175,11 @@ func (ac *ApplicationConfiguration) CurrentProfile() string {
 // SetCurrentProfile sets the current profile.
 func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
+}
+
+// SchemaURLs returns the URLs used to retrieve schemas.
+func (ac *ApplicationConfiguration) SchemaURLs() fields.SchemaURLs {
+	return ac.c.SchemaURLs
 }
 
 // PackageRegistryBaseURL returns the configured package registry URL,

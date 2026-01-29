@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -51,6 +52,7 @@ Introduction to the package`,
 			expected:               "",
 		},
 	}
+	urls := fields.SchemaURLs{}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			dir := t.TempDir()
@@ -60,7 +62,7 @@ Introduction to the package`,
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir)
+			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir, urls)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -108,6 +110,7 @@ http://www.example.com/bar
 			linksMap: minimumLinksMap,
 		},
 	}
+	urls := fields.SchemaURLs{}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
@@ -120,7 +123,7 @@ http://www.example.com/bar
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, c.linksMap)
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, c.linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -165,6 +168,7 @@ An example event for ` + "`example`" + ` looks as following:
 	}
 
 	linksMap := newEmptyLinkMap()
+	urls := fields.SchemaURLs{}
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			filename := filepath.Base(c.templatePath)
@@ -178,7 +182,7 @@ An example event for ` + "`example`" + ` looks as following:
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, linksMap)
+			rendered, err := renderReadme(root, filename, c.packageRoot, templatePath, linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -290,6 +294,7 @@ Introduction to the package
 
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
+	urls := fields.NewSchemaURLs()
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -305,7 +310,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, err := renderReadme(root, filename, packageRoot, templatePath, linksMap)
+			rendered, err := renderReadme(root, filename, packageRoot, templatePath, linksMap, urls)
 			require.NoError(t, err)
 
 			renderedString := string(rendered)
@@ -315,6 +320,7 @@ func TestRenderReadmeWithFields(t *testing.T) {
 }
 
 func TestUpdateReadmeWithFields(t *testing.T) {
+	urls := fields.NewSchemaURLs()
 	for _, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
@@ -332,7 +338,7 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot)
+			readmePath, err := updateReadme(root, filename, "", packageRoot, buildPackageRoot, urls)
 			require.NoError(t, err)
 			require.NotEmpty(t, readmePath)
 			d, err := os.ReadFile(readmePath)

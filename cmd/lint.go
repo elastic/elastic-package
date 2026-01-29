@@ -12,6 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/docs"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/validation"
@@ -57,7 +58,12 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("package root not found: %w", err)
 	}
 
-	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot)
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
+	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot, appConfig.SchemaURLs())
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {

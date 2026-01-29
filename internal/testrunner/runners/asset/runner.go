@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -25,6 +26,7 @@ type runner struct {
 	withCoverage     bool
 	coverageType     string
 	repositoryRoot   *os.Root
+	schemaURLs       fields.SchemaURLs
 }
 
 type AssetTestRunnerOptions struct {
@@ -34,6 +36,7 @@ type AssetTestRunnerOptions struct {
 	WithCoverage     bool
 	CoverageType     string
 	RepositoryRoot   *os.Root
+	SchemaURLs       fields.SchemaURLs
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
@@ -44,6 +47,7 @@ func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
 		repositoryRoot:   options.RepositoryRoot,
+		schemaURLs:       options.SchemaURLs,
 	}
 	return &runner
 }
@@ -75,6 +79,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			WithCoverage:     r.withCoverage,
 			CoverageType:     r.coverageType,
 			RepositoryRoot:   r.repositoryRoot,
+			SchemaURLs:       r.schemaURLs,
 		}),
 	}
 	return testers, nil
