@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -37,6 +38,8 @@ type runner struct {
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 
 	repositoryRoot *os.Root
+
+	schemaURLs fields.SchemaURLs
 }
 
 type PipelineTestRunnerOptions struct {
@@ -51,6 +54,7 @@ type PipelineTestRunnerOptions struct {
 	DeferCleanup       time.Duration
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	RepositoryRoot     *os.Root
+	SchemaURLs         fields.SchemaURLs
 }
 
 func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
@@ -66,6 +70,7 @@ func NewPipelineTestRunner(options PipelineTestRunnerOptions) *runner {
 		deferCleanup:       options.DeferCleanup,
 		globalTestConfig:   options.GlobalTestConfig,
 		repositoryRoot:     options.RepositoryRoot,
+		schemaURLs:         options.SchemaURLs,
 	}
 	return &runner
 }
@@ -143,6 +148,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 				TestCaseFile:       caseFile,
 				GlobalTestConfig:   r.globalTestConfig,
 				RepositoryRoot:     r.repositoryRoot,
+				SchemaURLs:         r.schemaURLs,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("failed to create pipeline tester: %w", err)

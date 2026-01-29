@@ -124,6 +124,56 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
 }
 
+func TestExistingApplicationConfigurationECSSchema(t *testing.T) {
+	cases := []struct {
+		name              string
+		create            bool
+		settingData       string
+		expectedECSSchema string
+	}{
+		{
+			name:   "custom ECS schema",
+			create: true,
+			settingData: `
+schema_urls:
+  ecs_base: "https://custom-ecs.example"
+`,
+			expectedECSSchema: "https://custom-ecs.example",
+		},
+		{
+			name:   "no customizations",
+			create: true,
+			settingData: `
+profiles:
+  current: default
+`,
+			expectedECSSchema: "https://raw.githubusercontent.com/elastic/ecs",
+		},
+		{
+			name:              "config file not created",
+			create:            false,
+			expectedECSSchema: "https://raw.githubusercontent.com/elastic/ecs",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			if tc.create {
+				configFilePath := filepath.Join(tmpDir, applicationConfigurationYmlFile)
+
+				err := os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
+				require.NoError(t, err)
+			}
+
+			config, err := configurationFromDir(tmpDir)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedECSSchema, config.SchemaURLs().ECSBase())
+		})
+	}
+}
+
 func TestExistingApplicationConfigurationCustomURLs(t *testing.T) {
 	cases := []struct {
 		name              string
@@ -144,11 +194,7 @@ status:
 			expectedKibanaURL: "https://custom-kibana-repo.example",
 		},
 		{
-			name: "no customizations",
-			settingData: `
-profiles:
-  current: default
-`,
+			name:              "no customizations",
 			expectedEPRURL:    registry.ProductionURL,
 			expectedKibanaURL: defaultKibanaRepositoryBaseURL,
 		},

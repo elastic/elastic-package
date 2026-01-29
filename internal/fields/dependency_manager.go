@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,6 @@ const (
 	localFilePrefix    = "file://"
 
 	ecsSchemaFile = "ecs_nested.yml"
-	ecsSchemaURL  = "https://raw.githubusercontent.com/elastic/ecs/%s/generated/ecs/%s"
 )
 
 // DependencyManager is responsible for resolving external field dependencies.
@@ -36,8 +36,8 @@ type DependencyManager struct {
 }
 
 // CreateFieldDependencyManager function creates a new instance of the DependencyManager.
-func CreateFieldDependencyManager(deps buildmanifest.Dependencies) (*DependencyManager, error) {
-	schema, err := buildFieldsSchema(deps)
+func CreateFieldDependencyManager(deps buildmanifest.Dependencies, urls SchemaURLs) (*DependencyManager, error) {
+	schema, err := buildFieldsSchema(deps, urls)
 	if err != nil {
 		return nil, fmt.Errorf("can't build fields schema: %w", err)
 	}
@@ -46,9 +46,9 @@ func CreateFieldDependencyManager(deps buildmanifest.Dependencies) (*DependencyM
 	}, nil
 }
 
-func buildFieldsSchema(deps buildmanifest.Dependencies) (map[string][]FieldDefinition, error) {
+func buildFieldsSchema(deps buildmanifest.Dependencies, urls SchemaURLs) (map[string][]FieldDefinition, error) {
 	schema := map[string][]FieldDefinition{}
-	ecsSchema, err := loadECSFieldsSchema(deps.ECS)
+	ecsSchema, err := loadECSFieldsSchema(deps.ECS, urls.ECSBase())
 	if err != nil {
 		return nil, fmt.Errorf("can't load fields: %w", err)
 	}
@@ -56,13 +56,13 @@ func buildFieldsSchema(deps buildmanifest.Dependencies) (map[string][]FieldDefin
 	return schema, nil
 }
 
-func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, error) {
+func loadECSFieldsSchema(dep buildmanifest.ECSDependency, baseURL string) ([]FieldDefinition, error) {
 	if dep.Reference == "" {
 		logger.Debugf("ECS dependency isn't defined")
 		return nil, nil
 	}
 
-	content, err := readECSFieldsSchemaFile(dep)
+	content, err := readECSFieldsSchemaFile(dep, baseURL)
 	if err != nil {
 		return nil, fmt.Errorf("error reading ECS fields schema file: %w", err)
 	}
@@ -70,7 +70,7 @@ func loadECSFieldsSchema(dep buildmanifest.ECSDependency) ([]FieldDefinition, er
 	return parseECSFieldsSchema(content)
 }
 
-func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
+func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency, baseURL string) ([]byte, error) {
 	if strings.HasPrefix(dep.Reference, localFilePrefix) {
 		path := strings.TrimPrefix(dep.Reference, localFilePrefix)
 		return os.ReadFile(path)
@@ -90,7 +90,10 @@ func readECSFieldsSchemaFile(dep buildmanifest.ECSDependency) ([]byte, error) {
 	if errors.Is(err, os.ErrNotExist) {
 		logger.Debugf("Pulling ECS dependency using reference: %s", dep.Reference)
 
-		url := fmt.Sprintf(ecsSchemaURL, gitReference, ecsSchemaFile)
+		url, err := ecsSchemaURL(baseURL, gitReference, ecsSchemaFile)
+		if err != nil {
+			return nil, fmt.Errorf("can't generate ECS schema URL: %w", err)
+		}
 		logger.Debugf("Schema URL: %s", url)
 		resp, err := http.Get(url)
 		if err != nil {
@@ -164,6 +167,20 @@ func asGitReference(reference string) (string, error) {
 		return "", errors.New(`invalid Git reference ("git@" prefix expected)`)
 	}
 	return reference[len(gitReferencePrefix):], nil
+}
+
+func ecsSchemaURL(baseURL string, gitReference string, schemaFile string) (string, error) {
+	if baseURL == "" {
+		return "", errors.New("no base URL configured")
+	}
+	parsedBaseURL, err := url.Parse(baseURL)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("invalid base URL (%s) for ECS schema: %w", baseURL, err)
+	case parsedBaseURL.Scheme != "http" && parsedBaseURL.Scheme != "https":
+		return "", fmt.Errorf("invalid scheme in base URL, found %s, expected http or https", parsedBaseURL.Scheme)
+	}
+	return parsedBaseURL.JoinPath(gitReference, "generated", "ecs", schemaFile).String(), nil
 }
 
 // InjectFieldsOptions allow to configure fields injection.
