@@ -81,30 +81,48 @@ const (
 	WeightPlaceholders = 0.10
 )
 
-// Required sections for structure scoring (must be H2 ## sections)
-// These match the structure defined in package-docs-readme.md.tmpl
-var requiredH2Sections = []string{
-	"overview",
-	"what data does this integration collect",
-	"what do i need to use this integration",
-	"how do i deploy this integration",
-	"troubleshooting",
-	"performance and scaling",
-	"reference",
+// Quality scoring penalties and thresholds
+const (
+	todoDeductionPer         = 20.0  // Points deducted per TODO marker
+	todoDeductionMax         = 40.0  // Maximum total deduction for TODOs
+	vagueDeductionPer        = 5.0   // Points deducted per vague phrase
+	vagueDeductionMax        = 20.0  // Maximum total deduction for vague phrases
+	passiveVoiceThreshold    = 10    // Threshold for passive voice penalty
+	passiveVoiceDeduction    = 10.0  // Points deducted for excessive passive voice
+	shortSectionDeductionPer = 5.0   // Points deducted per short section
+	shortSectionDeductionMax = 20.0  // Maximum total deduction for short sections
+	minNonEmptyLines         = 3     // Minimum non-empty lines for a valid section
+	placeholderPenaltyPer    = 5.0   // Points deducted per placeholder
+	placeholderPenaltyMax    = 100.0 // Maximum placeholder penalty
+)
+
+// getRequiredH2Sections returns required H2 section names from validators package
+func getRequiredH2Sections() []string {
+	sections := make([]string, 0, len(validators.RequiredSections))
+	for _, sec := range validators.RequiredSections {
+		sections = append(sections, strings.ToLower(sec.Name))
+	}
+	return sections
 }
 
-// Required subsections (H3 ### sections under specific parents)
-var requiredH3Sections = []string{
-	"compatibility",       // under Overview
-	"how it works",        // under Overview
-	"supported use cases", // under What data
-	"validation",          // under How do I deploy
+// getRequiredH3Sections returns required H3 subsection names from validators package
+func getRequiredH3Sections() []string {
+	var subsections []string
+	for _, sec := range validators.RequiredSections {
+		for _, sub := range sec.Subsections {
+			subsections = append(subsections, strings.ToLower(sub))
+		}
+	}
+	return subsections
 }
 
-// Recommended sections
-var recommendedSections = []string{
-	"api usage",
-	"inputs used",
+// getRecommendedSections returns recommended section names from validators package
+func getRecommendedSections() []string {
+	sections := make([]string, 0, len(validators.RecommendedSections))
+	for _, sec := range validators.RecommendedSections {
+		sections = append(sections, strings.ToLower(sec))
+	}
+	return sections
 }
 
 // ComputeMetrics calculates quality metrics for documentation content
@@ -119,13 +137,13 @@ func ComputeMetrics(content string, pkgCtx *validators.PackageContext) *QualityM
 	metrics.StructureScore = computeStructureScore(content, contentLower, metrics.Details)
 	metrics.AccuracyScore = computeAccuracyScore(content, contentLower, pkgCtx, metrics.Details)
 	metrics.CompletenessScore = computeCompletenessScore(content, contentLower, pkgCtx, metrics.Details)
-	metrics.QualityScore = computeQualityScore(content, contentLower, metrics.Details)
+	metrics.QualityScore = computeQualityScore(content, metrics.Details)
 	metrics.PlaceholderCount = countPlaceholders(content)
 
 	// Compute composite score
-	placeholderPenalty := float64(metrics.PlaceholderCount) * 5
-	if placeholderPenalty > 100 {
-		placeholderPenalty = 100
+	placeholderPenalty := float64(metrics.PlaceholderCount) * placeholderPenaltyPer
+	if placeholderPenalty > placeholderPenaltyMax {
+		placeholderPenalty = placeholderPenaltyMax
 	}
 	placeholderScore := 100 - placeholderPenalty
 
@@ -147,10 +165,14 @@ func ComputeMetrics(content string, pkgCtx *validators.PackageContext) *QualityM
 func computeStructureScore(content, contentLower string, details *MetricsDetails) float64 {
 	score := 0.0
 
+	requiredH2 := getRequiredH2Sections()
+	requiredH3 := getRequiredH3Sections()
+	recommended := getRecommendedSections()
+
 	// Check required H2 sections (40 points)
 	h2Found := 0
-	h2Total := len(requiredH2Sections)
-	for _, section := range requiredH2Sections {
+	h2Total := len(requiredH2)
+	for _, section := range requiredH2 {
 		// Match ## followed by the section name (case insensitive)
 		pattern := `(?im)^##\s+` + regexp.QuoteMeta(section)
 		if regexp.MustCompile(pattern).MatchString(content) {
@@ -162,8 +184,8 @@ func computeStructureScore(content, contentLower string, details *MetricsDetails
 
 	// Check required H3 sections (20 points)
 	h3Found := 0
-	h3Total := len(requiredH3Sections)
-	for _, section := range requiredH3Sections {
+	h3Total := len(requiredH3)
+	for _, section := range requiredH3 {
 		// Match ### followed by the section name (case insensitive)
 		pattern := `(?im)^###\s+` + regexp.QuoteMeta(section)
 		if regexp.MustCompile(pattern).MatchString(content) {
@@ -182,7 +204,7 @@ func computeStructureScore(content, contentLower string, details *MetricsDetails
 
 	// Check recommended sections (20 points)
 	recommendedFound := 0
-	for _, section := range recommendedSections {
+	for _, section := range recommended {
 		// Check for both H2 and H3 versions
 		h2Pattern := `(?im)^##\s+` + regexp.QuoteMeta(section)
 		h3Pattern := `(?im)^###\s+` + regexp.QuoteMeta(section)
@@ -191,8 +213,8 @@ func computeStructureScore(content, contentLower string, details *MetricsDetails
 			recommendedFound++
 		}
 	}
-	if len(recommendedSections) > 0 {
-		score += (float64(recommendedFound) / float64(len(recommendedSections))) * 20
+	if len(recommended) > 0 {
+		score += (float64(recommendedFound) / float64(len(recommended))) * 20
 	}
 
 	// Check heading hierarchy (20 points)
@@ -404,26 +426,23 @@ func computeCompletenessScore(content, contentLower string, pkgCtx *validators.P
 }
 
 // computeQualityScore evaluates writing quality
-func computeQualityScore(content, contentLower string, details *MetricsDetails) float64 {
+func computeQualityScore(content string, details *MetricsDetails) float64 {
 	score := 100.0
 
-	// Suppress unused variable warning
-	_ = contentLower
-
-	// Check for TODO markers (-20 each, max -40)
+	// Check for TODO markers
 	todoPatterns := []string{`\bTODO\b`, `\bFIXME\b`, `\bHACK\b`, `\bTBD\b`}
 	for _, pattern := range todoPatterns {
 		re := regexp.MustCompile(`(?i)` + pattern)
 		matches := re.FindAllString(content, -1)
 		details.TodoMarkersFound += len(matches)
 	}
-	todoDeduction := float64(details.TodoMarkersFound) * 20
-	if todoDeduction > 40 {
-		todoDeduction = 40
+	todoDeduction := float64(details.TodoMarkersFound) * todoDeductionPer
+	if todoDeduction > todoDeductionMax {
+		todoDeduction = todoDeductionMax
 	}
 	score -= todoDeduction
 
-	// Check for vague phrases (-5 each, max -20)
+	// Check for vague phrases
 	vaguePhrases := []string{
 		`\bsimply\s+`, `\bjust\s+`, `\beasily\s+`,
 		`\bobviously\s+`, `\bclearly\s+`,
@@ -433,20 +452,20 @@ func computeQualityScore(content, contentLower string, details *MetricsDetails) 
 		matches := re.FindAllString(content, -1)
 		details.VaguePhrasesFound += len(matches)
 	}
-	vagueDeduction := float64(details.VaguePhrasesFound) * 5
-	if vagueDeduction > 20 {
-		vagueDeduction = 20
+	vagueDeduction := float64(details.VaguePhrasesFound) * vagueDeductionPer
+	if vagueDeduction > vagueDeductionMax {
+		vagueDeduction = vagueDeductionMax
 	}
 	score -= vagueDeduction
 
-	// Check for excessive passive voice (-10 if > 10 instances)
+	// Check for excessive passive voice
 	passivePattern := regexp.MustCompile(`(?i)\b(?:is|are|was|were|be|been|being)\s+(?:configured|installed|enabled|set|defined|used|required|needed|supported)\b`)
 	details.PassiveVoiceInstances = len(passivePattern.FindAllString(content, -1))
-	if details.PassiveVoiceInstances > 10 {
-		score -= 10
+	if details.PassiveVoiceInstances > passiveVoiceThreshold {
+		score -= passiveVoiceDeduction
 	}
 
-	// Check for short sections (-5 each, max -20)
+	// Check for short sections
 	sectionPattern := regexp.MustCompile(`(?m)^##\s+(.+)$`)
 	matches := sectionPattern.FindAllStringSubmatchIndex(content, -1)
 
@@ -464,13 +483,13 @@ func computeQualityScore(content, contentLower string, details *MetricsDetails) 
 				nonEmptyLines++
 			}
 		}
-		if nonEmptyLines < 3 && nonEmptyLines > 0 {
+		if nonEmptyLines < minNonEmptyLines && nonEmptyLines > 0 {
 			details.ShortSectionsCount++
 		}
 	}
-	shortDeduction := float64(details.ShortSectionsCount) * 5
-	if shortDeduction > 20 {
-		shortDeduction = 20
+	shortDeduction := float64(details.ShortSectionsCount) * shortSectionDeductionPer
+	if shortDeduction > shortSectionDeductionMax {
+		shortDeduction = shortSectionDeductionMax
 	}
 	score -= shortDeduction
 

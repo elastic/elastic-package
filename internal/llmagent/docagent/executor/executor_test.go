@@ -10,18 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestExecutorConfig(t *testing.T) {
-	cfg := Config{
-		APIKey:      "test-api-key",
-		ModelID:     "gemini-2.5-pro",
-		Instruction: "You are a helpful assistant",
-	}
-
-	assert.Equal(t, "test-api-key", cfg.APIKey)
-	assert.Equal(t, "gemini-2.5-pro", cfg.ModelID)
-	assert.Equal(t, "You are a helpful assistant", cfg.Instruction)
-}
-
 func TestTaskResult(t *testing.T) {
 	result := TaskResult{
 		Success:      true,

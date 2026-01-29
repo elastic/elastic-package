@@ -304,10 +304,6 @@ func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetRead
 	}
 }
 
-// ServiceInfoSectionMapper defines a function that maps README section names to service_info section names
-// This is defined here to avoid importing docagent
-type ServiceInfoSectionMapper func(readmeSectionTitle string) []string
-
 // getServiceInfoHandler returns a handler for the get_service_info tool
 func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool.Func[GetServiceInfoArgs, GetServiceInfoResult] {
 	return func(ctx tool.Context, args GetServiceInfoArgs) (GetServiceInfoResult, error) {
@@ -362,7 +358,7 @@ func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 		},
 		"How do I deploy this integration?": {
 			"Vendor set up steps",
-		"Vendor set up resources",
+			"Vendor set up resources",
 			"Kibana set up steps",
 			"Validation steps",
 		},

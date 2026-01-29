@@ -5,13 +5,9 @@
 package specialists
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
-
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
 )
 
 // StateStore provides access to session state for tools.
@@ -83,20 +79,6 @@ func ClearActiveStateStore() {
 	activeStateStore = nil
 }
 
-// stateContextKey is used to store StateStore in context
-type stateContextKey struct{}
-
-// ContextWithState returns a context with the state store attached
-func ContextWithState(ctx context.Context, store *StateStore) context.Context {
-	return context.WithValue(ctx, stateContextKey{}, store)
-}
-
-// StateFromContext retrieves the state store from context
-func StateFromContext(ctx context.Context) *StateStore {
-	store, _ := ctx.Value(stateContextKey{}).(*StateStore)
-	return store
-}
-
 // ReadStateArgs represents arguments for read_state tool
 type ReadStateArgs struct {
 	Key string `json:"key"`
@@ -122,99 +104,29 @@ type WriteStateResult struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// normalizeKey ensures the key has the temp: prefix
-func normalizeKey(key string) string {
-	if len(key) >= 5 && key[:5] == "temp:" {
-		return key
-	}
-	return "temp:" + key
-}
-
-// readStateHandler creates a handler for the read_state tool
-func readStateHandler() functiontool.Func[ReadStateArgs, ReadStateResult] {
-	return func(_ tool.Context, args ReadStateArgs) (ReadStateResult, error) {
-		store := GetActiveStateStore()
-		if store == nil {
-			return ReadStateResult{Error: "no state store available"}, nil
+// valueToString converts a state value to a string for external consumption
+func valueToString(value any) string {
+	switch v := value.(type) {
+	case string:
+		return v
+	case []byte:
+		return string(v)
+	case bool:
+		return fmt.Sprintf("%v", v)
+	default:
+		jsonBytes, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
 		}
-
-		fullKey := normalizeKey(args.Key)
-		value, exists := store.Get(fullKey)
-		if !exists {
-			// Try without prefix
-			value, exists = store.Get(args.Key)
-			if !exists {
-				return ReadStateResult{Found: false}, nil
-			}
-		}
-
-		// Convert to string for LLM consumption
-		var valueStr string
-		switch v := value.(type) {
-		case string:
-			valueStr = v
-		case []byte:
-			valueStr = string(v)
-		case bool:
-			valueStr = fmt.Sprintf("%v", v)
-		default:
-			jsonBytes, err := json.Marshal(v)
-			if err != nil {
-				valueStr = fmt.Sprintf("%v", v)
-			} else {
-				valueStr = string(jsonBytes)
-			}
-		}
-
-		return ReadStateResult{Found: true, Value: valueStr}, nil
+		return string(jsonBytes)
 	}
 }
 
-// writeStateHandler creates a handler for the write_state tool
-func writeStateHandler() functiontool.Func[WriteStateArgs, WriteStateResult] {
-	return func(_ tool.Context, args WriteStateArgs) (WriteStateResult, error) {
-		store := GetActiveStateStore()
-		if store == nil {
-			return WriteStateResult{Error: "no state store available"}, nil
-		}
-
-		fullKey := normalizeKey(args.Key)
-
-		// For approved key, convert to boolean
-		if args.Key == "approved" || fullKey == "temp:approved" {
-			boolVal := args.Value == "true" || args.Value == "1" || args.Value == "yes"
-			store.Set(fullKey, boolVal)
-		} else {
-			store.Set(fullKey, args.Value)
-		}
-
-		return WriteStateResult{Success: true, Key: fullKey}, nil
+// GetString retrieves a string value from state
+func (s *StateStore) GetString(key string) (string, bool) {
+	value, ok := s.Get(key)
+	if !ok {
+		return "", false
 	}
-}
-
-// StateTools returns the tools needed for state access
-func StateTools() []tool.Tool {
-	readStateTool, err := functiontool.New(
-		functiontool.Config{
-			Name:        "read_state",
-			Description: "Read a value from the workflow session state. Use this to retrieve content written by other agents (e.g., section_content, feedback, validation_result).",
-		},
-		readStateHandler(),
-	)
-	if err != nil {
-		panic("failed to create read_state tool: " + err.Error())
-	}
-
-	writeStateTool, err := functiontool.New(
-		functiontool.Config{
-			Name:        "write_state",
-			Description: "Write a value to the workflow session state. Use this to store content for other agents to read (e.g., section_content after generating, feedback after reviewing, approved status).",
-		},
-		writeStateHandler(),
-	)
-	if err != nil {
-		panic("failed to create write_state tool: " + err.Error())
-	}
-
-	return []tool.Tool{readStateTool, writeStateTool}
+	return valueToString(value), true
 }

@@ -129,7 +129,8 @@ func StartLLMValidationSpan(ctx context.Context, stageName string, modelID strin
 	return Tracer().Start(ctx, "llm_validation:"+stageName, trace.WithAttributes(attrs...))
 }
 
-// EndValidationSpan ends a validation span with the result details
+// EndValidationSpan ends a validation span with the result details.
+// Nil spans are safely ignored (occurs when tracing is disabled).
 func EndValidationSpan(span trace.Span, passed bool, score int, issueCount int, issues []string) {
 	if span == nil {
 		return
@@ -167,7 +168,8 @@ func EndValidationSpan(span trace.Span, passed bool, score int, issueCount int, 
 	span.End()
 }
 
-// EndValidationSpanWithError ends a validation span with an error
+// EndValidationSpanWithError ends a validation span with an error.
+// Nil spans are safely ignored (occurs when tracing is disabled).
 func EndValidationSpanWithError(span trace.Span, err error) {
 	if span == nil {
 		return
@@ -257,65 +259,4 @@ func RecordComparison(span trace.Span, comparison *ComparisonAttrs) {
 	)
 }
 
-// StartTestRunSpan starts a span for a complete test run
-func StartTestRunSpan(ctx context.Context, runID, packageName string, config map[string]interface{}) (context.Context, trace.Span) {
-	attrs := []attribute.KeyValue{
-		attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
-		attribute.String("test.run_id", runID),
-		attribute.String(AttrPackageName, packageName),
-	}
-
-	if config != nil {
-		if configJSON, err := json.Marshal(config); err == nil {
-			attrs = append(attrs, attribute.String("test.config", string(configJSON)))
-		}
-	}
-
-	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, "test_run:"+runID, trace.WithAttributes(attrs...))
-}
-
-// EndTestRunSpan records the test result and ends the span
-func EndTestRunSpan(span trace.Span, passed bool, durationMs int64, metrics *QualityMetricsAttrs) {
-	span.SetAttributes(
-		attribute.Bool("test.passed", passed),
-		attribute.Int64("test.duration_ms", durationMs),
-	)
-
-	if metrics != nil {
-		RecordQualityMetrics(span, metrics)
-	}
-
-	span.SetStatus(codes.Ok, "test completed")
-	span.End()
-}
-
-// StartBatchTestSpan starts a span for a batch test run
-func StartBatchTestSpan(ctx context.Context, runID string, packages []string) (context.Context, trace.Span) {
-	attrs := []attribute.KeyValue{
-		attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
-		attribute.String("batch.run_id", runID),
-		attribute.Int("batch.package_count", len(packages)),
-	}
-
-	if packagesJSON, err := json.Marshal(packages); err == nil {
-		attrs = append(attrs, attribute.String("batch.packages", string(packagesJSON)))
-	}
-
-	attrs = append(attrs, sessionAttributes(ctx)...)
-	return Tracer().Start(ctx, "batch_test:"+runID, trace.WithAttributes(attrs...))
-}
-
-// EndBatchTestSpan records the batch test summary and ends the span
-func EndBatchTestSpan(span trace.Span, passedCount, failedCount int, avgScore float64, durationMs int64) {
-	span.SetAttributes(
-		attribute.Int("batch.passed_count", passedCount),
-		attribute.Int("batch.failed_count", failedCount),
-		attribute.Float64("batch.average_score", avgScore),
-		attribute.Int64("batch.duration_ms", durationMs),
-	)
-
-	span.SetStatus(codes.Ok, "batch test completed")
-	span.End()
-}
 

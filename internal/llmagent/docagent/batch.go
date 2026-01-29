@@ -107,7 +107,7 @@ func RunBatchEvaluation(ctx context.Context, cfg BatchEvaluationConfig) (*BatchE
 		pkgPath := filepath.Join(packagesDir, pkgName)
 		manifestPath := filepath.Join(pkgPath, "manifest.yml")
 		if _, err := os.Stat(manifestPath); os.IsNotExist(err) {
-			fmt.Printf("⚠️  Package %s not found at %s, skipping\n", pkgName, pkgPath)
+			logger.Warnf("Package %s not found at %s, skipping", pkgName, pkgPath)
 			continue
 		}
 		jobs = append(jobs, batchJob{
@@ -158,7 +158,7 @@ func RunBatchEvaluation(ctx context.Context, cfg BatchEvaluationConfig) (*BatchE
 
 // evaluatePackage evaluates a single package
 func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfig) (*EvaluationResult, error) {
-	fmt.Printf("🔄 Evaluating: %s\n", job.packageName)
+	logger.Debugf("Evaluating: %s", job.packageName)
 
 	// Read package manifest
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(job.packagePath)
@@ -218,15 +218,15 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 	}
 
 	// Report status
-	status := "❌"
-	if result.Approved {
-		status = "✅"
-	}
 	score := 0.0
 	if result.Metrics != nil {
 		score = result.Metrics.CompositeScore
 	}
-	fmt.Printf("%s Completed: %s (score: %.1f)\n", status, manifest.Name, score)
+	if result.Approved {
+		logger.Debugf("Completed: %s (score: %.1f) - approved", manifest.Name, score)
+	} else {
+		logger.Debugf("Completed: %s (score: %.1f) - failed", manifest.Name, score)
+	}
 
 	return result, err
 }
@@ -280,12 +280,12 @@ func runParallelEvaluation(ctx context.Context, jobs []batchJob, cfg BatchEvalua
 func evaluationWorker(ctx context.Context, workerID int, jobs <-chan batchJob, results chan<- batchJobResult, cfg BatchEvaluationConfig) {
 	for job := range jobs {
 		logger.Debugf("Worker %d: Starting evaluation for %s", workerID, job.packageName)
-		fmt.Printf("🔄 [Worker %d] Starting: %s\n", workerID, job.packageName)
+		logger.Debugf("[Worker %d] Starting: %s", workerID, job.packageName)
 
 		result, err := evaluatePackage(ctx, job, cfg)
 		if err != nil {
 			logger.Debugf("Worker %d: Evaluation failed for %s: %v", workerID, job.packageName, err)
-			fmt.Printf("❌ [Worker %d] Failed: %s - %v\n", workerID, job.packageName, err)
+			logger.Warnf("[Worker %d] Failed: %s - %v", workerID, job.packageName, err)
 		}
 
 		results <- batchJobResult{

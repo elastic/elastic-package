@@ -5,7 +5,6 @@
 package prompts
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
@@ -16,10 +15,10 @@ import (
 )
 
 const (
-	PromptFileRevision             = "revision_prompt.txt"
-	PromptFileSectionGeneration    = "section_generation_prompt.txt"
-	PromptFileModificationAnalysis = "modification_analysis_prompt.txt"
-	PromptFileModification         = "modification_prompt.txt"
+	promptFileRevision             = "revision_prompt.txt"
+	promptFileSectionGeneration    = "section_generation_prompt.txt"
+	promptFileModificationAnalysis = "modification_analysis_prompt.txt"
+	promptFileModification         = "modification_prompt.txt"
 )
 
 // Type represents the type of prompt to load
@@ -67,8 +66,7 @@ func LoadFile(filename string, embeddedContent string, profile *profile.Profile)
 	}
 
 	// Fall back to embedded content
-	logger.Debugf("External prompt file not found, using embedded content for: %s", filename)
-	fmt.Printf("⚠️  Warning: External prompt file not found, using embedded content for: %s", filename)
+	logger.Warnf("External prompt file not found, using embedded content for: %s", filename)
 	return embeddedContent
 }
 
@@ -91,15 +89,14 @@ func GetConfigValue(profile *profile.Profile, envVar, configKey, defaultValue st
 func Load(promptType Type, p *profile.Profile) string {
 	switch promptType {
 	case TypeRevision:
-		return LoadFile(PromptFileRevision, RevisionPrompt, p)
+		return LoadFile(promptFileRevision, RevisionPrompt, p)
 	case TypeSectionGeneration:
-		return LoadFile(PromptFileSectionGeneration, SectionGenerationPrompt, p)
+		return LoadFile(promptFileSectionGeneration, SectionGenerationPrompt, p)
 	case TypeModificationAnalysis:
-		return LoadFile(PromptFileModificationAnalysis, ModificationAnalysisPrompt, p)
+		return LoadFile(promptFileModificationAnalysis, ModificationAnalysisPrompt, p)
 	case TypeModification:
-		return LoadFile(PromptFileModification, ModificationPrompt, p)
+		return LoadFile(promptFileModification, ModificationPrompt, p)
 	default:
 		return ""
 	}
 }
-

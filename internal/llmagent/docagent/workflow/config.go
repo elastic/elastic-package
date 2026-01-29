@@ -121,16 +121,6 @@ func (c Config) WithFullValidation(pkgCtx *validators.PackageContext) Config {
 	return c
 }
 
-// GeneratorOnly returns a config that only uses the generator agent
-func GeneratorOnly() Config {
-	r := specialists.NewRegistry()
-	r.Register(specialists.NewGeneratorAgent())
-	return Config{
-		Registry:      r,
-		MaxIterations: 1,
-	}
-}
-
 // WithGeneratorOnly disables critic and URL validator
 func (c Config) WithGeneratorOnly() Config {
 	c.EnableCritic = false

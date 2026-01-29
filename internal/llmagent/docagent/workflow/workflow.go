@@ -25,6 +25,9 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
+// truncateLen is the maximum length for truncated strings in logging/tracing
+const truncateLen = 500
+
 // Builder constructs multi-agent workflows for documentation generation
 type Builder struct {
 	config Config
@@ -197,18 +200,21 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.Sec
 
 // runAgent executes a single agent with an isolated session and returns its output
 func (b *Builder) runAgent(ctx context.Context, agentName, prompt string) (output string, promptTokens, completionTokens int, err error) {
+	adkAgent, err := b.buildAgent(ctx, agentName)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("failed to build agent: %w", err)
+	}
+	return b.runAgentWithADK(ctx, agentName, adkAgent, prompt)
+}
+
+// runAgentWithADK executes an ADK agent with an isolated session and returns its output
+func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgent agent.Agent, prompt string) (output string, promptTokens, completionTokens int, err error) {
 	// Start agent span (container for the agent's work)
 	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID)
 	defer func() {
 		tracing.SetSpanOk(agentSpan)
 		agentSpan.End()
 	}()
-
-	// Build the agent
-	adkAgent, err := b.buildAgent(ctx, agentName)
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to build agent: %w", err)
-	}
 
 	// Create isolated session service
 	sessionService := session.InMemoryService()
@@ -237,7 +243,7 @@ func (b *Builder) runAgent(ctx context.Context, agentName, prompt string) (outpu
 	var outputs []string
 
 	// Track input for LLM span
-	inputMessages := []tracing.Message{{Role: "user", Content: truncate(prompt, 500)}}
+	inputMessages := []tracing.Message{{Role: "user", Content: truncate(prompt, truncateLen)}}
 
 	for event, err := range r.Run(agentCtx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
@@ -272,7 +278,7 @@ func (b *Builder) runAgent(ctx context.Context, agentName, prompt string) (outpu
 	// Create a proper LLM span with token counts for Phoenix cost calculation
 	if promptTokens > 0 || completionTokens > 0 {
 		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, inputMessages)
-		outputMessages := []tracing.Message{{Role: "assistant", Content: truncate(output, 500)}}
+		outputMessages := []tracing.Message{{Role: "assistant", Content: truncate(output, truncateLen)}}
 		tracing.EndLLMSpan(agentCtx, llmSpan, outputMessages, promptTokens, completionTokens)
 	}
 
@@ -357,11 +363,6 @@ func buildCriticPrompt(content string) string {
 	return fmt.Sprintf("%s\nReview this documentation for style, voice, tone, and accessibility:\n\n%s", stylerules.CriticRejectionCriteria, content)
 }
 
-// buildValidatorPromptSimple creates a simple prompt for the validator with content embedded.
-func buildValidatorPromptSimple(content string) string {
-	return fmt.Sprintf("Validate this documentation for correctness and consistency:\n\n%s", content)
-}
-
 // runStaticValidation runs all static validators against the content
 func (b *Builder) runStaticValidation(ctx context.Context, content string) []validators.ValidationIssue {
 	var allIssues []validators.ValidationIssue
@@ -404,7 +405,7 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 
 	vals := specialists.AllStagedValidators()
 
-	fmt.Println("🧠 Running LLM-based validation...")
+	logger.Debugf("Running LLM-based validation...")
 
 	for _, validator := range vals {
 		// Only run LLM validation for specific validators that benefit from it
@@ -424,7 +425,7 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 			continue
 		}
 
-		fmt.Printf("  🔍 LLM validating with %s...\n", validator.Name())
+		logger.Debugf("LLM validating with %s...", validator.Name())
 
 		// Build context-aware prompt
 		prompt := b.buildValidatorPrompt(validator, content, pkgCtx)
@@ -432,17 +433,14 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 		// Run the LLM validator agent directly (not through registry)
 		output, promptTokens, compTokens, err := b.runLLMValidatorAgent(ctx, validator, prompt)
 		if err != nil {
-			fmt.Printf("  ❌ LLM validation error for %s: %v\n", validator.Name(), err)
 			logger.Debugf("LLM validation error for %s: %v", validator.Name(), err)
 			continue
 		}
-		fmt.Printf("  ✅ LLM validator %s completed (tokens: %d/%d)\n", validator.Name(), promptTokens, compTokens)
 		logger.Debugf("LLM validator %s completed (tokens: %d/%d)", validator.Name(), promptTokens, compTokens)
 
 		// Parse the LLM output
 		result, err := validators.ParseLLMValidationResult(output, validator.Stage())
 		if err != nil {
-			fmt.Printf("  ⚠️ Failed to parse LLM validation result for %s: %v\n", validator.Name(), err)
 			logger.Debugf("Failed to parse LLM validation result for %s: %v", validator.Name(), err)
 			continue
 		}
@@ -457,9 +455,7 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 			}
 		}
 		if llmIssueCount > 0 {
-			fmt.Printf("  ⚠️ LLM found %d critical/major issues\n", llmIssueCount)
-		} else {
-			fmt.Printf("  ✅ LLM validation passed (no critical/major issues)\n")
+			logger.Debugf("LLM found %d critical/major issues", llmIssueCount)
 		}
 	}
 
@@ -469,13 +465,6 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 // runLLMValidatorAgent runs an LLM validator agent directly (not through registry)
 func (b *Builder) runLLMValidatorAgent(ctx context.Context, validator validators.StagedValidator, prompt string) (output string, promptTokens, completionTokens int, err error) {
 	agentName := "llm_validator:" + validator.Name()
-
-	// Start agent span (container for the agent's work)
-	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID)
-	defer func() {
-		tracing.SetSpanOk(agentSpan)
-		agentSpan.End()
-	}()
 
 	// Build the agent directly using llmagent.New (not from registry)
 	adkAgent, err := llmagent.New(llmagent.Config{
@@ -493,74 +482,7 @@ func (b *Builder) runLLMValidatorAgent(ctx context.Context, validator validators
 		return "", 0, 0, fmt.Errorf("failed to create agent: %w", err)
 	}
 
-	// Create isolated session service
-	sessionService := session.InMemoryService()
-
-	// Create runner
-	r, err := runner.New(runner.Config{
-		AppName:        "docagent-" + agentName,
-		Agent:          adkAgent,
-		SessionService: sessionService,
-	})
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to create runner: %w", err)
-	}
-
-	// Create session
-	sess, err := sessionService.Create(ctx, &session.CreateRequest{
-		AppName: "docagent-" + agentName,
-		UserID:  "docagent",
-	})
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("failed to create session: %w", err)
-	}
-
-	// Run the agent
-	userContent := genai.NewContentFromText(prompt, genai.RoleUser)
-	var outputs []string
-
-	// Track input for LLM span
-	inputMessages := []tracing.Message{{Role: "user", Content: truncate(prompt, 500)}}
-
-	for event, err := range r.Run(agentCtx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
-		if err != nil {
-			return "", promptTokens, completionTokens, fmt.Errorf("agent error: %w", err)
-		}
-		if event == nil {
-			continue
-		}
-
-		// Accumulate token counts
-		if event.UsageMetadata != nil {
-			promptTokens += int(event.UsageMetadata.PromptTokenCount)
-			completionTokens += int(event.UsageMetadata.CandidatesTokenCount)
-		}
-
-		// Capture text output
-		if event.Content != nil {
-			for _, part := range event.Content.Parts {
-				if part.Text != "" {
-					outputs = append(outputs, part.Text)
-				}
-			}
-		}
-
-		if event.IsFinalResponse() {
-			break
-		}
-	}
-
-	output = strings.TrimSpace(strings.Join(outputs, ""))
-
-	// Create a proper LLM span with token counts for Phoenix cost calculation
-	if promptTokens > 0 || completionTokens > 0 {
-		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, inputMessages)
-		outputMessages := []tracing.Message{{Role: "assistant", Content: truncate(output, 500)}}
-		tracing.EndLLMSpan(agentCtx, llmSpan, outputMessages, promptTokens, completionTokens)
-	}
-
-	logger.Debugf("LLM validator %s finished: %d chars output", agentName, len(output))
-	return output, promptTokens, completionTokens, nil
+	return b.runAgentWithADK(ctx, agentName, adkAgent, prompt)
 }
 
 // buildValidatorPrompt creates a prompt for LLM validation
@@ -603,7 +525,7 @@ func (b *Builder) RunCriticOnContent(ctx context.Context, content string) (strin
 
 // RunValidatorOnContent runs the validator agent on the given content and returns the raw output
 func (b *Builder) RunValidatorOnContent(ctx context.Context, content string) (string, error) {
-	prompt := buildValidatorPromptSimple(content)
+	prompt := fmt.Sprintf("Validate this documentation for correctness and consistency:\n\n%s", content)
 	output, _, _, err := b.runAgent(ctx, "validator", prompt)
 	return output, err
 }

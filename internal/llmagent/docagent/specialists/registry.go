@@ -126,35 +126,6 @@ func DefaultRegistry() *Registry {
 	return r
 }
 
-// StagedRegistry creates a registry with staged validation agents.
-// This includes all default agents plus all staged validators:
-// StructureValidator, AccuracyValidator, CompletenessValidator,
-// QualityValidator, PlaceholderValidator, ServiceInfoLinkValidator,
-// StyleValidator, and AccessibilityValidator.
-func StagedRegistry() *Registry {
-	r := DefaultRegistry()
-
-	// Register all staged validators
-	for _, validator := range AllStagedValidators() {
-		r.Register(validator)
-	}
-
-	return r
-}
-
-// GetStagedValidators returns all staged validators from the registry
-func GetStagedValidators(r *Registry) []validators.StagedValidator {
-	var vals []validators.StagedValidator
-
-	for _, agent := range r.All() {
-		if sv, ok := agent.(validators.StagedValidator); ok {
-			vals = append(vals, sv)
-		}
-	}
-
-	return vals
-}
-
 // AllStagedValidators returns all available staged validators.
 // This is the canonical list used by the update documentation command.
 //
@@ -183,16 +154,4 @@ func AllStagedValidators() []validators.StagedValidator {
 		//		validators.NewAdvancedSettingsValidator(),
 		//		validators.NewScalingValidator(),
 	}
-}
-
-// GetValidatorByStage returns the staged validator for a specific stage
-func GetValidatorByStage(r *Registry, stage validators.ValidatorStage) (validators.StagedValidator, bool) {
-	for _, agent := range r.All() {
-		if sv, ok := agent.(validators.StagedValidator); ok {
-			if sv.Stage() == stage {
-				return sv, true
-			}
-		}
-	}
-	return nil, false
 }

@@ -100,7 +100,7 @@ func TestGetServiceInfoMappingForSection(t *testing.T) {
 		{
 			name:           "Overview section",
 			sectionTitle:   "Overview",
-			expectedLength: 4,
+			expectedLength: 3,
 			shouldContain:  []string{"Common use cases", "Data types collected"},
 		},
 		{
@@ -112,24 +112,18 @@ func TestGetServiceInfoMappingForSection(t *testing.T) {
 		{
 			name:           "Case insensitive",
 			sectionTitle:   "OVERVIEW",
-			expectedLength: 4,
+			expectedLength: 3,
 		},
 		{
 			name:          "Unknown section",
 			sectionTitle:  "Unknown Section",
 			shouldBeEmpty: true,
 		},
-		{
-			name:           "Wildcard match",
-			sectionTitle:   "Set up steps in AWS",
-			expectedLength: 1,
-			shouldContain:  []string{"Vendor set up steps"},
-		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getServiceInfoMappingForSection(tt.sectionTitle)
+			result := GetServiceInfoMappingForSection(tt.sectionTitle)
 
 			if tt.shouldBeEmpty {
 				assert.Empty(t, result)

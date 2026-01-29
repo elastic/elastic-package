@@ -63,11 +63,6 @@ type Executor struct {
 	thinkingBudget *int32
 }
 
-// New creates a new ADK-based executor with tools only.
-func New(ctx context.Context, cfg Config, tools []tool.Tool) (*Executor, error) {
-	return NewWithToolsets(ctx, cfg, tools, nil)
-}
-
 // NewWithToolsets creates a new ADK-based executor with tools and optional toolsets.
 func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolsets []tool.Toolset) (*Executor, error) {
 	if cfg.APIKey == "" {
@@ -202,7 +197,6 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 
 	// Run the agent
 	var finalContent strings.Builder
-	var lastEventContent string
 	iterationCount := 0
 
 	// Track input messages for LLM spans
@@ -228,7 +222,6 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 		if event.Content != nil {
 			for _, part := range event.Content.Parts {
 				if part.Text != "" {
-					lastEventContent = part.Text
 					finalContent.WriteString(part.Text)
 
 					// Add to conversation
@@ -253,18 +246,6 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 				// Track function calls
 				if part.FunctionCall != nil {
 					logger.Debugf("Function call: %s", part.FunctionCall.Name)
-
-					// Convert Args to map[string]any for tracing
-					var argsMap map[string]any
-					if part.FunctionCall.Args != nil {
-						argsMap = part.FunctionCall.Args
-					}
-
-					// Start tool span (will be ended when we get the response)
-					_, toolSpan := tracing.StartToolSpan(ctx, part.FunctionCall.Name, argsMap)
-					// End immediately since we don't have async tracking
-					// In a real implementation, we'd match up call/response pairs
-					toolSpan.End()
 
 					conversation = append(conversation, ConversationEntry{
 						Type:    "tool_result",
@@ -311,9 +292,6 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 
 	// Use the last meaningful content if available
 	resultContent := finalContent.String()
-	if resultContent == "" {
-		resultContent = lastEventContent
-	}
 
 	// Record final output on agent span
 	tracing.RecordOutput(agentSpan, strings.TrimSpace(resultContent))
@@ -324,4 +302,3 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 		Conversation: conversation,
 	}, nil
 }
-

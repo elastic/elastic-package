@@ -52,37 +52,6 @@ func CombineSectionsWithTitle(sections []Section, packageTitle string) string {
 	return title + sectionsContent
 }
 
-// IsSectionBetter determines if newSection is better than oldSection.
-// Better means: more detailed (longer) content with substantive information.
-func IsSectionBetter(newSection, oldSection *Section) bool {
-	if oldSection == nil {
-		return true
-	}
-	if newSection == nil {
-		return false
-	}
-
-	newLength := newSection.ContentLength()
-	oldLength := oldSection.ContentLength()
-
-	// Significantly longer content is better (20% or more)
-	if newLength > oldLength*12/10 {
-		return true
-	}
-
-	// Slightly shorter but within 10% is acceptable if it has more structure
-	// (more subsections, bullet points, tables)
-	if newLength >= oldLength*9/10 {
-		newStructure := CountStructuralElements(newSection.GetAllContent())
-		oldStructure := CountStructuralElements(oldSection.GetAllContent())
-		if newStructure > oldStructure {
-			return true
-		}
-	}
-
-	return false
-}
-
 // CountStructuralElements counts structural elements in content.
 // Counts bullet points, numbered items, table rows, code blocks, and subheadings.
 func CountStructuralElements(content string) int {
@@ -114,64 +83,31 @@ func CountStructuralElements(content string) int {
 	return count
 }
 
-// AssembleBestSections assembles a document from the best sections.
-// Takes a map of sections keyed by normalized (lowercase) title and a slice of titles in order.
-// Returns the assembled document content.
-func AssembleBestSections(bestSections map[string]*Section, sectionOrder []string) string {
-	var result strings.Builder
-
-	for _, title := range sectionOrder {
-		normalizedTitle := strings.ToLower(title)
-		if section, exists := bestSections[normalizedTitle]; exists {
-			if result.Len() > 0 {
-				result.WriteString("\n")
-			}
-			result.WriteString(section.GetAllContent())
-		}
-	}
-
-	return result.String()
-}
-
 // EnsureDocumentTitle ensures the document starts with the correct title format.
 // If the document already has an H1 title, it checks if it matches the expected format.
 // Returns the content with the correct title.
 func EnsureDocumentTitle(content, packageTitle string) string {
 	expectedTitle := fmt.Sprintf("# %s Integration for Elastic", packageTitle)
 	aiNotice := "> **Note**: This documentation was generated using AI and should be reviewed for accuracy."
+	header := expectedTitle + "\n\n" + aiNotice + "\n\n"
 
 	lines := strings.Split(content, "\n")
 
 	// Check if document starts with H1
 	if len(lines) > 0 && strings.HasPrefix(lines[0], "# ") {
-		currentTitle := strings.TrimSpace(lines[0])
-		if currentTitle == expectedTitle {
-			// Title is correct, check for AI notice
-			if len(lines) > 2 && strings.TrimSpace(lines[2]) == aiNotice {
-				return content // Already correct
-			}
-			// Add AI notice after title
-			newContent := expectedTitle + "\n\n" + aiNotice + "\n\n"
-			// Skip the old title and any empty lines
-			i := 1
-			for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
-				i++
-			}
-			newContent += strings.Join(lines[i:], "\n")
-			return newContent
+		// Check if already correct (title + notice)
+		if strings.TrimSpace(lines[0]) == expectedTitle &&
+			len(lines) > 2 && strings.TrimSpace(lines[2]) == aiNotice {
+			return content
 		}
-		// Title exists but is wrong format, replace it
-		newContent := expectedTitle + "\n\n" + aiNotice + "\n\n"
-		// Skip the old title and any empty lines
+		// Replace existing title: skip title line and trailing empty lines
 		i := 1
 		for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
 			i++
 		}
-		newContent += strings.Join(lines[i:], "\n")
-		return newContent
+		return header + strings.Join(lines[i:], "\n")
 	}
 
 	// No H1 title, prepend one
-	return expectedTitle + "\n\n" + aiNotice + "\n\n" + content
+	return header + content
 }
-

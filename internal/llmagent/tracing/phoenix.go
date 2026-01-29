@@ -433,7 +433,7 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 				strings.HasPrefix(span.Name, "llm_validation:") ||
 				strings.HasPrefix(span.Name, "static_validation:") {
 
-				valResult := c.parseValidationSpan(span)
+				valResult := parseValidationSpan(span)
 				summary.ValidationResults = append(summary.ValidationResults, valResult)
 
 				// Create significant event for validation
@@ -484,7 +484,7 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 
 				// Check for validation results in output
 				if span.Output != "" {
-					c.parseAgentOutput(span.Output, agentStats[agentName], &event)
+					parseAgentOutput(span.Output, agentStats[agentName], &event)
 				}
 
 				summary.SignificantEvents = append(summary.SignificantEvents, event)
@@ -654,7 +654,7 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 }
 
 // parseValidationSpan extracts validation details from a span
-func (c *PhoenixClient) parseValidationSpan(span SpanData) ValidationResult {
+func parseValidationSpan(span SpanData) ValidationResult {
 	result := ValidationResult{
 		Stage:     strings.TrimPrefix(strings.TrimPrefix(strings.TrimPrefix(span.Name, "validation:"), "llm_validation:"), "static_validation:"),
 		LatencyMs: span.LatencyMs,
@@ -756,7 +756,7 @@ func (c *PhoenixClient) parseValidationSpan(span SpanData) ValidationResult {
 }
 
 // parseAgentOutput extracts results from agent output
-func (c *PhoenixClient) parseAgentOutput(output string, stats *AgentCallSummary, event *SignificantEvent) {
+func parseAgentOutput(output string, stats *AgentCallSummary, event *SignificantEvent) {
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(output), &result); err != nil {
 		return
@@ -839,14 +839,6 @@ func truncateString(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
-}
-
-// min returns the minimum of two ints
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
 
 // parseTime parses an ISO timestamp

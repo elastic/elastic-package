@@ -19,8 +19,8 @@ type Section struct {
 	Subsections     []Section // Child sections
 	StartLine       int
 	EndLine         int
-	HasPreserve     bool
-	PreserveContent string
+	HasPreserve     bool   // Whether section contains PRESERVE blocks
+	PreserveContent string // Content within PRESERVE blocks
 }
 
 // IsTopLevel returns true if this is a level 2 section (has no parent)
@@ -116,8 +116,6 @@ func ParseSections(content string) []Section {
 			if currentSection != nil && strings.Contains(line, "<!-- PRESERVE START -->") {
 				currentSection.HasPreserve = true
 			}
-
-			// Accumulate PRESERVE content
 			if currentSection != nil && currentSection.HasPreserve {
 				if !strings.Contains(currentSection.PreserveContent, "<!-- PRESERVE END -->") {
 					currentSection.PreserveContent += line + "\n"
@@ -219,6 +217,11 @@ func BuildFullContent(section *Section) {
 	section.Content = ownContent
 }
 
+// normalizeTitle returns a lowercase, trimmed title for case-insensitive comparison
+func normalizeTitle(title string) string {
+	return strings.ToLower(strings.TrimSpace(title))
+}
+
 // extractOwnContent extracts content that belongs only to this section
 // (i.e., content before the first subsection header)
 func extractOwnContent(content string, subsections []Section) string {
@@ -244,70 +247,26 @@ func extractOwnContent(content string, subsections []Section) string {
 	return strings.Join(ownLines, "\n")
 }
 
-// ParseSectionsToMap parses markdown content and returns a map of sections keyed by normalized (lowercase) title.
-// This flattens the hierarchy into a single map for easy lookup.
-func ParseSectionsToMap(content string) map[string]*Section {
-	sections := ParseSections(content)
-	flat := FlattenSections(sections)
-
-	result := make(map[string]*Section)
-	for i := range flat {
-		normalizedTitle := strings.ToLower(strings.TrimSpace(flat[i].Title))
-		// Only keep first occurrence if duplicate titles exist
-		if _, exists := result[normalizedTitle]; !exists {
-			result[normalizedTitle] = &flat[i]
-		}
-	}
-	return result
-}
-
 // FindSectionByTitle finds a section with the given title (case-insensitive, fuzzy match)
 func FindSectionByTitle(sections []Section, title string) *Section {
-	titleLower := strings.ToLower(strings.TrimSpace(title))
+	normalized := normalizeTitle(title)
 
 	// First try exact match
 	for i := range sections {
-		if strings.ToLower(strings.TrimSpace(sections[i].Title)) == titleLower {
+		if normalizeTitle(sections[i].Title) == normalized {
 			return &sections[i]
 		}
 	}
 
 	// Try fuzzy match (contains)
 	for i := range sections {
-		sectionTitleLower := strings.ToLower(strings.TrimSpace(sections[i].Title))
-		if strings.Contains(sectionTitleLower, titleLower) || strings.Contains(titleLower, sectionTitleLower) {
+		sectionNormalized := normalizeTitle(sections[i].Title)
+		if strings.Contains(sectionNormalized, normalized) || strings.Contains(normalized, sectionNormalized) {
 			return &sections[i]
 		}
 	}
 
 	return nil
-}
-
-// ExtractPreserveBlocks extracts all PRESERVE blocks from content
-func ExtractPreserveBlocks(content string) []string {
-	var blocks []string
-	lines := strings.Split(content, "\n")
-	var currentBlock []string
-	inBlock := false
-
-	for _, line := range lines {
-		if strings.Contains(line, "<!-- PRESERVE START -->") {
-			inBlock = true
-			currentBlock = []string{line}
-			continue
-		}
-
-		if inBlock {
-			currentBlock = append(currentBlock, line)
-			if strings.Contains(line, "<!-- PRESERVE END -->") {
-				blocks = append(blocks, strings.Join(currentBlock, "\n"))
-				currentBlock = []string{}
-				inBlock = false
-			}
-		}
-	}
-
-	return blocks
 }
 
 // FlattenSections converts hierarchical sections to a flat list
@@ -346,9 +305,10 @@ func FindSectionByTitleHierarchical(sections []Section, title string) *Section {
 // GetParentSection finds the parent section that contains a given subsection title
 // Returns nil if the section is top-level or not found
 func GetParentSection(sections []Section, subsectionTitle string) *Section {
+	normalized := normalizeTitle(subsectionTitle)
 	for i := range sections {
 		for _, subsection := range sections[i].Subsections {
-			if strings.EqualFold(strings.TrimSpace(subsection.Title), strings.TrimSpace(subsectionTitle)) {
+			if normalizeTitle(subsection.Title) == normalized {
 				return &sections[i]
 			}
 		}

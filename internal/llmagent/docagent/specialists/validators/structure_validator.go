@@ -22,9 +22,10 @@ type RequiredSection struct {
 	Subsections []string // Expected subsections (empty if none required)
 }
 
-// Required top-level sections (H2) that must be present in the README
-// Based on the official package-docs-readme.md.tmpl template
-var requiredSections = []RequiredSection{
+// RequiredSections defines the top-level sections (H2) that must be present in the README.
+// Based on the official package-docs-readme.md.tmpl template.
+// Exported for reuse by metrics package.
+var RequiredSections = []RequiredSection{
 	{
 		Name:        "Overview",
 		Subsections: []string{"Compatibility", "How it works"},
@@ -58,8 +59,9 @@ var requiredSections = []RequiredSection{
 	},
 }
 
-// Optional but recommended sections
-var recommendedSections = []string{
+// RecommendedSections lists optional but recommended sections.
+// Exported for reuse by metrics package.
+var RecommendedSections = []string{
 	"API usage", // Under Reference, for integrations using APIs
 	// Note: "Agentless deployment" is NOT included here - it's only applicable
 	// to integrations with agentless enabled in manifest.yml
@@ -216,7 +218,7 @@ func (v *StructureValidator) checkRequiredSections(content string, pkgCtx *Packa
 	}
 
 	// Check required H2 sections
-	for _, required := range requiredSections {
+	for _, required := range RequiredSections {
 		sectionFound := v.sectionExists(required.Name, foundH2Sections)
 
 		if !sectionFound {
@@ -246,7 +248,7 @@ func (v *StructureValidator) checkRequiredSections(content string, pkgCtx *Packa
 	}
 
 	// Check recommended sections (minor warnings) - these are typically H3 subsections
-	for _, recommended := range recommendedSections {
+	for _, recommended := range RecommendedSections {
 		// Skip "API usage" check for integrations without API inputs
 		if strings.ToLower(recommended) == "api usage" && !v.hasAPIInputs(pkgCtx) {
 			continue
