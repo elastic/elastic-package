@@ -78,7 +78,7 @@ These ensure all integration docs look uniform:
 - Only the first word is capitalized (plus proper nouns and acronyms like TCP, UDP, API)
 
 ### Subsection Naming (use EXACTLY these names)
-Under ## How do I deploy this integration? > ### Set up steps in {Product}:
+Under ## How do I deploy this integration? > ### Set up steps in [Product Name]:
 - "#### Vendor resources" (links to vendor documentation at the end of vendor setup)
 
 Under ## Troubleshooting:

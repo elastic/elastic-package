@@ -85,7 +85,7 @@ The documentation MUST include these sections in order:
 1. **## Overview** (with subsections: ### Compatibility, ### How it works)
 2. **## What data does this integration collect?** (with subsection: ### Supported use cases)
 3. **## What do I need to use this integration?**
-4. **## How do I deploy this integration?** (with subsections: ### Agent-based deployment, ### Set up steps in {Product}, ### Set up steps in Kibana, ### Validation)
+4. **## How do I deploy this integration?** (with subsections: ### Agent-based deployment, ### Set up steps in [Product Name], ### Set up steps in Kibana, ### Validation)
 5. **## Troubleshooting**
 6. **## Performance and scaling**
 7. **## Reference** (with subsections: ### {Data stream name}, ### Inputs used, ### API usage if applicable)

@@ -706,7 +706,7 @@ func buildInstructions() string {
 	sb.WriteString("4. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
 	sb.WriteString("5. Document ALL data streams listed above\n")
 	sb.WriteString("6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections, #### for sub-subsections\n")
-	sb.WriteString("7. In ## How do I deploy this integration?, add a '#### Vendor resources' subsection at the end of '### Set up steps in {Product}' when vendor links are provided\n")
+	sb.WriteString("7. In ## How do I deploy this integration?, add a '#### Vendor resources' subsection at the end of the vendor-specific setup subsection when vendor links are provided\n")
 	sb.WriteString("8. In ## Reference section, use {{event \"<datastream_name>\"}} and {{fields \"<datastream_name>\"}} for EACH data stream (see DATA STREAMS section above for exact templates)\n")
 	sb.WriteString("9. Address EVERY validation issue if any are listed above\n")
 	sb.WriteString("10. For code blocks, always specify the language (e.g., ```bash, ```yaml)\n")
