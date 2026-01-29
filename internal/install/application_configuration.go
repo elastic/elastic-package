@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 const (
@@ -40,6 +41,8 @@ const (
 	isReadyImageName                    = "tianon/true:multiarch"
 
 	applicationConfigurationYmlFile = "config.yml"
+
+	defaultKibanaRepositoryBaseURL = "https://raw.githubusercontent.com/elastic/kibana"
 )
 
 var (
@@ -69,6 +72,9 @@ func DefaultConfiguration() *ApplicationConfiguration {
 	//	},
 	//  }
 
+	config.c.PackageRegistry.BaseURL = registry.ProductionURL
+	config.c.Status.KibanaRepository.BaseURL = defaultKibanaRepositoryBaseURL
+
 	return &config
 }
 
@@ -85,6 +91,18 @@ type configFile struct {
 	Profile struct {
 		Current string `yaml:"current"`
 	} `yaml:"profile"`
+	PackageRegistry packageRegistrySettings `yaml:"package_registry,omitempty"`
+	Status          struct {
+		KibanaRepository kibanaRepositorySettings `yaml:"kibana_repository,omitempty"`
+	} `yaml:"status,omitempty"`
+}
+
+type packageRegistrySettings struct {
+	BaseURL string `yaml:"base_url,omitempty"`
+}
+
+type kibanaRepositorySettings struct {
+	BaseURL string `yaml:"base_url,omitempty"`
 }
 
 type stack struct {
@@ -154,6 +172,24 @@ func (ac *ApplicationConfiguration) CurrentProfile() string {
 // SetCurrentProfile sets the current profile.
 func (ac *ApplicationConfiguration) SetCurrentProfile(name string) {
 	ac.c.Profile.Current = name
+}
+
+// PackageRegistryBaseURL returns the configured package registry URL,
+// falling back to production if not specified
+func (ac *ApplicationConfiguration) PackageRegistryBaseURL() string {
+	if ac == nil || ac.c.PackageRegistry.BaseURL == "" {
+		return registry.ProductionURL
+	}
+	return ac.c.PackageRegistry.BaseURL
+}
+
+// KibanaRepositoryBaseURL returns the configured Kibana repository URL,
+// falling back to the default GitHub URL if not specified
+func (ac *ApplicationConfiguration) KibanaRepositoryBaseURL() string {
+	if ac == nil || ac.c.Status.KibanaRepository.BaseURL == "" {
+		return defaultKibanaRepositoryBaseURL
+	}
+	return ac.c.Status.KibanaRepository.BaseURL
 }
 
 // selectElasticAgentImageName function returns the appropriate image name for Elastic-Agent depending on the stack version.
@@ -251,7 +287,12 @@ func Configuration(options ...ConfigurationOption) (*ApplicationConfiguration, e
 		return nil, fmt.Errorf("can't read configuration directory: %w", err)
 	}
 
-	cfg, err := os.ReadFile(filepath.Join(configPath.RootDir(), applicationConfigurationYmlFile))
+	return configurationFromDir(configPath.RootDir(), options...)
+}
+
+func configurationFromDir(dir string, options ...ConfigurationOption) (*ApplicationConfiguration, error) {
+	configFilePath := filepath.Join(dir, applicationConfigurationYmlFile)
+	cfg, err := os.ReadFile(configFilePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return DefaultConfiguration(), nil
 	}

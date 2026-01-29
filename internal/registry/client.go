@@ -9,15 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
 	ProductionURL = "https://epr.elastic.co"
-)
-
-var (
-	// Production is a pre-configured production client
-	Production = NewClient(ProductionURL)
 )
 
 // Client is responsible for exporting dashboards from Kibana.
@@ -45,6 +42,8 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 
 	u := base.JoinPath(rel.EscapedPath())
 	u.RawQuery = rel.RawQuery
+
+	logger.Tracef("Sending request to Package Registry API: %s", u.String())
 
 	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 	if err != nil {

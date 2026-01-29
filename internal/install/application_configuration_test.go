@@ -6,9 +6,13 @@ package install
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 func TestSelectElasticAgentImageName_NoVersion(t *testing.T) {
@@ -118,4 +122,59 @@ func TestSelectCompleteElasticAgentImageName_ForceSystemDImageOldStack(t *testin
 	version := stackVersion715
 	selected := selectElasticAgentImageName(version, "systemd")
 	assert.Equal(t, elasticAgentLegacyImageName, selected)
+}
+
+func TestExistingApplicationConfigurationCustomURLs(t *testing.T) {
+	cases := []struct {
+		name              string
+		settingData       string
+		expectedEPRURL    string
+		expectedKibanaURL string
+	}{
+		{
+			name: "both URLs customized",
+			settingData: `
+package_registry:
+  base_url: "https://custom-epr.example"
+status:
+  kibana_repository:
+    base_url: "https://custom-kibana-repo.example"`,
+
+			expectedEPRURL:    "https://custom-epr.example",
+			expectedKibanaURL: "https://custom-kibana-repo.example",
+		},
+		{
+			name: "no customizations",
+			settingData: `
+profiles:
+  current: default
+`,
+			expectedEPRURL:    registry.ProductionURL,
+			expectedKibanaURL: defaultKibanaRepositoryBaseURL,
+		},
+		{
+			name:              "config file not created",
+			settingData:       "",
+			expectedEPRURL:    registry.ProductionURL,
+			expectedKibanaURL: defaultKibanaRepositoryBaseURL,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			if tc.settingData != "" {
+				configFilePath := filepath.Join(tmpDir, applicationConfigurationYmlFile)
+
+				err := os.WriteFile(configFilePath, []byte(tc.settingData), 0644)
+				require.NoError(t, err)
+			}
+
+			config, err := configurationFromDir(tmpDir)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEPRURL, config.PackageRegistryBaseURL())
+			assert.Equal(t, tc.expectedKibanaURL, config.KibanaRepositoryBaseURL())
+		})
+	}
 }

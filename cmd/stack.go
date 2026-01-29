@@ -38,6 +38,9 @@ You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, s
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
 
+The stack command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
+
 You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
 For details on how to connect the service with the Elastic stack, see the [service command](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-service).`
@@ -127,6 +130,11 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			config, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			// Parameters provided through the CLI are not persisted.
 			// Stack providers can get them with `profile.Config`, and they
 			// need to handle and store them if they need it.
@@ -143,6 +151,7 @@ func setupStackCommand() *cobraext.Command {
 				OverrideAgentVersion: agentVersion,
 				Services:             services,
 				Profile:              profile,
+				AppConfig:            config,
 				Printer:              cmd,
 			})
 			if err != nil {
@@ -218,10 +227,16 @@ func setupStackCommand() *cobraext.Command {
 				return cobraext.FlagParsingError(err, cobraext.AgentVersionFlagName)
 			}
 
+			appConfig, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			err = provider.Update(cmd.Context(), stack.Options{
 				StackVersion:         stackVersion,
 				Profile:              profile,
 				Printer:              cmd,
+				AppConfig:            appConfig,
 				OverrideAgentVersion: agentVersion,
 			})
 			if err != nil {
@@ -317,9 +332,15 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
+			appConfig, err := install.Configuration()
+			if err != nil {
+				return fmt.Errorf("can't load configuation: %w", err)
+			}
+
 			servicesStatus, err := provider.Status(cmd.Context(), stack.Options{
-				Profile: profile,
-				Printer: cmd,
+				Profile:   profile,
+				Printer:   cmd,
+				AppConfig: appConfig,
 			})
 			if err != nil {
 				return fmt.Errorf("failed getting stack status: %w", err)
