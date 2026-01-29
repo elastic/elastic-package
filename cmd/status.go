@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/packages/status"
@@ -32,7 +33,11 @@ const statusLongDescription = `Use this command to display the current deploymen
 
 If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
-package directory and reports its status.`
+package directory and reports its status.
+
+The status command can be customized the URLS for package-registry and the Kibana repository
+through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).`
 
 const (
 	kibanaVersionParameter             = "kibana.version"
@@ -110,6 +115,16 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating info paramaters failed: %w", err)
 
 	}
+
+	// Load application configuration for custom registry URL
+	config, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("failed to load application configuration: %w", err)
+	}
+
+	// Create registry client with configured URL
+	registryClient := registry.NewClient(config.PackageRegistryBaseURL())
+
 	options := registry.SearchOptions{
 		All:           showAll,
 		KibanaVersion: kibanaVersion,
@@ -118,7 +133,7 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		// Deprecated, keeping for compatibility with older versions of the registry.
 		Experimental: true,
 	}
-	packageStatus, err := getPackageStatus(packageName, options)
+	packageStatus, err := getPackageStatus(registryClient, packageName, options)
 	if err != nil {
 		return err
 	}
@@ -127,7 +142,8 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 		if packageName == "" && packageStatus.Local != nil {
 			packageName = packageStatus.Local.Name
 		}
-		packageStatus.Serverless, err = getServerlessManifests(packageName, options)
+		kibanaRepositoryURL := config.KibanaRepositoryBaseURL()
+		packageStatus.Serverless, err = getServerlessManifests(registryClient, packageName, options, kibanaRepositoryURL)
 		if err != nil {
 			return err
 		}
@@ -159,9 +175,9 @@ func validateExtraInfoParameters(extraParameters []string) error {
 	return nil
 }
 
-func getPackageStatus(packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
+func getPackageStatus(registryClient *registry.Client, packageName string, options registry.SearchOptions) (*status.PackageStatus, error) {
 	if packageName != "" {
-		return status.RemotePackage(packageName, options)
+		return status.RemotePackage(registryClient, packageName, options)
 	}
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -170,15 +186,15 @@ func getPackageStatus(packageName string, options registry.SearchOptions) (*stat
 		}
 		return nil, fmt.Errorf("locating package root failed: %w", err)
 	}
-	return status.LocalPackage(packageRoot, options)
+	return status.LocalPackage(registryClient, packageRoot, options)
 }
 
-func getServerlessManifests(packageName string, options registry.SearchOptions) ([]status.ServerlessManifests, error) {
+func getServerlessManifests(registryClient *registry.Client, packageName string, options registry.SearchOptions, kibanaRepoBaseURL string) ([]status.ServerlessManifests, error) {
 	if packageName == "" {
 		return nil, nil
 	}
 	var serverless []status.ServerlessManifests
-	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient)
+	projectTypes := status.GetServerlessProjectTypes(http.DefaultClient, kibanaRepoBaseURL)
 	for _, projectType := range projectTypes {
 		if slices.Contains(projectType.ExcludePackages, packageName) {
 			continue
@@ -187,7 +203,7 @@ func getServerlessManifests(packageName string, options registry.SearchOptions) 
 		options.Capabilities = projectType.Capabilities
 		options.SpecMax = projectType.SpecMax
 		options.SpecMin = projectType.SpecMin
-		manifests, err := registry.Production.Revisions(packageName, options)
+		manifests, err := registryClient.Revisions(packageName, options)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get packages available for serverless projects of type %s: %w", projectType.Name, err)
 		}

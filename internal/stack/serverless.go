@@ -16,9 +16,11 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/serverless"
 	"github.com/elastic/elastic-package/internal/wait"
 )
@@ -54,6 +56,7 @@ type serverlessProvider struct {
 
 	elasticsearchClient *elasticsearch.Client
 	kibanaClient        *kibana.Client
+	registryClient      *registry.Client
 
 	retriesDefaultFleetServerTimeout time.Duration
 	retriesDefaultFleetServerPeriod  time.Duration
@@ -108,7 +111,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 		return Config{}, fmt.Errorf("project not initialized: %w", err)
 	}
 
-	err = sp.createClients(project)
+	err = sp.createClients(project, options.AppConfig)
 	if err != nil {
 		return Config{}, err
 	}
@@ -161,13 +164,13 @@ func (sp *serverlessProvider) deleteProject(ctx context.Context, project *server
 	return sp.client.DeleteProject(ctx, project)
 }
 
-func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx context.Context, config Config) (*serverless.Project, error) {
+func (sp *serverlessProvider) currentProjectWithClientsAndFleetEndpoint(ctx context.Context, config Config, appConfig *install.ApplicationConfiguration) (*serverless.Project, error) {
 	project, err := sp.currentProject(ctx, config)
 	if err != nil {
 		return nil, err
 	}
 
-	err = sp.createClients(project)
+	err = sp.createClients(project, appConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +212,7 @@ func (sp *serverlessProvider) currentProject(ctx context.Context, config Config)
 	return project, nil
 }
 
-func (sp *serverlessProvider) createClients(project *serverless.Project) error {
+func (sp *serverlessProvider) createClients(project *serverless.Project, appConfig *install.ApplicationConfiguration) error {
 	var err error
 	sp.elasticsearchClient, err = NewElasticsearchClient(
 		elasticsearch.OptionWithAddress(project.Endpoints.Elasticsearch),
@@ -228,6 +231,9 @@ func (sp *serverlessProvider) createClients(project *serverless.Project) error {
 	if err != nil {
 		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
+
+	logger.Tracef(">> Using package registry URL (TO BE REMOVED): %s", packageRegistryProxyToURL(sp.profile, appConfig))
+	sp.registryClient = registry.NewClient(appConfig.PackageRegistryBaseURL())
 
 	return nil
 }
@@ -285,6 +291,7 @@ func newServerlessProvider(profile *profile.Profile) (*serverlessProvider, error
 		client:                           client,
 		elasticsearchClient:              nil,
 		kibanaClient:                     nil,
+		registryClient:                   nil,
 		retriesDefaultFleetServerTimeout: retriesTimeout,
 		retriesDefaultFleetServerPeriod:  retriesPeriod,
 	}, nil
@@ -327,7 +334,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		}
 
 		logger.Infof("Creating agent policy")
-		_, err = createAgentPolicy(ctx, sp.kibanaClient, options.StackVersion, outputID, settings.SelfMonitor)
+		_, err = createAgentPolicy(ctx, sp.kibanaClient, sp.registryClient, options.StackVersion, outputID, settings.SelfMonitor)
 		if err != nil {
 			return fmt.Errorf("failed to create agent policy: %w", err)
 		}
@@ -480,7 +487,7 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 		return nil, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	project, err := sp.currentProjectWithClientsAndFleetEndpoint(ctx, config)
+	project, err := sp.currentProjectWithClientsAndFleetEndpoint(ctx, config, options.AppConfig)
 	if errors.Is(err, serverless.ErrProjectNotExist) {
 		return nil, nil
 	}

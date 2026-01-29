@@ -14,7 +14,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
+	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
@@ -24,7 +27,7 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	elasticPackagePath := t.TempDir()
 	profilesPath := filepath.Join(elasticPackagePath, "profiles")
 
-	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", elasticPackagePath)
+	t.Setenv("ELASTIC_PACKAGE_DATA_HOME", elasticPackagePath)
 
 	// Create profile.
 	err := profile.CreateProfile(profile.Options{
@@ -49,7 +52,11 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 
 	// Now, apply resources and check that the variable has been used.
 	stackVersion := "8.6.1"
-	err = applyResources(p, stackVersion, stackVersion)
+
+	appConfig, err := install.Configuration()
+	require.NoError(t, err)
+
+	err = applyResources(p, appConfig, stackVersion, stackVersion)
 	require.NoError(t, err)
 
 	d, err := os.ReadFile(p.Path(ProfileStackPath, ComposeFile))
@@ -68,6 +75,117 @@ func TestApplyResourcesWithCustomGeoipDir(t *testing.T) {
 	volumes := composeFile.Services.Elasticsearch.Volumes
 	expectedVolume := fmt.Sprintf("%s:/usr/share/elasticsearch/config/ingest-geoip", expectedGeoipPath)
 	assert.Contains(t, volumes, expectedVolume)
+}
+
+func TestApplyResourcesWithPackageRegistryConfigurations(t *testing.T) {
+	cases := []struct {
+		name                  string
+		profileData           string
+		configData            string
+		expectedEPRProfile    string
+		expectedEPRConfig     string
+		expectedEPRDockerfile string
+	}{
+		{
+			name:                  "default package registry URL",
+			profileData:           "",
+			configData:            "",
+			expectedEPRProfile:    "",
+			expectedEPRConfig:     registry.ProductionURL,
+			expectedEPRDockerfile: registry.ProductionURL,
+		},
+		{
+			name: "define package registry URL in profile",
+			profileData: `
+stack.epr.proxy_to: "https://localhost"
+`,
+			configData:            "",
+			expectedEPRProfile:    "https://localhost",
+			expectedEPRConfig:     registry.ProductionURL,
+			expectedEPRDockerfile: "https://localhost",
+		},
+		{
+			name:        "define package registry URL in config",
+			profileData: "",
+			configData: `
+package_registry:
+  base_url: "https://default.com"
+`,
+			expectedEPRProfile:    "",
+			expectedEPRConfig:     "https://default.com",
+			expectedEPRDockerfile: "https://default.com",
+		},
+		{
+			name: "define package registry URL both in profile and config",
+			profileData: `
+stack.epr.proxy_to: "https://localhost"
+`,
+			configData: `
+package_registry:
+  base_url: "https://default.com"
+`,
+			expectedEPRProfile:    "https://localhost",
+			expectedEPRConfig:     "https://default.com",
+			expectedEPRDockerfile: "https://localhost",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			const profileName = "custom_package_registry"
+
+			elasticPackagePath := t.TempDir()
+			profilesPath := filepath.Join(elasticPackagePath, "profiles")
+
+			t.Setenv("ELASTIC_PACKAGE_DATA_HOME", elasticPackagePath)
+
+			// Create profile.
+			err := profile.CreateProfile(profile.Options{
+				ProfilesDirPath: profilesPath,
+				Name:            profileName,
+			})
+			require.NoError(t, err)
+
+			if tc.profileData != "" {
+				// Write configuration to the profile.
+				configPath := filepath.Join(profilesPath, profileName, profile.PackageProfileConfigFile)
+				err = os.WriteFile(configPath, []byte(tc.profileData), 0644)
+				require.NoError(t, err)
+			}
+
+			p, err := profile.LoadProfile(profileName)
+			require.NoError(t, err)
+			t.Logf("Profile name: %s, path: %s", p.ProfileName, p.ProfilePath)
+
+			assert.Equal(t, tc.expectedEPRProfile, p.Config(configElasticEPRProxyTo, ""))
+
+			configPath, err := locations.NewLocationManager()
+			require.NoError(t, err)
+
+			if tc.configData != "" {
+				configFilePath := filepath.Join(configPath.RootDir(), "config.yml")
+
+				err = os.WriteFile(configFilePath, []byte(tc.configData), 0644)
+				require.NoError(t, err)
+			}
+
+			config, err := install.Configuration()
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedEPRConfig, config.PackageRegistryBaseURL())
+			t.Logf("EPR base URL: %s", config.PackageRegistryBaseURL())
+
+			// Now, apply resources and check that the variable has been used.
+			stackVersion := "8.6.1"
+			err = applyResources(p, config, stackVersion, stackVersion)
+			require.NoError(t, err)
+
+			d, err := os.ReadFile(p.Path(ProfileStackPath, DockerfilePackageRegistryFile))
+			require.NoError(t, err)
+
+			assert.Contains(t, string(d), fmt.Sprintf("ENV EPR_PROXY_TO=%s", tc.expectedEPRDockerfile))
+
+		})
+	}
 }
 
 func TestSemverLessThan(t *testing.T) {

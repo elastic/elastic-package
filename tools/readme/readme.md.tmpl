@@ -181,8 +181,12 @@ In this configuration file you can:
 - override the schema URLs to be used when building or validating packages.
     - URL to download the ECS schema definition for fields.
     - If not specified, the default value is `https://raw.githubusercontent.com/elastic/ecs`.
+- override the Package Registry URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://epr.elastic.co`.
+- override the Kibana Repository URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/kibana`.
 
-Example of the `config.yml` file:
+Complete example of the `config.yml` file:
 ```yaml
 stack:
     image_ref_overrides: {}
@@ -190,6 +194,12 @@ profile:
     current: default
 schema_urls:
   ecs_base:  https://raw.githubusercontent.com/elastic/ecs
+
+package_registry:
+  base_url: https://epr.elastic.co
+status:
+  kibana_repository:
+    base_url: https://raw.githubusercontent.com/elastic/kibana
 ```
 
 ## Elastic Package profiles

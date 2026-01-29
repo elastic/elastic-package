@@ -439,6 +439,17 @@ Use this command to validate the contents of a package using the package specifi
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
+### `elastic-package modify`
+
+_Context: package_
+
+Use this command to apply modifications to a package.
+
+These modifications can range from applying best practices, generating ingest pipeline tags, and more. Run this command without any arguments to see a list of modifiers.
+
+Use --modifiers to specify which modifiers to run, separated by commas.
+
+
 ### `elastic-package profiles`
 
 _Context: global_
@@ -518,6 +529,9 @@ Use --agent-version to specify a different version for the Elastic Agent from th
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+The stack command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
@@ -603,6 +617,10 @@ Use this command to display the current deployment status of a package.
 If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
 package directory and reports its status.
+
+The status command can be customized the URLS for package-registry and the Kibana repository
+through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 ### `elastic-package test`
 
@@ -705,8 +723,12 @@ In this configuration file you can:
 - override the schema URLs to be used when building or validating packages.
     - URL to download the ECS schema definition for fields.
     - If not specified, the default value is `https://raw.githubusercontent.com/elastic/ecs`.
+- override the Package Registry URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://epr.elastic.co`.
+- override the Kibana Repository URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/kibana`.
 
-Example of the `config.yml` file:
+Complete example of the `config.yml` file:
 ```yaml
 stack:
     image_ref_overrides: {}
@@ -714,6 +736,12 @@ profile:
     current: default
 schema_urls:
   ecs_base:  https://raw.githubusercontent.com/elastic/ecs
+
+package_registry:
+  base_url: https://epr.elastic.co
+status:
+  kibana_repository:
+    base_url: https://raw.githubusercontent.com/elastic/kibana
 ```
 
 ## Elastic Package profiles
