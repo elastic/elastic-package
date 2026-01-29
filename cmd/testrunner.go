@@ -190,7 +190,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching stack version failed: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -204,7 +204,7 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:     testCoverage,
 		CoverageType:     testCoverageFormat,
 		RepositoryRoot:   repositoryRoot,
-		SchemaURLs:       config.SchemaURLs(),
+		SchemaURLs:       appConfig.SchemaURLs(),
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -286,7 +286,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read global config: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -299,7 +299,7 @@ func testRunnerStaticCommandAction(cmd *cobra.Command, args []string) error {
 		GlobalTestConfig:   globalTestConfig.Static,
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
-		SchemaURLs:         config.SchemaURLs(),
+		SchemaURLs:         appConfig.SchemaURLs(),
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -417,7 +417,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching stack version failed: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -436,7 +436,7 @@ func testRunnerPipelineCommandAction(cmd *cobra.Command, args []string) error {
 		DeferCleanup:       deferCleanup,
 		GlobalTestConfig:   globalTestConfig.Pipeline,
 		RepositoryRoot:     repositoryRoot,
-		SchemaURLs:         config.SchemaURLs(),
+		SchemaURLs:         appConfig.SchemaURLs(),
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -623,7 +623,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching stack version failed: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -634,7 +634,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		Profile:              profile,
 		PackageRoot:          packageRoot,
 		KibanaClient:         kibanaClient,
-		SchemaURLs:           config.SchemaURLs(),
+		SchemaURLs:           appConfig.SchemaURLs(),
 		API:                  esClient.API,
 		ESClient:             esClient,
 		ConfigFilePath:       configFileFlag,
@@ -865,7 +865,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("fetching stack version failed: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -882,7 +882,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		WithCoverage:       testCoverage,
 		CoverageType:       testCoverageFormat,
 		RepositoryRoot:     repositoryRoot,
-		SchemaURLs:         config.SchemaURLs(),
+		SchemaURLs:         appConfig.SchemaURLs(),
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

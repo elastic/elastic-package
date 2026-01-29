@@ -79,7 +79,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -92,7 +92,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		SkipValidation: skipValidation,
 		RepositoryRoot: repositoryRoot,
 		UpdateReadmes:  true,
-		SchemaURLs:     config.SchemaURLs(),
+		SchemaURLs:     appConfig.SchemaURLs(),
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

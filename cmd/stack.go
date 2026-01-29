@@ -130,7 +130,7 @@ func setupStackCommand() *cobraext.Command {
 				return err
 			}
 
-			config, err := install.Configuration()
+			appConfig, err := install.Configuration()
 			if err != nil {
 				return fmt.Errorf("can't load configuation: %w", err)
 			}
@@ -151,7 +151,7 @@ func setupStackCommand() *cobraext.Command {
 				OverrideAgentVersion: agentVersion,
 				Services:             services,
 				Profile:              profile,
-				AppConfig:            config,
+				AppConfig:            appConfig,
 				Printer:              cmd,
 			})
 			if err != nil {

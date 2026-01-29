@@ -87,7 +87,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 	defer repositoryRoot.Close()
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
@@ -98,7 +98,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		SkipValidation: skipValidation,
 		ZipPath:        zipPathFile,
 		RepositoryRoot: repositoryRoot,
-		SchemaURLs:     config.SchemaURLs(),
+		SchemaURLs:     appConfig.SchemaURLs(),
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

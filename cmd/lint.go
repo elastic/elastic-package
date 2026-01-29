@@ -58,12 +58,12 @@ func lintCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("package root not found: %w", err)
 	}
 
-	config, err := install.Configuration()
+	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot, config.SchemaURLs())
+	readmeFiles, err := docs.AreReadmesUpToDate(repositoryRoot, packageRoot, appConfig.SchemaURLs())
 	if err != nil {
 		for _, f := range readmeFiles {
 			if !f.UpToDate {
