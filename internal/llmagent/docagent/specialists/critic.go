@@ -6,20 +6,18 @@ package specialists
 
 import (
 	"context"
-	"fmt"
-	"iter"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
-	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 
 const (
 	criticAgentName        = "critic"
-	criticAgentDescription = "Reviews generated documentation and provides feedback for improvement"
+	criticAgentDescription = "Reviews generated documentation for style, voice, tone, and accessibility"
 )
 
 // CriticAgent reviews documentation content and provides feedback.
@@ -40,85 +38,66 @@ func (c *CriticAgent) Description() string {
 	return criticAgentDescription
 }
 
-// criticInstruction is the system instruction for the critic agent
-const criticInstruction = `You are a documentation critic for Elastic integration packages.
-Your task is to review documentation content and provide constructive feedback.
+// criticInstructionPrefix is the first part of the critic system instruction
+const criticInstructionPrefix = `You are a documentation style critic for Elastic integration packages.
+Your task is to review documentation content for voice, tone, accessibility, and readability.
 
-Read the generated content from temp:section_content and evaluate it against these criteria:
-1. Accuracy - Is the technical information correct?
-2. Completeness - Does it cover all necessary aspects?
-3. Clarity - Is it easy to understand?
-4. Style - Does it follow Elastic documentation guidelines?
-5. Structure - Is it well-organized with proper headings?
+## Input
+The documentation content to review is provided directly in the user message.
 
-If the content meets all criteria with a score of 8/10 or higher, set temp:approved to true.
-Otherwise, provide specific feedback in temp:feedback for the generator to address.
+## Evaluation Criteria
+Evaluate against these criteria (rate each 1-10):
 
-Be constructive and specific in your feedback. Focus on actionable improvements.
+1. **Voice/Tone**: Friendly, uses "you", contractions, active voice
+   - Good: "You can configure..." "Before you start, you'll need..."
+   - Bad: "The user must configure..." "It is recommended that..."
+
+2. **Accessibility**: Descriptive links, plain language, no directional terms
+   - Good: "See the [installation guide](...)"
+   - Bad: "Click [here](...)" or "See the documentation above"
+
+3. **Grammar**: American English, present tense, Oxford comma, sentence case headings
+   - Sentence case: "### Vendor-specific issues" NOT "### Vendor-Specific Issues"
+
+4. **Structure**: Clear summary, scannable sections, short paragraphs
+
 `
 
-// Build creates the underlying ADK agent.
-func (c *CriticAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// If we have an LLM model, create an LLM-based agent
-	if cfg.Model != nil {
-		return llmagent.New(llmagent.Config{
-			Name:        criticAgentName,
-			Description: criticAgentDescription,
-			Model:       cfg.Model,
-			Instruction: criticInstruction,
-		})
-	}
+// criticInstructionSuffix is the final part of the critic system instruction
+const criticInstructionSuffix = `
+## Output Format
+Output a JSON object with this exact structure:
+{"approved": true/false, "score": 1-10, "feedback": "specific feedback if not approved"}
 
-	// Otherwise create a simple pass-through agent (stub mode)
-	return agent.New(agent.Config{
-		Name:        criticAgentName,
-		Description: criticAgentDescription,
-		Run:         c.run,
-	})
+Set approved=true if average score >= 7 with no critical issues.
+If not approved, provide specific, actionable feedback.
+
+## IMPORTANT
+Output ONLY the JSON object. No other text.`
+
+// CriticResult represents the result of a critic review
+type CriticResult struct {
+	Score    int    `json:"score"`
+	Approved bool   `json:"approved"`
+	Feedback string `json:"feedback"`
 }
 
-// run implements the agent logic when no LLM is available (stub mode)
-func (c *CriticAgent) run(invCtx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-	return func(yield func(*session.Event, error) bool) {
-		state := invCtx.Session().State()
+// Build creates the underlying ADK agent.
+func (c *CriticAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
+	// Build the full instruction by combining prefix, shared rules, and suffix
+	instruction := criticInstructionPrefix + stylerules.FullFormattingRules + "\n" + stylerules.CriticRejectionCriteria + criticInstructionSuffix
 
-		// Read content from state
-		content, err := state.Get(StateKeyContent)
-		if err != nil {
-			logger.Debugf("Critic: no content found in state")
-			event := session.NewEvent(invCtx.InvocationID())
-			event.Content = genai.NewContentFromText("No content to review", genai.RoleModel)
-			event.Author = criticAgentName
-			event.Actions.StateDelta = map[string]any{
-				StateKeyFeedback: "No content was provided for review",
-				StateKeyApproved: false,
-			}
-			yield(event, nil)
-			return
-		}
-
-		contentStr, _ := content.(string)
-
-		// Stub implementation: auto-approve if content has reasonable length
-		// In production, the LLM would perform actual review
-		approved := len(contentStr) > 100
-		var feedback string
-
-		if !approved {
-			feedback = "Content is too short. Please provide more detailed documentation."
-		} else {
-			feedback = "Content meets basic quality standards."
-		}
-
-		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
-		event.Content = genai.NewContentFromText(fmt.Sprintf("Review complete. Approved: %v", approved), genai.RoleModel)
-		event.Author = criticAgentName
-		event.Actions.StateDelta = map[string]any{
-			StateKeyFeedback: feedback,
-			StateKeyApproved: approved,
-		}
-
-		yield(event, nil)
-	}
+	// JSON response mode is incompatible with function calling on some models
+	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.
+	return llmagent.New(llmagent.Config{
+		Name:                     criticAgentName,
+		Description:              criticAgentDescription,
+		Model:                    cfg.Model,
+		Instruction:              instruction,
+		DisallowTransferToParent: true,
+		DisallowTransferToPeers:  true,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ResponseMIMEType: "application/json",
+		},
+	})
 }

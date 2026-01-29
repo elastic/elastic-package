@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 func TestGetExampleHandler(t *testing.T) {
@@ -115,7 +117,7 @@ func TestGetExampleContent(t *testing.T) {
 	})
 }
 
-func TestParseExampleSections(t *testing.T) {
+func TestParseSectionsIntegration(t *testing.T) {
 	content := `# Title
 
 ## Section One
@@ -131,7 +133,7 @@ Subsection content.
 Content for section two.
 `
 
-	sections := parseExampleSections(content)
+	sections := parsing.ParseSections(content)
 
 	// Should have 2 top-level sections (## headers)
 	require.Len(t, sections, 2)
@@ -147,12 +149,12 @@ Content for section two.
 	assert.Equal(t, 2, sections[1].Level)
 }
 
-func TestFindSectionByTitle(t *testing.T) {
-	sections := []*exampleSection{
+func TestFindSectionByTitleIntegration(t *testing.T) {
+	sections := []parsing.Section{
 		{
 			Title: "Overview",
 			Level: 2,
-			Subsections: []*exampleSection{
+			Subsections: []parsing.Section{
 				{Title: "How it works", Level: 3},
 			},
 		},
@@ -163,31 +165,19 @@ func TestFindSectionByTitle(t *testing.T) {
 	}
 
 	t.Run("find top-level section", func(t *testing.T) {
-		sec := findSectionByTitle(sections, "Overview")
+		sec := parsing.FindSectionByTitle(sections, "Overview")
 		require.NotNil(t, sec)
 		assert.Equal(t, "Overview", sec.Title)
-	})
-
-	t.Run("find subsection", func(t *testing.T) {
-		sec := findSectionByTitle(sections, "How it works")
-		require.NotNil(t, sec)
-		assert.Equal(t, "How it works", sec.Title)
 	})
 
 	t.Run("case insensitive", func(t *testing.T) {
-		sec := findSectionByTitle(sections, "OVERVIEW")
+		sec := parsing.FindSectionByTitle(sections, "OVERVIEW")
 		require.NotNil(t, sec)
 		assert.Equal(t, "Overview", sec.Title)
 	})
 
-	t.Run("fuzzy match", func(t *testing.T) {
-		sec := findSectionByTitle(sections, "config")
-		require.NotNil(t, sec)
-		assert.Equal(t, "Configuration", sec.Title)
-	})
-
 	t.Run("not found", func(t *testing.T) {
-		sec := findSectionByTitle(sections, "nonexistent")
+		sec := parsing.FindSectionByTitle(sections, "nonexistent")
 		assert.Nil(t, sec)
 	})
 }

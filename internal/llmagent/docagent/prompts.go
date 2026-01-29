@@ -6,137 +6,32 @@ package docagent
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"github.com/elastic/elastic-package/internal/configuration/locations"
-	"github.com/elastic/elastic-package/internal/environment"
-	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 )
-
-const (
-	promptFileInitial              = "initial_prompt.txt"
-	promptFileRevision             = "revision_prompt.txt"
-	promptFileSectionGeneration    = "section_generation_prompt.txt"
-	promptFileModificationAnalysis = "modification_analysis_prompt.txt"
-	promptFileModification         = "modification_prompt.txt"
-)
-
-type PromptType int
-
-const (
-	PromptTypeInitial PromptType = iota
-	PromptTypeRevision
-	PromptTypeSectionGeneration
-	PromptTypeModificationAnalysis
-	PromptTypeModification
-)
-
-// loadPromptFile loads a prompt file from external location if enabled, otherwise uses embedded content
-func loadPromptFile(filename string, embeddedContent string, profile *profile.Profile) string {
-	// Check if external prompt files are enabled
-	envVar := environment.WithElasticPackagePrefix("LLM_EXTERNAL_PROMPTS")
-	configKey := "llm.external_prompts"
-	useExternal := getConfigValue(profile, envVar, configKey, "false") == "true"
-
-	if !useExternal {
-		return embeddedContent
-	}
-
-	// Check in profile directory first if profile is available
-	if profile != nil {
-		profilePath := filepath.Join(profile.ProfilePath, "prompts", filename)
-		if content, err := os.ReadFile(profilePath); err == nil {
-			logger.Debugf("Loaded external prompt file from profile: %s", profilePath)
-			return string(content)
-		}
-	}
-
-	// Try to load from .elastic-package directory
-	loc, err := locations.NewLocationManager()
-	if err != nil {
-		logger.Debugf("Failed to get location manager, using embedded prompt: %v", err)
-		return embeddedContent
-	}
-
-	// Check in .elastic-package directory
-	elasticPackagePath := filepath.Join(loc.RootDir(), "prompts", filename)
-	if content, err := os.ReadFile(elasticPackagePath); err == nil {
-		logger.Debugf("Loaded external prompt file from .elastic-package: %s", elasticPackagePath)
-		return string(content)
-	}
-
-	// Fall back to embedded content
-	logger.Debugf("External prompt file not found, using embedded content for: %s", filename)
-	fmt.Printf("⚠️  Warning: External prompt file not found, using embedded content for: %s", filename)
-	return embeddedContent
-}
-
-// getConfigValue retrieves a configuration value with fallback from environment variable to profile config
-func getConfigValue(profile *profile.Profile, envVar, configKey, defaultValue string) string {
-	// First check environment variable
-	if envValue := os.Getenv(envVar); envValue != "" {
-		return envValue
-	}
-
-	// Then check profile configuration
-	if profile != nil {
-		return profile.Config(configKey, defaultValue)
-	}
-
-	return defaultValue
-}
 
 // buildPrompt creates a prompt based on type and context
 func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContext) string {
-	var promptFile, embeddedContent string
+	var promptContent string
 	var formatArgs []interface{}
 
 	switch promptType {
-	case PromptTypeInitial:
-		promptFile = promptFileInitial
-		embeddedContent = InitialPrompt
-		formatArgs = d.buildInitialPromptArgs(ctx)
 	case PromptTypeRevision:
-		promptFile = promptFileRevision
-		embeddedContent = RevisionPrompt
+		promptContent = prompts.Load(prompts.TypeRevision, d.profile)
 		formatArgs = d.buildRevisionPromptArgs(ctx)
 	case PromptTypeSectionGeneration:
-		promptFile = promptFileSectionGeneration
-		embeddedContent = SectionGenerationPrompt
+		promptContent = prompts.Load(prompts.TypeSectionGeneration, d.profile)
 		formatArgs = d.buildSectionGenerationPromptArgs(ctx)
 	case PromptTypeModificationAnalysis:
-		promptFile = promptFileModificationAnalysis
-		embeddedContent = ModificationAnalysisPrompt
+		promptContent = prompts.Load(prompts.TypeModificationAnalysis, d.profile)
 		formatArgs = d.buildModificationAnalysisPromptArgs(ctx)
 	case PromptTypeModification:
-		promptFile = promptFileModification
-		embeddedContent = ModificationPrompt
+		promptContent = prompts.Load(prompts.TypeModification, d.profile)
 		formatArgs = d.buildModificationPromptArgs(ctx)
 	}
 
-	promptContent := loadPromptFile(promptFile, embeddedContent, d.profile)
-	basePrompt := fmt.Sprintf(promptContent, formatArgs...)
-
-	return basePrompt
-}
-
-// buildInitialPromptArgs prepares arguments for initial prompt
-func (d *DocumentationAgent) buildInitialPromptArgs(ctx PromptContext) []interface{} {
-	return []interface{}{
-		ctx.TargetDocFile, // file path in task description
-		ctx.Manifest.Name,
-		ctx.Manifest.Title,
-		ctx.Manifest.Type,
-		ctx.Manifest.Version,
-		ctx.Manifest.Description,
-		ctx.TargetDocFile, // file restriction directive
-		ctx.TargetDocFile, // tool usage guideline
-		ctx.TargetDocFile, // initial analysis step
-		ctx.TargetDocFile, // write results step
-	}
+	return fmt.Sprintf(promptContent, formatArgs...)
 }
 
 // buildRevisionPromptArgs prepares arguments for revision prompt
@@ -174,6 +69,12 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		preserveSection = fmt.Sprintf("\nPRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
 	}
 
+	// Get section-specific instructions
+	sectionInstructions := prompts.GetSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
+	if sectionInstructions != "" {
+		sectionInstructions = fmt.Sprintf("\nSECTION-SPECIFIC REQUIREMENTS:\n%s\n\n", sectionInstructions)
+	}
+
 	return []interface{}{
 		ctx.SectionTitle,         // section title in task description
 		ctx.SectionLevel,         // section level number
@@ -190,6 +91,7 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		ctx.SectionTitle,         // section title for get_service_info in tool guidelines
 		ctx.TemplateSection,      // template section content
 		preserveSection,          // preserve content if any
+		sectionInstructions,      // section-specific instructions
 		ctx.SectionTitle,         // section title for get_example in step 1
 		ctx.SectionTitle,         // section title for get_service_info in step 3
 		levelStr,                 // level prefix for step 4

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 )
@@ -23,7 +24,7 @@ func TestGetConfigValue(t *testing.T) {
 		os.Setenv(envVar, expectedValue)
 		defer os.Unsetenv(envVar)
 
-		result := getConfigValue(nil, envVar, "config.key", "default")
+		result := prompts.GetConfigValue(nil, envVar, "config.key", "default")
 		assert.Equal(t, expectedValue, result)
 	})
 
@@ -31,14 +32,14 @@ func TestGetConfigValue(t *testing.T) {
 		mockProfile := &profile.Profile{}
 		// Note: We can't easily mock the Config method without changing the profile package,
 		// so this test is limited. In a real scenario, we'd need to refactor for testability.
-		result := getConfigValue(mockProfile, "UNSET_ENV_VAR", "config.key", "default")
+		result := prompts.GetConfigValue(mockProfile, "UNSET_ENV_VAR", "config.key", "default")
 		// Should return default since we can't mock profile.Config
 		assert.Equal(t, "default", result)
 	})
 
 	t.Run("returns default when neither env var nor profile set", func(t *testing.T) {
 		defaultValue := "default_value"
-		result := getConfigValue(nil, "UNSET_ENV_VAR", "config.key", defaultValue)
+		result := prompts.GetConfigValue(nil, "UNSET_ENV_VAR", "config.key", defaultValue)
 		assert.Equal(t, defaultValue, result)
 	})
 }
@@ -46,7 +47,7 @@ func TestGetConfigValue(t *testing.T) {
 func TestLoadPromptFile(t *testing.T) {
 	t.Run("returns embedded content when external prompts disabled", func(t *testing.T) {
 		embeddedContent := "embedded prompt content"
-		result := loadPromptFile("test_prompt.txt", embeddedContent, nil)
+		result := prompts.LoadFile("test_prompt.txt", embeddedContent, nil)
 		assert.Equal(t, embeddedContent, result)
 	})
 
@@ -68,7 +69,7 @@ func TestLoadPromptFile(t *testing.T) {
 			ProfilePath: tmpDir,
 		}
 
-		result := loadPromptFile("test_prompt.txt", "embedded", mockProfile)
+		result := prompts.LoadFile("test_prompt.txt", "embedded", mockProfile)
 		assert.Equal(t, externalContent, result)
 	})
 
@@ -81,37 +82,9 @@ func TestLoadPromptFile(t *testing.T) {
 			ProfilePath: "/nonexistent/path",
 		}
 
-		result := loadPromptFile("nonexistent.txt", embeddedContent, mockProfile)
+		result := prompts.LoadFile("nonexistent.txt", embeddedContent, mockProfile)
 		assert.Equal(t, embeddedContent, result)
 	})
-}
-
-func TestBuildInitialPromptArgs(t *testing.T) {
-	agent := &DocumentationAgent{
-		targetDocFile: "docs/README.md",
-	}
-
-	ctx := PromptContext{
-		Manifest: &packages.PackageManifest{
-			Name:        "test-package",
-			Title:       "Test Package",
-			Type:        "integration",
-			Version:     "1.0.0",
-			Description: "Test description",
-		},
-		TargetDocFile: "docs/README.md",
-	}
-
-	args := agent.buildInitialPromptArgs(ctx)
-
-	// Should have 10 arguments (based on the implementation)
-	assert.Len(t, args, 10)
-	assert.Equal(t, "docs/README.md", args[0])
-	assert.Equal(t, "test-package", args[1])
-	assert.Equal(t, "Test Package", args[2])
-	assert.Equal(t, "integration", args[3])
-	assert.Equal(t, "1.0.0", args[4])
-	assert.Equal(t, "Test description", args[5])
 }
 
 func TestBuildRevisionPromptArgs(t *testing.T) {
@@ -155,12 +128,6 @@ func TestBuildPrompt(t *testing.T) {
 		},
 		TargetDocFile: "docs/README.md",
 	}
-
-	t.Run("builds initial prompt", func(t *testing.T) {
-		prompt := agent.buildPrompt(PromptTypeInitial, ctx)
-		assert.NotEmpty(t, prompt)
-		assert.Contains(t, prompt, "test-package")
-	})
 
 	t.Run("builds revision prompt", func(t *testing.T) {
 		ctx.Changes = "Update documentation"

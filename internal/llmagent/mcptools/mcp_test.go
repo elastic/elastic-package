@@ -109,43 +109,6 @@ func TestLoadToolsets_ValidConfig_NoServers(t *testing.T) {
 	assert.Empty(t, result)
 }
 
-func TestLoadToolsets_ValidConfig_WithPrompts(t *testing.T) {
-	// Create a temporary config directory
-	tempDir := t.TempDir()
-	configDir := filepath.Join(tempDir, "llm_config")
-	err := os.MkdirAll(configDir, 0o755)
-	require.NoError(t, err)
-
-	// Create valid JSON with prompts
-	initialPrompt := "initial.txt"
-	revisionPrompt := "revision.txt"
-	config := MCPJson{
-		InitialPrompt:  &initialPrompt,
-		RevisionPrompt: &revisionPrompt,
-		Servers:        map[string]MCPServer{},
-	}
-	data, err := json.Marshal(config)
-	require.NoError(t, err)
-
-	mcpFile := filepath.Join(configDir, "mcp.json")
-	err = os.WriteFile(mcpFile, data, 0o644)
-	require.NoError(t, err)
-
-	originalEnv := os.Getenv("ELASTIC_PACKAGE_DATA_HOME")
-	defer func() {
-		if originalEnv == "" {
-			os.Unsetenv("ELASTIC_PACKAGE_DATA_HOME")
-		} else {
-			os.Setenv("ELASTIC_PACKAGE_DATA_HOME", originalEnv)
-		}
-	}()
-	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
-
-	// LoadToolsets returns toolsets, not the full MCPJson config
-	result := LoadToolsets()
-	assert.Empty(t, result) // No servers with URLs, so no toolsets
-}
-
 func TestLoadToolsets_ValidConfig_ServerWithoutURL(t *testing.T) {
 	// Create a temporary config directory
 	tempDir := t.TempDir()

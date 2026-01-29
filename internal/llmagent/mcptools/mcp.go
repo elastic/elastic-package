@@ -31,9 +31,7 @@ type MCPServer struct {
 
 // MCPJson represents the MCP configuration file structure.
 type MCPJson struct {
-	InitialPrompt  *string              `json:"initialPromptFile"`
-	RevisionPrompt *string              `json:"revisionPromptFile"`
-	Servers        map[string]MCPServer `json:"mcpServers"`
+	Servers map[string]MCPServer `json:"mcpServers"`
 }
 
 // Connect establishes a connection to the MCP server using ADK's mcptoolset.

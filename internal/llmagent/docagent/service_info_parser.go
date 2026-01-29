@@ -9,28 +9,32 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 // ServiceInfoManager manages the loading and retrieval of service_info.md sections
 type ServiceInfoManager struct {
 	packageRoot string
+	targetDocFile string
 	sections    []Section
 	loaded      bool
 }
 
 // NewServiceInfoManager creates a new ServiceInfoManager for the given package root
-func NewServiceInfoManager(packageRoot string) *ServiceInfoManager {
+func NewServiceInfoManager(packageRoot, targetDocFile string) *ServiceInfoManager {
 	return &ServiceInfoManager{
-		packageRoot: packageRoot,
-		sections:    []Section{},
-		loaded:      false,
+		packageRoot:   packageRoot,
+		targetDocFile: targetDocFile,
+		sections:      []Section{},
+		loaded:        false,
 	}
 }
 
 // Load reads and parses the service_info.md file
 // Returns error if file doesn't exist or can't be parsed
 func (s *ServiceInfoManager) Load() error {
-	serviceInfoPath := filepath.Join(s.packageRoot, "docs", "knowledge_base", "service_info.md")
+	serviceInfoPath := s.serviceInfoPath()
 
 	content, err := os.ReadFile(serviceInfoPath)
 	if err != nil {
@@ -38,10 +42,19 @@ func (s *ServiceInfoManager) Load() error {
 	}
 
 	// Parse the content into sections
-	s.sections = ParseSections(string(content))
+	s.sections = parsing.ParseSections(string(content))
 	s.loaded = true
 
 	return nil
+}
+
+func (s *ServiceInfoManager) serviceInfoPath() string {
+	if s.targetDocFile == "" || s.targetDocFile == "README.md" {
+		return filepath.Join(s.packageRoot, "docs", "knowledge_base", "service_info.md")
+	}
+
+	docBase := strings.TrimSuffix(filepath.Base(s.targetDocFile), filepath.Ext(s.targetDocFile))
+	return filepath.Join(s.packageRoot, "docs", "knowledge_base", docBase, "service_info.md")
 }
 
 // GetSections returns the combined content of specified sections by title
@@ -55,7 +68,7 @@ func (s *ServiceInfoManager) GetSections(sectionTitles []string) string {
 
 	for _, requestedTitle := range sectionTitles {
 		// Try to find the section (case-insensitive, fuzzy match)
-		section := FindSectionByTitleHierarchical(s.sections, requestedTitle)
+		section := parsing.FindSectionByTitleHierarchical(s.sections, requestedTitle)
 		if section != nil {
 			// Use GetAllContent to include subsections
 			matchedSections = append(matchedSections, section.GetAllContent())
@@ -77,7 +90,7 @@ func (s *ServiceInfoManager) GetAllSections() string {
 	}
 
 	// Combine all top-level sections using CombineSections
-	return CombineSections(s.sections)
+	return parsing.CombineSections(s.sections)
 }
 
 // IsAvailable checks if service_info.md has been successfully loaded
