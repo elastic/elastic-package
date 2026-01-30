@@ -12,7 +12,36 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
 ## Lifecycle of package or feature deprecation
 
 1. **A package or feature is marked as deprecated.**  
-   You set the `deprecated.since` field to the version when deprecation takes effect and the `deprecated.description` field with a message regarding the deprecation. Both are required. Optionally, you can add information about a new package or feature that replaces the current one using `deprecated.replaced_by`.
+   You set the `deprecated.since` field to the version when deprecation takes effect and the `deprecated.description` field with a message regarding the deprecation. Both are required. Optionally, you can add information about a new package or feature that replaces the current one using `deprecated.replaced_by`. Available fields for replacing a package or individual feature are: `package`, `input`, `policy_template`, `variable` and `data_stream`.
+
+   Some examples of deprecated field:
+
+   ```yaml
+   # deprecated package
+    deprecated:
+     since: "2.4.0"
+     description: This package is deprecated and will reach End-of-Life after the maintenance period.
+     replaced_by:
+      package: new_integration
+   ```
+
+   ```yaml
+   # deprecated policy_template
+    deprecated:
+     since: "2.4.0"
+     description: This policy_template is deprecated.
+     replaced_by:
+      policy_template: new_policy
+   ```
+
+   ```yaml
+   # deprecated input
+    deprecated:
+     since: "2.4.0"
+     description: This input is deprecated.
+     replaced_by:
+      input: new_input_name
+   ```
 
 2. **It remains available in the registry** for installation and use.
 
@@ -80,4 +109,4 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
 
 Modifications to a deprecated package are allowed as long as the deprecated status is kept. You can release security updates or other patches: bump the version (for example from 2.4.0 to 2.4.1), keep the `deprecated` block in the manifest, and update the deprecation description if needed. The package remains deprecated; only the version and the message change.
 
-The package registry always exposes the latest deprecation information for a package. If a package was deprecated in 2.4.0 and you later release a patched version 2.4.1 that is also deprecated (with or without an updated description), clients that retrieve package information via the registry will see the deprecation details from 2.4.1—the most recent version—not from 2.4.0.
+The package registry always exposes the latest deprecation information for a package. If a package was deprecated in 2.4.0 and you later release a patched version 2.4.1 that is also deprecated (with or without an updated description), clients that retrieve package information via the registry will see the deprecation details from 2.4.1 — the most recent version — not from 2.4.0.
