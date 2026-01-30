@@ -48,7 +48,7 @@ This warning helps you remember that custom configuration is active, which can b
 1. Base elastic-package configuration (from template)
 2. Your custom configuration (appended)
 
-Since YAML allows duplicate keys and Kibana processes them in order, your custom settings will override base settings with the same key.
+The YAML specification forbids duplicate keys, and handling of duplicates is implementation-dependent. Some YAML parsers reject files with duplicate keys, while others may keep the first or last occurrence. To ensure reliable behavior, rely on explicit overrides in your custom configuration rather than duplicate keys. Your custom settings will override base settings with the same key when the configurations are merged.
 
 ## Examples
 
