@@ -95,9 +95,30 @@ func TestApplyResourcesWithPackageRegistryConfigurations(t *testing.T) {
 			expectedEPRDockerfile: registry.ProductionURL,
 		},
 		{
-			name: "define package registry URL in profile",
+			name: "define package registry URL in profile proxy to",
 			profileData: `
 stack.epr.proxy_to: "https://localhost"
+`,
+			configData:            "",
+			expectedEPRProfile:    "https://localhost",
+			expectedEPRConfig:     registry.ProductionURL,
+			expectedEPRDockerfile: "https://localhost",
+		},
+		{
+			name: "define package registry URL in profile base_url",
+			profileData: `
+stack.epr.base_url: "https://default.com"
+`,
+			configData:            "",
+			expectedEPRProfile:    "https://default.com",
+			expectedEPRConfig:     registry.ProductionURL,
+			expectedEPRDockerfile: "https://default.com",
+		},
+		{
+			name: "define package registry URL in profile proxy to and base_url",
+			profileData: `
+stack.epr.proxy_to: "https://localhost"
+stack.epr.base_url: "https://default.com"
 `,
 			configData:            "",
 			expectedEPRProfile:    "https://localhost",
@@ -116,9 +137,36 @@ package_registry:
 			expectedEPRDockerfile: "https://default.com",
 		},
 		{
-			name: "define package registry URL both in profile and config",
+			name: "define package registry URL both in profile proxy to and config",
 			profileData: `
 stack.epr.proxy_to: "https://localhost"
+`,
+			configData: `
+package_registry:
+  base_url: "https://default.com"
+`,
+			expectedEPRProfile:    "https://localhost",
+			expectedEPRConfig:     "https://default.com",
+			expectedEPRDockerfile: "https://localhost",
+		},
+		{
+			name: "define package registry URL both in profile base_url to and config",
+			profileData: `
+stack.epr.base_url: "https://localhost:8081"
+`,
+			configData: `
+package_registry:
+  base_url: "https://default.com"
+`,
+			expectedEPRProfile:    "https://localhost:8081",
+			expectedEPRConfig:     "https://default.com",
+			expectedEPRDockerfile: "https://localhost:8081",
+		},
+		{
+			name: "define package registry URL both in profile proxy and base_url to and config",
+			profileData: `
+stack.epr.proxy_to: "https://localhost"
+stack.epr.base_url: "https://localhost:8081"
 `,
 			configData: `
 package_registry:
@@ -157,7 +205,8 @@ package_registry:
 			require.NoError(t, err)
 			t.Logf("Profile name: %s, path: %s", p.ProfileName, p.ProfilePath)
 
-			assert.Equal(t, tc.expectedEPRProfile, p.Config(configElasticEPRProxyTo, ""))
+			actualProfileRegistryURL := p.Config(configElasticEPRProxyTo, p.Config(configElasticEPRURL, ""))
+			assert.Equal(t, tc.expectedEPRProfile, actualProfileRegistryURL)
 
 			configPath, err := locations.NewLocationManager()
 			require.NoError(t, err)
