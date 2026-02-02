@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -152,6 +153,23 @@ var (
 	currentSessionMutex sync.RWMutex
 )
 
+// suppressingErrorHandler logs trace export errors at debug level, and only once.
+type suppressingErrorHandler struct {
+	loggedOnce sync.Once
+}
+
+func (h *suppressingErrorHandler) Handle(err error) {
+	// Only log trace export errors once, at debug level
+	if strings.Contains(err.Error(), "traces export") {
+		h.loggedOnce.Do(func() {
+			logger.Debugf("Tracing endpoint unavailable (further errors suppressed): %v", err)
+		})
+		return
+	}
+	// Log other OTel errors at debug level
+	logger.Debugf("OpenTelemetry error: %v", err)
+}
+
 // Config holds LLM tracing configuration
 type Config struct {
 	Enabled     bool
@@ -257,6 +275,9 @@ func initTracer(ctx context.Context, cfg Config) error {
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
 	)
+
+	// Set custom error handler to suppress repeated trace export errors
+	otel.SetErrorHandler(&suppressingErrorHandler{})
 
 	// Set as global provider
 	otel.SetTracerProvider(globalProvider)
