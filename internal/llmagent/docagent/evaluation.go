@@ -442,7 +442,7 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 // saveEvaluationResult saves the evaluation result to a JSON file and generated content to .md
 func saveEvaluationResult(result *EvaluationResult, outputDir string) error {
 	resultDir := filepath.Join(outputDir, "results", result.PackageName)
-	if err := os.MkdirAll(resultDir, 0755); err != nil {
+	if err := os.MkdirAll(resultDir, 0o755); err != nil {
 		return err
 	}
 
@@ -453,20 +453,20 @@ func saveEvaluationResult(result *EvaluationResult, outputDir string) error {
 		return err
 	}
 
-	if err := os.WriteFile(resultPath, data, 0644); err != nil {
+	if err := os.WriteFile(resultPath, data, 0o644); err != nil {
 		return err
 	}
 
 	// Save generated content as markdown file
 	mdPath := filepath.Join(resultDir, result.RunID+".md")
-	if err := os.WriteFile(mdPath, []byte(result.GeneratedContent), 0644); err != nil {
+	if err := os.WriteFile(mdPath, []byte(result.GeneratedContent), 0o644); err != nil {
 		logger.Debugf("Failed to save generated markdown: %v", err)
 	}
 
 	// Save original content if available
 	if result.OriginalContent != "" {
 		originalPath := filepath.Join(resultDir, result.RunID+"_original.md")
-		if err := os.WriteFile(originalPath, []byte(result.OriginalContent), 0644); err != nil {
+		if err := os.WriteFile(originalPath, []byte(result.OriginalContent), 0o644); err != nil {
 			logger.Debugf("Failed to save original markdown: %v", err)
 		}
 	}

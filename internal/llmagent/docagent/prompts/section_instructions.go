@@ -63,7 +63,10 @@ EXAMPLE STRUCTURE (follow this pattern):
 
 CONTENT TO INCLUDE:
 - Vendor-side requirements: admin access, API keys, network connectivity
-- Elastic-side requirements: Stack version, Fleet/Agent, subscriptions
+- Elastic-side requirements: Fleet/Agent, subscriptions
+
+CONTENT TO EXCLUDE:
+- ElasticStack version requirements
 
 HEADING HIERARCHY RULES (CRITICAL):
 - Main section uses ## (H2)

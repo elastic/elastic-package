@@ -271,4 +271,3 @@ func CountPlaceholders(content string) int {
 func ReplacePlaceholder(content, replacement string) string {
 	return strings.Replace(content, StandardPlaceholder, replacement, 1)
 }
-

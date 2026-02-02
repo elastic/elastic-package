@@ -95,7 +95,7 @@ func RunBatchEvaluation(ctx context.Context, cfg BatchEvaluationConfig) (*BatchE
 
 	// Ensure output directory exists
 	if cfg.OutputDir != "" {
-		if err := os.MkdirAll(cfg.OutputDir, 0755); err != nil {
+		if err := os.MkdirAll(cfg.OutputDir, 0o755); err != nil {
 			return nil, fmt.Errorf("failed to create output directory: %w", err)
 		}
 	}
@@ -328,7 +328,7 @@ func computeBatchSummary(results []*EvaluationResult) *BatchSummary {
 // saveBatchResult saves the batch result to a JSON file
 func saveBatchResult(result *BatchEvaluationResult, outputDir string) error {
 	batchDir := filepath.Join(outputDir, "batch_results")
-	if err := os.MkdirAll(batchDir, 0755); err != nil {
+	if err := os.MkdirAll(batchDir, 0o755); err != nil {
 		return err
 	}
 
@@ -338,7 +338,7 @@ func saveBatchResult(result *BatchEvaluationResult, outputDir string) error {
 		return err
 	}
 
-	return os.WriteFile(resultPath, data, 0644)
+	return os.WriteFile(resultPath, data, 0o644)
 }
 
 // DiscoverPackages finds all packages in the integrations repository

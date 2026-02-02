@@ -136,10 +136,10 @@ func TestHasDataStreamSubsection(t *testing.T) {
 
 func TestInsertFieldsTemplate(t *testing.T) {
 	tests := []struct {
-		name            string
-		content         string
-		dsName          string
-		expectContains  string
+		name           string
+		content        string
+		dsName         string
+		expectContains string
 	}{
 		{
 			name: "insert into existing subsection",
@@ -181,10 +181,10 @@ The log data stream.
 
 func TestInsertEventTemplate(t *testing.T) {
 	tests := []struct {
-		name            string
-		content         string
-		dsName          string
-		expectContains  string
+		name           string
+		content        string
+		dsName         string
+		expectContains string
 	}{
 		{
 			name: "insert before existing fields template",
@@ -241,4 +241,3 @@ func TestAppendDataStreamSubsection(t *testing.T) {
 	troubleshootingIdx := strings.Index(result, "## Troubleshooting")
 	assert.Less(t, auditIdx, troubleshootingIdx, "audit subsection should be before Troubleshooting")
 }
-

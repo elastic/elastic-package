@@ -199,4 +199,3 @@ func appendDataStreamSubsection(content, dsName string, needsEvent, needsFields 
 
 	return beforeInsert + sb.String() + "\n\n" + afterInsert
 }
-

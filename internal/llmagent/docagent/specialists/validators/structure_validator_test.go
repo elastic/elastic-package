@@ -213,46 +213,46 @@ Reference info.
 
 func TestCheckBrokenLinkPatterns(t *testing.T) {
 	tests := []struct {
-		name           string
-		content        string
-		wantIssues     int
-		wantSeverity   string
-		wantInMessage  string
+		name          string
+		content       string
+		wantIssues    int
+		wantSeverity  string
+		wantInMessage string
 	}{
 		{
-			name:           "anchor link detected",
-			content:        `See the [Reference](#reference) section for more details.`,
-			wantIssues:     1,
-			wantSeverity:   "critical",
-			wantInMessage:  "Anchor link found",
+			name:          "anchor link detected",
+			content:       `See the [Reference](#reference) section for more details.`,
+			wantIssues:    1,
+			wantSeverity:  "critical",
+			wantInMessage: "Anchor link found",
 		},
 		{
-			name:           "docs-content protocol link detected",
-			content:        `Check the [installation instructions](docs-content://reference/fleet/install-elastic-agents.md).`,
-			wantIssues:     1,
-			wantSeverity:   "critical",
-			wantInMessage:  "docs-content://",
+			name:          "docs-content protocol link detected",
+			content:       `Check the [installation instructions](docs-content://reference/fleet/install-elastic-agents.md).`,
+			wantIssues:    1,
+			wantSeverity:  "critical",
+			wantInMessage: "docs-content://",
 		},
 		{
-			name:           "multiple anchor links detected",
-			content:        `See [Overview](#overview) and [Reference](#reference).`,
-			wantIssues:     2,
-			wantSeverity:   "critical",
-			wantInMessage:  "Anchor link found",
+			name:          "multiple anchor links detected",
+			content:       `See [Overview](#overview) and [Reference](#reference).`,
+			wantIssues:    2,
+			wantSeverity:  "critical",
+			wantInMessage: "Anchor link found",
 		},
 		{
-			name:           "valid https link passes",
-			content:        `Check the [documentation](https://www.elastic.co/guide/en/fleet/current/install.html).`,
-			wantIssues:     0,
-			wantSeverity:   "",
-			wantInMessage:  "",
+			name:          "valid https link passes",
+			content:       `Check the [documentation](https://www.elastic.co/guide/en/fleet/current/install.html).`,
+			wantIssues:    0,
+			wantSeverity:  "",
+			wantInMessage: "",
 		},
 		{
-			name:           "bare docs-content URL detected",
-			content:        `For more info: docs-content://reference/fleet/agents.md`,
-			wantIssues:     1,
-			wantSeverity:   "critical",
-			wantInMessage:  "docs-content://",
+			name:          "bare docs-content URL detected",
+			content:       `For more info: docs-content://reference/fleet/agents.md`,
+			wantIssues:    1,
+			wantSeverity:  "critical",
+			wantInMessage: "docs-content://",
 		},
 	}
 

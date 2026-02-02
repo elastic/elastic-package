@@ -21,4 +21,3 @@ var ModificationAnalysisPrompt string
 
 //go:embed _static/modification_prompt.txt
 var ModificationPrompt string
-

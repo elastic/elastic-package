@@ -15,10 +15,10 @@ import (
 
 // ServiceInfoManager manages the loading and retrieval of service_info.md sections
 type ServiceInfoManager struct {
-	packageRoot string
+	packageRoot   string
 	targetDocFile string
-	sections    []Section
-	loaded      bool
+	sections      []Section
+	loaded        bool
 }
 
 // NewServiceInfoManager creates a new ServiceInfoManager for the given package root

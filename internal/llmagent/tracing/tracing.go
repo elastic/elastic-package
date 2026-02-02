@@ -12,8 +12,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/version"
 	"github.com/google/uuid"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -23,6 +21,9 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/version"
 )
 
 // Environment variable names for tracing configuration
@@ -113,8 +114,10 @@ const (
 )
 
 // Context keys for session tracking
-type sessionIDKey struct{}
-type sessionTokensKey struct{}
+type (
+	sessionIDKey     struct{}
+	sessionTokensKey struct{}
+)
 
 // SessionTokens tracks cumulative token usage for a session
 type SessionTokens struct {
@@ -470,7 +473,6 @@ func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Sp
 
 // StartAgentSpan starts a new span for an agent task execution
 func StartAgentSpan(ctx context.Context, name string, modelID string) (context.Context, trace.Span) {
-
 	// Check if there's a parent span in the context
 	parentSpan := trace.SpanFromContext(ctx)
 	parentSpanCtx := parentSpan.SpanContext()
@@ -500,7 +502,6 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 
 // StartLLMSpan starts a new span for an LLM call
 func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessages []Message) (context.Context, trace.Span) {
-
 	attrs := []attribute.KeyValue{
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindLLM),
 		attribute.String(AttrGenAISystem, "gemini"),

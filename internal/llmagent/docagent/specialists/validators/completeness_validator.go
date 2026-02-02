@@ -742,4 +742,3 @@ func (v *CompletenessValidator) getNetworkSensitiveInputs() map[string]string {
 		"o365audit":          "Office 365 - requires Microsoft API access",
 	}
 }
-

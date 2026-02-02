@@ -54,8 +54,10 @@ func (s *StateStore) All() map[string]any {
 // activeStateStore is the current state store used by state tools.
 // This is set by the workflow before running agents.
 // Thread-safe access is managed by the StateStore itself.
-var activeStateStore *StateStore
-var activeStateMu sync.RWMutex
+var (
+	activeStateStore *StateStore
+	activeStateMu    sync.RWMutex
+)
 
 // SetActiveStateStore sets the state store for the current workflow execution.
 // This must be called before running agents that use state tools.

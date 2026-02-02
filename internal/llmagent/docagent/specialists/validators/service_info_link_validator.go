@@ -312,4 +312,3 @@ func classifyLinkSeverity(link ServiceInfoLink) ValidationSeverity {
 	// Default to major for unclassified links
 	return SeverityMajor
 }
-

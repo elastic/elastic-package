@@ -17,24 +17,24 @@ import (
 // Validation-specific attribute keys for staged validation workflow tracing
 const (
 	// Validation stage attributes
-	AttrValidationStage      = "validation.stage"
-	AttrValidationPassed     = "validation.passed"
-	AttrValidationScore      = "validation.score"
-	AttrValidationIssues     = "validation.issues_count"
-	AttrValidationWarnings   = "validation.warnings_count"
-	AttrValidationSource     = "validation.source" // "static" or "llm"
+	AttrValidationStage    = "validation.stage"
+	AttrValidationPassed   = "validation.passed"
+	AttrValidationScore    = "validation.score"
+	AttrValidationIssues   = "validation.issues_count"
+	AttrValidationWarnings = "validation.warnings_count"
+	AttrValidationSource   = "validation.source" // "static" or "llm"
 
 	// Generation iteration attributes
-	AttrGenerationIteration    = "generation.iteration"
-	AttrGenerationFeedback     = "generation.feedback_applied"
-	AttrGenerationContentLen   = "generation.content_length"
+	AttrGenerationIteration  = "generation.iteration"
+	AttrGenerationFeedback   = "generation.feedback_applied"
+	AttrGenerationContentLen = "generation.content_length"
 
 	// Package context attributes
-	AttrPackageName        = "package.name"
-	AttrPackageTitle       = "package.title"
-	AttrPackageVersion     = "package.version"
-	AttrDataStreamsCount   = "package.data_streams_count"
-	AttrFieldsCount        = "package.fields_count"
+	AttrPackageName      = "package.name"
+	AttrPackageTitle     = "package.title"
+	AttrPackageVersion   = "package.version"
+	AttrDataStreamsCount = "package.data_streams_count"
+	AttrFieldsCount      = "package.fields_count"
 
 	// Quality metrics attributes
 	AttrMetricsStructure    = "metrics.structure_score"
@@ -45,10 +45,10 @@ const (
 	AttrMetricsPlaceholders = "metrics.placeholder_count"
 
 	// Comparison attributes
-	AttrCompareBaseline     = "compare.baseline_score"
-	AttrCompareStaged       = "compare.staged_score"
-	AttrCompareDelta        = "compare.score_delta"
-	AttrCompareImprovement  = "compare.percent_improvement"
+	AttrCompareBaseline    = "compare.baseline_score"
+	AttrCompareStaged      = "compare.staged_score"
+	AttrCompareDelta       = "compare.score_delta"
+	AttrCompareImprovement = "compare.percent_improvement"
 )
 
 // ValidationStageResult holds the result of a validation stage for tracing
@@ -258,5 +258,3 @@ func RecordComparison(span trace.Span, comparison *ComparisonAttrs) {
 		attribute.Float64(AttrCompareImprovement, comparison.PercentImprovement),
 	)
 }
-
-

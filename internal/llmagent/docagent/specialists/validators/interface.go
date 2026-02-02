@@ -89,4 +89,3 @@ const (
 	// ScopeBoth means the validator works for both section-level and full document
 	ScopeBoth
 )
-

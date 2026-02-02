@@ -743,4 +743,3 @@ func (v *ScalingValidator) buildSuggestions(scalingInfos []InputScalingInfo) []s
 
 	return suggestions
 }
-

@@ -496,4 +496,3 @@ func (v *AdvancedSettingsValidator) Build(ctx context.Context, cfg AgentConfig) 
 		},
 	})
 }
-

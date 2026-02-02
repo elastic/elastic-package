@@ -1489,15 +1489,6 @@ func (d *DocumentationAgent) createLLMValidateFunc() validators.LLMGenerateFunc 
 	}
 }
 
-// extractIssueMessages extracts message strings from ValidationIssue slice
-func extractIssueMessages(issues []validators.ValidationIssue) []string {
-	messages := make([]string, len(issues))
-	for i, issue := range issues {
-		messages[i] = issue.Message
-	}
-	return messages
-}
-
 // Printer interface for output (satisfied by cobra.Command)
 type Printer interface {
 	Println(a ...any)
@@ -1697,12 +1688,4 @@ func (d *DocumentationAgent) FixDocumentStructure(content string, pkgCtx *valida
 	content = parsing.EnsureDocumentTitle(content, packageTitle)
 
 	return content
-}
-
-// min returns the smaller of two integers
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }
