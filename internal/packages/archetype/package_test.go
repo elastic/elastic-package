@@ -104,7 +104,7 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) err
 		PackageRoot:    packageRoot,
 		BuildDir:       buildDir,
 		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
+		UpdateReadmes:  false,
 	})
 	return err
 }
