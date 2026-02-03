@@ -128,9 +128,6 @@ Shared formatting rules to avoid import cycles.
 | `GenerateAllSectionsWithValidation()` | Per-section generation with validation loops |
 | `GenerateSectionWithValidationLoop()` | Single section generation with iteration tracking |
 | `GenerateAllSectionsWithWorkflow()` | Section generation using workflow builder |
-| `DebugRunCriticOnly()` | Run critic agent in isolation for debugging |
-| `DebugRunValidatorOnly()` | Run validator agent in isolation for debugging |
-| `UpdateDocumentationGeneratorOnly()` | Run generator without critic/validator |
 | `ValidateAndFixDocumentStructure()` | Validate and auto-fix document structure issues |
 
 ### `/docagent/specialists`
@@ -470,24 +467,7 @@ elastic-package update documentation --evaluate \
   --integrations-path ~/git/integrations \
   --output-dir ./batch_results \
   --parallel 4
-
-# Debug modes - run individual agents in isolation
-elastic-package update documentation --debug-critic-only      # Run only critic
-elastic-package update documentation --debug-validator-only   # Run only validator
-elastic-package update documentation --debug-generator-only   # Run only generator
 ```
-
-### Debug Modes
-
-The command supports three debug flags for running individual agents in isolation:
-
-| Flag | Description |
-|------|-------------|
-| `--debug-critic-only` | Run only the critic agent on existing documentation to see quality feedback |
-| `--debug-validator-only` | Run only the validator agent to check for issues without regenerating |
-| `--debug-generator-only` | Run only the generator agent without critic/validator feedback loops |
-
-These flags are mutually exclusive and useful for understanding how each agent evaluates documentation.
 
 ## Tracing
 
@@ -512,21 +492,6 @@ export LLM_TRACING_ENDPOINT=http://localhost:6006/v1/traces
 elastic-package update documentation
 ```
 
-Traces are also saved to `traces.json` in the working directory for offline analysis.
-
-## Testing
-
-```bash
-# Run all tests
-go test ./internal/llmagent/...
-
-# Run specific package tests
-go test ./internal/llmagent/docagent/...
-
-# Run with verbose output
-go test -v ./internal/llmagent/docagent/...
-```
-
 ## Key Design Decisions
 
 1. **Section-based generation**: Generates each section independently to improve quality and enable parallel processing.
@@ -544,7 +509,3 @@ go test -v ./internal/llmagent/docagent/...
 7. **Static + LLM validation**: Combines fast static checks with semantic LLM-based validation for comprehensive quality assurance.
 
 8. **Style rules isolation**: The `stylerules` package provides shared formatting rules without import cycles.
-
-9. **Debug mode isolation**: Individual agents (generator, critic, validator) can be run in isolation for troubleshooting and development.
-
-10. **Fluent configuration API**: Workflow configuration uses a fluent API for clean, readable setup.

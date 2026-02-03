@@ -127,18 +127,6 @@ func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool)
 // handleAcceptAction handles the "Accept and finalize" action
 func (d *DocumentationAgent) handleAcceptAction(readmeUpdated bool) ActionResult {
 	if readmeUpdated {
-		// Validate preserved sections if we had original content
-		if d.originalReadmeContent != nil {
-			if newContent, err := d.readCurrentReadme(); err == nil {
-				preserved := d.arePreservedSectionsKept(*d.originalReadmeContent, newContent)
-				if !preserved {
-					fmt.Println("⚠️  Warning: Some human-edited sections may not have been preserved")
-					fmt.Println("   Please review the documentation to ensure important content wasn't lost.")
-					return ActionResult{"", false, fmt.Errorf("human-edited sections not preserved")}
-				}
-			}
-		}
-
 		fmt.Println("✅ Documentation update completed!")
 		return ActionResult{"", false, nil}
 	}

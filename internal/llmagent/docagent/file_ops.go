@@ -8,14 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/elastic/elastic-package/internal/logger"
-)
-
-const (
-	preserveStartMarker = "<!-- PRESERVE START -->"
-	preserveEndMarker   = "<!-- PRESERVE END -->"
 )
 
 // backupOriginalReadme stores the current documentation file content for potential restoration and comparison to the generated version
@@ -106,49 +100,6 @@ func (d *DocumentationAgent) readCurrentReadme() (string, error) {
 		return "", err
 	}
 	return string(content), nil
-}
-
-// arePreservedSectionsKept checks if human-edited sections are preserved in the new content
-func (d *DocumentationAgent) arePreservedSectionsKept(originalContent, newContent string) bool {
-	// Extract preserved sections from original content
-	preservedSections := d.extractPreservedSections(originalContent)
-
-	// Check if each preserved section exists in the new content
-	for _, content := range preservedSections {
-		if !strings.Contains(newContent, content) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// extractPreservedSections extracts all human-edited sections from content
-func (d *DocumentationAgent) extractPreservedSections(content string) []string {
-	var sections []string
-
-	startIdx := 0
-	for {
-		start := strings.Index(content[startIdx:], preserveStartMarker)
-		if start == -1 {
-			break
-		}
-		start += startIdx
-
-		end := strings.Index(content[start:], preserveEndMarker)
-		if end == -1 {
-			break
-		}
-		end += start
-
-		// Extract the full section including markers
-		sectionContent := content[start : end+len(preserveEndMarker)]
-		sections = append(sections, sectionContent)
-
-		startIdx = end + len(preserveEndMarker)
-	}
-
-	return sections
 }
 
 func (d *DocumentationAgent) getDocPath() (string, error) {

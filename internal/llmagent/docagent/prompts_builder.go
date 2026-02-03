@@ -63,12 +63,6 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		levelName = "Level 3"
 	}
 
-	// Build preserve content section
-	preserveSection := ""
-	if ctx.PreserveContent != "" {
-		preserveSection = fmt.Sprintf("\nPRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
-	}
-
 	// Get section-specific instructions
 	sectionInstructions := prompts.GetSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
 	if sectionInstructions != "" {
@@ -90,7 +84,6 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		ctx.SectionTitle,         // section title for get_example in tool guidelines
 		ctx.SectionTitle,         // section title for get_service_info in tool guidelines
 		ctx.TemplateSection,      // template section content
-		preserveSection,          // preserve content if any
 		sectionInstructions,      // section-specific instructions
 		ctx.SectionTitle,         // section title for get_example in step 1
 		ctx.SectionTitle,         // section title for get_service_info in step 3
@@ -122,12 +115,6 @@ func (d *DocumentationAgent) buildModificationPromptArgs(ctx PromptContext) []in
 		levelStr = "###"
 	}
 
-	// Build preserve content section
-	preserveSection := ""
-	if ctx.PreserveContent != "" {
-		preserveSection = fmt.Sprintf("PRESERVE Content (Must Include Verbatim):\n---\n%s\n---\n\n", ctx.PreserveContent)
-	}
-
 	return []interface{}{
 		ctx.TargetDocFile,        // target file
 		ctx.SectionTitle,         // section title
@@ -139,7 +126,6 @@ func (d *DocumentationAgent) buildModificationPromptArgs(ctx PromptContext) []in
 		ctx.Manifest.Description, // package description
 		ctx.TemplateSection,      // current section content
 		ctx.Changes,              // modification request
-		preserveSection,          // preserve content if any
 		levelStr,                 // level prefix for header instruction
 		ctx.SectionTitle,         // section title for header instruction
 		levelStr,                 // level prefix for final reminder

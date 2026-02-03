@@ -120,11 +120,3 @@ func (c Config) WithFullValidation(pkgCtx *validators.PackageContext) Config {
 	c.PackageContext = pkgCtx
 	return c
 }
-
-// WithGeneratorOnly disables critic and URL validator
-func (c Config) WithGeneratorOnly() Config {
-	c.EnableCritic = false
-	c.EnableURLValidator = false
-	c.MaxIterations = 1
-	return c
-}

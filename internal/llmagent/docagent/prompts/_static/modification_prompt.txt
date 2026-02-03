@@ -35,9 +35,8 @@ Your task:
 1. Read the current section content carefully
 2. Apply the requested modification appropriately for THIS section only
 3. Preserve content that doesn't need to change based on the modification request
-4. If PRESERVE blocks are present, maintain them EXACTLY as they appear
-5. Maintain the section header at the appropriate level (%s %s)
-6. Focus only on changes relevant to this specific section
+4. Maintain the section header at the appropriate level (%s %s)
+5. Focus only on changes relevant to this specific section
 
 Style and Content Guidance:
 

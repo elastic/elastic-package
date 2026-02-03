@@ -516,20 +516,6 @@ func (b *Builder) buildValidatorPrompt(validator validators.StagedValidator, con
 	return prompt.String()
 }
 
-// RunCriticOnContent runs the critic agent on the given content and returns the raw output
-func (b *Builder) RunCriticOnContent(ctx context.Context, content string) (string, error) {
-	prompt := buildCriticPrompt(content)
-	output, _, _, err := b.runAgent(ctx, "critic", prompt)
-	return output, err
-}
-
-// RunValidatorOnContent runs the validator agent on the given content and returns the raw output
-func (b *Builder) RunValidatorOnContent(ctx context.Context, content string) (string, error) {
-	prompt := fmt.Sprintf("Validate this documentation for correctness and consistency:\n\n%s", content)
-	output, _, _, err := b.runAgent(ctx, "validator", prompt)
-	return output, err
-}
-
 // buildPackageContext builds complete context for the generator from package metadata
 // sectionTitle is used to filter service info content to only relevant sections
 func buildPackageContext(pkgCtx *validators.PackageContext, sectionTitle string) string {

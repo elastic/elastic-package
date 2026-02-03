@@ -225,18 +225,13 @@ func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, t
 	apiKey = getConfigValue(profile, "GOOGLE_API_KEY", "llm.gemini.api_key", "")
 	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", tracing.DefaultModelID)
 
-	// Get thinking budget - defaults to 128 ("low" mode) for Gemini Pro models
-	budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", "")
-	if budgetStr != "" {
+	b := defaultThinkingBudget
+	if budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", ""); budgetStr != "" {
 		if budget, err := strconv.ParseInt(budgetStr, 10, 32); err == nil {
-			b := int32(budget)
-			thinkingBudget = &b
+			b = int32(budget)
 		}
-	} else {
-		// Default to low thinking budget
-		b := defaultThinkingBudget
-		thinkingBudget = &b
 	}
+	thinkingBudget = &b
 
 	return apiKey, modelID, thinkingBudget
 }
@@ -244,13 +239,13 @@ func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, t
 // getTracingConfig gets tracing configuration from environment or profile
 func getTracingConfig(profile *profile.Profile) tracing.Config {
 	cfg := tracing.Config{
-		Enabled:     true, // Enabled by default
+		Enabled:     false, // Disabled by default
 		Endpoint:    tracing.DefaultEndpoint,
 		ProjectName: tracing.DefaultProjectName,
 	}
 
 	// Check enabled setting
-	enabledStr := getConfigValue(profile, tracing.EnvTracingEnabled, "llm.tracing.enabled", "true")
+	enabledStr := getConfigValue(profile, tracing.EnvTracingEnabled, "llm.tracing.enabled", "false")
 	cfg.Enabled = enabledStr == "true" || enabledStr == "1"
 
 	// Get endpoint
@@ -320,35 +315,6 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get modify-prompt flag: %w", err)
 	}
 
-	// Check for debug flags
-	debugCriticOnly, err := cmd.Flags().GetBool("debug-critic-only")
-	if err != nil {
-		return fmt.Errorf("failed to get debug-critic-only flag: %w", err)
-	}
-	debugValidatorOnly, err := cmd.Flags().GetBool("debug-validator-only")
-	if err != nil {
-		return fmt.Errorf("failed to get debug-validator-only flag: %w", err)
-	}
-	debugGeneratorOnly, err := cmd.Flags().GetBool("debug-generator-only")
-	if err != nil {
-		return fmt.Errorf("failed to get debug-generator-only flag: %w", err)
-	}
-
-	// Validate mutually exclusive debug flags
-	debugFlagCount := 0
-	if debugCriticOnly {
-		debugFlagCount++
-	}
-	if debugValidatorOnly {
-		debugFlagCount++
-	}
-	if debugGeneratorOnly {
-		debugFlagCount++
-	}
-	if debugFlagCount > 1 {
-		return fmt.Errorf("only one debug flag can be used at a time: --debug-critic-only, --debug-validator-only, --debug-generator-only")
-	}
-
 	if apiKey == "" {
 		printNoProviderInstructions(cmd)
 		return nil
@@ -361,8 +327,7 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	// Select which documentation file to update
-	// For debug modes, treat as non-interactive for file selection
-	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive || debugCriticOnly || debugValidatorOnly)
+	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
 	if err != nil {
 		return fmt.Errorf("failed to select documentation file: %w", err)
 	}
@@ -406,23 +371,6 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 			cmd.PrintErrf("Warning: failed to shutdown tracing: %v\n", err)
 		}
 	}()
-
-	// Handle debug modes
-	if debugCriticOnly {
-		cmd.Println("🔍 Running critic agent only (debug mode)...")
-		return docAgent.DebugRunCriticOnly(cmd.Context(), cmd)
-	}
-
-	if debugValidatorOnly {
-		cmd.Println("🔍 Running validator agent only (debug mode)...")
-		return docAgent.DebugRunValidatorOnly(cmd.Context(), cmd)
-	}
-
-	// For generator-only mode, we still go through normal flow but with modified workflow config
-	if debugGeneratorOnly {
-		cmd.Println("🔍 Running generator agent only (debug mode - no critic/validator)...")
-		return docAgent.UpdateDocumentationGeneratorOnly(cmd.Context(), nonInteractive)
-	}
 
 	// Determine the mode based on user input
 	var useModifyMode bool

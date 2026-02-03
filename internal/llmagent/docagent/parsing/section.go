@@ -12,15 +12,13 @@ import (
 
 // Section represents a parsed section from a markdown document
 type Section struct {
-	Title           string
-	Level           int       // 2 for ##, 3 for ###
-	Content         string    // Content ONLY for this section header, not subsections
-	FullContent     string    // Full content including subsections (for generation)
-	Subsections     []Section // Child sections
-	StartLine       int
-	EndLine         int
-	HasPreserve     bool   // Whether section contains PRESERVE blocks
-	PreserveContent string // Content within PRESERVE blocks
+	Title       string
+	Level       int       // 2 for ##, 3 for ###
+	Content     string    // Content ONLY for this section header, not subsections
+	FullContent string    // Full content including subsections (for generation)
+	Subsections []Section // Child sections
+	StartLine   int
+	EndLine     int
 }
 
 // IsTopLevel returns true if this is a level 2 section (has no parent)
@@ -112,15 +110,6 @@ func ParseSections(content string) []Section {
 			contentBuffer.WriteString(line)
 			contentBuffer.WriteString("\n")
 
-			// Check for PRESERVE blocks
-			if currentSection != nil && strings.Contains(line, "<!-- PRESERVE START -->") {
-				currentSection.HasPreserve = true
-			}
-			if currentSection != nil && currentSection.HasPreserve {
-				if !strings.Contains(currentSection.PreserveContent, "<!-- PRESERVE END -->") {
-					currentSection.PreserveContent += line + "\n"
-				}
-			}
 		}
 	}
 

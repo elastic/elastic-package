@@ -135,7 +135,6 @@ func DefaultRegistry() *Registry {
 // - Completeness: all required content present
 // - Quality: writing quality, passive voice, section length
 // - Placeholders: proper placeholder usage
-// - ServiceInfoLinks: links from service_info.md preserved
 // - Style: Elastic style guide compliance (voice, tone, grammar)
 // - Accessibility: accessibility and inclusive language
 // - VendorSetup: vendor setup instructions accuracy against docs and LLM knowledge
@@ -148,10 +147,7 @@ func AllStagedValidators() []validators.StagedValidator {
 		validators.NewCompletenessValidator(),
 		validators.NewQualityValidator(),
 		validators.NewPlaceholderValidator(),
-		//		validators.NewServiceInfoLinkValidator(),
 		validators.NewStyleValidator(),
 		validators.NewAccessibilityValidator(),
-		//		validators.NewAdvancedSettingsValidator(),
-		//		validators.NewScalingValidator(),
 	}
 }

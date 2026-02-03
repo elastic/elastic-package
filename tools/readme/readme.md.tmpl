@@ -348,29 +348,7 @@ elastic-package update documentation --evaluate \
   --parallel 4
 ```
 
-#### Debug Flags
-
-For troubleshooting and development, the following debug flags run individual agents in isolation:
-
-* `--debug-critic-only`: Run only the critic agent on existing documentation to see quality feedback
-* `--debug-validator-only`: Run only the validator agent to check for issues without regenerating
-* `--debug-generator-only`: Run only the generator agent without critic/validator feedback loops
-
-These flags are mutually exclusive and useful for understanding how each agent evaluates your documentation.
-
 #### Advanced Features
-
-**Preserving Human-Edited Content:**
-
-Manually edited sections can be preserved by wrapping them with HTML comment markers:
-
-```html
-<!-- PRESERVE START -->
-Important manual content to preserve
-<!-- PRESERVE END -->
-```
-
-Any content between these markers will be preserved exactly as-is during AI-generated documentation updates. The system will automatically validate preservation after generation and warn if marked content was modified or removed.
 
 **Service Knowledge Base:**
 

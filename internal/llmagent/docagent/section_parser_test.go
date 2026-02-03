@@ -285,33 +285,6 @@ func TestGetParentSection(t *testing.T) {
 	}
 }
 
-func TestParseSections_PreserveBlocks(t *testing.T) {
-	content := `## Section 1
-
-Content before preserve.
-
-<!-- PRESERVE START -->
-Preserved content here.
-<!-- PRESERVE END -->
-
-Content after preserve.
-
-### Subsection
-
-Subsection content.
-
-## Section 2
-
-More content.`
-
-	sections := parsing.ParseSections(content)
-
-	require.Len(t, sections, 2)
-	assert.True(t, sections[0].HasPreserve, "Section 1 should have preserve block")
-	assert.Contains(t, sections[0].PreserveContent, "Preserved content here")
-	assert.False(t, sections[1].HasPreserve, "Section 2 should not have preserve block")
-}
-
 func TestParseSections_EdgeCases(t *testing.T) {
 	t.Run("document with only subsections", func(t *testing.T) {
 		content := `### Orphaned Subsection
