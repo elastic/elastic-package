@@ -15,7 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
-//go:embed _static/examples/*.md
+//go:embed _static/examples
 var examplesFS embed.FS
 
 // WildcardCategory is the special key for examples that are always returned
