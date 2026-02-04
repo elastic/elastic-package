@@ -6,17 +6,12 @@ package specialists
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"iter"
-	"strings"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/session"
-	"google.golang.org/genai"
 
-	"github.com/elastic/elastic-package/internal/logger"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 
 const (
@@ -42,107 +37,66 @@ func (g *GeneratorAgent) Description() string {
 	return generatorAgentDescription
 }
 
-// generatorInstruction is the system instruction for the generator agent
-const generatorInstruction = `You are a documentation generator for Elastic integration packages.
-Your task is to generate high-quality documentation content for a specific section.
+// generatorInstructionPrefix is the first part of the system instruction
+const generatorInstructionPrefix = `You are a documentation generator for Elastic integration packages.
+Your task is to generate high-quality documentation content for a SINGLE SECTION.
 
-Read the section context from the session state (temp:section_context) and any feedback
-from previous iterations (temp:feedback).
+## CRITICAL OUTPUT RULE
+Your final text output must contain ONLY the generated markdown documentation.
+NEVER include explanations of what you're doing, tool calls, or internal process descriptions.
+NEVER use first person ("I will...", "I am...") - the output is user-facing documentation.
 
-Generate the documentation content and store it in temp:section_content.
+## Required Tool Usage
+You MUST call get_service_info(readme_section=<SectionTitle>) to retrieve authoritative vendor documentation.
+Use the returned content as your PRIMARY source of truth for this section. Only use information provided in the response to this tool call, when it is available.
+If no service_info is available, proceed with other sources.
 
-Guidelines:
-- Follow the template structure provided in the section context
-- Use the example content as a reference for style and tone
-- If there's existing content, improve upon it while maintaining accuracy
-- If there's feedback from the critic, address the specific concerns
-- Write clear, concise, and accurate documentation
-- Include relevant code examples and configuration snippets where appropriate
+## Input
+The section context is provided directly in the user message. It includes:
+- SectionTitle: The title of the section to generate
+- SectionLevel: The heading level (2 = ##, 3 = ###, etc.)
+- TemplateContent: Template text showing the expected structure
+- ExampleContent: Example content for style reference
+- ExistingContent: Current content to improve upon (if any)
+- PackageName: The package identifier
+- PackageTitle: The human-readable package name
+- AdditionalContext: Validation feedback, package context, and requirements (CRITICAL - read carefully)
+- Vendor Setup Instructions: Content from service_info.md may also be provided directly in the prompt
+
+## Output Format
+Output ONLY the generated markdown content for this section.
+Start directly with the section heading at the correct level (## for level 2, ### for level 3, etc.)
+Do NOT include any preamble, explanation, or meta-commentary about your process.
+
+## Content Generation Rules
+1. Use the EXACT section title provided - do NOT rename it
+2. Start with a heading at the CORRECT level (## for level 2, ### for level 3)
+3. Use service_info content as your PRIMARY source of truth
+4. If ExistingContent is provided, use it as the base and improve upon it
+5. If TemplateContent is provided, follow its structure
+6. If ExampleContent is provided, use it as a style reference
+7. If AdditionalContext contains validation feedback, fix ALL mentioned issues
+
+## Available Tools
+- get_service_info: Call with readme_section=<SectionTitle> to get authoritative vendor documentation. MUST be called.
+- list_directory: List package contents to understand structure, and know the paths to the files you need to read.
+- read_file: Read package files (manifest.yml, data_stream configs, etc.). These files will help you understand the package and its context.
 `
 
 // Build creates the underlying ADK agent.
-func (g *GeneratorAgent) Build(ctx context.Context, cfg AgentConfig) (agent.Agent, error) {
-	// If we have an LLM model, create an LLM-based agent
-	if cfg.Model != nil {
-		return llmagent.New(llmagent.Config{
-			Name:        generatorAgentName,
-			Description: generatorAgentDescription,
-			Model:       cfg.Model,
-			Instruction: generatorInstruction,
-			Tools:       cfg.Tools,
-			Toolsets:    cfg.Toolsets,
-		})
-	}
+func (g *GeneratorAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
+	// Build the full instruction by combining prefix, shared formatting rules, and suffix
+	instruction := generatorInstructionPrefix + stylerules.FullFormattingRules
 
-	// Otherwise create a simple pass-through agent for testing
-	return agent.New(agent.Config{
+	// Note: CachedContent is not compatible with ADK llmagent because
+	// Gemini doesn't allow CachedContent with system_instruction or tools.
+	// We rely on Gemini's implicit caching for repeated content.
+	return llmagent.New(llmagent.Config{
 		Name:        generatorAgentName,
 		Description: generatorAgentDescription,
-		Run:         g.run,
+		Model:       cfg.Model,
+		Instruction: instruction,
+		Tools:       cfg.Tools,
+		Toolsets:    cfg.Toolsets,
 	})
-}
-
-// run implements the agent logic when no LLM is available (stub mode)
-func (g *GeneratorAgent) run(invCtx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-	return func(yield func(*session.Event, error) bool) {
-		state := invCtx.Session().State()
-
-		// Read section context from state
-		var sectionCtx SectionContext
-		if ctxData, err := state.Get(StateKeySectionContext); err == nil {
-			if ctxJSON, ok := ctxData.(string); ok {
-				if err := json.Unmarshal([]byte(ctxJSON), &sectionCtx); err != nil {
-					logger.Debugf("Generator: failed to parse section context: %v", err)
-				}
-			}
-		}
-
-		// Check for feedback from previous iterations
-		var feedback string
-		if fb, err := state.Get(StateKeyFeedback); err == nil {
-			feedback, _ = fb.(string)
-		}
-
-		// Generate content (stub implementation - in real use, LLM would do this)
-		content := g.generateStubContent(sectionCtx, feedback)
-
-		// Create event with state update
-		event := session.NewEvent(invCtx.InvocationID())
-		event.Content = genai.NewContentFromText(content, genai.RoleModel)
-		event.Author = generatorAgentName
-		event.Actions.StateDelta = map[string]any{
-			StateKeyContent: content,
-		}
-
-		yield(event, nil)
-	}
-}
-
-// generateStubContent creates placeholder content for testing
-func (g *GeneratorAgent) generateStubContent(ctx SectionContext, feedback string) string {
-	var sb strings.Builder
-
-	// Create header based on level
-	headerPrefix := strings.Repeat("#", ctx.SectionLevel)
-	if headerPrefix == "" {
-		headerPrefix = "##"
-	}
-
-	sb.WriteString(fmt.Sprintf("%s %s\n\n", headerPrefix, ctx.SectionTitle))
-
-	if ctx.ExistingContent != "" {
-		// Use existing content as base
-		sb.WriteString(ctx.ExistingContent)
-	} else if ctx.TemplateContent != "" {
-		// Use template content
-		sb.WriteString(ctx.TemplateContent)
-	} else {
-		sb.WriteString(fmt.Sprintf("Documentation for %s section.\n", ctx.SectionTitle))
-	}
-
-	if feedback != "" {
-		sb.WriteString(fmt.Sprintf("\n\n<!-- Feedback addressed: %s -->\n", feedback))
-	}
-
-	return sb.String()
 }

@@ -5,17 +5,17 @@
 package tools
 
 import (
-	"bufio"
 	"embed"
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
-//go:embed _static/examples/*.md
+//go:embed _static/examples
 var examplesFS embed.FS
 
 // WildcardCategory is the special key for examples that are always returned
@@ -25,12 +25,10 @@ const WildcardCategory = "*"
 // Use "*" as wildcard category for examples that should always be returned.
 var ExampleCategoryMap = map[string][]string{
 	"*": { // Always included
+		"fortinet_fortigate.md",
 	},
 	"security": {
 		"fortinet_fortigate.md",
-	},
-	"observability": {
-		"proofpoint_essentials.md",
 	},
 }
 
@@ -98,7 +96,8 @@ func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 		}
 
 		// Read the example file from embedded FS
-		filePath := filepath.Join("_static/examples", args.Name)
+		// Note: embed.FS always uses forward slashes, regardless of OS
+		filePath := "_static/examples/" + args.Name
 		content, err := examplesFS.ReadFile(filePath)
 		if err != nil {
 			return GetExampleResult{Error: fmt.Sprintf("failed to read example file '%s': %v", args.Name, err)}, nil
@@ -109,9 +108,9 @@ func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 			return GetExampleResult{Content: string(content)}, nil
 		}
 
-		// Parse sections and find the requested one
-		sections := parseExampleSections(string(content))
-		section := findSectionByTitle(sections, args.Section)
+		// Parse sections and find the requested one using the parsing package
+		sections := parsing.ParseSections(string(content))
+		section := parsing.FindSectionByTitle(sections, args.Section)
 		if section == nil {
 			return GetExampleResult{Error: fmt.Sprintf("section '%s' not found in example '%s'", args.Section, args.Name)}, nil
 		}
@@ -120,156 +119,11 @@ func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 	}
 }
 
-// exampleSection represents a parsed section from a markdown document
-type exampleSection struct {
-	Title       string
-	Level       int
-	Content     string
-	FullContent string
-	Subsections []*exampleSection
-}
-
-// parseExampleSections extracts sections from markdown content based on headers
-func parseExampleSections(content string) []*exampleSection {
-	var topLevelSections []*exampleSection
-	var sectionStack []*exampleSection
-	var currentSection *exampleSection
-	var contentBuffer strings.Builder
-
-	scanner := bufio.NewScanner(strings.NewReader(content))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		level, title := parseExampleHeaderLine(line)
-
-		if level > 0 {
-			// Save accumulated content to current section
-			if currentSection != nil {
-				currentSection.Content = contentBuffer.String()
-			}
-
-			// Create new section
-			newSection := &exampleSection{
-				Title:       title,
-				Level:       level,
-				Subsections: []*exampleSection{},
-			}
-
-			// Pop from stack until we find appropriate parent
-			for len(sectionStack) > 0 && sectionStack[len(sectionStack)-1].Level >= level {
-				sectionStack = sectionStack[:len(sectionStack)-1]
-			}
-
-			// Add new section to parent or top-level list
-			if len(sectionStack) > 0 {
-				parent := sectionStack[len(sectionStack)-1]
-				parent.Subsections = append(parent.Subsections, newSection)
-			} else {
-				topLevelSections = append(topLevelSections, newSection)
-			}
-
-			sectionStack = append(sectionStack, newSection)
-			currentSection = newSection
-
-			// Start new content buffer with the header line
-			contentBuffer.Reset()
-			contentBuffer.WriteString(line)
-			contentBuffer.WriteString("\n")
-		} else {
-			contentBuffer.WriteString(line)
-			contentBuffer.WriteString("\n")
-		}
-	}
-
-	// Finalize last section
-	if currentSection != nil {
-		currentSection.Content = contentBuffer.String()
-	}
-
-	// Build FullContent for each section
-	for _, sec := range topLevelSections {
-		buildExampleFullContent(sec)
-	}
-
-	return topLevelSections
-}
-
-// parseExampleHeaderLine checks if a line is a markdown header
-func parseExampleHeaderLine(line string) (level int, title string) {
-	trimmed := strings.TrimLeft(line, " \t")
-
-	hashCount := 0
-	for i := 0; i < len(trimmed) && trimmed[i] == '#'; i++ {
-		hashCount++
-	}
-
-	if hashCount < 2 || hashCount >= len(trimmed) || trimmed[hashCount] != ' ' {
-		return 0, ""
-	}
-
-	title = strings.TrimSpace(trimmed[hashCount+1:])
-	return hashCount, title
-}
-
-// buildExampleFullContent populates FullContent field with section content plus all subsections
-func buildExampleFullContent(section *exampleSection) {
-	var builder strings.Builder
-	builder.WriteString(section.Content)
-
-	for _, subsection := range section.Subsections {
-		buildExampleFullContent(subsection)
-		builder.WriteString(subsection.FullContent)
-	}
-
-	section.FullContent = builder.String()
-}
-
-// findSectionByTitle finds a section with the given title (case-insensitive)
-func findSectionByTitle(sections []*exampleSection, title string) *exampleSection {
-	titleLower := strings.ToLower(strings.TrimSpace(title))
-
-	// Check top-level sections first
-	for _, sec := range sections {
-		if strings.ToLower(strings.TrimSpace(sec.Title)) == titleLower {
-			return sec
-		}
-	}
-
-	// Check subsections
-	for _, sec := range sections {
-		if found := findSectionByTitleInSubsections(sec.Subsections, titleLower); found != nil {
-			return found
-		}
-	}
-
-	// Try fuzzy match (contains)
-	for _, sec := range sections {
-		secTitleLower := strings.ToLower(strings.TrimSpace(sec.Title))
-		if strings.Contains(secTitleLower, titleLower) || strings.Contains(titleLower, secTitleLower) {
-			return sec
-		}
-	}
-
-	return nil
-}
-
-// findSectionByTitleInSubsections recursively searches subsections
-func findSectionByTitleInSubsections(sections []*exampleSection, titleLower string) *exampleSection {
-	for _, sec := range sections {
-		if strings.ToLower(strings.TrimSpace(sec.Title)) == titleLower {
-			return sec
-		}
-		if found := findSectionByTitleInSubsections(sec.Subsections, titleLower); found != nil {
-			return found
-		}
-	}
-	return nil
-}
-
 // GetExampleContent retrieves the content of a specific example file.
 // If section is provided, only that section's content is returned.
 func GetExampleContent(name, section string) (string, error) {
-	filePath := filepath.Join("_static/examples", name)
+	// Note: embed.FS always uses forward slashes, regardless of OS
+	filePath := "_static/examples/" + name
 	content, err := examplesFS.ReadFile(filePath)
 	if err != nil {
 		return "", fmt.Errorf("failed to read example file '%s': %w", name, err)
@@ -279,8 +133,8 @@ func GetExampleContent(name, section string) (string, error) {
 		return string(content), nil
 	}
 
-	sections := parseExampleSections(string(content))
-	sec := findSectionByTitle(sections, section)
+	sections := parsing.ParseSections(string(content))
+	sec := parsing.FindSectionByTitle(sections, section)
 	if sec == nil {
 		return "", fmt.Errorf("section '%s' not found in example '%s'", section, name)
 	}

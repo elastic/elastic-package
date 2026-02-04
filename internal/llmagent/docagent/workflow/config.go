@@ -10,6 +10,7 @@ import (
 	"google.golang.org/adk/tool"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 )
 
 // DefaultMaxIterations is the default maximum number of workflow iterations
@@ -20,12 +21,15 @@ type Config struct {
 	// Registry contains the agents to use in the workflow
 	Registry *specialists.Registry
 
-	// MaxIterations limits the number of refinement cycles
-	// Set to 0 for unlimited iterations (until approved)
+	// MaxIterations limits the number of refinement cycles.
+	// Defaults to DefaultMaxIterations (3) if set to 0.
 	MaxIterations uint
 
 	// Model is the LLM model to use for agents
 	Model model.LLM
+
+	// ModelID is the model identifier string for tracing
+	ModelID string
 
 	// Tools available to agents in the workflow
 	Tools []tool.Tool
@@ -36,27 +40,39 @@ type Config struct {
 	// EnableCritic enables the critic agent in the workflow
 	EnableCritic bool
 
-	// EnableValidator enables the validator agent in the workflow
-	EnableValidator bool
-
 	// EnableURLValidator enables the URL validator agent in the workflow
 	EnableURLValidator bool
+
+	// EnableStaticValidation enables static validators that check against package files
+	EnableStaticValidation bool
+
+	// EnableLLMValidation enables LLM-based validation using validator instructions
+	EnableLLMValidation bool
+
+	// PackageContext provides package metadata for static validation
+	PackageContext *validators.PackageContext
 }
 
 // DefaultConfig returns a Config with sensible defaults
 func DefaultConfig() Config {
 	return Config{
-		Registry:           specialists.DefaultRegistry(),
-		MaxIterations:      DefaultMaxIterations,
-		EnableCritic:       true,
-		EnableValidator:    true,
-		EnableURLValidator: true,
+		Registry:            specialists.DefaultRegistry(),
+		MaxIterations:       DefaultMaxIterations,
+		EnableCritic:        true,
+		EnableURLValidator:  true,
+		EnableLLMValidation: true, // LLM validation enabled by default for semantic checks
 	}
 }
 
 // WithModel sets the LLM model
 func (c Config) WithModel(m model.LLM) Config {
 	c.Model = m
+	return c
+}
+
+// WithModelID sets the model identifier for tracing
+func (c Config) WithModelID(id string) Config {
+	c.ModelID = id
 	return c
 }
 
@@ -84,12 +100,23 @@ func (c Config) WithRegistry(r *specialists.Registry) Config {
 	return c
 }
 
-// GeneratorOnly returns a config that only uses the generator agent
-func GeneratorOnly() Config {
-	r := specialists.NewRegistry()
-	r.Register(specialists.NewGeneratorAgent())
-	return Config{
-		Registry:      r,
-		MaxIterations: 1,
-	}
+// WithStaticValidation enables static validators with the given package context
+func (c Config) WithStaticValidation(pkgCtx *validators.PackageContext) Config {
+	c.EnableStaticValidation = true
+	c.PackageContext = pkgCtx
+	return c
+}
+
+// WithLLMValidation enables LLM-based validation using validator instructions
+func (c Config) WithLLMValidation(enabled bool) Config {
+	c.EnableLLMValidation = enabled
+	return c
+}
+
+// WithFullValidation enables both static and LLM validation
+func (c Config) WithFullValidation(pkgCtx *validators.PackageContext) Config {
+	c.EnableStaticValidation = true
+	c.EnableLLMValidation = true
+	c.PackageContext = pkgCtx
+	return c
 }

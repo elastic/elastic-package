@@ -698,15 +698,37 @@ _Context: global_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
-1. Rewrite mode (default): Full documentation regeneration
+The AI agent supports three modes:
+1. Rewrite mode (default): Full documentation regeneration using section-based generation
    - Analyzes your package structure, data streams, and configuration
-   - Generates comprehensive documentation following Elastic's templates
+   - Generates each section independently with its own validation loop
+   - Each section is generated multiple times (configurable iterations) and the best version is selected
+   - Sections are generated in parallel for faster processing
    - Creates or updates markdown files in /_dev/build/docs/
 2. Modify mode: Targeted documentation changes
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
    - Use --modify-prompt flag for non-interactive modifications
+3. Evaluate mode: Documentation quality evaluation
+   - Use --evaluate flag to run in evaluation mode
+   - Outputs to a directory instead of modifying the package
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - Supports batch processing of multiple packages with --batch flag
+
+Section-based generation workflow:
+The rewrite mode uses a sophisticated section-based approach where:
+1. The README template is parsed into individual sections (Overview, Troubleshooting, etc.)
+2. Each section is generated independently in parallel
+3. Per-section validation loops run multiple iterations with feedback
+4. The best iteration for each section is selected based on content quality
+5. All sections are combined into the final document
+6. Full-document validation is run on the assembled document
+
+This approach produces higher quality documentation because:
+- Each section gets focused attention and validation
+- Issues in one section don't affect other sections
+- Parallel generation is faster than sequential full-document generation
+- Best-iteration tracking prevents regression in later iterations
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -721,15 +743,26 @@ Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
 Combine with --modify-prompt "instructions" for targeted non-interactive changes.
 
+Evaluation mode examples:
+  # Evaluate a single package (run from package directory)
+  elastic-package update documentation --evaluate --output-dir ./results
+
+  # Batch evaluation of multiple packages
+  elastic-package update documentation --evaluate \
+    --batch citrix_adc,nginx,apache \
+    --integrations-path ~/git/integrations \
+    --output-dir ./batch_results \
+    --parallel 4
+
+  # With Phoenix tracing enabled
+  elastic-package update documentation --evaluate --enable-tracing
+
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
-- GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
-- LOCAL_LLM_ENDPOINT / llm.local.endpoint: Endpoint for local LLM server
-- LOCAL_LLM_MODEL / llm.local.model: Model name for local LLM (defaults to llama2)
-- LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
-- LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false).
+- GOOGLE_API_KEY / llm.gemini.api_key: API key for Gemini
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
+- GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode).
 
 ### `elastic-package version`
 
@@ -796,15 +829,71 @@ When using AI-powered documentation generation, **file content from your local f
 
 The command supports two modes of operation:
 
-1. **Rewrite Mode** (default): Full documentation regeneration
+1. **Rewrite Mode** (default): Full documentation regeneration using section-based generation
    - Analyzes your package structure, data streams, and configuration
-   - Generates comprehensive documentation following Elastic's templates
+   - Uses a multi-agent workflow with specialized generator, critic, and validator agents
+   - **Section-based generation**: Each section (Overview, Troubleshooting, etc.) is generated independently
+   - **Per-section validation loops**: Each section runs multiple iterations with validation feedback
+   - **Best-iteration selection**: The best version of each section is selected based on content quality
+   - **Convergence detection**: Grants a bonus iteration if issues are decreasing but not yet zero
+   - **Parallel processing**: Sections are generated in parallel for faster results
    - Creates or updates the README.md file in `/_dev/build/docs/`
 
 2. **Modify Mode**: Targeted documentation changes
    - Makes specific changes to existing documentation
    - Requires existing README.md file at `/_dev/build/docs/README.md`
    - Use `--modify-prompt` flag for non-interactive modifications
+
+3. **Evaluate Mode**: Documentation quality evaluation
+   - Use `--evaluate` flag to run quality evaluation without modifying files
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - Supports batch processing of multiple packages with `--batch` flag
+   - Outputs results to a directory for analysis
+
+#### Section-Based Generation Architecture
+
+The rewrite mode uses a sophisticated architecture:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Section-Based Generation                      │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
+│   │   Section 1  │    │   Section 2  │    │   Section N  │     │
+│   │   Overview   │    │ Troubleshoot │    │  Reference   │     │
+│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘     │
+│          │                   │                   │              │
+│          ▼                   ▼                   ▼              │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │         Per-Section Validation Loop (Parallel)        │     │
+│   │  ┌─────────────────────────────────────────────────┐ │     │
+│   │  │ Iteration 1 → Validate → Iteration 2 → ... → N  │ │     │
+│   │  └─────────────────────────────────────────────────┘ │     │
+│   │         ↓ Select Best Iteration for Each Section     │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │              Combine Best Sections                    │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │         Full-Document Validation (Structure)          │     │
+│   └──────────────────────────────────────────────────────┘     │
+│                            │                                    │
+│                            ▼                                    │
+│                     Final README.md                             │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+This approach produces higher quality documentation because:
+- Each section receives focused attention and targeted validation
+- Issues in one section don't affect other sections
+- Parallel generation is faster than sequential full-document generation
+- Best-iteration tracking prevents content regression in later iterations
 
 #### Workflow Options
 
@@ -826,13 +915,12 @@ If no LLM provider is configured, the command will print manual instructions for
 You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
 
 * `llm.gemini.api_key`: API key for Google Gemini LLM services  
-* `llm.gemini.model`: Gemini model ID (defaults to `gemini-2.5-pro`)
-* `llm.local.endpoint`: Endpoint URL for local OpenAI-compatible LLM servers
-* `llm.local.model`: Model name for local LLM servers (defaults to `llama2`)
-* `llm.local.api_key`: API key for local LLM servers (optional, if authentication is required)
+* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
+* `llm.gemini.thinking_budget`: Thinking budget in tokens for Gemini Pro models (defaults to `128` for "low" mode)
+* `llm.parallel_sections`: Enable parallel section generation for faster results (defaults to `true`)
 * `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
 
-Environment variables (e.g., `GEMINI_API_KEY`, `LOCAL_LLM_ENDPOINT`) take precedence over profile configuration.
+Environment variables (e.g., `GOOGLE_API_KEY`) take precedence over profile configuration.
 
 #### Usage Examples
 
@@ -852,21 +940,19 @@ elastic-package update documentation --modify-prompt "Add more details about aut
 
 # Use specific profile with LLM configuration
 elastic-package update documentation --profile production
+
+# Evaluate documentation quality (single package)
+elastic-package update documentation --evaluate --output-dir ./results
+
+# Batch evaluation of multiple packages
+elastic-package update documentation --evaluate \
+  --batch citrix_adc,nginx,apache \
+  --integrations-path ~/git/integrations \
+  --output-dir ./batch_results \
+  --parallel 4
 ```
 
 #### Advanced Features
-
-**Preserving Human-Edited Content:**
-
-Manually edited sections can be preserved by wrapping them with HTML comment markers:
-
-```html
-<!-- PRESERVE START -->
-Important manual content to preserve
-<!-- PRESERVE END -->
-```
-
-Any content between these markers will be preserved exactly as-is during AI-generated documentation updates. The system will automatically validate preservation after generation and warn if marked content was modified or removed.
 
 **Service Knowledge Base:**
 
@@ -974,111 +1060,13 @@ During documentation generation, the AI agent:
 
 This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
 
-##### Creating the service_info.md File
-
-The `service_info.md` file should be placed at `docs/knowledge_base/service_info.md` within your package directory. This file provides structured, authoritative information about the service your integration monitors, and is used by the AI documentation generator to produce accurate, comprehensive documentation.
-
-##### Template Structure
-
-The `service_info.md` file should follow this template:
-
-```markdown
-# Service Info
-
-## Common use cases
-
-/* Common use cases that this will facilitate */
-
-## Data types collected
-
-/* What types of data this integration can collect */
-
-## Compatibility
-
-/* Information on the vendor versions this integration is compatible with or has been tested against */
-
-## Scaling and Performance
-
-/* Vendor-specific information on what performance can be expected, how to set up scaling, etc. */
-
-# Set Up Instructions
-
-## Vendor prerequisites
-
-/* Add any vendor specific prerequisites, e.g. "an API key with permission to access <X, Y, Z> is required" */
-
-## Elastic prerequisites
-
-/* If there are any Elastic specific prerequisites, add them here
-
-    The stack version and agentless support is not needed, as this can be taken from the manifest */
-
-## Vendor set up steps
-
-/* List the specific steps that are needed in the vendor system to send data to Elastic.
-
-  If multiple input types are supported, add instructions for each in a subsection */
-
-## Kibana set up steps
-
-/* List the specific steps that are needed in Kibana to add and configure the integration to begin ingesting data */
-
-# Validation Steps
-
-/* List the steps that are needed to validate the integration is working, after ingestion has started.
-
-    This may include steps on the vendor system to trigger data flow, and steps on how to check the data is correct in Kibana dashboards or alerts. */
-
-# Troubleshooting
-
-/* Add lists of "*Issue* / *Solutions*" for troubleshooting knowledge base into the most appropriate section below */
-
-## Common Configuration Issues
-
-/* For generic problems such as "service failed to start" or "no data collected" */
-
-## Ingestion Errors
-
-/* For problems that involve "error.message" being set on ingested data */
-
-## API Authentication Errors
-
-/* For API authentication failures, credential errors, and similar */
-
-## Vendor Resources
-
-/* If the vendor has a troubleshooting specific help page, add it here */
-
-# Documentation sites
-
-/* List of URLs that contain info on the service (reference pages, set up help, API docs, etc.) */
-```
-
-##### Writing Guidelines
-
-- **Be specific**: Provide concrete details rather than generic descriptions
-- **Use complete sentences**: The AI will use this content to generate natural-sounding documentation
-- **Include URLs**: List relevant vendor documentation, API references, and help pages in the "Documentation sites" section
-- **Cover edge cases**: Document known issues, limitations, or special configuration requirements
-- **Update regularly**: Keep this file current as the service or integration evolves
-
-##### How it's used by elastic-package
-
-During documentation generation, the AI agent:
-1. **Reads the service_info.md file first** as the primary source of information
-2. **Prioritizes this content** over any web search results or other sources
-3. **Uses the structured sections** to generate specific parts of the README
-4. **Preserves vendor-specific details** that might not be available through web searches
-
-This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
-
 **Custom Prompts:**
 
 Enable `llm.external_prompts` in your profile config to use custom prompt files. Place them in:
 - `~/.elastic-package/profiles/<profile>/prompts/` (profile-specific)
 - `~/.elastic-package/prompts/` (global)
 
-Available prompt files: `initial_prompt.txt`, `revision_prompt.txt`, `limit_hit_prompt.txt`
+Available prompt files: `revision_prompt.txt`, `section_generation_prompt.txt`, `modification_prompt.txt`
 
 ## Useful environment variables
 
@@ -1138,11 +1126,14 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
-    - `GEMINI_API_KEY`: API key for Gemini LLM services
-    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-2.5-pro`)
-    - `LOCAL_LLM_ENDPOINT`: Endpoint URL for local OpenAI-compatible LLM servers.
-    - `LOCAL_LLM_MODEL`: Model name for local LLM servers (defaults to `llama2`)
-    - `LOCAL_LLM_API_KEY`: API key for local LLM servers (optional, if authentication is required)
+    - `GOOGLE_API_KEY`: API key for Gemini LLM services
+    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
+    - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
+    - `ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS`: Enable parallel section generation (defaults to `true`)
+    - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
+    - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
+    - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)
+    - `LLM_TRACING_PROJECT_NAME`: Project name for tracing (defaults to `elastic-package`)
 
 
 ## Release process

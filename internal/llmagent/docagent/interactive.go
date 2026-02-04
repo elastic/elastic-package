@@ -108,32 +108,6 @@ func (d *DocumentationAgent) handleReadmeUpdate() (bool, error) {
 	return true, nil
 }
 
-// handleInteractiveError handles error responses in interactive mode
-func (d *DocumentationAgent) handleInteractiveError() (string, bool, error) {
-	fmt.Println("\n❌ Error detected in LLM response.")
-
-	errorPrompt := tui.NewSelect("What would you like to do?", []string{
-		ActionTryAgain,
-		ActionExit,
-	}, ActionTryAgain)
-
-	var errorAction string
-	err := tui.AskOne(errorPrompt, &errorAction)
-	if err != nil {
-		return "", false, fmt.Errorf("prompt failed: %w", err)
-	}
-
-	if errorAction == ActionExit {
-		fmt.Println("⚠️  Exiting due to LLM error.")
-		return "", false, nil
-	}
-
-	// Continue with retry prompt
-	promptCtx := d.createPromptContext(d.manifest, "The previous attempt encountered an error. Please try a different approach to analyze the package and update the documentation.")
-	prompt := d.buildPrompt(PromptTypeRevision, promptCtx)
-	return prompt, true, nil
-}
-
 // handleUserAction processes the user's chosen action
 func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool) ActionResult {
 	switch action {
@@ -153,18 +127,6 @@ func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool)
 // handleAcceptAction handles the "Accept and finalize" action
 func (d *DocumentationAgent) handleAcceptAction(readmeUpdated bool) ActionResult {
 	if readmeUpdated {
-		// Validate preserved sections if we had original content
-		if d.originalReadmeContent != nil {
-			if newContent, err := d.readCurrentReadme(); err == nil {
-				preserved := d.arePreservedSectionsKept(*d.originalReadmeContent, newContent)
-				if !preserved {
-					fmt.Println("⚠️  Warning: Some human-edited sections may not have been preserved")
-					fmt.Println("   Please review the documentation to ensure important content wasn't lost.")
-					return ActionResult{"", false, fmt.Errorf("human-edited sections not preserved")}
-				}
-			}
-		}
-
 		fmt.Println("✅ Documentation update completed!")
 		return ActionResult{"", false, nil}
 	}

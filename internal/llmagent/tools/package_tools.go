@@ -304,10 +304,6 @@ func getReadmeTemplateHandler() functiontool.Func[GetReadmeTemplateArgs, GetRead
 	}
 }
 
-// ServiceInfoSectionMapper defines a function that maps README section names to service_info section names
-// This is defined here to avoid importing docagent
-type ServiceInfoSectionMapper func(readmeSectionTitle string) []string
-
 // getServiceInfoHandler returns a handler for the get_service_info tool
 func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool.Func[GetServiceInfoArgs, GetServiceInfoResult] {
 	return func(ctx tool.Context, args GetServiceInfoArgs) (GetServiceInfoResult, error) {
@@ -323,7 +319,7 @@ func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool
 		}
 
 		// Get mapping for the specified README section (hardcoded here to avoid import cycle)
-		serviceInfoSections := getServiceInfoMappingForSection(args.ReadmeSection)
+		serviceInfoSections := GetServiceInfoMappingForSection(args.ReadmeSection)
 
 		if len(serviceInfoSections) == 0 {
 			// No mapping exists for this section, return all sections
@@ -343,67 +339,39 @@ func getServiceInfoHandler(serviceInfoProvider ServiceInfoProvider) functiontool
 	}
 }
 
-// getServiceInfoMappingForSection returns service_info sections for a README section
-// This is duplicated here to avoid import cycle with docagent package
-func getServiceInfoMappingForSection(readmeSectionTitle string) []string {
+// GetServiceInfoMappingForSection returns service_info sections for a README section
+// This mapping defines which service_info.md sections are relevant for each README section
+func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 	// Mapping of README sections to service_info sections
-	// This must be kept in sync with ServiceInfoSectionMapping in docagent/service_info_mapping.go
 	mapping := map[string][]string{
 		"Overview": {
 			"Common use cases",
 			"Data types collected",
-			"Vendor Resources",
-			"Documentation sites",
-		},
-		"Compatibility": {
 			"Compatibility",
-		},
-		"How it works": {
-			"Data types collected",
-			"Vendor prerequisites",
-			"Elastic prerequisites",
-			"Vendor set up steps",
-			"Kibana set up steps",
-			"Validation steps",
-		},
-		"What data does this integration collect?": {
-			"Data types collected",
-		},
-		"Supported use cases": {
-			"Supported use cases",
-			"Data types collected",
-			"Vendor Resources",
 		},
 		"What do I need to use this integration?": {
 			"Vendor prerequisites",
 			"Elastic prerequisites",
 		},
+		"What data does this integration collect?": {
+			"Data types collected",
+		},
 		"How do I deploy this integration?": {
 			"Vendor set up steps",
+			"Vendor set up resources",
 			"Kibana set up steps",
+			"Validation steps",
 		},
-		"Onboard and configure": {
-			"Vendor set up steps",
-			"Kibana set up steps",
-		},
-		"Set up steps in *": {
-			"Vendor set up steps",
-		},
-		"Set up steps in Kibana": {
-			"Kibana set up steps",
-		},
-		"Validation Steps": {
-			"Validation Steps",
-		},
-		"Troubleshooting": {
-			"Troubleshooting",
+		"Reference": {
+			"Vendor resources",
+			"Documentation sites",
 		},
 		"Performance and scaling": {
 			"Performance and scaling",
+			"Scaling and performance",
 		},
-		"Reference": {
-			"Documentation sites",
-			"Vendor Resources",
+		"Troubleshooting": {
+			"Troubleshooting",
 		},
 	}
 

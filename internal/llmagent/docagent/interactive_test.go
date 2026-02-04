@@ -13,32 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestActionResult(t *testing.T) {
-	t.Run("creates action result with continuation", func(t *testing.T) {
-		result := ActionResult{
-			NewPrompt:      "test prompt",
-			ShouldContinue: true,
-			Err:            nil,
-		}
-
-		assert.Equal(t, "test prompt", result.NewPrompt)
-		assert.True(t, result.ShouldContinue)
-		assert.NoError(t, result.Err)
-	})
-
-	t.Run("creates action result with error", func(t *testing.T) {
-		result := ActionResult{
-			NewPrompt:      "",
-			ShouldContinue: false,
-			Err:            assert.AnError,
-		}
-
-		assert.Empty(t, result.NewPrompt)
-		assert.False(t, result.ShouldContinue)
-		assert.Error(t, result.Err)
-	})
-}
-
 func TestHandleReadmeUpdate(t *testing.T) {
 	tempDir := t.TempDir()
 	packageRoot := tempDir
@@ -48,7 +22,6 @@ func TestHandleReadmeUpdate(t *testing.T) {
 	docsDir := filepath.Join(packageRoot, "_dev", "build", "docs")
 	err := os.MkdirAll(docsDir, 0o755)
 	require.NoError(t, err)
-
 	docPath := filepath.Join(docsDir, targetDocFile)
 
 	t.Run("detects updated readme with new content", func(t *testing.T) {
@@ -181,8 +154,6 @@ func TestHandleAcceptAction(t *testing.T) {
 	err := os.MkdirAll(docsDir, 0o755)
 	require.NoError(t, err)
 
-	docPath := filepath.Join(docsDir, targetDocFile)
-
 	t.Run("accepts when readme is updated", func(t *testing.T) {
 		agent := &DocumentationAgent{
 			packageRoot:           packageRoot,
@@ -197,57 +168,4 @@ func TestHandleAcceptAction(t *testing.T) {
 		assert.NoError(t, result.Err)
 	})
 
-	t.Run("warns when preserved sections not kept", func(t *testing.T) {
-		originalContent := "# Original\n<!-- PRESERVE START -->\nImportant content\n<!-- PRESERVE END -->"
-		agent := &DocumentationAgent{
-			packageRoot:           packageRoot,
-			targetDocFile:         targetDocFile,
-			originalReadmeContent: &originalContent,
-		}
-
-		// Write new content without preserved section
-		err := os.WriteFile(docPath, []byte("# New Content\nNo preserved section"), 0o644)
-		require.NoError(t, err)
-
-		result := agent.handleAcceptAction(true)
-
-		assert.False(t, result.ShouldContinue)
-		assert.Error(t, result.Err)
-		assert.Contains(t, result.Err.Error(), "human-edited sections not preserved")
-
-		// Cleanup
-		os.Remove(docPath)
-	})
-
-	t.Run("accepts when preserved sections are kept", func(t *testing.T) {
-		originalContent := "# Original\n<!-- PRESERVE START -->\nImportant content\n<!-- PRESERVE END -->"
-		agent := &DocumentationAgent{
-			packageRoot:           packageRoot,
-			targetDocFile:         targetDocFile,
-			originalReadmeContent: &originalContent,
-		}
-
-		// Write new content with preserved section
-		newContent := "# Updated\n<!-- PRESERVE START -->\nImportant content\n<!-- PRESERVE END -->\nNew info"
-		err := os.WriteFile(docPath, []byte(newContent), 0o644)
-		require.NoError(t, err)
-
-		result := agent.handleAcceptAction(true)
-
-		assert.False(t, result.ShouldContinue)
-		assert.NoError(t, result.Err)
-
-		// Cleanup
-		os.Remove(docPath)
-	})
-}
-
-func TestActionConstants(t *testing.T) {
-	t.Run("action constants are defined", func(t *testing.T) {
-		assert.Equal(t, "Accept and finalize", ActionAccept)
-		assert.Equal(t, "Request changes", ActionRequest)
-		assert.Equal(t, "Cancel", ActionCancel)
-		assert.Equal(t, "Try again", ActionTryAgain)
-		assert.Equal(t, "Exit", ActionExit)
-	})
 }

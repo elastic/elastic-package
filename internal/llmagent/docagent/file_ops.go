@@ -8,12 +8,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
-)
 
-const (
-	preserveStartMarker = "<!-- PRESERVE START -->"
-	preserveEndMarker   = "<!-- PRESERVE END -->"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 // backupOriginalReadme stores the current documentation file content for potential restoration and comparison to the generated version
@@ -29,14 +25,14 @@ func (d *DocumentationAgent) backupOriginalReadme() error {
 		if content, err := os.ReadFile(docPath); err == nil {
 			contentStr := string(content)
 			d.originalReadmeContent = &contentStr
-			fmt.Printf("📋 Backed up original %s (%d characters)\n", d.targetDocFile, len(contentStr))
+			logger.Debugf("Backed up original %s (%d characters)", d.targetDocFile, len(contentStr))
 		} else {
-			fmt.Printf("⚠️  Could not read original %s for backup: %v\n", d.targetDocFile, err)
+			logger.Warnf("Could not read original %s for backup: %v", d.targetDocFile, err)
 			return fmt.Errorf("reading file for backup: %w", err)
 		}
 	} else {
 		d.originalReadmeContent = nil
-		fmt.Printf("📋 No existing %s found - will create new one\n", d.targetDocFile)
+		logger.Debugf("No existing %s found - will create new one", d.targetDocFile)
 	}
 	return nil
 }
@@ -51,19 +47,19 @@ func (d *DocumentationAgent) restoreOriginalReadme() error {
 	if d.originalReadmeContent != nil {
 		// Restore original content
 		if err := os.WriteFile(docPath, []byte(*d.originalReadmeContent), 0o644); err != nil {
-			fmt.Printf("⚠️  Failed to restore original %s: %v\n", d.targetDocFile, err)
+			logger.Warnf("Failed to restore original %s: %v", d.targetDocFile, err)
 			return fmt.Errorf("restoring original file: %w", err)
 		}
-		fmt.Printf("🔄 Restored original %s (%d characters)\n", d.targetDocFile, len(*d.originalReadmeContent))
+		logger.Debugf("Restored original %s (%d characters)", d.targetDocFile, len(*d.originalReadmeContent))
 	} else {
 		// No original file existed, so remove any file that was created
 		if err := os.Remove(docPath); err != nil {
 			if !os.IsNotExist(err) {
-				fmt.Printf("⚠️  Failed to remove created %s: %v\n", d.targetDocFile, err)
+				logger.Warnf("Failed to remove created %s: %v", d.targetDocFile, err)
 				return fmt.Errorf("removing created file: %w", err)
 			}
 		} else {
-			fmt.Printf("🗑️  Removed created %s file - restored to original state (no file)\n", d.targetDocFile)
+			logger.Debugf("Removed created %s file - restored to original state (no file)", d.targetDocFile)
 		}
 	}
 	return nil
@@ -105,55 +101,6 @@ func (d *DocumentationAgent) readCurrentReadme() (string, error) {
 	}
 	return string(content), nil
 }
-
-// arePreservedSectionsKept checks if human-edited sections are preserved in the new content
-func (d *DocumentationAgent) arePreservedSectionsKept(originalContent, newContent string) bool {
-	// Extract preserved sections from original content
-	preservedSections := d.extractPreservedSections(originalContent)
-
-	// Check if each preserved section exists in the new content
-	for _, content := range preservedSections {
-		if !strings.Contains(newContent, content) {
-			return false
-		}
-	}
-
-	return true
-}
-
-// extractPreservedSections extracts all human-edited sections from content
-func (d *DocumentationAgent) extractPreservedSections(content string) []string {
-	sections := make([]string, 0)
-
-	startIdx := 0
-	sectionNum := 0
-
-	for {
-		start := strings.Index(content[startIdx:], preserveStartMarker)
-		if start == -1 {
-			break
-		}
-		start += startIdx
-
-		end := strings.Index(content[start:], preserveEndMarker)
-		if end == -1 {
-			break
-		}
-		end += start
-
-		// Extract the full section including markers
-		sectionContent := content[start : end+len(preserveEndMarker)]
-		sections = append(sections, sectionContent)
-
-		startIdx = end + len(preserveEndMarker)
-		sectionNum++
-	}
-
-	return sections
-}
-
-// readServiceInfo reads the service_info.md file if it exists in docs/knowledge_base/
-// Returns the content and whether the file exists
 
 func (d *DocumentationAgent) getDocPath() (string, error) {
 	if d.packageRoot == "" {
