@@ -761,7 +761,7 @@ If no LLM provider is configured, this command will print instructions for updat
 
 Configuration options for LLM providers (environment variables or profile config):
 - GOOGLE_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-pro-preview)
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
 - GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode).
 
 ### `elastic-package version`
@@ -915,7 +915,7 @@ If no LLM provider is configured, the command will print manual instructions for
 You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
 
 * `llm.gemini.api_key`: API key for Google Gemini LLM services  
-* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-pro-preview`)
+* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
 * `llm.gemini.thinking_budget`: Thinking budget in tokens for Gemini Pro models (defaults to `128` for "low" mode)
 * `llm.parallel_sections`: Enable parallel section generation for faster results (defaults to `true`)
 * `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
@@ -952,29 +952,7 @@ elastic-package update documentation --evaluate \
   --parallel 4
 ```
 
-#### Debug Flags
-
-For troubleshooting and development, the following debug flags run individual agents in isolation:
-
-* `--debug-critic-only`: Run only the critic agent on existing documentation to see quality feedback
-* `--debug-validator-only`: Run only the validator agent to check for issues without regenerating
-* `--debug-generator-only`: Run only the generator agent without critic/validator feedback loops
-
-These flags are mutually exclusive and useful for understanding how each agent evaluates your documentation.
-
 #### Advanced Features
-
-**Preserving Human-Edited Content:**
-
-Manually edited sections can be preserved by wrapping them with HTML comment markers:
-
-```html
-<!-- PRESERVE START -->
-Important manual content to preserve
-<!-- PRESERVE END -->
-```
-
-Any content between these markers will be preserved exactly as-is during AI-generated documentation updates. The system will automatically validate preservation after generation and warn if marked content was modified or removed.
 
 **Service Knowledge Base:**
 
@@ -1149,7 +1127,7 @@ There are available some environment variables that could be used to change some
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
     - `GOOGLE_API_KEY`: API key for Gemini LLM services
-    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-pro-preview`)
+    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
     - `ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS`: Enable parallel section generation (defaults to `true`)
     - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
