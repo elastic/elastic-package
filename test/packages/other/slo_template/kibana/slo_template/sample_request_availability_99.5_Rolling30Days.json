@@ -1,0 +1,39 @@
+{
+  "attributes": {
+    "name": "sample_request_availability_99.5_Rolling30Days",
+    "description": "This SLO tracks the availability of web server requests, ensuring that 99.5% of HTTP requests receive successful responses (status code < 400, status_code = 404 or status_code = 429) over a rolling 30-day period to ensure reliable web service delivery.",
+    "indicator": {
+      "type": "sli.kql.custom",
+      "params": {
+        "index": "logs-sample.access-default",
+        "filter": "data_stream.dataset : \"sample.access\" ",
+        "good": "event.outcome : \"success\" OR http.response.status_code : (404 OR 429)",
+        "total": "event.outcome : *",
+        "timestampField": "@timestamp"
+      }
+    },
+    "budgetingMethod": "occurrences",
+    "timeWindow": {
+      "duration": "30d",
+      "type": "rolling"
+    },
+    "objective": {
+      "target": 0.995
+    },
+    "tags": [
+      "sample"
+    ],
+    "groupBy": [
+      "source.address"
+    ],
+    "artifacts": {
+      "dashboards": [
+        {
+          "id": "sample"
+        }
+      ]
+    }
+  },
+  "id": "sample_request_availability_99.5_Rolling30Days",
+  "type": "slo_template"
+}
