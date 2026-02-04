@@ -23,3 +23,6 @@ var ModificationAnalysisPrompt string
 
 //go:embed _static/modification_prompt.txt
 var ModificationPrompt string
+
+//go:embed _static/reformat_prompt.txt
+var ReformatPrompt string

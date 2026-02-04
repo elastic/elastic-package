@@ -698,15 +698,19 @@ _Context: global_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
-1. Rewrite mode (default): Full documentation regeneration
+The AI agent supports three modes (--mode flag):
+1. rewrite (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
    - Creates or updates markdown files in /_dev/build/docs/
-2. Modify mode: Targeted documentation changes
+2. modify: Targeted documentation changes
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
-   - Use --modify-prompt flag for non-interactive modifications
+   - Use --modify-prompt for non-interactive modifications
+3. reformat: Reorganize existing content
+   - Reorganizes existing documentation to match template structure
+   - Only moves content between sections, does not modify or add content
+   - Adds TODO placeholders for empty sections
 
 Multi-file support:
    - Use --doc-file to specify which markdown file to update (defaults to README.md)
@@ -714,22 +718,19 @@ Multi-file support:
    - Supports packages with multiple documentation files (e.g., README.md, vpc.md, etc.)
 
 Interactive workflow:
-After confirming you want to use the AI agent, you'll choose between rewrite or modify mode.
+After confirming you want to use the AI agent, you'll choose between rewrite, modify, or reformat mode.
 You can review results and request additional changes iteratively.
 
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
-Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+Combine with --mode=modify --modify-prompt "instructions" for targeted non-interactive changes.
+Use --mode=reformat for non-interactive reformatting.
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
 - GEMINI_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro)
-- LOCAL_LLM_ENDPOINT / llm.local.endpoint: Endpoint for local LLM server
-- LOCAL_LLM_MODEL / llm.local.model: Model name for local LLM (defaults to llama2)
-- LOCAL_LLM_API_KEY / llm.local.api_key: API key for local LLM (optional)
-- LLM_EXTERNAL_PROMPTS / llm.external_prompts: Enable external prompt files (defaults to false).
+- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-2.5-pro).
 
 ### `elastic-package version`
 
@@ -794,30 +795,45 @@ When using AI-powered documentation generation, **file content from your local f
 
 #### Operation Modes
 
-The command supports two modes of operation:
+The command supports three modes of operation, selected via the `--mode` flag:
 
-1. **Rewrite Mode** (default): Full documentation regeneration
+1. **rewrite** (default): Full documentation regeneration
    - Analyzes your package structure, data streams, and configuration
    - Generates comprehensive documentation following Elastic's templates
-   - Creates or updates the README.md file in `/_dev/build/docs/`
+   - Creates or updates markdown files in `/_dev/build/docs/`
 
-2. **Modify Mode**: Targeted documentation changes
+2. **modify**: Targeted documentation changes
    - Makes specific changes to existing documentation
-   - Requires existing README.md file at `/_dev/build/docs/README.md`
-   - Use `--modify-prompt` flag for non-interactive modifications
+   - Requires existing documentation file at `/_dev/build/docs/`
+   - Use `--modify-prompt` for non-interactive modifications
+
+3. **reformat**: Reorganize existing content
+   - Reorganizes existing documentation to match template structure
+   - Only moves content between sections, does not modify or add content
+   - Adds TODO placeholders for empty sections
+
+#### Command Flags
+
+| Flag | Description |
+|------|-------------|
+| `--mode` | Documentation update mode: `rewrite` (default), `modify`, or `reformat` |
+| `--modify-prompt` | Modification instructions for modify mode (implies `--mode=modify` if mode not set) |
+| `--doc-file` | Specify which markdown file to update (e.g., `README.md`, `vpc.md`). Defaults to `README.md` |
+| `--non-interactive` | Skip all prompts and automatically accept the first result from the LLM |
+| `--profile`, `-p` | Use a specific elastic-package profile with LLM configuration |
 
 #### Workflow Options
 
 **Interactive Mode** (default): 
 The command will guide you through the process, allowing you to:
-- Choose between rewrite or modify mode
+- Choose between rewrite, modify, or reformat mode
+- Select which documentation file to update (if multiple exist)
 - Review generated documentation
 - Request iterative changes
 - Accept or cancel the update
 
 **Non-Interactive Mode**:
 Use `--non-interactive` to skip all prompts and automatically accept the first result.
-Combine with `--modify-prompt "instructions"` for targeted non-interactive changes.
 
 If no LLM provider is configured, the command will print manual instructions for updating documentation.
 
@@ -837,18 +853,23 @@ Environment variables (e.g., `GEMINI_API_KEY`, `LOCAL_LLM_ENDPOINT`) take preced
 #### Usage Examples
 
 ```bash
-# Interactive documentation update (rewrite mode)
+# Interactive documentation update (prompts for mode selection)
 elastic-package update documentation
 
-# Interactive modification mode
-elastic-package update documentation
-# (choose "Modify" when prompted)
-
-# Non-interactive rewrite
+# Non-interactive rewrite (default mode)
 elastic-package update documentation --non-interactive
 
-# Non-interactive targeted changes
-elastic-package update documentation --modify-prompt "Add more details about authentication configuration"
+# Non-interactive modify with instructions
+elastic-package update documentation --non-interactive --mode=modify --modify-prompt "Add troubleshooting section"
+
+# Shorthand for modify (--modify-prompt implies --mode=modify)
+elastic-package update documentation --non-interactive --modify-prompt "Fix typos in setup instructions"
+
+# Non-interactive reformat
+elastic-package update documentation --non-interactive --mode=reformat
+
+# Update a specific documentation file
+elastic-package update documentation --doc-file vpc.md
 
 # Use specific profile with LLM configuration
 elastic-package update documentation --profile production
