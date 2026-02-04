@@ -41,7 +41,7 @@ const (
 	DefaultProjectName = "elastic-package"
 	TracerName         = "elastic-package-llmagent"
 	// DefaultModelID is used when no model ID is provided to ensure Phoenix can calculate costs
-	DefaultModelID = "gemini-3-pro-preview"
+	DefaultModelID = "gemini-3-flash-preview"
 )
 
 // OpenInference semantic convention attribute keys
