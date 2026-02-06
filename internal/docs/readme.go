@@ -229,6 +229,9 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 		"alertRuleTemplates": func() (string, error) {
 			return renderAlertRuleTemplates(packageRoot, linksMap)
 		},
+		"sloTemplates": func() (string, error) {
+			return renderSloTemplates(packageRoot, linksMap)
+		},
 	}).ParseFiles(templatePath)
 	if err != nil {
 		return nil, fmt.Errorf("parsing README template failed (path: %s): %w", templatePath, err)
