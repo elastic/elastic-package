@@ -819,11 +819,6 @@
             "id": "ti_anomali-fleet-managed-default",
             "name": "tag-ref-fleet-managed-default",
             "type": "tag"
-        },
-        {
-            "id": "ti_anomali-fleet-pkg-ti_anomali-default",
-            "name": "tag-ref-fleet-pkg-ti_anomali-default",
-            "type": "tag"
         }
     ],
     "type": "dashboard"
