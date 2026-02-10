@@ -82,6 +82,7 @@ a stack, starting agents and services and validating results.
 - `PACKAGE_NAME`: the name of the running package
 - `PACKAGE_BASE`: the basename of the path to the root of the running package
 - `PACKAGE_ROOT`: the path to the root of the running package
+- `LATEST_EPR_VERSION`: the version of the latest EPR-available version
 - `CURRENT_VERSION`: the current version of the package
 - `PREVIOUS_VERSION`: the previous version of the package
 - `DATA_STREAM`: the name of the data stream
@@ -100,6 +101,10 @@ that has been started by the test script.
 The breaking-change status of the most recent version of the package is available
 as the `breaking_change` condition. If a test is not expected to pass due to a
 breaking change, this condition can be used to skip it.
+
+Whether the current version is greater than the latest EPR-available version is
+made available via the `is_latest_version` condition. This can be use to skip
+test for changes that are back-ports.
 
 
 ## Example

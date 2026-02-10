@@ -16,6 +16,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -105,8 +106,13 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		return err
 	}
 	var (
-		pkgRoot, currVersion, prevVersion string
-		breakingChange                    bool
+		pkgRoot string
+
+		latestEPRVersion string
+		currVersion      string
+		prevVersion      string
+		currSemver       *semver.Version
+		breakingChange   bool
 	)
 	if len(dirs) == 0 {
 		pkgRoot, err = packages.FindPackageRoot()
@@ -136,21 +142,21 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 					break
 				}
 			}
+			currSemver, err = semver.NewVersion(currVersion)
+			if err != nil {
+				return fmt.Errorf("failed to parse current version: %w", err)
+			}
 		}
 		if len(revs) > 1 {
 			prevVersion = revs[1].Version
 			if !breakingChange {
 				// If not explicitly noted as breaking, check that the
 				// the major versions match.
-				currV, err := semver.NewVersion(currVersion)
-				if err != nil {
-					return fmt.Errorf("failed to parse current version: %w", err)
-				}
-				prevV, err := semver.NewVersion(prevVersion)
+				prevSemver, err := semver.NewVersion(prevVersion)
 				if err != nil {
 					return fmt.Errorf("failed to parse previous version: %w", err)
 				}
-				breakingChange = currV.Major() != prevV.Major()
+				breakingChange = currSemver.Major() != prevSemver.Major()
 			}
 		}
 	}
@@ -187,8 +193,30 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	for _, d := range dirs {
 		t.dataStream = d
 		scripts := d
-		var dsRoot string
+		var (
+			dsRoot          string
+			manifest        *packages.PackageManifest
+			isLatestVersion = true
+		)
 		if pkgRoot != "" {
+			manifest, err = packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+			if err != nil {
+				return err
+			}
+			latestEPRVersion, err = getLatestEPRVersion(manifest.Name)
+			if err != nil {
+				return err
+			}
+			if latestEPRVersion != "" {
+				latestSemver, err := semver.NewVersion(latestEPRVersion)
+				if err != nil {
+					return fmt.Errorf("failed to parse latest epr version: %w", err)
+				}
+				if latestSemver.GreaterThanEqual(currSemver) {
+					isLatestVersion = false
+				}
+			}
+
 			dsRoot = filepath.Join(pkgRoot, "data_stream", d)
 			scripts = filepath.Join(dsRoot, filepath.FromSlash("_dev/test/scripts"))
 		}
@@ -239,13 +267,12 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				e.Setenv("CONFIG_PROFILES", loc.ProfileDir())
 				e.Setenv("HOME", home)
 				if pkgRoot != "" {
-					m, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
-					if err != nil {
-						return err
-					}
-					e.Setenv("PACKAGE_NAME", m.Name)
+					e.Setenv("PACKAGE_NAME", manifest.Name)
 					e.Setenv("PACKAGE_BASE", filepath.Base(pkgRoot))
 					e.Setenv("PACKAGE_ROOT", pkgRoot)
+				}
+				if latestEPRVersion != "" {
+					e.Setenv("LATEST_EPR_VERSION", latestEPRVersion)
 				}
 				if currVersion != "" {
 					e.Setenv("CURRENT_VERSION", currVersion)
@@ -271,6 +298,8 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 					return opt.ExternalStack, nil
 				case "breaking_change":
 					return breakingChange, nil
+				case "is_latest_version":
+					return isLatestVersion, nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}
@@ -303,6 +332,36 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		t.Log("[no test files]")
 	}
 	return nil
+}
+
+func getLatestEPRVersion(pkg string) (string, error) {
+	u, err := url.Parse("https://epr.elastic.co/search")
+	if err != nil {
+		return "", err
+	}
+	q := make(url.Values)
+	q.Add("package", pkg)
+	u.RawQuery = q.Encode()
+	resp, err := http.Get(u.String())
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("unexpected response status: %s (%d)", resp.Status, resp.StatusCode)
+	}
+	dec := json.NewDecoder(resp.Body)
+	var pkgs []struct {
+		Version string `json:"version"`
+	}
+	err = dec.Decode(&pkgs)
+	if err != nil {
+		return "", err
+	}
+	if len(pkgs) == 0 {
+		return "", nil
+	}
+	return pkgs[0].Version, nil
 }
 
 func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) {
