@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -103,7 +104,10 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return err
 	}
-	var pkgRoot, currVersion, prevVersion string
+	var (
+		pkgRoot, currVersion, prevVersion string
+		breakingChange                    bool
+	)
 	if len(dirs) == 0 {
 		pkgRoot, err = packages.FindPackageRoot()
 		if err != nil {
@@ -125,9 +129,29 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		}
 		if len(revs) > 0 {
 			currVersion = revs[0].Version
+			for _, c := range revs[0].Changes {
+				if c.Type == "breaking-change" {
+					// Mark as breaking if explicitly noted.
+					breakingChange = true
+					break
+				}
+			}
 		}
 		if len(revs) > 1 {
 			prevVersion = revs[1].Version
+			if !breakingChange {
+				// If not explicitly noted as breaking, check that the
+				// the major versions match.
+				currV, err := semver.NewVersion(currVersion)
+				if err != nil {
+					return fmt.Errorf("failed to parse current version: %w", err)
+				}
+				prevV, err := semver.NewVersion(prevVersion)
+				if err != nil {
+					return fmt.Errorf("failed to parse previous version: %w", err)
+				}
+				breakingChange = currV.Major() != prevV.Major()
+			}
 		}
 	}
 
@@ -245,6 +269,8 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				switch cond {
 				case "external_stack":
 					return opt.ExternalStack, nil
+				case "breaking_change":
+					return breakingChange, nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}

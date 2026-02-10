@@ -93,9 +93,13 @@ a stack, starting agents and services and validating results.
 
 The testscript package allows conditions to be set that allow conditional
 execution of commands. The test script command adds a condition that reflects
-the state of the `--external-stack` flag. This allows tests to be written that
-conditionally use either an externally managed stack, or a stack that has been
-started by the test script.
+the state of the `--external-stack` flag, `external_stack`. This allows tests to
+be written that conditionally use either an externally managed stack, or a stack
+that has been started by the test script.
+
+The breaking-change status of the most recent version of the package is available
+as the `breaking_change` condition. If a test is not expected to pass due to a
+breaking change, this condition can be used to skip it.
 
 
 ## Example
