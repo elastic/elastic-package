@@ -222,6 +222,14 @@ rules:
       - nodes/stats
     verbs:
       - get
+  - apiGroups:
+      - ""
+    resources:
+      # Needed if you are using extra_metadata_labels or
+      # are collecting the request/limit utilization metrics via OTel Collector
+      - nodes/proxy
+    verbs:
+      - get
   - apiGroups: [ "batch" ]
     resources:
       - jobs
