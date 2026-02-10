@@ -106,6 +106,9 @@ Whether the current version is greater than the latest EPR-available version is
 made available via the `is_latest_version` condition. This can be use to skip
 test for changes that are back-ports.
 
+The `has_previous_release` condition indicates whether there is a previous version
+in the changelog file.
+
 
 ## Example
 

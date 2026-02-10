@@ -300,6 +300,8 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 					return breakingChange, nil
 				case "is_latest_version":
 					return isLatestVersion, nil
+				case "has_previous_release":
+					return prevVersion != "", nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}
