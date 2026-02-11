@@ -203,7 +203,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			if err != nil {
 				return err
 			}
-			latestEPRVersion, err = getLatestEPRVersion(manifest.Name)
+			latestEPRVersion, err = getLatestEPRVersion(manifest.Name, appConfig.PackageRegistryBaseURL())
 			if err != nil {
 				return err
 			}
@@ -336,8 +336,12 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	return nil
 }
 
-func getLatestEPRVersion(pkg string) (string, error) {
-	u, err := url.Parse("https://epr.elastic.co/search")
+func getLatestEPRVersion(pkg, base string) (string, error) {
+	search, err := url.JoinPath(base, "search")
+	if err != nil {
+		return "", err
+	}
+	u, err := url.Parse(search)
 	if err != nil {
 		return "", err
 	}
