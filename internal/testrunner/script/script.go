@@ -16,7 +16,6 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -34,6 +33,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -203,11 +203,13 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			if err != nil {
 				return err
 			}
-			latestEPRVersion, err = getLatestEPRVersion(manifest.Name, appConfig.PackageRegistryBaseURL())
+			eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+			revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
 			if err != nil {
 				return err
 			}
-			if latestEPRVersion != "" {
+			if len(revisions) > 0 {
+				latestEPRVersion = revisions[len(revisions)-1].Version
 				latestSemver, err := semver.NewVersion(latestEPRVersion)
 				if err != nil {
 					return fmt.Errorf("failed to parse latest epr version: %w", err)
@@ -334,40 +336,6 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		t.Log("[no test files]")
 	}
 	return nil
-}
-
-func getLatestEPRVersion(pkg, base string) (string, error) {
-	search, err := url.JoinPath(base, "search")
-	if err != nil {
-		return "", err
-	}
-	u, err := url.Parse(search)
-	if err != nil {
-		return "", err
-	}
-	q := make(url.Values)
-	q.Add("package", pkg)
-	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected response status: %s (%d)", resp.Status, resp.StatusCode)
-	}
-	dec := json.NewDecoder(resp.Body)
-	var pkgs []struct {
-		Version string `json:"version"`
-	}
-	err = dec.Decode(&pkgs)
-	if err != nil {
-		return "", err
-	}
-	if len(pkgs) == 0 {
-		return "", nil
-	}
-	return pkgs[0].Version, nil
 }
 
 func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) {
