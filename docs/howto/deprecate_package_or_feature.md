@@ -2,16 +2,15 @@
 
 ## Introduction
 
-You can mark a package or an individual feature as `deprecated`. Deprecation means that the package or feature is retired and will only be maintained for a defined period. It remains available in the registry for installation and use, but Kibana and Fleet can display warnings to users.
-For the exact schema of the `deprecated` field, see the [Package Spec](https://github.com/elastic/package-spec).
+You can mark a package or an individual feature as `deprecated`. Deprecation means that the package or feature is retired and will only be maintained for a defined period. packages maintained by Elastic the maintenance period will follow EOL policies that can be found in [https://www.elastic.co/support/eol](https://www.elastic.co/support/eol).
 
 Individual feature deprecation is supported for: inputs, policy templates, variables, and data streams.
 
-Deprecation at the package-spec level is available since `3.6.0`, and is exposed through the package registry since `TBD`.
+Deprecation markers are available since spec version `3.6.0`.
 
 ## Lifecycle of package or feature deprecation
 
-1. **A package or feature is marked as deprecated.**  
+1. A package or feature is marked as deprecated.  
    You set the `deprecated.since` field to the version when deprecation takes effect and the `deprecated.description` field with a message regarding the deprecation. Both are required. Optionally, you can add information about a new package or feature that replaces the current one using `deprecated.replaced_by`. Available fields for replacing a package or individual feature are: `package`, `input`, `policy_template`, `variable` and `data_stream`.
 
    Some examples of deprecated field:
@@ -43,15 +42,15 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
       input: new_input_name
    ```
 
-2. **It remains available in the registry** for installation and use.
+2. It remains available in the registry for installation and use.
 
-3. **A maintenance period follows** (usually one year), during which the package or feature stays available and can receive critical fixes. Newer versions of the package can be released, which should update the deprecated information.
+3. A maintenance period follows (usually one year), during which the package or feature stays available and can receive critical fixes. Newer versions of the package can be released, which should update the deprecated information.
 
-4. **After this period**, the package or feature reaches End-of-Life (EOL) and may be removed from the registry if the authors choose to do so.
+4. After this period, the package or feature reaches End-of-Life (EOL) and may be removed from the registry if the authors choose to do so.
 
 ## Deprecate a package
 
-1. **Bump the package version** and set the deprecation in the package manifest (`manifest.yml`). Add a `deprecated` block with `since` set to the current package version:
+1. Bump the package version and set the deprecation in the package manifest (`manifest.yml`). Add a `deprecated` block with `since` set to the current package version:
 
    ```yaml
    format_version: "3.5.0"
@@ -65,7 +64,7 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
      description: This package is deprecated and will reach End-of-Life after the maintenance period.
    ```
 
-2. **Document the deprecation in the changelog** (`changelog.yml`). Add an entry for this version and use the `deprecation` type so that Fleet UI can show deprecation warnings:
+2. Document the deprecation in the changelog (`changelog.yml`). Add an entry for this version and use the `deprecation` type so that Fleet UI can show deprecation warnings:
 
    ```yaml
    # newer versions go on top
@@ -76,11 +75,11 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
          link: https://github.com/elastic/integrations/issues/1234
    ```
 
-3. **Publish the new version** to the package registry. From this version onward, the package is officially retired but remains installable; Kibana will display warnings during the maintenance period.
+3. Publish the new version to the package registry. From this version onward, the package is officially retired but remains installable; Kibana will display warnings during the maintenance period.
 
 ## Deprecate an individual feature
 
-1. **Add deprecation to the feature** in the appropriate manifest. For a data stream, set the `deprecated` block in that data stream’s `manifest.yml`. The exact schema is defined in the Package Spec; typically it includes `since` with the version when the feature was deprecated.
+1. Add deprecation to the feature in the appropriate manifest. For a data stream, set the `deprecated` block in that data stream’s `manifest.yml`. The exact schema is defined in the Package Spec; typically it includes `since` with the version when the feature was deprecated.
 
    Example of a data stream manifest (`data_stream/<stream_name>/manifest.yml`):
 
@@ -93,7 +92,7 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
      since: "2.4.0"
    ```
 
-2. **Record the change in the changelog** (`changelog.yml`) with type `deprecation`:
+2. Record the change in the changelog (`changelog.yml`) with type `deprecation`:
 
    ```yaml
    - version: "2.4.0"
@@ -103,7 +102,7 @@ Deprecation at the package-spec level is available since `3.6.0`, and is exposed
          link: https://github.com/elastic/integrations/issues/1234
    ```
 
-3. **Publish the new package version.** The deprecated feature stays available for the maintenance period; Kibana and Fleet can show warnings based on the registry and changelog.
+3. Publish the new package version. The deprecated feature stays available for the maintenance period; Kibana and Fleet can show warnings based on the registry and changelog.
 
 ## Updates to a deprecated package
 
