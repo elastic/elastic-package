@@ -98,6 +98,7 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
 -   **Tense**: **ALWAYS** use the present tense.
 -   **Punctuation**: **ALWAYS** use the Oxford comma (e.g., `A, B, and C`).
 -   **Abbreviations**: Use "for example" instead of "e.g." and "that is" instead of "i.e."
+-   **No Latin**: Use "using" instead of "via", "for example" instead of "e.g."
 
 ### Code samples
 
@@ -125,9 +126,9 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
 
 The first paragraph after the main heading is critical.
 
--   **Summarize purpose**: State what the integration does in one to three clear sentences.
--   **User outcomes**: State what users will accomplish.
+-   **Summarize purpose**: State what the integration does in one to two clear sentences.
 -   **Front-loading**: Place the most important information first.
+-   **No lists**: Never use bullet points or numbered lists in introductory paragraphs.
 
 ### Content structure
 

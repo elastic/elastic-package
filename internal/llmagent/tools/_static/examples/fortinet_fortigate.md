@@ -4,19 +4,11 @@
 
 The Fortinet FortiGate Firewall Logs integration for Elastic enables the collection of logs from Fortinet FortiGate firewalls. This allows for comprehensive security monitoring, threat detection, and network traffic analysis within the Elastic Stack. By ingesting FortiGate logs, users can gain visibility into firewall activity, monitor for security threats, audit policy compliance, and troubleshoot network issues.
 
-This integration facilitates:
-- Security monitoring and threat detection
-- Network traffic analysis and monitoring
-- Firewall policy compliance and auditing
-- Intrusion detection and prevention system (IPS) event monitoring
-- VPN connection monitoring and troubleshooting
-- Web filtering and application control monitoring
-
 ### Compatibility
 
 This integration has been tested against FortiOS versions 6.x and 7.x up to 7.4.1. Newer versions are expected to work but have not been tested.
 
-This integration is compatible with Elastic Stack version 8.11.0 or higher.
+This integration is compatible with Elastic Stack version 8.11.0 or later.
 
 ### How it works
 
@@ -25,10 +17,10 @@ This integration collects logs from FortiGate firewalls by receiving syslog data
 ## What data does this integration collect?
 
 The Fortinet FortiGate Firewall Logs integration collects the following types of logs:
-*   Traffic logs: Records of firewall decisions to allow or deny traffic.
-*   UTM (Unified Threat Management) logs: Includes events from antivirus, web filter, application control, IPS, and DNS filter modules.
-*   Event logs: System-level events, high-availability (HA) events, and configuration changes.
-*   Authentication logs: Records of VPN, administrator, and user authentication events.
+-   Traffic logs: Records of firewall decisions to allow or deny traffic.
+-   UTM (Unified Threat Management) logs: Includes events from antivirus, web filter, application control, IPS, and DNS filter modules.
+-   Event logs: System-level events, high-availability (HA) events, and configuration changes.
+-   Authentication logs: Records of VPN, administrator, and user authentication events.
 
 ### Supported use cases
 
@@ -42,7 +34,7 @@ Integrating Fortinet FortiGate logs with Elastic provides a powerful solution fo
 
 - A FortiGate firewall with administrative access to configure syslog settings.
 - Network connectivity between the FortiGate firewall and the Elastic Agent host.
-- Elastic Stack version 8.11.0 or higher.
+- Elastic Stack version 8.11.0 or later.
 
 ## How do I deploy this integration?
 
@@ -97,8 +89,6 @@ You can configure FortiGate to send logs to the Elastic Agent using either the G
 #### Vendor resources
 
 -   [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
--   [Fortinet Documentation Library](https://docs.fortinet.com/)
--   [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
 
 ### Set up steps in Kibana
 
@@ -115,8 +105,8 @@ This input collects logs over a TCP socket.
 
 | Setting | Description |
 |---|---|
-| **Listen Address** | The bind address for the TCP listener (e.g., `localhost`, `0.0.0.0`). |
-| **Listen Port** | The TCP port number to listen on (e.g., `9004`). |
+| **Listen Address** | The bind address for the TCP listener (for example, `localhost`, `0.0.0.0`). |
+| **Listen Port** | The TCP port number to listen on (for example, `9004`). |
 | **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
 
 Under **Advanced Options**, you can configure the following optional parameters:
@@ -126,8 +116,8 @@ Under **Advanced Options**, you can configure the following optional parameters:
 | **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
 | **Internal networks** | Specify your internal network ranges (defaults to private address spaces). Supports CIDR notation and named ranges like `private`. |
 | **SSL Configuration** | Configure SSL options for encrypted communication. See the [SSL documentation](https://www.elastic.co/guide/en/beats/filebeat/current/configuration-ssl.html#ssl-common-config) for details. |
-| **Custom TCP Options** | `framing`: Specifies how messages are framed. Defaults to `rfc6587`, which is required for FortiGate's reliable syslog mode. <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `max_connections`: The maximum number of simultaneous connections. |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Custom TCP Options** | `framing`: Specifies how messages are framed. Defaults to `rfc6587`, which is required for FortiGate's reliable syslog mode. <br> `max_message_size`: The maximum size of a log message (for example, `50KiB`). <br> `max_connections`: The maximum number of simultaneous connections. |
+| **Timezone** | Specify an IANA timezone or offset (for example, `+0200`) for logs with no timezone information. |
 | **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
 | **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
 
@@ -137,8 +127,8 @@ This input collects logs over a UDP socket.
 
 | Setting | Description |
 |---|---|
-| **Listen Address** | The bind address for the UDP listener (e.g., `localhost`, `0.0.0.0`). |
-| **Listen Port** | The UDP port number to listen on (e.g., `9004`). |
+| **Listen Address** | The bind address for the UDP listener (for example, `localhost`, `0.0.0.0`). |
+| **Listen Port** | The UDP port number to listen on (for example, `9004`). |
 | **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
 
 Under **Advanced Options**, you can configure the following optional parameters:
@@ -147,8 +137,8 @@ Under **Advanced Options**, you can configure the following optional parameters:
 |---|---|
 | **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
 | **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
-| **Custom UDP Options** | `read_buffer`: The size of the read buffer for the UDP socket (e.g., `100MiB`). <br> `max_message_size`: The maximum size of a log message (e.g., `50KiB`). <br> `timeout`: The read timeout for the UDP socket (e.g., `300s`). |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Custom UDP Options** | `read_buffer`: The size of the read buffer for the UDP socket (for example, `100MiB`). <br> `max_message_size`: The maximum size of a log message (for example, `50KiB`). <br> `timeout`: The read timeout for the UDP socket (for example, `300s`). |
+| **Timezone** | Specify an IANA timezone or offset (for example, `+0200`) for logs with no timezone information. |
 | **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
 | **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
 
@@ -158,7 +148,7 @@ This input collects logs directly from log files on the host where the Elastic A
 
 | Setting | Description |
 |---|---|
-| **Paths** | A list of file paths to monitor (e.g., `/var/log/fortinet-firewall.log`). |
+| **Paths** | A list of file paths to monitor (for example, `/var/log/fortinet-firewall.log`). |
 | **Preserve original event** | If checked, a raw copy of the original log is stored in the `event.original` field. |
 
 Under **Advanced Options**, you can configure the following optional parameters:
@@ -167,7 +157,7 @@ Under **Advanced Options**, you can configure the following optional parameters:
 |---|---|
 | **Internal/External interfaces** | Define your network interfaces to correctly map network direction. |
 | **Internal networks** | Specify your internal network ranges (defaults to private address spaces). |
-| **Timezone** | Specify an IANA timezone or offset (e.g., `+0200`) for logs with no timezone information. |
+| **Timezone** | Specify an IANA timezone or offset (for example, `+0200`) for logs with no timezone information. |
 | **Timezone Map** | A mapping of timezone strings from logs to standard IANA timezone formats. |
 | **Processors** | Add custom processors to enhance or reduce event fields before parsing. |
 
@@ -189,17 +179,12 @@ For help with Elastic ingest tools, check [Common problems](https://www.elastic.
 ### Common configuration issues
 
 -   No data is being collected:
-    *   Verify network connectivity (e.g., using `ping` or `netcat`) between the FortiGate firewall and the Elastic Agent host.
+    *   Verify network connectivity (for example, using `ping` or `netcat`) between the FortiGate firewall and the Elastic Agent host.
     *   Ensure there are no firewalls or network ACLs blocking the syslog port.
     *   Confirm that the listening port configured in the Elastic integration matches the destination port configured on the FortiGate device.
 -   TCP framing issues:
     *   When using TCP input with reliable syslog mode, both the FortiGate configuration and the integration settings must have framing set to `rfc6587`. Mismatched framing settings will result in parsing errors or lost logs.
 
-### Vendor resources
-
--   [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
--   [Fortinet Documentation Library](https://docs.fortinet.com/)
--   [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
 
 ## Performance and Scaling
 
@@ -210,6 +195,12 @@ For more information on architectures that can be used for scaling this integrat
 ### Inputs used
 
 {{ inputDocs }}
+
+### Vendor documentation links
+
+-   [FortiGate CLI Reference - Syslog Settings](https://docs.fortinet.com/document/fortigate/7.4.0/cli-reference/405620/config-log-syslogd-setting)
+-   [Fortinet Documentation Library](https://docs.fortinet.com/)
+-   [FortiGate Administration Guide](https://docs.fortinet.com/product/fortigate)
 
 ### Data streams
 

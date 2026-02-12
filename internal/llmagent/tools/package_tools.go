@@ -345,8 +345,6 @@ func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 	// Mapping of README sections to service_info sections
 	mapping := map[string][]string{
 		"Overview": {
-			"Common use cases",
-			"Data types collected",
 			"Compatibility",
 		},
 		"What do I need to use this integration?": {
@@ -355,6 +353,7 @@ func GetServiceInfoMappingForSection(readmeSectionTitle string) []string {
 		},
 		"What data does this integration collect?": {
 			"Data types collected",
+			"Common use cases",
 		},
 		"How do I deploy this integration?": {
 			"Vendor set up steps",

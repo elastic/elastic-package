@@ -8,16 +8,8 @@ Find more detailed documentation guidelines in https://www.elastic.co/docs/exten
 # {[.Manifest.Title]} Integration for Elastic
 
 ## Overview
-{{/* Complete this section with a short summary of what data this integration collects and what use cases it enables. 
-IMPORTANT: Use plain text for list items, NOT bold. Example:
-This integration facilitates:
-- Security monitoring: Ingests audit logs...
-- Operational visibility: Collects logs...
-Do NOT use **bold** for list item headings.
-*/}}
+{{/* Complete this section with a short summary of what data this integration collects and the service it integrates with.}}
 The {[.Manifest.Title]} integration for Elastic enables collection of ...
-This integration facilitates:
-- ...
 
 ### Compatibility
 {{/* Complete this section with information on what 3rd party software or hardware versions this integration is compatible with */}}
@@ -60,7 +52,10 @@ This should be specific to the steps needed to set up the 3rd party system to se
 */}}
 
 #### Vendor resources
-{{/* Add vendor documentation links from the "Vendor set up resources" service_info section here. */}}
+{{/* Add vendor documentation links that are specific to the steps needed to set up the vendor system to send data to Elastic. Exclude this section if no vendor setup links are available. */}}
+- [Vendor documentation link 1](https://www.vendor.com/documentation/link1)
+- [Vendor documentation link 2](https://www.vendor.com/documentation/link2)
+- [Vendor documentation link 3](https://www.vendor.com/documentation/link3)
 
 ### Set up steps in Kibana
 {{/* List the steps that are required to set up the integration in Kibana.
@@ -91,6 +86,12 @@ Performance and scaling information should be specific to sending data to Elasti
 */}}
 For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
 
+### Vendor resources
+{{/* Add vendor resources which provide troubleshooting information. Do not include generic information about the vendor product itself (these go in the Reference section). Exclude this section if no troubleshooting links are available.*/}}
+- [Vendor resource 1](https://www.vendor.com/resource1)
+- [Vendor resource 2](https://www.vendor.com/resource2)
+- [Vendor resource 3](https://www.vendor.com/resource3)
+
 ## Reference
 
 ### Inputs used
@@ -101,6 +102,12 @@ For more information on architectures that can be used for scaling this integrat
 {{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information. For integrations that do not use APIs, do not include this section. */}}
 These APIs are used with this integration:
 * ...
+
+### Vendor documentation links
+{{/* Add vendor documentation links which provide useful general information about the integration.*/}}
+- [Vendor documentation link 1](https://www.vendor.com/documentation/link1)
+- [Vendor documentation link 2](https://www.vendor.com/documentation/link2)
+- [Vendor documentation link 3](https://www.vendor.com/documentation/link3)
 
 ### Data streams
 {{/* Repeat all information in this section for each data stream the package collects.*/}}

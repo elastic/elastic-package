@@ -16,13 +16,14 @@ import (
 var sectionInstructions = map[string]string{
 	"overview": `HEADING LEVEL: This is a MAIN section - use "## Overview" (H2, two #)
 OVERVIEW SECTION REQUIREMENTS:
-- Start with a summary of what data this integration collects and what use cases it enables
+- Write 1-2 sentences ONLY summarizing what data this integration collects.
 - Use format: "The {Title} integration for Elastic enables collection of..."
-- Include what the integration facilitates (security monitoring, traffic analysis, etc.)
+- DO NOT include use cases, bullet lists, or detailed feature descriptions in the overview paragraph.
+- Use cases belong ONLY in the "Supported use cases" subsection under "What data does this integration collect?"
 - MUST include these subsections (H3, three #):
   ### Compatibility
   - List compatible versions of the 3rd party software/hardware
-  - Include tested Elastic Stack version compatibility
+  - Include tested Elastic Stack version compatibility. IMPORTANT: Use "or later" rather than "or higher" or "or newer".
 
   ### How it works
   - Explain the data collection method (syslog, API, log files, etc.)
@@ -127,24 +128,24 @@ STRUCTURE (use Problem-Solution bullet format, NOT tables):
   ### Common configuration issues
   Use bullet points with Problem followed by nested Solution bullets:
   - Problem description:
-    * Solution step one
-    * Solution step two
+    - Solution step one
+    - Solution step two
   - Another problem:
-    * Solution for this problem
+    - Solution for this problem
 
   ### Vendor resources
-  - Link to vendor documentation
+  Add links to vendor troubleshooting guides. Exclude this section if no vendor troubleshooting links are available.
   - Link to vendor troubleshooting guides
 
 EXAMPLE FORMAT (follow this style):
   ### Common configuration issues
 
   - No data is being collected:
-    * Verify network connectivity between the source and Elastic Agent host.
-    * Ensure there are no firewalls or network ACLs blocking the configured port.
-    * Confirm the listening port in the integration matches the destination port on the source device.
+    - Verify network connectivity between the source and Elastic Agent host.
+    - Ensure there are no firewalls or network ACLs blocking the configured port.
+    - Confirm the listening port in the integration matches the destination port on the source device.
   - TCP framing issues:
-    * When using TCP input with reliable syslog mode, ensure both the source and integration settings use matching framing (e.g., {backquote}rfc6587{backquote}).
+    - When using TCP input with reliable syslog mode, ensure both the source and integration settings use matching framing (e.g., {backquote}rfc6587{backquote}).
 
 WHAT TO EXCLUDE (will be rejected):
 - Generic "Verify Elastic Agent health" steps
@@ -158,7 +159,7 @@ FORMATTING RULES (CRITICAL - will be rejected if violated):
 - Use ### subheadings for major issue categories, not bold list items
 - Vendor resources list MUST have an introductory sentence before it
 - Use monospace for configuration values, file paths, and commands
-- Use nested bullet points (* or -) for solutions, NOT tables`,
+- Use nested bullet points (use "- " only, not "*") for solutions, NOT tables`,
 
 	"performance and scaling": `HEADING LEVEL: This is a MAIN section - use "## Performance and scaling" (H2, two #)
 PERFORMANCE AND SCALING SECTION REQUIREMENTS:
@@ -179,6 +180,9 @@ INCLUDE THESE SUBSECTIONS (H3, three #):
 
 -  ### API usage (only if the integration makes use of 3rd party APIs or httpjson/cel inputs are used)
    List APIs used with links to vendor documentation- Create a ### subsection (H3, three #) for EACH data stream in the package
+- ### Vendor documentation links
+  Add vendor documentation links which provide useful general information about the integration. Do not include links which are specific to troubleshooting.
+
 - For EACH data stream, use this EXACT format:
 
   ### {datastream_name}
