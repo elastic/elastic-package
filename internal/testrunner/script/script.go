@@ -184,41 +184,40 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			return nil
 		}
 	}
-	if pkgRoot != "" {
-		t.Log("PKG ", filepath.Base(pkgRoot))
-	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	isLatestVersion := true
+	var manifest *packages.PackageManifest
+	if pkgRoot != "" {
+		t.Log("PKG ", filepath.Base(pkgRoot))
+		manifest, err = packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+		if err != nil {
+			return err
+		}
+		eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+		revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
+		if err != nil {
+			return err
+		}
+		if len(revisions) > 0 {
+			latestEPRVersion = revisions[len(revisions)-1].Version
+			latestSemver, err := semver.NewVersion(latestEPRVersion)
+			if err != nil {
+				return fmt.Errorf("failed to parse latest epr version: %w", err)
+			}
+			if latestSemver.GreaterThanEqual(currSemver) {
+				isLatestVersion = false
+			}
+		}
+	}
 	var n int
 	for _, d := range dirs {
 		t.dataStream = d
 		scripts := d
-		var (
-			dsRoot          string
-			manifest        *packages.PackageManifest
-			isLatestVersion = true
-		)
+		var dsRoot string
 		if pkgRoot != "" {
-			manifest, err = packages.ReadPackageManifestFromPackageRoot(pkgRoot)
-			if err != nil {
-				return err
-			}
-			eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
-			revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
-			if err != nil {
-				return err
-			}
-			if len(revisions) > 0 {
-				latestEPRVersion = revisions[len(revisions)-1].Version
-				latestSemver, err := semver.NewVersion(latestEPRVersion)
-				if err != nil {
-					return fmt.Errorf("failed to parse latest epr version: %w", err)
-				}
-				if latestSemver.GreaterThanEqual(currSemver) {
-					isLatestVersion = false
-				}
-			}
-
 			dsRoot = filepath.Join(pkgRoot, "data_stream", d)
 			scripts = filepath.Join(dsRoot, filepath.FromSlash("_dev/test/scripts"))
 		}
