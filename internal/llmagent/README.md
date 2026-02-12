@@ -11,7 +11,7 @@ This module implements an LLM-based documentation generation system that:
 - **Validates content** using both static and LLM-based validators
 - **Supports iterative refinement** with critic feedback loops
 - **Leverages authoritative knowledge bases** via `service_info.md` files
-- **Provides tracing and metrics** for debugging and evaluation
+- **Provides tracing** for debugging
 
 ## Architecture
 
@@ -72,12 +72,9 @@ The main documentation agent that orchestrates the generation process.
 |------|-------------|
 | `docagent.go` | Main DocumentationAgent with section-based generation |
 | `prompts.go` | Prompt building and context management |
-| `evaluation.go` | Documentation quality evaluation |
-| `batch.go` | Batch processing for multiple packages |
 | `interactive.go` | Interactive review and modification UI |
 | `section_generator.go` | Section content extraction |
 | `service_info_parser.go` | Service knowledge base parsing |
-| `metrics.go` | Quality metrics calculation |
 | `file_ops.go` | File read/write operations |
 | `modification_analyzer.go` | Modification request analysis |
 
@@ -152,10 +149,6 @@ Staged validators for content validation.
 | `placeholder_validator.go` | Placeholders | Both | Validates placeholder usage |
 | `style_validator.go` | Quality | Both | Validates Elastic style compliance |
 | `accessibility_validator.go` | Quality | Both | Validates accessibility requirements |
-| `vendor_setup_validator.go` | Accuracy | Both | Validates vendor setup documentation |
-| `scaling_validator.go` | Completeness | Both | Validates scaling documentation |
-| `service_info_link_validator.go` | Accuracy | Both | Validates vendor links from service_info.md |
-| `advanced_settings_validator.go` | Completeness | Both | Validates advanced settings documentation |
 | `interface.go` | - | - | Validator interface definitions |
 | `package_context.go` | - | - | Package context for validators |
 | `staged_validator.go` | - | - | Base staged validator types |
@@ -191,7 +184,7 @@ Package inspection and utility tools available to agents.
 Model Context Protocol (MCP) toolset integration.
 
 ### `/tracing`
-OpenTelemetry tracing for debugging and evaluation.
+OpenTelemetry tracing for debugging.
 
 | File | Description |
 |------|-------------|
@@ -457,21 +450,11 @@ elastic-package update documentation --non-interactive
 
 # Modify existing documentation
 elastic-package update documentation --modify-prompt "Add troubleshooting section"
-
-# Evaluate documentation quality (single package)
-elastic-package update documentation --evaluate --output-dir ./results
-
-# Batch evaluation of multiple packages
-elastic-package update documentation --evaluate \
-  --batch citrix_adc,nginx,apache \
-  --integrations-path ~/git/integrations \
-  --output-dir ./batch_results \
-  --parallel 4
 ```
 
 ## Tracing
 
-The module supports OpenTelemetry tracing with Phoenix (Arize) for debugging and evaluation:
+The module supports OpenTelemetry tracing with Phoenix (Arize) for debugging:
 
 ```mermaid
 graph LR

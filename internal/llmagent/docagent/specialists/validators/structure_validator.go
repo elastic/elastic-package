@@ -42,6 +42,8 @@ var RequiredSections = []RequiredSection{
 		Name: "How do I deploy this integration?",
 		Subsections: []string{
 			"Agent-based deployment",
+			"Set up steps in", // Pattern: "Set up steps in {Product Name}" - templated
+			"Set up steps in Kibana",
 			"Validation",
 		},
 	},
@@ -54,8 +56,12 @@ var RequiredSections = []RequiredSection{
 		Subsections: nil,
 	},
 	{
-		Name:        "Reference",
-		Subsections: []string{"Inputs used"},
+		Name: "Reference",
+		Subsections: []string{
+			"Inputs used",
+			"Vendor documentation links",
+			"Data streams",
+		},
 	},
 }
 
@@ -233,7 +239,27 @@ func (v *StructureValidator) checkRequiredSections(content string, pkgCtx *Packa
 		} else {
 			// Check required subsections for this section
 			for _, subsection := range required.Subsections {
-				if !v.sectionExists(subsection, foundH3Sections) {
+				// Special handling for templated subsection "Set up steps in {Product Name}"
+				if subsection == "Set up steps in" {
+					// Check if any subsection matches the pattern "Set up steps in ..."
+					found := false
+					for foundSubsection := range foundH3Sections {
+						if strings.HasPrefix(foundSubsection, "set up steps in") {
+							found = true
+							break
+						}
+					}
+					if !found {
+						issues = append(issues, ValidationIssue{
+							Severity:    SeverityMajor,
+							Category:    CategoryStructure,
+							Location:    required.Name,
+							Message:     "Missing required subsection: Set up steps in [Product Name]",
+							Suggestion:  "Add a '### Set up steps in [Product Name]' subsection under '" + required.Name + "'",
+							SourceCheck: "static",
+						})
+					}
+				} else if !v.sectionExists(subsection, foundH3Sections) {
 					issues = append(issues, ValidationIssue{
 						Severity:    SeverityMajor,
 						Category:    CategoryStructure,

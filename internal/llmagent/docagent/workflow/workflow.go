@@ -398,9 +398,8 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 	// Use validators that have LLM instructions defined
 	// These validators benefit most from LLM's semantic understanding
 	llmValidators := []string{
-		"vendor_setup_validator", // Setup accuracy against vendor docs
-		"style_validator",        // Elastic style guide compliance
-		"quality_validator",      // Writing quality assessment
+		"style_validator",   // Elastic style guide compliance
+		"quality_validator", // Writing quality assessment
 	}
 
 	vals := specialists.AllStagedValidators()

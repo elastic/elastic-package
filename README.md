@@ -698,7 +698,7 @@ _Context: global_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports three modes:
+The AI agent supports two modes:
 1. Rewrite mode (default): Full documentation regeneration using section-based generation
    - Analyzes your package structure, data streams, and configuration
    - Generates each section independently with its own validation loop
@@ -709,11 +709,6 @@ The AI agent supports three modes:
    - Makes specific changes to existing documentation
    - Requires existing documentation file at /_dev/build/docs/
    - Use --modify-prompt flag for non-interactive modifications
-3. Evaluate mode: Documentation quality evaluation
-   - Use --evaluate flag to run in evaluation mode
-   - Outputs to a directory instead of modifying the package
-   - Computes quality metrics (structure, accuracy, completeness, quality scores)
-   - Supports batch processing of multiple packages with --batch flag
 
 Section-based generation workflow:
 The rewrite mode uses a sophisticated section-based approach where:
@@ -742,20 +737,6 @@ You can review results and request additional changes iteratively.
 Non-interactive mode:
 Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
 Combine with --modify-prompt "instructions" for targeted non-interactive changes.
-
-Evaluation mode examples:
-  # Evaluate a single package (run from package directory)
-  elastic-package update documentation --evaluate --output-dir ./results
-
-  # Batch evaluation of multiple packages
-  elastic-package update documentation --evaluate \
-    --batch citrix_adc,nginx,apache \
-    --integrations-path ~/git/integrations \
-    --output-dir ./batch_results \
-    --parallel 4
-
-  # With Phoenix tracing enabled
-  elastic-package update documentation --evaluate --enable-tracing
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 

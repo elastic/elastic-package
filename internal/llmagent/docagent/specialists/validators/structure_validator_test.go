@@ -166,6 +166,14 @@ Deployment info.
 
 Agent setup.
 
+### Set up steps in Hashicorp Vault
+
+Vendor setup steps.
+
+### Set up steps in Kibana
+
+Kibana setup steps.
+
 ### Validation
 
 Validation steps.
@@ -185,6 +193,14 @@ Reference info.
 ### Inputs used
 
 {{ inputDocs }}
+
+### Vendor documentation links
+
+Vendor docs here.
+
+### Data streams
+
+Data stream info here.
 `
 
 	v := NewStructureValidator()
