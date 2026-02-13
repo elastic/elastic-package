@@ -17,7 +17,7 @@ func Update(ctx context.Context, options Options) error {
 	if options.OverrideAgentVersion != "" {
 		agentVersion = options.OverrideAgentVersion
 	}
-	err := applyResources(options.Profile, options.StackVersion, agentVersion)
+	err := applyResources(options.Profile, options.AppConfig, options.StackVersion, agentVersion)
 	if err != nil {
 		return fmt.Errorf("creating stack files failed: %w", err)
 	}

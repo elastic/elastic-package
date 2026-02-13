@@ -31,7 +31,7 @@ type ServerlessManifests struct {
 }
 
 // LocalPackage returns the status of a given package including local development information
-func LocalPackage(packageRoot string, options registry.SearchOptions) (*PackageStatus, error) {
+func LocalPackage(registryClient *registry.Client, packageRoot string, options registry.SearchOptions) (*PackageStatus, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
@@ -40,7 +40,7 @@ func LocalPackage(packageRoot string, options registry.SearchOptions) (*PackageS
 	if err != nil {
 		return nil, fmt.Errorf("reading package changelog failed: %w", err)
 	}
-	status, err := RemotePackage(manifest.Name, options)
+	status, err := RemotePackage(registryClient, manifest.Name, options)
 	if err != nil {
 		return nil, err
 	}
@@ -66,8 +66,8 @@ func LocalPackage(packageRoot string, options registry.SearchOptions) (*PackageS
 }
 
 // RemotePackage returns the status of a given package
-func RemotePackage(packageName string, options registry.SearchOptions) (*PackageStatus, error) {
-	productionManifests, err := registry.Production.Revisions(packageName, options)
+func RemotePackage(registryClient *registry.Client, packageName string, options registry.SearchOptions) (*PackageStatus, error) {
+	productionManifests, err := registryClient.Revisions(packageName, options)
 	if err != nil {
 		return nil, fmt.Errorf("retrieving production deployment failed: %w", err)
 	}

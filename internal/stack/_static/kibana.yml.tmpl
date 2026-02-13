@@ -41,8 +41,11 @@ xpack.fleet.registryUrl: "https://package-registry:8080"
 xpack.fleet.agents.enabled: true
 xpack.fleet.agents.fleet_server.hosts: ["{{ fact "fleet_url" }}"]
 
-{{/* Feature flags introduced in 8.3.0 https://github.com/elastic/kibana/pull/130253 */}}
+{{/* Feature flags: array format for 8.3–9.2 (https://github.com/elastic/kibana/pull/130253), object format for 9.3+ (https://github.com/elastic/kibana/pull/238840) */}}
+{{- $auto_install_content_packages := fact "fleet_auto_install_content_packages_enabled" }}
 {{- if (not (semverLessThan $version "8.3.0")) }}
+{{- if semverLessThan $version "9.3.0" }}
+# 9.2 and earlier: only array format is supported
 xpack.fleet.enableExperimental: [
 {{- if and (not (semverLessThan $version "8.7.0")) (semverLessThan $version "8.10.0-SNAPSHOT") }}
   # Enable experimental toggles in Fleet UI
@@ -50,8 +53,27 @@ xpack.fleet.enableExperimental: [
 {{- else if (not (semverLessThan $version "9.2.0-SNAPSHOT")) }}
   # Support for otelcol input
   "enableOtelIntegrations"
+{{- if eq $auto_install_content_packages "true" }},
+  # Auto-install content packages (override: stack.fleet_auto_install_content_packages_enabled)
+  "enableAutoInstallContentPackages"
+{{- end }}
 {{- end }}
 ]
+{{- else }}
+# 9.3+: object format (array format deprecated)
+xpack.fleet.experimentalFeatures:
+  # Support for otelcol input
+  enableOtelIntegrations: true
+{{- if eq $auto_install_content_packages "true" }}
+  # Auto-install content packages (override: stack.fleet_auto_install_content_packages_enabled)
+  enableAutoInstallContentPackages: true
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/* Available since 9.2; default 10m if not set. Override via stack.fleet_auto_install_task_interval. */}}
+{{- if not (semverLessThan $version "9.2.0") }}
+xpack.fleet.autoInstallContentPackages.taskInterval: "{{ fact "fleet_auto_install_task_interval" }}"
 {{- end }}
 
 xpack.encryptedSavedObjects.encryptionKey: "12345678901234567890123456789012"

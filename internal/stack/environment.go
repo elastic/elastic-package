@@ -13,18 +13,25 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/fleetserver"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 type environmentProvider struct {
+	profile *profile.Profile
+
+	registry      *registry.Client
 	kibana        *kibana.Client
 	elasticsearch *elasticsearch.Client
 }
 
 func newEnvironmentProvider(profile *profile.Profile) (*environmentProvider, error) {
-	return &environmentProvider{}, nil
+	return &environmentProvider{
+		profile: profile,
+	}, nil
 }
 
 // BootUp configures the profile to use as stack the one indicated using environment variables.
@@ -48,7 +55,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 		return err
 	}
 
-	err := p.initClients()
+	err := p.initClients(options.AppConfig)
 	if err != nil {
 		return err
 	}
@@ -93,7 +100,7 @@ func (p *environmentProvider) BootUp(ctx context.Context, options Options) error
 	}
 
 	selfMonitor := options.Profile.Config(configSelfMonitorEnabled, "false") == "true"
-	policy, err := createAgentPolicy(ctx, p.kibana, options.StackVersion, config.OutputID, selfMonitor)
+	policy, err := createAgentPolicy(ctx, p.kibana, p.registry, options.StackVersion, config.OutputID, selfMonitor)
 	if err != nil {
 		return fmt.Errorf("failed to create agent policy: %w", err)
 	}
@@ -134,7 +141,7 @@ func requiredEnv(value string, envVarName string) error {
 	return nil
 }
 
-func (p *environmentProvider) initClients() error {
+func (p *environmentProvider) initClients(appConfig *install.ApplicationConfiguration) error {
 	kibana, err := NewKibanaClient()
 	if err != nil {
 		return fmt.Errorf("cannot create Kibana client: %w", err)
@@ -147,6 +154,7 @@ func (p *environmentProvider) initClients() error {
 	}
 	p.elasticsearch = elasticsearch
 
+	p.registry = registry.NewClient(packageRegistryBaseURL(p.profile, appConfig))
 	return nil
 }
 
@@ -176,7 +184,7 @@ func (p *environmentProvider) setupFleet(ctx context.Context, config Config, opt
 			return config, fmt.Errorf("failed to add Fleet Server host: %w", err)
 		}
 
-		_, err = createFleetServerPolicy(ctx, p.kibana, options.StackVersion, options.Profile.ProfileName)
+		_, err = createFleetServerPolicy(ctx, p.kibana, p.registry, options.StackVersion, options.Profile.ProfileName)
 		if err != nil {
 			return config, fmt.Errorf("failed to create agent policy for Fleet Server: %w", err)
 		}

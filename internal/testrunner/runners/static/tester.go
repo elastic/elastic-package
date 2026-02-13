@@ -27,6 +27,7 @@ type tester struct {
 	globalTestConfig testrunner.GlobalRunnerTestConfig
 	withCoverage     bool
 	coverageType     string
+	schemaURLs       fields.SchemaURLs
 }
 
 type StaticTesterOptions struct {
@@ -35,6 +36,7 @@ type StaticTesterOptions struct {
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 	WithCoverage     bool
 	CoverageType     string
+	SchemaURLs       fields.SchemaURLs
 }
 
 func NewStaticTester(options StaticTesterOptions) *tester {
@@ -44,6 +46,7 @@ func NewStaticTester(options StaticTesterOptions) *tester {
 		globalTestConfig: options.GlobalTestConfig,
 		withCoverage:     options.WithCoverage,
 		coverageType:     options.CoverageType,
+		schemaURLs:       options.SchemaURLs,
 	}
 	return &runner
 }
@@ -176,6 +179,7 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
 		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
+		fields.WithSchemaURLs(r.schemaURLs),
 	)
 	if err != nil {
 		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))

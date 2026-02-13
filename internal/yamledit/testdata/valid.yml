@@ -1,0 +1,24 @@
+---
+string: value
+int: 1
+bool: true
+list:
+  - one
+  - two
+  - three
+map:
+  string: value
+  int: 1
+  bool: true
+  list:
+    - one
+    - two
+    - three
+  map:
+    string: value
+    int: 1
+    bool: true
+    list:
+      - one
+      - two
+      - three
