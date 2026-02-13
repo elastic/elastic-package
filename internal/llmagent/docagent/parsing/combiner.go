@@ -43,7 +43,7 @@ func CombineSections(sections []Section) string {
 // The title follows the template format: "# {PackageTitle} Integration for Elastic"
 func CombineSectionsWithTitle(sections []Section, packageTitle string) string {
 	// Build the title with AI-generated notice
-	title := fmt.Sprintf("# %s Integration for Elastic\n\n> **Note**: This documentation was generated using AI and should be reviewed for accuracy.\n\n", packageTitle)
+	title := fmt.Sprintf("# %s Integration for Elastic\n\n> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment.\n\n", packageTitle)
 
 	// Combine sections
 	sectionsContent := CombineSections(sections)
@@ -88,7 +88,7 @@ func CountStructuralElements(content string) int {
 // Returns the content with the correct title.
 func EnsureDocumentTitle(content, packageTitle string) string {
 	expectedTitle := fmt.Sprintf("# %s Integration for Elastic", packageTitle)
-	aiNotice := "> **Note**: This documentation was generated using AI and should be reviewed for accuracy."
+	aiNotice := "> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment."
 	header := expectedTitle + "\n\n" + aiNotice + "\n\n"
 
 	lines := strings.Split(content, "\n")

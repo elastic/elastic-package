@@ -609,7 +609,7 @@ func buildInstructions() string {
 	sb.WriteString("\n=== INSTRUCTIONS ===\n")
 	sb.WriteString("1. Use the EXACT section names shown above (## Overview, ## What data does this integration collect?, etc.)\n")
 	sb.WriteString("2. Do NOT rename sections (e.g., don't use \"## Setup\" instead of \"## How do I deploy this integration?\")\n")
-	sb.WriteString("3. IMMEDIATELY after the H1 title, add: \"> **Note**: This documentation was generated using AI and should be reviewed for accuracy.\"\n")
+	sb.WriteString("3. IMMEDIATELY after the H1 title, add: \"> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment.\"\n")
 	sb.WriteString("4. Include ALL vendor documentation links - COPY URLS EXACTLY, do not modify them\n")
 	sb.WriteString("5. Document ALL data streams listed above\n")
 	sb.WriteString("6. Ensure heading hierarchy: # for title, ## for main sections, ### for subsections, #### for sub-subsections\n")
