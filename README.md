@@ -791,6 +791,10 @@ The following settings are available per profile:
 * `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
   Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
   which enables all subscription features for 30 days.  Defaults to "trial".
+* `stack.fleet_auto_install_content_packages_enabled` can be set to true to enable auto-install of content
+  packages in Fleet. Supported in Kibana 8.7 and later. Defaults to false.
+* `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
+  Supported in Kibana 9.2 and later. Defaults to "10m".
 
 ## Useful environment variables
 
