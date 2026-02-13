@@ -35,6 +35,20 @@ const (
 	AttrPackageVersion   = "package.version"
 	AttrDataStreamsCount = "package.data_streams_count"
 	AttrFieldsCount      = "package.fields_count"
+
+	// Quality metrics attributes
+	AttrMetricsStructure    = "metrics.structure_score"
+	AttrMetricsAccuracy     = "metrics.accuracy_score"
+	AttrMetricsCompleteness = "metrics.completeness_score"
+	AttrMetricsQuality      = "metrics.quality_score"
+	AttrMetricsComposite    = "metrics.composite_score"
+	AttrMetricsPlaceholders = "metrics.placeholder_count"
+
+	// Comparison attributes
+	AttrCompareBaseline    = "compare.baseline_score"
+	AttrCompareStaged      = "compare.staged_score"
+	AttrCompareDelta       = "compare.score_delta"
+	AttrCompareImprovement = "compare.percent_improvement"
 )
 
 // ValidationStageResult holds the result of a validation stage for tracing
@@ -194,5 +208,53 @@ func RecordPackageContext(span trace.Span, name, title, version string, dataStre
 		attribute.String(AttrPackageVersion, version),
 		attribute.Int(AttrDataStreamsCount, dataStreams),
 		attribute.Int(AttrFieldsCount, fields),
+	)
+}
+
+// QualityMetricsAttrs holds quality metrics for tracing
+type QualityMetricsAttrs struct {
+	StructureScore    float64 `json:"structure_score"`
+	AccuracyScore     float64 `json:"accuracy_score"`
+	CompletenessScore float64 `json:"completeness_score"`
+	QualityScore      float64 `json:"quality_score"`
+	CompositeScore    float64 `json:"composite_score"`
+	PlaceholderCount  int     `json:"placeholder_count"`
+}
+
+// RecordQualityMetrics records quality metrics on a span
+func RecordQualityMetrics(span trace.Span, metrics *QualityMetricsAttrs) {
+	if metrics == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Float64(AttrMetricsStructure, metrics.StructureScore),
+		attribute.Float64(AttrMetricsAccuracy, metrics.AccuracyScore),
+		attribute.Float64(AttrMetricsCompleteness, metrics.CompletenessScore),
+		attribute.Float64(AttrMetricsQuality, metrics.QualityScore),
+		attribute.Float64(AttrMetricsComposite, metrics.CompositeScore),
+		attribute.Int(AttrMetricsPlaceholders, metrics.PlaceholderCount),
+	)
+}
+
+// ComparisonAttrs holds comparison metrics for tracing
+type ComparisonAttrs struct {
+	BaselineScore      float64 `json:"baseline_score"`
+	StagedScore        float64 `json:"staged_score"`
+	ScoreDelta         float64 `json:"score_delta"`
+	PercentImprovement float64 `json:"percent_improvement"`
+}
+
+// RecordComparison records baseline vs staged comparison on a span
+func RecordComparison(span trace.Span, comparison *ComparisonAttrs) {
+	if comparison == nil {
+		return
+	}
+
+	span.SetAttributes(
+		attribute.Float64(AttrCompareBaseline, comparison.BaselineScore),
+		attribute.Float64(AttrCompareStaged, comparison.StagedScore),
+		attribute.Float64(AttrCompareDelta, comparison.ScoreDelta),
+		attribute.Float64(AttrCompareImprovement, comparison.PercentImprovement),
 	)
 }

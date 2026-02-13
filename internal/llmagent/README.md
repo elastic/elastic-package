@@ -72,9 +72,12 @@ The main documentation agent that orchestrates the generation process.
 |------|-------------|
 | `docagent.go` | Main DocumentationAgent with section-based generation |
 | `prompts.go` | Prompt building and context management |
+| `evaluation.go` | Documentation quality evaluation |
+| `batch.go` | Batch processing for multiple packages |
 | `interactive.go` | Interactive review and modification UI |
 | `section_generator.go` | Section content extraction |
 | `service_info_parser.go` | Service knowledge base parsing |
+| `metrics.go` | Quality metrics calculation |
 | `file_ops.go` | File read/write operations |
 | `modification_analyzer.go` | Modification request analysis |
 
@@ -450,6 +453,16 @@ elastic-package update documentation --non-interactive
 
 # Modify existing documentation
 elastic-package update documentation --modify-prompt "Add troubleshooting section"
+
+# Evaluate documentation quality (single package)
+elastic-package update documentation --evaluate --evaluate-output-dir ./results
+
+# Batch evaluation of multiple packages
+elastic-package update documentation --evaluate \
+  --evaluate-batch citrix_adc,nginx,apache \
+  --evaluate-integrations-path ~/git/integrations \
+  --evaluate-output-dir ./batch_results \
+  --evaluate-parallel 4
 ```
 
 ## Tracing
