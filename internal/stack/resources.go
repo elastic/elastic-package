@@ -62,15 +62,17 @@ const (
 	elasticsearchUsername = "elastic"
 	elasticsearchPassword = "changeme"
 
-	configAPMEnabled          = "stack.apm_enabled"
-	configGeoIPDir            = "stack.geoip_dir"
-	configKibanaHTTP2Enabled  = "stack.kibana_http2_enabled"
-	configLogsDBEnabled       = "stack.logsdb_enabled"
-	configLogstashEnabled     = "stack.logstash_enabled"
-	configSelfMonitorEnabled  = "stack.self_monitor_enabled"
-	configElasticEPRProxyTo   = "stack.epr.proxy_to"
-	configElasticEPRURL       = "stack.epr.base_url"
-	configElasticSubscription = "stack.elastic_subscription"
+	configAPMEnabled                             = "stack.apm_enabled"
+	configGeoIPDir                               = "stack.geoip_dir"
+	configKibanaHTTP2Enabled                     = "stack.kibana_http2_enabled"
+	configLogsDBEnabled                          = "stack.logsdb_enabled"
+	configLogstashEnabled                        = "stack.logstash_enabled"
+	configSelfMonitorEnabled                     = "stack.self_monitor_enabled"
+	configElasticEPRProxyTo                      = "stack.epr.proxy_to"
+	configElasticEPRURL                          = "stack.epr.base_url"
+	configElasticSubscription                    = "stack.elastic_subscription"
+	configFleetAutoInstallTaskInterval           = "stack.fleet_auto_install_task_interval"
+	configFleetAutoInstallContentPackagesEnabled = "stack.fleet_auto_install_content_packages_enabled"
 )
 
 var (
@@ -179,15 +181,17 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 		"password":         elasticsearchPassword,
 		"enrollment_token": "",
 
-		"agent_publish_ports":  strings.Join(agentPorts, ","),
-		"apm_enabled":          profile.Config(configAPMEnabled, "false"),
-		"geoip_dir":            profile.Config(configGeoIPDir, "./ingest-geoip"),
-		"kibana_http2_enabled": profile.Config(configKibanaHTTP2Enabled, "true"),
-		"logsdb_enabled":       profile.Config(configLogsDBEnabled, "false"),
-		"logstash_enabled":     profile.Config(configLogstashEnabled, "false"),
-		"self_monitor_enabled": profile.Config(configSelfMonitorEnabled, "false"),
-		"epr_proxy_to":         packageRegistryProxyToURL(profile, appConfig),
-		"elastic_subscription": elasticSubscriptionProfile,
+		"agent_publish_ports":                         strings.Join(agentPorts, ","),
+		"apm_enabled":                                 profile.Config(configAPMEnabled, "false"),
+		"geoip_dir":                                   profile.Config(configGeoIPDir, "./ingest-geoip"),
+		"kibana_http2_enabled":                        profile.Config(configKibanaHTTP2Enabled, "true"),
+		"logsdb_enabled":                              profile.Config(configLogsDBEnabled, "false"),
+		"logstash_enabled":                            profile.Config(configLogstashEnabled, "false"),
+		"self_monitor_enabled":                        profile.Config(configSelfMonitorEnabled, "false"),
+		"epr_proxy_to":                                packageRegistryProxyToURL(profile, appConfig),
+		"elastic_subscription":                        elasticSubscriptionProfile,
+		"fleet_auto_install_task_interval":            profile.Config(configFleetAutoInstallTaskInterval, "10m"),
+		"fleet_auto_install_content_packages_enabled": profile.Config(configFleetAutoInstallContentPackagesEnabled, "false"),
 	})
 
 	if err := os.MkdirAll(stackDir, 0755); err != nil {
