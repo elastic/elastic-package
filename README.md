@@ -898,7 +898,6 @@ You can configure LLM providers through **profile settings** (in `~/.elastic-pac
 * `llm.gemini.api_key`: API key for Google Gemini LLM services  
 * `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
 * `llm.gemini.thinking_budget`: Thinking budget in tokens for Gemini Pro models (defaults to `128` for "low" mode)
-* `llm.parallel_sections`: Enable parallel section generation for faster results (defaults to `true`)
 * `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
 
 Environment variables (e.g., `GOOGLE_API_KEY`) take precedence over profile configuration.
@@ -1110,7 +1109,6 @@ There are available some environment variables that could be used to change some
     - `GOOGLE_API_KEY`: API key for Gemini LLM services
     - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
-    - `ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS`: Enable parallel section generation (defaults to `true`)
     - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
     - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
     - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)

@@ -26,7 +26,8 @@ const (
 // ActionResult holds the result of a user action
 type ActionResult struct {
 	NewPrompt      string
-	ShouldContinue bool // true = continue loop, false = exit
+	Changes        string // Raw user feedback for modifications
+	ShouldContinue bool   // true = continue loop, false = exit
 	Err            error
 }
 
@@ -118,9 +119,9 @@ func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool)
 	case ActionCancel:
 		fmt.Println("❌ Documentation update cancelled.")
 		d.restoreOriginalReadme()
-		return ActionResult{"", false, nil}
+		return ActionResult{}
 	default:
-		return ActionResult{"", false, fmt.Errorf("unknown action: %s", action)}
+		return ActionResult{Err: fmt.Errorf("unknown action: %s", action)}
 	}
 }
 
@@ -128,7 +129,7 @@ func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool)
 func (d *DocumentationAgent) handleAcceptAction(readmeUpdated bool) ActionResult {
 	if readmeUpdated {
 		fmt.Println("✅ Documentation update completed!")
-		return ActionResult{"", false, nil}
+		return ActionResult{}
 	}
 
 	// Documentation file wasn't updated - ask user what to do
@@ -140,19 +141,19 @@ func (d *DocumentationAgent) handleAcceptAction(readmeUpdated bool) ActionResult
 	var continueChoice string
 	err := tui.AskOne(continuePrompt, &continueChoice)
 	if err != nil {
-		return ActionResult{"", false, fmt.Errorf("prompt failed: %w", err)}
+		return ActionResult{Err: fmt.Errorf("prompt failed: %w", err)}
 	}
 
 	if continueChoice == ActionExit {
 		fmt.Printf("⚠️  Exiting without creating %s file.\n", d.targetDocFile)
 		d.restoreOriginalReadme()
-		return ActionResult{"", false, nil}
+		return ActionResult{}
 	}
 
 	fmt.Printf("🔄 Trying again to create %s...\n", d.targetDocFile)
 	promptCtx := d.createPromptContext(d.manifest, fmt.Sprintf("You haven't written a %s file yet. Please write the %s file in the _dev/build/docs/ directory based on your analysis.", d.targetDocFile, d.targetDocFile))
 	newPrompt := d.buildPrompt(PromptTypeRevision, promptCtx)
-	return ActionResult{newPrompt, true, nil}
+	return ActionResult{NewPrompt: newPrompt, ShouldContinue: true}
 }
 
 // handleRequestChanges handles the "Request changes" action
@@ -162,17 +163,17 @@ func (d *DocumentationAgent) handleRequestChanges() ActionResult {
 		// Check if user cancelled
 		if errors.Is(err, tui.ErrCancelled) {
 			fmt.Println("⚠️  Changes request cancelled.")
-			return ActionResult{"", true, nil} // Continue the loop
+			return ActionResult{ShouldContinue: false}
 		}
-		return ActionResult{"", false, fmt.Errorf("prompt failed: %w", err)}
+		return ActionResult{Err: fmt.Errorf("prompt failed: %w", err)}
 	}
 
 	// Check if no changes were provided
 	if strings.TrimSpace(changes) == "" {
-		fmt.Println("⚠️  No changes specified. Please try again.")
-		return ActionResult{"", true, nil} // Continue the loop
+		fmt.Println("⚠️  No changes specified.")
+		return ActionResult{ShouldContinue: false}
 	}
 	promptCtx := d.createPromptContext(d.manifest, changes)
 	newPrompt := d.buildPrompt(PromptTypeRevision, promptCtx)
-	return ActionResult{newPrompt, true, nil}
+	return ActionResult{NewPrompt: newPrompt, Changes: changes, ShouldContinue: true}
 }

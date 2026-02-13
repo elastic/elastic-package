@@ -198,7 +198,6 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	genCfg := GenerationConfig{
 		MaxIterations:          cfg.MaxIterations,
 		EnableStagedValidation: true,
-		EnableLLMValidation:    true,
 	}
 	if genCfg.MaxIterations == 0 {
 		genCfg.MaxIterations = 3

@@ -148,8 +148,8 @@ func TestParseSections_RealTemplate(t *testing.T) {
 			"What data does this integration collect?": 1, // 1 subsection: Supported use cases
 			"What do I need to use this integration?":  0, // No subsections
 			"How do I deploy this integration?":        5, // 5 subsections: Agent-based, Agentless (conditional), Set up in {Title}, Set up in Kibana, Validation
-			"Troubleshooting":                          0, // No subsections (Vendor resources is optional and may not be parsed as subsection)
-			"Performance and scaling":                  1, // 1 subsection found by parser (may be parsing issue - template shows no subsection here)
+			"Troubleshooting":                          1, // 1 subsection: Vendor resources
+			"Performance and scaling":                  0, // No subsections
 			"Reference":                                4, // 4 subsections: Inputs used, API usage (conditional), Vendor documentation links, Data streams
 		}
 

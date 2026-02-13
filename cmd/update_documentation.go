@@ -82,9 +82,6 @@ Evaluation mode examples:
     --evaluate-output-dir ./batch_results \
     --evaluate-parallel 4
 
-  # With Phoenix tracing enabled
-  elastic-package update documentation --evaluate --enable-tracing
-
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
@@ -112,8 +109,8 @@ func getConfigValue(profile *profile.Profile, envVar, configKey, defaultValue st
 	return defaultValue
 }
 
-// discoverDocumentationFiles finds all .md files in _dev/build/docs/
-func discoverDocumentationFiles(packageRoot string) ([]string, error) {
+// discoverDocumentationTemplates finds all .md files in _dev/build/docs/
+func discoverDocumentationTemplates(packageRoot string) ([]string, error) {
 	docsDir := filepath.Join(packageRoot, "_dev", "build", "docs")
 
 	entries, err := os.ReadDir(docsDir)
@@ -158,13 +155,11 @@ func selectDocumentationFile(cmd *cobra.Command, packageRoot string, nonInteract
 		return "", fmt.Errorf("failed to get doc-file flag: %w", err)
 	}
 
-	// If flag is provided, validate and use it
+	// If flag is provided, validate its an .md file and use it
 	if docFile != "" {
-		// Validate it's a .md file
 		if filepath.Ext(docFile) != ".md" {
 			return "", fmt.Errorf("doc-file must be a .md file, got: %s", docFile)
 		}
-		// Validate it's just a filename, not a path
 		if filepath.Base(docFile) != docFile {
 			return "", fmt.Errorf("doc-file must be a filename only (no path), got: %s", docFile)
 		}
@@ -172,7 +167,7 @@ func selectDocumentationFile(cmd *cobra.Command, packageRoot string, nonInteract
 	}
 
 	// Discover available markdown files
-	mdFiles, err := discoverDocumentationFiles(packageRoot)
+	mdFiles, err := discoverDocumentationTemplates(packageRoot)
 	if err != nil {
 		return "", err
 	}
@@ -212,18 +207,18 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("  2. Run `elastic-package build`"))
 	cmd.Println()
 	cmd.Println(tui.Info("For AI-powered documentation updates, configure Gemini:"))
-	cmd.Println(tui.Info("  - Gemini: Set GOOGLE_API_KEY or add llm.gemini.api_key to profile config"))
-	cmd.Println()
-	cmd.Println(tui.Info("Profile configuration: ~/.elastic-package/profiles/<profile>/config.yml"))
+	cmd.Println(tui.Info("  - Gemini: Set GOOGLE_API_KEY or add llm.gemini.api_key to elastic-packageprofile config"))
 }
 
-// defaultThinkingBudget is the default "low" thinking budget for Gemini Pro models
-const defaultThinkingBudget int32 = 128
+const (
+	defaultModelID              = "gemini-3-flash-preview"
+	defaultThinkingBudget int32 = 128
+)
 
 // getGeminiConfig gets Gemini configuration from environment or profile
 func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, thinkingBudget *int32) {
 	apiKey = getConfigValue(profile, "GOOGLE_API_KEY", "llm.gemini.api_key", "")
-	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", tracing.DefaultModelID)
+	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", defaultModelID)
 
 	b := defaultThinkingBudget
 	if budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", ""); budgetStr != "" {
@@ -239,7 +234,7 @@ func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, t
 // getTracingConfig gets tracing configuration from environment or profile
 func getTracingConfig(profile *profile.Profile) tracing.Config {
 	cfg := tracing.Config{
-		Enabled:     false, // Disabled by default
+		Enabled:     false,
 		Endpoint:    tracing.DefaultEndpoint,
 		ProjectName: tracing.DefaultProjectName,
 	}
@@ -264,55 +259,97 @@ func getTracingConfig(profile *profile.Profile) tracing.Config {
 	return cfg
 }
 
-// getParallelSectionsConfig gets parallel sections configuration from environment or profile
-// Returns true (parallel) by default
-func getParallelSectionsConfig(profile *profile.Profile) bool {
-	parallelStr := getConfigValue(profile, "ELASTIC_PACKAGE_LLM_PARALLEL_SECTIONS", "llm.parallel_sections", "true")
-	return parallelStr == "true" || parallelStr == "1"
+// standardModeFlags holds CLI flags for standard (non-evaluation) mode
+type standardModeFlags struct {
+	nonInteractive bool
+	modifyPrompt   string
+}
+
+// getStandardModeFlags extracts CLI flags needed for standard mode
+func getStandardModeFlags(cmd *cobra.Command) (standardModeFlags, error) {
+	var flags standardModeFlags
+	var err error
+
+	flags.nonInteractive, err = cmd.Flags().GetBool("non-interactive")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get non-interactive flag: %w", err)
+	}
+
+	flags.modifyPrompt, err = cmd.Flags().GetString("modify-prompt")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get modify-prompt flag: %w", err)
+	}
+
+	return flags, nil
+}
+
+// selectUpdateMode prompts the user to select rewrite or modify mode, or determines it automatically
+func selectUpdateMode(cmd *cobra.Command, nonInteractive bool, modifyPrompt string) (useModifyMode bool, err error) {
+	cmd.Println("Updating documentation using AI agent...")
+
+	if nonInteractive || modifyPrompt != "" {
+		return modifyPrompt != "", nil
+	}
+
+	// Ask user to choose mode
+	modePrompt := tui.NewSelect("Do you want to rewrite or modify the documentation?", []string{
+		modePromptRewrite,
+		modePromptModify,
+	}, modePromptRewrite)
+
+	var mode string
+	if err := tui.AskOne(modePrompt, &mode); err != nil {
+		return false, fmt.Errorf("prompt failed: %w", err)
+	}
+
+	return mode == modePromptModify, nil
+}
+
+// runDocumentationUpdate executes the documentation update using the agent
+func runDocumentationUpdate(cmd *cobra.Command, docAgent *docagent.DocumentationAgent, useModifyMode, nonInteractive bool, modifyPrompt string) error {
+	if useModifyMode {
+		if err := docAgent.ModifyDocumentation(cmd.Context(), nonInteractive, modifyPrompt); err != nil {
+			return fmt.Errorf("documentation modification failed: %w", err)
+		}
+	} else {
+		if err := docAgent.UpdateDocumentation(cmd.Context(), nonInteractive); err != nil {
+			return fmt.Errorf("documentation update failed: %w", err)
+		}
+	}
+	cmd.Println("Done")
+	return nil
 }
 
 func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
-	// Check for evaluation mode flags early
 	evaluateMode, err := cmd.Flags().GetBool("evaluate")
 	if err != nil {
 		return fmt.Errorf("failed to get evaluate flag: %w", err)
 	}
 
-	// Get profile for configuration access
 	profile, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to get profile: %w", err)
 	}
 
-	// Get Gemini configuration
 	apiKey, modelID, thinkingBudget := getGeminiConfig(profile)
 
-	// Check for model override from flag
-	if modelFlag, _ := cmd.Flags().GetString("model"); modelFlag != "" {
-		modelID = modelFlag
-	}
-
-	// Handle evaluation mode
 	if evaluateMode {
 		return handleEvaluationMode(cmd, profile, apiKey, modelID, thinkingBudget)
 	}
 
-	// Standard mode: require package root
+	return handleStandardMode(cmd, profile, apiKey, modelID, thinkingBudget)
+}
+
+// handleStandardMode handles the standard documentation update workflow
+func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	// Check for non-interactive flag
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	flags, err := getStandardModeFlags(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to get non-interactive flag: %w", err)
-	}
-
-	// Check for modify-prompt flag
-	modifyPrompt, err := cmd.Flags().GetString("modify-prompt")
-	if err != nil {
-		return fmt.Errorf("failed to get modify-prompt flag: %w", err)
+		return err
 	}
 
 	if apiKey == "" {
@@ -326,221 +363,28 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		cmd.Printf("Using Gemini provider with model: %s\n", modelID)
 	}
 
-	// Select which documentation file to update
-	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, nonInteractive)
+	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, flags.nonInteractive)
 	if err != nil {
 		return fmt.Errorf("failed to select documentation file: %w", err)
 	}
-
-	if !nonInteractive && targetDocFile != "README.md" {
+	if !flags.nonInteractive && targetDocFile != "README.md" {
 		cmd.Printf("Selected documentation file: %s\n", targetDocFile)
 	}
 
-	// Find repository root for file operations
 	repositoryRoot, err := files.FindRepositoryRootFrom(packageRoot)
 	if err != nil {
 		return fmt.Errorf("failed to find repository root: %w", err)
 	}
 	defer repositoryRoot.Close()
 
-	// Get tracing configuration
 	tracingConfig := getTracingConfig(profile)
 
-	// Get parallel sections configuration
-	parallelSections := getParallelSectionsConfig(profile)
-
-	// Create the documentation agent using ADK
-	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
-		APIKey:           apiKey,
-		ModelID:          modelID,
-		PackageRoot:      packageRoot,
-		RepositoryRoot:   repositoryRoot,
-		DocFile:          targetDocFile,
-		Profile:          profile,
-		ThinkingBudget:   thinkingBudget,
-		TracingConfig:    tracingConfig,
-		ParallelSections: parallelSections,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create documentation agent: %w", err)
-	}
-
-	// Ensure tracing is properly flushed before exit
-	defer func() {
-		if err := tracing.Shutdown(cmd.Context()); err != nil {
-			cmd.PrintErrf("Warning: failed to shutdown tracing: %v\n", err)
-		}
-	}()
-
-	// Determine the mode based on user input
-	var useModifyMode bool
-
-	// Skip confirmation prompt in non-interactive mode
-	if !nonInteractive {
-		// Prompt user for confirmation
-		confirmPrompt := tui.NewConfirm("Do you want to update the documentation using the AI agent?", true)
-
-		var confirm bool
-		err = tui.AskOne(confirmPrompt, &confirm, tui.Required)
-		if err != nil {
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-
-		if !confirm {
-			cmd.Println("Documentation update cancelled.")
-			return nil
-		}
-
-		// If no modify-prompt flag was provided, ask user to choose mode
-		if modifyPrompt == "" {
-			modePrompt := tui.NewSelect("Do you want to rewrite or modify the documentation?", []string{
-				modePromptRewrite,
-				modePromptModify,
-			}, modePromptRewrite)
-
-			var mode string
-			err = tui.AskOne(modePrompt, &mode)
-			if err != nil {
-				return fmt.Errorf("prompt failed: %w", err)
-			}
-
-			useModifyMode = mode == "Modify (targeted changes)"
-		} else {
-			useModifyMode = true
-		}
-	} else {
-		cmd.Println("Running in non-interactive mode - proceeding automatically.")
-		useModifyMode = modifyPrompt != ""
-	}
-
-	// Run the documentation update process based on selected mode
-	if useModifyMode {
-		err = docAgent.ModifyDocumentation(cmd.Context(), nonInteractive, modifyPrompt)
-		if err != nil {
-			return fmt.Errorf("documentation modification failed: %w", err)
-		}
-	} else {
-		err = docAgent.UpdateDocumentation(cmd.Context(), nonInteractive)
-		if err != nil {
-			return fmt.Errorf("documentation update failed: %w", err)
-		}
-	}
-
-	cmd.Println("Done")
-	return nil
-}
-
-// handleEvaluationMode handles the --evaluate flag for documentation quality evaluation
-func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
-	if apiKey == "" {
-		return fmt.Errorf("evaluation mode requires GOOGLE_API_KEY to be set")
-	}
-
-	// Get evaluation flags
-	outputDir, err := cmd.Flags().GetString("output-dir")
-	if err != nil {
-		return fmt.Errorf("failed to get output-dir flag: %w", err)
-	}
-
-	batchFlag, err := cmd.Flags().GetString("batch")
-	if err != nil {
-		return fmt.Errorf("failed to get batch flag: %w", err)
-	}
-
-	integrationsPath, err := cmd.Flags().GetString("integrations-path")
-	if err != nil {
-		return fmt.Errorf("failed to get integrations-path flag: %w", err)
-	}
-
-	// Fallback to environment variable for integrations path
-	if integrationsPath == "" {
-		integrationsPath = os.Getenv("INTEGRATIONS_PATH")
-	}
-
-	parallelism, err := cmd.Flags().GetInt("parallel")
-	if err != nil {
-		return fmt.Errorf("failed to get parallel flag: %w", err)
-	}
-
-	maxIterations, err := cmd.Flags().GetUint("max-iterations")
-	if err != nil {
-		return fmt.Errorf("failed to get max-iterations flag: %w", err)
-	}
-
-	enableTracing, err := cmd.Flags().GetBool("enable-tracing")
-	if err != nil {
-		return fmt.Errorf("failed to get enable-tracing flag: %w", err)
-	}
-
-	// Get tracing configuration
-	tracingConfig := getTracingConfig(profile)
-	if enableTracing {
-		tracingConfig.Enabled = true
-	}
-
-	if tracingConfig.Enabled {
-		if err := tracing.InitWithConfig(cmd.Context(), tracingConfig); err != nil {
-			cmd.Printf("Warning: failed to initialize tracing: %v\n", err)
-		}
-	}
-
-	cmd.Printf("📊 Running documentation evaluation with model: %s\n", modelID)
-
-	// Handle batch mode
-	if batchFlag != "" {
-		if integrationsPath == "" {
-			return fmt.Errorf("--evaluate-integrations-path is required for batch mode (or set INTEGRATIONS_PATH env var)")
-		}
-
-		packageNames := strings.Split(batchFlag, ",")
-		for i := range packageNames {
-			packageNames[i] = strings.TrimSpace(packageNames[i])
-		}
-
-		cmd.Printf("🔄 Starting batch evaluation of %d packages...\n", len(packageNames))
-
-		batchCfg := docagent.BatchEvaluationConfig{
-			IntegrationsPath: integrationsPath,
-			OutputDir:        outputDir,
-			PackageNames:     packageNames,
-			Parallelism:      parallelism,
-			APIKey:           apiKey,
-			ModelID:          modelID,
-			MaxIterations:    maxIterations,
-			EnableTracing:    enableTracing,
-			Profile:          profile,
-			ThinkingBudget:   thinkingBudget,
-		}
-
-		result, err := docagent.RunBatchEvaluation(cmd.Context(), batchCfg)
-		if err != nil {
-			return fmt.Errorf("batch evaluation failed: %w", err)
-		}
-
-		// Print summary
-		cmd.Printf("\n📊 Batch Evaluation Complete\n")
-		cmd.Printf("   Total packages: %d\n", result.Summary.TotalPackages)
-		cmd.Printf("   Passed: %d\n", result.Summary.PassedPackages)
-		cmd.Printf("   Failed: %d\n", result.Summary.FailedPackages)
-		cmd.Printf("   Average score: %.1f\n", result.Summary.AverageScore)
-		cmd.Printf("   Duration: %s\n", result.Duration.Round(time.Second))
-		cmd.Printf("   Results saved to: %s\n", outputDir)
-
-		return nil
-	}
-
-	// Single package evaluation mode
-	packageRoot, err := packages.FindPackageRoot()
-	if err != nil {
-		return fmt.Errorf("locating package root failed: %w", err)
-	}
-
-	// Create the documentation agent
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		APIKey:         apiKey,
 		ModelID:        modelID,
 		PackageRoot:    packageRoot,
-		DocFile:        "README.md",
+		RepositoryRoot: repositoryRoot,
+		DocFile:        targetDocFile,
 		Profile:        profile,
 		ThinkingBudget: thinkingBudget,
 		TracingConfig:  tracingConfig,
@@ -549,19 +393,78 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
 
-	evalCfg := docagent.EvaluationConfig{
-		OutputDir:     outputDir,
-		MaxIterations: maxIterations,
-		EnableTracing: tracingConfig.Enabled,
-		ModelID:       modelID,
-	}
+	defer func() {
+		if err := tracing.Shutdown(cmd.Context()); err != nil {
+			cmd.PrintErrf("Warning: failed to shutdown tracing: %v\n", err)
+		}
+	}()
 
-	result, err := docAgent.EvaluateDocumentation(cmd.Context(), evalCfg)
+	useModifyMode, err := selectUpdateMode(cmd, flags.nonInteractive, flags.modifyPrompt)
 	if err != nil {
-		return fmt.Errorf("evaluation failed: %w", err)
+		return err
 	}
 
-	// Print summary
+	return runDocumentationUpdate(cmd, docAgent, useModifyMode, flags.nonInteractive, flags.modifyPrompt)
+}
+
+// evaluationModeFlags holds CLI flags for evaluation mode
+type evaluationModeFlags struct {
+	outputDir        string
+	batchFlag        string
+	integrationsPath string
+	parallelism      int
+	maxIterations    uint
+}
+
+// getEvaluationModeFlags extracts CLI flags needed for evaluation mode
+func getEvaluationModeFlags(cmd *cobra.Command) (evaluationModeFlags, error) {
+	var flags evaluationModeFlags
+	var err error
+
+	flags.outputDir, err = cmd.Flags().GetString("output-dir")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get output-dir flag: %w", err)
+	}
+
+	flags.batchFlag, err = cmd.Flags().GetString("batch")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get batch flag: %w", err)
+	}
+
+	flags.integrationsPath, err = cmd.Flags().GetString("integrations-path")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get integrations-path flag: %w", err)
+	}
+	if flags.integrationsPath == "" {
+		flags.integrationsPath = os.Getenv("INTEGRATIONS_PATH")
+	}
+
+	flags.parallelism, err = cmd.Flags().GetInt("parallel")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get parallel flag: %w", err)
+	}
+
+	flags.maxIterations, err = cmd.Flags().GetUint("max-iterations")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get max-iterations flag: %w", err)
+	}
+
+	return flags, nil
+}
+
+// printBatchEvaluationSummary prints the summary for batch evaluation results
+func printBatchEvaluationSummary(cmd *cobra.Command, result *docagent.BatchEvaluationResult, outputDir string) {
+	cmd.Printf("\n📊 Batch Evaluation Complete\n")
+	cmd.Printf("   Total packages: %d\n", result.Summary.TotalPackages)
+	cmd.Printf("   Passed: %d\n", result.Summary.PassedPackages)
+	cmd.Printf("   Failed: %d\n", result.Summary.FailedPackages)
+	cmd.Printf("   Average score: %.1f\n", result.Summary.AverageScore)
+	cmd.Printf("   Duration: %s\n", result.Duration.Round(time.Second))
+	cmd.Printf("   Results saved to: %s\n", outputDir)
+}
+
+// printSingleEvaluationSummary prints the summary for single package evaluation results
+func printSingleEvaluationSummary(cmd *cobra.Command, result *docagent.EvaluationResult, outputDir string) {
 	cmd.Printf("\n📊 Evaluation Complete: %s\n", result.PackageName)
 	if result.Metrics != nil {
 		cmd.Printf("   Composite Score: %.1f\n", result.Metrics.CompositeScore)
@@ -576,6 +479,102 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 	if outputDir != "" {
 		cmd.Printf("   Results saved to: %s\n", outputDir)
 	}
+}
 
+// runBatchEvaluation executes batch evaluation for multiple packages
+func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32, tracingEnabled bool) error {
+	if flags.integrationsPath == "" {
+		return fmt.Errorf("--evaluate-integrations-path is required for batch mode (or set INTEGRATIONS_PATH env var)")
+	}
+
+	packageNames := strings.Split(flags.batchFlag, ",")
+	for i := range packageNames {
+		packageNames[i] = strings.TrimSpace(packageNames[i])
+	}
+
+	cmd.Printf("🔄 Starting batch evaluation of %d packages...\n", len(packageNames))
+
+	batchCfg := docagent.BatchEvaluationConfig{
+		IntegrationsPath: flags.integrationsPath,
+		OutputDir:        flags.outputDir,
+		PackageNames:     packageNames,
+		Parallelism:      flags.parallelism,
+		APIKey:           apiKey,
+		ModelID:          modelID,
+		MaxIterations:    flags.maxIterations,
+		EnableTracing:    tracingEnabled,
+		Profile:          profile,
+		ThinkingBudget:   thinkingBudget,
+	}
+
+	result, err := docagent.RunBatchEvaluation(cmd.Context(), batchCfg)
+	if err != nil {
+		return fmt.Errorf("batch evaluation failed: %w", err)
+	}
+
+	printBatchEvaluationSummary(cmd, result, flags.outputDir)
 	return nil
+}
+
+// runSinglePackageEvaluation executes evaluation for a single package
+func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32, tracingConfig tracing.Config) error {
+	packageRoot, err := packages.FindPackageRoot()
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+		APIKey:         apiKey,
+		ModelID:        modelID,
+		PackageRoot:    packageRoot,
+		DocFile:        "README.md",
+		Profile:        profile,
+		ThinkingBudget: thinkingBudget,
+		TracingConfig:  tracingConfig,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create documentation agent: %w", err)
+	}
+
+	evalCfg := docagent.EvaluationConfig{
+		OutputDir:     flags.outputDir,
+		MaxIterations: flags.maxIterations,
+		EnableTracing: tracingConfig.Enabled,
+		ModelID:       modelID,
+	}
+
+	result, err := docAgent.EvaluateDocumentation(cmd.Context(), evalCfg)
+	if err != nil {
+		return fmt.Errorf("evaluation failed: %w", err)
+	}
+
+	printSingleEvaluationSummary(cmd, result, flags.outputDir)
+	return nil
+}
+
+// handleEvaluationMode handles the --evaluate flag for documentation quality evaluation
+func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
+	if apiKey == "" {
+		return fmt.Errorf("evaluation mode requires GOOGLE_API_KEY to be set")
+	}
+
+	flags, err := getEvaluationModeFlags(cmd)
+	if err != nil {
+		return err
+	}
+
+	tracingConfig := getTracingConfig(profile)
+	if tracingConfig.Enabled {
+		if err := tracing.InitWithConfig(cmd.Context(), tracingConfig); err != nil {
+			cmd.Printf("Warning: failed to initialize tracing: %v\n", err)
+		}
+	}
+
+	cmd.Printf("📊 Running documentation evaluation with model: %s\n", modelID)
+
+	if flags.batchFlag != "" {
+		return runBatchEvaluation(cmd, flags, profile, apiKey, modelID, thinkingBudget, tracingConfig.Enabled)
+	}
+
+	return runSinglePackageEvaluation(cmd, flags, profile, apiKey, modelID, thinkingBudget, tracingConfig)
 }

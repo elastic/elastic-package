@@ -91,7 +91,6 @@ type DocumentationAgent struct {
 	manifest              *packages.PackageManifest
 	responseAnalyzer      *responseAnalyzer
 	serviceInfoManager    *ServiceInfoManager
-	parallelSections      bool // Whether to generate sections in parallel (default: true)
 }
 
 type PromptContext struct {
@@ -107,15 +106,14 @@ type PromptContext struct {
 
 // AgentConfig holds configuration for creating a DocumentationAgent
 type AgentConfig struct {
-	APIKey           string
-	ModelID          string
-	PackageRoot      string
-	RepositoryRoot   *os.Root
-	DocFile          string
-	Profile          *profile.Profile
-	ThinkingBudget   *int32         // Optional thinking budget for Gemini models
-	TracingConfig    tracing.Config // Tracing configuration
-	ParallelSections bool           // Whether to generate sections in parallel (default: true)
+	APIKey         string
+	ModelID        string
+	PackageRoot    string
+	RepositoryRoot *os.Root
+	DocFile        string
+	Profile        *profile.Profile
+	ThinkingBudget *int32         // Optional thinking budget for Gemini models
+	TracingConfig  tracing.Config // Tracing configuration
 }
 
 // NewDocumentationAgent creates a new documentation agent using ADK
@@ -171,7 +169,6 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 		manifest:           manifest,
 		responseAnalyzer:   responseAnalyzer,
 		serviceInfoManager: serviceInfoManager,
-		parallelSections:   cfg.ParallelSections,
 	}, nil
 }
 
@@ -320,11 +317,28 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 		return fmt.Errorf("failed to check %s: %w", d.targetDocFile, err)
 	}
 
-	// Record initial input for session
-	inputDesc := fmt.Sprintf("Modify documentation for package: %s (file: %s)", d.manifest.Name, d.targetDocFile)
+	var instructions string
 	if modifyPrompt != "" {
-		inputDesc += fmt.Sprintf(" - Request: %s", modifyPrompt)
+		instructions = modifyPrompt
+	} else if !nonInteractive {
+		var err error
+		instructions, err = tui.AskTextArea("What changes would you like to make to the documentation?")
+		if err != nil {
+			if errors.Is(err, tui.ErrCancelled) {
+				fmt.Println("⚠️  Modification cancelled.")
+				return nil
+			}
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+		if strings.TrimSpace(instructions) == "" {
+			return fmt.Errorf("no modification instructions provided")
+		}
+	} else {
+		return fmt.Errorf("--modify-prompt flag is required in non-interactive mode")
 	}
+
+	// Record initial input for session
+	inputDesc := fmt.Sprintf("Modify documentation for package: %s (file: %s) - Request: %s", d.manifest.Name, d.targetDocFile, instructions)
 	tracing.RecordSessionInput(sessionSpan, inputDesc)
 
 	// Confirm LLM understands the documentation guidelines before proceeding
@@ -334,31 +348,6 @@ func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInterac
 
 	// Backup original README content before making any changes
 	d.backupOriginalReadme()
-
-	// Get modification instructions if not provided
-	var instructions string
-	if modifyPrompt != "" {
-		instructions = modifyPrompt
-	} else if !nonInteractive {
-		// Prompt user for modification instructions
-		var err error
-		instructions, err = tui.AskTextArea("What changes would you like to make to the documentation?")
-		if err != nil {
-			// Check if user cancelled
-			if errors.Is(err, tui.ErrCancelled) {
-				fmt.Println("⚠️  Modification cancelled.")
-				return nil
-			}
-			return fmt.Errorf("prompt failed: %w", err)
-		}
-
-		// Check if no changes were provided
-		if strings.TrimSpace(instructions) == "" {
-			return fmt.Errorf("no modification instructions provided")
-		}
-	} else {
-		return fmt.Errorf("--modify-prompt flag is required in non-interactive mode")
-	}
 
 	fmt.Println("📝 Analyzing modification request...")
 
@@ -579,31 +568,76 @@ func (d *DocumentationAgent) writeDocumentation(path, content string) error {
 
 // runInteractiveSectionReview allows user to review and request changes in interactive mode
 func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context, sections []Section) error {
-	// Display the generated documentation
-	if err := d.displayReadme(); err != nil {
-		logger.Debugf("could not display readme: %v", err)
-	}
+	currentSections := sections
 
-	// Get user action
-	action, err := d.getUserAction()
-	if err != nil {
-		return err
-	}
+	for {
+		// Display the generated documentation
+		if err := d.displayReadme(); err != nil {
+			logger.Debugf("could not display readme: %v", err)
+		}
 
-	readmeUpdated := true // We just wrote it
-	actionResult := d.handleUserAction(action, readmeUpdated)
-	if actionResult.Err != nil {
-		return actionResult.Err
-	}
+		// Get user action
+		action, err := d.getUserAction()
+		if err != nil {
+			return err
+		}
 
-	// If user requests changes, fall back to the modify workflow
-	if actionResult.ShouldContinue {
-		fmt.Println("For changes to section-based documentation, please use the modify mode.")
-		fmt.Println("Run: elastic-package update documentation --modify-prompt \"your changes\"")
-		return nil
-	}
+		actionResult := d.handleUserAction(action, true)
+		if actionResult.Err != nil {
+			return actionResult.Err
+		}
 
-	return nil
+		// If user doesn't want to continue, exit
+		if !actionResult.ShouldContinue {
+			return nil
+		}
+
+		// User requested changes - run modification workflow
+		if actionResult.Changes == "" {
+			continue // No changes provided, loop again
+		}
+
+		fmt.Println("📝 Applying requested changes...")
+
+		// Re-read current sections from file
+		existingContent, err := d.readCurrentReadme()
+		if err != nil {
+			return fmt.Errorf("failed to read current documentation: %w", err)
+		}
+		currentSections = parsing.ParseSections(existingContent)
+
+		// Analyze modification scope
+		templateContent := archetype.GetPackageDocsReadmeTemplate()
+		templateSections := parsing.ParseSections(templateContent)
+
+		scope, err := d.analyzeModificationScope(ctx, actionResult.Changes, templateSections)
+		if err != nil {
+			logger.Debugf("Scope analysis failed, defaulting to global: %v", err)
+			scope = &ModificationScope{Type: ScopeGlobal, Confidence: 0.5}
+		}
+
+		// Apply modifications
+		var modifiedSections []Section
+		switch scope.Type {
+		case ScopeGlobal, ScopeAmbiguous:
+			modifiedSections, err = d.modifyAllSections(ctx, currentSections, actionResult.Changes)
+		case ScopeSpecific:
+			modifiedSections, err = d.modifySpecificSections(ctx, currentSections, scope.AffectedSections, actionResult.Changes)
+		}
+		if err != nil {
+			return fmt.Errorf("failed to modify sections: %w", err)
+		}
+
+		// Write updated documentation
+		finalContent := parsing.CombineSections(modifiedSections)
+		docPath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
+		if err := d.writeDocumentation(docPath, finalContent); err != nil {
+			return fmt.Errorf("failed to write documentation: %w", err)
+		}
+
+		fmt.Printf("\n✅ Changes applied! (%d characters)\n", len(finalContent))
+		currentSections = modifiedSections
+	}
 }
 
 // modifyAllSections regenerates all sections with modification context
@@ -750,8 +784,7 @@ type sectionResult struct {
 
 // GenerateAllSectionsWithWorkflow generates all sections using the multi-agent workflow.
 // This method uses a configurable pipeline of agents (generator, critic, validator, etc.)
-// to iteratively refine each section. By default sections are generated in parallel,
-// but this can be changed via the ParallelSections config option.
+// to iteratively refine each section. Sections are generated in parallel.
 func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
 	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
 	defer func() {
@@ -796,11 +829,7 @@ func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context
 		return nil, fmt.Errorf("no top-level sections found in template")
 	}
 
-	// Choose parallel or sequential execution based on config
-	if d.parallelSections {
-		return d.generateSectionsParallel(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
-	}
-	return d.generateSectionsSequential(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
+	return d.generateSectionsParallel(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
 }
 
 // generateSectionsParallel generates all sections in parallel using goroutines
@@ -1337,33 +1366,6 @@ func (d *DocumentationAgent) validateSectionContent(ctx context.Context, content
 	}
 
 	return issues
-}
-
-// generateSectionsSequential generates all sections one at a time
-func (d *DocumentationAgent) generateSectionsSequential(ctx context.Context, workflowCfg workflow.Config, topLevelSections, exampleSections, existingSections []Section) ([]Section, error) {
-	fmt.Printf("📝 Generating %d sections sequentially...\n", len(topLevelSections))
-
-	generatedSections := make([]Section, len(topLevelSections))
-	successCount := 0
-	failCount := 0
-
-	for idx, templateSection := range topLevelSections {
-		fmt.Printf("  ⏳ Section %d/%d: %s...\n", idx+1, len(topLevelSections), templateSection.Title)
-
-		result := d.generateSingleSection(ctx, workflowCfg, idx, templateSection, exampleSections, existingSections)
-		generatedSections[idx] = result.section
-
-		if result.err != nil {
-			failCount++
-			fmt.Printf("  ❌ Section %d: %s (failed)\n", idx+1, result.section.Title)
-		} else {
-			successCount++
-			fmt.Printf("  ✅ Section %d: %s (done)\n", idx+1, result.section.Title)
-		}
-	}
-
-	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
-	return generatedSections, nil
 }
 
 // generateSingleSection generates a single section using the workflow
