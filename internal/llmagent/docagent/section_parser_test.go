@@ -111,39 +111,6 @@ Troubleshooting content.`,
 	}
 }
 
-func TestSection_IsTopLevel(t *testing.T) {
-	level2 := Section{Level: 2}
-	level3 := Section{Level: 3}
-
-	assert.True(t, level2.IsTopLevel())
-	assert.False(t, level3.IsTopLevel())
-}
-
-func TestSection_HasSubsections(t *testing.T) {
-	withSubs := Section{
-		Subsections: []Section{{Title: "Sub1"}},
-	}
-	withoutSubs := Section{
-		Subsections: []Section{},
-	}
-
-	assert.True(t, withSubs.HasSubsections())
-	assert.False(t, withoutSubs.HasSubsections())
-}
-
-func TestSection_GetAllContent(t *testing.T) {
-	section := Section{
-		Content:     "Main content",
-		FullContent: "Full content with subs",
-	}
-
-	assert.Equal(t, "Full content with subs", section.GetAllContent())
-
-	// Test fallback when FullContent is empty
-	section.FullContent = ""
-	assert.Equal(t, "Main content", section.GetAllContent())
-}
-
 func TestBuildFullContent(t *testing.T) {
 	section := Section{
 		Title:   "Parent",

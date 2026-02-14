@@ -183,8 +183,7 @@ For help with Elastic ingest tools, check [Common problems](https://www.elastic.
     *   Ensure there are no firewalls or network ACLs blocking the syslog port.
     *   Confirm that the listening port configured in the Elastic integration matches the destination port configured on the FortiGate device.
 -   TCP framing issues:
-    *   When using TCP input with reliable syslog mode, both the FortiGate configuration and the integration settings must have framing set to `rfc6587`. Mismatched framing settings will result in parsing errors or lost logs.
-
+    *   When using TCP input with reliable syslog mode, both the FortiGate configuration and the integration settings must have framing set to `rfc6587`. Mismatched framing settings will result in parsing errors or lost logs.ß
 
 ## Performance and Scaling
 

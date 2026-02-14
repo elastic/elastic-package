@@ -91,37 +91,21 @@ func listExamplesHandler() functiontool.Func[ListExamplesArgs, ListExamplesResul
 // getExampleHandler returns a handler for the get_example tool
 func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 	return func(ctx tool.Context, args GetExampleArgs) (GetExampleResult, error) {
-		if args.Name == "" {
-			return GetExampleResult{Error: "example name is required"}, nil
-		}
-
-		// Read the example file from embedded FS
-		// Note: embed.FS always uses forward slashes, regardless of OS
-		filePath := "_static/examples/" + args.Name
-		content, err := examplesFS.ReadFile(filePath)
+		content, err := GetExampleContent(args.Name, args.Section)
 		if err != nil {
-			return GetExampleResult{Error: fmt.Sprintf("failed to read example file '%s': %v", args.Name, err)}, nil
+			return GetExampleResult{Error: err.Error()}, nil
 		}
-
-		// If no section specified, return the entire content
-		if args.Section == "" {
-			return GetExampleResult{Content: string(content)}, nil
-		}
-
-		// Parse sections and find the requested one using the parsing package
-		sections := parsing.ParseSections(string(content))
-		section := parsing.FindSectionByTitle(sections, args.Section)
-		if section == nil {
-			return GetExampleResult{Error: fmt.Sprintf("section '%s' not found in example '%s'", args.Section, args.Name)}, nil
-		}
-
-		return GetExampleResult{Content: section.FullContent}, nil
+		return GetExampleResult{Content: content}, nil
 	}
 }
 
 // GetExampleContent retrieves the content of a specific example file.
 // If section is provided, only that section's content is returned.
 func GetExampleContent(name, section string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("example name is required")
+	}
+
 	// Note: embed.FS always uses forward slashes, regardless of OS
 	filePath := "_static/examples/" + name
 	content, err := examplesFS.ReadFile(filePath)

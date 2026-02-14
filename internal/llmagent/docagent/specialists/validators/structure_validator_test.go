@@ -6,6 +6,7 @@ package validators
 
 import (
 	"context"
+	"strings"
 	"testing"
 )
 
@@ -291,25 +292,11 @@ func TestCheckBrokenLinkPatterns(t *testing.T) {
 					if string(issue.Severity) != tt.wantSeverity {
 						t.Errorf("Expected severity %s, got %s", tt.wantSeverity, issue.Severity)
 					}
-					if tt.wantInMessage != "" && !contains(issue.Message, tt.wantInMessage) {
+					if tt.wantInMessage != "" && !strings.Contains(issue.Message, tt.wantInMessage) {
 						t.Errorf("Expected message to contain %q, got %q", tt.wantInMessage, issue.Message)
 					}
 				}
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && searchString(s, substr)))
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

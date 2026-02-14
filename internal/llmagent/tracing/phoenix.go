@@ -2,7 +2,6 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-// Package tracing provides OpenTelemetry tracing and Phoenix integration.
 package tracing
 
 import (
@@ -562,7 +561,7 @@ func (c *PhoenixClient) generateSummary(traces *SessionTraces) *TraceSummary {
 				summary.SignificantEvents = append(summary.SignificantEvents, event)
 			}
 
-			// Track errors comprehensively
+			// Track errors
 			if span.StatusCode == "ERROR" || span.StatusCode == "error" {
 				traceErr := TraceError{
 					Timestamp:  span.StartTime,

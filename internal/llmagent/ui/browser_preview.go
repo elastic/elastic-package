@@ -101,21 +101,16 @@ func openURL(urlOrPath string) error {
 }
 
 // TryBrowserPreview attempts to display the markdown content in a browser
-// Returns true if successful, false if it should fall back to terminal display
+// Returns if browser preview was successful
 func TryBrowserPreview(markdownContent string) bool {
-	// Check if browser is available
 	if !isBrowserAvailable() {
 		return false
 	}
 
-	// Convert markdown to HTML
 	htmlContent := convertMarkdownToHTML(markdownContent)
 
-	// Open in browser
 	if err := openInBrowser(htmlContent); err != nil {
-		// If browser opening fails, return false to trigger fallback
 		return false
 	}
-
 	return true
 }

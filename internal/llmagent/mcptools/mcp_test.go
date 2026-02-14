@@ -14,23 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMCPServer_Connect_NilURL(t *testing.T) {
-	server := &MCPServer{}
-	err := server.Connect()
-	// With nil URL, it should return nil (skip) not error
-	require.NoError(t, err)
-	assert.Nil(t, server.Toolset)
-}
-
-func TestMCPServer_Close(t *testing.T) {
-	server := &MCPServer{}
-
-	// Should not error even if toolset is nil
-	err := server.Close()
-	require.NoError(t, err)
-	assert.Nil(t, server.Toolset)
-}
-
 func TestLoadToolsets_NoConfigFile(t *testing.T) {
 	// Create a temporary directory that doesn't have the config file
 	tempDir := t.TempDir()

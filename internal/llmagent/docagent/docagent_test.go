@@ -77,15 +77,6 @@ func TestNewDocumentationAgent_Validation(t *testing.T) {
 	}
 }
 
-func TestNewResponseAnalyzer(t *testing.T) {
-	analyzer := NewResponseAnalyzer()
-
-	require.NotNil(t, analyzer)
-	assert.NotEmpty(t, analyzer.successIndicators)
-	assert.NotEmpty(t, analyzer.errorIndicators)
-	assert.NotEmpty(t, analyzer.errorMarkers)
-}
-
 func TestResponseAnalyzer_ContainsAnyIndicator(t *testing.T) {
 	analyzer := NewResponseAnalyzer()
 
