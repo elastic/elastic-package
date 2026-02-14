@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package doceval
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 
 	"go.opentelemetry.io/otel/trace"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
@@ -33,16 +34,6 @@ type EvaluationConfig struct {
 
 	// ModelID is the LLM model to use
 	ModelID string
-}
-
-// DefaultEvaluationConfig returns default evaluation configuration
-func DefaultEvaluationConfig() EvaluationConfig {
-	return EvaluationConfig{
-		OutputDir:     "./doc_eval_results",
-		MaxIterations: 3,
-		EnableTracing: false,
-		ModelID:       "gemini-3-flash-preview",
-	}
 }
 
 // EvaluationResult holds the results of documentation evaluation
@@ -122,7 +113,6 @@ type StageResult struct {
 	Stage          string                  `json:"stage"`
 	Valid          bool                    `json:"valid"`
 	Score          int                     `json:"score"`
-	Iterations     int                     `json:"iterations"`
 	Issues         []string                `json:"issues,omitempty"`
 	DetailedIssues []ValidationIssueDetail `json:"detailed_issues,omitempty"`
 	Warnings       []string                `json:"warnings,omitempty"`
@@ -139,16 +129,15 @@ type ValidationIssueDetail struct {
 	SourceCheck string `json:"source_check"` // "static" or "llm"
 }
 
-// EvaluateDocumentation runs documentation generation in evaluation mode
-// Returns the evaluation result with metrics instead of writing to the package
-// Uses the same generation + validation loop as update documentation
-func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg EvaluationConfig) (*EvaluationResult, error) {
+// EvaluatePackage runs documentation generation in evaluation mode.
+// It uses the same generation logic as the standard update mode via the agent.
+func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cfg EvaluationConfig) (*EvaluationResult, error) {
 	startTime := time.Now()
-	runID := fmt.Sprintf("%s_%s", d.manifest.Name, startTime.Format("20060102_150405"))
+	runID := fmt.Sprintf("%s_%s", agent.Manifest().Name, startTime.Format("20060102_150405"))
 
 	result := &EvaluationResult{
-		PackageName: d.manifest.Name,
-		PackagePath: d.packageRoot,
+		PackageName: agent.Manifest().Name,
+		PackagePath: agent.PackageRoot(),
 		RunID:       runID,
 		Timestamp:   startTime,
 		Config:      cfg,
@@ -157,7 +146,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	// Initialize tracing - track span so we can end it before flushing
 	var sessionSpan trace.Span
 	if cfg.EnableTracing {
-		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", d.executor.ModelID())
+		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", agent.ModelID())
 		// Note: We'll end the span explicitly before flushing, but keep defer as safety net
 		defer func() {
 			if sessionSpan != nil && sessionSpan.IsRecording() {
@@ -174,20 +163,20 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	}
 
 	// Confirm LLM understands the documentation guidelines
-	if err := d.ConfirmInstructionsUnderstood(ctx); err != nil {
+	if err := agent.ConfirmInstructionsUnderstood(ctx); err != nil {
 		result.Error = fmt.Sprintf("instruction confirmation failed: %v", err)
 		result.Duration = time.Since(startTime)
 		return result, err
 	}
 
 	// Read original README if it exists
-	originalReadmePath := filepath.Join(d.packageRoot, "_dev", "build", "docs", d.targetDocFile)
+	originalReadmePath := filepath.Join(agent.PackageRoot(), "_dev", "build", "docs", agent.TargetDocFile())
 	if content, err := os.ReadFile(originalReadmePath); err == nil {
 		result.OriginalContent = string(content)
 	}
 
 	// Load package context for metrics computation
-	pkgCtx, err := validators.LoadPackageContextForDoc(d.packageRoot, d.targetDocFile)
+	pkgCtx, err := validators.LoadPackageContextForDoc(agent.PackageRoot(), agent.TargetDocFile())
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to load package context: %v", err)
 		result.Duration = time.Since(startTime)
@@ -195,7 +184,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	}
 
 	// Build generation config from evaluation config
-	genCfg := GenerationConfig{
+	genCfg := docagent.GenerationConfig{
 		MaxIterations:          cfg.MaxIterations,
 		EnableStagedValidation: true,
 	}
@@ -205,7 +194,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 
 	// Use the same section-based generation method as --non-interactive mode
 	fmt.Printf("📊 Starting section-based generation (max %d iterations per section)...\n", genCfg.MaxIterations)
-	genResult, err := d.GenerateAllSectionsWithValidation(ctx, pkgCtx, genCfg)
+	genResult, err := agent.GenerateAllSectionsWithValidation(ctx, pkgCtx, genCfg)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to generate documentation: %v", err)
 		result.Duration = time.Since(startTime)
@@ -216,7 +205,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 	result.GeneratedContent = genResult.Content
 
 	// Validate the final assembled document
-	stageResults, finalApproved := d.validateFinalDocument(ctx, genResult.Content, pkgCtx)
+	stageResults, finalApproved := validateFinalDocument(ctx, genResult.Content, pkgCtx, agent)
 	result.Approved = finalApproved
 
 	// Compute quality metrics
@@ -263,7 +252,7 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 
 	// Save result to output directory
 	if cfg.OutputDir != "" {
-		if err := saveEvaluationResult(result, cfg.OutputDir); err != nil {
+		if err := SaveEvaluationResult(result, cfg.OutputDir); err != nil {
 			logger.Debugf("Failed to save evaluation result: %v", err)
 		}
 	}
@@ -272,9 +261,9 @@ func (d *DocumentationAgent) EvaluateDocumentation(ctx context.Context, cfg Eval
 }
 
 // validateFinalDocument runs all validators against the final assembled document.
-func (d *DocumentationAgent) validateFinalDocument(ctx context.Context, content string, pkgCtx *validators.PackageContext) (map[string]*StageResult, bool) {
+func validateFinalDocument(ctx context.Context, content string, pkgCtx *validators.PackageContext, agent *docagent.DocumentationAgent) (map[string]*StageResult, bool) {
 	stageResults := make(map[string]*StageResult)
-	generate := d.createLLMValidateFunc()
+	generate := agent.CreateLLMValidateFunc()
 
 	for _, validator := range specialists.AllStagedValidators() {
 		if validator.Scope() == validators.ScopeSectionLevel {
@@ -438,8 +427,8 @@ func buildValidationSummary(stageResults map[string]*StageResult, approved bool)
 	return summary
 }
 
-// saveEvaluationResult saves the evaluation result to a JSON file and generated content to .md
-func saveEvaluationResult(result *EvaluationResult, outputDir string) error {
+// SaveEvaluationResult saves the evaluation result to a JSON file and generated content to .md
+func SaveEvaluationResult(result *EvaluationResult, outputDir string) error {
 	resultDir := filepath.Join(outputDir, "results", result.PackageName)
 	if err := os.MkdirAll(resultDir, 0o755); err != nil {
 		return err

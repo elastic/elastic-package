@@ -1465,9 +1465,9 @@ func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 	return cfg
 }
 
-// createLLMValidateFunc creates an LLMGenerateFunc using the agent's executor
+// CreateLLMValidateFunc creates an LLMGenerateFunc using the agent's executor
 // This allows validators to call the LLM without needing direct access to the executor
-func (d *DocumentationAgent) createLLMValidateFunc() validators.LLMGenerateFunc {
+func (d *DocumentationAgent) CreateLLMValidateFunc() validators.LLMGenerateFunc {
 	return func(ctx context.Context, prompt string) (string, error) {
 		result, err := d.executor.ExecuteTask(ctx, prompt)
 		if err != nil {
@@ -1475,6 +1475,26 @@ func (d *DocumentationAgent) createLLMValidateFunc() validators.LLMGenerateFunc 
 		}
 		return result.FinalContent, nil
 	}
+}
+
+// Manifest returns the package manifest
+func (d *DocumentationAgent) Manifest() *packages.PackageManifest {
+	return d.manifest
+}
+
+// PackageRoot returns the package root path
+func (d *DocumentationAgent) PackageRoot() string {
+	return d.packageRoot
+}
+
+// TargetDocFile returns the target documentation file name
+func (d *DocumentationAgent) TargetDocFile() string {
+	return d.targetDocFile
+}
+
+// ModelID returns the model ID from the executor
+func (d *DocumentationAgent) ModelID() string {
+	return d.executor.ModelID()
 }
 
 // FixDocumentStructure programmatically fixes document structure issues

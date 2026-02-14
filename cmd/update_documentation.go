@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
+	"github.com/elastic/elastic-package/internal/llmagent/doceval"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -421,39 +422,39 @@ func getEvaluationModeFlags(cmd *cobra.Command) (evaluationModeFlags, error) {
 	var flags evaluationModeFlags
 	var err error
 
-	flags.outputDir, err = cmd.Flags().GetString("output-dir")
+	flags.outputDir, err = cmd.Flags().GetString("evaluate-output-dir")
 	if err != nil {
-		return flags, fmt.Errorf("failed to get output-dir flag: %w", err)
+		return flags, fmt.Errorf("failed to get evaluate-output-dir flag: %w", err)
 	}
 
-	flags.batchFlag, err = cmd.Flags().GetString("batch")
+	flags.batchFlag, err = cmd.Flags().GetString("evaluate-batch")
 	if err != nil {
-		return flags, fmt.Errorf("failed to get batch flag: %w", err)
+		return flags, fmt.Errorf("failed to get evaluate-batch flag: %w", err)
 	}
 
-	flags.integrationsPath, err = cmd.Flags().GetString("integrations-path")
+	flags.integrationsPath, err = cmd.Flags().GetString("evaluate-integrations-path")
 	if err != nil {
-		return flags, fmt.Errorf("failed to get integrations-path flag: %w", err)
+		return flags, fmt.Errorf("failed to get evaluate-integrations-path flag: %w", err)
 	}
 	if flags.integrationsPath == "" {
 		flags.integrationsPath = os.Getenv("INTEGRATIONS_PATH")
 	}
 
-	flags.parallelism, err = cmd.Flags().GetInt("parallel")
+	flags.parallelism, err = cmd.Flags().GetInt("evaluate-parallel")
 	if err != nil {
-		return flags, fmt.Errorf("failed to get parallel flag: %w", err)
+		return flags, fmt.Errorf("failed to get evaluate-parallel flag: %w", err)
 	}
 
-	flags.maxIterations, err = cmd.Flags().GetUint("max-iterations")
+	flags.maxIterations, err = cmd.Flags().GetUint("evaluate-max-iterations")
 	if err != nil {
-		return flags, fmt.Errorf("failed to get max-iterations flag: %w", err)
+		return flags, fmt.Errorf("failed to get evaluate-max-iterations flag: %w", err)
 	}
 
 	return flags, nil
 }
 
 // printBatchEvaluationSummary prints the summary for batch evaluation results
-func printBatchEvaluationSummary(cmd *cobra.Command, result *docagent.BatchEvaluationResult, outputDir string) {
+func printBatchEvaluationSummary(cmd *cobra.Command, result *doceval.BatchEvaluationResult, outputDir string) {
 	cmd.Printf("\n📊 Batch Evaluation Complete\n")
 	cmd.Printf("   Total packages: %d\n", result.Summary.TotalPackages)
 	cmd.Printf("   Passed: %d\n", result.Summary.PassedPackages)
@@ -464,7 +465,7 @@ func printBatchEvaluationSummary(cmd *cobra.Command, result *docagent.BatchEvalu
 }
 
 // printSingleEvaluationSummary prints the summary for single package evaluation results
-func printSingleEvaluationSummary(cmd *cobra.Command, result *docagent.EvaluationResult, outputDir string) {
+func printSingleEvaluationSummary(cmd *cobra.Command, result *doceval.EvaluationResult, outputDir string) {
 	cmd.Printf("\n📊 Evaluation Complete: %s\n", result.PackageName)
 	if result.Metrics != nil {
 		cmd.Printf("   Composite Score: %.1f\n", result.Metrics.CompositeScore)
@@ -494,7 +495,7 @@ func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *
 
 	cmd.Printf("🔄 Starting batch evaluation of %d packages...\n", len(packageNames))
 
-	batchCfg := docagent.BatchEvaluationConfig{
+	batchCfg := doceval.BatchEvaluationConfig{
 		IntegrationsPath: flags.integrationsPath,
 		OutputDir:        flags.outputDir,
 		PackageNames:     packageNames,
@@ -507,7 +508,7 @@ func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *
 		ThinkingBudget:   thinkingBudget,
 	}
 
-	result, err := docagent.RunBatchEvaluation(cmd.Context(), batchCfg)
+	result, err := doceval.RunBatchEvaluation(cmd.Context(), batchCfg)
 	if err != nil {
 		return fmt.Errorf("batch evaluation failed: %w", err)
 	}
@@ -523,7 +524,7 @@ func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, p
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+	agent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
 		APIKey:         apiKey,
 		ModelID:        modelID,
 		PackageRoot:    packageRoot,
@@ -536,14 +537,14 @@ func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, p
 		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
 
-	evalCfg := docagent.EvaluationConfig{
+	evalCfg := doceval.EvaluationConfig{
 		OutputDir:     flags.outputDir,
 		MaxIterations: flags.maxIterations,
 		EnableTracing: tracingConfig.Enabled,
 		ModelID:       modelID,
 	}
 
-	result, err := docAgent.EvaluateDocumentation(cmd.Context(), evalCfg)
+	result, err := doceval.EvaluatePackage(cmd.Context(), agent, evalCfg)
 	if err != nil {
 		return fmt.Errorf("evaluation failed: %w", err)
 	}

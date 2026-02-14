@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package doceval
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -177,7 +178,7 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 	}
 
 	// Create documentation agent for this package
-	agentCfg := AgentConfig{
+	agentCfg := docagent.AgentConfig{
 		APIKey:         cfg.APIKey,
 		ModelID:        cfg.ModelID,
 		PackageRoot:    job.packagePath,
@@ -187,7 +188,7 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 		TracingConfig:  tracingConfig,
 	}
 
-	agent, err := NewDocumentationAgent(ctx, agentCfg)
+	agent, err := docagent.NewDocumentationAgent(ctx, agentCfg)
 	if err != nil {
 		return &EvaluationResult{
 			PackageName: job.packageName,
@@ -205,7 +206,7 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 		ModelID:       cfg.ModelID,
 	}
 
-	result, err := agent.EvaluateDocumentation(ctx, evalCfg)
+	result, err := EvaluatePackage(ctx, agent, evalCfg)
 	if err != nil {
 		if result == nil {
 			result = &EvaluationResult{
@@ -279,12 +280,10 @@ func runParallelEvaluation(ctx context.Context, jobs []batchJob, cfg BatchEvalua
 // evaluationWorker processes evaluation jobs from the jobs channel
 func evaluationWorker(ctx context.Context, workerID int, jobs <-chan batchJob, results chan<- batchJobResult, cfg BatchEvaluationConfig) {
 	for job := range jobs {
-		logger.Debugf("Worker %d: Starting evaluation for %s", workerID, job.packageName)
 		logger.Debugf("[Worker %d] Starting: %s", workerID, job.packageName)
 
 		result, err := evaluatePackage(ctx, job, cfg)
 		if err != nil {
-			logger.Debugf("Worker %d: Evaluation failed for %s: %v", workerID, job.packageName, err)
 			logger.Warnf("[Worker %d] Failed: %s - %v", workerID, job.packageName, err)
 		}
 
@@ -339,29 +338,4 @@ func saveBatchResult(result *BatchEvaluationResult, outputDir string) error {
 	}
 
 	return os.WriteFile(resultPath, data, 0o644)
-}
-
-// DiscoverPackages finds all packages in the integrations repository
-func DiscoverPackages(integrationsPath string) ([]string, error) {
-	packagesDir := filepath.Join(integrationsPath, "packages")
-
-	entries, err := os.ReadDir(packagesDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read packages directory: %w", err)
-	}
-
-	var packageNames []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		// Check if it has a manifest.yml
-		manifestPath := filepath.Join(packagesDir, entry.Name(), "manifest.yml")
-		if _, err := os.Stat(manifestPath); err == nil {
-			packageNames = append(packageNames, entry.Name())
-		}
-	}
-
-	return packageNames, nil
 }

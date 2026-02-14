@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package doceval
 
 import (
 	"regexp"
@@ -134,9 +134,9 @@ func ComputeMetrics(content string, pkgCtx *validators.PackageContext) *QualityM
 	contentLower := strings.ToLower(content)
 
 	// Compute individual scores
-	metrics.StructureScore = computeStructureScore(content, contentLower, metrics.Details)
+	metrics.StructureScore = computeStructureScore(content, metrics.Details)
 	metrics.AccuracyScore = computeAccuracyScore(content, contentLower, pkgCtx, metrics.Details)
-	metrics.CompletenessScore = computeCompletenessScore(content, contentLower, pkgCtx, metrics.Details)
+	metrics.CompletenessScore = computeCompletenessScore(contentLower, metrics.Details)
 	metrics.QualityScore = computeQualityScore(content, metrics.Details)
 	metrics.PlaceholderCount = countPlaceholders(content)
 
@@ -162,7 +162,7 @@ func ComputeMetrics(content string, pkgCtx *validators.PackageContext) *QualityM
 }
 
 // computeStructureScore evaluates document structure
-func computeStructureScore(content, contentLower string, details *MetricsDetails) float64 {
+func computeStructureScore(content string, details *MetricsDetails) float64 {
 	score := 0.0
 
 	requiredH2 := getRequiredH2Sections()
@@ -236,7 +236,7 @@ func checkHeadingHierarchy(content string) bool {
 	}
 
 	// First heading should be H1
-	if len(matches) > 0 && len(matches[0][1]) != 1 {
+	if len(matches[0][1]) != 1 {
 		return false
 	}
 
@@ -354,7 +354,7 @@ func isECSField(fieldRef string) bool {
 }
 
 // computeCompletenessScore evaluates documentation completeness
-func computeCompletenessScore(content, contentLower string, pkgCtx *validators.PackageContext, details *MetricsDetails) float64 {
+func computeCompletenessScore(contentLower string, details *MetricsDetails) float64 {
 	score := 0.0
 
 	// Check setup/deployment section (25 points)
