@@ -5,7 +5,7 @@ services:
     ports:
       - 27017:27017
   mongodb-log:
-    image: docker.elastic.co/integrations-ci/beats-mongodb:${MONGODB_VERSION:-5.0}-1
+    # image: docker.elastic.co/integrations-ci/beats-mongodb:${MONGODB_VERSION:-7.0}-1
     user: root
     build:
       context: .
