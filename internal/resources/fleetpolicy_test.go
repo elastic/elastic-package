@@ -167,11 +167,11 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 	}
 
 	cases := []struct {
-		name             string
-		manifest         packages.PackageManifest
-		packagePolicy    FleetPackagePolicy
-		wantErr          bool
-		expectedDataset  string
+		name            string
+		manifest        packages.PackageManifest
+		packagePolicy   FleetPackagePolicy
+		wantErr         bool
+		expectedDataset string
 	}{
 		{
 			name: "dataset var added when missing",
@@ -189,7 +189,7 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 				},
 			},
 			packagePolicy: FleetPackagePolicy{
-				Name:        "input-1",
+				Name:         "input-1",
 				TemplateName: "sql_query",
 			},
 			expectedDataset: "sql_query",
