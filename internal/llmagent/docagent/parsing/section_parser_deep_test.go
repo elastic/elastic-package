@@ -2,14 +2,13 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package parsing
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
@@ -31,7 +30,7 @@ Level 4 content.
 
 More level 3 content.`
 
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 
 		// Should have 1 top-level section (level 2)
 		assert.Len(t, sections, 1)
@@ -62,7 +61,7 @@ More level 3 content.`
 
 Deep content.`
 
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 
 		assert.Len(t, sections, 1)
 		assert.Equal(t, 2, sections[0].Level)
@@ -92,7 +91,7 @@ Content 3B (should be under 2A, not 4A).
 
 Content 2B.`
 
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 
 		// Should have 2 top-level sections
 		assert.Len(t, sections, 2)
@@ -122,7 +121,7 @@ Content 2.
 
 Content 4.`
 
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 
 		assert.Len(t, sections, 1)
 		assert.Equal(t, 2, sections[0].Level)
@@ -137,7 +136,7 @@ Content 4.`
 func TestParseSections_RealTemplate(t *testing.T) {
 	t.Run("correctly parses package readme template", func(t *testing.T) {
 		templateContent := archetype.GetPackageDocsReadmeTemplate()
-		sections := parsing.ParseSections(templateContent)
+		sections := ParseSections(templateContent)
 
 		// Verify we have the expected top-level sections
 		assert.Len(t, sections, 7)

@@ -2,13 +2,13 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package specialists
+package agents
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 )
 
 // Registry manages available section agents and their execution order.

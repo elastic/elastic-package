@@ -15,8 +15,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/logger"
 )
@@ -265,7 +265,7 @@ func validateFinalDocument(ctx context.Context, content string, pkgCtx *validato
 	stageResults := make(map[string]*StageResult)
 	generate := agent.CreateLLMValidateFunc()
 
-	for _, validator := range specialists.AllStagedValidators() {
+	for _, validator := range agents.AllStagedValidators() {
 		if validator.Scope() == validators.ScopeSectionLevel {
 			continue
 		}

@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package specialists
+package agents
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/genai"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 )
 

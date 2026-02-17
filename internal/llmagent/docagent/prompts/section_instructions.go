@@ -7,7 +7,7 @@ package prompts
 import (
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 )
 
 // sectionInstructions contains section-specific generation instructions.

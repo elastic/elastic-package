@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -41,6 +41,12 @@ func (d *DocumentationAgent) EnsureDataStreamTemplates(content string, pkgCtx *v
 			modified = true
 			logger.Debugf("Post-processor: Added {{event \"%s\"}} template", ds.Name)
 		}
+		// Remove {{event "dsName"}} if data stream has no example event
+		if !ds.HasExampleEvent && hasEventTemplate(content, ds.Name) {
+			content = removeEventTemplate(content, ds.Name)
+			modified = true
+			logger.Debugf("Post-processor: Removed {{event \"%s\"}} template (no example event in data stream)", ds.Name)
+		}
 	}
 
 	if modified {
@@ -56,100 +62,84 @@ func hasReferenceSection(content string) bool {
 	return pattern.MatchString(content)
 }
 
-// hasFieldsTemplate checks if {{fields "name"}} exists (with flexible whitespace)
-func hasFieldsTemplate(content, dsName string) bool {
-	pattern := regexp.MustCompile(`\{\{\s*fields\s+"` + regexp.QuoteMeta(dsName) + `"\s*\}\}`)
-	return pattern.MatchString(content)
+// templateIndex returns the start index of {{kind "dsName"}} in content (with flexible whitespace), or -1.
+func templateIndex(content, kind, dsName string) int {
+	pattern := regexp.MustCompile(`\{\{\s*` + kind + `\s+"` + regexp.QuoteMeta(dsName) + `"\s*\}\}`)
+	loc := pattern.FindStringIndex(content)
+	if loc == nil {
+		return -1
+	}
+	return loc[0]
 }
 
-// hasEventTemplate checks if {{event "name"}} exists (with flexible whitespace)
+func hasFieldsTemplate(content, dsName string) bool {
+	return templateIndex(content, "fields", dsName) >= 0
+}
+
 func hasEventTemplate(content, dsName string) bool {
-	pattern := regexp.MustCompile(`\{\{\s*event\s+"` + regexp.QuoteMeta(dsName) + `"\s*\}\}`)
-	return pattern.MatchString(content)
+	return templateIndex(content, "event", dsName) >= 0
+}
+
+// removeEventTemplate removes {{event "name"}} and surrounding newlines from content
+func removeEventTemplate(content, dsName string) string {
+	pattern := regexp.MustCompile(`\n*\s*\{\{\s*event\s+"` + regexp.QuoteMeta(dsName) + `"\s*\}\}\s*\n*`)
+	return pattern.ReplaceAllString(content, "\n\n")
 }
 
 // hasDataStreamSubsection checks if a ### {dsName} subsection exists in the Reference section
 func hasDataStreamSubsection(content, dsName string) bool {
-	// Match case-insensitive subsection heading
 	pattern := regexp.MustCompile(`(?mi)^###\s+` + regexp.QuoteMeta(dsName) + `\s*$`)
 	return pattern.MatchString(content)
 }
 
-// insertFieldsTemplate inserts {{fields "name"}} into the data stream's subsection
-func insertFieldsTemplate(content, dsName string) string {
-	// First check if the data stream subsection exists
-	if !hasDataStreamSubsection(content, dsName) {
-		// Subsection doesn't exist - create it with the template
-		return appendDataStreamSubsection(content, dsName, false, true)
-	}
+var nextH2Regex = regexp.MustCompile(`(?m)^##`)
 
-	// Find the data stream subsection heading
+// findSubsectionEnd returns the content index just before the next ## after the ### dsName subsection, or len(content).
+func findSubsectionEnd(content, dsName string) (int, bool) {
 	headingPattern := regexp.MustCompile(`(?mi)^###\s+` + regexp.QuoteMeta(dsName) + `\s*$`)
 	loc := headingPattern.FindStringIndex(content)
 	if loc == nil {
-		return content
+		return 0, false
 	}
-
-	// Find where to insert (before next ### or ## heading, or end of content)
-	rest := content[loc[1]:]
-	nextHeadingPattern := regexp.MustCompile(`(?m)^##`)
-	nextLoc := nextHeadingPattern.FindStringIndex(rest)
-
-	insertPos := len(content)
-	if nextLoc != nil {
-		insertPos = loc[1] + nextLoc[0]
+	nextLoc := nextH2Regex.FindStringIndex(content[loc[1]:])
+	if nextLoc == nil {
+		return len(content), true
 	}
-
-	// Check if there's already content before the next heading (avoid double newlines)
-	beforeInsert := strings.TrimRight(content[:insertPos], " \t\n")
-	afterInsert := strings.TrimLeft(content[insertPos:], " \t")
-
-	// Insert the template before the next heading
-	template := "\n\n{{fields \"" + dsName + "\"}}"
-
-	return beforeInsert + template + "\n\n" + afterInsert
+	return loc[1] + nextLoc[0], true
 }
 
-// insertEventTemplate inserts {{event "name"}} before {{fields "name"}}
-func insertEventTemplate(content, dsName string) string {
-	// First check if the data stream subsection exists
+// insertAtEnd inserts toInsert at endPos, trimming surrounding whitespace.
+func insertAtEnd(content string, endPos int, toInsert string) string {
+	before := strings.TrimRight(content[:endPos], " \t\n")
+	after := strings.TrimLeft(content[endPos:], " \t")
+	return before + toInsert + "\n\n" + after
+}
+
+// insertFieldsTemplate inserts {{fields "name"}} into the data stream's subsection
+func insertFieldsTemplate(content, dsName string) string {
 	if !hasDataStreamSubsection(content, dsName) {
-		// Subsection doesn't exist - create it with both templates
-		return appendDataStreamSubsection(content, dsName, true, true)
+		return appendDataStreamSubsection(content, dsName, false, true)
 	}
-
-	// Check if {{fields}} template exists - insert event before it
-	fieldsPattern := regexp.MustCompile(`\{\{\s*fields\s+"` + regexp.QuoteMeta(dsName) + `"\s*\}\}`)
-	loc := fieldsPattern.FindStringIndex(content)
-	if loc != nil {
-		// Insert event template before fields template
-		template := "{{event \"" + dsName + "\"}}\n\n"
-		return content[:loc[0]] + template + content[loc[0]:]
-	}
-
-	// No fields template found - find the subsection and insert both
-	headingPattern := regexp.MustCompile(`(?mi)^###\s+` + regexp.QuoteMeta(dsName) + `\s*$`)
-	headingLoc := headingPattern.FindStringIndex(content)
-	if headingLoc == nil {
+	endPos, ok := findSubsectionEnd(content, dsName)
+	if !ok {
 		return content
 	}
+	return insertAtEnd(content, endPos, "\n\n{{fields \""+dsName+"\"}}")
+}
 
-	// Find where to insert (before next ### or ## heading)
-	rest := content[headingLoc[1]:]
-	nextHeadingPattern := regexp.MustCompile(`(?m)^##`)
-	nextLoc := nextHeadingPattern.FindStringIndex(rest)
-
-	insertPos := len(content)
-	if nextLoc != nil {
-		insertPos = headingLoc[1] + nextLoc[0]
+// insertEventTemplate inserts {{event "name"}} before {{fields "name"}} or at subsection end
+func insertEventTemplate(content, dsName string) string {
+	if !hasDataStreamSubsection(content, dsName) {
+		return appendDataStreamSubsection(content, dsName, true, true)
 	}
-
-	beforeInsert := strings.TrimRight(content[:insertPos], " \t\n")
-	afterInsert := strings.TrimLeft(content[insertPos:], " \t")
-
-	template := "\n\n{{event \"" + dsName + "\"}}"
-
-	return beforeInsert + template + "\n\n" + afterInsert
+	if idx := templateIndex(content, "fields", dsName); idx >= 0 {
+		return content[:idx] + "{{event \"" + dsName + "\"}}\n\n" + content[idx:]
+	}
+	endPos, ok := findSubsectionEnd(content, dsName)
+	if !ok {
+		return content
+	}
+	return insertAtEnd(content, endPos, "\n\n{{event \""+dsName+"\"}}")
 }
 
 // appendDataStreamSubsection appends a complete data stream subsection to the Reference section

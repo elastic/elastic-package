@@ -307,6 +307,14 @@ func ForceFlush(ctx context.Context) error {
 	return nil
 }
 
+// EndChainSpan flushes pending spans and ends the chain span. Use in defer after StartChainSpan.
+func EndChainSpan(ctx context.Context, span trace.Span) {
+	if err := ForceFlush(ctx); err != nil {
+		logger.Debugf("Failed to flush traces before ending chain span: %v", err)
+	}
+	span.End()
+}
+
 // IsEnabled returns true if tracing is enabled
 func IsEnabled() bool {
 	return tracingEnabled

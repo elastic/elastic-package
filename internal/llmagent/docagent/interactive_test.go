@@ -167,5 +167,4 @@ func TestHandleAcceptAction(t *testing.T) {
 		assert.False(t, result.ShouldContinue)
 		assert.NoError(t, result.Err)
 	})
-
 }

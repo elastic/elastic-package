@@ -2,15 +2,13 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package docagent
+package parsing
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
 )
 
 func TestParseSections_Hierarchical(t *testing.T) {
@@ -89,7 +87,7 @@ Troubleshooting content.`,
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sections := parsing.ParseSections(tt.content)
+			sections := ParseSections(tt.content)
 
 			// Check number of top-level sections
 			assert.Len(t, sections, tt.expectedSections, "number of top-level sections")
@@ -130,7 +128,7 @@ func TestBuildFullContent(t *testing.T) {
 		},
 	}
 
-	parsing.BuildFullContent(&section)
+	BuildFullContent(&section)
 
 	assert.NotEmpty(t, section.FullContent)
 	assert.Contains(t, section.FullContent, "Parent content")
@@ -155,7 +153,7 @@ func TestFlattenSections(t *testing.T) {
 		},
 	}
 
-	flat := parsing.FlattenSections(hierarchical)
+	flat := FlattenSections(hierarchical)
 
 	// Should have 4 total: Parent1, Child1, Child2, Parent2
 	assert.Len(t, flat, 4)
@@ -196,7 +194,7 @@ func TestFindSectionByTitleHierarchical(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parsing.FindSectionByTitleHierarchical(sections, tt.searchTitle)
+			result := FindSectionByTitleHierarchical(sections, tt.searchTitle)
 			if tt.shouldFind {
 				require.NotNil(t, result, "should find section")
 				assert.Equal(t, tt.expectedLevel, result.Level)
@@ -241,7 +239,7 @@ func TestGetParentSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parent := parsing.GetParentSection(sections, tt.subsectionTitle)
+			parent := GetParentSection(sections, tt.subsectionTitle)
 			if tt.shouldFind {
 				require.NotNil(t, parent, "should find parent")
 				assert.Equal(t, tt.expectedParent, parent.Title)
@@ -258,7 +256,7 @@ func TestParseSections_EdgeCases(t *testing.T) {
 
 This starts with level 3.`
 
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 
 		// Should still parse, but subsection becomes a top-level item
 		// (This is an edge case - ideally shouldn't happen, but parser should handle it gracefully)
@@ -267,13 +265,13 @@ This starts with level 3.`
 
 	t.Run("empty content", func(t *testing.T) {
 		content := ""
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 		assert.Len(t, sections, 0)
 	})
 
 	t.Run("no headers", func(t *testing.T) {
 		content := "Just some text without headers"
-		sections := parsing.ParseSections(content)
+		sections := ParseSections(content)
 		assert.Len(t, sections, 0)
 	})
 }

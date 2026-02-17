@@ -216,151 +216,26 @@ The following settings are available per profile:
 
 ### AI-powered Documentation Configuration
 
-The `elastic-package update documentation` command supports AI-powered documentation generation using various LLM providers.
+The `elastic-package update documentation` command can generate or update package documentation using an LLM. It supports full rewrites, targeted modifications, and quality evaluation. For detailed usage, modes, flags, and configuration (including LLM provider setup), run:
+
+```bash
+elastic-package update documentation --help
+```
 
 **⚠️ IMPORTANT PRIVACY NOTICE:**
 When using AI-powered documentation generation, **file content from your local file system within the package directory may be sent to the configured LLM provider**. This includes manifest files, configuration files, field definitions, and other package content. The generated documentation **must be reviewed for accuracy and correctness** before being finalized, as LLMs may occasionally produce incorrect or hallucinated information.
 
-#### Operation Modes
+#### Service knowledge base (service_info.md)
 
-The command supports two modes of operation:
+To give the AI authoritative information about your integration, add a knowledge base file at **`docs/knowledge_base/service_info.md`** in your package. The generator treats this as the primary source and uses it to produce more accurate, vendor-specific documentation. By using this file, you will be better able to control the content of the generated documentation, and reduce the risk of hallucinations or incorrect information. When the documentation is updated in the future, you can rely on this file to ensure the documentation is accurate, and reduce the risk of unintentionally semantic changes being made along with your intended changes.
 
-1. **Rewrite Mode** (default): Full documentation regeneration using section-based generation
-   - Analyzes your package structure, data streams, and configuration
-   - Uses a multi-agent workflow with specialized generator, critic, and validator agents
-   - **Section-based generation**: Each section (Overview, Troubleshooting, etc.) is generated independently
-   - **Per-section validation loops**: Each section runs multiple iterations with validation feedback
-   - **Best-iteration selection**: The best version of each section is selected based on content quality
-   - **Convergence detection**: Grants a bonus iteration if issues are decreasing but not yet zero
-   - **Parallel processing**: Sections are generated in parallel for faster results
-   - Creates or updates the README.md file in `/_dev/build/docs/`
+- **Structure:** Use the structure template below. The section names in the knowledge base file are for organizing content for the LLM; they do not dictate the structure of the generated README.
+- **Content:** Use specific, complete sentences. Include vendor documentation URLs and any known limitations or edge cases. Keep the file updated as the service or integration changes. The semantic information in the knowledge base file is used as information in the documentation. The style and format of the knowledge base file is not copied into the output.
+- **Effect:** The agent reads this file first, prioritizes it over other sources, and uses it to fill the corresponding parts of the generated docs. The format of `service_info.md` is not copied into the output.
 
-2. **Modify Mode**: Targeted documentation changes
-   - Makes specific changes to existing documentation
-   - Requires existing README.md file at `/_dev/build/docs/README.md`
-   - Use `--modify-prompt` flag for non-interactive modifications
+##### Optional template reference
 
-3. **Evaluate Mode**: Documentation quality evaluation
-   - Use `--evaluate` flag to run quality evaluation without modifying files
-   - Computes quality metrics (structure, accuracy, completeness, quality scores)
-   - Supports batch processing of multiple packages with `--batch` flag
-   - Outputs results to a directory for analysis
-
-#### Section-Based Generation Architecture
-
-The rewrite mode uses a sophisticated architecture:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Section-Based Generation                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│   ┌──────────────┐    ┌──────────────┐    ┌──────────────┐     │
-│   │   Section 1  │    │   Section 2  │    │   Section N  │     │
-│   │   Overview   │    │ Troubleshoot │    │  Reference   │     │
-│   └──────┬───────┘    └──────┬───────┘    └──────┬───────┘     │
-│          │                   │                   │              │
-│          ▼                   ▼                   ▼              │
-│   ┌──────────────────────────────────────────────────────┐     │
-│   │         Per-Section Validation Loop (Parallel)        │     │
-│   │  ┌─────────────────────────────────────────────────┐ │     │
-│   │  │ Iteration 1 → Validate → Iteration 2 → ... → N  │ │     │
-│   │  └─────────────────────────────────────────────────┘ │     │
-│   │         ↓ Select Best Iteration for Each Section     │     │
-│   └──────────────────────────────────────────────────────┘     │
-│                            │                                    │
-│                            ▼                                    │
-│   ┌──────────────────────────────────────────────────────┐     │
-│   │              Combine Best Sections                    │     │
-│   └──────────────────────────────────────────────────────┘     │
-│                            │                                    │
-│                            ▼                                    │
-│   ┌──────────────────────────────────────────────────────┐     │
-│   │         Full-Document Validation (Structure)          │     │
-│   └──────────────────────────────────────────────────────┘     │
-│                            │                                    │
-│                            ▼                                    │
-│                     Final README.md                             │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-This approach produces higher quality documentation because:
-- Each section receives focused attention and targeted validation
-- Issues in one section don't affect other sections
-- Parallel generation is faster than sequential full-document generation
-- Best-iteration tracking prevents content regression in later iterations
-
-#### Workflow Options
-
-**Interactive Mode** (default): 
-The command will guide you through the process, allowing you to:
-- Choose between rewrite or modify mode
-- Review generated documentation
-- Request iterative changes
-- Accept or cancel the update
-
-**Non-Interactive Mode**:
-Use `--non-interactive` to skip all prompts and automatically accept the first result.
-Combine with `--modify-prompt "instructions"` for targeted non-interactive changes.
-
-If no LLM provider is configured, the command will print manual instructions for updating documentation.
-
-#### LLM Provider Configuration
-
-You can configure LLM providers through **profile settings** (in `~/.elastic-package/profiles/<profile>/config.yml`) as an alternative to environment variables:
-
-* `llm.gemini.api_key`: API key for Google Gemini LLM services  
-* `llm.gemini.model`: Gemini model ID (defaults to `gemini-3-flash-preview`)
-* `llm.gemini.thinking_budget`: Thinking budget in tokens for Gemini Pro models (defaults to `128` for "low" mode)
-* `llm.external_prompts`: Enable loading custom prompt files from profile or data directory (defaults to `false`)
-
-Environment variables (e.g., `GOOGLE_API_KEY`) take precedence over profile configuration.
-
-#### Usage Examples
-
-```bash
-# Interactive documentation update (rewrite mode)
-elastic-package update documentation
-
-# Interactive modification mode
-elastic-package update documentation
-# (choose "Modify" when prompted)
-
-# Non-interactive rewrite
-elastic-package update documentation --non-interactive
-
-# Non-interactive targeted changes
-elastic-package update documentation --modify-prompt "Add more details about authentication configuration"
-
-# Use specific profile with LLM configuration
-elastic-package update documentation --profile production
-
-# Evaluate documentation quality (single package)
-elastic-package update documentation --evaluate --output-dir ./results
-
-# Batch evaluation of multiple packages
-elastic-package update documentation --evaluate \
-  --batch citrix_adc,nginx,apache \
-  --integrations-path ~/git/integrations \
-  --output-dir ./batch_results \
-  --parallel 4
-```
-
-#### Advanced Features
-
-**Service Knowledge Base:**
-
-Place a `docs/knowledge_base/service_info.md` file in your package to provide authoritative service information. This file is treated as the source of truth and takes precedence over web search results during documentation generation.
-By using this file, you will be better able to control the content of the generated documentation, by providing authoritative information on the service.
-
-##### Creating the service_info.md File
-
-The `service_info.md` file should be placed at `docs/knowledge_base/service_info.md` within your package directory. This file provides structured, authoritative information about the service your integration monitors, and is used by the AI documentation generator to produce accurate, comprehensive documentation.
-
-##### Template Structure
-
-The `service_info.md` file should follow this template:
+The following is an optional reference for structuring `service_info.md`. Section titles are only to categorize information for the LLM; they do not control the format of the generated README.
 
 ```markdown
 # Service Info
@@ -427,41 +302,12 @@ The `service_info.md` file should follow this template:
 
 ## Vendor Resources
 
-/* If the vendor has a troubleshooting specific help page, add it here */
+/* If the vendor has troubleshooting specific help pages, add them here. */
 
 # Documentation sites
 
 /* List of URLs that contain info on the service (reference pages, set up help, API docs, etc.) */
 ```
-
-**The sections in this template are only to categorize information provided to the LLM**; they are not used to control section formatting in the generated documentation.
-
-##### Writing Guidelines
-
-- **Be specific**: Provide concrete details rather than generic descriptions
-- **Use complete sentences**: The AI will use this content to generate natural-sounding documentation
-- **Include URLs**: List relevant vendor documentation, API references, and help pages in the "Documentation sites" section
-- **Cover edge cases**: Document known issues, limitations, or special configuration requirements
-- **Update regularly**: Keep this file current as the service or integration evolves
-
-##### How it's used by elastic-package
-
-During documentation generation, the AI agent:
-1. **Reads the service_info.md file first** as the primary source of information
-2. **Prioritizes this content** over any web search results or other sources
-3. **Uses the structured sections** to generate specific parts of the README
-4. **Preserves vendor-specific details** that might not be available through web searches
-5. **Does not use this section format** in the generated documentation. This file provides content, but not style or formatting
-
-This ensures that documentation reflects accurate, integration-specific knowledge rather than generic information.
-
-**Custom Prompts:**
-
-Enable `llm.external_prompts` in your profile config to use custom prompt files. Place them in:
-- `~/.elastic-package/profiles/<profile>/prompts/` (profile-specific)
-- `~/.elastic-package/prompts/` (global)
-
-Available prompt files: `revision_prompt.txt`, `section_generation_prompt.txt`, `modification_prompt.txt`
 
 ## Useful environment variables
 

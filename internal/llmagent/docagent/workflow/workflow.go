@@ -16,9 +16,9 @@ import (
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
 
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/specialists/validators"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
 	"github.com/elastic/elastic-package/internal/llmagent/tools"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
@@ -36,7 +36,7 @@ type Builder struct {
 // NewBuilder creates a new workflow builder with the given configuration
 func NewBuilder(cfg Config) *Builder {
 	if cfg.Registry == nil {
-		cfg.Registry = specialists.DefaultRegistry()
+		cfg.Registry = agents.DefaultRegistry()
 	}
 	if cfg.MaxIterations == 0 {
 		cfg.MaxIterations = DefaultMaxIterations
@@ -91,9 +91,9 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.Sec
 	}()
 
 	// Create state store for sharing data between agents
-	stateStore := specialists.NewStateStore(nil)
-	specialists.SetActiveStateStore(stateStore)
-	defer specialists.ClearActiveStateStore()
+	stateStore := agents.NewStateStore(nil)
+	agents.SetActiveStateStore(stateStore)
+	defer agents.ClearActiveStateStore()
 
 	// Run the workflow loop
 	for iteration := uint(0); iteration < b.config.MaxIterations; iteration++ {
@@ -119,7 +119,7 @@ func (b *Builder) ExecuteWorkflow(ctx context.Context, sectionCtx validators.Sec
 			logger.Debugf("Critic output (tokens: %d/%d): %s", promptTokens, compTokens, truncate(criticOutput, 100))
 
 			// Parse critic result
-			var criticResult specialists.CriticResult
+			var criticResult agents.CriticResult
 			if err := json.Unmarshal([]byte(criticOutput), &criticResult); err != nil {
 				logger.Debugf("Failed to parse critic JSON, assuming approved: %v", err)
 				criticResult.Approved = true
@@ -295,7 +295,7 @@ func truncate(s string, maxLen int) string {
 }
 
 // buildGeneratorPrompt creates a prompt with all context embedded directly.
-func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *specialists.StateStore, pkgCtx *validators.PackageContext) string {
+func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *agents.StateStore, pkgCtx *validators.PackageContext) string {
 	var prompt strings.Builder
 
 	// Add critical formatting rules at the start for maximum visibility
@@ -369,7 +369,7 @@ func (b *Builder) runStaticValidation(ctx context.Context, content string) []val
 	pkgCtx := b.config.PackageContext
 
 	// Use the canonical list of all staged validators
-	vals := specialists.AllStagedValidators()
+	vals := agents.AllStagedValidators()
 
 	for _, validator := range vals {
 		if validator.SupportsStaticValidation() {
@@ -402,7 +402,7 @@ func (b *Builder) runLLMValidation(ctx context.Context, content string) []valida
 		"quality_validator", // Writing quality assessment
 	}
 
-	vals := specialists.AllStagedValidators()
+	vals := agents.AllStagedValidators()
 
 	logger.Debugf("Running LLM-based validation...")
 
