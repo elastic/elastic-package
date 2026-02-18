@@ -5,86 +5,17 @@
 package docagent
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/profile"
 )
 
-func TestGetConfigValue(t *testing.T) {
-	t.Run("returns environment variable when set", func(t *testing.T) {
-		envVar := "TEST_ENV_VAR"
-		expectedValue := "env_value"
-		os.Setenv(envVar, expectedValue)
-		defer os.Unsetenv(envVar)
-
-		result := prompts.GetConfigValue(nil, envVar, "config.key", "default")
-		assert.Equal(t, expectedValue, result)
-	})
-
-	t.Run("returns profile config when env var not set", func(t *testing.T) {
-		mockProfile := &profile.Profile{}
-		// Note: We can't easily mock the Config method without changing the profile package,
-		// so this test is limited. In a real scenario, we'd need to refactor for testability.
-		result := prompts.GetConfigValue(mockProfile, "UNSET_ENV_VAR", "config.key", "default")
-		// Should return default since we can't mock profile.Config
-		assert.Equal(t, "default", result)
-	})
-
-	t.Run("returns default when neither env var nor profile set", func(t *testing.T) {
-		defaultValue := "default_value"
-		result := prompts.GetConfigValue(nil, "UNSET_ENV_VAR", "config.key", defaultValue)
-		assert.Equal(t, defaultValue, result)
-	})
-}
-
-func TestLoadPromptFile(t *testing.T) {
-	t.Run("returns embedded content when external prompts disabled", func(t *testing.T) {
-		embeddedContent := "embedded prompt content"
-		result := prompts.LoadFile("test_prompt.txt", embeddedContent, nil)
-		assert.Equal(t, embeddedContent, result)
-	})
-
-	t.Run("loads from profile directory when enabled", func(t *testing.T) {
-		// Create temporary profile directory
-		tmpDir := t.TempDir()
-		promptsDir := filepath.Join(tmpDir, "prompts")
-		require.NoError(t, os.MkdirAll(promptsDir, 0o755))
-
-		promptFile := filepath.Join(promptsDir, "test_prompt.txt")
-		externalContent := "external prompt from profile"
-		require.NoError(t, os.WriteFile(promptFile, []byte(externalContent), 0o644))
-
-		// Set environment variable to enable external prompts
-		os.Setenv("ELASTIC_PACKAGE_LLM_EXTERNAL_PROMPTS", "true")
-		defer os.Unsetenv("ELASTIC_PACKAGE_LLM_EXTERNAL_PROMPTS")
-
-		mockProfile := &profile.Profile{
-			ProfilePath: tmpDir,
-		}
-
-		result := prompts.LoadFile("test_prompt.txt", "embedded", mockProfile)
-		assert.Equal(t, externalContent, result)
-	})
-
-	t.Run("falls back to embedded when external file not found", func(t *testing.T) {
-		os.Setenv("ELASTIC_PACKAGE_LLM_EXTERNAL_PROMPTS", "true")
-		defer os.Unsetenv("ELASTIC_PACKAGE_LLM_EXTERNAL_PROMPTS")
-
-		embeddedContent := "embedded fallback"
-		mockProfile := &profile.Profile{
-			ProfilePath: "/nonexistent/path",
-		}
-
-		result := prompts.LoadFile("nonexistent.txt", embeddedContent, mockProfile)
-		assert.Equal(t, embeddedContent, result)
-	})
+func TestLoad(t *testing.T) {
+	result := prompts.Load(prompts.TypeRevision)
+	assert.NotEmpty(t, result)
 }
 
 func TestBuildRevisionPromptArgs(t *testing.T) {

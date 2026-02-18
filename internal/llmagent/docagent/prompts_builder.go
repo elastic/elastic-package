@@ -18,16 +18,16 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 
 	switch promptType {
 	case PromptTypeRevision:
-		promptContent = prompts.Load(prompts.TypeRevision, d.profile)
+		promptContent = prompts.Load(prompts.TypeRevision)
 		formatArgs = d.buildRevisionPromptArgs(ctx)
 	case PromptTypeSectionGeneration:
-		promptContent = prompts.Load(prompts.TypeSectionGeneration, d.profile)
+		promptContent = prompts.Load(prompts.TypeSectionGeneration)
 		formatArgs = d.buildSectionGenerationPromptArgs(ctx)
 	case PromptTypeModificationAnalysis:
-		promptContent = prompts.Load(prompts.TypeModificationAnalysis, d.profile)
+		promptContent = prompts.Load(prompts.TypeModificationAnalysis)
 		formatArgs = d.buildModificationAnalysisPromptArgs(ctx)
 	case PromptTypeModification:
-		promptContent = prompts.Load(prompts.TypeModification, d.profile)
+		promptContent = prompts.Load(prompts.TypeModification)
 		formatArgs = d.buildModificationPromptArgs(ctx)
 	}
 

@@ -112,7 +112,7 @@ Prompt templates and loading. Templates use `%s`/`%d` placeholders; **prompts_bu
 | File | Description |
 |------|-------------|
 | `resources.go` | Embedded prompt files. |
-| `loader.go` | **Load** by type and profile; external file override when configured. **Type**: Revision, SectionGeneration, ModificationAnalysis, Modification. |
+| `loader.go` | **Load** by type; returns embedded prompt content. **Type**: Revision, SectionGeneration, ModificationAnalysis, Modification. |
 | `section_instructions.go` | **GetSectionInstructions**: section-specific instructions for the generator (e.g. Reference, Troubleshooting). Uses **validators.PackageContext**. |
 | `_static/agent_instructions.md` | Main agent system prompt (style, voice, templates). |
 | `_static/section_generation_prompt.txt` | Section generation prompt template. |
