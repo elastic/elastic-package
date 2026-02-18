@@ -10,6 +10,75 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestCleanPolicy(t *testing.T) {
+	cases := []struct {
+		title    string
+		policy   string
+		expected string
+	}{
+		{
+			title: "clean single exporter endpoint",
+			policy: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://abc123def.elastic.cloud:443
+`,
+			expected: `exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+		},
+		{
+			title: "clean multiple exporter endpoints",
+			policy: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://my-deployment.elastic-cloud.com:443
+    elasticsearch/secondary:
+        endpoints:
+            - http://localhost:9200
+`,
+			expected: `exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+    elasticsearch/componentid-1:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+		},
+		{
+			title: "clean exporter with multiple endpoints in list",
+			policy: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://node1.elastic.cloud:443
+            - https://node2.elastic.cloud:443
+            - http://node3.example.com:9200
+`,
+			expected: `exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+            - https://elasticsearch:9200
+            - https://elasticsearch:9200
+`,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			cleaned, err := cleanPolicy([]byte(c.policy), policyEntryFilters)
+			assert.NoError(t, err)
+			assert.Equal(t, c.expected, string(cleaned))
+		})
+	}
+}
+
 func TestComparePolicies(t *testing.T) {
 	cases := []struct {
 		title    string
@@ -593,6 +662,60 @@ service:
                 - batch/567fce7a-ff2e-4a6c-a32a-0abb4671b39b
                 - batch/8ec6ee99-2176-4231-9668-908069c77784
 
+`,
+			equal: true,
+		},
+		{
+			title: "clean exporter endpoints",
+			expected: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://abc123def.elastic.cloud:443
+`,
+			equal: true,
+		},
+		{
+			title: "clean multiple exporter endpoints",
+			expected: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+    elasticsearch/secondary:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://my-deployment-12345.elastic-cloud.com:443
+    elasticsearch/secondary:
+        endpoints:
+            - http://localhost:9200
+`,
+			equal: true,
+		},
+		{
+			title: "clean http exporter endpoint",
+			expected: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+			found: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - http://insecure-es.example.com:9200
 `,
 			equal: true,
 		},
