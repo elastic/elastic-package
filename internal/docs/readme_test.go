@@ -326,9 +326,17 @@ Introduction to the package
 
 
 ### Transforms used
-| Name | Description | Source | Dest |
-|---|---|---|---|
-| latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-\* | cloud_solution-cloud_synergy.latest-v1 |
+
+#### latest
+* Description: Latest Findings from Cloud Synergy
+* Source Index: logs-cloud_synergy.findings-\*
+* Destination Index: cloud_solution-cloud_synergy.latest-v1
+
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| transformer.id | the UID of the transformer | keyword |
 
 `,
 		dataStreamName: "example",
@@ -376,9 +384,17 @@ Introduction to the package
 
 
 ### Transforms used
-| Name | Description | Source | Dest |
-|---|---|---|---|
-| latest | Latest Findings from Cloud Synergy | logs-cloud_synergy.findings-\* | cloud_solution-cloud_synergy.latest-v1 |
+
+#### latest
+* Description: Latest Findings from Cloud Synergy
+* Source Index: logs-cloud_synergy.findings-\*
+* Destination Index: cloud_solution-cloud_synergy.latest-v1
+
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| transformer.id | the UID of the transformer | keyword |
 
 `,
 		dataStreamName: "example",
@@ -639,6 +655,21 @@ _meta:
 	transformFolder := createTransformFolder(t, packageRoot, transformName)
 	transformFile := filepath.Join(transformFolder, "transform.yml")
 	err := os.WriteFile(transformFile, []byte(contents), 0644)
+	require.NoError(t, err)
+
+	fields := `
+- name: transformer
+  type: group
+  description: Fields for the tests
+  fields:
+    - name: id
+      type: keyword
+      description: the UID of the transformer
+`
+	// add support for transform fields
+	transformFieldsFolder := filepath.Join(transformFolder, "fields")
+	err = os.MkdirAll(transformFieldsFolder, 0755)
+	err = os.WriteFile(filepath.Join(transformFieldsFolder, "fields.yml"), []byte(fields), 0644)
 	require.NoError(t, err)
 }
 

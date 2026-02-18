@@ -229,7 +229,7 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 		},
 		"transform": func() (string, error) {
 			logger.Debug("renderTransformPaths")
-			return renderTransformPaths(packageRoot)
+			return renderTransformPaths(repositoryRoot, packageRoot, schemaURLs)
 		},
 		"generatedHeader": func() string {
 			return doNotModifyStr

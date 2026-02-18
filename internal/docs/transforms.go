@@ -13,6 +13,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/fields"
 )
 
 type transformInfo struct {
@@ -36,7 +38,7 @@ func getTransformPolicyMap(path string) (map[string]string, error) {
 	return flatMap, nil
 }
 
-func renderTransformPaths(packageRoot string) (string, error) {
+func renderTransformPaths(repositoryRoot *os.Root, packageRoot string, schemaURLs fields.SchemaURLs) (string, error) {
 	// gather the mapping of transforms defined in the package
 	// if the directory does not exist, or there are no transforms defined, return an empty string
 	transformPaths, err := findTransformPaths(packageRoot)
@@ -54,10 +56,6 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	var renderedDocs strings.Builder
 	renderedDocs.WriteString("\n### Transforms used\n")
 
-	// render the transform map as a markdown table
-	renderedDocs.WriteString("| Name | Description | Source | Dest |\n")
-	renderedDocs.WriteString("|---|---|---|---|\n")
-
 	// get the keys of the transformPaths map and sort them
 	keys := make([]string, 0, len(transformPaths))
 	for key := range transformPaths {
@@ -66,11 +64,13 @@ func renderTransformPaths(packageRoot string) (string, error) {
 	sort.Strings(keys)
 
 	for _, name := range keys {
+		renderedDocs.WriteString(fmt.Sprintf("\n#### %s\n", escaper.Replace(name)))
 		transform := transformPaths[name]
 		// get the description from the nested map
 		description, ok := transform.NestedMap["description"]
-		if !ok {
-			description = ""
+		if ok {
+			renderedDocs.WriteString(fmt.Sprintf(
+				"* Description: %s\n", escaper.Replace(description)))
 		}
 		// get the source from the nested map
 		source, ok := transform.NestedMap["source.index"]
@@ -80,6 +80,10 @@ func renderTransformPaths(packageRoot string) (string, error) {
 				source = ""
 			}
 		}
+		if ok {
+			renderedDocs.WriteString(fmt.Sprintf(
+				"* Source Index: %s\n", escaper.Replace(source)))
+		}
 		// get the dest from the nested map
 		dest, ok := transform.NestedMap["dest.index"]
 		if !ok {
@@ -88,8 +92,26 @@ func renderTransformPaths(packageRoot string) (string, error) {
 				dest = ""
 			}
 		}
-		renderedDocs.WriteString(fmt.Sprintf("| %s | %s | %s | %s |\n",
-			escaper.Replace(name), escaper.Replace(description), escaper.Replace(source), escaper.Replace(dest)))
+		if ok {
+			renderedDocs.WriteString(fmt.Sprintf(
+				"* Destination Index: %s\n", escaper.Replace(dest)))
+		}
+
+		// now, render the transform fields
+		// find the fields directory
+		transformPath := filepath.Dir(transform.Path)
+		fieldsDir := filepath.Join(transformPath, "fields")
+		fields, err := renderExportedFields(repositoryRoot, packageRoot, fieldsDir, schemaURLs)
+
+		if err != nil {
+			return "", err
+		}
+
+		// make sure there is a space
+		renderedDocs.WriteString("\n")
+
+		// output the rendered fields
+		renderedDocs.WriteString(fields)
 	}
 	return renderedDocs.String(), nil
 }

@@ -69,6 +69,15 @@ func renderILMPolicyMap(output *strings.Builder, policyMap map[string]string) {
 }
 
 func getILMPolicyFilePath(packageRoot, dataStreamName string) (string, error) {
+	// also look for data_stream/<dataStreamName>/lifecycle.yml
+	// if lifecycle.yml exists, return that
+	lifecyclePath := filepath.Join(packageRoot, "data_stream", dataStreamName, "lifecycle.yml")
+	_, err := os.Stat(lifecyclePath)
+	if err == nil {
+		return lifecyclePath, nil
+	}
+
+	// otherwise, look for something in an ilm directory
 	paths, err := filepath.Glob(filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ilm", "*.json"))
 	if err != nil {
 		return "", err
