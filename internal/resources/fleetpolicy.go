@@ -280,14 +280,13 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 	streamInput := policyTemplate.Input
 	ds.Inputs[0].Type = streamInput
 
-	dataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
 	streams := []kibana.Stream{
 		{
 			ID:      fmt.Sprintf("%s-%s.%s", streamInput, manifest.Name, policyTemplate.Name),
 			Enabled: !packagePolicy.Disabled,
 			DataStream: kibana.DataStream{
 				Type:    policyTemplate.Type,
-				Dataset: dataset,
+				Dataset: fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name),
 			},
 		},
 	}
@@ -296,7 +295,7 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 	vars := setKibanaVariables(policyTemplate.Vars, common.MapStr(packagePolicy.Vars))
 	if _, found := vars["data_stream.dataset"]; !found {
 		var value packages.VarValue
-		value.Unpack(dataset)
+		value.Unpack(policyTemplate.Name)
 		vars["data_stream.dataset"] = kibana.Var{
 			Value: value,
 			Type:  "text",

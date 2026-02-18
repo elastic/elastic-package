@@ -18,7 +18,7 @@ require (
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.8.8
-	github.com/elastic/package-spec/v3 v3.5.6
+	github.com/elastic/package-spec/v3 v3.5.7
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
@@ -53,7 +53,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.13.0
 	helm.sh/helm/v3 v3.20.0
-	honnef.co/go/tools v0.6.1
+	honnef.co/go/tools v0.7.0
 	k8s.io/apimachinery v0.35.1
 	k8s.io/cli-runtime v0.35.1
 	k8s.io/client-go v0.35.1
