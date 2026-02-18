@@ -189,3 +189,107 @@ func appendDataStreamSubsection(content, dsName string, needsEvent, needsFields 
 
 	return beforeInsert + sb.String() + "\n\n" + afterInsert
 }
+
+// Canonical Agentless deployment subsection block (matches package-docs-readme.md.tmpl).
+const agentlessSectionBlock = `### Agentless deployment
+
+Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
+
+For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html)`
+
+var (
+	howDoIDeploySectionRegex = regexp.MustCompile(`(?mi)^##\s+How do I deploy this integration\?\s*$`)
+	agentBasedHeadingRegex    = regexp.MustCompile(`(?mi)^###\s+Agent-based deployment\s*$`)
+	agentlessHeadingRegex    = regexp.MustCompile(`(?mi)^###\s+Agentless deployment\s*$`)
+	nextH2OrH3Regex          = regexp.MustCompile(`(?m)^(?:##|###)\s+`)
+)
+
+// EnsureAgentlessSection ensures the Agentless deployment subsection is present iff the package has agentless enabled.
+func (d *DocumentationAgent) EnsureAgentlessSection(content string, pkgCtx *validators.PackageContext) string {
+	wantAgentless := pkgCtx != nil && pkgCtx.HasAgentlessEnabled()
+	hasSection := hasAgentlessSection(content)
+	if !wantAgentless {
+		if hasSection {
+			content = removeAgentlessSection(content)
+			logger.Debugf("Post-processor: Removed Agentless deployment section (not enabled in package)")
+		}
+		return content
+	}
+	if !hasSection {
+		content = insertAgentlessSection(content)
+		logger.Debugf("Post-processor: Added Agentless deployment section")
+	}
+	return content
+}
+
+func hasAgentlessSection(content string) bool {
+	return agentlessHeadingRegex.MatchString(content)
+}
+
+func removeAgentlessSection(content string) string {
+	loc := agentlessHeadingRegex.FindStringIndex(content)
+	if loc == nil {
+		return content
+	}
+	start := loc[0]
+	rest := content[loc[1]:]
+	nextLoc := nextH2OrH3Regex.FindStringIndex(rest)
+	var end int
+	if nextLoc == nil {
+		end = len(content)
+	} else {
+		end = loc[1] + nextLoc[0]
+	}
+	before := strings.TrimRight(content[:start], " \t\n")
+	after := content[end:]
+	if after != "" {
+		after = "\n\n" + strings.TrimLeft(after, " \t\n")
+	}
+	return before + after
+}
+
+// findAfterDeploySectionHeading returns the byte index right after the "## How do I deploy this integration?" line, or -1.
+func findAfterDeploySectionHeading(content string) int {
+	loc := howDoIDeploySectionRegex.FindStringIndex(content)
+	if loc == nil {
+		return -1
+	}
+	after := loc[1]
+	if after < len(content) && content[after] == '\n' {
+		after++
+	}
+	return after
+}
+
+// findEndOfDeploySubsection returns the index just before the next ### or ## after the subsection at startPos, or len(content).
+func findEndOfDeploySubsection(content string, startPos int) int {
+	// Skip past the current subsection heading line so we find the next one
+	afterLine := startPos
+	if i := strings.Index(content[startPos:], "\n"); i >= 0 {
+		afterLine = startPos + i + 1
+	}
+	rest := content[afterLine:]
+	loc := nextH2OrH3Regex.FindStringIndex(rest)
+	if loc == nil {
+		return len(content)
+	}
+	return afterLine + loc[0]
+}
+
+func insertAgentlessSection(content string) string {
+	afterHeading := findAfterDeploySectionHeading(content)
+	if afterHeading < 0 {
+		return content
+	}
+	agentBasedLoc := agentBasedHeadingRegex.FindStringIndex(content[afterHeading:])
+	if agentBasedLoc != nil {
+		// Insert after the end of the Agent-based deployment subsection
+		agentBasedSubsectionStart := afterHeading + agentBasedLoc[0]
+		endPos := findEndOfDeploySubsection(content, agentBasedSubsectionStart)
+		return insertAtEnd(content, endPos, "\n\n"+agentlessSectionBlock)
+	}
+	// No Agent-based deployment: insert at start of "How do I deploy" section
+	before := content[:afterHeading]
+	after := content[afterHeading:]
+	return before + "\n\n" + agentlessSectionBlock + "\n\n" + strings.TrimLeft(after, " \t\n")
+}

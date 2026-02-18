@@ -1003,6 +1003,8 @@ func (d *DocumentationAgent) GenerateAllSectionsWithValidation(ctx context.Conte
 
 	// Ensure all data stream templates are present in Reference section
 	finalContent = d.EnsureDataStreamTemplates(finalContent, pkgCtx)
+	// Ensure Agentless deployment section is present iff the package has agentless enabled
+	finalContent = d.EnsureAgentlessSection(finalContent, pkgCtx)
 	fmt.Printf("✅ Document assembled\n")
 
 	// Calculate total iterations (sum across all sections)

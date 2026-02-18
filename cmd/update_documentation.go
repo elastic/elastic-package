@@ -178,7 +178,7 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("  2. Run `elastic-package build`"))
 	cmd.Println()
 	cmd.Println(tui.Info("For AI-powered documentation updates, configure Gemini:"))
-	cmd.Println(tui.Info("  - Gemini: Set GOOGLE_API_KEY or add llm.gemini.api_key to elastic-packageprofile config"))
+	cmd.Println(tui.Info("  - Set your Gemini API key with GOOGLE_API_KEY environment variable or set it with `llm.gemini.api_key` in your elastic-package profile config"))
 }
 
 const (

@@ -383,6 +383,19 @@ func (ctx *PackageContext) FieldExists(fieldName string) bool {
 	return false
 }
 
+// HasAgentlessEnabled returns true if the package has agentless deployment enabled in any policy template.
+func (ctx *PackageContext) HasAgentlessEnabled() bool {
+	if ctx.Manifest == nil {
+		return false
+	}
+	for _, pt := range ctx.Manifest.PolicyTemplates {
+		if pt.DeploymentModes != nil && pt.DeploymentModes.Agentless != nil && pt.DeploymentModes.Agentless.Enabled {
+			return true
+		}
+	}
+	return false
+}
+
 // markdownLinkRegex matches markdown links: [text](url)
 var markdownLinkRegex = regexp.MustCompile(`\[([^\]]+)\]\((https?://[^)]+)\)`)
 
