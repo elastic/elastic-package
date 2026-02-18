@@ -4,10 +4,7 @@ This integration is used to fetch logs and metrics from [MongoDB](https://www.mo
 
 ## Compatibility
 
-The `log` dataset is tested with logs from versions v3.2.11 and v4.4.4 in
-plaintext and json formats.
-The `collstats`, `dbstats`, `metrics`, `replstatus` and `status` datasets are 
-tested with MongoDB 3.4 and 3.0 and are expected to work with all versions >= 2.8.
+This is a lite copy of the original MongoDB package from the integrations repository. The `status` data stream has been tested with MongoDB versions 6 and 7, which are the currently maintained versions according to the MongoDB release lifecycle.
 
 ## MongoDB Privileges
 In order to use the metrics datasets, the MongoDB user specified in the package
