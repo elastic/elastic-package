@@ -21,6 +21,7 @@ import (
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -50,6 +51,11 @@ func stackUp(ts *testscript.TestScript, neg bool, args []string) {
 	}
 	version := flg.Arg(0)
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		ts.Fatalf("can't load configuration: %v", err)
+	}
+
 	ctx := context.Background()
 	if *timeout > 0 {
 		var cancel context.CancelFunc
@@ -66,6 +72,7 @@ func stackUp(ts *testscript.TestScript, neg bool, args []string) {
 		StackVersion: version,
 		Services:     nil, // TODO
 		Profile:      prof,
+		AppConfig:    appConfig,
 		Printer:      printer{stdout: ts.Stdout(), stderr: ts.Stderr()},
 	})))
 

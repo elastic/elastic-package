@@ -21,38 +21,40 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-var serverlessProjectTypes = []serverlessProjectType{
-	{
-		Name:      "observability",
-		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.oblt.yml",
-		Fallback: serverlessProjectTypeFallback{
-			Capabilities: []string{
-				"apm",
-				"observability",
+func getServerlessProjectTypes(kibanaRepoBaseURL string) []serverlessProjectType {
+	return []serverlessProjectType{
+		{
+			Name:      "observability",
+			ConfigURL: fmt.Sprintf("%s/main/config/serverless.oblt.yml", kibanaRepoBaseURL),
+			Fallback: serverlessProjectTypeFallback{
+				Capabilities: []string{
+					"apm",
+					"observability",
+				},
+				SpecMin: "3.0",
+				SpecMax: "3.0",
 			},
-			SpecMin: "3.0",
-			SpecMax: "3.0",
 		},
-	},
-	{
-		Name:      "security",
-		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.security.yml",
-		Fallback: serverlessProjectTypeFallback{
-			Capabilities: []string{
-				"security",
+		{
+			Name:      "security",
+			ConfigURL: fmt.Sprintf("%s/main/config/serverless.security.yml", kibanaRepoBaseURL),
+			Fallback: serverlessProjectTypeFallback{
+				Capabilities: []string{
+					"security",
+				},
+				SpecMin: "3.0",
+				SpecMax: "3.0",
 			},
-			SpecMin: "3.0",
-			SpecMax: "3.0",
 		},
-	},
-	{
-		Name:      "elasticsearch",
-		ConfigURL: "https://raw.githubusercontent.com/elastic/kibana/main/config/serverless.es.yml",
-		Fallback: serverlessProjectTypeFallback{
-			FleetDisabled: true,
-			Capabilities:  []string{},
+		{
+			Name:      "elasticsearch",
+			ConfigURL: fmt.Sprintf("%s/main/config/serverless.es.yml", kibanaRepoBaseURL),
+			Fallback: serverlessProjectTypeFallback{
+				FleetDisabled: true,
+				Capabilities:  []string{},
+			},
 		},
-	},
+	}
 }
 
 type ServerlessProjectType struct {
@@ -63,7 +65,7 @@ type ServerlessProjectType struct {
 	SpecMin         string
 }
 
-func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
+func GetServerlessProjectTypes(client *http.Client, kibanaRepoBaseURL string) []ServerlessProjectType {
 	cache, valid, err := loadCachedServerlessProjectTypes()
 	if err == nil && valid {
 		return cache
@@ -72,6 +74,7 @@ func GetServerlessProjectTypes(client *http.Client) []ServerlessProjectType {
 		logger.Debugf("failed to load serverless config cache: %v", err)
 	}
 
+	serverlessProjectTypes := getServerlessProjectTypes(kibanaRepoBaseURL)
 	var projectTypes []ServerlessProjectType
 	for _, projectType := range serverlessProjectTypes {
 		config, err := requestServerlessKibanaConfig(client, projectType.ConfigURL)
@@ -163,6 +166,7 @@ func parseServerlessKibanaConfig(r io.Reader) (*kibanaConfig, error) {
 }
 
 func requestServerlessKibanaConfig(client *http.Client, configURL string) (*kibanaConfig, error) {
+	logger.Tracef("Request Serverless Kibana configuration from %s", configURL)
 	resp, err := client.Get(configURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get kibana configuration: %w", err)

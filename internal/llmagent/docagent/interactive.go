@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/docs"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/llmagent/ui"
 	"github.com/elastic/elastic-package/internal/tui"
 )
@@ -57,7 +58,7 @@ func (d *DocumentationAgent) displayReadme() error {
 	}
 
 	// Try to render the content
-	renderedContent, shouldBeRendered, err := docs.GenerateReadme(d.repositoryRoot, d.targetDocFile, "", d.packageRoot)
+	renderedContent, shouldBeRendered, err := docs.GenerateReadme(d.repositoryRoot, d.targetDocFile, "", d.packageRoot, fields.NewSchemaURLs())
 	if err != nil || !shouldBeRendered {
 		fmt.Printf("\n⚠️  The generated %s could not be rendered.\n", d.targetDocFile)
 		fmt.Println("It's recommended that you do not accept this version (ask for revisions or cancel).")

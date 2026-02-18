@@ -15,9 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestRequiredProviderFleetPolicy(t *testing.T) {
@@ -123,6 +125,7 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 			PackageRoot:    policy.PackageRoot,
 			Absent:         agentPolicy.Absent,
 			RepositoryRoot: repostoryRoot,
+			SchemaURLs:     fields.NewSchemaURLs(),
 		})
 	}
 	return append(resources, agentPolicy)
@@ -149,4 +152,150 @@ func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgen
 	agentPolicy.Absent = true
 	_, err := manager.Apply(withPackageResources(&agentPolicy, repositoryRoot))
 	assert.NoError(t, err, "cleanup execution")
+}
+
+func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
+	defaultValue := func(v any) *packages.VarValue {
+		vv := &packages.VarValue{}
+		vv.Unpack(v)
+		return vv
+	}
+
+	policy := FleetAgentPolicy{
+		ID:        "test-policy-id",
+		Namespace: "eptest",
+	}
+
+	cases := []struct {
+		name            string
+		manifest        packages.PackageManifest
+		packagePolicy   FleetPackagePolicy
+		wantErr         bool
+		expectedDataset string
+	}{
+		{
+			name: "dataset var added when missing",
+			manifest: packages.PackageManifest{
+				Type:    "input",
+				Name:    "sql_input",
+				Title:   "SQL Input",
+				Version: "0.2.0",
+				PolicyTemplates: []packages.PolicyTemplate{
+					{
+						Name:  "sql_query",
+						Input: "sql/metrics",
+						Type:  "metrics",
+					},
+				},
+			},
+			packagePolicy: FleetPackagePolicy{
+				Name:         "input-1",
+				TemplateName: "sql_query",
+			},
+			expectedDataset: "sql_query",
+		},
+		{
+			name: "dataset var from template default",
+			manifest: packages.PackageManifest{
+				Type:    "input",
+				Name:    "custom_input",
+				Title:   "Custom Input",
+				Version: "1.0.0",
+				PolicyTemplates: []packages.PolicyTemplate{
+					{
+						Name:  "custom_template",
+						Input: "custom/metrics",
+						Type:  "metrics",
+						Vars: []packages.Variable{
+							{
+								Name:    "data_stream.dataset",
+								Type:    "text",
+								Default: defaultValue("custom.default"),
+							},
+						},
+					},
+				},
+			},
+			packagePolicy: FleetPackagePolicy{
+				Name:         "input-2",
+				TemplateName: "custom_template",
+			},
+			expectedDataset: "custom.default",
+		},
+		{
+			name: "dataset var from user (packagePolicy.Vars)",
+			manifest: packages.PackageManifest{
+				Type:    "input",
+				Name:    "sql_input",
+				Title:   "SQL Input",
+				Version: "0.2.0",
+				PolicyTemplates: []packages.PolicyTemplate{
+					{
+						Name:  "sql_query",
+						Input: "sql/metrics",
+						Type:  "metrics",
+						Vars: []packages.Variable{
+							{
+								Name:    "data_stream.dataset",
+								Type:    "text",
+								Default: defaultValue("sql_query"),
+							},
+						},
+					},
+				},
+			},
+			packagePolicy: FleetPackagePolicy{
+				Name:         "input-3",
+				TemplateName: "sql_query",
+				Vars: map[string]any{
+					"data_stream.dataset": "user.custom",
+				},
+			},
+			expectedDataset: "user.custom",
+		},
+		{
+			name: "error when DataStreamName is set for input package",
+			manifest: packages.PackageManifest{
+				Type:    "input",
+				Name:    "sql_input",
+				Title:   "SQL Input",
+				Version: "0.2.0",
+				PolicyTemplates: []packages.PolicyTemplate{
+					{
+						Name:  "sql_query",
+						Input: "sql/metrics",
+						Type:  "metrics",
+					},
+				},
+			},
+			packagePolicy: FleetPackagePolicy{
+				Name:           "input-4",
+				TemplateName:   "sql_query",
+				DataStreamName: "some_stream",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			result, err := createInputPackagePolicy(policy, c.manifest, c.packagePolicy)
+			if c.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, result)
+			require.Len(t, result.Inputs, 1)
+			require.Len(t, result.Inputs[0].Streams, 1)
+
+			streamVars := result.Inputs[0].Streams[0].Vars
+			require.Contains(t, streamVars, "data_stream.dataset", "stream vars must contain data_stream.dataset")
+
+			datasetVar := streamVars["data_stream.dataset"]
+			val := datasetVar.Value.Value()
+			require.NotNil(t, val)
+			assert.Equal(t, c.expectedDataset, val, "data_stream.dataset variable value")
+		})
+	}
 }

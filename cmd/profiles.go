@@ -79,7 +79,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 		RunE: func(cmd *cobra.Command, args []string) error {
 			profileName := args[0]
 
-			config, err := install.Configuration()
+			appConfig, err := install.Configuration()
 			if err != nil {
 				return fmt.Errorf("failed to load current configuration: %w", err)
 			}
@@ -89,14 +89,14 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return fmt.Errorf("error deleting profile: %w", err)
 			}
 
-			if currentProfile := config.CurrentProfile(); currentProfile == profileName {
-				config.SetCurrentProfile(profile.DefaultProfile)
+			if currentProfile := appConfig.CurrentProfile(); currentProfile == profileName {
+				appConfig.SetCurrentProfile(profile.DefaultProfile)
 
 				location, err := locations.NewLocationManager()
 				if err != nil {
 					return fmt.Errorf("error fetching profile: %w", err)
 				}
-				err = install.WriteConfigFile(location, config)
+				err = install.WriteConfigFile(location, appConfig)
 				if err != nil {
 					return fmt.Errorf("failed to store configuration: %w", err)
 				}
@@ -135,11 +135,11 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			switch format {
 			case tableFormat:
-				config, err := install.Configuration()
+				appConfig, err := install.Configuration()
 				if err != nil {
 					return fmt.Errorf("failed to load current configuration: %w", err)
 				}
-				return formatTable(loc.ProfileDir(), profileList, config.CurrentProfile())
+				return formatTable(loc.ProfileDir(), profileList, appConfig.CurrentProfile())
 			case jsonFormat:
 				return formatJSON(profileList)
 			default:
@@ -166,13 +166,13 @@ User profiles can be configured with a "config.yml" file in the profile director
 				return fmt.Errorf("error fetching profile: %w", err)
 			}
 
-			config, err := install.Configuration()
+			appConfig, err := install.Configuration()
 			if err != nil {
 				return fmt.Errorf("failed to load current configuration: %w", err)
 			}
-			config.SetCurrentProfile(profileName)
+			appConfig.SetCurrentProfile(profileName)
 
-			err = install.WriteConfigFile(location, config)
+			err = install.WriteConfigFile(location, appConfig)
 			if err != nil {
 				return fmt.Errorf("failed to store configuration: %w", err)
 			}

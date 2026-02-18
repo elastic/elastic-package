@@ -24,11 +24,11 @@ func GetProfileFlag(cmd *cobra.Command) (*profile.Profile, error) {
 		return nil, FlagParsingError(err, ProfileFlagName)
 	}
 	if profileName == "" {
-		config, err := install.Configuration()
+		appConfig, err := install.Configuration()
 		if err != nil {
 			return nil, fmt.Errorf("cannot read configuration: %w", err)
 		}
-		profileName = config.CurrentProfile()
+		profileName = appConfig.CurrentProfile()
 	}
 
 	p, err := profile.LoadProfile(profileName)
