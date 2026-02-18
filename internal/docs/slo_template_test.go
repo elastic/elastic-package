@@ -63,6 +63,9 @@ func TestRenderSloTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "SLO templates provide pre-defined configurations")
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
+				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
 				assert.Contains(t, result, "Test SLO Template")
 				assert.Contains(t, result, "This is a test SLO template description")
@@ -208,11 +211,11 @@ func TestRenderSloTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				// Verify table header
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
+				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
-				// Verify table separator
 				assert.Contains(t, result, "|---|---|")
-				// Verify table rows format
 				assert.Contains(t, result, "| First SLO Name | First SLO Description |")
 				assert.Contains(t, result, "| Second SLO Name | Second SLO Description |")
 			},
@@ -236,12 +239,12 @@ func TestRenderSloTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				// Verify special characters are escaped
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, `\*bold\*`)
 				assert.Contains(t, result, `\{braces\}`)
 				assert.Contains(t, result, `\<angle\>`)
 				assert.Contains(t, result, `\{curly\}`)
-				// Verify unescaped versions are not present
 				assert.NotContains(t, result, "*bold*")
 				assert.NotContains(t, result, "{braces}")
 				assert.NotContains(t, result, "<angle>")

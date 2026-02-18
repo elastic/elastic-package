@@ -24,7 +24,6 @@ func renderSloTemplates(packageRoot string, linksMap linkMap) (string, error) {
 	templatesDir := filepath.Join(packageRoot, "kibana", "slo_template")
 
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		// no slo_template directory in the package, do nothing
 		return "", nil
 	}
 
@@ -80,15 +79,17 @@ For more information, refer to the [Elastic documentation](` + docsLink + `).
 SLO templates require Elastic Stack version 9.4.0 or later.
 
 `)
-
 		builder.WriteString("**The following SLO templates are available:**\n\n")
-		renderSloTemplatesTable(&builder, templates)
+		renderSloCollapsibleTable(&builder, templates)
+		builder.WriteString("\n")
 	}
 
 	return builder.String(), nil
 }
 
-func renderSloTemplatesTable(builder *strings.Builder, templates []sloTemplate) {
+func renderSloCollapsibleTable(builder *strings.Builder, templates []sloTemplate) {
+	builder.WriteString("<details>\n")
+	builder.WriteString("<summary>Click to expand SLO templates</summary>\n\n")
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
@@ -98,4 +99,5 @@ func renderSloTemplatesTable(builder *strings.Builder, templates []sloTemplate) 
 			escaper.Replace(name),
 			escaper.Replace(description)))
 	}
+	builder.WriteString("\n</details>\n")
 }

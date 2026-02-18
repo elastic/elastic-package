@@ -81,13 +81,25 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 
 `)
 
-		builder.WriteString("The following alert rule templates are available:\n\n")
-
-		for _, template := range templates {
-			builder.WriteString(fmt.Sprintf("**%s**\n\n", template.Attributes.Name))
-			builder.WriteString(fmt.Sprintf("%s\n\n", template.Attributes.Description))
-		}
+		builder.WriteString("**The following alert rule templates are available:**\n\n")
+		renderAlertRuleCollapsibleTable(&builder, templates)
+		builder.WriteString("\n")
 	}
 
 	return builder.String(), nil
+}
+
+func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
+	builder.WriteString("<details>\n")
+	builder.WriteString("<summary>Click to expand alert rule templates</summary>\n\n")
+	builder.WriteString("| Name | Description |\n")
+	builder.WriteString("|---|---|\n")
+	for _, t := range templates {
+		name := strings.TrimSpace(t.Attributes.Name)
+		description := strings.TrimSpace(strings.ReplaceAll(t.Attributes.Description, "\n", " "))
+		builder.WriteString(fmt.Sprintf("| %s | %s |\n",
+			escaper.Replace(name),
+			escaper.Replace(description)))
+	}
+	builder.WriteString("\n</details>\n")
 }

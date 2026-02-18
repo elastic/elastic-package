@@ -63,8 +63,11 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "Alert rule templates provide pre-defined configurations")
-				assert.Contains(t, result, "**Test Alert Rule**")
-				assert.Contains(t, result, "This is a test alert rule description")
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "<summary>Click to expand alert rule templates</summary>")
+				assert.Contains(t, result, "</details>")
+				assert.Contains(t, result, "| Name | Description |")
+				assert.Contains(t, result, "| Test Alert Rule | This is a test alert rule description |")
 			},
 		},
 		{
@@ -93,10 +96,11 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "**First Rule**")
-				assert.Contains(t, result, "First description")
-				assert.Contains(t, result, "**Second Rule**")
-				assert.Contains(t, result, "Second description")
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "</details>")
+				assert.Contains(t, result, "| Name | Description |")
+				assert.Contains(t, result, "| First Rule | First description |")
+				assert.Contains(t, result, "| Second Rule | Second description |")
 			},
 		},
 		{
@@ -120,7 +124,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "**Valid Rule**")
+				assert.Contains(t, result, "| Valid Rule | Valid description |")
 				assert.NotContains(t, result, "ignored")
 				assert.NotContains(t, result, "readme")
 			},
@@ -149,8 +153,73 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				// Should only have one rule mentioned
-				assert.Equal(t, 1, strings.Count(result, "**Root Rule**"))
+				assert.Equal(t, 1, strings.Count(result, "Root Rule"))
+				assert.Contains(t, result, "| Root Rule | Root description |")
+			},
+		},
+		{
+			name: "table structure is correct",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+
+				template1 := `{
+					"attributes": {
+						"name": "First Rule Name",
+						"description": "First Rule Description"
+					}
+				}`
+				template2 := `{
+					"attributes": {
+						"name": "Second Rule Name",
+						"description": "Second Rule Description"
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule1.json"), []byte(template1), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule2.json"), []byte(template2), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "<summary>Click to expand alert rule templates</summary>")
+				assert.Contains(t, result, "</details>")
+				assert.Contains(t, result, "| Name | Description |")
+				assert.Contains(t, result, "|---|---|")
+				assert.Contains(t, result, "| First Rule Name | First Rule Description |")
+				assert.Contains(t, result, "| Second Rule Name | Second Rule Description |")
+			},
+		},
+		{
+			name: "special characters are escaped",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+
+				template := `{
+					"attributes": {
+						"name": "Rule with *bold* and {braces}",
+						"description": "Description with <angle> and {curly} brackets"
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "special.json"), []byte(template), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.Contains(t, result, "<details>")
+				assert.Contains(t, result, "</details>")
+				assert.Contains(t, result, `\*bold\*`)
+				assert.Contains(t, result, `\{braces\}`)
+				assert.Contains(t, result, `\<angle\>`)
+				assert.Contains(t, result, `\{curly\}`)
+				assert.NotContains(t, result, "*bold*")
+				assert.NotContains(t, result, "{braces}")
+				assert.NotContains(t, result, "<angle>")
 			},
 		},
 		{
