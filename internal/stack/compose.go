@@ -12,6 +12,7 @@ import (
 	"github.com/elastic/elastic-package/internal/compose"
 	"github.com/elastic/elastic-package/internal/docker"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 type ServiceStatus struct {
@@ -51,7 +52,18 @@ func (eb *envBuilder) build() []string {
 	return eb.vars
 }
 
+// CheckDockerRunning verifies that the Docker daemon is running before executing Docker operations
+func CheckDockerRunning() error {
+	logger.Debug("Checking if Docker daemon is running...")
+	return docker.CheckDaemonRunning()
+}
+
 func dockerComposeBuild(ctx context.Context, options Options) error {
+	// Check if Docker daemon is running
+	if err := CheckDockerRunning(); err != nil {
+		return err
+	}
+
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -83,6 +95,11 @@ func dockerComposeBuild(ctx context.Context, options Options) error {
 }
 
 func dockerComposePull(ctx context.Context, options Options) error {
+	// Check if Docker daemon is running
+	if err := CheckDockerRunning(); err != nil {
+		return err
+	}
+
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -114,6 +131,11 @@ func dockerComposePull(ctx context.Context, options Options) error {
 }
 
 func dockerComposeUp(ctx context.Context, options Options) error {
+	// Check if Docker daemon is running
+	if err := CheckDockerRunning(); err != nil {
+		return err
+	}
+
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
@@ -151,6 +173,11 @@ func dockerComposeUp(ctx context.Context, options Options) error {
 }
 
 func dockerComposeDown(ctx context.Context, options Options) error {
+	// Check if Docker daemon is running
+	if err := CheckDockerRunning(); err != nil {
+		return err
+	}
+
 	c, err := compose.NewProject(DockerComposeProjectName(options.Profile), options.Profile.Path(ProfileStackPath, ComposeFile))
 	if err != nil {
 		return fmt.Errorf("could not create docker compose project: %w", err)
