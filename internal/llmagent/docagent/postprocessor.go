@@ -199,7 +199,7 @@ For more information, refer to [Agentless integrations](https://www.elastic.co/g
 
 var (
 	howDoIDeploySectionRegex = regexp.MustCompile(`(?mi)^##\s+How do I deploy this integration\?\s*$`)
-	agentBasedHeadingRegex    = regexp.MustCompile(`(?mi)^###\s+Agent-based deployment\s*$`)
+	agentBasedHeadingRegex   = regexp.MustCompile(`(?mi)^###\s+Agent-based deployment\s*$`)
 	agentlessHeadingRegex    = regexp.MustCompile(`(?mi)^###\s+Agentless deployment\s*$`)
 	nextH2OrH3Regex          = regexp.MustCompile(`(?m)^(?:##|###)\s+`)
 )

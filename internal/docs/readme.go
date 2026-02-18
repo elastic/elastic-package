@@ -133,7 +133,6 @@ func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot,
 	logger.Debugf("Update the %s file", fileName)
 
 	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
-
 	if err != nil {
 		return "", err
 	}
@@ -157,7 +156,6 @@ func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot,
 // the readme takes a template that lives under the _dev/build/docs directory at the packageRoot.
 // the readme template reads data from the packageRoot directory.
 func GenerateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
-
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {

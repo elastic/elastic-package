@@ -36,6 +36,7 @@
 # stack.elastic_subscription: "basic"
 
 ## Configure LLM provider for documentation generation
+>>>>>>> upstream/feat/update-documentation
 # Gemini API key for Gemini models
 # llm.gemini.api_key: "your-gemini-api-key"
 # Gemini model ID (optional, defaults to gemini-3-flash-preview)
