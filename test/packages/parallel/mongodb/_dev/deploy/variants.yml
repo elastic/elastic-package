@@ -1,0 +1,6 @@
+variants:
+  v7:
+    SERVICE_VERSION: "7.0"
+  v6:
+    SERVICE_VERSION: "6.0"
+default: v7
