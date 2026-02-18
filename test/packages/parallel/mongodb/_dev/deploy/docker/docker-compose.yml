@@ -1,18 +1,14 @@
 version: '2.3'
 services:
   mongodb:
-    build:
-      context: creator
-      args:
-        - SERVICE_VERSION=${SERVICE_VERSION:-7.0}
+    build: creator
     ports:
       - 27017:27017
   mongodb-log:
+    image: docker.elastic.co/integrations-ci/beats-mongodb:${MONGODB_VERSION:-5.0}-1
     user: root
     build:
       context: .
-      args:
-        - SERVICE_VERSION=${SERVICE_VERSION:-7.0}
     volumes:
       - ${SERVICE_LOGS_DIR}:/var/log/mongodb
     entrypoint: >
