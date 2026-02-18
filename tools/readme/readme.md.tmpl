@@ -370,10 +370,7 @@ There are available some environment variables that could be used to change some
     - `GOOGLE_API_KEY`: API key for Gemini LLM services
     - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
-    - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
-    - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
-    - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)
-    - `LLM_TRACING_PROJECT_NAME`: Project name for tracing (defaults to `elastic-package`)
+    - LLM tracing is configured via profile config only: **llm.tracing.enabled**, **llm.tracing.endpoint**, **llm.tracing.api_key**, **llm.tracing.project_name** (see `config.yml.example`).
 
 
 ## Release process

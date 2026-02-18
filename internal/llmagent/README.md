@@ -2,8 +2,6 @@
 
 The `llmagent` module provides AI-powered documentation generation for Elastic integration packages. It uses a multi-agent architecture: a **DocumentationAgent** orchestrates generation and modification, while **workflow** runs a pipeline of **agents** (generator, critic, validators) with access to **tools** and optional **tracing**.
 
-This README is developer-focused. Use it to get a high-level map of the code and where to change behavior.
-
 ## Overview
 
 The module:
@@ -65,7 +63,7 @@ graph TB
 
 ### `/docagent`
 
-Orchestrates documentation generation and modification. Entry points are `UpdateDocumentation` / `UpdateDocumentationWithConfig` (full generation) and `ModifyDocumentation` (targeted edits).
+Orchestrates documentation generation and modification. Entry points are `UpdateDocumentation` (full generation) and `ModifyDocumentation` (targeted edits).
 
 | File | Description |
 |------|-------------|
@@ -81,8 +79,7 @@ Orchestrates documentation generation and modification. Entry points are `Update
 
 | Function | Description |
 |----------|-------------|
-| `UpdateDocumentation()` | Entry point for full doc generation (uses default **GenerationConfig**). |
-| `UpdateDocumentationWithConfig()` | Full generation with custom **GenerationConfig** (max iterations, staged/LLM validation). |
+| `UpdateDocumentation(ctx, nonInteractive)` | Entry point for full doc generation (uses default **GenerationConfig**). |
 | `ModifyDocumentation()` | Targeted modification: scope analysis → apply changes to affected sections → write. |
 | `GenerateAllSectionsWithValidation()` | Per-section generate–validate loop; tracks best iteration by length/structure; combines sections and runs **FixDocumentStructure** + **EnsureDataStreamTemplates**. |
 | `GenerateSectionWithValidationLoop()` | Single-section loop: workflow run → heuristic “best” selection → static validation; returns **SectionGenerationResult**. |
@@ -204,7 +201,7 @@ OpenTelemetry tracing for sessions, workflows, and spans; OTLP export (e.g. to P
 
 | File | Description |
 |------|-------------|
-| `tracing.go` | **Config**, **Init** / **InitWithConfig**, **Shutdown**, **ForceFlush**; **StartSessionSpan**, **StartChainSpan**, **EndChainSpan**, **StartWorkflowSpanWithConfig**; **SessionIDFromContext**; **RecordSessionInput**, **RecordWorkflowResult**. |
+| `tracing.go` | **Config**, **InitWithConfig**, **Shutdown**, **ForceFlush**; **StartSessionSpan**, **StartChainSpan**, **EndChainSpan**, **StartWorkflowSpanWithConfig**; **SessionIDFromContext**; **RecordSessionInput**, **RecordWorkflowResult**. |
 | `phoenix.go` | Phoenix (Arize) integration helpers. |
 
 ### `/ui`
@@ -269,17 +266,17 @@ type GenerationConfig struct {
 
 ```go
 type Config struct {
-    Registry               *agents.Registry
-    MaxIterations          uint
-    Model                  model.LLM
-    ModelID                string
-    Tools                  []tool.Tool
-    Toolsets               []tool.Toolset
-    EnableCritic           bool
-    EnableURLValidator     bool
-    EnableStaticValidation bool
-    EnableLLMValidation    bool
-    PackageContext         *validators.PackageContext
+    Registry               *agents.Registry   // Agents to use in the workflow (defaults to DefaultRegistry)
+    MaxIterations          uint               // Max refinement cycles per section (default 3)
+    Model                  model.LLM          // LLM used for agents
+    ModelID                string             // Model identifier for tracing
+    Tools                  []tool.Tool        // Tools available to agents
+    Toolsets               []tool.Toolset     // Toolsets available to agents
+    EnableCritic           bool               // Run critic agent for feedback
+    EnableURLValidator     bool               // Run URL validator agent
+    EnableStaticValidation bool               // Run validators that check against package files
+    EnableLLMValidation    bool               // Run LLM-based semantic validation
+    PackageContext         *validators.PackageContext // Package metadata for validation
 }
 ```
 
@@ -298,10 +295,6 @@ agent, err := docagent.NewDocumentationAgent(ctx, docagent.AgentConfig{
 })
 // Full generation
 err = agent.UpdateDocumentation(ctx, nonInteractive)
-// Or with config
-cfg := docagent.DefaultGenerationConfig()
-cfg.MaxIterations = 5
-err = agent.UpdateDocumentationWithConfig(ctx, nonInteractive, cfg)
 // Targeted modification
 err = agent.ModifyDocumentation(ctx, nonInteractive, "Add troubleshooting section")
 ```
@@ -331,7 +324,7 @@ elastic-package update documentation --evaluate \
 
 ## Tracing
 
-Tracing is optional and controlled by environment (e.g. **LLM_TRACING_ENABLED**, **LLM_TRACING_ENDPOINT**). Spans follow session → chain → workflow/section. Use **SessionIDFromContext** and Phoenix to inspect runs.
+Tracing is optional and controlled by profile config (**llm.tracing.enabled**, **llm.tracing.endpoint**, etc.). Spans follow session → chain → workflow/section. Use **SessionIDFromContext** and Phoenix to inspect runs.
 
 ## Design Decisions
 

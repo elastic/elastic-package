@@ -9,7 +9,6 @@ package tracing
 import (
 	"context"
 	"encoding/json"
-	"os"
 	"strings"
 	"sync"
 
@@ -25,14 +24,6 @@ import (
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/version"
-)
-
-// Environment variable names for tracing configuration
-const (
-	EnvTracingEnabled     = "LLM_TRACING_ENABLED"
-	EnvTracingEndpoint    = "LLM_TRACING_ENDPOINT"
-	EnvTracingAPIKey      = "LLM_TRACING_API_KEY"
-	EnvTracingProjectName = "LLM_TRACING_PROJECT_NAME"
 )
 
 // Default values
@@ -176,39 +167,6 @@ type Config struct {
 	Endpoint    string
 	APIKey      string
 	ProjectName string
-}
-
-// ConfigFromEnv creates a Config from environment variables.
-// Tracing is DISABLED by default - set LLM_TRACING_ENABLED=true to enable.
-func ConfigFromEnv() Config {
-	cfg := Config{
-		Enabled:     false, // Disabled by default - opt-in
-		Endpoint:    os.Getenv(EnvTracingEndpoint),
-		APIKey:      os.Getenv(EnvTracingAPIKey),
-		ProjectName: os.Getenv(EnvTracingProjectName),
-	}
-
-	// Check if explicitly enabled
-	if enabledStr := os.Getenv(EnvTracingEnabled); enabledStr != "" {
-		cfg.Enabled = enabledStr == "true" || enabledStr == "1"
-	}
-
-	// Apply defaults if empty (only matters when tracing is enabled)
-	if cfg.Endpoint == "" {
-		cfg.Endpoint = DefaultEndpoint
-	}
-	if cfg.ProjectName == "" {
-		cfg.ProjectName = DefaultProjectName
-	}
-
-	return cfg
-}
-
-// Init initializes the OpenTelemetry tracer with OTLP exporter.
-// It reads configuration from environment variables.
-// This function is safe to call multiple times; subsequent calls are no-ops.
-func Init(ctx context.Context) error {
-	return InitWithConfig(ctx, ConfigFromEnv())
 }
 
 // InitWithConfig initializes the OpenTelemetry tracer with the provided configuration.

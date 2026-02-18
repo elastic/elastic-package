@@ -215,14 +215,10 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 	return nil
 }
 
-// UpdateDocumentation runs the documentation update process using the shared generation + validation loop
+// UpdateDocumentation runs the documentation update process using the shared generation + validation loop.
+// Uses section-based generation where each section has its own generate-validate loop.
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
-	return d.UpdateDocumentationWithConfig(ctx, nonInteractive, DefaultGenerationConfig())
-}
-
-// UpdateDocumentationWithConfig runs documentation update with custom configuration
-// Uses section-based generation where each section has its own generate-validate loop
-func (d *DocumentationAgent) UpdateDocumentationWithConfig(ctx context.Context, nonInteractive bool, genCfg GenerationConfig) error {
+	genCfg := DefaultGenerationConfig()
 	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID())
 	var sessionOutput string
 	defer func() {

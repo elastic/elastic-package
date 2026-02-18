@@ -699,49 +699,19 @@ _Context: global_
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
 The AI agent supports three modes:
-1. Rewrite mode (default): Full documentation regeneration using section-based generation
-   - Analyzes your package structure, data streams, and configuration
-   - Generates each section independently with its own validation loop
-   - Each section is generated multiple times (configurable iterations) and the best version is selected
-   - Sections are generated in parallel for faster processing
-   - Creates or updates markdown files in /_dev/build/docs/
+1. Rewrite mode (default): Full documentation regeneration
+   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the based on the template and the package context.
 2. Modify mode: Targeted documentation changes
-   - Makes specific changes to existing documentation
-   - Requires existing documentation file at /_dev/build/docs/
-   - Use --modify-prompt flag for non-interactive modifications
+   - The LLM will perform a targeted change to the documentation, based on user-provided instructions.
+   - Use --modify-prompt flag to provide instructions for non-interactive modifications
 3. Evaluate mode: Documentation quality evaluation
    - Use --evaluate flag to run in evaluation mode
-   - Outputs to a directory instead of modifying the package
+   - This mode is intended for quality assurance and testing of the documentation agent.
    - Computes quality metrics (structure, accuracy, completeness, quality scores)
    - Supports batch processing of multiple packages with --evaluate-batch flag
 
-Section-based generation workflow:
-The rewrite mode uses a sophisticated section-based approach where:
-1. The README template is parsed into individual sections (Overview, Troubleshooting, etc.)
-2. Each section is generated independently in parallel
-3. Per-section validation loops run multiple iterations with feedback
-4. The best iteration for each section is selected based on content quality
-5. All sections are combined into the final document
-6. Full-document validation is run on the assembled document
-
-This approach produces higher quality documentation because:
-- Each section gets focused attention and validation
-- Issues in one section don't affect other sections
-- Parallel generation is faster than sequential full-document generation
-- Best-iteration tracking prevents regression in later iterations
-
 Multi-file support:
-   - Use --doc-file to specify which markdown file to update (defaults to README.md)
-   - In interactive mode, you'll be prompted to select from available files
-   - Supports packages with multiple documentation files (e.g., README.md, vpc.md, etc.)
-
-Interactive workflow:
-After confirming you want to use the AI agent, you'll choose between rewrite or modify mode.
-You can review results and request additional changes iteratively.
-
-Non-interactive mode:
-Use --non-interactive to skip all prompts and automatically accept the first result from the LLM.
-Combine with --modify-prompt "instructions" for targeted non-interactive changes.
+   - For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
 Evaluation mode examples:
   # Evaluate a single package (run from package directory)
@@ -971,10 +941,7 @@ There are available some environment variables that could be used to change some
     - `GOOGLE_API_KEY`: API key for Gemini LLM services
     - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
     - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
-    - `LLM_TRACING_ENABLED`: Enable or disable LLM tracing (defaults to `true`)
-    - `LLM_TRACING_ENDPOINT`: OpenTelemetry tracing endpoint (defaults to `http://localhost:6006/v1/traces`)
-    - `LLM_TRACING_API_KEY`: API key for tracing endpoint (optional)
-    - `LLM_TRACING_PROJECT_NAME`: Project name for tracing (defaults to `elastic-package`)
+    - LLM tracing is configured via profile config only: **llm.tracing.enabled**, **llm.tracing.endpoint**, **llm.tracing.api_key**, **llm.tracing.project_name** (see `config.yml.example`).
 
 
 ## Release process
