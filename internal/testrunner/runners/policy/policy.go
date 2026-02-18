@@ -313,13 +313,13 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				return nil, err
 			}
 			for k, v := range mapStr {
-				if vMap, err := common.ToMapStr(v); err != nil {
+				if vMap, err := common.ToMapStr(v); err == nil {
 					m, err := cleanPolicyMap(vMap, entry.mapValues)
 					if err != nil {
 						return nil, err
 					}
 					mapStr[k] = m
-				} else if list, err := common.ToMapStrSlice(v); err != nil {
+				} else if list, err := common.ToMapStrSlice(v); err == nil {
 					clean := make([]any, len(list))
 					for i := range list {
 						c, err := cleanPolicyMap(list[i], entry.mapValues)
@@ -338,19 +338,41 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 				}
 			}
 		case entry.memberReplace != nil:
-			m, ok := v.(common.MapStr)
-			if !ok {
-				return nil, fmt.Errorf("expected map, found %T", v)
-			}
 			regexp := entry.memberReplace.regexp
 			replacement := entry.memberReplace.replace
-			for k, e := range m {
-				key := k
-				if regexp.MatchString(k) {
-					delete(m, k)
-					key = regexp.ReplaceAllString(k, replacement)
-					m[key] = e
+			// Handle both maps (replace keys) and arrays (replace string elements)
+			switch val := v.(type) {
+			case common.MapStr:
+				// Replace map keys
+				for k, e := range val {
+					key := k
+					if regexp.MatchString(k) {
+						delete(val, k)
+						key = regexp.ReplaceAllString(k, replacement)
+						val[key] = e
+					}
 				}
+			case []any:
+				// Replace array elements
+				replaced := make([]any, len(val))
+				for i, elem := range val {
+					elemStr, ok := elem.(string)
+					if !ok {
+						return nil, fmt.Errorf("expected string array element, found %T", elem)
+					}
+					if regexp.MatchString(elemStr) {
+						replaced[i] = regexp.ReplaceAllString(elemStr, replacement)
+					} else {
+						replaced[i] = elemStr
+					}
+				}
+				policyMap.Delete(entry.name)
+				_, err := policyMap.Put(entry.name, replaced)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				return nil, fmt.Errorf("expected map or array for memberReplace, found %T", v)
 			}
 		case entry.stringValueReplace != nil:
 			vStr, ok := v.(string)

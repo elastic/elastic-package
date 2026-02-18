@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -30,6 +31,7 @@ type runner struct {
 	kibanaClient   *kibana.Client
 	esAPI          *elasticsearch.API
 	esClient       *elasticsearch.Client
+	schemaURLs     fields.SchemaURLs
 
 	dataStreams          []string
 	serviceVariant       string
@@ -61,6 +63,7 @@ type SystemTestRunnerOptions struct {
 	KibanaClient         *kibana.Client
 	API                  *elasticsearch.API
 	OverrideAgentVersion string
+	SchemaURLs           fields.SchemaURLs
 
 	// FIXME: Keeping Elasticsearch client to be able to do low-level requests for parameters not supported yet by the API.
 	ESClient *elasticsearch.Client
@@ -89,6 +92,7 @@ func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 		esAPI:                options.API,
 		esClient:             options.ESClient,
 		profile:              options.Profile,
+		schemaURLs:           options.SchemaURLs,
 		dataStreams:          options.DataStreams,
 		serviceVariant:       options.ServiceVariant,
 		configFilePath:       options.ConfigFilePath,
@@ -257,6 +261,7 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 					KibanaClient:         r.kibanaClient,
 					API:                  r.esAPI,
 					ESClient:             r.esClient,
+					SchemaURLs:           r.schemaURLs,
 					TestFolder:           t,
 					ServiceVariant:       variant,
 					GenerateTestResult:   r.generateTestResult,
@@ -294,6 +299,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			Absent:         !opts.installedPackage,
 			Force:          opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			RepositoryRoot: r.repositoryRoot,
+			SchemaURLs:     r.schemaURLs,
 		},
 	}
 }

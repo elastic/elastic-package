@@ -51,3 +51,10 @@
 # llm.local.model: "llama2"
 # Local LLM API key (optional, for servers requiring authentication)
 # llm.local.api_key: "your-local-api-key"
+
+## Fleet settings
+# Interval for the auto-install content packages task (Kibana 9.2+). Defaults to "10m".
+# stack.fleet_auto_install_task_interval: "10m"
+#
+# Enable auto-install of content packages in Fleet (Kibana 8.7+). Defaults to false.
+# stack.fleet_auto_install_content_packages_enabled: true

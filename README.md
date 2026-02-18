@@ -439,6 +439,17 @@ Use this command to validate the contents of a package using the package specifi
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
+### `elastic-package modify`
+
+_Context: package_
+
+Use this command to apply modifications to a package.
+
+These modifications can range from applying best practices, generating ingest pipeline tags, and more. Run this command without any arguments to see a list of modifiers.
+
+Use --modifiers to specify which modifiers to run, separated by commas.
+
+
 ### `elastic-package profiles`
 
 _Context: global_
@@ -518,6 +529,9 @@ Use --agent-version to specify a different version for the Elastic Agent from th
 You can run your own custom images for Elasticsearch, Kibana or Elastic Agent, see [this document](./docs/howto/custom_images.md).
 
 Be aware that a common issue while trying to boot up the stack is that your Docker environments settings are too low in terms of memory threshold.
+
+The stack command can be customized through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 You can use Podman Desktop instead of Docker, see [this document](./docs/howto/use_podman.md)
 
@@ -603,6 +617,10 @@ Use this command to display the current deployment status of a package.
 If a package name is specified, then information about that package is
 returned, otherwise this command checks if the current directory is a
 package directory and reports its status.
+
+The status command can be customized the URLS for package-registry and the Kibana repository
+through the elastic-package configuration file located at ~/.elastic-package/config.yml
+(see [Elastic Package configuration](https://github.com/elastic/elastic-package/blob/main/README.md#elastic-package-configuration)).
 
 ### `elastic-package test`
 
@@ -739,6 +757,40 @@ Use this command to print the version of elastic-package that you have installed
 
 
 
+## Elastic Package configuration
+
+The main configuration is stored in a `config.yml` file located in the elastic-package data directory (`~/.elastic-package`).
+This file contains settings that apply globally to all commands and profiles.
+
+In this configuration file you can:
+- override docker images used by the stacks created byelastic-package (more info at [custom_images docs](./docs/howto/custom_images.md)).
+    - By default, there is no override and the default images of the given stack version are used.
+- check the current profile in use (more info at [Elastic Package profiles](#elastic-package-profiles)).
+    - This value is updated automatically by the `elastic-package profiles use` command.
+- override the schema URLs to be used when building or validating packages.
+    - URL to download the ECS schema definition for fields.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/ecs`.
+- override the Package Registry URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://epr.elastic.co`.
+- override the Kibana Repository URL used in the `elastic-package status` command.
+    - If not specified, the default value is `https://raw.githubusercontent.com/elastic/kibana`.
+
+Complete example of the `config.yml` file:
+```yaml
+stack:
+    image_ref_overrides: {}
+profile:
+    current: default
+schema_urls:
+  ecs_base:  https://raw.githubusercontent.com/elastic/ecs
+
+package_registry:
+  base_url: https://epr.elastic.co
+status:
+  kibana_repository:
+    base_url: https://raw.githubusercontent.com/elastic/kibana
+```
+
 ## Elastic Package profiles
 
 The `profiles` subcommand allows to work with different configurations. By default,
@@ -765,6 +817,8 @@ The following settings are available per profile:
   the Elastic Cloud APIs. It defaults to `https://cloud.elastic.co`.
 * `stack.epr.proxy_to` indicates the local Package Registry to proxy requests to the configured
   endpoint. When not set, it uses `https://epr.elastic.co`.
+* `stack.epr.base_url` indicates the Package Registry endpoint to use for requests. When not set,
+  it uses `https://epr.elastic.co`.
 * `stack.geoip_dir` defines a directory with GeoIP databases that can be used by
   Elasticsearch in stacks managed by elastic-package. It is recommended to use
   an absolute path, out of the `.elastic-package` directory.
@@ -784,6 +838,10 @@ The following settings are available per profile:
 * `stack.elastic_subscription` allows to select the Elastic subscription type to be used in the stack.
   Currently, it is supported "basic" and "[trial](https://www.elastic.co/guide/en/elasticsearch/reference/current/start-trial.html)",
   which enables all subscription features for 30 days.  Defaults to "trial".
+* `stack.fleet_auto_install_content_packages_enabled` can be set to true to enable auto-install of content
+  packages in Fleet. Supported in Kibana 9.2 and later. Defaults to false.
+* `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
+  Supported in Kibana 9.2 and later. Defaults to "10m".
 
 ### AI-powered Documentation Configuration
 
