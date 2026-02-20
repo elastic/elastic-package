@@ -17,11 +17,11 @@ import (
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input      string         `yaml:"input,omitempty"`
-	Vars       map[string]any `yaml:"vars,omitempty"`
+	Input      string         `config:"input,omitempty" yaml:"input,omitempty"`
+	Vars       map[string]any `config:"vars,omitempty" yaml:"vars,omitempty"`
 	DataStream struct {
-		Vars map[string]any `yaml:"vars,omitempty"`
-	} `yaml:"data_stream"`
+		Vars map[string]any `config:"vars,omitempty" yaml:"vars,omitempty"`
+	} `config:"data_stream" yaml:"data_stream"`
 }
 
 func readTestConfig(testPath string) (*testConfig, error) {
