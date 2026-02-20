@@ -99,8 +99,7 @@ func renderTransformPaths(repositoryRoot *os.Root, packageRoot string, schemaURL
 
 		// now, render the transform fields
 		// find the fields directory
-		transformPath := filepath.Dir(transform.Path)
-		fieldsDir := filepath.Join(transformPath, "fields")
+		fieldsDir := filepath.Join(filepath.Dir(transform.Path), "fields")
 		fields, err := renderExportedFields(repositoryRoot, packageRoot, fieldsDir, schemaURLs)
 
 		if err != nil {
@@ -155,7 +154,7 @@ func findTransformPaths(packageRoot string) (map[string]transformInfo, error) {
 			return fmt.Errorf("getting Transform policy map failed: %w", err)
 		}
 
-		// get the transform name from the transformPath
+		// get the transform name from the transform path
 		transformName := filepath.Base(filepath.Dir(path))
 		result[transformName] = transform
 		return nil
