@@ -669,6 +669,7 @@ _meta:
 	// add support for transform fields
 	transformFieldsFolder := filepath.Join(transformFolder, "fields")
 	err = os.MkdirAll(transformFieldsFolder, 0755)
+	require.NoError(t, err)
 	err = os.WriteFile(filepath.Join(transformFieldsFolder, "fields.yml"), []byte(fields), 0644)
 	require.NoError(t, err)
 }

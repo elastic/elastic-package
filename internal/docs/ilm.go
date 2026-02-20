@@ -95,9 +95,7 @@ func renderILMPaths(packageRoot string, args []string) (string, error) {
 	var err error
 	if len(args) > 0 {
 		// filter the list of data streams to only include the data stream name in the args
-		for _, arg := range args {
-			dataStreamNames = append(dataStreamNames, arg)
-		}
+		dataStreamNames = append(dataStreamNames, args...)
 	} else {
 		dataStreamNames, err = findILMPaths(packageRoot)
 		if err != nil {
