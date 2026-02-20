@@ -1,0 +1,6 @@
+skip:
+  reason: Test skipped tests
+  link: https://github.com/elastic/elastic-package/pull/1
+vars:
+  endpoints:
+    - https://epr.elastic.co
