@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 // flattenNestedMap flattens a nested JSON-like structure (maps and slices) into
@@ -47,7 +49,13 @@ func getILMPolicyMap(path string) (map[string]string, error) {
 		return nil, fmt.Errorf("reading ILM policy file failed: %w", err)
 	}
 	var policy map[string]interface{}
-	err = json.Unmarshal(content, &policy)
+
+	ext := filepath.Ext(path)
+	if ext == ".yml" || ext == ".yaml" {
+		err = yaml.Unmarshal(content, &policy)
+	} else {
+		err = json.Unmarshal(content, &policy)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("unmarshalling ILM policy failed: %w", err)
 	}

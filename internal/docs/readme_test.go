@@ -409,7 +409,7 @@ Introduction to the package
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
 	urls := fields.NewSchemaURLs()
-	for _, c := range renderCases {
+	for i, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
 			filename := filepath.Base(c.templatePath)
@@ -419,8 +419,13 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
-			createILMFile(t, packageRoot, c.dataStreamName)
-			createILMFile(t, packageRoot, "example2")
+			if i%2 == 0 {
+				createILMFileYML(t, packageRoot, c.dataStreamName)
+				createILMFileYML(t, packageRoot, "example2")
+			} else {
+				createILMFile(t, packageRoot, c.dataStreamName)
+				createILMFile(t, packageRoot, "example2")
+			}
 			createTransformFile(t, packageRoot, c.transformName)
 
 			root, err := os.OpenRoot(packageRoot)
@@ -595,6 +600,33 @@ func createILMFile(t *testing.T, packageRoot, dataStreamName string) {
 	}
 }
 `), 0644)
+	require.NoError(t, err)
+}
+
+// create ilm file as yaml
+func createILMFileYML(t *testing.T, packageRoot, dataStreamName string) {
+	t.Helper()
+	if dataStreamName == "" {
+		return
+	}
+
+	ilmFolder := filepath.Join(packageRoot, "data_stream", dataStreamName)
+	err := os.MkdirAll(ilmFolder, 0755)
+	require.NoError(t, err)
+	ilmFile := filepath.Join(ilmFolder, "lifecycle.yml")
+	contents := `policy:
+  phases:
+    hot:
+      actions:
+        rollover:
+          max_age: "30d"
+          max_primary_shard_size: "50gb"
+    delete:
+      min_age: "30d"
+      actions:
+        delete: {}
+`
+	err = os.WriteFile(ilmFile, []byte(contents), 0644)
 	require.NoError(t, err)
 }
 
