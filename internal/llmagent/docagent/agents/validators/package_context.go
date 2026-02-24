@@ -98,14 +98,6 @@ type FieldInfo struct {
 	MetricType  string
 }
 
-// DataStreamManifest represents the manifest.yml within a data stream
-type DataStreamManifest struct {
-	Title       string `yaml:"title"`
-	Type        string `yaml:"type"`
-	Dataset     string `yaml:"dataset"`
-	Description string `yaml:"description,omitempty"`
-}
-
 // LoadPackageContext loads all package files needed for validation.
 // This parses manifest.yml, data streams, fields, and other metadata.
 func LoadPackageContext(packageRoot string) (*PackageContext, error) {
@@ -200,7 +192,7 @@ func extractInputTypes(manifest *packages.PackageManifest) []string {
 	return inputTypes
 }
 
-// loadDataStreams enumerates all data streams in the package
+// loadDataStreams enumerates all data streams in the package using packages.DataStreamManifest.
 func loadDataStreams(packageRoot string) ([]DataStreamInfo, error) {
 	dataStreamDir := filepath.Join(packageRoot, "data_stream")
 
@@ -216,29 +208,26 @@ func loadDataStreams(packageRoot string) ([]DataStreamInfo, error) {
 		}
 
 		dsName := entry.Name()
-		manifestPath := filepath.Join(dataStreamDir, dsName, "manifest.yml")
-
-		content, err := os.ReadFile(manifestPath)
+		dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packageRoot, dsName)
 		if err != nil {
-			// Skip data streams without manifest
+			// Skip data streams without valid manifest
 			continue
 		}
 
-		var dsManifest DataStreamManifest
-		if err := yaml.Unmarshal(content, &dsManifest); err != nil {
-			continue
+		description := ""
+		if len(dsManifest.Streams) > 0 {
+			description = dsManifest.Streams[0].Description
 		}
 
-		// Check if sample_event.json exists for this data stream
 		sampleEventPath := filepath.Join(dataStreamDir, dsName, "sample_event.json")
 		_, sampleEventErr := os.Stat(sampleEventPath)
 		hasExampleEvent := sampleEventErr == nil
 
 		dataStreams = append(dataStreams, DataStreamInfo{
-			Name:            dsName,
+			Name:            dsManifest.Name,
 			Type:            dsManifest.Type,
 			Title:           dsManifest.Title,
-			Description:     dsManifest.Description,
+			Description:     description,
 			Dataset:         dsManifest.Dataset,
 			HasExampleEvent: hasExampleEvent,
 		})
