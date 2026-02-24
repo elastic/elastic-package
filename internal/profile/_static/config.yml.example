@@ -35,6 +35,23 @@
 ## Set license subscription
 # stack.elastic_subscription: "basic"
 
+## Configure LLM provider for documentation generation
+# Provider name.
+# llm.provider: "gemini"
+# Gemini: API key and model
+# llm.gemini.api_key: "your-gemini-api-key"
+# llm.gemini.model: "gemini-3-flash-preview"
+
+## LLM Tracing (OpenTelemetry/Phoenix)
+# Enable or disable LLM tracing (defaults to true)
+# llm.tracing.enabled: true
+# Tracing endpoint URL (defaults to http://localhost:6006/v1/traces)
+# llm.tracing.endpoint: "http://localhost:6006/v1/traces"
+# Tracing API key (optional, for authenticated endpoints)
+# llm.tracing.api_key: "your-tracing-api-key"
+# Project name for tracing (defaults to elastic-package)
+# llm.tracing.project_name: "elastic-package"
+
 ## Fleet settings
 # Interval for the auto-install content packages task (Kibana 9.2+). Defaults to "10m".
 # stack.fleet_auto_install_task_interval: "10m"
