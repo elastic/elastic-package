@@ -23,6 +23,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-yaml v1.19.2
+	github.com/gomarkdown/markdown v0.0.0-20260217112301-37c66b85d6ab
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v32 v32.1.0
 	github.com/google/go-querystring v1.2.0

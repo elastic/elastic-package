@@ -284,6 +284,34 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 		}
 	}
 
+	// In interactive mode, allow review
+	if !nonInteractive {
+		return d.runInteractiveSectionReview(ctx)
+	}
+
+	return nil
+}
+
+// runInteractiveSectionReview allows user to review generated documentation in interactive mode
+func (d *DocumentationAgent) runInteractiveSectionReview(ctx context.Context) error {
+	_ = ctx // reserved for future use
+
+	// Display the generated documentation
+	if err := d.displayReadme(); err != nil {
+		logger.Debugf("could not display readme: %v", err)
+	}
+
+	// Get user action
+	action, err := d.getUserAction()
+	if err != nil {
+		return err
+	}
+
+	actionResult := d.handleUserAction(action, true)
+	if actionResult.Err != nil {
+		return actionResult.Err
+	}
+
 	return nil
 }
 
