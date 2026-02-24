@@ -154,7 +154,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	serviceName, err := r.serviceDefinedInConfig()
+	serviceName, deployerName, err := r.serviceDefinedInConfig()
 	if err != nil {
 		return fmt.Errorf("failed to determine if service is defined in config: %w", err)
 	}
@@ -163,7 +163,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		// Just in the case service deployer is needed (input_service field), setup the service now so all the
 		// required information is available in r.svcInfo (e.g. hostname, port, etc).
 		// This info may be needed to render the variables in the configuration.
-		s, err := r.setupService(ctx, serviceName)
+		s, err := r.setupService(ctx, serviceName, deployerName)
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debugf("No service deployer defined for this benchmark")
 		} else if err != nil {
@@ -263,19 +263,19 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) serviceDefinedInConfig() (string, error) {
+func (r *runner) serviceDefinedInConfig() (string, string, error) {
 	// Read of the configuration to know if a service deployer is needed.
 	// No need to render any template at this point.
 	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if scenario.Corpora.InputService == nil {
-		return "", nil
+		return "", "", nil
 	}
 
-	return scenario.Corpora.InputService.Name, nil
+	return scenario.Corpora.InputService.Name, scenario.Deployer, nil
 }
 
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
@@ -322,7 +322,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
 }
 
-func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
+func (r *runner) setupService(ctx context.Context, serviceName string, deployerName string) (servicedeployer.DeployedService, error) {
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
@@ -339,6 +339,7 @@ func (r *runner) setupService(ctx context.Context, serviceName string) (serviced
 		Type:                   servicedeployer.TypeBench,
 		StackVersion:           stackVersion.Version(),
 		DeployIndependentAgent: false,
+		DeployerName:           deployerName,
 	}
 	serviceDeployer, err := servicedeployer.Factory(opts)
 	if err != nil {
