@@ -32,10 +32,7 @@ func setupUpdateCommand() *cobraext.Command {
 	// Evaluation mode flags
 	updateDocumentationCmd.Flags().Bool("evaluate", false, "run in evaluation mode - outputs to directory instead of package, computes quality metrics")
 	updateDocumentationCmd.Flags().String("evaluate-output-dir", "./doc_eval_results", "directory for evaluation results (used with --evaluate)")
-	updateDocumentationCmd.Flags().String("evaluate-batch", "", "comma-separated list of package names for batch processing (requires --evaluate)")
-	updateDocumentationCmd.Flags().String("evaluate-integrations-path", "", "path to integrations repository (required for batch mode, or set INTEGRATIONS_PATH env var)")
 	updateDocumentationCmd.Flags().Uint("evaluate-max-iterations", 3, "maximum generation iterations per section (evaluation mode only)")
-	updateDocumentationCmd.Flags().Int("evaluate-parallel", 4, "parallelism for batch mode (evaluation mode only)")
 
 	cmd := &cobra.Command{
 		Use:   "update",

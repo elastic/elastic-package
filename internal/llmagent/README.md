@@ -169,12 +169,11 @@ Runs the multi-agent pipeline for one section: generator â†’ critic (optional) â
 
 ### `/doceval`
 
-Documentation quality evaluation: single-package or batch, with metrics and optional tracing.
+Documentation quality evaluation with metrics and optional tracing. To evaluate multiple packages, use the `elastic-package for-each` command to run evaluation once per package.
 
 | File | Description |
 |------|-------------|
 | `evaluation.go` | **Evaluate**: creates a **DocumentationAgent**, runs **GenerateAllSectionsWithValidation**, runs validators and computes **QualityMetrics** / **ValidationSummary**; returns **EvaluationResult** (content, approved, metrics, validation summary, trace session ID). **EvaluationConfig**: output dir, max iterations, tracing, model ID. |
-| `batch.go` | **BatchEvaluate**: evaluates multiple packages (from an integrations path and name list) with configurable parallelism. **BatchEvaluationConfig**: integrations path, output dir, package names, parallelism, API key, model, max iterations, tracing, profile. |
 | `metrics.go` | **QualityMetrics** computation and **ValidationSummary** aggregation from validator results. |
 
 ### `/tools`
@@ -311,15 +310,11 @@ elastic-package update documentation --non-interactive
 # Modification
 elastic-package update documentation --modify-prompt "Add troubleshooting section"
 
-# Single-package evaluation
+# Single-package evaluation (run from package directory)
 elastic-package update documentation --evaluate --evaluate-output-dir ./results
 
-# Batch evaluation
-elastic-package update documentation --evaluate \
-  --evaluate-batch citrix_adc,nginx,apache \
-  --evaluate-integrations-path ~/git/integrations \
-  --evaluate-output-dir ./batch_results \
-  --evaluate-parallel 4
+# Evaluate multiple packages (use for-each from integrations repo)
+elastic-package for-each --packages citrix_adc,nginx,apache -- update documentation --evaluate --evaluate-output-dir ./doc_eval_results
 ```
 
 ## Tracing

@@ -37,20 +37,13 @@ The AI agent supports three modes:
    - Use --evaluate flag to run in evaluation mode
    - This mode is intended for quality assurance and testing of the documentation agent.
    - Computes quality metrics (structure, accuracy, completeness, quality scores)
-   - Supports batch processing of multiple packages with --evaluate-batch flag
+   - To evaluate multiple packages, use the elastic-package for-each command to run evaluation once per package.
 
 For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
-Evaluation mode examples:
-  # Evaluate a single package (run from package directory)
+Evaluation mode example:
+  # Evaluate the current package (run from package directory)
   elastic-package update documentation --evaluate --evaluate-output-dir ./results
-
-  # Batch evaluation of multiple packages
-  elastic-package update documentation --evaluate \
-    --evaluate-batch citrix_adc,nginx,apache \
-    --evaluate-integrations-path ~/git/integrations \
-    --evaluate-output-dir ./batch_results \
-    --evaluate-parallel 4
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -392,11 +385,8 @@ func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, provider, 
 
 // evaluationModeFlags holds CLI flags for evaluation mode
 type evaluationModeFlags struct {
-	outputDir        string
-	batchFlag        string
-	integrationsPath string
-	parallelism      int
-	maxIterations    uint
+	outputDir     string
+	maxIterations uint
 }
 
 // getEvaluationModeFlags extracts CLI flags needed for evaluation mode
@@ -409,41 +399,12 @@ func getEvaluationModeFlags(cmd *cobra.Command) (evaluationModeFlags, error) {
 		return flags, fmt.Errorf("failed to get evaluate-output-dir flag: %w", err)
 	}
 
-	flags.batchFlag, err = cmd.Flags().GetString("evaluate-batch")
-	if err != nil {
-		return flags, fmt.Errorf("failed to get evaluate-batch flag: %w", err)
-	}
-
-	flags.integrationsPath, err = cmd.Flags().GetString("evaluate-integrations-path")
-	if err != nil {
-		return flags, fmt.Errorf("failed to get evaluate-integrations-path flag: %w", err)
-	}
-	if flags.integrationsPath == "" {
-		flags.integrationsPath = os.Getenv("INTEGRATIONS_PATH")
-	}
-
-	flags.parallelism, err = cmd.Flags().GetInt("evaluate-parallel")
-	if err != nil {
-		return flags, fmt.Errorf("failed to get evaluate-parallel flag: %w", err)
-	}
-
 	flags.maxIterations, err = cmd.Flags().GetUint("evaluate-max-iterations")
 	if err != nil {
 		return flags, fmt.Errorf("failed to get evaluate-max-iterations flag: %w", err)
 	}
 
 	return flags, nil
-}
-
-// printBatchEvaluationSummary prints the summary for batch evaluation results
-func printBatchEvaluationSummary(cmd *cobra.Command, result *doceval.BatchEvaluationResult, outputDir string) {
-	cmd.Printf("\n📊 Batch Evaluation Complete\n")
-	cmd.Printf("   Total packages: %d\n", result.Summary.TotalPackages)
-	cmd.Printf("   Passed: %d\n", result.Summary.PassedPackages)
-	cmd.Printf("   Failed: %d\n", result.Summary.FailedPackages)
-	cmd.Printf("   Average score: %.1f\n", result.Summary.AverageScore)
-	cmd.Printf("   Duration: %s\n", result.Duration.Round(time.Second))
-	cmd.Printf("   Results saved to: %s\n", outputDir)
 }
 
 // printSingleEvaluationSummary prints the summary for single package evaluation results
@@ -462,42 +423,6 @@ func printSingleEvaluationSummary(cmd *cobra.Command, result *doceval.Evaluation
 	if outputDir != "" {
 		cmd.Printf("   Results saved to: %s\n", outputDir)
 	}
-}
-
-// runBatchEvaluation executes batch evaluation for multiple packages
-func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32, tracingEnabled bool) error {
-	if flags.integrationsPath == "" {
-		return fmt.Errorf("--evaluate-integrations-path is required for batch mode (or set INTEGRATIONS_PATH env var)")
-	}
-
-	packageNames := strings.Split(flags.batchFlag, ",")
-	for i := range packageNames {
-		packageNames[i] = strings.TrimSpace(packageNames[i])
-	}
-
-	cmd.Printf("🔄 Starting batch evaluation of %d packages...\n", len(packageNames))
-
-	batchCfg := doceval.BatchEvaluationConfig{
-		IntegrationsPath: flags.integrationsPath,
-		OutputDir:        flags.outputDir,
-		PackageNames:     packageNames,
-		Parallelism:      flags.parallelism,
-		Provider:         provider,
-		APIKey:           apiKey,
-		ModelID:          modelID,
-		MaxIterations:    flags.maxIterations,
-		EnableTracing:    tracingEnabled,
-		Profile:          profile,
-		ThinkingBudget:   thinkingBudget,
-	}
-
-	result, err := doceval.RunBatchEvaluation(cmd.Context(), batchCfg)
-	if err != nil {
-		return fmt.Errorf("batch evaluation failed: %w", err)
-	}
-
-	printBatchEvaluationSummary(cmd, result, flags.outputDir)
-	return nil
 }
 
 // runSinglePackageEvaluation executes evaluation for a single package
@@ -556,10 +481,6 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, provider
 	}
 
 	cmd.Printf("📊 Running documentation evaluation with model: %s\n", modelID)
-
-	if flags.batchFlag != "" {
-		return runBatchEvaluation(cmd, flags, profile, provider, apiKey, modelID, thinkingBudget, tracingConfig.Enabled)
-	}
 
 	return runSinglePackageEvaluation(cmd, flags, profile, provider, apiKey, modelID, thinkingBudget, tracingConfig)
 }
