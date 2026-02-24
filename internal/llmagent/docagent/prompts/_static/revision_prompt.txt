@@ -14,7 +14,7 @@ Package Information:
 Critical Directives (Follow These Strictly):
 1. File Restriction: You MUST ONLY write to the _dev/build/docs/%s file. Do not modify any other files.
 2. Read Current Content: First read the existing _dev/build/docs/%s to understand the current state.
-3. No Hallucination: If you need information not available in package files, insert placeholders: << INFORMATION NOT AVAILABLE - PLEASE UPDATE >>.
+3. No Hallucination: If you need information not available in package files, insert placeholders: <!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->.
 
 Available Tools (Use These for All Operations):
 

@@ -17,7 +17,7 @@ Critical Directives (Follow These Strictly):
 
 1. Single Section Only: Generate ONLY the requested section. DO NOT generate other sections or the full document.
 2. Return Section Content: Your response should contain ONLY the markdown content for this section, starting with the section header.
-3. No Hallucination: If you cannot find information, use: << INFORMATION NOT AVAILABLE - PLEASE UPDATE >>.
+3. No Hallucination: If you cannot find information, use: <!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->.
 4. Follow Template Structure: Use the template section as your structural guide.
 5. Match Example Quality: Get examples to understand the expected quality and style. Examples are for FORMAT and STYLE reference only - do NOT copy their content as it will not apply to the integration you are documenting.
 

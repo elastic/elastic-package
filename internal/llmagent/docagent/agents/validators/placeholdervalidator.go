@@ -16,7 +16,7 @@ const (
 )
 
 // StandardPlaceholder is the expected format for missing information
-const StandardPlaceholder = "<< INFORMATION NOT AVAILABLE - PLEASE UPDATE >>"
+const StandardPlaceholder = "<!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->"
 
 const placeholderValidatorInstruction = `You are a documentation placeholder validator for Elastic integration packages.
 Your task is to validate that placeholders are used correctly for missing information.
@@ -26,7 +26,7 @@ The documentation content to validate is provided in the user message.
 
 ## Checks
 1. Placeholders should only be used when information is genuinely unavailable
-2. The exact format must be: << INFORMATION NOT AVAILABLE - PLEASE UPDATE >>
+2. The exact format must be: <!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->
 3. No TODO comments or informal placeholders (e.g., [TBD], <INSERT>, etc.)
 4. Critical missing information should be flagged for research
 5. Placeholders should not appear in code blocks (invalid syntax)

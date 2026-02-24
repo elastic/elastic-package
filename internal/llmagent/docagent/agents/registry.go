@@ -137,9 +137,6 @@ func DefaultRegistry() *Registry {
 // - Placeholders: proper placeholder usage
 // - Style: Elastic style guide compliance (voice, tone, grammar)
 // - Accessibility: accessibility and inclusive language
-// - VendorSetup: vendor setup instructions accuracy against docs and LLM knowledge
-// - AdvancedSettings: advanced settings gotchas from manifest.yml are documented
-// - Scaling: input-specific scaling and fault tolerance guidance
 func AllStagedValidators() []validators.StagedValidator {
 	return []validators.StagedValidator{
 		validators.NewStructureValidator(),

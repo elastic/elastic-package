@@ -502,6 +502,6 @@ func computeQualityScore(content string, details *MetricsDetails) float64 {
 
 // countPlaceholders counts standard placeholder markers in content
 func countPlaceholders(content string) int {
-	standardPlaceholder := "<< INFORMATION NOT AVAILABLE - PLEASE UPDATE >>"
+	standardPlaceholder := "<!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->"
 	return strings.Count(content, standardPlaceholder)
 }
