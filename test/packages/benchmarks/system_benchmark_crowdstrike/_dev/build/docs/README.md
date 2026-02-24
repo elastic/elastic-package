@@ -97,40 +97,6 @@ This is the `Alert` dataset.
 
 {{fields "alert"}}
 
-### Falcon
-
-Contains endpoint data and CrowdStrike Falcon platform audit data forwarded from Falcon SIEM Connector.
-
-#### Falcon SIEM Connector configuration file
-
-By default, the configuration file located at `/opt/crowdstrike/etc/cs.falconhoseclient.cfg` provides configuration options related to the events collected by Falcon SIEM Connector.
-
-Parts of the configuration file called `EventTypeCollection` and `EventSubTypeCollection` provides a list of event types that the connector should collect.
-
-Current supported event types are:
-- CustomerIOCEvent
-- DataProtectionDetectionSummaryEvent
-- DetectionSummaryEvent
-- EppDetectionSummaryEvent
-- IncidentSummaryEvent
-- UserActivityAuditEvent
-- AuthActivityAuditEvent
-- FirewallMatchEvent
-- RemoteResponseSessionStartEvent
-- RemoteResponseSessionEndEvent
-- CSPM Streaming events
-- CSPM Search events
-- IDP Incidents
-- IDP Summary events
-- Mobile Detection events
-- Recon Notification events
-- XDR Detection events
-- Scheduled Report Notification events
-
-{{fields "falcon"}}
-
-{{event "falcon"}}
-
 ### FDR
 
 The CrowdStrike Falcon Data Replicator allows CrowdStrike users to replicate data from CrowdStrike
@@ -297,23 +263,3 @@ If the severity name is not available from the original document, it is determin
 {{fields "fdr"}}
 
 {{event "fdr"}}
-
-### Host
-
-This is the `Host` dataset.
-
-#### Example
-
-{{event "host"}}
-
-{{fields "host"}}
-
-### Vulnerability
-
-This is the `Vulnerability` dataset.
-
-#### Example
-
-{{event "vulnerability"}}
-
-{{fields "vulnerability"}}
