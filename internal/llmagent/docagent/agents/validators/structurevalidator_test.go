@@ -8,6 +8,9 @@ import (
 	"context"
 	"strings"
 	"testing"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
 func TestCheckMisplacedSections(t *testing.T) {
@@ -298,5 +301,47 @@ func TestCheckBrokenLinkPatterns(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestRequiredSectionsDerivedFromTemplate ensures RequiredSections is derived from
+// package-docs-readme.md.tmpl so the template remains the source of truth.
+func TestRequiredSectionsDerivedFromTemplate(t *testing.T) {
+	template := archetype.GetPackageDocsReadmeTemplate()
+	parsed := parsing.ParseSections(template)
+	if len(parsed) == 0 {
+		t.Fatal("template parsed to zero sections")
+	}
+	// RequiredSections should match the number of top-level (H2) sections in the template
+	if len(RequiredSections) != len(parsed) {
+		t.Errorf("RequiredSections has %d sections, template has %d", len(RequiredSections), len(parsed))
+	}
+	// "Set up steps in" must appear under deployment (templated "Set up steps in {[.Manifest.Title]}" is normalized to this)
+	var deploySection *RequiredSection
+	for i := range RequiredSections {
+		if strings.Contains(strings.ToLower(RequiredSections[i].Name), "how do i deploy") {
+			deploySection = &RequiredSections[i]
+			break
+		}
+	}
+	if deploySection == nil {
+		t.Fatal("no deployment section found in RequiredSections")
+	}
+	hasSetUpStepsIn := false
+	for _, sub := range deploySection.Subsections {
+		if sub == "Set up steps in" {
+			hasSetUpStepsIn = true
+			break
+		}
+	}
+	if !hasSetUpStepsIn {
+		t.Errorf("deployment section missing required subsection %q (normalized from template)", "Set up steps in")
+	}
+	// Instruction should reference the template
+	if !strings.Contains(structureValidatorInstruction, "Expected Section Structure") {
+		t.Error("structureValidatorInstruction should contain Expected Section Structure block")
+	}
+	if !strings.Contains(structureValidatorInstruction, "package-docs-readme.md.tmpl") {
+		t.Error("structureValidatorInstruction should reference package-docs-readme.md.tmpl")
 	}
 }

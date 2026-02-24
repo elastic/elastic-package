@@ -9,6 +9,9 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
 const (
@@ -22,55 +25,74 @@ type RequiredSection struct {
 	Subsections []string // Expected subsections (empty if none required)
 }
 
-// RequiredSections defines the top-level sections (H2) that must be present in the README.
-// Based on the official package-docs-readme.md.tmpl template.
-// Exported for reuse by metrics package.
-var RequiredSections = []RequiredSection{
-	{
-		Name:        "Overview",
-		Subsections: []string{"Compatibility", "How it works"},
-	},
-	{
-		Name:        "What data does this integration collect?",
-		Subsections: []string{"Supported use cases"},
-	},
-	{
-		Name:        "What do I need to use this integration?",
-		Subsections: nil,
-	},
-	{
-		Name: "How do I deploy this integration?",
-		Subsections: []string{
-			"Agent-based deployment",
-			"Set up steps in", // Pattern: "Set up steps in {Product Name}" - templated
-			"Set up steps in Kibana",
-			"Validation",
-		},
-	},
-	{
-		Name:        "Troubleshooting",
-		Subsections: nil,
-	},
-	{
-		Name:        "Performance and scaling",
-		Subsections: nil,
-	},
-	{
-		Name: "Reference",
-		Subsections: []string{
-			"Inputs used",
-			"Vendor documentation links",
-			"Data streams",
-		},
-	},
+// optionalSubsectionTitles are subsections present in the template that are not required
+// (e.g. Agentless deployment, API usage, Vendor resources under Troubleshooting).
+// They are excluded from RequiredSections but may appear in RecommendedSections.
+var optionalSubsectionTitles = map[string]bool{
+	"Agentless deployment": true,
+	"API usage":            true,
+	"Vendor resources":    true, // under Troubleshooting; "Vendor documentation links" under Reference is required
 }
+
+// convertParsedToRequired builds RequiredSection slice from parsed template sections.
+// Templated subsection "Set up steps in {[.Manifest.Title]}" is normalized to "Set up steps in"
+// for prefix matching in checkRequiredSections. Optional subsections are excluded.
+func convertParsedToRequired(sections []parsing.Section) []RequiredSection {
+	var out []RequiredSection
+	for _, s := range sections {
+		if !s.IsTopLevel() {
+			continue
+		}
+		req := RequiredSection{Name: s.Title}
+		for _, sub := range s.Subsections {
+			if optionalSubsectionTitles[sub.Title] {
+				continue
+			}
+			// Normalize templated "Set up steps in {[.Manifest.Title]}" to "Set up steps in"
+			subName := sub.Title
+			if strings.Contains(sub.Title, "Set up steps in") && (strings.Contains(sub.Title, "{[") || strings.Contains(sub.Title, "{{")) {
+				subName = "Set up steps in"
+			}
+			req.Subsections = append(req.Subsections, subName)
+		}
+		out = append(out, req)
+	}
+	return out
+}
+
+// initRequiredSections loads the package-docs-readme template and derives required sections from it.
+// Package-docs-readme.md.tmpl is the source of truth for expected section structure.
+func initRequiredSections() []RequiredSection {
+	template := archetype.GetPackageDocsReadmeTemplate()
+	sections := parsing.ParseSections(template)
+	if len(sections) == 0 {
+		// Fallback if template is empty or unparseable so the package still builds
+		return fallbackRequiredSections()
+	}
+	return convertParsedToRequired(sections)
+}
+
+// fallbackRequiredSections returns a minimal required section list when template cannot be parsed.
+func fallbackRequiredSections() []RequiredSection {
+	return []RequiredSection{
+		{Name: "Overview", Subsections: []string{"Compatibility", "How it works"}},
+		{Name: "What data does this integration collect?", Subsections: []string{"Supported use cases"}},
+		{Name: "What do I need to use this integration?", Subsections: nil},
+		{Name: "How do I deploy this integration?", Subsections: []string{"Agent-based deployment", "Set up steps in", "Set up steps in Kibana", "Validation"}},
+		{Name: "Troubleshooting", Subsections: nil},
+		{Name: "Performance and scaling", Subsections: nil},
+		{Name: "Reference", Subsections: []string{"Inputs used", "Vendor documentation links", "Data streams"}},
+	}
+}
+
+// RequiredSections defines the top-level sections (H2) that must be present in the README.
+// Derived from package-docs-readme.md.tmpl at init. Exported for reuse by metrics package.
+var RequiredSections = initRequiredSections()
 
 // RecommendedSections lists optional but recommended sections.
 // Exported for reuse by metrics package.
 var RecommendedSections = []string{
 	"API usage", // Under Reference, for integrations using APIs
-	// Note: "Agentless deployment" is NOT included here - it's only applicable
-	// to integrations with agentless enabled in manifest.yml
 }
 
 // Alternative section names that are acceptable
@@ -84,20 +106,45 @@ var sectionAliases = map[string][]string{
 	"reference":                                {"appendix", "field reference"},
 }
 
-const structureValidatorInstruction = `You are a documentation structure validator for Elastic integration packages.
+// formatExpectedStructureBlock formats RequiredSections into the "Expected Section Structure" block
+// for the LLM instruction, keeping it in sync with package-docs-readme.md.tmpl.
+func formatExpectedStructureBlock(sections []RequiredSection) string {
+	var b strings.Builder
+	for i, s := range sections {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(fmt.Sprintf("%d. **## %s**", i+1, s.Name))
+		if len(s.Subsections) > 0 || strings.EqualFold(s.Name, "Reference") {
+			subs := make([]string, 0, len(s.Subsections)+1)
+			for _, sub := range s.Subsections {
+				if sub == "Set up steps in" {
+					subs = append(subs, "### Set up steps in [Product Name]")
+				} else {
+					subs = append(subs, "### "+sub)
+				}
+			}
+			if strings.EqualFold(s.Name, "Reference") {
+				subs = append(subs, "### API usage if applicable")
+			}
+			b.WriteString(" (with subsections: " + strings.Join(subs, ", ") + ")")
+		}
+		b.WriteString("\n")
+	}
+	return b.String()
+}
+
+// buildStructureValidatorInstruction builds the full instruction string with the expected section
+// structure derived from RequiredSections (which is loaded from the template at init).
+func buildStructureValidatorInstruction() string {
+	block := formatExpectedStructureBlock(RequiredSections)
+	return `You are a documentation structure validator for Elastic integration packages.
 Your task is to validate that the README follows the expected structure and format per the official template.
 
 ## Expected Section Structure (from package-docs-readme.md.tmpl)
 The documentation MUST include these sections in order:
 
-1. **## Overview** (with subsections: ### Compatibility, ### How it works)
-2. **## What data does this integration collect?** (with subsection: ### Supported use cases)
-3. **## What do I need to use this integration?**
-4. **## How do I deploy this integration?** (with subsections: ### Agent-based deployment, ### Set up steps in [Product Name], ### Set up steps in Kibana, ### Validation)
-5. **## Troubleshooting**
-6. **## Performance and scaling**
-7. **## Reference** (with subsections: ### {Data stream name}, ### Inputs used, ### API usage if applicable)
-
+` + block + `
 ## Input
 The documentation content to validate is provided directly in the user message.
 Static validation has already checked for required sections - focus on semantic structure and order.
@@ -119,6 +166,9 @@ Set valid=false if any major or critical issues are found. Minor issues alone do
 
 ## IMPORTANT
 Output ONLY the JSON object. No other text.`
+}
+
+var structureValidatorInstruction = buildStructureValidatorInstruction()
 
 // StructureValidator validates README structure and format (Section A)
 type StructureValidator struct {
