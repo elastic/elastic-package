@@ -36,9 +36,10 @@
 # stack.elastic_subscription: "basic"
 
 ## Configure LLM provider for documentation generation
-# Gemini API key for Gemini models
+# Provider name.
+# llm.provider: "gemini"
+# Gemini: API key and model
 # llm.gemini.api_key: "your-gemini-api-key"
-# Gemini model ID (optional, defaults to gemini-3-flash-preview)
 # llm.gemini.model: "gemini-3-flash-preview"
 
 ## LLM Tracing (OpenTelemetry/Phoenix)

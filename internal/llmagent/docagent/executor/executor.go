@@ -25,17 +25,19 @@ import (
 )
 
 const (
-	maxIterations = 15
-	appName       = "elastic-package"
-	defaultUserID = "default-user"
+	maxIterations  = 15
+	appName        = "elastic-package"
+	defaultUserID  = "default-user"
+	providerGemini = "gemini"
 )
 
 // Config holds configuration for creating an Executor.
 type Config struct {
+	Provider       string // LLM provider; empty defaults to gemini
 	APIKey         string
 	ModelID        string
 	Instruction    string
-	ThinkingBudget *int32         // Optional thinking budget for Gemini models (nil = default, 0 = disabled)
+	ThinkingBudget *int32         // Optional thinking budget for LLM models (nil = default, 0 = disabled)
 	TracingConfig  tracing.Config // Tracing configuration
 }
 
@@ -54,6 +56,7 @@ type ConversationEntry struct {
 
 // Executor wraps an ADK LLM agent for documentation generation.
 type Executor struct {
+	provider       string
 	llmModel       model.LLM
 	modelID        string
 	tools          []tool.Tool
@@ -61,6 +64,19 @@ type Executor struct {
 	instruction    string
 	sessionService session.Service
 	thinkingBudget *int32
+}
+
+// newModel creates a model.LLM for the given provider. Only "gemini" is supported today.
+func newModel(ctx context.Context, provider, modelID, apiKey string) (model.LLM, error) {
+	if provider == "" {
+		provider = providerGemini
+	}
+	if provider != providerGemini {
+		return nil, fmt.Errorf("unsupported LLM provider %q (only %s is supported)", provider, providerGemini)
+	}
+	return gemini.NewModel(ctx, modelID, &genai.ClientConfig{
+		APIKey: apiKey,
+	})
 }
 
 // NewWithToolsets creates a new ADK-based executor with tools and optional toolsets.
@@ -79,12 +95,13 @@ func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolset
 		logger.Debugf("Failed to initialize LLM tracing: %v", err)
 	}
 
-	// Create Gemini model
-	llmModel, err := gemini.NewModel(ctx, modelID, &genai.ClientConfig{
-		APIKey: cfg.APIKey,
-	})
+	provider := cfg.Provider
+	if provider == "" {
+		provider = providerGemini
+	}
+	llmModel, err := newModel(ctx, provider, modelID, cfg.APIKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create Gemini model: %w", err)
+		return nil, err
 	}
 
 	if cfg.ThinkingBudget != nil {
@@ -94,6 +111,7 @@ func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolset
 	}
 
 	return &Executor{
+		provider:       provider,
 		llmModel:       llmModel,
 		modelID:        modelID,
 		tools:          tools,
@@ -102,6 +120,14 @@ func NewWithToolsets(ctx context.Context, cfg Config, tools []tool.Tool, toolset
 		sessionService: session.InMemoryService(),
 		thinkingBudget: cfg.ThinkingBudget,
 	}, nil
+}
+
+// Provider returns the LLM provider name (e.g. gemini).
+func (e *Executor) Provider() string {
+	if e.provider == "" {
+		return providerGemini
+	}
+	return e.provider
 }
 
 // ModelID returns the model ID used by this executor.
@@ -127,7 +153,7 @@ func (e *Executor) Toolsets() []tool.Toolset {
 // ExecuteTask runs the executor to complete a task.
 func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *TaskResult, err error) {
 	// Start agent span for the entire task
-	ctx, agentSpan := tracing.StartAgentSpan(ctx, "executor:execute_task", e.modelID)
+	ctx, agentSpan := tracing.StartAgentSpan(ctx, "executor:execute_task", e.modelID, e.Provider())
 	defer func() {
 		if err != nil {
 			tracing.SetSpanError(agentSpan, err)
@@ -158,8 +184,8 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 		Toolsets:    e.toolsets,
 	}
 
-	// Add thinking config if budget is set
-	if e.thinkingBudget != nil {
+	// Add thinking config only for Gemini when budget is set
+	if (e.provider == "" || e.provider == providerGemini) && e.thinkingBudget != nil {
 		agentCfg.GenerateContentConfig = &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				ThinkingBudget: e.thinkingBudget,
@@ -238,7 +264,7 @@ func (e *Executor) ExecuteTask(ctx context.Context, prompt string) (result *Task
 					}
 
 					// Create LLM span for this response
-					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", e.modelID, inputMessages)
+					_, llmSpan := tracing.StartLLMSpan(ctx, "llm:response", e.modelID, e.Provider(), inputMessages)
 					outputMessages := []tracing.Message{{Role: "assistant", Content: part.Text}}
 					tracing.EndLLMSpan(ctx, llmSpan, outputMessages, promptTokens, completionTokens)
 				}

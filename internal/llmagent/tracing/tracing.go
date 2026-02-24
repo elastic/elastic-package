@@ -323,11 +323,21 @@ func sessionAttributes(ctx context.Context) []attribute.KeyValue {
 	return nil
 }
 
+// providerAttrs returns GenAISystem and LLMProvider attributes for the given provider (empty = gemini).
+func providerAttrs(provider string) (genAISystem, llmProvider string) {
+	if provider == "" {
+		return "gemini", "google"
+	}
+	return provider, provider
+}
+
 // StartSessionSpan starts a root span for an entire session/conversation.
 // It generates a unique session ID and stores it in the context for propagation to child spans.
 // It also initializes token tracking for the session.
-func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (context.Context, trace.Span) {
+// provider is the LLM provider name (e.g. gemini).
+func StartSessionSpan(ctx context.Context, sessionName string, modelID string, provider string) (context.Context, trace.Span) {
 	sessionID := uuid.New().String()
+	genAISystem, llmProvider := providerAttrs(provider)
 
 	// Store session ID at package level for retrieval
 	setCurrentSessionID(sessionID)
@@ -343,9 +353,9 @@ func StartSessionSpan(ctx context.Context, sessionName string, modelID string) (
 			attribute.String(AttrOpenInferenceSpanKind, SpanKindChain),
 			attribute.String(AttrSessionID, sessionID),
 			attribute.String(AttrLLMModelName, modelID),
-			attribute.String(AttrLLMProvider, "google"),
+			attribute.String(AttrLLMProvider, llmProvider),
 			attribute.String(AttrGenAIRequestModel, modelID),
-			attribute.String(AttrGenAISystem, "gemini"),
+			attribute.String(AttrGenAISystem, genAISystem),
 			// Build info for version tracking
 			attribute.String(AttrBuildCommit, version.CommitHash),
 			attribute.String(AttrBuildTime, version.BuildTime),
@@ -458,18 +468,19 @@ func StartChainSpan(ctx context.Context, name string) (context.Context, trace.Sp
 	return ctx, span
 }
 
-// StartAgentSpan starts a new span for an agent task execution
-func StartAgentSpan(ctx context.Context, name string, modelID string) (context.Context, trace.Span) {
-	// Check if there's a parent span in the context
+// StartAgentSpan starts a new span for an agent task execution.
+// provider is the LLM provider name (e.g. gemini); empty defaults to gemini/google.
+func StartAgentSpan(ctx context.Context, name string, modelID string, provider string) (context.Context, trace.Span) {
 	parentSpan := trace.SpanFromContext(ctx)
 	parentSpanCtx := parentSpan.SpanContext()
+	genAISystem, llmProvider := providerAttrs(provider)
 
 	attrs := []attribute.KeyValue{
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindAgent),
-		attribute.String(AttrGenAISystem, "gemini"),
+		attribute.String(AttrGenAISystem, genAISystem),
 		attribute.String(AttrGenAIRequestModel, modelID),
-		attribute.String(AttrLLMModelName, modelID), // Used for cost calculation
-		attribute.String(AttrLLMProvider, "google"), // Used for cost calculation
+		attribute.String(AttrLLMModelName, modelID),
+		attribute.String(AttrLLMProvider, llmProvider),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 	ctx, span := Tracer().Start(ctx, name, trace.WithAttributes(attrs...))
@@ -487,14 +498,16 @@ func StartAgentSpan(ctx context.Context, name string, modelID string) (context.C
 	return ctx, span
 }
 
-// StartLLMSpan starts a new span for an LLM call
-func StartLLMSpan(ctx context.Context, name string, modelID string, inputMessages []Message) (context.Context, trace.Span) {
+// StartLLMSpan starts a new span for an LLM call.
+// provider is the LLM provider name (e.g. gemini); empty defaults to gemini/google.
+func StartLLMSpan(ctx context.Context, name string, modelID string, provider string, inputMessages []Message) (context.Context, trace.Span) {
+	genAISystem, llmProvider := providerAttrs(provider)
 	attrs := []attribute.KeyValue{
 		attribute.String(AttrOpenInferenceSpanKind, SpanKindLLM),
-		attribute.String(AttrGenAISystem, "gemini"),
+		attribute.String(AttrGenAISystem, genAISystem),
 		attribute.String(AttrGenAIRequestModel, modelID),
-		attribute.String(AttrLLMModelName, modelID), // Used for cost calculation
-		attribute.String(AttrLLMProvider, "google"),
+		attribute.String(AttrLLMModelName, modelID),
+		attribute.String(AttrLLMProvider, llmProvider),
 	}
 	attrs = append(attrs, sessionAttributes(ctx)...)
 

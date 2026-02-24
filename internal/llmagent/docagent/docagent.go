@@ -118,6 +118,7 @@ type SectionGenerationContext struct {
 
 // AgentConfig holds configuration for creating a DocumentationAgent
 type AgentConfig struct {
+	Provider       string         // LLM provider (e.g. gemini); default gemini
 	APIKey         string
 	ModelID        string
 	PackageRoot    string
@@ -152,7 +153,12 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 	mcpToolsets := mcptools.LoadToolsets()
 
 	// Create executor configuration with system instructions
+	provider := cfg.Provider
+	if provider == "" {
+		provider = "gemini"
+	}
 	execCfg := executor.Config{
+		Provider:       provider,
 		APIKey:         cfg.APIKey,
 		ModelID:        cfg.ModelID,
 		Instruction:    AgentInstructions,
@@ -219,7 +225,7 @@ End your response with "CONFIRMED: I will follow all guidelines." if you underst
 // Uses section-based generation where each section has its own generate-validate loop.
 func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInteractive bool) error {
 	genCfg := DefaultGenerationConfig()
-	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID())
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:generate", d.executor.ModelID(), d.executor.Provider())
 	var sessionOutput string
 	defer func() {
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
@@ -297,7 +303,7 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 
 // ModifyDocumentation runs the documentation modification process for targeted changes using section-based approach
 func (d *DocumentationAgent) ModifyDocumentation(ctx context.Context, nonInteractive bool, modifyPrompt string) error {
-	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:modify", d.executor.ModelID())
+	ctx, sessionSpan := tracing.StartSessionSpan(ctx, "doc:modify", d.executor.ModelID(), d.executor.Provider())
 	var sessionOutput string
 	defer func() {
 		tracing.EndSessionSpan(ctx, sessionSpan, sessionOutput)
@@ -1385,6 +1391,7 @@ func (d *DocumentationAgent) buildWorkflowConfig() workflow.Config {
 	cfg := workflow.DefaultConfig().
 		WithModel(d.executor.Model()).
 		WithModelID(d.executor.ModelID()).
+		WithProvider(d.executor.Provider()).
 		WithTools(d.executor.Tools()).
 		WithToolsets(d.executor.Toolsets())
 
@@ -1430,6 +1437,11 @@ func (d *DocumentationAgent) TargetDocFile() string {
 // ModelID returns the model ID from the executor
 func (d *DocumentationAgent) ModelID() string {
 	return d.executor.ModelID()
+}
+
+// Provider returns the LLM provider name from the executor
+func (d *DocumentationAgent) Provider() string {
+	return d.executor.Provider()
 }
 
 // packageTitle returns the package title, preferring pkgCtx.Manifest.Title when set.

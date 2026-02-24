@@ -31,6 +31,9 @@ type Config struct {
 	// ModelID is the model identifier string for tracing
 	ModelID string
 
+	// Provider is the LLM provider name for tracing (e.g. gemini)
+	Provider string
+
 	// Tools available to agents in the workflow
 	Tools []tool.Tool
 
@@ -73,6 +76,12 @@ func (c Config) WithModel(m model.LLM) Config {
 // WithModelID sets the model identifier for tracing
 func (c Config) WithModelID(id string) Config {
 	c.ModelID = id
+	return c
+}
+
+// WithProvider sets the LLM provider name for tracing
+func (c Config) WithProvider(provider string) Config {
+	c.Provider = provider
 	return c
 }
 

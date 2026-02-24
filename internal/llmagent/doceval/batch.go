@@ -34,7 +34,10 @@ type BatchEvaluationConfig struct {
 	// Parallelism is the number of packages to process in parallel
 	Parallelism int
 
-	// APIKey is the Gemini API key
+	// Provider is the LLM provider (e.g. gemini)
+	Provider string
+
+	// APIKey is the LLM provider API key
 	APIKey string
 
 	// ModelID is the LLM model ID to use
@@ -49,7 +52,7 @@ type BatchEvaluationConfig struct {
 	// Profile is the elastic-package profile for configuration
 	Profile *profile.Profile
 
-	// ThinkingBudget is the thinking budget for Gemini models
+	// ThinkingBudget is the thinking budget for the LLM model
 	ThinkingBudget *int32
 }
 
@@ -178,7 +181,12 @@ func evaluatePackage(ctx context.Context, job batchJob, cfg BatchEvaluationConfi
 	}
 
 	// Create documentation agent for this package
+	provider := cfg.Provider
+	if provider == "" {
+		provider = "gemini"
+	}
 	agentCfg := docagent.AgentConfig{
+		Provider:       provider,
 		APIKey:         cfg.APIKey,
 		ModelID:        cfg.ModelID,
 		PackageRoot:    job.packagePath,

@@ -407,9 +407,8 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
 
 - To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
-    - `GOOGLE_API_KEY`: API key for Gemini LLM services
-    - `GEMINI_MODEL`: Gemini model ID (defaults to `gemini-3-flash-preview`)
-    - `GEMINI_THINKING_BUDGET`: Thinking budget in tokens for Gemini Pro models (defaults to `128`)
+    - `LLM_PROVIDER` / **llm.provider**: Provider name. Gemini is the default provider.
+    - Gemini: `GOOGLE_API_KEY` / **llm.gemini.api_key**, `GEMINI_MODEL` / **llm.gemini.model**, `GEMINI_THINKING_BUDGET` / **llm.gemini.thinking_budget**.
     - LLM tracing is configured via profile config only: **llm.tracing.enabled**, **llm.tracing.endpoint**, **llm.tracing.api_key**, **llm.tracing.project_name** (see `config.yml.example`).
 
 

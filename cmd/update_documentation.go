@@ -39,8 +39,7 @@ The AI agent supports three modes:
    - Computes quality metrics (structure, accuracy, completeness, quality scores)
    - Supports batch processing of multiple packages with --evaluate-batch flag
 
-Multi-file support:
-   - For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
+For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
 
 Evaluation mode examples:
   # Evaluate a single package (run from package directory)
@@ -56,9 +55,8 @@ Evaluation mode examples:
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
-- GOOGLE_API_KEY / llm.gemini.api_key: API key for Gemini
-- GEMINI_MODEL / llm.gemini.model: Model ID (defaults to gemini-3-flash-preview)
-- GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget: Thinking budget in tokens (defaults to 128 for "low" mode)`
+- LLM_PROVIDER / llm.provider: Provider name (only Gemini provider currently supported).
+- Gemini: GOOGLE_API_KEY / llm.gemini.api_key, GEMINI_MODEL / llm.gemini.model, GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget`
 
 const (
 	modePromptRewrite = "Rewrite (full regeneration)"
@@ -177,20 +175,41 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("  1. Edit markdown files in `_dev/build/docs/` (e.g., README.md). Please follow the documentation guidelines from https://www.elastic.co/docs/extend/integrations/documentation-guidelines."))
 	cmd.Println(tui.Info("  2. Run `elastic-package build`"))
 	cmd.Println()
-	cmd.Println(tui.Info("For AI-powered documentation updates, configure Gemini:"))
-	cmd.Println(tui.Info("  - Set your Gemini API key with GOOGLE_API_KEY environment variable or set it with `llm.gemini.api_key` in your elastic-package profile config"))
+	cmd.Println(tui.Info("For AI-powered documentation updates, configure an LLM provider (Gemini only provider currently supported):"))
+	cmd.Println(tui.Info("  - Set llm.provider in your profile or LLM_PROVIDER env var"))
+	cmd.Println(tui.Info("  - For Gemini: set GOOGLE_API_KEY or llm.gemini.api_key in your elastic-package profile config"))
 }
 
 const (
 	defaultModelID              = "gemini-3-flash-preview"
 	defaultThinkingBudget int32 = 128
+	defaultProvider             = "gemini"
 )
 
-// getGeminiConfig gets Gemini configuration from environment or profile
-func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, thinkingBudget *int32) {
+// getProvider returns the LLM provider name from environment or profile.
+func getProvider(profile *profile.Profile) string {
+	p := getConfigValue(profile, "LLM_PROVIDER", "llm.provider", defaultProvider)
+	if p == "" {
+		return defaultProvider
+	}
+	return strings.ToLower(p)
+}
+
+// getLLMConfig returns provider, api key, model ID, and optional thinking budget.
+// For provider "gemini" (default), uses GOOGLE_API_KEY and llm.gemini.*. Other providers use provider-specific keys.
+func getLLMConfig(profile *profile.Profile) (provider, apiKey, modelID string, thinkingBudget *int32) {
+	provider = getProvider(profile)
+	if provider == "" {
+		provider = defaultProvider
+	}
+	if provider != defaultProvider {
+		// Other providers: use provider-specific config keys (e.g. llm.openai.api_key). Not yet implemented.
+		apiKey = getConfigValue(profile, "", "llm."+provider+".api_key", "")
+		modelID = getConfigValue(profile, "", "llm."+provider+".model", "")
+		return provider, apiKey, modelID, nil
+	}
 	apiKey = getConfigValue(profile, "GOOGLE_API_KEY", "llm.gemini.api_key", "")
 	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", defaultModelID)
-
 	b := defaultThinkingBudget
 	if budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", ""); budgetStr != "" {
 		if budget, err := strconv.ParseInt(budgetStr, 10, 32); err == nil {
@@ -198,8 +217,7 @@ func getGeminiConfig(profile *profile.Profile) (apiKey string, modelID string, t
 		}
 	}
 	thinkingBudget = &b
-
-	return apiKey, modelID, thinkingBudget
+	return provider, apiKey, modelID, thinkingBudget
 }
 
 // getTracingConfig gets tracing configuration from profile config (llm.tracing.*) only.
@@ -281,7 +299,6 @@ func runDocumentationUpdate(cmd *cobra.Command, docAgent *docagent.Documentation
 			return fmt.Errorf("documentation update failed: %w", err)
 		}
 	}
-	cmd.Println("Done")
 	return nil
 }
 
@@ -296,17 +313,17 @@ func updateDocumentationCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get profile: %w", err)
 	}
 
-	apiKey, modelID, thinkingBudget := getGeminiConfig(profile)
+	provider, apiKey, modelID, thinkingBudget := getLLMConfig(profile)
 
 	if evaluateMode {
-		return handleEvaluationMode(cmd, profile, apiKey, modelID, thinkingBudget)
+		return handleEvaluationMode(cmd, profile, provider, apiKey, modelID, thinkingBudget)
 	}
 
-	return handleStandardMode(cmd, profile, apiKey, modelID, thinkingBudget)
+	return handleStandardMode(cmd, profile, provider, apiKey, modelID, thinkingBudget)
 }
 
 // handleStandardMode handles the standard documentation update workflow
-func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
+func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32) error {
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
@@ -323,9 +340,9 @@ func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, apiKey, mo
 	}
 
 	if thinkingBudget != nil {
-		cmd.Printf("Using Gemini provider with model: %s (thinking budget: %d)\n", modelID, *thinkingBudget)
+		cmd.Printf("Using LLM model \"%s\" (thinking budget: %d)\n", modelID, *thinkingBudget)
 	} else {
-		cmd.Printf("Using Gemini provider with model: %s\n", modelID)
+		cmd.Printf("Using LLM model \"%s\"\n", modelID)
 	}
 
 	targetDocFile, err := selectDocumentationFile(cmd, packageRoot, flags.nonInteractive)
@@ -345,6 +362,7 @@ func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, apiKey, mo
 	tracingConfig := getTracingConfig(profile)
 
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+		Provider:       provider,
 		APIKey:         apiKey,
 		ModelID:        modelID,
 		PackageRoot:    packageRoot,
@@ -447,7 +465,7 @@ func printSingleEvaluationSummary(cmd *cobra.Command, result *doceval.Evaluation
 }
 
 // runBatchEvaluation executes batch evaluation for multiple packages
-func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32, tracingEnabled bool) error {
+func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32, tracingEnabled bool) error {
 	if flags.integrationsPath == "" {
 		return fmt.Errorf("--evaluate-integrations-path is required for batch mode (or set INTEGRATIONS_PATH env var)")
 	}
@@ -464,6 +482,7 @@ func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *
 		OutputDir:        flags.outputDir,
 		PackageNames:     packageNames,
 		Parallelism:      flags.parallelism,
+		Provider:         provider,
 		APIKey:           apiKey,
 		ModelID:          modelID,
 		MaxIterations:    flags.maxIterations,
@@ -482,13 +501,14 @@ func runBatchEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *
 }
 
 // runSinglePackageEvaluation executes evaluation for a single package
-func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32, tracingConfig tracing.Config) error {
+func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32, tracingConfig tracing.Config) error {
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
 	agent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+		Provider:       provider,
 		APIKey:         apiKey,
 		ModelID:        modelID,
 		PackageRoot:    packageRoot,
@@ -518,9 +538,9 @@ func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, p
 }
 
 // handleEvaluationMode handles the --evaluate flag for documentation quality evaluation
-func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, modelID string, thinkingBudget *int32) error {
+func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32) error {
 	if apiKey == "" {
-		return fmt.Errorf("evaluation mode requires GOOGLE_API_KEY to be set")
+		return fmt.Errorf("evaluation mode requires an LLM provider API key to be set")
 	}
 
 	flags, err := getEvaluationModeFlags(cmd)
@@ -538,8 +558,8 @@ func handleEvaluationMode(cmd *cobra.Command, profile *profile.Profile, apiKey, 
 	cmd.Printf("📊 Running documentation evaluation with model: %s\n", modelID)
 
 	if flags.batchFlag != "" {
-		return runBatchEvaluation(cmd, flags, profile, apiKey, modelID, thinkingBudget, tracingConfig.Enabled)
+		return runBatchEvaluation(cmd, flags, profile, provider, apiKey, modelID, thinkingBudget, tracingConfig.Enabled)
 	}
 
-	return runSinglePackageEvaluation(cmd, flags, profile, apiKey, modelID, thinkingBudget, tracingConfig)
+	return runSinglePackageEvaluation(cmd, flags, profile, provider, apiKey, modelID, thinkingBudget, tracingConfig)
 }

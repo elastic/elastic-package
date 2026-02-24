@@ -146,7 +146,7 @@ func EvaluatePackage(ctx context.Context, agent *docagent.DocumentationAgent, cf
 	// Initialize tracing - track span so we can end it before flushing
 	var sessionSpan trace.Span
 	if cfg.EnableTracing {
-		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", agent.ModelID())
+		ctx, sessionSpan = tracing.StartSessionSpan(ctx, "doc:evaluate", agent.ModelID(), agent.Provider())
 		// Note: We'll end the span explicitly before flushing, but keep defer as safety net
 		defer func() {
 			if sessionSpan != nil && sessionSpan.IsRecording() {

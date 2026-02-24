@@ -210,7 +210,7 @@ func (b *Builder) runAgent(ctx context.Context, agentName, prompt string) (outpu
 // runAgentWithADK executes an ADK agent with an isolated session and returns its output
 func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgent agent.Agent, prompt string) (output string, promptTokens, completionTokens int, err error) {
 	// Start agent span (container for the agent's work)
-	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID)
+	agentCtx, agentSpan := tracing.StartAgentSpan(ctx, "agent:"+agentName, b.config.ModelID, b.config.Provider)
 	defer func() {
 		tracing.SetSpanOk(agentSpan)
 		agentSpan.End()
@@ -277,7 +277,7 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 
 	// Create a proper LLM span with token counts for Phoenix cost calculation
 	if promptTokens > 0 || completionTokens > 0 {
-		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, inputMessages)
+		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, b.config.Provider, inputMessages)
 		outputMessages := []tracing.Message{{Role: "assistant", Content: truncate(output, truncateLen)}}
 		tracing.EndLLMSpan(agentCtx, llmSpan, outputMessages, promptTokens, completionTokens)
 	}
