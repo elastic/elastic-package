@@ -26,7 +26,9 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+	pkgcommon "github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -46,6 +48,8 @@ const (
 	defaultNamespace = "ep"
 )
 
+var prefixServiceBenchRunIDEnv = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
+
 type runner struct {
 	options  Options
 	scenario *scenario
@@ -58,7 +62,8 @@ type runner struct {
 	mcollector        *collector
 	corporaFile       string
 
-	service servicedeployer.DeployedService
+	service        servicedeployer.DeployedService
+	secretVarNames map[string]bool
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func(context.Context) error
@@ -146,7 +151,11 @@ func (r *runner) setUp(ctx context.Context) error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.svcInfo.Logs.Folder.Local = serviceLogsDir
 	r.svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.svcInfo.Test.RunID = common.NewRunID()
+	prefix := ""
+	if v, found := os.LookupEnv(prefixServiceBenchRunIDEnv); found && v != "" {
+		prefix = v
+	}
+	r.svcInfo.Test.RunID = pkgcommon.CreateTestRunIDWithPrefix(prefix)
 
 	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
@@ -220,6 +229,8 @@ func (r *runner) setUp(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
+
+	r.secretVarNames = collectSecretVarNames(pkgManifest, dataStreamManifest)
 
 	r.runtimeDataStream = fmt.Sprintf(
 		"%s-%s.%s-%s",
@@ -319,7 +330,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum, r.secretVarNames)
 }
 
 func (r *runner) setupService(ctx context.Context, serviceName string, deployerName string) (servicedeployer.DeployedService, error) {
@@ -330,7 +341,7 @@ func (r *runner) setupService(ctx context.Context, serviceName string, deployerN
 
 	// Setup service.
 	logger.Debug("Setting up service...")
-	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
+	devDeployDir := filepath.Clean(filepath.Join(r.options.PackageRoot, r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
 		PackageRoot:            r.options.PackageRoot,
 		DevDeployDir:           devDeployDir,
