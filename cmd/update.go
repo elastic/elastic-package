@@ -29,6 +29,11 @@ func setupUpdateCommand() *cobraext.Command {
 	updateDocumentationCmd.Flags().String("modify-prompt", "", "modification instructions for targeted documentation changes (skips full rewrite)")
 	updateDocumentationCmd.Flags().String("doc-file", "", "specify which markdown file to update (e.g., README.md, vpc.md). Defaults to README.md")
 
+	// Evaluation mode flags
+	updateDocumentationCmd.Flags().Bool("evaluate", false, "run in evaluation mode - outputs to directory instead of package, computes quality metrics")
+	updateDocumentationCmd.Flags().String("evaluate-output-dir", "./doc_eval_results", "directory for evaluation results (used with --evaluate)")
+	updateDocumentationCmd.Flags().Uint("evaluate-max-iterations", 3, "maximum generation iterations per section (evaluation mode only)")
+
 	cmd := &cobra.Command{
 		Use:   "update",
 		Short: "Update package resources",

@@ -748,14 +748,23 @@ _Context: package_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
+The AI agent supports three modes:
 1. Rewrite mode (default): Full documentation regeneration
-   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
+   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the based on the template and the package context.
 2. Modify mode: Targeted documentation changes
    - The LLM will perform a targeted change to the documentation, based on user-provided instructions.
    - Use --modify-prompt flag to provide instructions for non-interactive modifications
+3. Evaluate mode: Documentation quality evaluation
+   - Use --evaluate flag to run in evaluation mode
+   - This mode is intended for quality assurance and testing of the documentation agent.
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - To evaluate multiple packages, use the elastic-package for-each command to run evaluation once per package.
 
 For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
+
+Evaluation mode example:
+  # Evaluate the current package (run from package directory)
+  elastic-package update documentation --evaluate --evaluate-output-dir ./results
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -859,7 +868,7 @@ The following settings are available per profile:
 
 ### AI-powered Documentation Configuration
 
-The `elastic-package update documentation` command can generate or update package documentation using an LLM. It supports full rewrites and targeted modifications.
+The `elastic-package update documentation` command can generate or update package documentation using an LLM. It supports full rewrites, targeted modifications, and quality evaluation.
 
 For full details on configuration, LLM provider setup, and the optional service knowledge base, see [docs/howto/ai_documentation.md](docs/howto/ai_documentation.md).
 

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -17,6 +18,8 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	llmconfig "github.com/elastic/elastic-package/internal/llmagent/config"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
+	"github.com/elastic/elastic-package/internal/llmagent/doceval"
+	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -24,14 +27,23 @@ import (
 
 const updateDocumentationLongDescription = `Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
-The AI agent supports two modes:
+The AI agent supports three modes:
 1. Rewrite mode (default): Full documentation regeneration
-   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
+   - Analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the based on the template and the package context.
 2. Modify mode: Targeted documentation changes
    - The LLM will perform a targeted change to the documentation, based on user-provided instructions.
    - Use --modify-prompt flag to provide instructions for non-interactive modifications
+3. Evaluate mode: Documentation quality evaluation
+   - Use --evaluate flag to run in evaluation mode
+   - This mode is intended for quality assurance and testing of the documentation agent.
+   - Computes quality metrics (structure, accuracy, completeness, quality scores)
+   - To evaluate multiple packages, use the elastic-package for-each command to run evaluation once per package.
 
 For packages with multiple documentation files, the user can specify which file to update in interactive mode, or use the --doc-file flag to specify the file to update in non-interactive mode.
+
+Evaluation mode example:
+  # Evaluate the current package (run from package directory)
+  elastic-package update documentation --evaluate --evaluate-output-dir ./results
 
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
@@ -206,12 +218,22 @@ func runDocumentationUpdate(cmd *cobra.Command, docAgent *docagent.Documentation
 }
 
 func updateDocumentationCommandAction(cmd *cobra.Command, _ []string) error {
+	evaluateMode, err := cmd.Flags().GetBool("evaluate")
+	if err != nil {
+		return fmt.Errorf("failed to get evaluate flag: %w", err)
+	}
+
 	p, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to get profile: %w", err)
 	}
 
 	cfg := llmconfig.Load(p)
+
+	if evaluateMode {
+		return handleEvaluationMode(cmd, p, cfg)
+	}
+
 	return handleStandardMode(cmd, p, cfg)
 }
 
@@ -275,4 +297,106 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 	}
 
 	return runDocumentationUpdate(cmd, docAgent, useModifyMode, flags.nonInteractive, flags.modifyPrompt)
+}
+
+// evaluationModeFlags holds CLI flags for evaluation mode
+type evaluationModeFlags struct {
+	outputDir     string
+	maxIterations uint
+}
+
+// getEvaluationModeFlags extracts CLI flags needed for evaluation mode
+func getEvaluationModeFlags(cmd *cobra.Command) (evaluationModeFlags, error) {
+	var flags evaluationModeFlags
+	var err error
+
+	flags.outputDir, err = cmd.Flags().GetString("evaluate-output-dir")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get evaluate-output-dir flag: %w", err)
+	}
+
+	flags.maxIterations, err = cmd.Flags().GetUint("evaluate-max-iterations")
+	if err != nil {
+		return flags, fmt.Errorf("failed to get evaluate-max-iterations flag: %w", err)
+	}
+
+	return flags, nil
+}
+
+// printSingleEvaluationSummary prints the summary for single package evaluation results
+func printSingleEvaluationSummary(cmd *cobra.Command, result *doceval.EvaluationResult, outputDir string) {
+	cmd.Printf("\n📊 Evaluation Complete: %s\n", result.PackageName)
+	if result.Metrics != nil {
+		cmd.Printf("   Composite Score: %.1f\n", result.Metrics.CompositeScore)
+		cmd.Printf("   Structure Score: %.1f\n", result.Metrics.StructureScore)
+		cmd.Printf("   Accuracy Score: %.1f\n", result.Metrics.AccuracyScore)
+		cmd.Printf("   Completeness Score: %.1f\n", result.Metrics.CompletenessScore)
+		cmd.Printf("   Quality Score: %.1f\n", result.Metrics.QualityScore)
+		cmd.Printf("   Placeholder Count: %d\n", result.Metrics.PlaceholderCount)
+	}
+	cmd.Printf("   Approved: %v\n", result.Approved)
+	cmd.Printf("   Duration: %s\n", result.Duration.Round(time.Second))
+	if outputDir != "" {
+		cmd.Printf("   Results saved to: %s\n", outputDir)
+	}
+}
+
+// runSinglePackageEvaluation executes evaluation for a single package
+func runSinglePackageEvaluation(cmd *cobra.Command, flags evaluationModeFlags, p *profile.Profile, cfg llmconfig.LLMConfig, tracingConfig tracing.Config) error {
+	packageRoot, err := packages.FindPackageRoot()
+	if err != nil {
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	agent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
+		Provider:       cfg.Provider,
+		APIKey:         cfg.APIKey,
+		ModelID:        cfg.ModelID,
+		PackageRoot:    packageRoot,
+		DocFile:        "README.md",
+		Profile:        p,
+		ThinkingBudget: cfg.ThinkingBudget,
+		TracingConfig:  tracingConfig,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create documentation agent: %w", err)
+	}
+
+	evalCfg := doceval.EvaluationConfig{
+		OutputDir:     flags.outputDir,
+		MaxIterations: flags.maxIterations,
+		EnableTracing: tracingConfig.Enabled,
+		ModelID:       cfg.ModelID,
+	}
+
+	result, err := doceval.EvaluatePackage(cmd.Context(), agent, evalCfg)
+	if err != nil {
+		return fmt.Errorf("evaluation failed: %w", err)
+	}
+
+	printSingleEvaluationSummary(cmd, result, flags.outputDir)
+	return nil
+}
+
+// handleEvaluationMode handles the --evaluate flag for documentation quality evaluation
+func handleEvaluationMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LLMConfig) error {
+	if cfg.APIKey == "" {
+		return fmt.Errorf("evaluation mode requires an LLM provider API key to be set")
+	}
+
+	flags, err := getEvaluationModeFlags(cmd)
+	if err != nil {
+		return err
+	}
+
+	tracingConfig := llmconfig.TracingConfig(p)
+	if tracingConfig.Enabled {
+		if err := tracing.InitWithConfig(cmd.Context(), tracingConfig); err != nil {
+			cmd.Printf("Warning: failed to initialize tracing: %v\n", err)
+		}
+	}
+
+	cmd.Printf("📊 Running documentation evaluation with model: %s\n", cfg.ModelID)
+
+	return runSinglePackageEvaluation(cmd, flags, p, cfg, tracingConfig)
 }
