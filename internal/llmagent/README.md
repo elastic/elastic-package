@@ -68,11 +68,11 @@ Orchestrates documentation generation and modification. Entry points are `Update
 | File | Description |
 |------|-------------|
 | `docagent.go` | **DocumentationAgent**: section-based generation, modification, validation loops, doc path/backup/restore, prompt building wiring. |
-| `prompts_builder.go` | Builds prompts from type (revision, section generation, modification analysis, modification) and **PromptContext**; loads templates via `prompts` package. |
-| `modification_analyzer.go` | Analyzes modification requests to determine scope (global vs specific sections) and returns **ModificationScope**. |
+| `promptsbuilder.go` | Builds prompts from type (revision, section generation, modification analysis, modification) and **PromptContext**; loads templates via `prompts` package. |
+| `modificationanalyzer.go` | Analyzes modification requests to determine scope (global vs specific sections) and returns **ModificationScope**. |
 | `interactive.go` | Interactive review UI: display readme, user actions (approve/edit/cancel), revision prompts. |
-| `service_info_parser.go` | **ServiceInfoManager**: resolves path to `service_info.md`, loads and parses it into sections, exposes **GetSections** / **GetAllSections** for the `get_service_info` tool. |
-| `file_ops.go` | Read/write current readme, backup/restore original, display in browser. |
+| `serviceinfoparser.go` | **ServiceInfoManager**: resolves path to `service_info.md`, loads and parses it into sections, exposes **GetSections** / **GetAllSections** for the `get_service_info` tool. |
+| `fileops.go` | Read/write current readme, backup/restore original, display in browser. |
 | `postprocessor.go` | **EnsureDataStreamTemplates**: adds/removes `{{event "name"}}` and `{{fields "name"}}` in the Reference section based on package data streams; used after assembly. |
 
 **Key functions in `docagent.go`:**
@@ -107,13 +107,13 @@ LLM execution via Google ADK.
 
 ### `/docagent/prompts`
 
-Prompt templates and loading. Templates use `%s`/`%d` placeholders; **prompts_builder** in docagent fills them.
+Prompt templates and loading. Templates use `%s`/`%d` placeholders; **promptsbuilder** in docagent fills them.
 
 | File | Description |
 |------|-------------|
 | `resources.go` | Embedded prompt files. |
 | `loader.go` | **Load** by type; returns embedded prompt content. **Type**: Revision, SectionGeneration, ModificationAnalysis, Modification. |
-| `section_instructions.go` | **GetSectionInstructions**: section-specific instructions for the generator (e.g. Reference, Troubleshooting). Uses **validators.PackageContext**. |
+| `sectioninstructions.go` | **GetSectionInstructions**: section-specific instructions for the generator (e.g. Reference, Troubleshooting). Uses **validators.PackageContext**. |
 | `_static/agent_instructions.md` | Main agent system prompt (style, voice, templates). |
 | `_static/section_generation_prompt.txt` | Section generation prompt template. |
 | `_static/revision_prompt.txt` | Revision prompt template. |
@@ -126,7 +126,7 @@ Shared formatting rule constants (no dependencies on other docagent packages to 
 
 | File | Description |
 |------|-------------|
-| `style_rules.go` | **CriticalFormattingRules**, **FullFormattingRules**, **CriticRejectionCriteria** (lists, headings, links, code blocks, voice). |
+| `stylerules.go` | **CriticalFormattingRules**, **FullFormattingRules**, **CriticRejectionCriteria** (lists, headings, links, code blocks, voice). |
 
 ### `/docagent/agents`
 
@@ -147,15 +147,15 @@ Staged validators and shared types. Used by workflow (static/LLM validation) and
 |------|-------------|
 | `interface.go` | **SectionAgent**, **StagedValidator** interfaces; **Scope** (section vs full document). |
 | `validator.go` | Core validator types. |
-| `staged_validator.go` | Base staged validator behavior. |
-| `package_context.go` | **PackageContext**: manifest, data streams, service info, vendor setup; **LoadPackageContextForDoc**; used by validators and prompts. |
-| `structure_validator.go` | Structure (full-document): required sections, order. |
-| `completeness_validator.go` | Completeness (full-document): required content present. |
-| `accuracy_validator.go` | Accuracy (section or both): content matches package. |
-| `quality_validator.go` | Quality (section or both): clarity, completeness of section. |
-| `style_validator.go` | Style (section or both): Elastic style; uses **stylerules.FullFormattingRules**. |
-| `placeholder_validator.go` | Placeholders (section or both): correct placeholder usage. |
-| `accessibility_validator.go` | Accessibility (section or both). |
+| `stagedvalidator.go` | Base staged validator behavior. |
+| `packagecontext.go` | **PackageContext**: manifest, data streams, service info, vendor setup; **LoadPackageContextForDoc**; used by validators and prompts. |
+| `structurevalidator.go` | Structure (full-document): required sections, order. |
+| `completenessvalidator.go` | Completeness (full-document): required content present. |
+| `accuracyvalidator.go` | Accuracy (section or both): content matches package. |
+| `qualityvalidator.go` | Quality (section or both): clarity, completeness of section. |
+| `stylevalidator.go` | Style (section or both): Elastic style; uses **stylerules.FullFormattingRules**. |
+| `placeholdervalidator.go` | Placeholders (section or both): correct placeholder usage. |
+| `accessibilityvalidator.go` | Accessibility (section or both). |
 | `urlvalidator.go` | URL validation utilities. |
 
 ### `/docagent/workflow`
@@ -182,7 +182,7 @@ Tools exposed to the executor for package inspection. Used by docagent when buil
 
 | File | Description |
 |------|-------------|
-| `package_tools.go` | **PackageTools**: returns ADK tools for **list_directory**, **read_file**, **write_file**, **get_example** (section by title), **get_service_info** (section titles; uses **ServiceInfoProvider** so docagent can inject **ServiceInfoManager**). |
+| `packagetools.go` | **PackageTools**: returns ADK tools for **list_directory**, **read_file**, **write_file**, **get_example** (section by title), **get_service_info** (section titles; uses **ServiceInfoProvider** so docagent can inject **ServiceInfoManager**). |
 | `examples.go` | **GetDefaultExampleContent**: loads example README content (e.g. from **archetype** or `_static/examples/`). |
 | `_static/examples/` | Example README files for style reference. |
 
@@ -209,7 +209,7 @@ User-facing helpers for documentation preview.
 
 | File | Description |
 |------|-------------|
-| `browser_preview.go` | Browser-based documentation preview. |
+| `browserpreview.go` | Browser-based documentation preview. |
 | `_static/preview_template.html` | HTML template for preview. |
 
 ## Service Info Knowledge Base
@@ -217,7 +217,7 @@ User-facing helpers for documentation preview.
 The generator uses `service_info.md` as the primary source for vendor-specific documentation.
 
 - **Location**: `docs/knowledge_base/service_info.md` (or under `docs/knowledge_base/<docbase>/` for non-README docs).
-- **ServiceInfoManager** (in **service_info_parser.go**): loads and parses the file into sections; **GetSections(sectionTitles)** returns content for requested README sections.
+- **ServiceInfoManager** (in **serviceinfoparser.go**): loads and parses the file into sections; **GetSections(sectionTitles)** returns content for requested README sections.
 - The **get_service_info** tool (in **tools**) calls into this; the generator is instructed to call it before writing each section.
 - If the file is missing, the tool returns empty and the generator continues with other sources.
 
