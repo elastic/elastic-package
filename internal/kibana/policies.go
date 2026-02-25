@@ -199,13 +199,14 @@ type Var struct {
 type Vars map[string]Var
 
 // ToMap converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
+// The objects-based Fleet API expects raw values (not {value, type} wrappers).
 func (v Vars) ToMap() map[string]interface{} {
 	if len(v) == 0 {
 		return nil
 	}
 	m := make(map[string]interface{}, len(v))
 	for k, val := range v {
-		m[k] = val
+		m[k] = val.Value.Value()
 	}
 	return m
 }

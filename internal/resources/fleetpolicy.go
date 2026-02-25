@@ -207,14 +207,37 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 		}
 	}
 
+	// Build streams map for the enabled input. Explicitly disable all other
+	// data streams that share the same input type so Fleet does not auto-enable them.
+	streams := map[string]kibana.PackagePolicyStream{
+		fmt.Sprintf("%s.%s", manifest.Name, dsManifest.Name): {
+			Enabled: enabled,
+			Vars:    setKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars)).ToMap(),
+		},
+	}
+	allDS, err := packages.ReadAllDataStreamManifests(packagePolicy.PackageRoot)
+	if err != nil {
+		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
+	}
+	for _, other := range allDS {
+		if other.Name == dsManifest.Name {
+			continue
+		}
+		for _, s := range other.Streams {
+			if s.Input == streamInput {
+				otherDataset := fmt.Sprintf("%s.%s", manifest.Name, other.Name)
+				if len(other.Dataset) > 0 {
+					otherDataset = other.Dataset
+				}
+				streams[otherDataset] = kibana.PackagePolicyStream{Enabled: false}
+				break
+			}
+		}
+	}
+
 	inputEntry := kibana.PackagePolicyInput{
 		Enabled: enabled,
-		Streams: map[string]kibana.PackagePolicyStream{
-			fmt.Sprintf("%s.%s", manifest.Name, dsManifest.Name): {
-				Enabled: enabled,
-				Vars:    setKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars)).ToMap(),
-			},
-		},
+		Streams: streams,
 	}
 	if input := policyTemplate.FindInputByType(streamInput); input != nil {
 		inputEntry.Vars = setKibanaVariables(input.Vars, common.MapStr(packagePolicy.Vars)).ToMap()

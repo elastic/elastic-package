@@ -1106,7 +1106,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace)
+	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
 	}
@@ -1956,6 +1956,7 @@ func CreatePackagePolicy(
 	cfgName string,
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
+	packageRoot string,
 ) (kibana.PackagePolicy, string, string, error) {
 	if pkg.Type == "input" {
 		p, dsType, dsDataset := createInputPolicy(kibanaPolicy, pkg, policyTemplate, cfgVars, suffix)
@@ -1964,7 +1965,10 @@ func CreatePackagePolicy(
 	if ds == nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
 	}
-	p, dsType, dsDataset := createIntegrationPolicy(kibanaPolicy, pkg, policyTemplate, ds, cfgName, cfgVars, cfgDSVars, suffix)
+	p, dsType, dsDataset, err := createIntegrationPolicy(kibanaPolicy, pkg, policyTemplate, ds, cfgName, cfgVars, cfgDSVars, suffix, packageRoot)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", err
+	}
 	return p, dsType, dsDataset, nil
 }
 
@@ -1976,7 +1980,8 @@ func createIntegrationPolicy(
 	cfgName string,
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
-) (kibana.PackagePolicy, string, string) {
+	packageRoot string,
+) (kibana.PackagePolicy, string, string, error) {
 	stream := ds.Streams[getDataStreamIndex(cfgName, ds)]
 	streamInput := stream.Input
 
@@ -1993,14 +1998,39 @@ func createIntegrationPolicy(
 		}
 	}
 
+	// Build streams map for the enabled input. Explicitly disable all other
+	// data streams that share the same input type so Fleet does not auto-enable them.
+	streams := map[string]kibana.PackagePolicyStream{
+		fmt.Sprintf("%s.%s", pkg.Name, ds.Name): {
+			Enabled: true,
+			Vars:    setKibanaVariables(stream.Vars, cfgDSVars).ToMap(),
+		},
+	}
+	if packageRoot != "" {
+		dataStreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("could not read data stream manifests: %w", err)
+		}
+		for _, other := range dataStreams {
+			if other.Name == ds.Name {
+				continue
+			}
+			for _, s := range other.Streams {
+				if s.Input == streamInput {
+					otherDataset := fmt.Sprintf("%s.%s", pkg.Name, other.Name)
+					if len(other.Dataset) > 0 {
+						otherDataset = other.Dataset
+					}
+					streams[otherDataset] = kibana.PackagePolicyStream{Enabled: false}
+					break
+				}
+			}
+		}
+	}
+
 	inputEntry := kibana.PackagePolicyInput{
 		Enabled: true,
-		Streams: map[string]kibana.PackagePolicyStream{
-			fmt.Sprintf("%s.%s", pkg.Name, ds.Name): {
-				Enabled: true,
-				Vars:    setKibanaVariables(stream.Vars, cfgDSVars).ToMap(),
-			},
-		},
+		Streams: streams,
 	}
 	if input := policyTemplate.FindInputByType(streamInput); input != nil {
 		inputEntry.Vars = setKibanaVariables(input.Vars, cfgVars).ToMap()
@@ -2017,7 +2047,7 @@ func createIntegrationPolicy(
 	r.Package.Version = pkg.Version
 	r.Inputs = inputs
 
-	return r, ds.Type, dataset
+	return r, ds.Type, dataset, nil
 }
 
 func createInputPolicy(

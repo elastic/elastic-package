@@ -680,6 +680,29 @@ func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*Da
 	return ReadDataStreamManifest(filepath.Join(packageRoot, "data_stream", name, DataStreamManifestFile))
 }
 
+// ReadAllDataStreamManifests reads the manifests for all data streams in a package.
+func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, error) {
+	dirs, err := os.ReadDir(filepath.Join(packageRoot, "data_stream"))
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not list data streams: %w", err)
+	}
+	var manifests []*DataStreamManifest
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+		m, err := ReadDataStreamManifestFromPackageRoot(packageRoot, dir.Name())
+		if err != nil {
+			return nil, fmt.Errorf("could not read data stream manifest for %q: %w", dir.Name(), err)
+		}
+		manifests = append(manifests, m)
+	}
+	return manifests, nil
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {

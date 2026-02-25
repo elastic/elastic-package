@@ -301,9 +301,7 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 			streamVars := streamEntry.Vars
 			require.Contains(t, streamVars, "data_stream.dataset", "stream vars must contain data_stream.dataset")
 
-			datasetVar, ok := streamVars["data_stream.dataset"].(kibana.Var)
-			require.True(t, ok, "data_stream.dataset must be a kibana.Var")
-			val := datasetVar.Value.Value()
+			val := streamVars["data_stream.dataset"]
 			require.NotNil(t, val)
 			assert.Equal(t, c.expectedDataset, val, "data_stream.dataset variable value")
 		})
