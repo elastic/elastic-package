@@ -360,7 +360,6 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 	return 0
 }
 
-
 func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
 	if inputName == "" {
 		if len(ds.Streams) == 0 {
