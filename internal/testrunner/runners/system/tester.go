@@ -2067,25 +2067,62 @@ func createInputPackageDatastream(
 
 	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
 	// UI would use if this is not defined in the config or doesn't have a default.
-	if _, found := vars["data_stream.dataset"]; !found {
-		// Fleet uses the policy template name as default dataset for input packages, do the same.
-		dataStreamDataset := policyTemplate.Name
-		v, _ := cfgVars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
+	// Fleet uses the policy template name as default dataset for input packages, do the same.
+	vars = setDataStreamDatasetVariable(vars, cfgVars, policyTemplate.Name)
 
-		var value packages.VarValue
-		value.Unpack(dataStreamDataset)
-		vars["data_stream.dataset"] = kibana.Var{
-			Value: value,
-			Type:  "text",
-		}
+	if policyTemplate.Input == "otelcol" {
+		vars = setUseAPMVariable(vars, cfgVars)
 	}
 
 	streams[0].Vars = vars
 	r.Inputs[0].Streams = streams
 	return r
+}
+
+func setDataStreamDatasetVariable(vars kibana.Vars, variablesToAssign common.MapStr, defaultValue string) kibana.Vars {
+	if _, found := vars["data_stream.dataset"]; found {
+		return vars
+	}
+
+	dataStreamDatasetValue := defaultValue
+	v, _ := variablesToAssign.GetValue("data_stream.dataset")
+	if dataset, ok := v.(string); ok && dataset != "" {
+		dataStreamDatasetValue = dataset
+	}
+	var value packages.VarValue
+	value.Unpack(dataStreamDatasetValue)
+	vars["data_stream.dataset"] = kibana.Var{
+		Value: value,
+		Type:  "text",
+	}
+	return vars
+}
+
+func setUseAPMVariable(vars kibana.Vars, variablesToAssign common.MapStr) kibana.Vars {
+	if _, found := vars["use_apm"]; found {
+		return vars
+	}
+
+	useAPMData, err := variablesToAssign.GetValue("use_apm")
+	if errors.Is(err, common.ErrKeyNotFound) {
+		// No variable is set in the config, so it is not added
+		return vars
+	}
+
+	if err != nil {
+		// Error getting the variable, so it is not added
+		return vars
+	}
+
+	if useAPM, ok := useAPMData.(bool); ok {
+		var value packages.VarValue
+		value.Unpack(useAPM)
+		vars["use_apm"] = kibana.Var{
+			Value: value,
+			Type:  "boolean",
+		}
+	}
+	return vars
 }
 
 func findDefaultValue(vars []packages.Variable, name string) string {
