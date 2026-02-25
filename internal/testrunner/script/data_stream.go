@@ -105,15 +105,16 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	templ, err := system.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
-	pds, err := system.CreatePackageDatastream(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace)
-	ts.Check(decoratedWith("creating package data stream", err))
-	ts.Check(decoratedWith("adding data stream to policy", stk.kibana.AddPackageDataStreamToPolicy(ctx, pds)))
+	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace)
+	ts.Check(decoratedWith("creating package policy", err))
+	_, err = stk.kibana.CreatePackagePolicy(ctx, policy)
+	ts.Check(decoratedWith("adding package policy", err))
 
 	pol, err := stk.kibana.GetPolicy(ctx, installed.testingPolicy.ID)
 	ts.Check(decoratedWith("reading policy", err))
 	ts.Check(decoratedWith("assigning policy", stk.kibana.AssignPolicyToAgent(ctx, installed.enrolled, *pol)))
 
-	dsName := system.BuildDataStreamName(pds, templ, pkgMan.Type, config.Vars)
+	dsName := system.BuildDataStreamName(dsType, dsDataset, installed.testingPolicy.Namespace, templ, pkgMan.Type, config.Vars)
 	ts.Setenv(dsNameLabel, dsName)
 	dataStreams[dsName] = struct{}{}
 

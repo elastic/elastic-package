@@ -198,64 +198,16 @@ type Var struct {
 // data stream level.
 type Vars map[string]Var
 
-// DataStream represents a data stream within a package.
-type DataStream struct {
-	Type    string `json:"type"`
-	Dataset string `json:"dataset"`
-}
-
-// Stream encapsulates a data stream and it's variables.
-type Stream struct {
-	ID         string     `json:"id"`
-	Enabled    bool       `json:"enabled"`
-	DataStream DataStream `json:"data_stream"`
-	Vars       Vars       `json:"vars"`
-}
-
-// Input represents a package-level input.
-type Input struct {
-	PolicyTemplate string   `json:"policy_template,omitempty"` // Name of policy_template from the package manifest that contains this input. If not specified the Kibana uses the first policy_template.
-	Type           string   `json:"type"`
-	Enabled        bool     `json:"enabled"`
-	Streams        []Stream `json:"streams"`
-	Vars           Vars     `json:"vars,omitempty"`
-}
-
-// PackageDataStream represents a request to add a single package's single data stream to a
-// Policy in Fleet.
-type PackageDataStream struct {
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Namespace   string  `json:"namespace"`
-	PolicyID    string  `json:"policy_id"`
-	Enabled     bool    `json:"enabled"`
-	OutputID    string  `json:"output_id"`
-	Inputs      []Input `json:"inputs"`
-	Vars        Vars    `json:"vars,omitempty"`
-	Package     struct {
-		Name    string `json:"name"`
-		Title   string `json:"title"`
-		Version string `json:"version"`
-	} `json:"package"`
-}
-
-// AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Fleet.
-func (c *Client) AddPackageDataStreamToPolicy(ctx context.Context, r PackageDataStream) error {
-	reqBody, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Errorf("could not convert policy-package (request) to JSON: %w", err)
+// ToMap converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
+func (v Vars) ToMap() map[string]interface{} {
+	if len(v) == 0 {
+		return nil
 	}
-
-	statusCode, respBody, err := c.post(ctx, path.Join(FleetAPI, "package_policies"), reqBody)
-	if err != nil {
-		return fmt.Errorf("could not add package to policy: %w", err)
+	m := make(map[string]interface{}, len(v))
+	for k, val := range v {
+		m[k] = val
 	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("could not add package to policy; API status code = %d; response body = %s", statusCode, respBody)
-	}
-
-	return nil
+	return m
 }
 
 // PackagePolicy represents an Package Policy in Fleet.
@@ -270,6 +222,7 @@ type PackagePolicy struct {
 		Version string `json:"version"`
 	} `json:"package"`
 	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
+	Vars   map[string]interface{}        `json:"vars,omitempty"`
 	Force  bool                          `json:"force"`
 }
 

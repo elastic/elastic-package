@@ -142,11 +142,11 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 	f.ID = policy.ID
 
 	for _, packagePolicy := range f.PackagePolicies {
-		policy, err := createPackagePolicy(*f, packagePolicy)
+		pp, err := createPackagePolicy(*f, packagePolicy)
 		if err != nil {
 			return fmt.Errorf("could not prepare package policy: %w", err)
 		}
-		err = provider.Client.AddPackageDataStreamToPolicy(ctx, *policy)
+		_, err = provider.Client.CreatePackagePolicy(ctx, *pp)
 		if err != nil {
 			return fmt.Errorf("could not add package policy %q to agent policy %q: %w", packagePolicy.Name, f.Name, err)
 		}
@@ -155,7 +155,7 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 	return nil
 }
 
-func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackageDataStream, error) {
+func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.PackageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.PackageRoot, err)
@@ -171,7 +171,7 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 	}
 }
 
-func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackageDataStream, error) {
+func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
 	if packagePolicy.DataStreamName == "" {
 		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
 	}
@@ -195,54 +195,46 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 
-	ds := kibana.PackageDataStream{
+	stream := dsManifest.Streams[getDataStreamIndex(packagePolicy.InputName, *dsManifest)]
+	streamInput := stream.Input
+	enabled := !packagePolicy.Disabled
+
+	// Disable all other inputs; only enable the target one.
+	inputs := make(map[string]kibana.PackagePolicyInput)
+	for _, pt := range manifest.PolicyTemplates {
+		for _, inp := range pt.Inputs {
+			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = kibana.PackagePolicyInput{Enabled: false}
+		}
+	}
+
+	inputEntry := kibana.PackagePolicyInput{
+		Enabled: enabled,
+		Streams: map[string]kibana.PackagePolicyStream{
+			fmt.Sprintf("%s.%s", manifest.Name, dsManifest.Name): {
+				Enabled: enabled,
+				Vars:    setKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars)).ToMap(),
+			},
+		},
+	}
+	if input := policyTemplate.FindInputByType(streamInput); input != nil {
+		inputEntry.Vars = setKibanaVariables(input.Vars, common.MapStr(packagePolicy.Vars)).ToMap()
+	}
+	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
+
+	pp := kibana.PackagePolicy{
 		Name:      packagePolicy.Name,
 		Namespace: policy.Namespace,
 		PolicyID:  policy.ID,
-		Enabled:   !packagePolicy.Disabled,
-		Inputs: []kibana.Input{
-			{
-				PolicyTemplate: policyTemplate.Name,
-				Enabled:        !packagePolicy.Disabled,
-			},
-		},
+		Vars:      setKibanaVariables(manifest.Vars, common.MapStr(packagePolicy.Vars)).ToMap(),
+		Inputs:    inputs,
 	}
-	ds.Package.Name = manifest.Name
-	ds.Package.Title = manifest.Title
-	ds.Package.Version = manifest.Version
+	pp.Package.Name = manifest.Name
+	pp.Package.Version = manifest.Version
 
-	stream := dsManifest.Streams[getDataStreamIndex(packagePolicy.InputName, *dsManifest)]
-	streamInput := stream.Input
-	ds.Inputs[0].Type = streamInput
-
-	streams := []kibana.Stream{
-		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, manifest.Name, dsManifest.Name),
-			Enabled: !packagePolicy.Disabled,
-			DataStream: kibana.DataStream{
-				Type:    dsManifest.Type,
-				Dataset: getDataStreamDataset(manifest, *dsManifest),
-			},
-		},
-	}
-
-	// Add dataStream-level vars
-	streams[0].Vars = setKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars))
-	ds.Inputs[0].Streams = streams
-
-	// Add input-level vars
-	input := policyTemplate.FindInputByType(streamInput)
-	if input != nil {
-		ds.Inputs[0].Vars = setKibanaVariables(input.Vars, common.MapStr(packagePolicy.Vars))
-	}
-
-	// Add package-level vars
-	ds.Vars = setKibanaVariables(manifest.Vars, common.MapStr(packagePolicy.Vars))
-
-	return &ds, nil
+	return &pp, nil
 }
 
-func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackageDataStream, error) {
+func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
 	if dsName := packagePolicy.DataStreamName; dsName != "" {
 		return nil, fmt.Errorf("no data stream expected for input package policy %q, found %q", packagePolicy.Name, dsName)
 	}
@@ -261,37 +253,15 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 
-	ds := kibana.PackageDataStream{
-		Name:      packagePolicy.Name,
-		Namespace: policy.Namespace,
-		PolicyID:  policy.ID,
-		Enabled:   !packagePolicy.Disabled,
-		Inputs: []kibana.Input{
-			{
-				PolicyTemplate: policyTemplate.Name,
-				Enabled:        !packagePolicy.Disabled,
-			},
-		},
-	}
-	ds.Package.Name = manifest.Name
-	ds.Package.Title = manifest.Title
-	ds.Package.Version = manifest.Version
-
 	streamInput := policyTemplate.Input
-	ds.Inputs[0].Type = streamInput
+	enabled := !packagePolicy.Disabled
 
-	streams := []kibana.Stream{
-		{
-			ID:      fmt.Sprintf("%s-%s.%s", streamInput, manifest.Name, policyTemplate.Name),
-			Enabled: !packagePolicy.Disabled,
-			DataStream: kibana.DataStream{
-				Type:    policyTemplate.Type,
-				Dataset: fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name),
-			},
-		},
+	// Disable all other inputs; only enable the target one.
+	inputs := make(map[string]kibana.PackagePolicyInput)
+	for _, pt := range manifest.PolicyTemplates {
+		inputs[fmt.Sprintf("%s-%s", pt.Name, pt.Input)] = kibana.PackagePolicyInput{Enabled: false}
 	}
 
-	// Add policyTemplate-level vars.
 	vars := setKibanaVariables(policyTemplate.Vars, common.MapStr(packagePolicy.Vars))
 	if _, found := vars["data_stream.dataset"]; !found {
 		var value packages.VarValue
@@ -302,19 +272,32 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 		}
 	}
 
-	streams[0].Vars = vars
-	ds.Inputs[0].Streams = streams
+	inputEntry := kibana.PackagePolicyInput{
+		Enabled: enabled,
+		Streams: map[string]kibana.PackagePolicyStream{
+			fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name): {
+				Enabled: enabled,
+				Vars:    vars.ToMap(),
+			},
+		},
+	}
+	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
 
-	return &ds, nil
+	pp := kibana.PackagePolicy{
+		Name:      packagePolicy.Name,
+		Namespace: policy.Namespace,
+		PolicyID:  policy.ID,
+		Inputs:    inputs,
+	}
+	pp.Package.Name = manifest.Name
+	pp.Package.Version = manifest.Version
+
+	return &pp, nil
 }
 
 func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
 	vars := kibana.Vars{}
 	for _, definition := range definitions {
-		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
-		// When using this API parameter, default values are not automatically incorporated into
-		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
-		// This means that our client must include the default values in its request to ensure correct behavior.
 		val := definition.Default
 
 		value, err := values.GetValue(definition.Name)
@@ -377,12 +360,6 @@ func getDataStreamIndex(inputName string, ds packages.DataStreamManifest) int {
 	return 0
 }
 
-func getDataStreamDataset(pkg packages.PackageManifest, ds packages.DataStreamManifest) string {
-	if len(ds.Dataset) > 0 {
-		return ds.Dataset
-	}
-	return fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-}
 
 func findPolicyTemplateForDataStream(pkg packages.PackageManifest, ds packages.DataStreamManifest, inputName string) (string, error) {
 	if inputName == "" {
