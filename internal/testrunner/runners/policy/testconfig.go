@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	"github.com/elastic/go-ucfg"
+	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -16,11 +17,11 @@ import (
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input      string         `yaml:"input,omitempty"`
-	Vars       map[string]any `yaml:"vars,omitempty"`
+	Input      string         `config:"input,omitempty" yaml:"input,omitempty"`
+	Vars       map[string]any `config:"vars,omitempty" yaml:"vars,omitempty"`
 	DataStream struct {
-		Vars map[string]any `yaml:"vars,omitempty"`
-	} `yaml:"data_stream"`
+		Vars map[string]any `config:"vars,omitempty" yaml:"vars,omitempty"`
+	} `config:"data_stream" yaml:"data_stream"`
 }
 
 func readTestConfig(testPath string) (*testConfig, error) {
@@ -30,9 +31,12 @@ func readTestConfig(testPath string) (*testConfig, error) {
 	}
 
 	var config testConfig
-	err = yaml.Unmarshal(d, &config)
+	cfg, err := yaml.NewConfig(d, ucfg.PathSep("."))
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode config: %w", err)
+		return nil, fmt.Errorf("unable to load system test configuration file: %s: %w", testPath, err)
+	}
+	if err := cfg.Unpack(&config); err != nil {
+		return nil, fmt.Errorf("unable to unpack system test configuration file: %s: %w", testPath, err)
 	}
 
 	return &config, nil
