@@ -1965,6 +1965,9 @@ func CreatePackagePolicy(
 	if ds == nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
 	}
+	if packageRoot == "" {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
+	}
 	p, dsType, dsDataset, err := createIntegrationPolicy(kibanaPolicy, pkg, policyTemplate, ds, cfgName, cfgVars, cfgDSVars, suffix, packageRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
@@ -2000,32 +2003,19 @@ func createIntegrationPolicy(
 
 	// Build streams map for the enabled input. Explicitly disable all other
 	// data streams that share the same input type so Fleet does not auto-enable them.
+	targetDataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
+	siblingKeys, err := packages.SiblingDatasetKeys(pkg.Name, ds.Name, streamInput, packageRoot)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", err
+	}
 	streams := map[string]kibana.PackagePolicyStream{
-		fmt.Sprintf("%s.%s", pkg.Name, ds.Name): {
+		targetDataset: {
 			Enabled: true,
 			Vars:    setKibanaVariables(stream.Vars, cfgDSVars).ToMap(),
 		},
 	}
-	if packageRoot != "" {
-		dataStreams, err := packages.ReadAllDataStreamManifests(packageRoot)
-		if err != nil {
-			return kibana.PackagePolicy{}, "", "", fmt.Errorf("could not read data stream manifests: %w", err)
-		}
-		for _, other := range dataStreams {
-			if other.Name == ds.Name {
-				continue
-			}
-			for _, s := range other.Streams {
-				if s.Input == streamInput {
-					otherDataset := fmt.Sprintf("%s.%s", pkg.Name, other.Name)
-					if len(other.Dataset) > 0 {
-						otherDataset = other.Dataset
-					}
-					streams[otherDataset] = kibana.PackagePolicyStream{Enabled: false}
-					break
-				}
-			}
-		}
+	for _, k := range siblingKeys {
+		streams[k] = kibana.PackagePolicyStream{Enabled: false}
 	}
 
 	inputEntry := kibana.PackagePolicyInput{

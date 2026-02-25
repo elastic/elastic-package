@@ -683,7 +683,7 @@ func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*Da
 // ReadAllDataStreamManifests reads the manifests for all data streams in a package.
 func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, error) {
 	dirs, err := os.ReadDir(filepath.Join(packageRoot, "data_stream"))
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
 	}
 	if err != nil {
@@ -701,6 +701,33 @@ func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, erro
 		manifests = append(manifests, m)
 	}
 	return manifests, nil
+}
+
+// SiblingDatasetKeys returns the dataset keys for all data streams in the package
+// that share the same input type as the target data stream. This is used when building
+// package policies to explicitly disable those streams so Fleet does not auto-enable them.
+func SiblingDatasetKeys(pkgName, targetDSName, streamInput, packageRoot string) ([]string, error) {
+	allDS, err := ReadAllDataStreamManifests(packageRoot)
+	if err != nil {
+		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
+	}
+	var keys []string
+	for _, other := range allDS {
+		if other.Name == targetDSName {
+			continue
+		}
+		for _, s := range other.Streams {
+			if s.Input == streamInput {
+				key := fmt.Sprintf("%s.%s", pkgName, other.Name)
+				if other.Dataset != "" {
+					key = other.Dataset
+				}
+				keys = append(keys, key)
+				break
+			}
+		}
+	}
+	return keys, nil
 }
 
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
