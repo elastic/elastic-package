@@ -308,6 +308,9 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 	streams[0].Vars = vars
 	ds.Inputs[0].Streams = streams
 
+	// Add package-level vars
+	ds.Vars = setKibanaVariables(manifest.Vars, variablesToAssign)
+
 	return &ds, nil
 }
 
