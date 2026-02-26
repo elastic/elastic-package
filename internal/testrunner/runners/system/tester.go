@@ -1978,7 +1978,7 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("could not find stream for input %q: %w", cfgName, err)
 	}
 	streamInput := ds.Streams[streamIdx].Input
-	datasetsForInput, err := packages.DatasetsForInput(packageRoot, streamInput)
+	datasetsForInput, err := packages.DataStreamsForInput(packageRoot, policyTemplate, streamInput)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}

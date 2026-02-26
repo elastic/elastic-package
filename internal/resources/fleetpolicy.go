@@ -172,11 +172,23 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 		if err != nil {
 			return nil, fmt.Errorf("could not find stream for input %q: %w", packagePolicy.InputName, err)
 		}
-		datasetsForInput, err := packages.DatasetsForInput(packagePolicy.PackageRoot, dsManifest.Streams[streamIdx].Input)
-		if err != nil {
-			return nil, fmt.Errorf("could not determine datasets for input: %w", err)
+		policyTemplateName := packagePolicy.TemplateName
+		if policyTemplateName == "" {
+			name, err := packages.FindPolicyTemplateForInput(manifest, dsManifest, packagePolicy.InputName)
+			if err != nil {
+				return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
+			}
+			policyTemplateName = name
 		}
-		return createIntegrationPackagePolicy(policy, *manifest, *dsManifest, datasetsForInput, packagePolicy)
+		policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
+		}
+		datastreams, err := packages.DataStreamsForInput(packagePolicy.PackageRoot, policyTemplate, dsManifest.Streams[streamIdx].Input)
+		if err != nil {
+			return nil, fmt.Errorf("could not determine data streams for input: %w", err)
+		}
+		return createIntegrationPackagePolicy(policy, *manifest, *dsManifest, policyTemplate, datastreams, packagePolicy)
 	case "input":
 		return createInputPackagePolicy(policy, *manifest, packagePolicy)
 	default:
@@ -184,27 +196,13 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 	}
 }
 
-func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, dsManifest packages.DataStreamManifest, datasetsForInput []string, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	policyTemplateName := packagePolicy.TemplateName
-	if policyTemplateName == "" {
-		name, err := packages.FindPolicyTemplateForInput(&manifest, &dsManifest, packagePolicy.InputName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
-		}
-		policyTemplateName = name
-	}
-
-	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
-	}
-
+func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, dsManifest packages.DataStreamManifest, policyTemplate packages.PolicyTemplate, datastreams []packages.DataStreamManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
 	pp, err := BuildIntegrationPackagePolicy(
 		policy.ID, policy.Namespace, packagePolicy.Name,
 		manifest, policyTemplate, dsManifest,
 		packagePolicy.InputName,
 		common.MapStr(packagePolicy.Vars), common.MapStr(packagePolicy.DataStreamVars),
-		!packagePolicy.Disabled, datasetsForInput,
+		!packagePolicy.Disabled, datastreams,
 	)
 	if err != nil {
 		return nil, err
@@ -222,7 +220,7 @@ func BuildIntegrationPackagePolicy(
 	inputName string,
 	inputVars, dsVars common.MapStr,
 	enabled bool,
-	datasetsForInput []string,
+	datasetsForInput []packages.DataStreamManifest,
 ) (kibana.PackagePolicy, error) {
 	streamIdx, err := packages.GetDataStreamIndex(inputName, ds)
 	if err != nil {
@@ -242,16 +240,16 @@ func BuildIntegrationPackagePolicy(
 	// Build streams map for the enabled input. Explicitly disable all other
 	// data streams that share the same input type so Fleet does not auto-enable them.
 	streams := map[string]kibana.PackagePolicyStream{
-		datasetKey(manifest.Name, ds.Name): {
+		datasetKey(manifest.Name, ds): {
 			Enabled: enabled,
 			Vars:    kibana.SetKibanaVariables(stream.Vars, dsVars).ToMap(),
 		},
 	}
-	for _, dsName := range datasetsForInput {
-		if dsName == ds.Name {
+	for _, sibling := range datasetsForInput {
+		if sibling.Name == ds.Name {
 			continue
 		}
-		streams[datasetKey(manifest.Name, dsName)] = kibana.PackagePolicyStream{Enabled: false}
+		streams[datasetKey(manifest.Name, sibling)] = kibana.PackagePolicyStream{Enabled: false}
 	}
 
 	inputEntry := kibana.PackagePolicyInput{
@@ -395,7 +393,12 @@ func (s *FleetAgentPolicyState) NeedsUpdate(resource resource.Resource) (bool, e
 	return policy.Absent == (s.current != nil), nil
 }
 
-// datasetKey returns the dataset identifier for a data stream: "<pkgName>.<dsName>".
-func datasetKey(pkgName, dsName string) string {
-	return fmt.Sprintf("%s.%s", pkgName, dsName)
+// datasetKey returns the Fleet stream key for a data stream. When the data
+// stream manifest declares an explicit dataset, that value is used directly;
+// otherwise the key is "<pkgName>.<dsName>".
+func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
+	if ds.Dataset != "" {
+		return ds.Dataset
+	}
+	return fmt.Sprintf("%s.%s", pkgName, ds.Name)
 }

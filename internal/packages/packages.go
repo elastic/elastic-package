@@ -703,25 +703,33 @@ func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, erro
 	return manifests, nil
 }
 
-// DatasetsForInput returns the dataset names of all data streams in the package
-// that use the given input type. The returned names are short dataset names
-// (without the package name prefix); callers are responsible for constructing
-// stream keys and filtering the list as needed.
-func DatasetsForInput(packageRoot, streamInput string) ([]string, error) {
+// DataStreamsForInput returns the manifests of all data streams in the package
+// that use the given input type AND belong to the given policy template.
+// When the policy template declares an explicit DataStreams list, only data
+// streams that appear in that list are returned; otherwise all data streams
+// with the matching input type are returned.
+// Callers are responsible for filtering the list further (e.g. to exclude the
+// primary data stream they are building the policy for).
+func DataStreamsForInput(packageRoot string, policyTemplate PolicyTemplate, streamInput string) ([]DataStreamManifest, error) {
 	datastreams, err := ReadAllDataStreamManifests(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
 	}
-	var datasets []string
+
+	var result []DataStreamManifest
 	for _, ds := range datastreams {
+		// If the policy template declares an explicit data stream list, respect it.
+		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
+			continue
+		}
 		for _, s := range ds.Streams {
 			if s.Input == streamInput {
-				datasets = append(datasets, ds.Name)
+				result = append(result, *ds)
 				break
 			}
 		}
 	}
-	return datasets, nil
+	return result, nil
 }
 
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
