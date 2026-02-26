@@ -2076,6 +2076,10 @@ func createInputPackageDatastream(
 
 	streams[0].Vars = vars
 	r.Inputs[0].Streams = streams
+
+	// Add package-level vars
+	r.Vars = setKibanaVariables(pkg.Vars, cfgVars)
+
 	return r
 }
 
