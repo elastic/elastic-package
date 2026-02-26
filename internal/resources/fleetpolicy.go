@@ -269,5 +269,3 @@ func (s *FleetAgentPolicyState) NeedsUpdate(resource resource.Resource) (bool, e
 	policy := resource.(*FleetAgentPolicy)
 	return policy.Absent == (s.current != nil), nil
 }
-
-

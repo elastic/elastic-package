@@ -181,7 +181,6 @@ func TestDataStreamsForInput(t *testing.T) {
 	})
 }
 
-
 func TestReadTransformDefinitionFile(t *testing.T) {
 	t.Parallel()
 
