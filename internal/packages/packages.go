@@ -786,14 +786,18 @@ func isDataStreamManifest(path string) (bool, error) {
 }
 
 // GetDataStreamIndex returns the index of the stream in ds whose input name
-// matches inputName. Returns 0 if no match is found.
-func GetDataStreamIndex(inputName string, ds DataStreamManifest) int {
+// matches inputName. If inputName is empty, returns 0 (first stream). Returns
+// an error if inputName is non-empty and no stream matches.
+func GetDataStreamIndex(inputName string, ds DataStreamManifest) (int, error) {
+	if inputName == "" {
+		return 0, nil
+	}
 	for i, s := range ds.Streams {
 		if s.Input == inputName {
-			return i
+			return i, nil
 		}
 	}
-	return 0
+	return 0, fmt.Errorf("no stream found with input %q in data stream %q", inputName, ds.Name)
 }
 
 // FindPolicyTemplateForInput returns the name of the policy template that
@@ -812,7 +816,7 @@ func findPolicyTemplateForDataStream(pkg PackageManifest, ds DataStreamManifest,
 		if len(ds.Streams) == 0 {
 			return "", errors.New("no streams declared in data stream manifest")
 		}
-		inputName = ds.Streams[GetDataStreamIndex(inputName, ds)].Input
+		inputName = ds.Streams[0].Input
 	}
 
 	var matchedPolicyTemplates []string

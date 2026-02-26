@@ -1973,17 +1973,24 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	streamInput := ds.Streams[packages.GetDataStreamIndex(cfgName, *ds)].Input
+	streamIdx, err := packages.GetDataStreamIndex(cfgName, *ds)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("could not find stream for input %q: %w", cfgName, err)
+	}
+	streamInput := ds.Streams[streamIdx].Input
 	datasetsForInput, err := packages.DatasetsForInput(packageRoot, streamInput)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
-	p := resources.BuildIntegrationPackagePolicy(
+	p, err := resources.BuildIntegrationPackagePolicy(
 		kibanaPolicy.ID, kibanaPolicy.Namespace,
 		fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
 		*pkg, policyTemplate, *ds, cfgName, cfgVars, cfgDSVars, true, datasetsForInput,
 	)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", err
+	}
 
 	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
 	if ds.Dataset != "" {

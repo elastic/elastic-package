@@ -168,7 +168,11 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 		if err != nil {
 			return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
 		}
-		datasetsForInput, err := packages.DatasetsForInput(packagePolicy.PackageRoot, dsManifest.Streams[packages.GetDataStreamIndex(packagePolicy.InputName, *dsManifest)].Input)
+		streamIdx, err := packages.GetDataStreamIndex(packagePolicy.InputName, *dsManifest)
+		if err != nil {
+			return nil, fmt.Errorf("could not find stream for input %q: %w", packagePolicy.InputName, err)
+		}
+		datasetsForInput, err := packages.DatasetsForInput(packagePolicy.PackageRoot, dsManifest.Streams[streamIdx].Input)
 		if err != nil {
 			return nil, fmt.Errorf("could not determine datasets for input: %w", err)
 		}
@@ -195,13 +199,16 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 
-	pp := BuildIntegrationPackagePolicy(
+	pp, err := BuildIntegrationPackagePolicy(
 		policy.ID, policy.Namespace, packagePolicy.Name,
 		manifest, policyTemplate, dsManifest,
 		packagePolicy.InputName,
 		common.MapStr(packagePolicy.Vars), common.MapStr(packagePolicy.DataStreamVars),
 		!packagePolicy.Disabled, datasetsForInput,
 	)
+	if err != nil {
+		return nil, err
+	}
 	return &pp, nil
 }
 
@@ -216,8 +223,12 @@ func BuildIntegrationPackagePolicy(
 	inputVars, dsVars common.MapStr,
 	enabled bool,
 	datasetsForInput []string,
-) kibana.PackagePolicy {
-	stream := ds.Streams[packages.GetDataStreamIndex(inputName, ds)]
+) (kibana.PackagePolicy, error) {
+	streamIdx, err := packages.GetDataStreamIndex(inputName, ds)
+	if err != nil {
+		return kibana.PackagePolicy{}, fmt.Errorf("could not find stream for input %q: %w", inputName, err)
+	}
+	stream := ds.Streams[streamIdx]
 	streamInput := stream.Input
 
 	// Disable all other inputs; only enable the target one.
@@ -262,7 +273,7 @@ func BuildIntegrationPackagePolicy(
 	pp.Package.Name = manifest.Name
 	pp.Package.Version = manifest.Version
 
-	return pp
+	return pp, nil
 }
 
 func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
