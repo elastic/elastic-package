@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/elastic/go-resource"
@@ -347,10 +348,20 @@ func setUseAPMVariable(vars kibana.Vars, variablesToAssign common.MapStr) kibana
 	if err != nil {
 		return vars
 	}
+	var value packages.VarValue
+
+	if useAPMString, ok := useAPMData.(string); ok && useAPMString != "" {
+		boolValue, err := strconv.ParseBool(useAPMString)
+		if err != nil {
+			return vars
+		}
+		value.Unpack(boolValue)
+	}
 
 	if useAPM, ok := useAPMData.(bool); ok {
-		var value packages.VarValue
 		value.Unpack(useAPM)
+	}
+	if value.Value() != nil {
 		vars["use_apm"] = kibana.Var{
 			Value: value,
 			Type:  "boolean",
