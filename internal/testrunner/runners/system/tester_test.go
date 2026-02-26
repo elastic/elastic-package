@@ -152,7 +152,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.testName, func(t *testing.T) {
-			name, err := FindPolicyTemplateForInput(tc.pkg, ds, inputName)
+			name, err := packages.FindPolicyTemplateForInput(tc.pkg, ds, inputName)
 
 			if tc.err != "" {
 				require.Errorf(t, err, "expected err containing %q", tc.err)

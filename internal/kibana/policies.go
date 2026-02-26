@@ -7,10 +7,12 @@ package kibana
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -209,6 +211,30 @@ func (v Vars) ToMap() map[string]interface{} {
 		m[k] = val.Value.Value()
 	}
 	return m
+}
+
+// SetKibanaVariables builds a Vars map by combining variable definitions with
+// supplied override values. Definition defaults are used when no override is provided.
+func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) Vars {
+	vars := Vars{}
+	for _, definition := range definitions {
+		val := definition.Default
+
+		value, err := values.GetValue(definition.Name)
+		if err == nil {
+			val = &packages.VarValue{}
+			val.Unpack(value)
+		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
+			// Do not include nulls for unset variables.
+			continue
+		}
+
+		vars[definition.Name] = Var{
+			Type:  definition.Type,
+			Value: *val,
+		}
+	}
+	return vars
 }
 
 // PackagePolicy represents an Package Policy in Fleet.

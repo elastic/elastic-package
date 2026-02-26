@@ -99,10 +99,10 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("reading data stream manifest", err))
 
 	if *polName == "" {
-		*polName, err = system.FindPolicyTemplateForInput(pkgMan, dsMan, config.Input)
+		*polName, err = packages.FindPolicyTemplateForInput(pkgMan, dsMan, config.Input)
 		ts.Check(decoratedWith("finding policy template name", err))
 	}
-	templ, err := system.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
+	templ, err := packages.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
 	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, pkgRoot)

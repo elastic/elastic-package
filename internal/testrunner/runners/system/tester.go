@@ -1049,13 +1049,13 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	serviceOptions.DeployIndependentAgent = r.runIndependentElasticAgent
 	policyTemplateName := config.PolicyTemplate
 	if policyTemplateName == "" {
-		policyTemplateName, err = FindPolicyTemplateForInput(r.pkgManifest, r.dataStreamManifest, config.Input)
+		policyTemplateName, err = packages.FindPolicyTemplateForInput(r.pkgManifest, r.dataStreamManifest, config.Input)
 		if err != nil {
 			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
 		}
 	}
 
-	policyTemplate, err := SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, policyTemplateName)
+	policyTemplate, err := packages.SelectPolicyTemplateByName(r.pkgManifest.PolicyTemplates, policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
@@ -1120,7 +1120,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.kibanaPolicy = policy
 	scenario.dataStreamDataset = dsDataset
 
-	scenario.indexTemplateName = BuildIndexTemplateName(dsType, dsDataset, policyTemplate, r.pkgManifest.Type, config.Vars)
+	scenario.indexTemplateName = buildIndexTemplateName(dsType, dsDataset, policyTemplate, r.pkgManifest.Type, config.Vars)
 	scenario.dataStream = BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type, config.Vars)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
@@ -1288,9 +1288,9 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	return &scenario, nil
 }
 
-// BuildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
+// buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildIndexTemplateName(dsType, dsDataset string, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
+func buildIndexTemplateName(dsType, dsDataset string, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
 	dataStreamDataset := getExpectedDatasetForTest(packageType, dsDataset, policyTemplate, cfgVars)
 
 	indexTemplateName := fmt.Sprintf(
@@ -1959,8 +1959,12 @@ func CreatePackagePolicy(
 	packageRoot string,
 ) (kibana.PackagePolicy, string, string, error) {
 	if pkg.Type == "input" {
-		p, dsType, dsDataset := createInputPolicy(kibanaPolicy, pkg, policyTemplate, cfgVars, suffix)
-		return p, dsType, dsDataset, nil
+		p := resources.BuildInputPackagePolicy(
+			kibanaPolicy.ID, kibanaPolicy.Namespace,
+			fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
+			*pkg, policyTemplate, cfgVars, true,
+		)
+		return p, policyTemplate.Type, fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name), nil
 	}
 	if ds == nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
@@ -1968,137 +1972,24 @@ func CreatePackagePolicy(
 	if packageRoot == "" {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
-	p, dsType, dsDataset, err := createIntegrationPolicy(kibanaPolicy, pkg, policyTemplate, ds, cfgName, cfgVars, cfgDSVars, suffix, packageRoot)
+
+	streamInput := ds.Streams[packages.GetDataStreamIndex(cfgName, *ds)].Input
+	datasetsForInput, err := packages.DatasetsForInput(packageRoot, streamInput)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
-	return p, dsType, dsDataset, nil
-}
 
-func createIntegrationPolicy(
-	kPolicy *kibana.Policy,
-	pkg *packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	ds *packages.DataStreamManifest,
-	cfgName string,
-	cfgVars, cfgDSVars common.MapStr,
-	suffix string,
-	packageRoot string,
-) (kibana.PackagePolicy, string, string, error) {
-	stream := ds.Streams[getDataStreamIndex(cfgName, ds)]
-	streamInput := stream.Input
+	p := resources.BuildIntegrationPackagePolicy(
+		kibanaPolicy.ID, kibanaPolicy.Namespace,
+		fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
+		*pkg, policyTemplate, *ds, cfgName, cfgVars, cfgDSVars, true, datasetsForInput,
+	)
 
 	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-	if len(ds.Dataset) > 0 {
+	if ds.Dataset != "" {
 		dataset = ds.Dataset
 	}
-
-	// Disable all other inputs; only enable the target one.
-	inputs := make(map[string]kibana.PackagePolicyInput)
-	for _, pt := range pkg.PolicyTemplates {
-		for _, inp := range pt.Inputs {
-			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = kibana.PackagePolicyInput{Enabled: false}
-		}
-	}
-
-	// Build streams map for the enabled input. Explicitly disable all other
-	// data streams that share the same input type so Fleet does not auto-enable them.
-	targetDataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-	siblingKeys, err := packages.SiblingDatasetKeys(pkg.Name, ds.Name, streamInput, packageRoot)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", err
-	}
-	streams := map[string]kibana.PackagePolicyStream{
-		targetDataset: {
-			Enabled: true,
-			Vars:    setKibanaVariables(stream.Vars, cfgDSVars).ToMap(),
-		},
-	}
-	for _, k := range siblingKeys {
-		streams[k] = kibana.PackagePolicyStream{Enabled: false}
-	}
-
-	inputEntry := kibana.PackagePolicyInput{
-		Enabled: true,
-		Streams: streams,
-	}
-	if input := policyTemplate.FindInputByType(streamInput); input != nil {
-		inputEntry.Vars = setKibanaVariables(input.Vars, cfgVars).ToMap()
-	}
-	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
-
-	r := kibana.PackagePolicy{
-		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
-		Namespace: kPolicy.Namespace,
-		PolicyID:  kPolicy.ID,
-		Vars:      setKibanaVariables(pkg.Vars, cfgVars).ToMap(),
-	}
-	r.Package.Name = pkg.Name
-	r.Package.Version = pkg.Version
-	r.Inputs = inputs
-
-	return r, ds.Type, dataset, nil
-}
-
-func createInputPolicy(
-	kPolicy *kibana.Policy,
-	pkg *packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	cfgVars common.MapStr,
-	suffix string,
-) (kibana.PackagePolicy, string, string) {
-	streamInput := policyTemplate.Input
-
-	// Disable all other inputs; only enable the target one.
-	inputs := make(map[string]kibana.PackagePolicyInput)
-	for _, pt := range pkg.PolicyTemplates {
-		inputs[fmt.Sprintf("%s-%s", pt.Name, pt.Input)] = kibana.PackagePolicyInput{Enabled: false}
-	}
-
-	// Add policyTemplate-level vars.
-	vars := setKibanaVariables(policyTemplate.Vars, cfgVars)
-
-	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
-	// UI would use if this is not defined in the config or doesn't have a default.
-	if _, found := vars["data_stream.dataset"]; !found {
-		// Fleet uses the policy template name as default dataset for input packages, do the same.
-		dataStreamDataset := policyTemplate.Name
-		v, _ := cfgVars.GetValue("data_stream.dataset")
-		if dsVal, ok := v.(string); ok && dsVal != "" {
-			dataStreamDataset = dsVal
-		}
-
-		var value packages.VarValue
-		value.Unpack(dataStreamDataset)
-		vars["data_stream.dataset"] = kibana.Var{
-			Value: value,
-			Type:  "text",
-		}
-	}
-
-	inputEntry := kibana.PackagePolicyInput{
-		Enabled: true,
-		Streams: map[string]kibana.PackagePolicyStream{
-			// This dataset is the one Fleet uses to identify the stream,
-			// it must be <package name>.<policy template name>.
-			fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name): {
-				Enabled: true,
-				Vars:    vars.ToMap(),
-			},
-		},
-	}
-	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
-
-	r := kibana.PackagePolicy{
-		Name:      fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
-		Namespace: kPolicy.Namespace,
-		PolicyID:  kPolicy.ID,
-	}
-	r.Package.Name = pkg.Name
-	r.Package.Version = pkg.Version
-	r.Inputs = inputs
-
-	return r, policyTemplate.Type, fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
+	return p, ds.Type, dataset, nil
 }
 
 func findDefaultValue(vars []packages.Variable, name string) string {
@@ -2114,131 +2005,6 @@ func findDefaultValue(vars []packages.Variable, name string) string {
 		}
 	}
 	return ""
-}
-
-func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
-	vars := kibana.Vars{}
-	for _, definition := range definitions {
-		val := definition.Default
-
-		value, err := values.GetValue(definition.Name)
-		if err == nil {
-			val = &packages.VarValue{}
-			val.Unpack(value)
-		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
-			// Do not include nulls for unset variables.
-			continue
-		}
-
-		vars[definition.Name] = kibana.Var{
-			Type:  definition.Type,
-			Value: *val,
-		}
-	}
-	return vars
-}
-
-// getDataStreamIndex returns the index of the data stream whose input name
-// matches. Otherwise it returns the 0.
-func getDataStreamIndex(inputName string, ds *packages.DataStreamManifest) int {
-	for i, s := range ds.Streams {
-		if s.Input == inputName {
-			return i
-		}
-	}
-	return 0
-}
-
-// FindPolicyTemplateForInput returns the name of the policy_template that
-// applies to the input under test. An error is returned if no policy template
-// matches or if multiple policy templates match and the response is ambiguous.
-func FindPolicyTemplateForInput(pkg *packages.PackageManifest, ds *packages.DataStreamManifest, inputName string) (string, error) {
-	if pkg.Type == "input" {
-		return findPolicyTemplateForInputPackage(pkg, inputName)
-	}
-	if ds == nil {
-		return "", errors.New("data stream must be specified for integration packages")
-	}
-	return findPolicyTemplateForDataStream(pkg, ds, inputName)
-}
-
-func findPolicyTemplateForDataStream(pkg *packages.PackageManifest, ds *packages.DataStreamManifest, inputName string) (string, error) {
-	if inputName == "" {
-		if len(ds.Streams) == 0 {
-			return "", errors.New("no streams declared in data stream manifest")
-		}
-		inputName = ds.Streams[getDataStreamIndex(inputName, ds)].Input
-	}
-
-	var matchedPolicyTemplates []string
-	for _, policyTemplate := range pkg.PolicyTemplates {
-		// Does this policy_template include this input type?
-		if policyTemplate.FindInputByType(inputName) == nil {
-			continue
-		}
-
-		// Does the policy_template apply to this data stream (when data streams are specified)?
-		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
-			continue
-		}
-
-		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
-	}
-
-	switch len(matchedPolicyTemplates) {
-	case 1:
-		return matchedPolicyTemplates[0], nil
-	case 0:
-		return "", fmt.Errorf("no policy template was found for data stream %q "+
-			"with input type %q: verify that you have included the data stream "+
-			"and input in the package's policy_template list", ds.Name, inputName)
-	default:
-		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
-			"were found that apply to data stream %q with input type %q: please "+
-			"specify the 'policy_template' in the system test config",
-			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
-	}
-}
-
-func findPolicyTemplateForInputPackage(pkg *packages.PackageManifest, inputName string) (string, error) {
-	if inputName == "" {
-		if len(pkg.PolicyTemplates) == 0 {
-			return "", errors.New("no policy templates specified for input package")
-		}
-		inputName = pkg.PolicyTemplates[0].Input
-	}
-
-	var matched []string
-	for _, policyTemplate := range pkg.PolicyTemplates {
-		if policyTemplate.Input != inputName {
-			continue
-		}
-
-		matched = append(matched, policyTemplate.Name)
-	}
-
-	switch len(matched) {
-	case 1:
-		return matched[0], nil
-	case 0:
-		return "", fmt.Errorf("no policy template was found"+
-			"with input type %q: verify that you have included the data stream "+
-			"and input in the package's policy_template list", inputName)
-	default:
-		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
-			"with input type %q: please "+
-			"specify the 'policy_template' in the system test config",
-			strings.Join(matched, ", "), inputName)
-	}
-}
-
-func SelectPolicyTemplateByName(policies []packages.PolicyTemplate, name string) (packages.PolicyTemplate, error) {
-	for _, policy := range policies {
-		if policy.Name == name {
-			return policy, nil
-		}
-	}
-	return packages.PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {
