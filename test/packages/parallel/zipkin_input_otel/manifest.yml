@@ -34,12 +34,6 @@ policy_templates:
         description: If enabled, string tags/binary annotations will be parsed into int/bool/float types.
         default: false
         show_user: true
-      - name: use_apm 
-        type: bool
-        title: Use Elastic APM
-        required: false
-        default: false
-        show_user: true
       # TLS settings
       - name: tls_enabled
         type: bool
