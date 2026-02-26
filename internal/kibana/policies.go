@@ -12,6 +12,8 @@ import (
 	"net/http"
 	"path"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -202,13 +204,23 @@ type Vars map[string]Var
 
 // ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
 // The objects-based Fleet API expects raw values (not {value, type} wrappers).
+// Variables of type "yaml" are serialized to a YAML string, as Fleet does not
+// accept raw objects/arrays for these.
 func (v Vars) ToMapStr() common.MapStr {
 	if len(v) == 0 {
 		return nil
 	}
 	m := make(common.MapStr, len(v))
 	for k, val := range v {
-		m[k] = val.Value.Value()
+		raw := val.Value.Value()
+		if val.Type == "yaml" && raw != nil {
+			b, err := yaml.Marshal(raw)
+			if err == nil {
+				m[k] = string(b)
+				continue
+			}
+		}
+		m[k] = raw
 	}
 	return m
 }
