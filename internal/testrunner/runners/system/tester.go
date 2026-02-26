@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2118,9 +2119,19 @@ func setUseAPMVariable(vars kibana.Vars, variablesToAssign common.MapStr) kibana
 		return vars
 	}
 
+	var value packages.VarValue
+	if useAPMString, ok := useAPMData.(string); ok && useAPMString != "" {
+		boolValue, err := strconv.ParseBool(useAPMString)
+		if err != nil {
+			return vars
+		}
+		value.Unpack(boolValue)
+	}
+
 	if useAPM, ok := useAPMData.(bool); ok {
-		var value packages.VarValue
 		value.Unpack(useAPM)
+	}
+	if value.Value() != nil {
 		vars["use_apm"] = kibana.Var{
 			Value: value,
 			Type:  "boolean",
