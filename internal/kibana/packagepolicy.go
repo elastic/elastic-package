@@ -43,7 +43,7 @@ func BuildIntegrationPackagePolicy(
 	streams := map[string]PackagePolicyStream{
 		datasetKey(manifest.Name, dsManifest): {
 			Enabled: enabled,
-			Vars:    SetKibanaVariables(stream.Vars, dsVars).ToMap(),
+			Vars:    SetKibanaVariables(stream.Vars, dsVars).ToMapStr(),
 		},
 	}
 	for _, ds := range datastreams {
@@ -58,7 +58,7 @@ func BuildIntegrationPackagePolicy(
 		Streams: streams,
 	}
 	if input := policyTemplate.FindInputByType(streamInput); input != nil {
-		inputEntry.Vars = SetKibanaVariables(input.Vars, inputVars).ToMap()
+		inputEntry.Vars = SetKibanaVariables(input.Vars, inputVars).ToMapStr()
 	}
 	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
 
@@ -66,7 +66,7 @@ func BuildIntegrationPackagePolicy(
 		Name:      name,
 		Namespace: namespace,
 		PolicyID:  policyID,
-		Vars:      SetKibanaVariables(manifest.Vars, inputVars).ToMap(),
+		Vars:      SetKibanaVariables(manifest.Vars, inputVars).ToMapStr(),
 		Inputs:    inputs,
 	}
 	pp.Package.Name = manifest.Name
@@ -116,7 +116,7 @@ func BuildInputPackagePolicy(
 			// it must be <package name>.<policy template name>.
 			fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name): {
 				Enabled: enabled,
-				Vars:    vars.ToMap(),
+				Vars:    vars.ToMapStr(),
 			},
 		},
 	}

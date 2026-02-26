@@ -200,13 +200,13 @@ type Var struct {
 // data stream level.
 type Vars map[string]Var
 
-// ToMap converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
+// ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
 // The objects-based Fleet API expects raw values (not {value, type} wrappers).
-func (v Vars) ToMap() map[string]interface{} {
+func (v Vars) ToMapStr() common.MapStr {
 	if len(v) == 0 {
 		return nil
 	}
-	m := make(map[string]interface{}, len(v))
+	m := make(common.MapStr, len(v))
 	for k, val := range v {
 		m[k] = val.Value.Value()
 	}
@@ -249,7 +249,7 @@ type PackagePolicy struct {
 		Version string `json:"version"`
 	} `json:"package"`
 	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
-	Vars   map[string]interface{}        `json:"vars,omitempty"`
+	Vars   map[string]any                `json:"vars,omitempty"`
 	Force  bool                          `json:"force"`
 }
 
