@@ -1,0 +1,7 @@
+service: backend
+vars:
+  endpoint: "0.0.0.0:9411"
+  parse_string_tags: false
+  use_apm: true
+assert:
+  min_count: 20
