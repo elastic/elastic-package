@@ -1959,7 +1959,7 @@ func CreatePackagePolicy(
 	packageRoot string,
 ) (kibana.PackagePolicy, string, string, error) {
 	if pkg.Type == "input" {
-		p := resources.BuildInputPackagePolicy(
+		p := kibana.BuildInputPackagePolicy(
 			kibanaPolicy.ID, kibanaPolicy.Namespace,
 			fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
 			*pkg, policyTemplate, cfgVars, true,
@@ -1983,7 +1983,7 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
-	p, err := resources.BuildIntegrationPackagePolicy(
+	p, err := kibana.BuildIntegrationPackagePolicy(
 		kibanaPolicy.ID, kibanaPolicy.Namespace,
 		fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
 		*pkg, policyTemplate, *ds, cfgName, cfgVars, cfgDSVars, true, datasetsForInput,
