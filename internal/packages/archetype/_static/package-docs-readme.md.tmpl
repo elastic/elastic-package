@@ -8,9 +8,8 @@ Find more detailed documentation guidelines in https://www.elastic.co/docs/exten
 # {[.Manifest.Title]} Integration for Elastic
 
 ## Overview
-{{/* Complete this section with a short summary of what data this integration collects and what use cases it enables */}}
+{{/* Complete this section with a short summary of what data this integration collects and the service it integrates with.}}
 The {[.Manifest.Title]} integration for Elastic enables collection of ...
-This integration facilitates ...
 
 ### Compatibility
 {{/* Complete this section with information on what 3rd party software or hardware versions this integration is compatible with */}}
@@ -20,7 +19,8 @@ This integration is compatible with ...
 {{/* Add a high level overview on how this integration works. For example, does it collect data from API calls or recieving data from a network or file.*/}}
 
 ## What data does this integration collect?
-{{/* Complete this section with information on what types of data the integration collects, and link to reference documentation if available */}}
+{{/* Complete this section with information on what types of data the integration collects, and link to reference documentation if available
+*/}}
 The {[.Manifest.Title]} integration collects log messages of the following types:
 * ...
 
@@ -28,17 +28,17 @@ The {[.Manifest.Title]} integration collects log messages of the following types
 {{/* Add details on the use cases that can be enabled by using this integration. Explain why a user would want to install and use this integration. */}}
 
 ## What do I need to use this integration?
-{{/* List any vendor-specific prerequisites needed before starting to install the integration. */}}
+{{/* List any Elastic or vendor-specific prerequisites needed before starting to install the integration. For example, Elastic self-managed or cloud deployment, or a vendor-specific credentials or accounts */}}
 
 ## How do I deploy this integration?
 
 ### Agent-based deployment
 
-Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md). You can install only one Elastic Agent per host.
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](https://www.elastic.co/guide/en/fleet/current/elastic-agent-installation.html). You can install only one Elastic Agent per host.
 
 Elastic Agent is required to stream data from the syslog or log file receiver and ship the data to Elastic, where the events will then be processed via the integration's ingest pipelines.
 
-{{/* If agentless is available for this integration, we'll want to include that here as well.
+{{/* If agentless is available for this integration, Include the below section. You can determine if agentless is available for this integration by checking the `manifest.yml` file, and looking for the existance of "policy_templates.deployment_modes.agentless.enabled": "true".
 ### Agentless deployment
 
 Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. Agentless deployments provide a means to ingest data while avoiding the orchestration, management, and maintenance needs associated with standard ingest infrastructure. Using an agentless deployment makes manual agent deployment unnecessary, allowing you to focus on your data instead of the agent that collects it.
@@ -46,32 +46,73 @@ Agentless deployments are only supported in Elastic Serverless and Elastic Cloud
 For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html) 
 */}}
 
-### Onboard / configure
-{{/* List the steps that will need to be followed in order to completely set up a working integration.
-For integrations that support multiple input types, be sure to add steps for all inputs.
+### Set up steps in {[.Manifest.Title]}
+{{/* List the steps that are required to set up the 3rd party system to send data to Elastic. 
+This should be specific to the steps needed to set up the 3rd party system to send data to Elastic. It should not include generic information about how to install or set up the 3rd party system itself.
+*/}}
+
+#### Vendor resources
+{{/* Add vendor documentation links that are specific to the steps needed to set up the vendor system to send data to Elastic. Exclude this section if no vendor setup links are available. */}}
+- [Vendor documentation link 1](https://www.vendor.com/documentation/link1)
+- [Vendor documentation link 2](https://www.vendor.com/documentation/link2)
+- [Vendor documentation link 3](https://www.vendor.com/documentation/link3)
+
+### Set up steps in Kibana
+{{/* List the steps that are required to set up the integration in Kibana.
+This includes how to add the integration, and how to configure the integration, with descriptions of each available configuration option.
+
+If multiple input types are supported, add instructions for each in a subsection.
 */}}
 
 ### Validation
-{{/* How can the user test whether the integration is working? Including example commands or test files if applicable */}}
-
-## Troubleshooting
-
-For help with Elastic ingest tools, check [Common problems](https://www.elastic.co/docs/troubleshoot/ingest/fleet/common-problems).
-{{/*
-Add any vendor specific troubleshooting here.
-
-Are there common issues or “gotchas” for deploying this integration? If so, how can they be resolved?
-If applicable, links to the third-party software’s troubleshooting documentation.
+{{/* In this section, describe the actions required to validate that the integration is working properly, and data is flowing into Elasticsearch.
+If required, list the steps needed in the vendor product to start sending events or trigger alerts.
+Then list how to validate that the data is in Elasticsearch, using Kibana. This could be which indices to check in the Discover table, or which built in dashboards to look at to see the data.
 */}}
 
-## Scaling
+## Troubleshooting
+{{/* The troubleshooting section should contain troubleshooting for common issues specific to this integration. Do not include generic troubleshooting information. Where appropriate, include details specific to each input type.
+Whenever possible, link to the troubleshooting documentation provided by the third-party software. 
 
+IMPORTANT: Use plain text for issue descriptions, NOT bold. Example:
+- No data is being collected: Verify network...
+- TCP framing issues: Check that both...
+Do NOT use **bold** for issue names like "**No data is being collected**:".
+*/}}
+
+### Vendor resources
+{{/* Add vendor resources which provide troubleshooting information. Do not include generic information about the vendor product itself (these go in the Reference section). Exclude this section if no troubleshooting links are available.*/}}
+- [Vendor resource 1](https://www.vendor.com/resource1)
+- [Vendor resource 2](https://www.vendor.com/resource2)
+- [Vendor resource 3](https://www.vendor.com/resource3)
+
+## Performance and scaling
+{{/* Add any vendor specific performance and scaling information to this section.
+Performance and scaling information should be specific to sending data to Elasticsearch. It should not include information about the vendor product itself or generic information about performance and scaling.
+*/}}
 For more information on architectures that can be used for scaling this integration, check the [Ingest Architectures](https://www.elastic.co/docs/manage-data/ingest/ingest-reference-architectures) documentation.
-{{/* Add any vendor specific scaling information here */}}
 
 ## Reference
-{{/* Repeat for each data stream of the current type
-### {Data stream name}
+
+### Inputs used
+{{/* All inputs used by this package will be automatically listed here. Do not modify this section. */}}
+{{ inputDocs }}
+
+### API usage
+{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information. For integrations that do not use APIs, do not include this section. */}}
+These APIs are used with this integration:
+* ...
+
+### Vendor documentation links
+{{/* Add vendor documentation links which provide useful general information about the integration.*/}}
+- [Vendor documentation link 1](https://www.vendor.com/documentation/link1)
+- [Vendor documentation link 2](https://www.vendor.com/documentation/link2)
+- [Vendor documentation link 3](https://www.vendor.com/documentation/link3)
+
+### Data streams
+{{/* Repeat all information in this section for each data stream the package collects.*/}}
+
+#### {Data stream name}
 
 The `{data stream name}` data stream provides events from {source} of the following types: {list types}.
 
@@ -79,23 +120,13 @@ For each data_stream_name, include an optional summary of the datastream, the ex
 
 The fields template function will be replaced by a generated list of all fields from the `fields/` directory of the data stream when building the integration.
 
-#### {data stream name} fields
+##### {data stream name} fields
 
 To include a generated list of fields from the `fields/` directory, uncomment and use:
-{{ fields "data_stream_name" }}
+{{/* {{ fields "data_stream_name" }} */}}
 
+##### {data stream name} sample event
 The event template function will be replace by a sample event, taken from `sample_event.json`, when building this integration.
 
 To include a sample event from `sample_event.json`, uncomment and use:
-{{ event "data_stream_name" }}
-
-*/}}
-
-### Inputs used
-{{/* All inputs used by this package will be automatically listed here. */}}
-{{ inputDocs }}
-
-### API usage
-{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information */}}
-These APIs are used with this integration:
-* ...
+{{/* {{ event "data_stream_name" }} */}}
