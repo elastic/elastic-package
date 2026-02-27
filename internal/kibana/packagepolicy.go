@@ -34,40 +34,58 @@ func BuildIntegrationPackagePolicy(
 	inputs := make(map[string]PackagePolicyInput)
 	for _, pt := range manifest.PolicyTemplates {
 		for _, inp := range pt.Inputs {
-			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = PackagePolicyInput{Enabled: false}
+			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = PackagePolicyInput{
+				Enabled:        false,
+				inputType:      inp.Type,
+				policyTemplate: pt.Name,
+			}
 		}
 	}
 
 	// Build streams map for the enabled input. Explicitly disable all other
 	// data streams that share the same input type so Fleet does not auto-enable them.
+	primaryVars := SetKibanaVariables(stream.Vars, dsVars)
 	streams := map[string]PackagePolicyStream{
 		datasetKey(manifest.Name, dsManifest): {
-			Enabled: enabled,
-			Vars:    SetKibanaVariables(stream.Vars, dsVars).ToMapStr(),
+			Enabled:           enabled,
+			Vars:              primaryVars.ToMapStr(),
+			legacyVars:        primaryVars,
+			dataStreamType:    dsManifest.Type,
+			dataStreamDataset: datasetKey(manifest.Name, dsManifest),
 		},
 	}
 	for _, ds := range datastreams {
 		if ds.Name == dsManifest.Name {
 			continue
 		}
-		streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{Enabled: false}
+		streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
+			Enabled:           false,
+			dataStreamType:    ds.Type,
+			dataStreamDataset: datasetKey(manifest.Name, ds),
+		}
 	}
 
 	inputEntry := PackagePolicyInput{
-		Enabled: enabled,
-		Streams: streams,
+		Enabled:        enabled,
+		Streams:        streams,
+		inputType:      streamInput,
+		policyTemplate: policyTemplate.Name,
 	}
 	if input := policyTemplate.FindInputByType(streamInput); input != nil {
-		inputEntry.Vars = SetKibanaVariables(input.Vars, inputVars).ToMapStr()
+		iv := SetKibanaVariables(input.Vars, inputVars)
+		inputEntry.Vars = iv.ToMapStr()
+		inputEntry.legacyVars = iv
 	}
 	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
 
+	pkgVars := SetKibanaVariables(manifest.Vars, inputVars)
 	pp := PackagePolicy{
-		Name:      name,
-		Namespace: namespace,
-		PolicyID:  policyID,
-		Vars:      SetKibanaVariables(manifest.Vars, inputVars).ToMapStr(),
-		Inputs:    inputs,
+		Name:       name,
+		Namespace:  namespace,
+		PolicyID:   policyID,
+		Vars:       pkgVars.ToMapStr(),
+		legacyVars: pkgVars,
+		Inputs:     inputs,
 	}
 	pp.Package.Name = manifest.Name
 	pp.Package.Version = manifest.Version
@@ -89,7 +107,11 @@ func BuildInputPackagePolicy(
 	// Disable all other inputs; only enable the target one.
 	inputs := make(map[string]PackagePolicyInput)
 	for _, pt := range manifest.PolicyTemplates {
-		inputs[fmt.Sprintf("%s-%s", pt.Name, pt.Input)] = PackagePolicyInput{Enabled: false}
+		inputs[fmt.Sprintf("%s-%s", pt.Name, pt.Input)] = PackagePolicyInput{
+			Enabled:        false,
+			inputType:      pt.Input,
+			policyTemplate: pt.Name,
+		}
 	}
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
@@ -109,16 +131,24 @@ func BuildInputPackagePolicy(
 		}
 	}
 
+	// Dataset key for the stream: <package name>.<policy template name>.
+	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
 	inputEntry := PackagePolicyInput{
 		Enabled: enabled,
 		Streams: map[string]PackagePolicyStream{
-			// This dataset is the one Fleet uses to identify the stream,
-			// it must be <package name>.<policy template name>.
-			fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name): {
-				Enabled: enabled,
-				Vars:    vars.ToMapStr(),
+			streamDataset: {
+				Enabled:           enabled,
+				Vars:              vars.ToMapStr(),
+				legacyVars:        vars,
+				dataStreamDataset: streamDataset,
+				// dataStreamType is intentionally empty: input packages
+				// require Kibana >= 7.16 (simplified API), so legacy
+				// conversion is not needed.
 			},
 		},
+		inputType:      streamInput,
+		policyTemplate: policyTemplate.Name,
+		legacyVars:     vars,
 	}
 	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
 

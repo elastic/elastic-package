@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path"
 
+	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -251,7 +252,9 @@ func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) V
 	return vars
 }
 
-// PackagePolicy represents an Package Policy in Fleet.
+// PackagePolicy represents a Package Policy in Fleet using the simplified
+// (objects-based) inputs format, supported since Kibana 7.16.
+// CreatePackagePolicy transparently converts to the legacy format for older stacks.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
@@ -263,24 +266,64 @@ type PackagePolicy struct {
 		Version string `json:"version"`
 	} `json:"package"`
 	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
-	Vars   map[string]any                `json:"vars,omitempty"`
-	Force  bool                          `json:"force"`
+	// Vars holds package-level variables; for legacy conversion use legacyVars.
+	Vars  map[string]any `json:"vars,omitempty"`
+	Force bool           `json:"force"`
+
+	// Unexported: type-aware vars for legacy ({value,type}) conversion.
+	legacyVars Vars
 }
 
+// PackagePolicyInput is one input entry in a PackagePolicy (simplified format).
 type PackagePolicyInput struct {
 	Enabled bool                           `json:"enabled"`
-	Vars    map[string]interface{}         `json:"vars,omitempty"`
+	Vars    map[string]any                 `json:"vars,omitempty"`
 	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
+
+	// Unexported fields carry metadata used only for legacy API conversion.
+	inputType      string
+	policyTemplate string
+	legacyVars     Vars
 }
 
+// PackagePolicyStream is one stream entry in a PackagePolicyInput (simplified format).
 type PackagePolicyStream struct {
-	Enabled bool                   `json:"enabled"`
-	Vars    map[string]interface{} `json:"vars,omitempty"`
+	Enabled bool           `json:"enabled"`
+	Vars    map[string]any `json:"vars,omitempty"`
+
+	// Unexported fields carry metadata used only for legacy API conversion.
+	dataStreamType    string
+	dataStreamDataset string
+	legacyVars        Vars
+}
+
+// simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
+// the simplified (objects-based) inputs format for package policy creation.
+// Introduced in Kibana 7.16.0 (December 2021).
+const simplifiedPolicyAPIMinVersion = "7.16.0"
+
+// supportsSimplifiedPackagePolicyAPI reports whether the connected Kibana
+// supports the simplified (objects-based) Fleet package policy API.
+// Returns true for managed Kibana (no version available) assuming a modern stack.
+func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
+	if c.semver == nil {
+		return true
+	}
+	min := semver.MustParse(simplifiedPolicyAPIMinVersion)
+	return !c.semver.LessThan(min)
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
+// For Kibana < 7.16, the request is automatically converted to the legacy
+// (arrays-based) inputs format.
 func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*PackagePolicy, error) {
-	reqBody, err := json.Marshal(p)
+	var reqBody []byte
+	var err error
+	if c.supportsSimplifiedPackagePolicyAPI() {
+		reqBody, err = json.Marshal(p)
+	} else {
+		reqBody, err = json.Marshal(toLegacyPackagePolicy(p))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
 	}
