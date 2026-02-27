@@ -5,9 +5,9 @@
 package policy
 
 import (
-	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -66,6 +66,8 @@ func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client,
 }
 
 func comparePolicies(expected, found []byte) (string, error) {
+	logger.Tracef("expected policy before cleaning:\n%s", string(expected))
+	logger.Tracef("found policy before cleaning:\n%s", string(found))
 	want, err := cleanPolicy(expected, policyEntryFilters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare expected policy: %w", err)
@@ -190,42 +192,10 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 }
 
-var uniqueOTelComponentIDReplace = policyEntryReplace{
-	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
-	replace: "$1$2/componentid-%s:$4",
-}
-
-// otelComponentIDsRegexp is the regex to find otel components sections and their IDs to replace them with controlled values.
-// It matches sections like:
-//
-//	 extensions:
-//		  health_check/4391d954-1ffe-4014-a256-5eda78a71828: {}
-//
-//	 receivers:
-//	     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
-//	        collection_interval: 1m
-//	        targets:
-//	            - endpoints:
-//	                - https://epr.elastic.co
-//	              method: GET
-//	   service:
-//	      pipelines:
-//	          logs:
-//	              receivers/6b7f1379-dcb9-4ac7-b253-4df6d088b3ff:
-//	                  - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
-//
-// The regex captures the whole section, so it can be processed line by line to replace the IDs.
-var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|connectors|exporters|service):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
-
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
-	// Replacement of the OTel component IDs needs to be done before unmarshalling the YAML.
-	// The OTel IDs are keys in maps, and using the policyEntryFilter with memberReplace does
-	// not ensure to keep the same ordering.
-	policy = replaceOTelComponentIDs(policy)
-
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
 	if err != nil {
@@ -237,45 +207,157 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 		return nil, err
 	}
 
-	return yaml.Marshal(policyMap)
+	data, err := yaml.Marshal(policyMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal policy: %w", err)
+	}
+
+	return normalizePolicyToCanonical(data)
 }
 
-// replaceOTelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
-// It also replaces references to those IDs in service.extensions and service.pipelines.
-func replaceOTelComponentIDs(policy []byte) []byte {
-	replacementsDone := map[string]string{}
+// otelVariableKeySections are top-level keys whose map entries use variable IDs (type/id).
+var otelVariableKeySections = []string{"extensions", "receivers", "processors", "connectors", "exporters"}
 
-	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
-		count := 0
-		scanner := bufio.NewScanner(bytes.NewReader(match))
-		var section strings.Builder
-		for scanner.Scan() {
-			line := scanner.Text()
-			if uniqueOTelComponentIDReplace.regexp.MatchString(line) {
-				originalOTelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
+// isOTelVariableKey returns true for keys that are OTel component IDs (e.g. "zipkin/componentid-0", "elasticsearch/default").
+func isOTelVariableKey(key string) bool {
+	return strings.Contains(key, "/")
+}
 
-				replacement := fmt.Sprintf(uniqueOTelComponentIDReplace.replace, strconv.Itoa(count))
-				count++
-				line = uniqueOTelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
-
-				// store the otel ID replaced without the space indentation and the colon to be replaced later
-				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				replacementsDone[originalOTelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
-			}
-			section.WriteString(line + "\n")
-		}
-
-		return []byte(section.String())
-	})
-
-	// Replace references in arrays to the otel component IDs replaced before.
-	// These references can be in:
-	// service.extensions
-	// service.pipelines.<signal>.(receivers|processors|exporters)
-	for original, replacement := range replacementsDone {
-		policy = bytes.ReplaceAll(policy, []byte(original), []byte(replacement))
+// normalizePolicyToCanonical rewrites OTel component IDs to deterministic type/componentid-N
+// and updates all references. It works on the decoded tree and sorts variable keys by
+// canonical value so that equivalent policies with different map key order normalize to
+// the same output.
+func normalizePolicyToCanonical(policy []byte) ([]byte, error) {
+	var root map[string]any
+	if err := yaml.Unmarshal(policy, &root); err != nil {
+		return nil, fmt.Errorf("failed to decode policy: %w", err)
 	}
-	return policy
+
+	// Build mapping oldKey -> newKey (e.g. "elasticsearch/default" -> "elasticsearch/componentid-0")
+	// by processing each variable-key section with deterministic (value-based) key order.
+	idMapping := make(map[string]string)
+
+	for _, section := range otelVariableKeySections {
+		v, ok := root[section]
+		if !ok {
+			continue
+		}
+		m, ok := toMap(v)
+		if !ok {
+			continue
+		}
+		buildSectionMapping(m, idMapping)
+	}
+
+	// service.pipelines: keys are pipeline names (variable when they contain "/")
+	if service, ok := toMap(root["service"]); ok {
+		if pipelines, ok := toMap(service["pipelines"]); ok {
+			buildSectionMapping(pipelines, idMapping)
+		}
+	}
+
+	// Apply mapping: replace keys in variable-key maps and replace string references in the whole tree.
+	applyNormalization(root, idMapping)
+
+	return yaml.Marshal(root)
+}
+
+// toMap returns v as map[string]any.
+func toMap(v any) (map[string]any, bool) {
+	if v == nil {
+		return nil, false
+	}
+	m, ok := v.(map[string]any)
+	return m, ok
+}
+
+// canonicalValueKey returns a byte slice that can be used to sort values deterministically.
+func canonicalValueKey(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+// buildSectionMapping adds oldKey -> newKey entries for variable keys in m, sorted by canonical value.
+func buildSectionMapping(m map[string]any, idMapping map[string]string) {
+	var variableKeys []string
+	for k := range m {
+		if isOTelVariableKey(k) {
+			variableKeys = append(variableKeys, k)
+		}
+	}
+	if len(variableKeys) == 0 {
+		return
+	}
+	slices.SortFunc(variableKeys, func(a, b string) int {
+		// First compare the canonical value of the keys (content of the map entry)
+		va, _ := canonicalValueKey(m[a])
+		vb, _ := canonicalValueKey(m[b])
+		if c := bytes.Compare(va, vb); c != 0 {
+			return c
+		}
+		// If the canonical values are the same, compare the keys lexicographically
+		return strings.Compare(a, b)
+	})
+	for i, oldKey := range variableKeys {
+		typ, _, _ := strings.Cut(oldKey, "/")
+		if typ == "" {
+			typ = "component"
+		}
+		newKey := typ + "/componentid-" + strconv.Itoa(i)
+		idMapping[oldKey] = newKey
+	}
+}
+
+// applyNormalization replaces keys in variable-key maps and replaces string values that are component refs.
+func applyNormalization(node any, idMapping map[string]string) {
+	switch n := node.(type) {
+	case map[string]any:
+		// Detect if this is a variable-key section by checking keys.
+		hasVariableKeys := false
+		for k := range n {
+			if isOTelVariableKey(k) {
+				hasVariableKeys = true
+				break
+			}
+		}
+		if hasVariableKeys {
+			// Recurse into values first, then replace keys.
+			for _, v := range n {
+				applyNormalization(v, idMapping)
+			}
+			newMap := make(map[string]any, len(n))
+			for k, v := range n {
+				newKey := k
+				if nk, ok := idMapping[k]; ok {
+					newKey = nk
+				}
+				newMap[newKey] = v
+			}
+			// delete the original map entries
+			for k := range n {
+				delete(n, k)
+			}
+			// add the new map entried with the new keys
+			for k, v := range newMap {
+				n[k] = v
+			}
+			return
+		}
+		for _, v := range n {
+			applyNormalization(v, idMapping)
+		}
+	case []any:
+		for i, elem := range n {
+			if s, ok := elem.(string); ok {
+				if newRef, ok := idMapping[s]; ok {
+					n[i] = newRef
+				}
+			} else {
+				applyNormalization(elem, idMapping)
+			}
+		}
+	default:
+		// strings, numbers, etc. — no change
+	}
 }
 
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
