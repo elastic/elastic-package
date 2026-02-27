@@ -204,8 +204,8 @@ type Vars map[string]Var
 
 // ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
 // The objects-based Fleet API expects raw values (not {value, type} wrappers).
-// Variables of type "yaml" are serialized to a YAML string, as Fleet does not
-// accept raw objects/arrays for these.
+// Variables of type "yaml" whose value is not already a string are marshaled to a
+// YAML string, as Fleet does not accept raw objects/arrays for these.
 func (v Vars) ToMapStr() common.MapStr {
 	if len(v) == 0 {
 		return nil
@@ -214,10 +214,12 @@ func (v Vars) ToMapStr() common.MapStr {
 	for k, val := range v {
 		raw := val.Value.Value()
 		if val.Type == "yaml" && raw != nil {
-			b, err := yaml.Marshal(raw)
-			if err == nil {
-				m[k] = string(b)
-				continue
+			if _, isString := raw.(string); !isString {
+				b, err := yaml.Marshal(raw)
+				if err == nil {
+					m[k] = string(b)
+					continue
+				}
 			}
 		}
 		m[k] = raw

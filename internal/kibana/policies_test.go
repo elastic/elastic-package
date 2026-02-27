@@ -14,6 +14,22 @@ import (
 )
 
 func TestVarsToMapStr(t *testing.T) {
+	t.Run("yaml type already a string is passed through as-is", func(t *testing.T) {
+		// When the value in the test config is already written as a YAML string
+		// (e.g. ssl: |- ... ), it must not be double-encoded.
+		yamlStr := "verification_mode: none\ncertificate: /etc/pki/cert.pem\n"
+		var sslValue packages.VarValue
+		require.NoError(t, sslValue.Unpack(yamlStr))
+		vars := Vars{
+			"ssl": Var{Type: "yaml", Value: sslValue},
+		}
+
+		m := vars.ToMapStr()
+
+		require.NotNil(t, m)
+		assert.Equal(t, yamlStr, m["ssl"])
+	})
+
 	t.Run("yaml type is serialized as YAML string", func(t *testing.T) {
 		var sslValue packages.VarValue
 		require.NoError(t, sslValue.Unpack(map[string]interface{}{
