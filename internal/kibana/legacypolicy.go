@@ -40,11 +40,13 @@ type legacyPackagePolicy struct {
 	Enabled     bool   `json:"enabled"`
 	Package     struct {
 		Name    string `json:"name"`
+		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Inputs []legacyInput  `json:"inputs"`
-	Vars   map[string]Var `json:"vars,omitempty"`
-	Force  bool           `json:"force"`
+	Inputs   []legacyInput  `json:"inputs"`
+	OutputID string         `json:"output_id"`
+	Vars     map[string]Var `json:"vars,omitempty"`
+	Force    bool           `json:"force"`
 }
 
 // toLegacyMapVar converts Vars to the {value, type} map format expected by the
@@ -73,7 +75,9 @@ func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 		Vars:        p.legacyVars.toLegacyMapVar(),
 	}
 	legacy.Package.Name = p.Package.Name
+	legacy.Package.Title = p.Package.Title
 	legacy.Package.Version = p.Package.Version
+	legacy.OutputID = p.OutputID
 
 	// Convert each input from the simplified map to a legacy input entry.
 	for _, i := range p.Inputs {
@@ -82,6 +86,7 @@ func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 			Type:           i.inputType,
 			Enabled:        i.Enabled,
 			Vars:           i.legacyVars.toLegacyMapVar(),
+			Streams:        []legacyStream{},
 		}
 
 		// Convert each stream from the simplified map to a legacy stream entry.

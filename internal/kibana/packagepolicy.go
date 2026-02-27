@@ -88,6 +88,7 @@ func BuildIntegrationPackagePolicy(
 		Inputs:     inputs,
 	}
 	pp.Package.Name = manifest.Name
+	pp.Package.Title = manifest.Title
 	pp.Package.Version = manifest.Version
 
 	return pp, nil
@@ -159,6 +160,7 @@ func BuildInputPackagePolicy(
 		Inputs:    inputs,
 	}
 	policy.Package.Name = manifest.Name
+	policy.Package.Title = manifest.Title
 	policy.Package.Version = manifest.Version
 
 	return policy

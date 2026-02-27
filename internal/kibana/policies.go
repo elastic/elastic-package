@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"gopkg.in/yaml.v3"
@@ -218,7 +219,7 @@ func (v Vars) ToMapStr() common.MapStr {
 			if _, isString := raw.(string); !isString {
 				b, err := yaml.Marshal(raw)
 				if err == nil {
-					raw = string(b)
+					raw = strings.TrimRight(string(b), "\n")
 				}
 			}
 		}
@@ -262,9 +263,11 @@ type PackagePolicy struct {
 	PolicyID    string `json:"policy_id"`
 	Package     struct {
 		Name    string `json:"name"`
+		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
+	Inputs   map[string]PackagePolicyInput `json:"inputs,omitempty"`
+	OutputID string                        `json:"output_id,omitempty"`
 	// Vars holds package-level variables; for legacy conversion use legacyVars.
 	Vars  map[string]any `json:"vars,omitempty"`
 	Force bool           `json:"force"`
@@ -298,9 +301,8 @@ type PackagePolicyStream struct {
 
 // simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
 // the simplified (objects-based) inputs format for package policy creation.
-// Although technically introduced in 7.16.0, we start using it on 8.0.0
-// stacks. If support for older stacks is dropped, this can be removed.
-var simplifiedPolicyAPIMinVersion = semver.MustParse("8.0.0")
+// Introduced in Kibana 8.5.0 (PR #139420, September 2022).
+var simplifiedPolicyAPIMinVersion = semver.MustParse("8.5.0")
 
 // supportsSimplifiedPackagePolicyAPI reports whether the connected Kibana
 // supports the simplified (objects-based) Fleet package policy API.

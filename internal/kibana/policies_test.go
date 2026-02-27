@@ -7,7 +7,6 @@ package kibana
 import (
 	"testing"
 
-	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -76,31 +75,6 @@ func TestVarsToMapStr(t *testing.T) {
 
 	t.Run("empty vars returns nil", func(t *testing.T) {
 		assert.Nil(t, Vars{}.ToMapStr())
-	})
-}
-
-func TestSupportsSimplifiedPackagePolicyAPI(t *testing.T) {
-	tests := []struct {
-		version string
-		want    bool
-	}{
-		{"7.14.1", false},
-		{"7.15.2", false},
-		{"7.16.0", false},
-		{"7.17.0", false},
-		{"8.0.0", true},
-		{"8.15.3", true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.version, func(t *testing.T) {
-			c := &Client{semver: semver.MustParse(tc.version)}
-			assert.Equal(t, tc.want, c.supportsSimplifiedPackagePolicyAPI())
-		})
-	}
-
-	t.Run("managed Kibana (no version) returns true", func(t *testing.T) {
-		c := &Client{semver: nil}
-		assert.True(t, c.supportsSimplifiedPackagePolicyAPI())
 	})
 }
 

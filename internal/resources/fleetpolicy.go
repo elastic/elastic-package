@@ -207,6 +207,7 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	if err != nil {
 		return nil, err
 	}
+	pp.OutputID = policy.DataOutputID
 	return &pp, nil
 }
 
@@ -235,6 +236,7 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 		common.MapStr(packagePolicy.Vars),
 		!packagePolicy.Disabled,
 	)
+	pp.OutputID = policy.DataOutputID
 	return &pp, nil
 }
 
