@@ -4,7 +4,7 @@
 
 // Package kibana provides Fleet API client functionality.
 // This file contains the legacy (arrays-based) package policy types and
-// conversion logic used for Kibana stacks older than 8.0.
+// conversion logic used for old Kibana versions.
 
 package kibana
 
@@ -31,8 +31,7 @@ type legacyInput struct {
 	Streams        []legacyStream `json:"streams"`
 }
 
-// legacyPackagePolicy is the legacy (arrays-based) Fleet package policy
-// request body, accepted by Kibana < 8.0.
+// legacyPackagePolicy is the legacy (arrays-based) Fleet package policy.
 type legacyPackagePolicy struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -48,9 +47,9 @@ type legacyPackagePolicy struct {
 	Force  bool           `json:"force"`
 }
 
-// toLegacyMapStr converts Vars to the {value, type} map format expected by the
+// toLegacyMapVar converts Vars to the {value, type} map format expected by the
 // legacy Fleet API.
-func (v Vars) toLegacyMapStr() map[string]Var {
+func (v Vars) toLegacyMapVar() map[string]Var {
 	if len(v) == 0 {
 		return nil
 	}
@@ -61,44 +60,44 @@ func (v Vars) toLegacyMapStr() map[string]Var {
 	return m
 }
 
-// toLegacyPackagePolicy converts a PackagePolicy (simplified format) to the
-// legacy arrays-based format accepted by Kibana < 8.0.
-func toLegacyPackagePolicy(pp PackagePolicy) legacyPackagePolicy {
+// toLegacy converts a PackagePolicy (simplified format) to the
+// legacy arrays-based format.
+func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 	legacy := legacyPackagePolicy{
-		Name:        pp.Name,
-		Description: pp.Description,
-		Namespace:   pp.Namespace,
-		PolicyID:    pp.PolicyID,
+		Name:        p.Name,
+		Description: p.Description,
+		Namespace:   p.Namespace,
+		PolicyID:    p.PolicyID,
 		Enabled:     true,
-		Force:       pp.Force,
-		Vars:        pp.legacyVars.toLegacyMapStr(),
+		Force:       p.Force,
+		Vars:        p.legacyVars.toLegacyMapVar(),
 	}
-	legacy.Package.Name = pp.Package.Name
-	legacy.Package.Version = pp.Package.Version
+	legacy.Package.Name = p.Package.Name
+	legacy.Package.Version = p.Package.Version
 
 	// Convert each input from the simplified map to a legacy input entry.
-	for _, inp := range pp.Inputs {
-		li := legacyInput{
-			PolicyTemplate: inp.policyTemplate,
-			Type:           inp.inputType,
-			Enabled:        inp.Enabled,
-			Vars:           inp.legacyVars.toLegacyMapStr(),
+	for _, i := range p.Inputs {
+		input := legacyInput{
+			PolicyTemplate: i.policyTemplate,
+			Type:           i.inputType,
+			Enabled:        i.Enabled,
+			Vars:           i.legacyVars.toLegacyMapVar(),
 		}
 
 		// Convert each stream from the simplified map to a legacy stream entry.
-		for _, s := range inp.Streams {
-			ls := legacyStream{
+		for _, s := range i.Streams {
+			stream := legacyStream{
 				Enabled: s.Enabled,
 				DataStream: legacyDataStream{
 					Type:    s.dataStreamType,
 					Dataset: s.dataStreamDataset,
 				},
-				Vars: s.legacyVars.toLegacyMapStr(),
+				Vars: s.legacyVars.toLegacyMapVar(),
 			}
-			li.Streams = append(li.Streams, ls)
+			input.Streams = append(input.Streams, stream)
 		}
 
-		legacy.Inputs = append(legacy.Inputs, li)
+		legacy.Inputs = append(legacy.Inputs, input)
 	}
 
 	return legacy

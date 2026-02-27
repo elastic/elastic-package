@@ -218,8 +218,7 @@ func (v Vars) ToMapStr() common.MapStr {
 			if _, isString := raw.(string); !isString {
 				b, err := yaml.Marshal(raw)
 				if err == nil {
-					m[k] = string(b)
-					continue
+					raw = string(b)
 				}
 			}
 		}
@@ -253,7 +252,7 @@ func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) V
 }
 
 // PackagePolicy represents a Package Policy in Fleet using the simplified
-// (objects-based) inputs format, supported since Kibana 8.0.
+// (objects-based) inputs format.
 // CreatePackagePolicy transparently converts to the legacy format for older stacks.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
@@ -299,8 +298,9 @@ type PackagePolicyStream struct {
 
 // simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
 // the simplified (objects-based) inputs format for package policy creation.
-// Although technically introduced in 7.16.0, we require 8.0.0 for confidence.
-const simplifiedPolicyAPIMinVersion = "8.0.0"
+// Although technically introduced in 7.16.0, we start using it on 8.0.0
+// stacks. If support for older stacks is dropped, this can be removed.
+var simplifiedPolicyAPIMinVersion = semver.MustParse("8.0.0")
 
 // supportsSimplifiedPackagePolicyAPI reports whether the connected Kibana
 // supports the simplified (objects-based) Fleet package policy API.
@@ -309,12 +309,11 @@ func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
 	if c.semver == nil {
 		return true
 	}
-	min := semver.MustParse(simplifiedPolicyAPIMinVersion)
-	return !c.semver.LessThan(min)
+	return !c.semver.LessThan(simplifiedPolicyAPIMinVersion)
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
-// For Kibana < 8.0, the request is automatically converted to the legacy
+// For old Kibana versions the request is automatically converted to the legacy
 // (arrays-based) inputs format.
 func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*PackagePolicy, error) {
 	var reqBody []byte
@@ -322,7 +321,7 @@ func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*Pac
 	if c.supportsSimplifiedPackagePolicyAPI() {
 		reqBody, err = json.Marshal(p)
 	} else {
-		reqBody, err = json.Marshal(toLegacyPackagePolicy(p))
+		reqBody, err = json.Marshal(p.toLegacy())
 	}
 	if err != nil {
 		return nil, fmt.Errorf("could not convert package policy (request) to JSON: %w", err)

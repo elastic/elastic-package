@@ -44,12 +44,12 @@ func BuildIntegrationPackagePolicy(
 
 	// Build streams map for the enabled input. Explicitly disable all other
 	// data streams that share the same input type so Fleet does not auto-enable them.
-	primaryVars := SetKibanaVariables(stream.Vars, dsVars)
+	vars := SetKibanaVariables(stream.Vars, dsVars)
 	streams := map[string]PackagePolicyStream{
 		datasetKey(manifest.Name, dsManifest): {
 			Enabled:           enabled,
-			Vars:              primaryVars.ToMapStr(),
-			legacyVars:        primaryVars,
+			Vars:              vars.ToMapStr(),
+			legacyVars:        vars,
 			dataStreamType:    dsManifest.Type,
 			dataStreamDataset: datasetKey(manifest.Name, dsManifest),
 		},

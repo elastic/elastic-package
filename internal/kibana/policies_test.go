@@ -118,7 +118,7 @@ func TestToLegacyPackagePolicy(t *testing.T) {
 		"hosts": Var{Type: "text", Value: hostVal},
 	}
 
-	pp := PackagePolicy{
+	policy := PackagePolicy{
 		Name:      "test-policy",
 		Namespace: "default",
 		PolicyID:  "agent-policy-id",
@@ -146,10 +146,10 @@ func TestToLegacyPackagePolicy(t *testing.T) {
 			},
 		},
 	}
-	pp.Package.Name = "apache"
-	pp.Package.Version = "1.0.0"
+	policy.Package.Name = "apache"
+	policy.Package.Version = "1.0.0"
 
-	legacy := toLegacyPackagePolicy(pp)
+	legacy := policy.toLegacy()
 
 	assert.Equal(t, "test-policy", legacy.Name)
 	assert.Equal(t, "default", legacy.Namespace)

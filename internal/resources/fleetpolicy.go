@@ -161,34 +161,7 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 
 	switch manifest.Type {
 	case "integration":
-		if packagePolicy.DataStreamName == "" {
-			return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
-		}
-		dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRoot, packagePolicy.DataStreamName)
-		if err != nil {
-			return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
-		}
-		streamIdx, err := packages.GetDataStreamIndex(packagePolicy.InputName, *dsManifest)
-		if err != nil {
-			return nil, fmt.Errorf("could not find stream for input %q: %w", packagePolicy.InputName, err)
-		}
-		policyTemplateName := packagePolicy.TemplateName
-		if policyTemplateName == "" {
-			name, err := packages.FindPolicyTemplateForInput(manifest, dsManifest, packagePolicy.InputName)
-			if err != nil {
-				return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
-			}
-			policyTemplateName = name
-		}
-		policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
-		}
-		datastreams, err := packages.DataStreamsForInput(packagePolicy.PackageRoot, policyTemplate, dsManifest.Streams[streamIdx].Input)
-		if err != nil {
-			return nil, fmt.Errorf("could not determine data streams for input: %w", err)
-		}
-		return createIntegrationPackagePolicy(policy, *manifest, *dsManifest, policyTemplate, datastreams, packagePolicy)
+		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy)
 	case "input":
 		return createInputPackagePolicy(policy, *manifest, packagePolicy)
 	default:
@@ -196,10 +169,37 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 	}
 }
 
-func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, dsManifest packages.DataStreamManifest, policyTemplate packages.PolicyTemplate, datastreams []packages.DataStreamManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
+func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
+	if packagePolicy.DataStreamName == "" {
+		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
+	}
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRoot, packagePolicy.DataStreamName)
+	if err != nil {
+		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
+	}
+	streamIdx, err := packages.GetDataStreamIndex(packagePolicy.InputName, *dsManifest)
+	if err != nil {
+		return nil, fmt.Errorf("could not find stream for input %q: %w", packagePolicy.InputName, err)
+	}
+	policyTemplateName := packagePolicy.TemplateName
+	if policyTemplateName == "" {
+		name, err := packages.FindPolicyTemplateForInput(&manifest, dsManifest, packagePolicy.InputName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to determine the associated policy_template: %w", err)
+		}
+		policyTemplateName = name
+	}
+	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
+	}
+	datastreams, err := packages.DataStreamsForInput(packagePolicy.PackageRoot, policyTemplate, dsManifest.Streams[streamIdx].Input)
+	if err != nil {
+		return nil, fmt.Errorf("could not determine data streams for input: %w", err)
+	}
 	pp, err := kibana.BuildIntegrationPackagePolicy(
 		policy.ID, policy.Namespace, packagePolicy.Name,
-		manifest, policyTemplate, dsManifest,
+		manifest, policyTemplate, *dsManifest,
 		packagePolicy.InputName,
 		common.MapStr(packagePolicy.Vars), common.MapStr(packagePolicy.DataStreamVars),
 		!packagePolicy.Disabled, datastreams,
