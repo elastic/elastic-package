@@ -263,7 +263,6 @@ type PackagePolicy struct {
 	PolicyID    string `json:"policy_id"`
 	Package     struct {
 		Name    string `json:"name"`
-		Title   string `json:"title"`
 		Version string `json:"version"`
 	} `json:"package"`
 	Inputs   map[string]PackagePolicyInput `json:"inputs,omitempty"`
@@ -273,7 +272,8 @@ type PackagePolicy struct {
 	Force bool           `json:"force"`
 
 	// Unexported: type-aware vars for legacy ({value,type}) conversion.
-	legacyVars Vars
+	legacyPackageTitle string
+	legacyVars         Vars
 }
 
 // PackagePolicyInput is one input entry in a PackagePolicy (simplified format).

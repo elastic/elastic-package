@@ -75,7 +75,7 @@ func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 		Vars:        p.legacyVars.toLegacyMapVar(),
 	}
 	legacy.Package.Name = p.Package.Name
-	legacy.Package.Title = p.Package.Title
+	legacy.Package.Title = p.legacyPackageTitle
 	legacy.Package.Version = p.Package.Version
 	legacy.OutputID = p.OutputID
 

@@ -80,15 +80,15 @@ func BuildIntegrationPackagePolicy(
 
 	pkgVars := SetKibanaVariables(manifest.Vars, inputVars)
 	pp := PackagePolicy{
-		Name:       name,
-		Namespace:  namespace,
-		PolicyID:   policyID,
-		Vars:       pkgVars.ToMapStr(),
-		legacyVars: pkgVars,
-		Inputs:     inputs,
+		Name:               name,
+		Namespace:          namespace,
+		PolicyID:           policyID,
+		Vars:               pkgVars.ToMapStr(),
+		Inputs:             inputs,
+		legacyPackageTitle: manifest.Title,
+		legacyVars:         pkgVars,
 	}
 	pp.Package.Name = manifest.Name
-	pp.Package.Title = manifest.Title
 	pp.Package.Version = manifest.Version
 
 	return pp, nil
@@ -158,9 +158,10 @@ func BuildInputPackagePolicy(
 		Namespace: namespace,
 		PolicyID:  policyID,
 		Inputs:    inputs,
+
+		legacyPackageTitle: manifest.Title,
 	}
 	policy.Package.Name = manifest.Name
-	policy.Package.Title = manifest.Title
 	policy.Package.Version = manifest.Version
 
 	return policy
