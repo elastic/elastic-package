@@ -5,7 +5,6 @@
 package policy
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -193,42 +192,10 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 }
 
-var uniqueOTelComponentIDReplace = policyEntryReplace{
-	regexp:  regexp.MustCompile(`^(\s{2,})([^/]+)/([^:]+):(\s\{\}|\s*)$`),
-	replace: "$1$2/componentid-%s:$4",
-}
-
-// otelComponentIDsRegexp is the regex to find otel components sections and their IDs to replace them with controlled values.
-// It matches sections like:
-//
-//	 extensions:
-//		  health_check/4391d954-1ffe-4014-a256-5eda78a71828: {}
-//
-//	 receivers:
-//	     httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7:
-//	        collection_interval: 1m
-//	        targets:
-//	            - endpoints:
-//	                - https://epr.elastic.co
-//	              method: GET
-//	   service:
-//	      pipelines:
-//	          logs:
-//	              receivers/6b7f1379-dcb9-4ac7-b253-4df6d088b3ff:
-//	                  - httpcheck/b0f518d6-4e2d-4c5d-bda7-f9808df537b7
-//
-// The regex captures the whole section, so it can be processed line by line to replace the IDs.
-var otelComponentIDsRegexp = regexp.MustCompile(`(?m)^(?:extensions|receivers|processors|connectors|exporters|service):(?:\s\{\}\n|\n(?:\s{2,}.+\n)+)`)
-
 // cleanPolicy prepares a policy YAML as returned by the download API to be compared with other
 // policies. This preparation is based on removing contents that are generated, or replace them
 // by controlled values.
 func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, error) {
-	// Replacement of the OTel component IDs needs to be done before unmarshalling the YAML.
-	// The OTel IDs are keys in maps, and using the policyEntryFilter with memberReplace does
-	// not ensure to keep the same ordering.
-	policy = replaceOTelComponentIDs(policy)
-
 	var policyMap common.MapStr
 	err := yaml.Unmarshal(policy, &policyMap)
 	if err != nil {
@@ -240,45 +207,12 @@ func cleanPolicy(policy []byte, entriesToClean []policyEntryFilter) ([]byte, err
 		return nil, err
 	}
 
-	return yaml.Marshal(policyMap)
-}
-
-// replaceOTelComponentIDs finds OTel Collector component IDs in the policy and replaces them with controlled values.
-// It also replaces references to those IDs in service.extensions and service.pipelines.
-func replaceOTelComponentIDs(policy []byte) []byte {
-	replacementsDone := map[string]string{}
-
-	policy = otelComponentIDsRegexp.ReplaceAllFunc(policy, func(match []byte) []byte {
-		count := 0
-		scanner := bufio.NewScanner(bytes.NewReader(match))
-		var section strings.Builder
-		for scanner.Scan() {
-			line := scanner.Text()
-			if uniqueOTelComponentIDReplace.regexp.MatchString(line) {
-				originalOTelID, _, _ := strings.Cut(strings.TrimSpace(line), ":")
-
-				replacement := fmt.Sprintf(uniqueOTelComponentIDReplace.replace, strconv.Itoa(count))
-				count++
-				line = uniqueOTelComponentIDReplace.regexp.ReplaceAllString(line, replacement)
-
-				// store the otel ID replaced without the space indentation and the colon to be replaced later
-				// (e.g. http_check/4391d954-1ffe-4014-a256-5eda78a71828 replaced by http_check/componentid-0)
-				replacementsDone[originalOTelID], _, _ = strings.Cut(strings.TrimSpace(string(line)), ":")
-			}
-			section.WriteString(line + "\n")
-		}
-
-		return []byte(section.String())
-	})
-
-	// Replace references in arrays to the otel component IDs replaced before.
-	// These references can be in:
-	// service.extensions
-	// service.pipelines.<signal>.(receivers|processors|exporters)
-	for original, replacement := range replacementsDone {
-		policy = bytes.ReplaceAll(policy, []byte(original), []byte(replacement))
+	data, err := yaml.Marshal(policyMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal policy: %w", err)
 	}
-	return policy
+
+	return normalizePolicyToCanonical(data)
 }
 
 // otelVariableKeySections are top-level keys whose map entries use variable IDs (type/id).
@@ -398,9 +332,11 @@ func applyNormalization(node any, idMapping map[string]string) {
 				}
 				newMap[newKey] = v
 			}
+			// delete the original map entries
 			for k := range n {
 				delete(n, k)
 			}
+			// add the new map entried with the new keys
 			for k, v := range newMap {
 				n[k] = v
 			}
