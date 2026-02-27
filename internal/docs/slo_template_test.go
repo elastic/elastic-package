@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRenderAlertRuleTemplates(t *testing.T) {
+func TestRenderSloTemplates(t *testing.T) {
 	cases := []struct {
 		name         string
 		setupFunc    func(t *testing.T) string
@@ -35,7 +35,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "empty templates directory",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 				return tmpDir
 			},
@@ -46,73 +46,73 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "single valid template",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template := `{
 					"attributes": {
-						"name": "Test Alert Rule",
-						"description": "This is a test alert rule description"
+						"name": "Test SLO Template",
+						"description": "This is a test SLO template description"
 					}
 				}`
-				templateFile := filepath.Join(templatesDir, "test_rule.json")
+				templateFile := filepath.Join(templatesDir, "test_slo.json")
 				require.NoError(t, os.WriteFile(templateFile, []byte(template), 0o644))
 				return tmpDir
 			},
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "Alert rule templates provide pre-defined configurations")
+				assert.Contains(t, result, "SLO templates provide pre-defined configurations")
 				assert.Contains(t, result, "<details>")
-				assert.Contains(t, result, "<summary>Click to expand alert rule templates</summary>")
+				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
 				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
-				assert.Contains(t, result, "| Test Alert Rule | This is a test alert rule description |")
+				assert.Contains(t, result, "Test SLO Template")
+				assert.Contains(t, result, "This is a test SLO template description")
 			},
 		},
 		{
 			name: "multiple valid templates",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template1 := `{
 					"attributes": {
-						"name": "First Rule",
+						"name": "First SLO",
 						"description": "First description"
 					}
 				}`
 				template2 := `{
 					"attributes": {
-						"name": "Second Rule",
+						"name": "Second SLO",
 						"description": "Second description"
 					}
 				}`
-				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule1.json"), []byte(template1), 0o644))
-				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule2.json"), []byte(template2), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "slo1.json"), []byte(template1), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "slo2.json"), []byte(template2), 0o644))
 				return tmpDir
 			},
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "<details>")
-				assert.Contains(t, result, "</details>")
-				assert.Contains(t, result, "| Name | Description |")
-				assert.Contains(t, result, "| First Rule | First description |")
-				assert.Contains(t, result, "| Second Rule | Second description |")
+				assert.Contains(t, result, "First SLO")
+				assert.Contains(t, result, "First description")
+				assert.Contains(t, result, "Second SLO")
+				assert.Contains(t, result, "Second description")
 			},
 		},
 		{
 			name: "skip non-json files",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template := `{
 					"attributes": {
-						"name": "Valid Rule",
+						"name": "Valid SLO",
 						"description": "Valid description"
 					}
 				}`
@@ -124,7 +124,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Contains(t, result, "| Valid Rule | Valid description |")
+				assert.Contains(t, result, "Valid SLO")
 				assert.NotContains(t, result, "ignored")
 				assert.NotContains(t, result, "readme")
 			},
@@ -133,12 +133,12 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "skip subdirectories",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template := `{
 					"attributes": {
-						"name": "Root Rule",
+						"name": "Root SLO",
 						"description": "Root description"
 					}
 				}`
@@ -153,55 +153,83 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
-				assert.Equal(t, 1, strings.Count(result, "Root Rule"))
-				assert.Contains(t, result, "| Root Rule | Root description |")
+				// Should only have one SLO mentioned
+				assert.Equal(t, 1, strings.Count(result, "Root SLO"))
 			},
+		},
+		{
+			name: "unreadable file",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+
+				unreadableFile := filepath.Join(templatesDir, "unreadable.json")
+				require.NoError(t, os.WriteFile(unreadableFile, []byte("content"), 0o000))
+				return tmpDir
+			},
+			expectError: true,
+			expectEmpty: false,
+		},
+		{
+			name: "invalid json file",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+
+				invalidJSON := `{ "attributes": { "name": "Invalid" }`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "invalid.json"), []byte(invalidJSON), 0o644))
+				return tmpDir
+			},
+			expectError: true,
+			expectEmpty: false,
 		},
 		{
 			name: "table structure is correct",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template1 := `{
 					"attributes": {
-						"name": "First Rule Name",
-						"description": "First Rule Description"
+						"name": "First SLO Name",
+						"description": "First SLO Description"
 					}
 				}`
 				template2 := `{
 					"attributes": {
-						"name": "Second Rule Name",
-						"description": "Second Rule Description"
+						"name": "Second SLO Name",
+						"description": "Second SLO Description"
 					}
 				}`
-				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule1.json"), []byte(template1), 0o644))
-				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule2.json"), []byte(template2), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "slo1.json"), []byte(template1), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "slo2.json"), []byte(template2), 0o644))
 				return tmpDir
 			},
 			expectError: false,
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "<details>")
-				assert.Contains(t, result, "<summary>Click to expand alert rule templates</summary>")
+				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
 				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
 				assert.Contains(t, result, "|---|---|")
-				assert.Contains(t, result, "| First Rule Name | First Rule Description |")
-				assert.Contains(t, result, "| Second Rule Name | Second Rule Description |")
+				assert.Contains(t, result, "| First SLO Name | First SLO Description |")
+				assert.Contains(t, result, "| Second SLO Name | Second SLO Description |")
 			},
 		},
 		{
 			name: "special characters are escaped",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				templatesDir := filepath.Join(tmpDir, "kibana", "slo_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
 				template := `{
 					"attributes": {
-						"name": "Rule with *bold* and {braces}",
+						"name": "SLO with *bold* and {braces}",
 						"description": "Description with <angle> and {curly} brackets"
 					}
 				}`
@@ -222,41 +250,13 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 				assert.NotContains(t, result, "<angle>")
 			},
 		},
-		{
-			name: "unreadable file",
-			setupFunc: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
-				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
-
-				unreadableFile := filepath.Join(templatesDir, "unreadable.json")
-				require.NoError(t, os.WriteFile(unreadableFile, []byte("content"), 0o000))
-				return tmpDir
-			},
-			expectError: true,
-			expectEmpty: false,
-		},
-		{
-			name: "invalid json file",
-			setupFunc: func(t *testing.T) string {
-				tmpDir := t.TempDir()
-				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
-				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
-
-				invalidJSON := `{ "attributes": { "name": "Invalid" }`
-				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "invalid.json"), []byte(invalidJSON), 0o644))
-				return tmpDir
-			},
-			expectError: true,
-			expectEmpty: false,
-		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			packageRoot := tc.setupFunc(t)
 
-			result, err := renderAlertRuleTemplates(packageRoot, newEmptyLinkMap())
+			result, err := renderSloTemplates(packageRoot, newEmptyLinkMap())
 
 			if tc.expectError {
 				assert.Error(t, err)

@@ -13,22 +13,21 @@ import (
 	"strings"
 )
 
-type alertRuleTemplate struct {
+type sloTemplate struct {
 	Attributes struct {
 		Name        string
 		Description string
 	}
 }
 
-func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, error) {
-	templatesDir := filepath.Join(packageRoot, "kibana", "alerting_rule_template")
+func renderSloTemplates(packageRoot string, linksMap linkMap) (string, error) {
+	templatesDir := filepath.Join(packageRoot, "kibana", "slo_template")
 
 	if _, err := os.Stat(templatesDir); os.IsNotExist(err) {
-		// no template directory in the package, do nothing
 		return "", nil
 	}
 
-	var templates []alertRuleTemplate
+	var templates []sloTemplate
 
 	err := filepath.WalkDir(templatesDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -49,12 +48,12 @@ func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, err
 
 		rawTemplate, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read alert rule template file: %w", err)
+			return fmt.Errorf("failed to read slo template file: %w", err)
 		}
 
-		var template alertRuleTemplate
+		var template sloTemplate
 		if err := json.Unmarshal(rawTemplate, &template); err != nil {
-			return fmt.Errorf("failed to unmarshal alert rule template JSON: %w", err)
+			return fmt.Errorf("failed to unmarshal slo template JSON: %w", err)
 		}
 
 		templates = append(templates, template)
@@ -62,36 +61,35 @@ func renderAlertRuleTemplates(packageRoot string, linksMap linkMap) (string, err
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("parsing alert rule templates failed: %w", err)
+		return "", fmt.Errorf("parsing slo templates failed: %w", err)
 	}
 
 	var builder strings.Builder
 
 	if len(templates) != 0 {
-		docsLink, err := linksMap.RenderLink("alert-rule-templates", linkOptions{})
+		docsLink, err := linksMap.RenderLink("slo-templates", linkOptions{})
 		if err != nil {
 			docsLink = "https://www.elastic.co/docs"
 		}
 
-		builder.WriteString(`Alert rule templates provide pre-defined configurations for creating alert rules in Kibana.
+		builder.WriteString(`SLO templates provide pre-defined configurations for creating SLOs in Kibana.
 
 For more information, refer to the [Elastic documentation](` + docsLink + `).
 
-Alert rule templates require Elastic Stack version 9.2.0 or later.
+SLO templates require Elastic Stack version 9.4.0 or later.
 
 `)
-
-		builder.WriteString("**The following alert rule templates are available:**\n\n")
-		renderAlertRuleCollapsibleTable(&builder, templates)
+		builder.WriteString("**The following SLO templates are available:**\n\n")
+		renderSloCollapsibleTable(&builder, templates)
 		builder.WriteString("\n")
 	}
 
 	return builder.String(), nil
 }
 
-func renderAlertRuleCollapsibleTable(builder *strings.Builder, templates []alertRuleTemplate) {
+func renderSloCollapsibleTable(builder *strings.Builder, templates []sloTemplate) {
 	builder.WriteString("<details>\n")
-	builder.WriteString("<summary>Click to expand alert rule templates</summary>\n\n")
+	builder.WriteString("<summary>Click to expand SLO templates</summary>\n\n")
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
