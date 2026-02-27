@@ -86,8 +86,8 @@ func TestSupportsSimplifiedPackagePolicyAPI(t *testing.T) {
 	}{
 		{"7.14.1", false},
 		{"7.15.2", false},
-		{"7.16.0", true},
-		{"7.17.0", true},
+		{"7.16.0", false},
+		{"7.17.0", false},
 		{"8.0.0", true},
 		{"8.15.3", true},
 	}

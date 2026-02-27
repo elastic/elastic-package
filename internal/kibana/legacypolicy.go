@@ -4,7 +4,7 @@
 
 // Package kibana provides Fleet API client functionality.
 // This file contains the legacy (arrays-based) package policy types and
-// conversion logic used for Kibana stacks older than 7.16.
+// conversion logic used for Kibana stacks older than 8.0.
 
 package kibana
 
@@ -32,7 +32,7 @@ type legacyInput struct {
 }
 
 // legacyPackagePolicy is the legacy (arrays-based) Fleet package policy
-// request body, accepted by Kibana < 7.16.
+// request body, accepted by Kibana < 8.0.
 type legacyPackagePolicy struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -62,7 +62,7 @@ func (v Vars) toLegacyMapStr() map[string]Var {
 }
 
 // toLegacyPackagePolicy converts a PackagePolicy (simplified format) to the
-// legacy arrays-based format accepted by Kibana < 7.16.
+// legacy arrays-based format accepted by Kibana < 8.0.
 func toLegacyPackagePolicy(pp PackagePolicy) legacyPackagePolicy {
 	legacy := legacyPackagePolicy{
 		Name:        pp.Name,

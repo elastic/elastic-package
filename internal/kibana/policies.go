@@ -253,7 +253,7 @@ func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) V
 }
 
 // PackagePolicy represents a Package Policy in Fleet using the simplified
-// (objects-based) inputs format, supported since Kibana 7.16.
+// (objects-based) inputs format, supported since Kibana 8.0.
 // CreatePackagePolicy transparently converts to the legacy format for older stacks.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
@@ -299,8 +299,8 @@ type PackagePolicyStream struct {
 
 // simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
 // the simplified (objects-based) inputs format for package policy creation.
-// Introduced in Kibana 7.16.0 (December 2021).
-const simplifiedPolicyAPIMinVersion = "7.16.0"
+// Although technically introduced in 7.16.0, we require 8.0.0 for confidence.
+const simplifiedPolicyAPIMinVersion = "8.0.0"
 
 // supportsSimplifiedPackagePolicyAPI reports whether the connected Kibana
 // supports the simplified (objects-based) Fleet package policy API.
@@ -314,7 +314,7 @@ func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
-// For Kibana < 7.16, the request is automatically converted to the legacy
+// For Kibana < 8.0, the request is automatically converted to the legacy
 // (arrays-based) inputs format.
 func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*PackagePolicy, error) {
 	var reqBody []byte
