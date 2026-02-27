@@ -824,9 +824,9 @@ agent:
 inputs: []
 signed:
   data: >-
-    eyJpZCI6ImYzMDMyMDI5LWZhMDEtNDA3Mi05OGYxLWNlN2QyYjUxY2JmMiIsImFnZW50Ijp7ImZlYXR1cmVzIjp7fSwicHJvdGVjdGlvbiI6eyJlbmFibGVkIjpmYWxzZSwidW5pbnN0YWxsX3Rva2VuX2hhc2giOiI4M0NLVDkxazFsbTFINk1jMHFKUzdBL3FzVHlzbm43T1V0dVVTaFl5Sko4PSIsInNpZ25pbmdfa2V5IjoiTUZrd0V3WUhLb1pJemowQ0FRWUlLb1pJemowREFRY0RRZ0FFRUNhYWZmOXVkekY0cXVMM2VCb0pBVXpvNURZWUJxa2ZLeXRMYVNkdUJLck1zVGZiTGVoL1RYOSt3MTZqdFlZNzI3ODlYdmJ1Yy8wRm1ZZ2hlMGZUNHc9PSJ9fSwiaW5wdXRzIjpbXX0=
+    dddd
   signature: >-
-    MEUCIEnA2Z4yFj7bE/tihvjjCC0t26kSFhDovKjE2VuHljq+AiEAlF1eaxCCnymW9wHEF07BDCUStZ1UMztajZpl5htmBQ0=
+    1234567890
 receivers:
   sqlserver/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver:
     collection_interval: 10s
