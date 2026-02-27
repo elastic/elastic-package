@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/elastic/elastic-package/internal/configuration/locations"
@@ -32,6 +33,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -103,7 +105,15 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return err
 	}
-	var pkgRoot, currVersion, prevVersion string
+	var (
+		pkgRoot string
+
+		latestEPRVersion string
+		currVersion      string
+		prevVersion      string
+		currSemver       *semver.Version
+		breakingChange   bool
+	)
 	if len(dirs) == 0 {
 		pkgRoot, err = packages.FindPackageRoot()
 		if err != nil {
@@ -125,9 +135,29 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		}
 		if len(revs) > 0 {
 			currVersion = revs[0].Version
+			for _, c := range revs[0].Changes {
+				if c.Type == "breaking-change" {
+					// Mark as breaking if explicitly noted.
+					breakingChange = true
+					break
+				}
+			}
+			currSemver, err = semver.NewVersion(currVersion)
+			if err != nil {
+				return fmt.Errorf("failed to parse current version: %w", err)
+			}
 		}
 		if len(revs) > 1 {
 			prevVersion = revs[1].Version
+			if !breakingChange {
+				// If not explicitly noted as breaking, check that the
+				// the major versions match.
+				prevSemver, err := semver.NewVersion(prevVersion)
+				if err != nil {
+					return fmt.Errorf("failed to parse previous version: %w", err)
+				}
+				breakingChange = currSemver.Major() != prevSemver.Major()
+			}
 		}
 	}
 
@@ -154,11 +184,34 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			return nil
 		}
 	}
-	if pkgRoot != "" {
-		t.Log("PKG ", filepath.Base(pkgRoot))
-	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
+
+	isLatestVersion := true
+	var manifest *packages.PackageManifest
+	if pkgRoot != "" {
+		t.Log("PKG ", filepath.Base(pkgRoot))
+		manifest, err = packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+		if err != nil {
+			return err
+		}
+		eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+		revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
+		if err != nil {
+			return err
+		}
+		if len(revisions) > 0 {
+			latestEPRVersion = revisions[len(revisions)-1].Version
+			latestSemver, err := semver.NewVersion(latestEPRVersion)
+			if err != nil {
+				return fmt.Errorf("failed to parse latest epr version: %w", err)
+			}
+			if latestSemver.GreaterThanEqual(currSemver) {
+				isLatestVersion = false
+			}
+		}
+	}
 	var n int
 	for _, d := range dirs {
 		t.dataStream = d
@@ -215,13 +268,12 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				e.Setenv("CONFIG_PROFILES", loc.ProfileDir())
 				e.Setenv("HOME", home)
 				if pkgRoot != "" {
-					m, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
-					if err != nil {
-						return err
-					}
-					e.Setenv("PACKAGE_NAME", m.Name)
+					e.Setenv("PACKAGE_NAME", manifest.Name)
 					e.Setenv("PACKAGE_BASE", filepath.Base(pkgRoot))
 					e.Setenv("PACKAGE_ROOT", pkgRoot)
+				}
+				if latestEPRVersion != "" {
+					e.Setenv("LATEST_EPR_VERSION", latestEPRVersion)
 				}
 				if currVersion != "" {
 					e.Setenv("CURRENT_VERSION", currVersion)
@@ -245,6 +297,12 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				switch cond {
 				case "external_stack":
 					return opt.ExternalStack, nil
+				case "breaking_change":
+					return breakingChange, nil
+				case "is_latest_version":
+					return isLatestVersion, nil
+				case "has_previous_release":
+					return prevVersion != "", nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}

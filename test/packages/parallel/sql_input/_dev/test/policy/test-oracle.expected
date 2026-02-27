@@ -7,7 +7,7 @@ inputs:
       name: test-oracle-sql_input
       streams:
         - data_stream:
-            dataset: sql_input.sql_query
+            dataset: sql_query
           driver: oracle
           hosts:
             - root:test@tcp(localhost)/

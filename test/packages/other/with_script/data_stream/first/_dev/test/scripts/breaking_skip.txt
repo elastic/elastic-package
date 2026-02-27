@@ -1,0 +1,7 @@
+[breaking_change] skip 'Skipping breaking change.'
+
+# Trigger a failure.
+cmp stdout note
+
+-- note --
+This should fail if it does not skip.
