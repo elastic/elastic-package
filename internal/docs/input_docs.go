@@ -44,6 +44,7 @@ func renderInputDocs(packageRoot string) (string, error) {
 
 	sort.Strings(inputs)
 	var renderedDocs strings.Builder
+	renderedDocs.WriteString("### Inputs used\n")
 	renderedDocs.WriteString("These inputs can be used with this integration:\n")
 	for _, input := range inputs {
 		for _, inputDef := range inputDefs {

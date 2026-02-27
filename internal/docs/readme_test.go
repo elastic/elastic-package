@@ -195,6 +195,7 @@ var renderCases = []struct {
 	title                  string
 	templatePath           string
 	dataStreamName         string
+	transformName          string
 	readmeTemplateContents string
 	fieldsContents         string
 	expected               string
@@ -218,6 +219,7 @@ Introduction to the package
 | data_stream.type | Data stream type package. | constant_keyword |
 `,
 		dataStreamName: "",
+		transformName:  "",
 		fieldsContents: `
 - name: data_stream.type
   type: constant_keyword
@@ -238,6 +240,7 @@ Introduction to the package
 | data_stream.type | Data stream type. | constant_keyword |
 `,
 		dataStreamName: "example",
+		transformName:  "",
 		fieldsContents: `
 - name: data_stream.type
   type: constant_keyword
@@ -261,6 +264,7 @@ Introduction to the package
 | dns.answers.name | The domain name to which this resource record pertains. If a chain of CNAME is being resolved, each answer's ` + "`name`" + ` should be the one that corresponds with the answer's ` + "`data`" + `. It should not simply be the original ` + "`question.name`" + ` repeated. | keyword |
 `,
 		dataStreamName: "example",
+		transformName:  "",
 		fieldsContents: `
 - name: emptygroup
   type: group
@@ -288,14 +292,124 @@ Introduction to the package
 (no fields available)
 `,
 		dataStreamName: "example",
+		transformName:  "",
 		fieldsContents: "",
+	},
+	{
+		title:        "README with ilm",
+		templatePath: "_dev/build/docs/README.md",
+		readmeTemplateContents: `# README
+Introduction to the package
+{{ fields "example" }}
+
+{{ ilm "example" }}
+{{ transform }}
+`,
+		expected: `# README
+Introduction to the package
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| data_stream.type | Data stream type. | constant_keyword |
+
+
+
+### Data streams using ILM policies
+
+#### example Policy
+| Key | Value |
+|---|---|
+| policy.phases.delete.min_age | 30d |
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+
+
+### Transforms used
+
+#### latest
+* Description: Latest Findings from Cloud Synergy
+* Source Index: logs-cloud_synergy.findings-\*
+* Destination Index: cloud_solution-cloud_synergy.latest-v1
+
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| transformer.id | the UID of the transformer | keyword |
+
+`,
+		dataStreamName: "example",
+		transformName:  "latest",
+		fieldsContents: `
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.`,
+	},
+	{
+		title:        "README with multiple ilm policies",
+		templatePath: "_dev/build/docs/README.md",
+		readmeTemplateContents: `# README
+Introduction to the package
+{{ fields "example" }}
+
+{{ ilm }}
+{{ transform }}
+`,
+		expected: `# README
+Introduction to the package
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| data_stream.type | Data stream type. | constant_keyword |
+
+
+
+### Data streams using ILM policies
+
+#### example Policy
+| Key | Value |
+|---|---|
+| policy.phases.delete.min_age | 30d |
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+
+#### example2 Policy
+| Key | Value |
+|---|---|
+| policy.phases.delete.min_age | 30d |
+| policy.phases.hot.actions.rollover.max_age | 30d |
+| policy.phases.hot.actions.rollover.max_primary_shard_size | 50gb |
+
+
+### Transforms used
+
+#### latest
+* Description: Latest Findings from Cloud Synergy
+* Source Index: logs-cloud_synergy.findings-\*
+* Destination Index: cloud_solution-cloud_synergy.latest-v1
+
+**Exported fields**
+
+| Field | Description | Type |
+|---|---|---|
+| transformer.id | the UID of the transformer | keyword |
+
+`,
+		dataStreamName: "example",
+		transformName:  "latest",
+		fieldsContents: `
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.`,
 	},
 }
 
 func TestRenderReadmeWithFields(t *testing.T) {
 	linksMap := newEmptyLinkMap()
 	urls := fields.NewSchemaURLs()
-	for _, c := range renderCases {
+	for i, c := range renderCases {
 		t.Run(c.title, func(t *testing.T) {
 			packageRoot := t.TempDir()
 			filename := filepath.Base(c.templatePath)
@@ -305,6 +419,14 @@ func TestRenderReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
+			if i%2 == 0 {
+				createILMFileYML(t, packageRoot, c.dataStreamName)
+				createILMFileYML(t, packageRoot, "example2")
+			} else {
+				createILMFile(t, packageRoot, c.dataStreamName)
+				createILMFile(t, packageRoot, "example2")
+			}
+			createTransformFile(t, packageRoot, c.transformName)
 
 			root, err := os.OpenRoot(packageRoot)
 			require.NoError(t, err)
@@ -330,6 +452,9 @@ func TestUpdateReadmeWithFields(t *testing.T) {
 			createBuildFile(t, packageRoot)
 			createReadmeTemplateFile(t, packageRoot, c.readmeTemplateContents)
 			createFieldsFile(t, packageRoot, c.dataStreamName, c.fieldsContents)
+			createILMFile(t, packageRoot, c.dataStreamName)
+			createTransformFile(t, packageRoot, c.transformName)
+			createILMFile(t, packageRoot, "example2")
 
 			buildPackageRoot := t.TempDir()
 			createManifestFile(t, buildPackageRoot)
@@ -443,4 +568,151 @@ func createBuildFile(t *testing.T, packageRoot string) {
 	buildFile := filepath.Join(buildDir, "build.yml")
 	err = os.WriteFile(buildFile, []byte(content), 0644)
 	require.NoError(t, err)
+}
+
+// create ilm file
+func createILMFile(t *testing.T, packageRoot, dataStreamName string) {
+	t.Helper()
+	if dataStreamName == "" {
+		return
+	}
+
+	ilmFolder := createILMFolder(t, packageRoot, dataStreamName)
+	ilmFile := filepath.Join(ilmFolder, "default_policy.json")
+	err := os.WriteFile(ilmFile, []byte(`{
+	"policy": {
+		"phases": {
+			"hot": {
+				"actions": {
+					"rollover": {
+						"max_age": "30d",
+						"max_primary_shard_size": "50gb"
+					}
+				}
+			},
+			"delete": {
+				"min_age": "30d",
+				"actions": {
+					"delete": {}
+				}
+			}
+		}
+	}
+}
+`), 0644)
+	require.NoError(t, err)
+}
+
+// create ilm file as yaml
+func createILMFileYML(t *testing.T, packageRoot, dataStreamName string) {
+	t.Helper()
+	if dataStreamName == "" {
+		return
+	}
+
+	ilmFolder := filepath.Join(packageRoot, "data_stream", dataStreamName)
+	err := os.MkdirAll(ilmFolder, 0755)
+	require.NoError(t, err)
+	ilmFile := filepath.Join(ilmFolder, "lifecycle.yml")
+	contents := `policy:
+  phases:
+    hot:
+      actions:
+        rollover:
+          max_age: "30d"
+          max_primary_shard_size: "50gb"
+    delete:
+      min_age: "30d"
+      actions:
+        delete: {}
+`
+	err = os.WriteFile(ilmFile, []byte(contents), 0644)
+	require.NoError(t, err)
+}
+
+func createILMFolder(t *testing.T, packageRoot, dataStreamName string) string {
+	t.Helper()
+
+	if dataStreamName == "" {
+		return ""
+	}
+
+	ilmFolder := filepath.Join(packageRoot, "data_stream", dataStreamName, "elasticsearch", "ilm")
+	err := os.MkdirAll(ilmFolder, 0755)
+	require.NoError(t, err)
+	return ilmFolder
+}
+
+func createTransformFile(t *testing.T, packageRoot, transformName string) {
+	t.Helper()
+	if transformName == "" {
+		return
+	}
+	contents := `source:
+  index:
+    - "logs-cloud_synergy.findings-*"
+  query:
+    bool:
+      must_not:
+        exists:
+          field: error.message
+dest:
+  index: "cloud_solution-cloud_synergy.latest-v1"
+  aliases:
+    - alias: "cloud_solution-cloud_synergy.latest"
+      move_on_creation: true
+latest:
+  unique_key:
+    - rule.id
+    - resource.id
+    - data_stream.namespace
+  sort: "@timestamp"
+description: Latest Findings from Cloud Synergy
+frequency: 5m
+sync:
+  time:
+    field: event.ingested
+retention_policy:
+  time:
+    field: "@timestamp"
+    max_age: 26h
+settings:
+  unattended: true
+_meta:
+  managed: true
+  # Bump this version to delete, reinstall, and restart the transform during package.
+  # Version bump is needed if there is any code change in transform.
+  fleet_transform_version: 0.2.1
+`
+	transformFolder := createTransformFolder(t, packageRoot, transformName)
+	transformFile := filepath.Join(transformFolder, "transform.yml")
+	err := os.WriteFile(transformFile, []byte(contents), 0644)
+	require.NoError(t, err)
+
+	fields := `
+- name: transformer
+  type: group
+  description: Fields for the tests
+  fields:
+    - name: id
+      type: keyword
+      description: the UID of the transformer
+`
+	// add support for transform fields
+	transformFieldsFolder := filepath.Join(transformFolder, "fields")
+	err = os.MkdirAll(transformFieldsFolder, 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(transformFieldsFolder, "fields.yml"), []byte(fields), 0644)
+	require.NoError(t, err)
+}
+
+func createTransformFolder(t *testing.T, packageRoot, transformName string) string {
+	t.Helper()
+	if transformName == "" {
+		return ""
+	}
+	transformFolder := filepath.Join(packageRoot, "elasticsearch", "transform", transformName)
+	err := os.MkdirAll(transformFolder, 0755)
+	require.NoError(t, err)
+	return transformFolder
 }
