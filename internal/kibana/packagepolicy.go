@@ -1,0 +1,178 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package kibana
+
+import (
+	"fmt"
+
+	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/packages"
+)
+
+// BuildIntegrationPackagePolicy builds a PackagePolicy for an integration package
+// given pre-loaded manifests.
+func BuildIntegrationPackagePolicy(
+	policyID, namespace, name string,
+	manifest packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	dsManifest packages.DataStreamManifest,
+	inputName string,
+	inputVars, dsVars common.MapStr,
+	enabled bool,
+	datastreams []packages.DataStreamManifest,
+) (PackagePolicy, error) {
+	streamIdx, err := packages.GetDataStreamIndex(inputName, dsManifest)
+	if err != nil {
+		return PackagePolicy{}, fmt.Errorf("could not find stream for input %q: %w", inputName, err)
+	}
+	stream := dsManifest.Streams[streamIdx]
+	streamInput := stream.Input
+
+	// Disable all other inputs; only enable the target one.
+	inputs := make(map[string]PackagePolicyInput)
+	for _, pt := range manifest.PolicyTemplates {
+		for _, inp := range pt.Inputs {
+			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = PackagePolicyInput{
+				Enabled:        false,
+				inputType:      inp.Type,
+				policyTemplate: pt.Name,
+			}
+		}
+	}
+
+	// Build streams map for the enabled input. Explicitly disable all other
+	// data streams that share the same input type so Fleet does not auto-enable them.
+	vars := SetKibanaVariables(stream.Vars, dsVars)
+	streams := map[string]PackagePolicyStream{
+		datasetKey(manifest.Name, dsManifest): {
+			Enabled:           enabled,
+			Vars:              vars.ToMapStr(),
+			legacyVars:        vars,
+			dataStreamType:    dsManifest.Type,
+			dataStreamDataset: datasetKey(manifest.Name, dsManifest),
+		},
+	}
+	for _, ds := range datastreams {
+		if ds.Name == dsManifest.Name {
+			continue
+		}
+		streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
+			Enabled:           false,
+			dataStreamType:    ds.Type,
+			dataStreamDataset: datasetKey(manifest.Name, ds),
+		}
+	}
+
+	inputEntry := PackagePolicyInput{
+		Enabled:        enabled,
+		Streams:        streams,
+		inputType:      streamInput,
+		policyTemplate: policyTemplate.Name,
+	}
+	if input := policyTemplate.FindInputByType(streamInput); input != nil {
+		iv := SetKibanaVariables(input.Vars, inputVars)
+		inputEntry.Vars = iv.ToMapStr()
+		inputEntry.legacyVars = iv
+	}
+	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
+
+	pkgVars := SetKibanaVariables(manifest.Vars, inputVars)
+	pp := PackagePolicy{
+		Name:               name,
+		Namespace:          namespace,
+		PolicyID:           policyID,
+		Vars:               pkgVars.ToMapStr(),
+		Inputs:             inputs,
+		legacyPackageTitle: manifest.Title,
+		legacyVars:         pkgVars,
+	}
+	pp.Package.Name = manifest.Name
+	pp.Package.Version = manifest.Version
+
+	return pp, nil
+}
+
+// BuildInputPackagePolicy builds a PackagePolicy for an input package
+// given pre-loaded manifests.
+func BuildInputPackagePolicy(
+	policyID, namespace, name string,
+	manifest packages.PackageManifest,
+	policyTemplate packages.PolicyTemplate,
+	varValues common.MapStr,
+	enabled bool,
+) PackagePolicy {
+	streamInput := policyTemplate.Input
+
+	// Disable all other inputs; only enable the target one.
+	inputs := make(map[string]PackagePolicyInput)
+	for _, pt := range manifest.PolicyTemplates {
+		inputs[fmt.Sprintf("%s-%s", pt.Name, pt.Input)] = PackagePolicyInput{
+			Enabled:        false,
+			inputType:      pt.Input,
+			policyTemplate: pt.Name,
+		}
+	}
+
+	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
+	if _, found := vars["data_stream.dataset"]; !found {
+		// Use overriding value from varValues if provided (when not declared in policyTemplate.Vars).
+		dataset := policyTemplate.Name
+		if v, err := varValues.GetValue("data_stream.dataset"); err == nil {
+			if dsVal, ok := v.(string); ok && dsVal != "" {
+				dataset = dsVal
+			}
+		}
+		var value packages.VarValue
+		value.Unpack(dataset)
+		vars["data_stream.dataset"] = Var{
+			Value: value,
+			Type:  "text",
+		}
+	}
+
+	// Dataset key for the stream: <package name>.<policy template name>.
+	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
+	inputEntry := PackagePolicyInput{
+		Enabled: enabled,
+		Streams: map[string]PackagePolicyStream{
+			streamDataset: {
+				Enabled:           enabled,
+				Vars:              vars.ToMapStr(),
+				legacyVars:        vars,
+				dataStreamDataset: streamDataset,
+				// dataStreamType is intentionally empty: input packages
+				// require Kibana >= 7.16 (simplified API), so legacy
+				// conversion is not needed.
+			},
+		},
+		inputType:      streamInput,
+		policyTemplate: policyTemplate.Name,
+		legacyVars:     vars,
+	}
+	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
+
+	policy := PackagePolicy{
+		Name:      name,
+		Namespace: namespace,
+		PolicyID:  policyID,
+		Inputs:    inputs,
+
+		legacyPackageTitle: manifest.Title,
+	}
+	policy.Package.Name = manifest.Name
+	policy.Package.Version = manifest.Version
+
+	return policy
+}
+
+// datasetKey returns the Fleet stream key for a data stream. When the data
+// stream manifest declares an explicit dataset, that value is used directly;
+// otherwise the key is "<pkgName>.<dsName>".
+func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
+	if ds.Dataset != "" {
+		return ds.Dataset
+	}
+	return fmt.Sprintf("%s.%s", pkgName, ds.Name)
+}

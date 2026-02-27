@@ -97,6 +97,90 @@ func TestDataStreamManifest_IndexTemplateName(t *testing.T) {
 	}
 }
 
+func TestDataStreamsForInput(t *testing.T) {
+	t.Run("returns all matching data streams when policy template has no explicit list", func(t *testing.T) {
+		// imported_mappings_tests has two data streams (first, second) both using
+		// logfile input under a single policy template with no data_streams restriction.
+		root, err := filepath.Abs("../../test/packages/other/imported_mappings_tests")
+		require.NoError(t, err)
+
+		pt := PolicyTemplate{Name: "sample"} // no DataStreams restriction
+
+		got, err := DataStreamsForInput(root, pt, "logfile")
+		require.NoError(t, err)
+		names := make([]string, len(got))
+		for i, ds := range got {
+			names[i] = ds.Name
+		}
+		assert.ElementsMatch(t, []string{"first", "second"}, names)
+	})
+
+	t.Run("filters by policy template DataStreams list", func(t *testing.T) {
+		// kubernetes has two policy templates (kubelet, kube-state-metrics) both
+		// using kubernetes/metrics input, each scoped to different data streams.
+		root, err := filepath.Abs("../../test/packages/with-kind/kubernetes")
+		require.NoError(t, err)
+
+		kubelet := PolicyTemplate{
+			Name:        "kubelet",
+			DataStreams: []string{"pod"},
+		}
+		got, err := DataStreamsForInput(root, kubelet, "kubernetes/metrics")
+		require.NoError(t, err)
+		names := make([]string, len(got))
+		for i, ds := range got {
+			names[i] = ds.Name
+		}
+		assert.Equal(t, []string{"pod"}, names)
+
+		ksm := PolicyTemplate{
+			Name:        "kube-state-metrics",
+			DataStreams: []string{"state_pod", "state_cronjob"},
+		}
+		got, err = DataStreamsForInput(root, ksm, "kubernetes/metrics")
+		require.NoError(t, err)
+		names = make([]string, len(got))
+		for i, ds := range got {
+			names[i] = ds.Name
+		}
+		assert.ElementsMatch(t, []string{"state_pod", "state_cronjob"}, names)
+	})
+
+	t.Run("preserves dataset field for stream key building", func(t *testing.T) {
+		// with_dataset has a data stream whose dataset field is overridden.
+		root, err := filepath.Abs("../../test/packages/other/with_dataset")
+		require.NoError(t, err)
+
+		pt := PolicyTemplate{Name: "sample"}
+
+		got, err := DataStreamsForInput(root, pt, "logfile")
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "first", got[0].Name)
+		assert.Equal(t, "with_dataset.overwritten_dataset.foo", got[0].Dataset)
+	})
+
+	t.Run("returns empty slice when no data stream matches the input type", func(t *testing.T) {
+		root, err := filepath.Abs("../../test/packages/other/imported_mappings_tests")
+		require.NoError(t, err)
+
+		pt := PolicyTemplate{Name: "sample"}
+
+		got, err := DataStreamsForInput(root, pt, "httpjson")
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+
+	t.Run("returns empty slice when no data_stream directory exists", func(t *testing.T) {
+		root := t.TempDir()
+		pt := PolicyTemplate{Name: "sample"}
+
+		got, err := DataStreamsForInput(root, pt, "logfile")
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
 func TestReadTransformDefinitionFile(t *testing.T) {
 	t.Parallel()
 
