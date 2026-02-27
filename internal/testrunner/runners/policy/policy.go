@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -66,6 +67,8 @@ func assertExpectedAgentPolicy(ctx context.Context, kibanaClient *kibana.Client,
 }
 
 func comparePolicies(expected, found []byte) (string, error) {
+	logger.Tracef("expected policy before cleaning:\n%s", string(expected))
+	logger.Tracef("found policy before cleaning:\n%s", string(found))
 	want, err := cleanPolicy(expected, policyEntryFilters)
 	if err != nil {
 		return "", fmt.Errorf("failed to prepare expected policy: %w", err)
@@ -276,6 +279,149 @@ func replaceOTelComponentIDs(policy []byte) []byte {
 		policy = bytes.ReplaceAll(policy, []byte(original), []byte(replacement))
 	}
 	return policy
+}
+
+// otelVariableKeySections are top-level keys whose map entries use variable IDs (type/id).
+var otelVariableKeySections = []string{"extensions", "receivers", "processors", "connectors", "exporters"}
+
+// isOTelVariableKey returns true for keys that are OTel component IDs (e.g. "zipkin/componentid-0", "elasticsearch/default").
+func isOTelVariableKey(key string) bool {
+	return strings.Contains(key, "/")
+}
+
+// normalizePolicyToCanonical rewrites OTel component IDs to deterministic type/componentid-N
+// and updates all references. It works on the decoded tree and sorts variable keys by
+// canonical value so that equivalent policies with different map key order normalize to
+// the same output.
+func normalizePolicyToCanonical(policy []byte) ([]byte, error) {
+	var root map[string]any
+	if err := yaml.Unmarshal(policy, &root); err != nil {
+		return nil, fmt.Errorf("failed to decode policy: %w", err)
+	}
+
+	// Build mapping oldKey -> newKey (e.g. "elasticsearch/default" -> "elasticsearch/componentid-0")
+	// by processing each variable-key section with deterministic (value-based) key order.
+	idMapping := make(map[string]string)
+
+	for _, section := range otelVariableKeySections {
+		v, ok := root[section]
+		if !ok {
+			continue
+		}
+		m, ok := toMap(v)
+		if !ok {
+			continue
+		}
+		buildSectionMapping(m, idMapping)
+	}
+
+	// service.pipelines: keys are pipeline names (variable when they contain "/")
+	if service, ok := toMap(root["service"]); ok {
+		if pipelines, ok := toMap(service["pipelines"]); ok {
+			buildSectionMapping(pipelines, idMapping)
+		}
+	}
+
+	// Apply mapping: replace keys in variable-key maps and replace string references in the whole tree.
+	applyNormalization(root, idMapping)
+
+	return yaml.Marshal(root)
+}
+
+// toMap returns v as map[string]any.
+func toMap(v any) (map[string]any, bool) {
+	if v == nil {
+		return nil, false
+	}
+	m, ok := v.(map[string]any)
+	return m, ok
+}
+
+// canonicalValueKey returns a byte slice that can be used to sort values deterministically.
+func canonicalValueKey(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+// buildSectionMapping adds oldKey -> newKey entries for variable keys in m, sorted by canonical value.
+func buildSectionMapping(m map[string]any, idMapping map[string]string) {
+	var variableKeys []string
+	for k := range m {
+		if isOTelVariableKey(k) {
+			variableKeys = append(variableKeys, k)
+		}
+	}
+	if len(variableKeys) == 0 {
+		return
+	}
+	slices.SortFunc(variableKeys, func(a, b string) int {
+		// First compare the canonical value of the keys (content of the map entry)
+		va, _ := canonicalValueKey(m[a])
+		vb, _ := canonicalValueKey(m[b])
+		if c := bytes.Compare(va, vb); c != 0 {
+			return c
+		}
+		// If the canonical values are the same, compare the keys lexicographically
+		return strings.Compare(a, b)
+	})
+	for i, oldKey := range variableKeys {
+		typ, _, _ := strings.Cut(oldKey, "/")
+		if typ == "" {
+			typ = "component"
+		}
+		newKey := typ + "/componentid-" + strconv.Itoa(i)
+		idMapping[oldKey] = newKey
+	}
+}
+
+// applyNormalization replaces keys in variable-key maps and replaces string values that are component refs.
+func applyNormalization(node any, idMapping map[string]string) {
+	switch n := node.(type) {
+	case map[string]any:
+		// Detect if this is a variable-key section by checking keys.
+		hasVariableKeys := false
+		for k := range n {
+			if isOTelVariableKey(k) {
+				hasVariableKeys = true
+				break
+			}
+		}
+		if hasVariableKeys {
+			// Recurse into values first, then replace keys.
+			for _, v := range n {
+				applyNormalization(v, idMapping)
+			}
+			newMap := make(map[string]any, len(n))
+			for k, v := range n {
+				newKey := k
+				if nk, ok := idMapping[k]; ok {
+					newKey = nk
+				}
+				newMap[newKey] = v
+			}
+			for k := range n {
+				delete(n, k)
+			}
+			for k, v := range newMap {
+				n[k] = v
+			}
+			return
+		}
+		for _, v := range n {
+			applyNormalization(v, idMapping)
+		}
+	case []any:
+		for i, elem := range n {
+			if s, ok := elem.(string); ok {
+				if newRef, ok := idMapping[s]; ok {
+					n[i] = newRef
+				}
+			} else {
+				applyNormalization(elem, idMapping)
+			}
+		}
+	default:
+		// strings, numbers, etc. — no change
+	}
 }
 
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {

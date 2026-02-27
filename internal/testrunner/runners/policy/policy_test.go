@@ -79,6 +79,62 @@ exporters:
 	}
 }
 
+func TestNormalizePolicyToCanonical(t *testing.T) {
+	t.Run("rewrites OTel component IDs and references", func(t *testing.T) {
+		policy := `
+exporters:
+  elasticsearch/default:
+    endpoints:
+      - https://elasticsearch:9200
+receivers:
+  zipkin/otelcol-zipkinreceiver-uuid-here:
+    endpoint: 0.0.0.0:9411
+service:
+  pipelines:
+    traces/custom-pipeline:
+      receivers:
+        - zipkin/otelcol-zipkinreceiver-uuid-here
+      exporters:
+        - elasticsearch/default
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "elasticsearch/componentid-0")
+		assert.Contains(t, string(out), "zipkin/componentid-0")
+		assert.Contains(t, string(out), "traces/componentid-0")
+		// References should be updated
+		assert.Contains(t, string(out), "- zipkin/componentid-0")
+		assert.Contains(t, string(out), "- elasticsearch/componentid-0")
+	})
+
+	t.Run("order-independent: same components different key order normalize to same result", func(t *testing.T) {
+		policyA := `
+exporters:
+  elasticsearch/second:
+    endpoints: ["b"]
+  elasticsearch/first:
+    endpoints: ["a"]
+  elasticsearch/a5ae742d-5b47-4d5e-9511-969df92fcf3a:
+    endpoints: ["d"]
+`
+		policyB := `
+exporters:
+  elasticsearch/sixth:
+    endpoints: ["a"]
+  elasticsearch/fourth:
+    endpoints: ["b"]
+  elasticsearch/2577857f-918e-405d-b657-a4dbdbf02a2f:
+    endpoints: ["d"]
+`
+		outA, err := normalizePolicyToCanonical([]byte(policyA))
+		assert.NoError(t, err)
+		outB, err := normalizePolicyToCanonical([]byte(policyB))
+		assert.NoError(t, err)
+		assert.Equal(t, string(outA), string(outB), "equivalent policies with different key order should normalize to same YAML")
+	})
+}
+
 func TestComparePolicies(t *testing.T) {
 	cases := []struct {
 		title    string
