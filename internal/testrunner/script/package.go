@@ -269,7 +269,7 @@ func removePackageZip(ts *testscript.TestScript, neg bool, args []string) {
 	m, err := packages.ReadPackageManifestFromZipPackage(path)
 	ts.Check(decoratedWith("reading zip manifest", err))
 
-	_, err = stk.kibana.RemovePackage(ctx, m.Name, m.Version)
+	_, err = stk.kibana.RemovePackage(ctx, m.Name, m.Version, false)
 	ts.Check(decoratedWith("removing package zip", err))
 
 	fmt.Fprintf(ts.Stdout(), "removed zipped package resources in %s for %s in test for %s\n", path, m.Name, pkg)

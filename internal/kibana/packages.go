@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -138,9 +139,18 @@ func (c *Client) InstallZipPackage(ctx context.Context, zipFile string) ([]packa
 	return processResults("zip-install", statusCode, respBody)
 }
 
-// RemovePackage removes the given package from Fleet.
-func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
+// RemovePackage removes the given package from Fleet. When force is true,
+// Kibana skips the "package policies still reference this package" check
+// and actively deletes any referencing package policies before removal.
+func (c *Client) RemovePackage(ctx context.Context, name, version string, force bool) ([]packages.Asset, error) {
 	path := c.epmPackageUrl(name, version)
+	if force {
+		// epmPackageUrl currently returns a bare path with no query string.
+		// If that changes, this concatenation must be replaced with proper
+		// URL parsing and merging of query parameters.
+		params := url.Values{"force": []string{"true"}}
+		path += "?" + params.Encode()
+	}
 	statusCode, respBody, err := c.delete(ctx, path)
 	if err != nil {
 		return nil, fmt.Errorf("could not delete package: %w", err)

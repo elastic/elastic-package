@@ -48,7 +48,7 @@ func (i *zipInstaller) Install(ctx context.Context) (*InstalledPackage, error) {
 
 // Uninstall method uninstalls the package using Kibana API.
 func (i *zipInstaller) Uninstall(ctx context.Context) error {
-	_, err := i.kibanaClient.RemovePackage(ctx, i.manifest.Name, i.manifest.Version)
+	_, err := i.kibanaClient.RemovePackage(ctx, i.manifest.Name, i.manifest.Version, false)
 	if err != nil {
 		return fmt.Errorf("can't remove the package: %w", err)
 	}

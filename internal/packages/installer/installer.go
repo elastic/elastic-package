@@ -52,7 +52,7 @@ func (i *manifestInstaller) Install(ctx context.Context) (*InstalledPackage, err
 
 // Uninstall method uninstalls the package using Kibana API.
 func (i *manifestInstaller) Uninstall(ctx context.Context) error {
-	_, err := i.kibanaClient.RemovePackage(ctx, i.manifest.Name, i.manifest.Version)
+	_, err := i.kibanaClient.RemovePackage(ctx, i.manifest.Name, i.manifest.Version, false)
 	if err != nil {
 		return fmt.Errorf("can't remove the package: %w", err)
 	}
