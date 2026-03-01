@@ -474,7 +474,7 @@ func (r *runner) installPackageFromRegistry(ctx context.Context, packageName, pa
 
 	r.removePackageHandler = func(ctx context.Context) error {
 		logger.Debug("removing benchmark package...")
-		if _, err := r.options.KibanaClient.RemovePackage(ctx, packageName, packageVersion); err != nil {
+		if _, err := r.options.KibanaClient.RemovePackage(ctx, packageName, packageVersion, false); err != nil {
 			return fmt.Errorf("error removing benchmark package: %w", err)
 		}
 		return nil

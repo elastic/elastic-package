@@ -122,7 +122,7 @@ func (f *FleetPackage) Create(ctx resource.Context) error {
 			}
 
 			// Using uninstallPachage instead of f.uninstall because we want to pass a context without cancellation.
-			uninstallErr = uninstallPackage(context.WithoutCancel(ctx), provider.Client, f.PackageRoot)
+			uninstallErr = uninstallPackage(context.WithoutCancel(ctx), provider.Client, f.PackageRoot, false)
 			if uninstallErr != nil {
 				return fmt.Errorf("failed to uninstall package (%w) after installation failed: %w", uninstallErr, err)
 			}
@@ -139,16 +139,16 @@ func (f *FleetPackage) uninstall(ctx resource.Context) error {
 		return err
 	}
 
-	return uninstallPackage(ctx, provider.Client, f.PackageRoot)
+	return uninstallPackage(ctx, provider.Client, f.PackageRoot, f.Force)
 }
 
-func uninstallPackage(ctx context.Context, client *kibana.Client, rootPath string) error {
+func uninstallPackage(ctx context.Context, client *kibana.Client, rootPath string, force bool) error {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(rootPath)
 	if err != nil {
 		return fmt.Errorf("failed to read manifest from %s: %w", rootPath, err)
 	}
 
-	_, err = client.RemovePackage(ctx, manifest.Name, manifest.Version)
+	_, err = client.RemovePackage(ctx, manifest.Name, manifest.Version, force)
 	if err != nil {
 		return fmt.Errorf("can't remove the package: %w", err)
 	}
