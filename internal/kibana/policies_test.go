@@ -30,6 +30,39 @@ func TestVarsToMapStr(t *testing.T) {
 		assert.Equal(t, yamlStr, m["ssl"])
 	})
 
+	t.Run("yaml type map is serialized to YAML string", func(t *testing.T) {
+		// When a test config writes a yaml-type var as a YAML map (without the |
+		// block scalar), go-ucfg parses it as map[string]interface{}. The
+		// simplified Fleet API only accepts strings for yaml-type vars, so
+		// ToMapStr must serialize the map to a YAML string.
+		var sslValue packages.VarValue
+		require.NoError(t, sslValue.Unpack(map[string]interface{}{"verification_mode": "none"}))
+		vars := Vars{
+			"ssl": Var{Type: "yaml", Value: sslValue},
+		}
+
+		m := vars.ToMapStr()
+
+		require.NotNil(t, m)
+		assert.Equal(t, "verification_mode: none", m["ssl"])
+	})
+
+	t.Run("yaml type comment-only string is passed through as-is", func(t *testing.T) {
+		// Comment-only YAML strings (e.g. manifest defaults like "#- tz_short: AEST\n")
+		// are passed through unchanged, matching the format sent by the Fleet UI.
+		commentOnly := "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n"
+		var tzValue packages.VarValue
+		require.NoError(t, tzValue.Unpack(commentOnly))
+		vars := Vars{
+			"tz_map": Var{Type: "yaml", Value: tzValue},
+		}
+
+		m := vars.ToMapStr()
+
+		require.NotNil(t, m)
+		assert.Equal(t, commentOnly, m["tz_map"])
+	})
+
 	t.Run("non-yaml type is passed through as-is", func(t *testing.T) {
 		var val packages.VarValue
 		require.NoError(t, val.Unpack("http://localhost:8080"))
@@ -112,16 +145,11 @@ func TestToLegacyPackagePolicy(t *testing.T) {
 	assert.True(t, legacy.Enabled, "legacy policy must have enabled=true")
 	assert.Equal(t, "apache", legacy.Package.Name)
 
-	require.Len(t, legacy.Inputs, 2)
+	require.Len(t, legacy.Inputs, 1)
 
 	// Find and verify the enabled input.
-	var enabledInput *legacyInput
-	for i := range legacy.Inputs {
-		if legacy.Inputs[i].Type == "apache/metrics" {
-			enabledInput = &legacy.Inputs[i]
-		}
-	}
-	require.NotNil(t, enabledInput, "apache/metrics input not found in legacy inputs")
+	enabledInput := &legacy.Inputs[0]
+	require.Equal(t, "apache/metrics", enabledInput.Type, "only the enabled apache/metrics input should be present")
 	assert.Equal(t, "apache", enabledInput.PolicyTemplate)
 	assert.True(t, enabledInput.Enabled)
 

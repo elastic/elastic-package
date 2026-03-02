@@ -177,10 +177,6 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	if err != nil {
 		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
 	}
-	streamIdx, err := packages.GetDataStreamIndex(packagePolicy.InputName, *dsManifest)
-	if err != nil {
-		return nil, fmt.Errorf("could not find stream for input %q: %w", packagePolicy.InputName, err)
-	}
 	policyTemplateName := packagePolicy.TemplateName
 	if policyTemplateName == "" {
 		name, err := packages.FindPolicyTemplateForInput(&manifest, dsManifest, packagePolicy.InputName)
@@ -193,9 +189,9 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
-	datastreams, err := packages.DataStreamsForInput(packagePolicy.PackageRoot, policyTemplate, dsManifest.Streams[streamIdx].Input)
+	datastreams, err := packages.AllDataStreamsForPolicyTemplate(packagePolicy.PackageRoot, policyTemplate)
 	if err != nil {
-		return nil, fmt.Errorf("could not determine data streams for input: %w", err)
+		return nil, fmt.Errorf("could not determine data streams for policy template: %w", err)
 	}
 	pp, err := kibana.BuildIntegrationPackagePolicy(
 		policy.ID, policy.Namespace, packagePolicy.Name,

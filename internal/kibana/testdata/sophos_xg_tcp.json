@@ -1,0 +1,98 @@
+{
+  "name": "sophos-xg-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "sophos",
+    "version": "3.17.0"
+  },
+  "inputs": {
+    "sophos-tcp": {
+      "enabled": true,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false,
+          "vars": {
+            "tags": ["sophos-utm", "forwarded"],
+            "tcp_host": "localhost",
+            "tcp_port": 9549,
+            "tz_offset": "UTC",
+            "preserve_original_event": false
+          }
+        },
+        "sophos.xg": {
+          "enabled": true,
+          "vars": {
+            "syslog_host": "0.0.0.0",
+            "syslog_port": 9549,
+            "default_host_name": "firewall.localgroup.local",
+            "known_devices": "- hostname: XG230\n  serial_number: \"1234567890123456\"\n- hostname: SG430\n  serial_number: \"S4000806149EE49\"\n",
+            "tags": ["sophos-xg", "forwarded"],
+            "preserve_original_event": false,
+            "tz_offset": "UTC",
+            "tz_map": "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n",
+            "ssl": "#certificate: \"/etc/server/cert.pem\"\n#key: \"/etc/server/key.pem\"\n",
+            "tcp_options": "#max_connections: 1\n#framing: delimiter\n#line_delimiter: \"\\n\"\n"
+          }
+        }
+      }
+    },
+    "sophos-udp": {
+      "enabled": false,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false,
+          "vars": {
+            "tags": ["sophos-utm", "forwarded"],
+            "udp_host": "localhost",
+            "udp_port": 9549,
+            "tz_offset": "UTC",
+            "preserve_original_event": false
+          }
+        },
+        "sophos.xg": {
+          "enabled": false,
+          "vars": {
+            "syslog_host": "localhost",
+            "syslog_port": 9005,
+            "default_host_name": "firewall.localgroup.local",
+            "known_devices": "- hostname: my_fancy_host\n  serial_number: \"1234567890123456\"\n- hostname: some_other_host.local\n  serial_number: \"1234567890123457\"\n",
+            "tags": ["sophos-xg", "forwarded"],
+            "preserve_original_event": false,
+            "tz_offset": "UTC",
+            "tz_map": "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n",
+            "udp_options": "#read_buffer: 100MiB\n#max_message_size: 50KiB\n#timeout: 300s\n"
+          }
+        }
+      }
+    },
+    "sophos-logfile": {
+      "enabled": false,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false,
+          "vars": {
+            "paths": ["/var/log/sophos-utm.log"],
+            "tags": ["sophos-utm", "forwarded"],
+            "tz_offset": "UTC",
+            "preserve_original_event": false
+          }
+        },
+        "sophos.xg": {
+          "enabled": false,
+          "vars": {
+            "paths": [],
+            "default_host_name": "firewall.localgroup.local",
+            "known_devices": "- hostname: my_fancy_host\n  serial_number: \"1234567890123456\"\n- hostname: some_other_host.local\n  serial_number: \"1234567890123457\"\n",
+            "tags": ["sophos-xg", "forwarded"],
+            "preserve_original_event": false,
+            "tz_offset": "UTC",
+            "tz_map": "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n"
+          }
+        }
+      }
+    }
+  },
+  "force": false
+}

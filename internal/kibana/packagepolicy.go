@@ -21,7 +21,7 @@ func BuildIntegrationPackagePolicy(
 	inputName string,
 	inputVars, dsVars common.MapStr,
 	enabled bool,
-	datastreams []packages.DataStreamManifest,
+	allDatastreams []packages.DataStreamManifest,
 ) (PackagePolicy, error) {
 	streamIdx, err := packages.GetDataStreamIndex(inputName, dsManifest)
 	if err != nil {
@@ -30,53 +30,101 @@ func BuildIntegrationPackagePolicy(
 	stream := dsManifest.Streams[streamIdx]
 	streamInput := stream.Input
 
-	// Disable all other inputs; only enable the target one.
+	// Build streams map for the given input type: the primary data stream is
+	// enabled/disabled per the `enabled` flag; all other data streams that share
+	// the same input type are explicitly disabled so Fleet does not auto-enable them.
+	buildStreamsForInput := func(inputType string, primaryDS packages.DataStreamManifest, primaryEnabled bool, primaryVars common.MapStr) map[string]PackagePolicyStream {
+		// Determine whether the primary DS actually has a stream for this input type.
+		primarySupportsInput := false
+		for _, s := range primaryDS.Streams {
+			if s.Input == inputType {
+				primarySupportsInput = true
+				break
+			}
+		}
+
+		streams := map[string]PackagePolicyStream{}
+		for _, ds := range allDatastreams {
+			if ds.Name == primaryDS.Name && primarySupportsInput {
+				// Primary data stream: use the caller-provided vars.
+				var streamVars Vars
+				for _, s := range ds.Streams {
+					if s.Input == inputType {
+						streamVars = SetKibanaVariables(s.Vars, primaryVars)
+						break
+					}
+				}
+				streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
+					Enabled:           primaryEnabled,
+					Vars:              streamVars.ToMapStr(),
+					legacyVars:        streamVars,
+					dataStreamType:    ds.Type,
+					dataStreamDataset: datasetKey(manifest.Name, ds),
+				}
+				continue
+			}
+			// Sibling data stream: always disabled; include default vars so Fleet
+			// does not fall back to unexpected defaults when compiling templates.
+			siblingEntry := PackagePolicyStream{
+				Enabled:           false,
+				dataStreamType:    ds.Type,
+				dataStreamDataset: datasetKey(manifest.Name, ds),
+			}
+			supportsInput := false
+			for _, s := range ds.Streams {
+				if s.Input == inputType {
+					siblingVars := SetKibanaVariables(s.Vars, common.MapStr{})
+					siblingEntry.Vars = siblingVars.ToMapStr()
+					siblingEntry.legacyVars = siblingVars
+					supportsInput = true
+					break
+				}
+			}
+			if supportsInput {
+				streams[datasetKey(manifest.Name, ds)] = siblingEntry
+			}
+		}
+		return streams
+	}
+
+	// Build all inputs: the enabled one gets proper streams with user vars; all
+	// others get streams with manifest defaults and are disabled.
 	inputs := make(map[string]PackagePolicyInput)
 	for _, pt := range manifest.PolicyTemplates {
 		for _, inp := range pt.Inputs {
-			inputs[fmt.Sprintf("%s-%s", pt.Name, inp.Type)] = PackagePolicyInput{
-				Enabled:        false,
-				inputType:      inp.Type,
-				policyTemplate: pt.Name,
+			inputKey := fmt.Sprintf("%s-%s", pt.Name, inp.Type)
+			if inp.Type == streamInput && pt.Name == policyTemplate.Name {
+				// The target input: enabled with user-provided vars.
+				streams := buildStreamsForInput(streamInput, dsManifest, enabled, dsVars)
+				inputEntry := PackagePolicyInput{
+					Enabled:        enabled,
+					Streams:        streams,
+					inputType:      streamInput,
+					policyTemplate: pt.Name,
+				}
+				if input := policyTemplate.FindInputByType(streamInput); input != nil {
+					iv := SetKibanaVariables(input.Vars, inputVars)
+					inputEntry.Vars = iv.ToMapStr()
+					inputEntry.legacyVars = iv
+				}
+				inputs[inputKey] = inputEntry
+			} else {
+				// A disabled input: include streams with manifest defaults so Fleet
+				// does not need to auto-fill from the package manifest (which can
+				// trigger template compilation errors for comment-only yaml defaults).
+				streams := buildStreamsForInput(inp.Type, packages.DataStreamManifest{}, false, common.MapStr{})
+				entry := PackagePolicyInput{
+					Enabled:        false,
+					inputType:      inp.Type,
+					policyTemplate: pt.Name,
+				}
+				if len(streams) > 0 {
+					entry.Streams = streams
+				}
+				inputs[inputKey] = entry
 			}
 		}
 	}
-
-	// Build streams map for the enabled input. Explicitly disable all other
-	// data streams that share the same input type so Fleet does not auto-enable them.
-	vars := SetKibanaVariables(stream.Vars, dsVars)
-	streams := map[string]PackagePolicyStream{
-		datasetKey(manifest.Name, dsManifest): {
-			Enabled:           enabled,
-			Vars:              vars.ToMapStr(),
-			legacyVars:        vars,
-			dataStreamType:    dsManifest.Type,
-			dataStreamDataset: datasetKey(manifest.Name, dsManifest),
-		},
-	}
-	for _, ds := range datastreams {
-		if ds.Name == dsManifest.Name {
-			continue
-		}
-		streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
-			Enabled:           false,
-			dataStreamType:    ds.Type,
-			dataStreamDataset: datasetKey(manifest.Name, ds),
-		}
-	}
-
-	inputEntry := PackagePolicyInput{
-		Enabled:        enabled,
-		Streams:        streams,
-		inputType:      streamInput,
-		policyTemplate: policyTemplate.Name,
-	}
-	if input := policyTemplate.FindInputByType(streamInput); input != nil {
-		iv := SetKibanaVariables(input.Vars, inputVars)
-		inputEntry.Vars = iv.ToMapStr()
-		inputEntry.legacyVars = iv
-	}
-	inputs[fmt.Sprintf("%s-%s", policyTemplate.Name, streamInput)] = inputEntry
 
 	pkgVars := SetKibanaVariables(manifest.Vars, inputVars)
 	pp := PackagePolicy{
@@ -117,11 +165,15 @@ func BuildInputPackagePolicy(
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
 	if _, found := vars["data_stream.dataset"]; !found {
-		// Use overriding value from varValues if provided (when not declared in policyTemplate.Vars).
+		// data_stream.dataset is required by Fleet for input packages. Use the
+		// definition default if set, otherwise fall back to the template name.
 		dataset := policyTemplate.Name
-		if v, err := varValues.GetValue("data_stream.dataset"); err == nil {
-			if dsVal, ok := v.(string); ok && dsVal != "" {
-				dataset = dsVal
+		for _, def := range policyTemplate.Vars {
+			if def.Name == "data_stream.dataset" && def.Default != nil {
+				if s, ok := def.Default.Value().(string); ok && s != "" {
+					dataset = s
+				}
+				break
 			}
 		}
 		var value packages.VarValue

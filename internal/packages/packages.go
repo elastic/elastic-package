@@ -711,6 +711,26 @@ func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, erro
 // Callers are responsible for filtering the list further (e.g. to exclude the
 // primary data stream they are building the policy for).
 func DataStreamsForInput(packageRoot string, policyTemplate PolicyTemplate, streamInput string) ([]DataStreamManifest, error) {
+	all, err := AllDataStreamsForPolicyTemplate(packageRoot, policyTemplate)
+	if err != nil {
+		return nil, err
+	}
+	var result []DataStreamManifest
+	for _, ds := range all {
+		for _, s := range ds.Streams {
+			if s.Input == streamInput {
+				result = append(result, ds)
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+// AllDataStreamsForPolicyTemplate returns the manifests of all data streams that
+// belong to the given policy template. When the policy template declares an explicit
+// DataStreams list, only data streams that appear in that list are returned.
+func AllDataStreamsForPolicyTemplate(packageRoot string, policyTemplate PolicyTemplate) ([]DataStreamManifest, error) {
 	datastreams, err := ReadAllDataStreamManifests(packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
@@ -718,16 +738,10 @@ func DataStreamsForInput(packageRoot string, policyTemplate PolicyTemplate, stre
 
 	var result []DataStreamManifest
 	for _, ds := range datastreams {
-		// If the policy template declares an explicit data stream list, respect it.
 		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
 			continue
 		}
-		for _, s := range ds.Streams {
-			if s.Input == streamInput {
-				result = append(result, *ds)
-				break
-			}
-		}
+		result = append(result, *ds)
 	}
 	return result, nil
 }

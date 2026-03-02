@@ -80,7 +80,11 @@ func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 	legacy.OutputID = p.OutputID
 
 	// Convert each input from the simplified map to a legacy input entry.
+	// Skip disabled inputs to match the legacy (main-branch) behaviour.
 	for _, i := range p.Inputs {
+		if !i.Enabled {
+			continue
+		}
 		input := legacyInput{
 			PolicyTemplate: i.policyTemplate,
 			Type:           i.inputType,
@@ -90,7 +94,11 @@ func (p PackagePolicy) toLegacy() legacyPackagePolicy {
 		}
 
 		// Convert each stream from the simplified map to a legacy stream entry.
+		// Skip disabled streams to match the legacy behaviour.
 		for _, s := range i.Streams {
+			if !s.Enabled {
+				continue
+			}
 			stream := legacyStream{
 				Enabled: s.Enabled,
 				DataStream: legacyDataStream{

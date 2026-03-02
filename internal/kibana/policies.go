@@ -7,12 +7,13 @@ package kibana
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -204,36 +205,54 @@ type Vars map[string]Var
 
 // ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
 // The objects-based Fleet API expects raw values (not {value, type} wrappers).
+//
+// For yaml-type variables, map or slice values are YAML-marshaled to a string because
+// the simplified API only accepts string|number|bool|array-of-scalars|null for yaml-type vars.
+// String values (including comment-only defaults like "#- tz_short: AEST\n") are passed through
+// as-is, matching the format sent by the Fleet UI.
 func (v Vars) ToMapStr() common.MapStr {
 	if len(v) == 0 {
 		return nil
 	}
 	m := make(common.MapStr, len(v))
 	for k, val := range v {
-		m[k] = val.Value.Value()
+		raw := val.Value.Value()
+		if val.Type == "yaml" && raw != nil {
+			if _, isString := raw.(string); !isString {
+				// Maps and slices (e.g. ssl written as YAML map in test configs):
+				// marshal to a YAML string so the simplified API accepts them.
+				if b, err := yaml.Marshal(raw); err == nil {
+					raw = strings.TrimRight(string(b), "\n")
+				}
+			}
+		}
+		m[k] = raw
 	}
 	return m
 }
 
-// SetKibanaVariables builds a Vars map by combining variable definitions with
-// supplied override values. Definition defaults are used when no override is provided.
+// SetKibanaVariables builds a Vars map from variable definitions and user-provided
+// values. For each definition, the user-provided value is used when present;
+// otherwise the manifest default is used. Multi-valued variables with no user
+// value and no manifest default are included as empty arrays, matching Fleet UI
+// behaviour. Other definitions with neither a user value nor a manifest default
+// are omitted so Kibana can handle them server-side.
 func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) Vars {
 	vars := Vars{}
-	for _, definition := range definitions {
-		val := definition.Default
-
-		value, err := values.GetValue(definition.Name)
-		if err == nil {
-			val = &packages.VarValue{}
-			val.Unpack(value)
-		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
-			// Do not include nulls for unset variables.
-			continue
-		}
-
-		vars[definition.Name] = Var{
-			Type:  definition.Type,
-			Value: *val,
+	for _, def := range definitions {
+		rawValue, ok := values[def.Name]
+		if ok {
+			var val packages.VarValue
+			val.Unpack(rawValue)
+			vars[def.Name] = Var{Type: def.Type, Value: val}
+		} else if def.Default != nil {
+			vars[def.Name] = Var{Type: def.Type, Value: *def.Default}
+		} else if def.Multi {
+			// Multi-valued var with no value and no default: send [] so Fleet
+			// does not need to infer a default, matching the Fleet UI format.
+			var val packages.VarValue
+			val.Unpack([]interface{}{})
+			vars[def.Name] = Var{Type: def.Type, Value: val}
 		}
 	}
 	return vars
