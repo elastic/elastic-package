@@ -5,15 +5,16 @@
 package kibana
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -139,21 +140,37 @@ func (c *Client) InstallZipPackage(ctx context.Context, zipFile string) ([]packa
 	return processResults("zip-install", statusCode, respBody)
 }
 
-// RemovePackage removes the given package from Fleet. When force is true,
-// Kibana skips the "package policies still reference this package" check
-// and actively deletes any referencing package policies before removal.
-func (c *Client) RemovePackage(ctx context.Context, name, version string, force bool) ([]packages.Asset, error) {
-	path := c.epmPackageUrl(name, version)
-	if force {
-		// epmPackageUrl currently returns a bare path with no query string.
-		// If that changes, this concatenation must be replaced with proper
-		// URL parsing and merging of query parameters.
-		params := url.Values{"force": []string{"true"}}
-		path += "?" + params.Encode()
-	}
-	statusCode, respBody, err := c.delete(ctx, path)
-	if err != nil {
-		return nil, fmt.Errorf("could not delete package: %w", err)
+// RemovePackage removes the given package from Fleet. If the package still
+// has referencing package policies (e.g. because Fleet's asynchronous cascade
+// from agent policy deletion hasn't finished), the call is retried with
+// backoff until the policies are cleaned up or the retries are exhausted.
+func (c *Client) RemovePackage(ctx context.Context, name, version string) ([]packages.Asset, error) {
+	const (
+		maxAttempts   = 15
+		retryInterval = 2 * time.Second
+	)
+
+	p := c.epmPackageUrl(name, version)
+	var (
+		statusCode int
+		respBody   []byte
+		err        error
+	)
+	for attempt := range maxAttempts {
+		statusCode, respBody, err = c.delete(ctx, p)
+		if err != nil {
+			return nil, fmt.Errorf("could not delete package: %w", err)
+		}
+		if statusCode != http.StatusBadRequest || !bytes.Contains(respBody, []byte("existing package policy")) {
+			break
+		}
+		if attempt < maxAttempts-1 {
+			select {
+			case <-time.After(retryInterval):
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
 	}
 
 	return processResults("remove", statusCode, respBody)
