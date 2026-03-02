@@ -79,6 +79,62 @@ exporters:
 	}
 }
 
+func TestNormalizePolicyToCanonical(t *testing.T) {
+	t.Run("rewrites OTel component IDs and references", func(t *testing.T) {
+		policy := `
+exporters:
+  elasticsearch/default:
+    endpoints:
+      - https://elasticsearch:9200
+receivers:
+  zipkin/otelcol-zipkinreceiver-uuid-here:
+    endpoint: 0.0.0.0:9411
+service:
+  pipelines:
+    traces/custom-pipeline:
+      receivers:
+        - zipkin/otelcol-zipkinreceiver-uuid-here
+      exporters:
+        - elasticsearch/default
+`
+		out, err := normalizePolicyToCanonical([]byte(policy))
+		assert.NoError(t, err)
+		t.Log(string(out))
+		assert.Contains(t, string(out), "elasticsearch/componentid-0")
+		assert.Contains(t, string(out), "zipkin/componentid-0")
+		assert.Contains(t, string(out), "traces/componentid-0")
+		// References should be updated
+		assert.Contains(t, string(out), "- zipkin/componentid-0")
+		assert.Contains(t, string(out), "- elasticsearch/componentid-0")
+	})
+
+	t.Run("order-independent: same components different key order normalize to same result", func(t *testing.T) {
+		policyA := `
+exporters:
+  elasticsearch/second:
+    endpoints: ["b"]
+  elasticsearch/first:
+    endpoints: ["a"]
+  elasticsearch/a5ae742d-5b47-4d5e-9511-969df92fcf3a:
+    endpoints: ["d"]
+`
+		policyB := `
+exporters:
+  elasticsearch/sixth:
+    endpoints: ["a"]
+  elasticsearch/fourth:
+    endpoints: ["b"]
+  elasticsearch/2577857f-918e-405d-b657-a4dbdbf02a2f:
+    endpoints: ["d"]
+`
+		outA, err := normalizePolicyToCanonical([]byte(policyA))
+		assert.NoError(t, err)
+		outB, err := normalizePolicyToCanonical([]byte(policyB))
+		assert.NoError(t, err)
+		assert.Equal(t, string(outA), string(outB), "equivalent policies with different key order should normalize to same YAML")
+	})
+}
+
 func TestComparePolicies(t *testing.T) {
 	cases := []struct {
 		title    string
@@ -716,6 +772,212 @@ exporters:
     elasticsearch/default:
         endpoints:
             - http://insecure-es.example.com:9200
+`,
+			equal: true,
+		},
+		{
+			title: "clean policy ensuring ordering",
+			found: `
+id: f3032029-fa01-4072-98f1-ce7d2b51cbf2
+revision: 2
+outputs:
+  default:
+    type: elasticsearch
+    hosts: &ref_0
+      - https://elasticsearch:9200
+    ssl.ca_trusted_fingerprint: ccccc
+    preset: latency
+fleet:
+  hosts:
+    - https://fleet-server:8220
+output_permissions:
+  default:
+    _elastic_agent_monitoring:
+      indices: []
+    _elastic_agent_checks:
+      cluster:
+        - monitor
+    5e216c73-dcbf-444a-953b-50672c9df682:
+      indices:
+        - names:
+            - metrics-*-*
+          privileges: &ref_1
+            - auto_configure
+            - create_doc
+        - names:
+            - logs-*-*
+          privileges: *ref_1
+agent:
+  download:
+    sourceURI: https://artifacts.elastic.co/downloads/
+  monitoring:
+    enabled: false
+    logs: false
+    metrics: false
+    traces: false
+  features: {}
+  protection:
+    enabled: false
+    uninstall_token_hash: bbbb
+    signing_key: >-
+      aaaaaaa
+inputs: []
+signed:
+  data: >-
+    dddd
+  signature: >-
+    1234567890
+receivers:
+  sqlserver/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver:
+    collection_interval: 10s
+    initial_delay: 1s
+    events:
+      db.server.query_sample:
+        enabled: false
+      db.server.top_query:
+        enabled: false
+processors:
+  resourcedetection/system/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver:
+    detectors:
+      - system
+  transform/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver-routing:
+    metric_statements:
+      - context: datapoint
+        statements:
+          - set(attributes["data_stream.type"], "metrics")
+          - set(attributes["data_stream.dataset"], "sqlserverreceiver")
+          - set(attributes["data_stream.namespace"], "ep")
+    log_statements:
+      - context: log
+        statements:
+          - set(attributes["data_stream.type"], "logs")
+          - set(attributes["data_stream.dataset"], "sqlserverreceiver")
+          - set(attributes["data_stream.namespace"], "ep")
+service:
+  pipelines:
+    metrics/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver:
+      receivers:
+        - >-
+          sqlserver/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver
+      processors:
+        - >-
+          resourcedetection/system/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver
+        - >-
+          transform/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver-routing
+      exporters:
+        - forward
+    logs/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver:
+      receivers:
+        - >-
+          sqlserver/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver
+      processors:
+        - >-
+          resourcedetection/system/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver
+        - >-
+          transform/otelcol-sqlserverreceiver-5e216c73-dcbf-444a-953b-50672c9df682-otelcol-sql_server_input_otel-sqlserverreceiver-routing
+      exporters:
+        - forward
+    metrics:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+    logs:
+      receivers:
+        - forward
+      exporters:
+        - elasticsearch/default
+connectors:
+  forward: {}
+exporters:
+  elasticsearch/default:
+    endpoints: *ref_0
+secret_references: []
+namespaces:
+  - default
+`,
+			expected: `
+connectors:
+    forward: {}
+exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+inputs: []
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - metrics-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+                - names:
+                    - logs-*-*
+                  privileges:
+                    - auto_configure
+                    - create_doc
+processors:
+    resourcedetection/componentid-0:
+        detectors:
+            - system
+    transform/componentid-1:
+        log_statements:
+            - context: log
+              statements:
+                - set(attributes["data_stream.type"], "logs")
+                - set(attributes["data_stream.dataset"], "sqlserverreceiver")
+                - set(attributes["data_stream.namespace"], "ep")
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.type"], "metrics")
+                - set(attributes["data_stream.dataset"], "sqlserverreceiver")
+                - set(attributes["data_stream.namespace"], "ep")
+receivers:
+    sqlserver/componentid-0:
+        collection_interval: 10s
+        events:
+            db.server.query_sample:
+                enabled: false
+            db.server.top_query:
+                enabled: false
+        initial_delay: 1s
+secret_references: []
+service:
+    pipelines:
+        logs:
+            exporters:
+                - elasticsearch/componentid-0
+            receivers:
+                - forward
+        logs/componentid-0:
+            exporters:
+                - forward
+            processors:
+                - resourcedetection/componentid-0
+                - transform/componentid-1
+            receivers:
+                - sqlserver/componentid-0
+        metrics:
+            exporters:
+                - elasticsearch/componentid-0
+            receivers:
+                - forward
+        metrics/componentid-1:
+            exporters:
+                - forward
+            processors:
+                - resourcedetection/componentid-0
+                - transform/componentid-1
+            receivers:
+                - sqlserver/componentid-0
 `,
 			equal: true,
 		},
