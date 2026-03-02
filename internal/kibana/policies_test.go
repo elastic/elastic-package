@@ -30,25 +30,6 @@ func TestVarsToMapStr(t *testing.T) {
 		assert.Equal(t, yamlStr, m["ssl"])
 	})
 
-	t.Run("yaml type is serialized as YAML string", func(t *testing.T) {
-		var sslValue packages.VarValue
-		require.NoError(t, sslValue.Unpack(map[string]interface{}{
-			"verification_mode": "none",
-		}))
-		vars := Vars{
-			"ssl": Var{Type: "yaml", Value: sslValue},
-		}
-
-		m := vars.ToMapStr()
-
-		require.NotNil(t, m)
-		v, ok := m["ssl"]
-		require.True(t, ok)
-		s, ok := v.(string)
-		require.True(t, ok, "expected string for yaml var, got %T", v)
-		assert.Contains(t, s, "verification_mode: none")
-	})
-
 	t.Run("non-yaml type is passed through as-is", func(t *testing.T) {
 		var val packages.VarValue
 		require.NoError(t, val.Unpack("http://localhost:8080"))

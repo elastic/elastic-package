@@ -805,7 +805,8 @@ func GetDataStreamIndex(inputName string, ds DataStreamManifest) (int, error) {
 			return i, nil
 		}
 	}
-	return 0, fmt.Errorf("no stream found with input %q in data stream %q", inputName, ds.Name)
+	logger.Debugf("no stream found with input %q in data stream %q, using first stream", inputName, ds.Name)
+	return 0, nil
 }
 
 // FindPolicyTemplateForInput returns the name of the policy template that
