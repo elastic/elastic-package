@@ -605,9 +605,33 @@ func TestFoundPipelineError(t *testing.T) {
 			expected: "found pipeline_error in document with error message: ingest pipeline failed",
 		},
 		{
+			name: "pipeline_error with error.message as array",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": []any{"ingest pipeline failed"},
+				},
+			},
+			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+		},
+		{
+			name: "pipeline_error using synthetic source mode",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": []any{"pipeline_error"},
+				},
+				"error": common.MapStr{
+					"message": []any{"ingest pipeline failed"},
+				},
+			},
+			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+		},
+		{
 			name: "unexpected type for event field",
 			doc: common.MapStr{
-				"event": []string{"foo"},
+				"event": []any{"foo"},
 				"error": common.MapStr{
 					"message": "ingest pipeline failed",
 				},
@@ -620,7 +644,7 @@ func TestFoundPipelineError(t *testing.T) {
 				"event": common.MapStr{
 					"kind": "pipeline_error",
 				},
-				"error": []string{
+				"error": []any{
 					"404 error code",
 				},
 			},

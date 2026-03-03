@@ -2446,31 +2446,50 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	return nil
 }
 
+// stringFromDocValue converts a document field value to a single string.
+// It handles synthetic source ([]any or []string) and plain string values.
+func stringFromDocValue(value interface{}) string {
+	switch v := value.(type) {
+	case []any:
+		var parts []string
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				parts = append(parts, s)
+			}
+		}
+		return strings.Join(parts, " ")
+	case []string:
+		return strings.Join(v, " ")
+	case string:
+		return v
+	default:
+		return ""
+	}
+}
+
 // pipelineErrorMessage checks if the event has a pipeline_error and returns the error message if it does
 // If the event does not have a pipeline_error, it returns the empty string
 func pipelineErrorMessage(doc common.MapStr) string {
 	message, err := doc.GetValue("event.kind")
 	if err != nil {
 		// Skip any error (unexpected type for event.kind, key not found, etc.)
+		logger.Debugf("error getting event.kind: %v", err)
 		return ""
 	}
-
-	value, ok := message.(string)
-	if !ok || value != "pipeline_error" {
+	eventKind := stringFromDocValue(message)
+	if !strings.Contains(eventKind, "pipeline_error") {
 		// Unexpected type for event.kind field, skip validation
 		// or it is not related to a pipeline error
+		logger.Debugf("event.kind is not pipeline_error: %v", message)
 		return ""
 	}
 
 	errorMessage := ""
-	errorMessageData, err := doc.GetValue("error.message")
-	// Skip any error (unexpected type for error.message, key not found, etc.)
-	if err == nil {
-		if value, ok := errorMessageData.(string); ok {
-			errorMessage = value
-		}
+	if errorMessageData, err := doc.GetValue("error.message"); err == nil {
+		errorMessage = stringFromDocValue(errorMessageData)
 	}
 	if errorMessage == "" {
+		logger.Debugf("no error message found in document")
 		return "found pipeline_error in document: no error message"
 	}
 

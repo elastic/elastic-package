@@ -1,0 +1,1 @@
+<testcase name=\"system test: fail\" classname=\"ipipeline_error_system_tests.logs\" time=\".*\"> * <failure>one or more errors found in documents stored in logs-pipeline_error_system_tests.logs-[[:digit:]]+ data stream: [0] found pipeline_error in document with error message: process logs failed</failure>
