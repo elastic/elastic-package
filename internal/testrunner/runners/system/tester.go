@@ -2473,14 +2473,12 @@ func pipelineErrorMessage(doc common.MapStr) string {
 	message, err := doc.GetValue("event.kind")
 	if err != nil {
 		// Skip any error (unexpected type for event.kind, key not found, etc.)
-		logger.Debugf("error getting event.kind: %v", err)
 		return ""
 	}
 	eventKind := stringFromDocValue(message)
 	if !strings.Contains(eventKind, "pipeline_error") {
 		// Unexpected type for event.kind field, skip validation
 		// or it is not related to a pipeline error
-		logger.Debugf("event.kind is not pipeline_error: %v", message)
 		return ""
 	}
 
@@ -2489,7 +2487,6 @@ func pipelineErrorMessage(doc common.MapStr) string {
 		errorMessage = stringFromDocValue(errorMessageData)
 	}
 	if errorMessage == "" {
-		logger.Debugf("no error message found in document")
 		return "found pipeline_error in document: no error message"
 	}
 
