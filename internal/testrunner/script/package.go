@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"os"
 
 	"github.com/rogpeppe/go-internal/testscript"
 
 	"github.com/elastic/elastic-package/internal/fields"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/resources"
 )
@@ -25,7 +25,7 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	if pkgRoot == "" {
 		ts.Fatalf("PACKAGE_ROOT is not set")
 	}
-	root, err := os.OpenRoot(pkgRoot)
+	root, err := files.FindRepositoryRootFrom(pkgRoot)
 	ts.Check(err)
 	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {
@@ -61,14 +61,17 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
+	overrides, _ := ts.Value(requiresOverridesTag{}).(map[string]packages.RequiresOverride)
+
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRoot:    pkgRoot,
-		Absent:         false,
-		Force:          true,
-		RepositoryRoot: root,
-		SchemaURLs:     fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		PackageRoot:       pkgRoot,
+		Absent:            false,
+		Force:             true,
+		RepositoryRoot:    root,
+		SchemaURLs:        fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		RequiresOverrides: overrides,
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
@@ -82,7 +85,7 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	if pkgRoot == "" {
 		ts.Fatalf("PACKAGE_ROOT is not set")
 	}
-	root, err := os.OpenRoot(pkgRoot)
+	root, err := files.FindRepositoryRootFrom(pkgRoot)
 	ts.Check(err)
 	pkg := ts.Getenv("PACKAGE_NAME")
 	if pkg == "" {

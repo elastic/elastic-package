@@ -14,8 +14,8 @@ conditions:
     subscription: basic
 requires:
   input:
-    - package: test_input_pkg
-      version: "0.1.0"
+    - package: sql_input
+      version: "0.2.0"
 policy_templates:
   - name: test_logs
     title: Test logs
@@ -23,7 +23,7 @@ policy_templates:
     data_streams:
       - test_logs
     inputs:
-      - package: test_input_pkg
+      - package: sql_input
         title: Collect test logs via input package
         description: Use the test input package to collect logs
       - type: logs

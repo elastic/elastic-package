@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -92,6 +93,8 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         kibanaClient,
 		PackageRoot:    packageRoot,
@@ -99,7 +102,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		ZipPath:        zipPathFile,
 		RepositoryRoot: repositoryRoot,
 		SchemaURLs:     appConfig.SchemaURLs(),
-		RegistryURL:    appConfig.PackageRegistryBaseURL(),
+		RegistryClient: eprClient,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

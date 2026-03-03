@@ -1,0 +1,3 @@
+requires:
+  - package: sql_input
+    source: "../../test_input_pkg"

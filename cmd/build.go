@@ -16,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
 )
 
 const buildLongDescription = `Use this command to build a package.
@@ -84,6 +85,8 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		BuildDir:       buildDir,
@@ -93,7 +96,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		RepositoryRoot: repositoryRoot,
 		UpdateReadmes:  true,
 		SchemaURLs:     appConfig.SchemaURLs(),
-		RegistryURL:    appConfig.PackageRegistryBaseURL(),
+		RegistryClient: eprClient,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

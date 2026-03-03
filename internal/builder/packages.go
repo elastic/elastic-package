@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -36,7 +37,7 @@ type BuildOptions struct {
 	SkipValidation    bool
 	UpdateReadmes     bool
 	SchemaURLs        fields.SchemaURLs
-	RegistryURL       string                               // Elastic Package Registry base URL for downloading input packages
+	RegistryClient    *registry.Client                     // Registry client for downloading input packages
 	RequiresOverrides map[string]packages.RequiresOverride // pre-merged requires overrides (test builds only)
 }
 
@@ -234,7 +235,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	err = bundleInputPackageTemplates(options.PackageRoot, buildPackageRoot, options.RegistryURL, options.RequiresOverrides)
+	err = bundleInputPackageTemplates(options.PackageRoot, buildPackageRoot, options.RegistryClient, options.RequiresOverrides)
 	if err != nil {
 		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}

@@ -1,7 +1,7 @@
 title: Test Logs
 type: logs
 streams:
-  - package: test_input_pkg
+  - package: sql_input
     title: Test Logs from Input Package
     description: Collect test logs using the referenced input package.
   - input: logs

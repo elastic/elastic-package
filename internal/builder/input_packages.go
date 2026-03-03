@@ -28,7 +28,7 @@ import (
 // Input packages are downloaded from the Elastic Package Registry by default.
 // A local directory can be used instead by passing pre-merged overrides
 // (typically from _dev/test/config.yml, resolved by the test runner).
-func bundleInputPackageTemplates(packageRoot string, buildPackageRoot string, registryURL string, overrides map[string]packages.RequiresOverride) error {
+func bundleInputPackageTemplates(packageRoot string, buildPackageRoot string, eprClient *registry.Client, overrides map[string]packages.RequiresOverride) error {
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(buildPackageRoot)
 	if err != nil {
 		return fmt.Errorf("reading package manifest: %w", err)
@@ -48,11 +48,6 @@ func bundleInputPackageTemplates(packageRoot string, buildPackageRoot string, re
 		return fmt.Errorf("creating temp directory for input packages: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
-
-	if registryURL == "" {
-		registryURL = registry.ProductionURL
-	}
-	eprClient := registry.NewClient(registryURL)
 
 	inputPkgPaths := make(map[string]string, len(manifest.Requires.Input))
 	for _, dep := range manifest.Requires.Input {

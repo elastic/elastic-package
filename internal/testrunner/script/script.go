@@ -53,7 +53,11 @@ type Options struct {
 	UpdateScripts   bool   // testscript.Params.UpdateScripts
 	ContinueOnError bool   // testscript.Params.ContinueOnError
 	TestWork        bool   // testscript.Params.TestWork
+
+	RequiresOverrides map[string]packages.RequiresOverride
 }
+
+type requiresOverridesTag struct{}
 
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if opt.Dir != "" && len(opt.Streams) != 0 {
@@ -291,6 +295,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				e.Values[installedAgentsTag{}] = t.installedAgents
 				e.Values[installedDataStreamsTag{}] = t.installedDataStreams
 				e.Values[installedPipelinesTag{}] = t.installedPipelines
+				e.Values[requiresOverridesTag{}] = opt.RequiresOverrides
 				return nil
 			},
 			Condition: func(cond string) (bool, error) {
