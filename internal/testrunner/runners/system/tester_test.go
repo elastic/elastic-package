@@ -523,7 +523,7 @@ func TestGetExpectedDatasetForTest(t *testing.T) {
 	}
 }
 
-func TestFoundPipelineError(t *testing.T) {
+func TestPipelineErrorMessage(t *testing.T) {
 	testCases := []struct {
 		name     string
 		doc      common.MapStr
