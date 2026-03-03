@@ -167,11 +167,11 @@ func BuildInputPackagePolicy(
 		}
 	}
 
-	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
-	ensureDatasetVar(vars, policyTemplate)
-
 	// Dataset key for the stream: <package name>.<policy template name>.
 	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
+
+	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
+	ensureDatasetVar(vars, policyTemplate, varValues, streamDataset)
 	inputEntry := PackagePolicyInput{
 		Enabled: enabled,
 		Streams: map[string]PackagePolicyStream{
@@ -219,10 +219,18 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 // marked fromUser=true, so that it is included in simplified API requests.
 // Fleet requires this field for input packages. The value resolution order is:
 //  1. user-provided value (already in vars with fromUser=true) — no-op
-//  2. manifest default from the policy template variable definitions
-//  3. policy template name as a final fallback
-func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate) {
+//  2. user-provided value supplied via varValues (e.g. when the manifest does not declare the variable)
+//  3. manifest default already parsed into vars — promoted to fromUser=true
+//  4. explicit default in the policy-template var definitions
+//  5. defaultDataset (typically "<pkgName>.<policyTemplateName>") as a final fallback
+func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr, defaultDataset string) {
 	if v, found := vars["data_stream.dataset"]; found && v.fromUser {
+		return
+	}
+	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
+		var val packages.VarValue
+		val.Unpack(raw)
+		vars["data_stream.dataset"] = Var{Type: "text", Value: val, fromUser: true}
 		return
 	}
 	if v, found := vars["data_stream.dataset"]; found {
@@ -231,7 +239,7 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate) {
 		vars["data_stream.dataset"] = v
 		return
 	}
-	dataset := policyTemplate.Name
+	dataset := defaultDataset
 	for _, def := range policyTemplate.Vars {
 		if def.Name == "data_stream.dataset" && def.Default != nil {
 			if s, ok := def.Default.Value().(string); ok && s != "" {

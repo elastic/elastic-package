@@ -192,7 +192,7 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 				Name:         "input-1",
 				TemplateName: "sql_query",
 			},
-			expectedDataset: "sql_query",
+			expectedDataset: "sql_input.sql_query",
 		},
 		{
 			name: "dataset var from template default",

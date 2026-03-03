@@ -1,0 +1,86 @@
+{
+  "name": "sql-query-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "sql_input",
+    "title": "SQL Input",
+    "version": "0.2.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "sql_query",
+      "type": "sql/metrics",
+      "enabled": true,
+      "vars": {
+        "data_stream.dataset": {
+          "value": "custom.sql",
+          "type": "text"
+        },
+        "driver": {
+          "value": "mysql",
+          "type": "text"
+        },
+        "hosts": {
+          "value": [
+            "http://127.0.0.1"
+          ],
+          "type": "text"
+        },
+        "period": {
+          "value": "10s",
+          "type": "text"
+        },
+        "sql_query": {
+          "value": "SHOW GLOBAL STATUS LIKE 'Innodb_system%'",
+          "type": "text"
+        },
+        "sql_response_format": {
+          "value": "variables",
+          "type": "text"
+        }
+      },
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "",
+            "dataset": "sql_input.sql_query"
+          },
+          "vars": {
+            "data_stream.dataset": {
+              "value": "custom.sql",
+              "type": "text"
+            },
+            "driver": {
+              "value": "mysql",
+              "type": "text"
+            },
+            "hosts": {
+              "value": [
+                "http://127.0.0.1"
+              ],
+              "type": "text"
+            },
+            "period": {
+              "value": "10s",
+              "type": "text"
+            },
+            "sql_query": {
+              "value": "SHOW GLOBAL STATUS LIKE 'Innodb_system%'",
+              "type": "text"
+            },
+            "sql_response_format": {
+              "value": "variables",
+              "type": "text"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "force": false
+}

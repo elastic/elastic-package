@@ -138,7 +138,8 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 		policyTemplateName string
 		policyName         string
 		varValues          common.MapStr
-		golden             string
+		goldenSimplified   string
+		goldenLegacy       string
 	}{
 		{
 			name:               "log_custom_logs",
@@ -149,7 +150,47 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 				"paths":               []string{"/tmp/test.log"},
 				"data_stream.dataset": "log.custom",
 			},
-			golden: "testdata/log_custom_logs.json",
+			goldenSimplified: "testdata/log_custom_logs.json",
+			goldenLegacy:     "testdata/log_custom_logs_legacy.json",
+		},
+		{
+			name:               "sql_input_custom_dataset",
+			packageRoot:        "../../test/packages/parallel/sql_input",
+			policyTemplateName: "sql_query",
+			policyName:         "sql-query-test",
+			varValues: common.MapStr{
+				"data_stream.dataset": "custom.sql",
+			},
+			goldenSimplified: "testdata/sql_input_custom_dataset.json",
+			goldenLegacy:     "testdata/sql_input_custom_dataset_legacy.json",
+		},
+		{
+			// Simulates varValues coming from the test runner, which parses config
+			// files with ucfg.PathSep("."), causing data_stream.dataset to be stored
+			// as a nested map {"data_stream": {"dataset": ...}} rather than a flat key.
+			name:               "sql_input_nested_dataset",
+			packageRoot:        "../../test/packages/parallel/sql_input",
+			policyTemplateName: "sql_query",
+			policyName:         "sql-query-test",
+			varValues: common.MapStr{
+				"data_stream": common.MapStr{
+					"dataset": "custom.sql",
+				},
+			},
+			goldenSimplified: "testdata/sql_input_custom_dataset.json",
+			goldenLegacy:     "testdata/sql_input_custom_dataset_legacy.json",
+		},
+		{
+			// No data_stream.dataset provided: the default should be
+			// "<pkgName>.<policyTemplateName>" so the data lands in the
+			// index template installed by the package.
+			name:               "sql_input_default_dataset",
+			packageRoot:        "../../test/packages/parallel/sql_input",
+			policyTemplateName: "sql_query",
+			policyName:         "sql-query-test",
+			varValues:          common.MapStr{},
+			goldenSimplified:   "testdata/sql_input_default_dataset.json",
+			goldenLegacy:       "testdata/sql_input_default_dataset_legacy.json",
 		},
 	}
 
@@ -167,9 +208,26 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 				true,
 			)
 
-			got, err := json.MarshalIndent(pp, "", "  ")
-			require.NoError(t, err)
-			assertJSONGolden(t, tc.golden, got)
+			t.Run("simplified", func(t *testing.T) {
+				got, err := json.MarshalIndent(pp, "", "  ")
+				require.NoError(t, err)
+				assertJSONGolden(t, tc.goldenSimplified, got)
+			})
+
+			t.Run("legacy", func(t *testing.T) {
+				legacy := pp.toLegacy()
+				slices.SortFunc(legacy.Inputs, func(a, b legacyInput) int {
+					return cmp.Compare(a.Type, b.Type)
+				})
+				for i := range legacy.Inputs {
+					slices.SortFunc(legacy.Inputs[i].Streams, func(a, b legacyStream) int {
+						return cmp.Compare(a.DataStream.Dataset, b.DataStream.Dataset)
+					})
+				}
+				got, err := json.MarshalIndent(legacy, "", "  ")
+				require.NoError(t, err)
+				assertJSONGolden(t, tc.goldenLegacy, got)
+			})
 		})
 	}
 }

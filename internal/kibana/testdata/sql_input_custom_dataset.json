@@ -1,0 +1,24 @@
+{
+  "name": "sql-query-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "sql_input",
+    "version": "0.2.0"
+  },
+  "inputs": {
+    "sql_query-sql/metrics": {
+      "enabled": true,
+      "streams": {
+        "sql_input.sql_query": {
+          "enabled": true,
+          "vars": {
+            "data_stream.dataset": "custom.sql"
+          }
+        }
+      }
+    }
+  },
+  "force": false
+}

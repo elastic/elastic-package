@@ -1331,7 +1331,7 @@ func getExpectedDatasetForTest(pkgType, dataset string, policyTemplate packages.
 		if ds := findDefaultValue(policyTemplate.Vars, "data_stream.dataset"); ds != "" {
 			return ds
 		}
-		return policyTemplate.Name
+		return dataset
 	}
 	return dataset
 }
