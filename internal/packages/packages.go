@@ -784,17 +784,17 @@ func isDataStreamManifest(path string) (bool, error) {
 // GetDataStreamIndex returns the index of the stream in ds whose input name
 // matches inputName. If inputName is empty, returns 0 (first stream). If no
 // stream matches, logs a debug message and falls back to index 0.
-func GetDataStreamIndex(inputName string, ds DataStreamManifest) (int, error) {
+func GetDataStreamIndex(inputName string, ds DataStreamManifest) int {
 	if inputName == "" {
-		return 0, nil
+		return 0
 	}
 	for i, s := range ds.Streams {
 		if s.Input == inputName {
-			return i, nil
+			return i
 		}
 	}
 	logger.Debugf("no stream found with input %q in data stream %q, using first stream", inputName, ds.Name)
-	return 0, nil
+	return 0
 }
 
 // FindPolicyTemplateForInput returns the name of the policy template that

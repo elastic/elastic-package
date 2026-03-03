@@ -1957,7 +1957,7 @@ func CreatePackagePolicy(
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 	packageRoot string,
-) (kibana.PackagePolicy, string, string, error) {
+) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
 	if pkg.Type == "input" {
 		p := kibana.BuildInputPackagePolicy(
 			kibanaPolicy.ID, kibanaPolicy.Namespace,

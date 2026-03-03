@@ -23,10 +23,7 @@ func BuildIntegrationPackagePolicy(
 	enabled bool,
 	allDatastreams []packages.DataStreamManifest,
 ) (PackagePolicy, error) {
-	streamIdx, err := packages.GetDataStreamIndex(inputName, dsManifest)
-	if err != nil {
-		return PackagePolicy{}, fmt.Errorf("could not find stream for input %q: %w", inputName, err)
-	}
+	streamIdx := packages.GetDataStreamIndex(inputName, dsManifest)
 	stream := dsManifest.Streams[streamIdx]
 	streamInput := stream.Input
 
@@ -48,8 +45,8 @@ func BuildIntegrationPackagePolicy(
 					inputType:      streamInput,
 					policyTemplate: pt.Name,
 				}
-				if input := policyTemplate.FindInputByType(streamInput); input != nil {
-					iv := SetKibanaVariables(input.Vars, inputVars)
+				if foundInput := policyTemplate.FindInputByType(streamInput); foundInput != nil {
+					iv := SetKibanaVariables(foundInput.Vars, inputVars)
 					inputEntry.Vars = iv.ToMapStr()
 					inputEntry.legacyVars = iv
 				}
@@ -229,9 +226,10 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 	}
 	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
 		var val packages.VarValue
-		val.Unpack(raw)
-		vars["data_stream.dataset"] = Var{Type: "text", Value: val, fromUser: true}
-		return
+		if err := val.Unpack(raw); err == nil {
+			vars["data_stream.dataset"] = Var{Type: "text", Value: val, fromUser: true}
+			return
+		}
 	}
 	if v, found := vars["data_stream.dataset"]; found {
 		// Exists as a manifest default; promote it so ToMapStr includes it.
