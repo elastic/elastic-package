@@ -93,6 +93,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		RepositoryRoot: repositoryRoot,
 		UpdateReadmes:  true,
 		SchemaURLs:     appConfig.SchemaURLs(),
+		RegistryURL:    appConfig.PackageRegistryBaseURL(),
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

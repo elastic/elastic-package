@@ -99,6 +99,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		ZipPath:        zipPathFile,
 		RepositoryRoot: repositoryRoot,
 		SchemaURLs:     appConfig.SchemaURLs(),
+		RegistryURL:    appConfig.PackageRegistryBaseURL(),
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

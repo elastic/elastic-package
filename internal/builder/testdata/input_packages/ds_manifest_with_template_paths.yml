@@ -1,0 +1,16 @@
+title: Test Data Stream
+type: logs
+streams:
+  - package: test_input_pkg
+    title: Test stream
+    description: Collect test logs
+    template_paths:
+      - stream.yml.hbs
+      - extra.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /var/log/*.log

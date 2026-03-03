@@ -31,11 +31,13 @@ type BuildOptions struct {
 	BuildDir       string // directory where all the built packages are placed and zipped packages are stored
 	RepositoryRoot *os.Root
 
-	CreateZip      bool
-	SignPackage    bool
-	SkipValidation bool
-	UpdateReadmes  bool
-	SchemaURLs     fields.SchemaURLs
+	CreateZip         bool
+	SignPackage       bool
+	SkipValidation    bool
+	UpdateReadmes     bool
+	SchemaURLs        fields.SchemaURLs
+	RegistryURL       string                               // Elastic Package Registry base URL for downloading input packages
+	RequiresOverrides map[string]packages.RequiresOverride // pre-merged requires overrides (test builds only)
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -230,6 +232,11 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = resolveTransformDefinitions(buildPackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
+	}
+
+	err = bundleInputPackageTemplates(options.PackageRoot, buildPackageRoot, options.RegistryURL, options.RequiresOverrides)
+	if err != nil {
+		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}
 
 	if options.UpdateReadmes {
