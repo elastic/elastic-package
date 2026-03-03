@@ -51,6 +51,10 @@ require (
 	k8s.io/client-go v0.35.2
 )
 
+// TODO: Remove this before merging.
+// Replace with the latest version of the package spec when available.
+replace github.com/elastic/package-spec/v3 => github.com/elastic/package-spec/v3 v3.0.0-20260302092456-a2aa38b60cce
+
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
