@@ -27,8 +27,20 @@ func BuildIntegrationPackagePolicy(
 	stream := dsManifest.Streams[streamIdx]
 	streamInput := stream.Input
 
-	// Data streams for the primary policy template.
-	primaryPTDatastreams := packages.FilterDatastreamsForPolicyTemplate(allDatastreams, policyTemplate)
+	// Data streams for the given policy template.
+	datastreams := packages.FilterDatastreamsForPolicyTemplate(allDatastreams, policyTemplate)
+
+	// Merge dsVars into inputVars for package/input-level resolution so that
+	// variables specified under data_stream.vars in the test config are also
+	// applied at the package or input level when they match those definitions.
+	// inputVars takes precedence over dsVars.
+	allInputVars := make(common.MapStr, len(inputVars)+len(dsVars))
+	for k, v := range dsVars {
+		allInputVars[k] = v
+	}
+	for k, v := range inputVars {
+		allInputVars[k] = v
+	}
 
 	// Build all inputs: the enabled one gets proper streams with user vars; all
 	// others get streams with manifest defaults and are disabled.
@@ -38,7 +50,7 @@ func BuildIntegrationPackagePolicy(
 			inputKey := fmt.Sprintf("%s-%s", pt.Name, input.Type)
 			if input.Type == streamInput && pt.Name == policyTemplate.Name {
 				// The target input: enabled with user-provided vars.
-				streams := buildStreamsForInput(streamInput, manifest, dsManifest, enabled, dsVars, primaryPTDatastreams)
+				streams := buildStreamsForInput(streamInput, manifest, dsManifest, enabled, dsVars, datastreams)
 				inputEntry := PackagePolicyInput{
 					Enabled:        enabled,
 					Streams:        streams,
@@ -46,7 +58,7 @@ func BuildIntegrationPackagePolicy(
 					policyTemplate: pt.Name,
 				}
 				if foundInput := policyTemplate.FindInputByType(streamInput); foundInput != nil {
-					iv := SetKibanaVariables(foundInput.Vars, inputVars)
+					iv := SetKibanaVariables(foundInput.Vars, allInputVars)
 					inputEntry.Vars = iv.ToMapStr()
 					inputEntry.legacyVars = iv
 				}
@@ -70,7 +82,7 @@ func BuildIntegrationPackagePolicy(
 		}
 	}
 
-	pkgVars := SetKibanaVariables(manifest.Vars, inputVars)
+	pkgVars := SetKibanaVariables(manifest.Vars, allInputVars)
 	policy := PackagePolicy{
 		Name:               name,
 		Namespace:          namespace,

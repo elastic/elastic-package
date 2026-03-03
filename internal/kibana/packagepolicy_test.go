@@ -63,6 +63,26 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/apache_access_logfile_legacy.json",
 		},
 		{
+			// Verifies that package-level vars specified in dsVars (data_stream.vars
+			// in the test config) are applied at the package level. This covers the
+			// endace case where endace_url is a required package-level var but is
+			// written under data_stream.vars in the system test config.
+			name:               "endace_netflow_pkg_var_in_dsvars",
+			packageRoot:        "testdata/packages/endace_netflow",
+			policyTemplateName: "endace",
+			dsName:             "log",
+			inputName:          "netflow",
+			policyName:         "endace-log-test",
+			inputVars:          common.MapStr{},
+			dsVars: common.MapStr{
+				"host":       "0.0.0.0",
+				"port":       2055,
+				"endace_url": "http://test.elastic.co",
+			},
+			goldenSimplified: "testdata/endace_netflow_pkg_var_in_dsvars.json",
+			goldenLegacy:     "testdata/endace_netflow_pkg_var_in_dsvars_legacy.json",
+		},
+		{
 			// Verifies that when building a policy for app_insights/azure/metrics,
 			// the sibling disabled input (app_state-azure/metrics) uses azure.app_state
 			// as its stream — not azure.app_insights.

@@ -1,0 +1,31 @@
+{
+  "name": "endace-log-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "endace",
+    "version": "0.2.0"
+  },
+  "inputs": {
+    "endace-netflow": {
+      "enabled": true,
+      "streams": {
+        "endace.log": {
+          "enabled": true,
+          "vars": {
+            "host": "0.0.0.0",
+            "port": 2055
+          }
+        }
+      }
+    },
+    "endace-packet": {
+      "enabled": false
+    }
+  },
+  "vars": {
+    "endace_url": "http://test.elastic.co"
+  },
+  "force": false
+}
