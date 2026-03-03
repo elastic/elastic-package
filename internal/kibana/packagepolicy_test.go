@@ -131,6 +131,49 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 	}
 }
 
+func TestBuildInputPackagePolicy(t *testing.T) {
+	tests := []struct {
+		name               string
+		packageRoot        string
+		policyTemplateName string
+		policyName         string
+		varValues          common.MapStr
+		golden             string
+	}{
+		{
+			name:               "log_custom_logs",
+			packageRoot:        "testdata/packages/log_input",
+			policyTemplateName: "logs",
+			policyName:         "log-logs-test",
+			varValues: common.MapStr{
+				"paths":               []string{"/tmp/test.log"},
+				"data_stream.dataset": "log.custom",
+			},
+			golden: "testdata/log_custom_logs.json",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			manifest, err := packages.ReadPackageManifest(filepath.Join(tc.packageRoot, "manifest.yml"))
+			require.NoError(t, err)
+
+			policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, tc.policyTemplateName)
+			require.NoError(t, err)
+
+			pp := BuildInputPackagePolicy(
+				"test-policy-id", "test", tc.policyName,
+				*manifest, policyTemplate, tc.varValues,
+				true,
+			)
+
+			got, err := json.MarshalIndent(pp, "", "  ")
+			require.NoError(t, err)
+			assertJSONGolden(t, tc.golden, got)
+		})
+	}
+}
+
 // assertJSONGolden compares got against the golden file at goldenPath using
 // semantic JSON equality. If the golden file does not yet exist it is created
 // from got so that the next run acts as the regression gate.
