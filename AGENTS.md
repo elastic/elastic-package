@@ -67,5 +67,5 @@ elastic-package uses the objects-based Fleet API (`PackagePolicy`) — not the d
 - **Input key**: `"{policyTemplate.Name}-{input.Type}"` (e.g. `"apache-logfile"`).
 - **Stream key**: built by `datasetKey(pkgName, ds)` — uses `ds.Dataset` when set, otherwise `"{pkgName}.{ds.Name}"`.
 - **Sibling stream disabling**: Fleet auto-enables all streams for an enabled input unless they are explicitly listed with `enabled: false`. Always send `{enabled: false}` for every sibling data stream sharing the same input type within the same policy template.
-- **Policy template scoping**: When a policy template declares a `data_streams` list, only include data streams from that list as siblings. Use `packages.DataStreamsForInput(packageRoot, policyTemplate, streamInput)` to get the correct set.
+- **Policy template scoping**: When a policy template declares a `data_streams` list, only include data streams from that list as siblings. Use `packages.FilterDatastreamsForPolicyTemplate(datastreams, policyTemplate)` on the result of `packages.ReadAllDataStreamManifests(packageRoot)` to get the correct set.
 - **Variable format**: the objects-based API expects raw values, not `{"type": ..., "value": ...}` wrappers. `Vars.ToMapStr()` extracts raw values via `val.Value.Value()`.
