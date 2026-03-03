@@ -707,7 +707,6 @@ func ReadAllDataStreamManifests(packageRoot string) ([]DataStreamManifest, error
 // streams that belong to the given policy template. When the policy template
 // declares an explicit DataStreams list, only data streams whose names appear
 // in that list are returned; otherwise all provided data streams are returned.
-// This is a pure function with no disk I/O.
 func FilterDatastreamsForPolicyTemplate(datastreams []DataStreamManifest, pt PolicyTemplate) []DataStreamManifest {
 	if len(pt.DataStreams) == 0 {
 		return datastreams
