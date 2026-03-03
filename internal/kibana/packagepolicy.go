@@ -180,7 +180,7 @@ func BuildInputPackagePolicy(
 	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
-	ensureDatasetVar(vars, policyTemplate, varValues, streamDataset)
+	ensureDatasetVar(vars, policyTemplate, varValues)
 	inputEntry := PackagePolicyInput{
 		Enabled: enabled,
 		Streams: map[string]PackagePolicyStream{
@@ -231,8 +231,8 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 //  2. user-provided value supplied via varValues (e.g. when the manifest does not declare the variable)
 //  3. manifest default already parsed into vars — promoted to fromUser=true
 //  4. explicit default in the policy-template var definitions
-//  5. defaultDataset (typically "<pkgName>.<policyTemplateName>") as a final fallback
-func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr, defaultDataset string) {
+//  5. policy template name as a final fallback
+func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr) {
 	if v, found := vars["data_stream.dataset"]; found && v.fromUser {
 		return
 	}
@@ -249,7 +249,7 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 		vars["data_stream.dataset"] = v
 		return
 	}
-	dataset := defaultDataset
+	dataset := policyTemplate.Name
 	for _, def := range policyTemplate.Vars {
 		if def.Name == "data_stream.dataset" && def.Default != nil {
 			if s, ok := def.Default.Value().(string); ok && s != "" {

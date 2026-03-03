@@ -16,7 +16,7 @@
       "enabled": true,
       "vars": {
         "data_stream.dataset": {
-          "value": "sql_input.sql_query",
+          "value": "sql_query",
           "type": "text"
         },
         "driver": {
@@ -51,7 +51,7 @@
           },
           "vars": {
             "data_stream.dataset": {
-              "value": "sql_input.sql_query",
+              "value": "sql_query",
               "type": "text"
             },
             "driver": {

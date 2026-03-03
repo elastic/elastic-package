@@ -14,7 +14,7 @@
         "sql_input.sql_query": {
           "enabled": true,
           "vars": {
-            "data_stream.dataset": "sql_input.sql_query"
+            "data_stream.dataset": "sql_query"
           }
         }
       }

@@ -1331,7 +1331,7 @@ func getExpectedDatasetForTest(pkgType, dataset string, policyTemplate packages.
 		if ds := findDefaultValue(policyTemplate.Vars, "data_stream.dataset"); ds != "" {
 			return ds
 		}
-		return dataset
+		return policyTemplate.Name
 	}
 	return dataset
 }
@@ -1964,7 +1964,8 @@ func CreatePackagePolicy(
 			fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
 			*pkg, policyTemplate, cfgVars, true,
 		)
-		return p, policyTemplate.Type, fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name), nil
+		fallbackDataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
+		return p, policyTemplate.Type, datasetFromPolicy(p, fallbackDataset), nil
 	}
 	if ds == nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
@@ -1992,6 +1993,29 @@ func CreatePackagePolicy(
 		dataset = ds.Dataset
 	}
 	return p, ds.Type, dataset, nil
+}
+
+func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
+	for _, input := range policy.Inputs {
+		if !input.Enabled {
+			continue
+		}
+		for _, stream := range input.Streams {
+			if !stream.Enabled {
+				continue
+			}
+
+			v, _ := common.MapStr(stream.Vars).GetValue("data_stream.dataset")
+			ds, _ := v.(string)
+			if ds == "" {
+				continue
+			}
+
+			return ds
+		}
+	}
+
+	return fallback
 }
 
 func findDefaultValue(vars []packages.Variable, name string) string {

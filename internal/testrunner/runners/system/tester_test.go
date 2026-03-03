@@ -465,7 +465,7 @@ func TestGetExpectedDatasetForTest(t *testing.T) {
 		},
 		{
 			title:           "input package",
-			expected:        "foo.bar",
+			expected:        "bar",
 			packageType:     "input",
 			datasetInPolicy: "foo.bar",
 			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
