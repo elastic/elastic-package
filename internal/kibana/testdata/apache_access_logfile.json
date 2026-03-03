@@ -12,11 +12,7 @@
       "enabled": false,
       "streams": {
         "apache.status": {
-          "enabled": false,
-          "vars": {
-            "period": "30s",
-            "server_status_path": "/server-status"
-          }
+          "enabled": false
         }
       }
     },
@@ -26,28 +22,13 @@
         "apache.access": {
           "enabled": true,
           "vars": {
-            "ignore_older": "72h",
             "paths": [
               "/tmp/service_logs/access.log*"
-            ],
-            "preserve_original_event": false,
-            "tags": [
-              "apache-access"
             ]
           }
         },
         "apache.error": {
-          "enabled": false,
-          "vars": {
-            "paths": [
-              "/var/log/apache2/error.log*",
-              "/var/log/httpd/error_log*"
-            ],
-            "preserve_original_event": false,
-            "tags": [
-              "apache-error"
-            ]
-          }
+          "enabled": false
         }
       }
     }

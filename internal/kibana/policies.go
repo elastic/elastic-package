@@ -197,6 +197,9 @@ func (c *Client) DeletePolicy(ctx context.Context, policyID string) error {
 type Var struct {
 	Value packages.VarValue `json:"value"`
 	Type  string            `json:"type"`
+
+	// fromUser indicates if this variable comes from user input, not from a manifest default
+	fromUser bool
 }
 
 // Vars is a collection of variables either at the package or
@@ -205,17 +208,19 @@ type Vars map[string]Var
 
 // ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
 // The objects-based Fleet API expects raw values (not {value, type} wrappers).
+// Only user-provided values (fromUser == true) are included; manifest defaults are
+// omitted so the simplified API can apply them server-side.
 //
 // For yaml-type variables, map or slice values are YAML-marshaled to a string because
 // the simplified API only accepts string|number|bool|array-of-scalars|null for yaml-type vars.
 // String values (including comment-only defaults like "#- tz_short: AEST\n") are passed through
 // as-is, matching the format sent by the Fleet UI.
 func (v Vars) ToMapStr() common.MapStr {
-	if len(v) == 0 {
-		return nil
-	}
-	m := make(common.MapStr, len(v))
+	m := make(common.MapStr)
 	for k, val := range v {
+		if !val.fromUser {
+			continue
+		}
 		raw := val.Value.Value()
 		if val.Type == "yaml" && raw != nil {
 			if _, isString := raw.(string); !isString {
@@ -228,15 +233,19 @@ func (v Vars) ToMapStr() common.MapStr {
 		}
 		m[k] = raw
 	}
+	if len(m) == 0 {
+		return nil
+	}
 	return m
 }
 
 // SetKibanaVariables builds a Vars map from variable definitions and user-provided
-// values. For each definition, the user-provided value is used when present;
-// otherwise the manifest default is used. Multi-valued variables with no user
-// value and no manifest default are included as empty arrays, matching Fleet UI
-// behaviour. Other definitions with neither a user value nor a manifest default
-// are omitted so Kibana can handle them server-side.
+// values. For each definition, the user-provided value is stored and marked with
+// fromUser=true so that ToMapStr (simplified API) includes it; manifest defaults
+// are stored with fromUser=false so they are available for the legacy API
+// (toLegacyMapVar) but omitted from simplified requests. Multi-valued variables
+// with no user value and no manifest default are included as empty arrays.
+// Definitions with neither a user value nor a manifest default are omitted.
 func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) Vars {
 	vars := Vars{}
 	for _, def := range definitions {
@@ -244,12 +253,11 @@ func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) V
 		if ok {
 			var val packages.VarValue
 			val.Unpack(rawValue)
-			vars[def.Name] = Var{Type: def.Type, Value: val}
+			vars[def.Name] = Var{Type: def.Type, Value: val, fromUser: true}
 		} else if def.Default != nil {
 			vars[def.Name] = Var{Type: def.Type, Value: *def.Default}
 		} else if def.Multi {
-			// Multi-valued var with no value and no default: send [] so Fleet
-			// does not need to infer a default, matching the Fleet UI format.
+			// Multi-valued var with no value and no default: keep for legacy.
 			var val packages.VarValue
 			val.Unpack([]interface{}{})
 			vars[def.Name] = Var{Type: def.Type, Value: val}

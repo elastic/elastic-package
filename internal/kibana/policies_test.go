@@ -21,7 +21,7 @@ func TestVarsToMapStr(t *testing.T) {
 		var sslValue packages.VarValue
 		require.NoError(t, sslValue.Unpack(yamlStr))
 		vars := Vars{
-			"ssl": Var{Type: "yaml", Value: sslValue},
+			"ssl": Var{Type: "yaml", Value: sslValue, fromUser: true},
 		}
 
 		m := vars.ToMapStr()
@@ -38,7 +38,7 @@ func TestVarsToMapStr(t *testing.T) {
 		var sslValue packages.VarValue
 		require.NoError(t, sslValue.Unpack(map[string]interface{}{"verification_mode": "none"}))
 		vars := Vars{
-			"ssl": Var{Type: "yaml", Value: sslValue},
+			"ssl": Var{Type: "yaml", Value: sslValue, fromUser: true},
 		}
 
 		m := vars.ToMapStr()
@@ -48,13 +48,12 @@ func TestVarsToMapStr(t *testing.T) {
 	})
 
 	t.Run("yaml type comment-only string is passed through as-is", func(t *testing.T) {
-		// Comment-only YAML strings (e.g. manifest defaults like "#- tz_short: AEST\n")
-		// are passed through unchanged, matching the format sent by the Fleet UI.
+		// Comment-only YAML strings provided by the user are passed through unchanged.
 		commentOnly := "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n"
 		var tzValue packages.VarValue
 		require.NoError(t, tzValue.Unpack(commentOnly))
 		vars := Vars{
-			"tz_map": Var{Type: "yaml", Value: tzValue},
+			"tz_map": Var{Type: "yaml", Value: tzValue, fromUser: true},
 		}
 
 		m := vars.ToMapStr()
@@ -67,7 +66,7 @@ func TestVarsToMapStr(t *testing.T) {
 		var val packages.VarValue
 		require.NoError(t, val.Unpack("http://localhost:8080"))
 		vars := Vars{
-			"url": Var{Type: "text", Value: val},
+			"url": Var{Type: "text", Value: val, fromUser: true},
 		}
 
 		m := vars.ToMapStr()
@@ -78,13 +77,24 @@ func TestVarsToMapStr(t *testing.T) {
 
 	t.Run("nil yaml value is passed through as nil", func(t *testing.T) {
 		vars := Vars{
-			"ssl": Var{Type: "yaml", Value: packages.VarValue{}},
+			"ssl": Var{Type: "yaml", Value: packages.VarValue{}, fromUser: true},
 		}
 
 		m := vars.ToMapStr()
 
 		require.NotNil(t, m)
 		assert.Nil(t, m["ssl"])
+	})
+
+	t.Run("manifest default is excluded from ToMapStr", func(t *testing.T) {
+		// Vars with fromUser==false (manifest defaults) must not appear in simplified
+		// API requests; the server applies them when compiling templates.
+		var val packages.VarValue
+		require.NoError(t, val.Unpack("UTC"))
+		vars := Vars{
+			"tz_offset": Var{Type: "text", Value: val},
+		}
+		assert.Nil(t, vars.ToMapStr())
 	})
 
 	t.Run("empty vars returns nil", func(t *testing.T) {

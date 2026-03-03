@@ -164,25 +164,7 @@ func BuildInputPackagePolicy(
 	}
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
-	if _, found := vars["data_stream.dataset"]; !found {
-		// data_stream.dataset is required by Fleet for input packages. Use the
-		// definition default if set, otherwise fall back to the template name.
-		dataset := policyTemplate.Name
-		for _, def := range policyTemplate.Vars {
-			if def.Name == "data_stream.dataset" && def.Default != nil {
-				if s, ok := def.Default.Value().(string); ok && s != "" {
-					dataset = s
-				}
-				break
-			}
-		}
-		var value packages.VarValue
-		value.Unpack(dataset)
-		vars["data_stream.dataset"] = Var{
-			Value: value,
-			Type:  "text",
-		}
-	}
+	ensureDatasetVar(vars, policyTemplate)
 
 	// Dataset key for the stream: <package name>.<policy template name>.
 	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
@@ -227,4 +209,34 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 		return ds.Dataset
 	}
 	return fmt.Sprintf("%s.%s", pkgName, ds.Name)
+}
+
+// ensureDatasetVar guarantees that vars contains a data_stream.dataset entry
+// marked fromUser=true, so that it is included in simplified API requests.
+// Fleet requires this field for input packages. The value resolution order is:
+//  1. user-provided value (already in vars with fromUser=true) — no-op
+//  2. manifest default from the policy template variable definitions
+//  3. policy template name as a final fallback
+func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate) {
+	if v, found := vars["data_stream.dataset"]; found && v.fromUser {
+		return
+	}
+	if v, found := vars["data_stream.dataset"]; found {
+		// Exists as a manifest default; promote it so ToMapStr includes it.
+		v.fromUser = true
+		vars["data_stream.dataset"] = v
+		return
+	}
+	dataset := policyTemplate.Name
+	for _, def := range policyTemplate.Vars {
+		if def.Name == "data_stream.dataset" && def.Default != nil {
+			if s, ok := def.Default.Value().(string); ok && s != "" {
+				dataset = s
+			}
+			break
+		}
+	}
+	var value packages.VarValue
+	value.Unpack(dataset)
+	vars["data_stream.dataset"] = Var{Value: value, Type: "text", fromUser: true}
 }
