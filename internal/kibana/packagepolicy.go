@@ -30,10 +30,11 @@ func BuildIntegrationPackagePolicy(
 	stream := dsManifest.Streams[streamIdx]
 	streamInput := stream.Input
 
-	// Build streams map for the given input type: the primary data stream is
-	// enabled/disabled per the `enabled` flag; all other data streams that share
-	// the same input type are explicitly disabled so Fleet does not auto-enable them.
-	buildStreamsForInput := func(inputType string, primaryDS packages.DataStreamManifest, primaryEnabled bool, primaryVars common.MapStr) map[string]PackagePolicyStream {
+	// buildStreamsForInput builds a streams map for inputType using datastreams as
+	// the universe. The primary data stream is enabled/disabled per primaryEnabled
+	// with user-provided vars; all siblings that support the input type are
+	// explicitly disabled so Fleet does not auto-enable them.
+	buildStreamsForInput := func(inputType string, primaryDS packages.DataStreamManifest, primaryEnabled bool, primaryVars common.MapStr, datastreams []packages.DataStreamManifest) map[string]PackagePolicyStream {
 		// Determine whether the primary DS actually has a stream for this input type.
 		primarySupportsInput := false
 		for _, s := range primaryDS.Streams {
@@ -44,7 +45,7 @@ func BuildIntegrationPackagePolicy(
 		}
 
 		streams := map[string]PackagePolicyStream{}
-		for _, ds := range allDatastreams {
+		for _, ds := range datastreams {
 			if ds.Name == primaryDS.Name && primarySupportsInput {
 				// Primary data stream: use the caller-provided vars.
 				var streamVars Vars
@@ -87,6 +88,9 @@ func BuildIntegrationPackagePolicy(
 		return streams
 	}
 
+	// Data streams for the primary policy template.
+	primaryPTDatastreams := packages.FilterDatastreamsForPolicyTemplate(allDatastreams, policyTemplate)
+
 	// Build all inputs: the enabled one gets proper streams with user vars; all
 	// others get streams with manifest defaults and are disabled.
 	inputs := make(map[string]PackagePolicyInput)
@@ -95,7 +99,7 @@ func BuildIntegrationPackagePolicy(
 			inputKey := fmt.Sprintf("%s-%s", pt.Name, inp.Type)
 			if inp.Type == streamInput && pt.Name == policyTemplate.Name {
 				// The target input: enabled with user-provided vars.
-				streams := buildStreamsForInput(streamInput, dsManifest, enabled, dsVars)
+				streams := buildStreamsForInput(streamInput, dsManifest, enabled, dsVars, primaryPTDatastreams)
 				inputEntry := PackagePolicyInput{
 					Enabled:        enabled,
 					Streams:        streams,
@@ -109,10 +113,11 @@ func BuildIntegrationPackagePolicy(
 				}
 				inputs[inputKey] = inputEntry
 			} else {
-				// A disabled input: include streams with manifest defaults so Fleet
-				// does not need to auto-fill from the package manifest (which can
-				// trigger template compilation errors for comment-only yaml defaults).
-				streams := buildStreamsForInput(inp.Type, packages.DataStreamManifest{}, false, common.MapStr{})
+				// A disabled input: use data streams scoped to this policy template
+				// so that sibling stream keys are correct even when multiple policy
+				// templates declare different data_streams lists.
+				ptDatastreams := packages.FilterDatastreamsForPolicyTemplate(allDatastreams, pt)
+				streams := buildStreamsForInput(inp.Type, packages.DataStreamManifest{}, false, common.MapStr{}, ptDatastreams)
 				entry := PackagePolicyInput{
 					Enabled:        false,
 					inputType:      inp.Type,

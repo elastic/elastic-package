@@ -1973,7 +1973,7 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	allDatastreams, err := packages.AllDataStreamsForPolicyTemplate(packageRoot, policyTemplate)
+	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}

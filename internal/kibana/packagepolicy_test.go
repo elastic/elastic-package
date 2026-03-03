@@ -62,6 +62,24 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 			goldenSimplified: "testdata/apache_access_logfile.json",
 			goldenLegacy:     "testdata/apache_access_logfile_legacy.json",
 		},
+		{
+			// Verifies that when building a policy for app_insights/azure/metrics,
+			// the sibling disabled input (app_state-azure/metrics) uses azure.app_state
+			// as its stream — not azure.app_insights.
+			name:               "azure_app_insights_metrics",
+			packageRoot:        "testdata/packages/azure_application_insights",
+			policyTemplateName: "app_insights",
+			dsName:             "app_insights",
+			inputName:          "azure/metrics",
+			policyName:         "azure-app-insights-test",
+			inputVars:          common.MapStr{},
+			dsVars: common.MapStr{
+				"period":  "300s",
+				"metrics": "- id: [\"requests/count\"]\n  aggregation: [\"sum\"]\n  interval: \"P5M\"\n",
+			},
+			goldenSimplified: "testdata/azure_app_insights_metrics.json",
+			goldenLegacy:     "testdata/azure_app_insights_metrics_legacy.json",
+		},
 	}
 
 	for _, tc := range tests {
@@ -75,7 +93,7 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 			policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, tc.policyTemplateName)
 			require.NoError(t, err)
 
-			datastreams, err := packages.AllDataStreamsForPolicyTemplate(tc.packageRoot, policyTemplate)
+			datastreams, err := packages.ReadAllDataStreamManifests(tc.packageRoot)
 			require.NoError(t, err)
 
 			pp, err := BuildIntegrationPackagePolicy(

@@ -681,7 +681,7 @@ func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*Da
 }
 
 // ReadAllDataStreamManifests reads the manifests for all data streams in a package.
-func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, error) {
+func ReadAllDataStreamManifests(packageRoot string) ([]DataStreamManifest, error) {
 	dirs, err := os.ReadDir(filepath.Join(packageRoot, "data_stream"))
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -689,7 +689,7 @@ func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, erro
 	if err != nil {
 		return nil, fmt.Errorf("could not list data streams: %w", err)
 	}
-	var manifests []*DataStreamManifest
+	var manifests []DataStreamManifest
 	for _, dir := range dirs {
 		if !dir.IsDir() {
 			continue
@@ -698,9 +698,27 @@ func ReadAllDataStreamManifests(packageRoot string) ([]*DataStreamManifest, erro
 		if err != nil {
 			return nil, fmt.Errorf("could not read data stream manifest for %q: %w", dir.Name(), err)
 		}
-		manifests = append(manifests, m)
+		manifests = append(manifests, *m)
 	}
 	return manifests, nil
+}
+
+// FilterDatastreamsForPolicyTemplate returns the subset of the provided data
+// streams that belong to the given policy template. When the policy template
+// declares an explicit DataStreams list, only data streams whose names appear
+// in that list are returned; otherwise all provided data streams are returned.
+// This is a pure function with no disk I/O.
+func FilterDatastreamsForPolicyTemplate(datastreams []DataStreamManifest, pt PolicyTemplate) []DataStreamManifest {
+	if len(pt.DataStreams) == 0 {
+		return datastreams
+	}
+	result := make([]DataStreamManifest, 0, len(pt.DataStreams))
+	for _, ds := range datastreams {
+		if slices.Contains(pt.DataStreams, ds.Name) {
+			result = append(result, ds)
+		}
+	}
+	return result
 }
 
 // DataStreamsForInput returns the manifests of all data streams in the package
@@ -735,15 +753,7 @@ func AllDataStreamsForPolicyTemplate(packageRoot string, policyTemplate PolicyTe
 	if err != nil {
 		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
 	}
-
-	var result []DataStreamManifest
-	for _, ds := range datastreams {
-		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
-			continue
-		}
-		result = append(result, *ds)
-	}
-	return result, nil
+	return FilterDatastreamsForPolicyTemplate(datastreams, policyTemplate), nil
 }
 
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
@@ -808,8 +818,8 @@ func isDataStreamManifest(path string) (bool, error) {
 }
 
 // GetDataStreamIndex returns the index of the stream in ds whose input name
-// matches inputName. If inputName is empty, returns 0 (first stream). Returns
-// an error if inputName is non-empty and no stream matches.
+// matches inputName. If inputName is empty, returns 0 (first stream). If no
+// stream matches, logs a debug message and falls back to index 0.
 func GetDataStreamIndex(inputName string, ds DataStreamManifest) (int, error) {
 	if inputName == "" {
 		return 0, nil
