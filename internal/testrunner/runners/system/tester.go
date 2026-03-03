@@ -2429,8 +2429,8 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
 	var multiErr multierror.Error
 	for _, doc := range docs {
-		if message, err := doc.GetValue("error.message"); err != common.ErrKeyNotFound {
-			multiErr = append(multiErr, fmt.Errorf("found error.message in event: %v", message))
+		if errorMessageFound := pipelineErrorMessage(doc); errorMessageFound != "" {
+			multiErr = append(multiErr, fmt.Errorf("%s", errorMessageFound))
 			continue
 		}
 
@@ -2444,6 +2444,37 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 		return multiErr.Unique()
 	}
 	return nil
+}
+
+// pipelineErrorMessage checks if the event has a pipeline_error and returns the error message if it does
+// If the event does not have a pipeline_error, it returns the empty string
+func pipelineErrorMessage(doc common.MapStr) string {
+	message, err := doc.GetValue("event.kind")
+	if err != nil {
+		// Skip any error (unexpected type for event.kind, key not found, etc.)
+		return ""
+	}
+
+	value, ok := message.(string)
+	if !ok || value != "pipeline_error" {
+		// Unexpected type for event.kind field, skip validation
+		// or it is not related to a pipeline error
+		return ""
+	}
+
+	errorMessage := ""
+	errorMessageData, err := doc.GetValue("error.message")
+	// Skip any error (unexpected type for error.message, key not found, etc.)
+	if err == nil {
+		if value, ok := errorMessageData.(string); ok {
+			errorMessage = value
+		}
+	}
+	if errorMessage == "" {
+		return "found pipeline_error in document: no error message"
+	}
+
+	return fmt.Sprintf("found pipeline_error in document with error message: %s", errorMessage)
 }
 
 func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator) []string {

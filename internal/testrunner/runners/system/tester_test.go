@@ -522,3 +522,116 @@ func TestGetExpectedDatasetForTest(t *testing.T) {
 		})
 	}
 }
+
+func TestFoundPipelineError(t *testing.T) {
+	testCases := []struct {
+		name     string
+		doc      common.MapStr
+		expected string
+	}{
+		{
+			name:     "empty doc",
+			doc:      common.MapStr{},
+			expected: "",
+		},
+		{
+			name: "doc without event.kind",
+			doc: common.MapStr{
+				"message": "something",
+			},
+			expected: "",
+		},
+		{
+			name: "event.kind is not pipeline_error",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "event",
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "event.kind is non-string",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": 42,
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "pipeline_error without error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
+		},
+		{
+			name: "pipeline_error with empty error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": "",
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
+		},
+		{
+			name: "pipeline_error with non-string error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": 123,
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
+		},
+		{
+			name: "pipeline_error with error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": "ingest pipeline failed",
+				},
+			},
+			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+		},
+		{
+			name: "unexpected type for event field",
+			doc: common.MapStr{
+				"event": []string{"foo"},
+				"error": common.MapStr{
+					"message": "ingest pipeline failed",
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "unexpected type for error field",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": []string{
+					"404 error code",
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := pipelineErrorMessage(tc.doc)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
