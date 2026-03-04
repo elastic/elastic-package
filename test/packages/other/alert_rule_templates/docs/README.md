@@ -8,14 +8,9 @@ For more information, refer to the [Elastic documentation](https://www.elastic.c
 
 Alert rule templates require Elastic Stack version 9.2.0 or later.
 
-**The following alert rule templates are available:**
+The following alert rule templates are available:
 
-<details>
-<summary>Click to expand alert rule templates</summary>
+**[MongoDB Replication] Replica member down**
 
-| Name | Description |
-|---|---|
-| [MongoDB Replication] Replica member down |  |
 
-</details>
 
