@@ -1037,6 +1037,77 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
+// discoverDataStreams queries ES for all data streams matching a dataset-pattern wildcard.
+// The pattern "*-{datasetPattern}-*" matches streams of any type and namespace.
+func (r *tester) discoverDataStreams(ctx context.Context, datasetPattern string) ([]string, error) {
+	pattern := fmt.Sprintf("*-%s-*", datasetPattern)
+	resp, err := r.esAPI.Indices.GetDataStream(
+		r.esAPI.Indices.GetDataStream.WithContext(ctx),
+		r.esAPI.Indices.GetDataStream.WithName(pattern),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %w", pattern, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.IsError() {
+		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %s", pattern, resp.String())
+	}
+
+	var body struct {
+		DataStreams []struct {
+			Name string `json:"name"`
+		} `json:"data_streams"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode data stream response: %w", err)
+	}
+
+	names := make([]string, 0, len(body.DataStreams))
+	for _, ds := range body.DataStreams {
+		names = append(names, ds.Name)
+	}
+	return names, nil
+}
+
+// waitUntilAnyDataStream polls discoverDataStreams until at least one matching data stream
+// appears in ES, or the waitForDataTimeout is reached. This bridges the gap between policy
+// assignment and the OTel agent starting to index into the discovered streams.
+func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig, datasetPattern string) ([]string, error) {
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
+	logger.Debugf("Waiting for data streams matching pattern *-%s-* to appear (timeout: %s)...", datasetPattern, waitForDataTimeout)
+
+	var discovered []string
+	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		names, err := r.discoverDataStreams(ctx, datasetPattern)
+		if err != nil {
+			return false, err
+		}
+		if len(names) > 0 {
+			discovered = names
+			return true, nil
+		}
+		return false, nil
+	}, 1*time.Second, waitForDataTimeout)
+
+	if waitErr != nil {
+		return nil, waitErr
+	}
+	if !passed {
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching pattern *-%s-* appeared within %s", datasetPattern, waitForDataTimeout)}
+	}
+
+	logger.Debugf("Discovered %d data stream(s) for pattern *-%s-*: %v", len(discovered), datasetPattern, discovered)
+	return discovered, nil
+}
+
 func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName, config.Deployer)
 
