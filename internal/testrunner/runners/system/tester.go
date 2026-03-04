@@ -2429,8 +2429,8 @@ func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version
 func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) multierror.Error {
 	var multiErr multierror.Error
 	for _, doc := range docs {
-		if errorMessageFound := pipelineErrorMessage(doc); errorMessageFound != "" {
-			multiErr = append(multiErr, fmt.Errorf("%s", errorMessageFound))
+		if errorMessage := pipelineErrorMessage(doc); errorMessage != "" {
+			multiErr = append(multiErr, fmt.Errorf("%s", errorMessage))
 			continue
 		}
 
