@@ -997,20 +997,26 @@ func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecation
 	return false
 }
 
+// scenarioDataStream holds per-stream data for one data stream within a test scenario.
+// A scenario always has at least one entry; dynamic_signal_types scenarios may have more.
+type scenarioDataStream struct {
+	dataStream        string
+	indexTemplateName string
+	docs              []common.MapStr
+	ignoredFields     []string
+	degradedDocs      []common.MapStr
+	syntheticEnabled  bool
+}
+
 type scenarioTest struct {
-	// dataStream is the name of the target data stream where documents are indexed
-	dataStream          string
-	indexTemplateName   string
 	policyTemplate      packages.PolicyTemplate
 	kibanaPolicy        kibana.PackagePolicy
 	dataStreamDataset   string
-	syntheticEnabled    bool
-	docs                []common.MapStr
 	deprecationWarnings []deprecationWarning
-	ignoredFields       []string
-	degradedDocs        []common.MapStr
 	agent               agentdeployer.DeployedAgent
 	startTestTime       time.Time
+	// dataStreams holds one entry for standard scenarios and one-or-more for dynamic_signal_types.
+	dataStreams []scenarioDataStream
 }
 
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
@@ -1124,15 +1130,17 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	scenario.kibanaPolicy = policy
 	scenario.dataStreamDataset = dsDataset
-
-	scenario.indexTemplateName = buildIndexTemplateName(dsType, dsDataset)
-	scenario.dataStream = BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type)
+	dataStreamName := BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type)
+	scenario.dataStreams = []scenarioDataStream{{
+		dataStream: dataStreamName,
+		indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
+	}}
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		err := r.deleteDataStream(ctx, scenario.dataStream)
+		logger.Debugf("Deleting data stream for testing %s", dataStreamName)
+		err := r.deleteDataStream(ctx, dataStreamName)
 		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
+			return fmt.Errorf("failed to delete data stream %s: %w", dataStreamName, err)
 		}
 		return nil
 	}
@@ -1237,7 +1245,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream)
+	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStreams[0].dataStream)
 
 	// before checking "waitErr" error , it is necessary to check if the service has finished with error
 	// to report it as a test case failed
@@ -1257,22 +1265,22 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 	// Get deprecation warnings after ensuring that there are ingested docs and thus the
 	// data stream exists.
-	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
+	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStreams[0].dataStream)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
+		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStreams[0].dataStream, err)
 	}
-	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStreams[0].dataStream)
 
-	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
-	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStreams[0].dataStream)
+	scenario.dataStreams[0].syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStreams[0].dataStream)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
+		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStreams[0].dataStream, err)
 	}
-	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStreams[0].dataStream, scenario.dataStreams[0].syntheticEnabled)
 
-	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
-	scenario.ignoredFields = hits.IgnoredFields
-	scenario.degradedDocs = hits.DegradedDocs
+	scenario.dataStreams[0].docs = hits.getDocs(scenario.dataStreams[0].syntheticEnabled)
+	scenario.dataStreams[0].ignoredFields = hits.IgnoredFields
+	scenario.dataStreams[0].degradedDocs = hits.DegradedDocs
 
 	if r.runSetup {
 		opts := scenarioStateOpts{
@@ -1658,7 +1666,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		fields.WithStringNumberFields(config.StringNumberFields),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithDisableNormalization(scenario.syntheticEnabled),
+		fields.WithDisableNormalization(scenario.dataStreams[0].syntheticEnabled),
 		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
 		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
 	)
@@ -1666,30 +1674,30 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
 	}
 
-	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
+	if errs := validateFields(scenario.dataStreams[0].docs, fieldsValidator); len(errs) > 0 {
 		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
+			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStreams[0].dataStream),
 			Details: errs.Error(),
 		})
 	}
 
 	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
 		logger.Debug("Performing validation based on mappings")
-		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
+		exceptionFields := listExceptionFields(scenario.dataStreams[0].docs, fieldsValidator)
 
 		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
 			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
-			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
-			fields.WithMappingValidatorDataStream(scenario.dataStream),
+			fields.WithMappingValidatorIndexTemplate(scenario.dataStreams[0].indexTemplateName),
+			fields.WithMappingValidatorDataStream(scenario.dataStreams[0].dataStream),
 			fields.WithMappingValidatorExceptionFields(exceptionFields),
 		)
 		if err != nil {
-			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
+			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStreams[0].dataStream, err)
 		}
 
 		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
 			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
+				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.dataStreams[0].indexTemplateName),
 				Details: errs.Error(),
 			})
 		}
@@ -1700,14 +1708,14 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("failed to parse stack version: %w", err)
 	}
 
-	err = validateIgnoredFields(stackVersion, scenario, config)
+	err = validateIgnoredFields(stackVersion, scenario.dataStreams[0], config)
 	if err != nil {
 		return result.WithError(err)
 	}
 
-	docs := scenario.docs
-	if scenario.syntheticEnabled {
-		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.docs)
+	docs := scenario.dataStreams[0].docs
+	if scenario.dataStreams[0].syntheticEnabled {
+		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.dataStreams[0].docs)
 		if err != nil {
 			results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
 			return results, nil
@@ -1730,7 +1738,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplate.Input, scenario.syntheticEnabled); err != nil {
+	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStreams[0].dataStream, scenario.policyTemplate.Input, scenario.dataStreams[0].syntheticEnabled); err != nil {
 		results, _ := result.WithError(err)
 		return results, nil
 	}
@@ -1827,7 +1835,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
-		err := dumpScenarioDocs(scenario.docs)
+		err := dumpScenarioDocs(scenario.dataStreams[0].docs)
 		if err != nil {
 			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
 		}
@@ -2269,16 +2277,16 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 	return allFields
 }
 
-func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(stackVersion *semver.Version, ds scenarioDataStream, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
 		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		skipIgnoredFields = append(skipIgnoredFields, "event.original")
 	}
 
-	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+	ignoredFields := make([]string, 0, len(ds.ignoredFields))
 
-	for _, field := range scenario.ignoredFields {
+	for _, field := range ds.ignoredFields {
 		if !slices.Contains(skipIgnoredFields, field) {
 			ignoredFields = append(ignoredFields, field)
 		}
@@ -2289,8 +2297,8 @@ func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest,
 			ID            any `json:"_id"`
 			Timestamp     any `json:"@timestamp,omitempty"`
 			IgnoredFields any `json:"ignored_field_values"`
-		}, len(scenario.degradedDocs))
-		for i, d := range scenario.degradedDocs {
+		}, len(ds.degradedDocs))
+		for i, d := range ds.degradedDocs {
 			issues[i].ID = d["_id"]
 			if source, ok := d["_source"].(map[string]any); ok {
 				if ts, ok := source["@timestamp"]; ok {
@@ -2306,7 +2314,7 @@ func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest,
 
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "found ignored fields in data stream",
-			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON),
+			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", ds.dataStream, ignoredFields, degradedDocsJSON),
 		}
 	}
 
