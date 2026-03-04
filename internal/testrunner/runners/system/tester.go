@@ -1037,10 +1037,16 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	return nil
 }
 
-// discoverDataStreams queries ES for all data streams matching a dataset-pattern wildcard.
-// The pattern "*-{datasetPattern}-*" matches streams of any type and namespace.
-func (r *tester) discoverDataStreams(ctx context.Context, datasetPattern string) ([]string, error) {
-	pattern := fmt.Sprintf("*-%s-*", datasetPattern)
+// discoveredDataStream contains the information retrieved from ES for a single
+// data stream during dynamic_signal_types discovery.
+type discoveredDataStream struct {
+	name          string
+	indexTemplate string
+}
+
+// discoverDataStreams queries ES for all data streams matching the given wildcard pattern.
+// The caller is responsible for constructing the pattern, e.g. "*-{dataset}-{namespace}".
+func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]discoveredDataStream, error) {
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
@@ -1059,39 +1065,43 @@ func (r *tester) discoverDataStreams(ctx context.Context, datasetPattern string)
 
 	var body struct {
 		DataStreams []struct {
-			Name string `json:"name"`
+			Name     string `json:"name"`
+			Template string `json:"template"`
 		} `json:"data_streams"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode data stream response: %w", err)
+		return nil, fmt.Errorf("failed to decode data stream discovery response: %w", err)
 	}
 
-	names := make([]string, 0, len(body.DataStreams))
+	result := make([]discoveredDataStream, 0, len(body.DataStreams))
 	for _, ds := range body.DataStreams {
-		names = append(names, ds.Name)
+		result = append(result, discoveredDataStream{
+			name:          ds.Name,
+			indexTemplate: ds.Template,
+		})
 	}
-	return names, nil
+	return result, nil
 }
 
 // waitUntilAnyDataStream polls discoverDataStreams until at least one matching data stream
 // appears in ES, or the waitForDataTimeout is reached. This bridges the gap between policy
 // assignment and the OTel agent starting to index into the discovered streams.
-func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig, datasetPattern string) ([]string, error) {
+func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	logger.Debugf("Waiting for data streams matching pattern *-%s-* to appear (timeout: %s)...", datasetPattern, waitForDataTimeout)
+	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
 
-	var discovered []string
+	var discovered []discoveredDataStream
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		names, err := r.discoverDataStreams(ctx, datasetPattern)
+		streams, err := r.discoverDataStreams(ctx, pattern)
 		if err != nil {
 			return false, err
 		}
-		if len(names) > 0 {
-			discovered = names
+		if len(streams) > 0 {
+			discovered = streams
 			return true, nil
 		}
 		return false, nil
@@ -1101,10 +1111,10 @@ func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig,
 		return nil, waitErr
 	}
 	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching pattern *-%s-* appeared within %s", datasetPattern, waitForDataTimeout)}
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
 	}
 
-	logger.Debugf("Discovered %d data stream(s) for pattern *-%s-*: %v", len(discovered), datasetPattern, discovered)
+	logger.Debugf("Discovered %d data stream(s) matching %s: %v", len(discovered), pattern, discovered)
 	return discovered, nil
 }
 
@@ -1199,19 +1209,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
 		}
 	}
+
 	scenario.kibanaPolicy = policy
 	scenario.dataStreamDataset = dsDataset
-	dataStreamName := BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type)
-	scenario.dataStreams = []scenarioDataStream{{
-		dataStream: dataStreamName,
-		indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
-	}}
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		logger.Debugf("Deleting data stream for testing %s", dataStreamName)
-		err := r.deleteDataStream(ctx, dataStreamName)
-		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", dataStreamName, err)
+		for _, sds := range scenario.dataStreams {
+			if err := r.deleteDataStream(ctx, sds.dataStream); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
@@ -1316,42 +1322,66 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStreams[0].dataStream)
-
-	// before checking "waitErr" error , it is necessary to check if the service has finished with error
-	// to report it as a test case failed
-	if service != nil && config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(ctx, config.Service)
-		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+	if policyTemplate.DynamicSignalTypes {
+		// For dynamic_signal_types packages Fleet creates one data stream per signal type
+		// (e.g. logs, metrics). Discover them from ES since the names aren't known ahead of time.
+		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
+		discovered, err := r.waitUntilAnyDataStream(ctx, config, fmt.Sprintf("*-%s-%s", datasetPattern, policy.Namespace))
+		if err != nil {
 			return nil, err
 		}
-		if exited && code > 0 {
-			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
+		scenario.dataStreams = make([]scenarioDataStream, 0, len(discovered))
+		for _, dsd := range discovered {
+			scenario.dataStreams = append(scenario.dataStreams, scenarioDataStream{
+				dataStream:        dsd.name,
+				indexTemplateName: dsd.indexTemplate,
+			})
 		}
+	} else {
+		scenario.dataStreams = []scenarioDataStream{{
+			dataStream:        BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type),
+			indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
+		}}
 	}
 
-	if waitErr != nil {
-		return nil, waitErr
-	}
+	for i, sds := range scenario.dataStreams {
+		hits, waitErr := r.waitForDocs(ctx, config, sds.dataStream)
 
-	// Get deprecation warnings after ensuring that there are ingested docs and thus the
-	// data stream exists.
-	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStreams[0].dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStreams[0].dataStream, err)
-	}
-	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStreams[0].dataStream)
+		// before checking "waitErr" error, it is necessary to check if the service has finished
+		// with an error, to report it as a test case failed
+		if service != nil && config.Service != "" && !config.IgnoreServiceError {
+			exited, code, err := service.ExitCode(ctx, config.Service)
+			if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+				return nil, err
+			}
+			if exited && code > 0 {
+				return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
+			}
+		}
 
-	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStreams[0].dataStream)
-	scenario.dataStreams[0].syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStreams[0].dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStreams[0].dataStream, err)
-	}
-	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStreams[0].dataStream, scenario.dataStreams[0].syntheticEnabled)
+		if waitErr != nil {
+			return nil, waitErr
+		}
 
-	scenario.dataStreams[0].docs = hits.getDocs(scenario.dataStreams[0].syntheticEnabled)
-	scenario.dataStreams[0].ignoredFields = hits.IgnoredFields
-	scenario.dataStreams[0].degradedDocs = hits.DegradedDocs
+		warnings, err := r.getDeprecationWarnings(ctx, sds.dataStream)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", sds.dataStream, err)
+		}
+		logger.Debugf("Found %d deprecation warnings for data stream %s", len(warnings), sds.dataStream)
+		scenario.deprecationWarnings = append(scenario.deprecationWarnings, warnings...)
+
+		logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", sds.dataStream)
+		syntheticEnabled, err := isSyntheticSourceModeEnabled(ctx, r.esAPI, sds.dataStream)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", sds.dataStream, err)
+		}
+		logger.Debugf("Data stream %s has synthetic source mode enabled: %t", sds.dataStream, syntheticEnabled)
+
+		scenario.dataStreams[i].syntheticEnabled = syntheticEnabled
+		scenario.dataStreams[i].docs = hits.getDocs(syntheticEnabled)
+		scenario.dataStreams[i].ignoredFields = hits.IgnoredFields
+		scenario.dataStreams[i].degradedDocs = hits.DegradedDocs
+	}
 
 	if r.runSetup {
 		opts := scenarioStateOpts{
