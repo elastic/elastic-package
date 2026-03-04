@@ -1760,67 +1760,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if r.dataStream != "" {
 		fieldsDir = filepath.Join(r.dataStream, "fields")
 	}
-	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
-		fields.WithSchemaURLs(r.schemaURLs),
-		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-		fields.WithNumericKeywordFields(config.NumericKeywordFields),
-		fields.WithStringNumberFields(config.StringNumberFields),
-		fields.WithExpectedDatasets(expectedDatasets),
-		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithDisableNormalization(scenario.dataStreams[0].syntheticEnabled),
-		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
-		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
-	)
-	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
-	}
-
-	if errs := validateFields(scenario.dataStreams[0].docs, fieldsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStreams[0].dataStream),
-			Details: errs.Error(),
-		})
-	}
-
-	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
-		logger.Debug("Performing validation based on mappings")
-		exceptionFields := listExceptionFields(scenario.dataStreams[0].docs, fieldsValidator)
-
-		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
-			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
-			fields.WithMappingValidatorIndexTemplate(scenario.dataStreams[0].indexTemplateName),
-			fields.WithMappingValidatorDataStream(scenario.dataStreams[0].dataStream),
-			fields.WithMappingValidatorExceptionFields(exceptionFields),
-		)
-		if err != nil {
-			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStreams[0].dataStream, err)
-		}
-
-		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.dataStreams[0].indexTemplateName),
-				Details: errs.Error(),
-			})
-		}
-	}
 
 	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
 	if err != nil {
 		return result.WithErrorf("failed to parse stack version: %w", err)
-	}
-
-	err = validateIgnoredFields(stackVersion, scenario.dataStreams[0], config)
-	if err != nil {
-		return result.WithError(err)
-	}
-
-	docs := scenario.dataStreams[0].docs
-	if scenario.dataStreams[0].syntheticEnabled {
-		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.dataStreams[0].docs)
-		if err != nil {
-			results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
-			return results, nil
-		}
 	}
 
 	specVersion, err := semver.NewVersion(r.pkgManifest.SpecVersion)
@@ -1828,20 +1771,79 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("failed to parse format version %q: %w", r.pkgManifest.SpecVersion, err)
 	}
 
-	// Write sample events file from first doc, if requested
-	if err := r.generateTestResultFile(docs, *specVersion); err != nil {
-		return result.WithError(err)
-	}
+	for _, sds := range scenario.dataStreams {
+		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+			fields.WithSchemaURLs(r.schemaURLs),
+			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithNumericKeywordFields(config.NumericKeywordFields),
+			fields.WithStringNumberFields(config.StringNumberFields),
+			fields.WithExpectedDatasets(expectedDatasets),
+			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithDisableNormalization(sds.syntheticEnabled),
+			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
+		)
+		if err != nil {
+			return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
+		}
 
-	// Check Hit Count within docs, if 0 then it has not been specified
-	if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
-		result.FailureMsg = message
-	}
+		if errs := validateFields(sds.docs, fieldsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", sds.dataStream),
+				Details: errs.Error(),
+			})
+		}
 
-	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStreams[0].dataStream, scenario.policyTemplate.Input, scenario.dataStreams[0].syntheticEnabled); err != nil {
-		results, _ := result.WithError(err)
-		return results, nil
+		if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
+			logger.Debug("Performing validation based on mappings")
+			exceptionFields := listExceptionFields(sds.docs, fieldsValidator)
+
+			mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
+				fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+				fields.WithMappingValidatorIndexTemplate(sds.indexTemplateName),
+				fields.WithMappingValidatorDataStream(sds.dataStream),
+				fields.WithMappingValidatorExceptionFields(exceptionFields),
+			)
+			if err != nil {
+				return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", sds.dataStream, err)
+			}
+
+			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+				return result.WithError(testrunner.ErrTestCaseFailed{
+					Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", sds.indexTemplateName),
+					Details: errs.Error(),
+				})
+			}
+		}
+
+		if err := validateIgnoredFields(stackVersion, sds, config); err != nil {
+			return result.WithError(err)
+		}
+
+		docs := sds.docs
+		if sds.syntheticEnabled {
+			docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(sds.docs)
+			if err != nil {
+				results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
+				return results, nil
+			}
+		}
+
+		// Write sample events file from first doc, if requested
+		if err := r.generateTestResultFile(docs, *specVersion); err != nil {
+			return result.WithError(err)
+		}
+
+		// Check Hit Count within docs, if 0 then it has not been specified
+		if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
+			result.FailureMsg = message
+		}
+
+		// Check transforms if present
+		if err := r.checkTransforms(ctx, config, r.pkgManifest, sds.dataStream, scenario.policyTemplate.Input, sds.syntheticEnabled); err != nil {
+			results, _ := result.WithError(err)
+			return results, nil
+		}
 	}
 
 	if scenario.agent != nil {
