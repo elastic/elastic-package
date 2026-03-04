@@ -257,14 +257,16 @@ func (v Vars) ToMapStr() common.MapStr {
 func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) Vars {
 	vars := Vars{}
 	for _, def := range definitions {
-		rawValue, ok := values[def.Name]
-		if ok {
+		rawValue, err := values.GetValue(def.Name)
+		switch {
+		case err == nil:
 			var val packages.VarValue
 			val.Unpack(rawValue)
 			vars[def.Name] = Var{Type: def.Type, Value: val, fromUser: true}
-		} else if def.Default != nil {
+		case def.Default != nil:
+			// Fallback to default if available.
 			vars[def.Name] = Var{Type: def.Type, Value: *def.Default}
-		} else if def.Multi {
+		case def.Multi:
 			// Multi-valued var with no value and no default: keep for legacy.
 			var val packages.VarValue
 			val.Unpack([]interface{}{})

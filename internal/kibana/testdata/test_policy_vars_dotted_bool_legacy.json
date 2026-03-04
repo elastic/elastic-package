@@ -23,7 +23,7 @@
           },
           "vars": {
             "active.only": {
-              "value": true,
+              "value": false,
               "type": "bool"
             },
             "file_selectors": {

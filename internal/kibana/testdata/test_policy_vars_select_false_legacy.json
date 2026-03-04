@@ -22,6 +22,10 @@
             "dataset": "test_policy_vars.log"
           },
           "vars": {
+            "active.only": {
+              "value": true,
+              "type": "bool"
+            },
             "file_selectors": {
               "value": [],
               "type": "yaml"

@@ -85,6 +85,27 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/test_policy_vars_select_false_legacy.json",
 		},
 		{
+			// Verifies that a bool variable with a dotted name (e.g. "active.only")
+			// is found when ucfg has stored it as a nested map {"active": {"only": false}}
+			// due to PathSep(".") parsing. Reproduces the elasticsearch index_recovery
+			// case where active.only: false in the test config was silently ignored,
+			// causing the manifest default (true) to be used instead.
+			name:               "dotted_bool_var_nested_lookup",
+			packageRoot:        "testdata/packages/test_policy_vars",
+			policyTemplateName: "test",
+			dsName:             "log",
+			inputName:          "cel",
+			policyName:         "test-log-test",
+			inputVars:          common.MapStr{},
+			dsVars: common.MapStr{
+				"active": common.MapStr{
+					"only": false,
+				},
+			},
+			goldenSimplified: "testdata/test_policy_vars_dotted_bool.json",
+			goldenLegacy:     "testdata/test_policy_vars_dotted_bool_legacy.json",
+		},
+		{
 			packageRoot:        "testdata/packages/apache",
 			policyTemplateName: "apache",
 			dsName:             "access",
