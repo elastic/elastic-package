@@ -326,7 +326,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		if opt.TestWork {
 			continue
 		}
-		cleanUp(
+		err = cleanUp(
 			context.Background(), // Not the interrupt context.
 			pkgRoot,
 			t.deployedService,
@@ -335,6 +335,9 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			t.installedPipelines,
 			t.runningStack,
 		)
+		if err != nil {
+			t.Log("cleanup: ", err)
+		}
 	}
 	if n == 0 {
 		t.Log("[no test files]")
@@ -342,11 +345,12 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	return nil
 }
 
-func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) {
+func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) error {
 	// We most likely have only one stack, but just iterate over
 	// all if there is more than one. What could possibly go wrong?
 	// If this _is_ problematic, we'll need to record the stack that
 	// was used for each item when it's created.
+	var errs []error
 	for _, stk := range stacks {
 		for _, pipe := range pipes {
 			ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes)
@@ -370,17 +374,21 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
-		m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
+		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 			PackageRoot: pkgRoot,
 			Absent:      true,
 			Force:       true,
 		}})
+		if err != nil {
+			errs = append(errs, err)
+		}
 
 		if stk.external {
 			continue
 		}
 		stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile})
 	}
+	return errors.Join(errs...)
 }
 
 func scripts(dir string) ([]string, error) {

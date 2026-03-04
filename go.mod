@@ -17,8 +17,8 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
-	github.com/elastic/go-ucfg v0.9.0
-	github.com/elastic/package-spec/v3 v3.5.8-0.20260303155217-5f23052266aa
+	github.com/elastic/go-ucfg v0.8.8
+	github.com/elastic/package-spec/v3 v3.0.0-20260303155217-5f23052266aa
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
