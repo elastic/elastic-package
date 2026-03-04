@@ -578,7 +578,7 @@ func TestPipelineErrorMessage(t *testing.T) {
 					"message": "",
 				},
 			},
-			expected: "found pipeline_error in document: no error message",
+			expected: "found pipeline_error in document with error message: \"\"",
 		},
 		{
 			name: "pipeline_error with non-string error.message",
@@ -602,7 +602,7 @@ func TestPipelineErrorMessage(t *testing.T) {
 					"message": "ingest pipeline failed",
 				},
 			},
-			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
 		},
 		{
 			name: "pipeline_error with error.message as array",
@@ -614,7 +614,7 @@ func TestPipelineErrorMessage(t *testing.T) {
 					"message": []any{"ingest pipeline failed"},
 				},
 			},
-			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
 		},
 		{
 			name: "pipeline_error using synthetic source mode",
@@ -626,7 +626,7 @@ func TestPipelineErrorMessage(t *testing.T) {
 					"message": []any{"ingest pipeline failed"},
 				},
 			},
-			expected: "found pipeline_error in document with error message: ingest pipeline failed",
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
 		},
 		{
 			name: "unexpected type for event field",

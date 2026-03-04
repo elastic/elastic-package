@@ -2430,7 +2430,7 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 	var multiErr multierror.Error
 	for _, doc := range docs {
 		if errorMessage := pipelineErrorMessage(doc); errorMessage != "" {
-			multiErr = append(multiErr, fmt.Errorf("%s", errorMessage))
+			multiErr = append(multiErr, errors.New(errorMessage))
 			continue
 		}
 
@@ -2448,22 +2448,22 @@ func validateFields(docs []common.MapStr, fieldsValidator *fields.Validator) mul
 
 // stringFromDocValue converts a document field value to a single string.
 // It handles synthetic source ([]any or []string) and plain string values.
-func stringFromDocValue(value interface{}) string {
+func stringsFromDocValue(value any) []string {
 	switch v := value.(type) {
 	case []any:
-		var parts []string
+		var values []string
 		for _, item := range v {
 			if s, ok := item.(string); ok {
-				parts = append(parts, s)
+				values = append(values, s)
 			}
 		}
-		return strings.Join(parts, " ")
+		return values
 	case []string:
-		return strings.Join(v, " ")
-	case string:
 		return v
+	case string:
+		return []string{v}
 	default:
-		return ""
+		return nil
 	}
 }
 
@@ -2475,22 +2475,22 @@ func pipelineErrorMessage(doc common.MapStr) string {
 		// Skip any error (unexpected type for event.kind, key not found, etc.)
 		return ""
 	}
-	eventKind := stringFromDocValue(message)
-	if !strings.Contains(eventKind, "pipeline_error") {
+	eventKind := stringsFromDocValue(message)
+	if !slices.Contains(eventKind, "pipeline_error") {
 		// Unexpected type for event.kind field, skip validation
 		// or it is not related to a pipeline error
 		return ""
 	}
 
-	errorMessage := ""
+	errorMessage := []string{}
 	if errorMessageData, err := doc.GetValue("error.message"); err == nil {
-		errorMessage = stringFromDocValue(errorMessageData)
+		errorMessage = stringsFromDocValue(errorMessageData)
 	}
-	if errorMessage == "" {
+	if len(errorMessage) == 0 {
 		return "found pipeline_error in document: no error message"
 	}
 
-	return fmt.Sprintf("found pipeline_error in document with error message: %s", errorMessage)
+	return fmt.Sprintf("found pipeline_error in document with error message: %q", strings.Join(errorMessage, " "))
 }
 
 func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator) []string {
