@@ -226,9 +226,17 @@ func (v Vars) ToMapStr() common.MapStr {
 			if _, isString := raw.(string); !isString {
 				// Maps and slices (e.g. ssl written as YAML map in test configs):
 				// marshal to a YAML string so the simplified API accepts them.
-				if b, err := yaml.Marshal(raw); err == nil {
-					raw = strings.TrimRight(string(b), "\n")
+				// Empty results ("[]", "{}") are omitted so Fleet Handlebars
+				// {{#if}} guards evaluate to false, preventing invalid agent configs.
+				b, err := yaml.Marshal(raw)
+				if err != nil {
+					continue
 				}
+				s := strings.TrimRight(string(b), "\n")
+				if s == "[]" || s == "{}" {
+					continue
+				}
+				raw = s
 			}
 		}
 		m[k] = raw

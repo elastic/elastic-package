@@ -1,0 +1,27 @@
+title: Test logs
+type: logs
+streams:
+  - input: cel
+    vars:
+      - name: file_selectors
+        type: yaml
+        title: File Selectors
+        multi: true
+        required: false
+        show_user: false
+      - name: revoked
+        type: select
+        title: Revoked Status
+        options:
+          - text: All
+            value: ""
+          - text: Active Only
+            value: "false"
+          - text: Revoked Only
+            value: "true"
+        default: ""
+        multi: false
+        required: true
+        show_user: false
+    title: Test logs
+    description: Test logs

@@ -49,7 +49,42 @@ func TestBuildIntegrationPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/sophos_xg_tcp_legacy.json",
 		},
 		{
-			name:               "apache_access_logfile",
+			// Verifies that an empty yaml multi-valued var (e.g. file_selectors: [])
+			// is omitted from the simplified API request instead of being sent as the
+			// string "[]", which Fleet would reject as invalid YAML when substituted
+			// into Handlebars templates. Reproduces the aws_bedrock case.
+			name:               "empty_yaml_multi_var",
+			packageRoot:        "testdata/packages/test_policy_vars",
+			policyTemplateName: "test",
+			dsName:             "log",
+			inputName:          "cel",
+			policyName:         "test-log-test",
+			inputVars:          common.MapStr{},
+			dsVars: common.MapStr{
+				"file_selectors": []interface{}{},
+			},
+			goldenSimplified: "testdata/test_policy_vars_empty_yaml_multi.json",
+			goldenLegacy:     "testdata/test_policy_vars_empty_yaml_multi_legacy.json",
+		},
+		{
+			// Verifies that a select type variable with a non-default value ("false")
+			// is correctly serialised in the simplified API request.
+			// Reproduces the ti_opencti case where revoked: "false" caused Fleet to
+			// reject with "Invalid value for select type".
+			name:               "select_var_false_value",
+			packageRoot:        "testdata/packages/test_policy_vars",
+			policyTemplateName: "test",
+			dsName:             "log",
+			inputName:          "cel",
+			policyName:         "test-log-test",
+			inputVars:          common.MapStr{},
+			dsVars: common.MapStr{
+				"revoked": "false",
+			},
+			goldenSimplified: "testdata/test_policy_vars_select_false.json",
+			goldenLegacy:     "testdata/test_policy_vars_select_false_legacy.json",
+		},
+		{
 			packageRoot:        "testdata/packages/apache",
 			policyTemplateName: "apache",
 			dsName:             "access",
