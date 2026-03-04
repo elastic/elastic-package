@@ -1120,8 +1120,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.kibanaPolicy = policy
 	scenario.dataStreamDataset = dsDataset
 
-	scenario.indexTemplateName = buildIndexTemplateName(dsType, dsDataset, policyTemplate, r.pkgManifest.Type, config.Vars)
-	scenario.dataStream = BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type, config.Vars)
+	scenario.indexTemplateName = buildIndexTemplateName(dsType, dsDataset)
+	scenario.dataStream = BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type)
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
@@ -1290,50 +1290,21 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 // buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func buildIndexTemplateName(dsType, dsDataset string, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(packageType, dsDataset, policyTemplate, cfgVars)
-
-	indexTemplateName := fmt.Sprintf(
-		"%s-%s",
-		dsType,
-		dataStreamDataset,
-	)
-	return indexTemplateName
+func buildIndexTemplateName(dsType, dsDataset string) string {
+	return fmt.Sprintf("%s-%s", dsType, dsDataset)
 }
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
-func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string, cfgVars common.MapStr) string {
-	dataStreamDataset := getExpectedDatasetForTest(packageType, dsDataset, policyTemplate, cfgVars)
+func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
+	dataset := dsDataset
 
 	// Input packages using the otel collector input require to add a specific dataset suffix
 	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
-		dataStreamDataset = fmt.Sprintf("%s.%s", dataStreamDataset, otelSuffixDataset)
+		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
 	}
 
-	dataStreamName := fmt.Sprintf(
-		"%s-%s-%s",
-		dsType,
-		dataStreamDataset,
-		namespace,
-	)
-	return dataStreamName
-}
-
-func getExpectedDatasetForTest(pkgType, dataset string, policyTemplate packages.PolicyTemplate, cfgVars common.MapStr) string {
-	if pkgType == "input" {
-		// Input packages can set `data_stream.dataset` by convention to customize the dataset.
-		v, _ := cfgVars.GetValue("data_stream.dataset")
-		if ds, ok := v.(string); ok && ds != "" {
-			return ds
-		}
-		// Some of them also set a default value.
-		if ds := findDefaultValue(policyTemplate.Vars, "data_stream.dataset"); ds != "" {
-			return ds
-		}
-		return policyTemplate.Name
-	}
-	return dataset
+	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
 }
 
 // createOrGetKibanaPolicies creates the Kibana policies required for testing.
@@ -1809,11 +1780,7 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
-		expectedDataset := getExpectedDatasetForTest(
-			r.pkgManifest.Type,
-			scenario.dataStreamDataset,
-			scenario.policyTemplate,
-			config.Vars)
+		expectedDataset := scenario.dataStreamDataset
 		if scenario.policyTemplate.Input == otelCollectorInputName {
 			// Input packages whose input is `otelcol` must add the `.otel` suffix
 			// Example: httpcheck.metrics.otel
@@ -2016,21 +1983,6 @@ func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
 	}
 
 	return fallback
-}
-
-func findDefaultValue(vars []packages.Variable, name string) string {
-	for _, v := range vars {
-		if v.Name != name {
-			continue
-		}
-		if v.Default != nil {
-			value, ok := v.Default.Value().(string)
-			if ok && value != "" {
-				return value
-			}
-		}
-	}
-	return ""
 }
 
 func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {

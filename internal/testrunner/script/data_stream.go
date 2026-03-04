@@ -114,7 +114,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("reading policy", err))
 	ts.Check(decoratedWith("assigning policy", stk.kibana.AssignPolicyToAgent(ctx, installed.enrolled, *pol)))
 
-	dsName := system.BuildDataStreamName(dsType, dsDataset, installed.testingPolicy.Namespace, templ, pkgMan.Type, config.Vars)
+	dsName := system.BuildDataStreamName(dsType, dsDataset, installed.testingPolicy.Namespace, templ, pkgMan.Type)
 	ts.Setenv(dsNameLabel, dsName)
 	dataStreams[dsName] = struct{}{}
 
