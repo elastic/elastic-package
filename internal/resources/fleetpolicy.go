@@ -144,7 +144,7 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 		if err != nil {
 			return fmt.Errorf("could not prepare package policy: %w", err)
 		}
-		_, err = provider.Client.CreatePackagePolicy(ctx, *pp)
+		_, err = provider.Client.CreatePackagePolicy(ctx, *pp, kibana.PolicyAPIFormatAuto)
 		if err != nil {
 			return fmt.Errorf("could not add package policy %q to agent policy %q: %w", packagePolicy.Name, f.Name, err)
 		}

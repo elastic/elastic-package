@@ -323,6 +323,18 @@ type PackagePolicyStream struct {
 	legacyVars        Vars
 }
 
+// PolicyAPIFormat controls which Fleet API format is used for package policy creation.
+type PolicyAPIFormat string
+
+const (
+	// PolicyAPIFormatAuto selects the format based on the Kibana version (default).
+	PolicyAPIFormatAuto PolicyAPIFormat = ""
+	// PolicyAPIFormatSimplified forces the simplified (objects-based) API.
+	PolicyAPIFormatSimplified PolicyAPIFormat = "simplified"
+	// PolicyAPIFormatLegacy forces the legacy (arrays-based) API.
+	PolicyAPIFormatLegacy PolicyAPIFormat = "legacy"
+)
+
 // simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
 // the simplified (objects-based) inputs format for package policy creation.
 // Introduced in Kibana 8.5.0 (PR #139420, September 2022).
@@ -339,12 +351,15 @@ func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
-// For old Kibana versions the request is automatically converted to the legacy
-// (arrays-based) inputs format.
-func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*PackagePolicy, error) {
+// format controls which API format to use: Auto selects based on the Kibana
+// version, Simplified forces the objects-based API, Legacy forces the
+// arrays-based API.
+func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy, format PolicyAPIFormat) (*PackagePolicy, error) {
 	var reqBody []byte
 	var err error
-	if c.supportsSimplifiedPackagePolicyAPI() {
+	useSimplified := format == PolicyAPIFormatSimplified ||
+		(format == PolicyAPIFormatAuto && c.supportsSimplifiedPackagePolicyAPI())
+	if useSimplified {
 		reqBody, err = json.Marshal(p)
 	} else {
 		reqBody, err = json.Marshal(p.toLegacy())

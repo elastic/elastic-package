@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/go-ucfg/yaml"
 
 	"github.com/elastic/elastic-package/internal/common"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/testrunner/runners/system"
 )
@@ -107,7 +108,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 
 	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, pkgRoot)
 	ts.Check(decoratedWith("creating package policy", err))
-	_, err = stk.kibana.CreatePackagePolicy(ctx, policy)
+	_, err = stk.kibana.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormatAuto)
 	ts.Check(decoratedWith("adding package policy", err))
 
 	pol, err := stk.kibana.GetPolicy(ctx, installed.testingPolicy.ID)

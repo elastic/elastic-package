@@ -1113,7 +1113,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if r.runTearDown {
 		logger.Debug("Skip adding data stream config to policy")
 	} else {
-		if _, err := r.kibanaClient.CreatePackagePolicy(ctx, policy); err != nil {
+		if _, err := r.kibanaClient.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormat(config.PolicyAPIFormat)); err != nil {
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
 		}
 	}
