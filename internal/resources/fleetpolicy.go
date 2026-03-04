@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/elastic/go-resource"
@@ -228,17 +227,17 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	}
 
 	// Add dataStream-level vars
-	streams[0].Vars = setKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars))
+	streams[0].Vars = kibana.SetKibanaVariables(stream.Vars, common.MapStr(packagePolicy.DataStreamVars))
 	ds.Inputs[0].Streams = streams
 
 	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		ds.Inputs[0].Vars = setKibanaVariables(input.Vars, common.MapStr(packagePolicy.Vars))
+		ds.Inputs[0].Vars = kibana.SetKibanaVariables(input.Vars, common.MapStr(packagePolicy.Vars))
 	}
 
 	// Add package-level vars
-	ds.Vars = setKibanaVariables(manifest.Vars, common.MapStr(packagePolicy.Vars))
+	ds.Vars = kibana.SetKibanaVariables(manifest.Vars, common.MapStr(packagePolicy.Vars))
 
 	return &ds, nil
 }
@@ -295,105 +294,24 @@ func createInputPackagePolicy(policy FleetAgentPolicy, manifest packages.Package
 	variablesToAssign := common.MapStr(packagePolicy.Vars)
 
 	// Add policyTemplate-level vars.
-	vars := setKibanaVariables(policyTemplate.Vars, variablesToAssign)
+	vars := kibana.SetKibanaVariables(policyTemplate.Vars, variablesToAssign)
 
 	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
 	// UI would use if this is not defined in the config or doesn't have a default.
 	// Fleet uses the policy template name as default dataset for input packages, do the same.
-	vars = setDataStreamDatasetVariable(vars, variablesToAssign, policyTemplate.Name)
+	vars = kibana.SetDataStreamDatasetVariable(vars, variablesToAssign, policyTemplate.Name)
 
 	if policyTemplate.Input == "otelcol" {
-		vars = setUseAPMVariable(vars, variablesToAssign)
+		vars = kibana.SetUseAPMVariable(vars, variablesToAssign)
 	}
 
 	streams[0].Vars = vars
 	ds.Inputs[0].Streams = streams
 
 	// Add package-level vars
-	ds.Vars = setKibanaVariables(manifest.Vars, variablesToAssign)
+	ds.Vars = kibana.SetKibanaVariables(manifest.Vars, variablesToAssign)
 
 	return &ds, nil
-}
-
-func setDataStreamDatasetVariable(vars kibana.Vars, variablesToAssign common.MapStr, defaultValue string) kibana.Vars {
-	if _, found := vars["data_stream.dataset"]; found {
-		return vars
-	}
-
-	dataStreamDatasetValue := defaultValue
-	v, _ := variablesToAssign.GetValue("data_stream.dataset")
-	if dataset, ok := v.(string); ok && dataset != "" {
-		dataStreamDatasetValue = dataset
-	}
-	var value packages.VarValue
-	value.Unpack(dataStreamDatasetValue)
-	vars["data_stream.dataset"] = kibana.Var{
-		Value: value,
-		Type:  "text",
-	}
-	return vars
-}
-
-func setUseAPMVariable(vars kibana.Vars, variablesToAssign common.MapStr) kibana.Vars {
-	if _, found := vars["use_apm"]; found {
-		return vars
-	}
-
-	useAPMData, err := variablesToAssign.GetValue("use_apm")
-	if errors.Is(err, common.ErrKeyNotFound) {
-		// No variable is set
-		return vars
-	}
-
-	if err != nil {
-		return vars
-	}
-	var value packages.VarValue
-
-	if useAPMString, ok := useAPMData.(string); ok && useAPMString != "" {
-		boolValue, err := strconv.ParseBool(useAPMString)
-		if err != nil {
-			return vars
-		}
-		value.Unpack(boolValue)
-	}
-
-	if useAPM, ok := useAPMData.(bool); ok {
-		value.Unpack(useAPM)
-	}
-	if value.Value() != nil {
-		vars["use_apm"] = kibana.Var{
-			Value: value,
-			Type:  "boolean",
-		}
-	}
-	return vars
-}
-
-func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
-	vars := kibana.Vars{}
-	for _, definition := range definitions {
-		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
-		// When using this API parameter, default values are not automatically incorporated into
-		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
-		// This means that our client must include the default values in its request to ensure correct behavior.
-		val := definition.Default
-
-		value, err := values.GetValue(definition.Name)
-		if err == nil {
-			val = &packages.VarValue{}
-			val.Unpack(value)
-		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
-			// Do not include nulls for unset variables.
-			continue
-		}
-
-		vars[definition.Name] = kibana.Var{
-			Type:  definition.Type,
-			Value: *val,
-		}
-	}
-	return vars
 }
 
 func (f *FleetAgentPolicy) Update(ctx resource.Context) error {

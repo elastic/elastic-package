@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"net/http"
 	"path"
-
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 // Policy represents an Agent Policy in Fleet.
@@ -185,18 +183,6 @@ func (c *Client) DeletePolicy(ctx context.Context, policyID string) error {
 
 	return nil
 }
-
-// Var represents a single variable at the package or
-// data stream level, encapsulating the data type of the
-// variable and it's value.
-type Var struct {
-	Value packages.VarValue `json:"value"`
-	Type  string            `json:"type"`
-}
-
-// Vars is a collection of variables either at the package or
-// data stream level.
-type Vars map[string]Var
 
 // DataStream represents a data stream within a package.
 type DataStream struct {
