@@ -64,7 +64,7 @@ func TestRenderSloTemplates(t *testing.T) {
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "SLO templates provide pre-defined configurations")
 				assert.Contains(t, result, "<details>")
-				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
+				assert.Contains(t, result, "<summary>View the SLO templates</summary>")
 				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
 				assert.Contains(t, result, "Test SLO Template")
@@ -212,7 +212,7 @@ func TestRenderSloTemplates(t *testing.T) {
 			expectEmpty: false,
 			validateFunc: func(t *testing.T, result string) {
 				assert.Contains(t, result, "<details>")
-				assert.Contains(t, result, "<summary>Click to expand SLO templates</summary>")
+				assert.Contains(t, result, "<summary>View the SLO templates</summary>")
 				assert.Contains(t, result, "</details>")
 				assert.Contains(t, result, "| Name | Description |")
 				assert.Contains(t, result, "|---|---|")

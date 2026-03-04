@@ -11,7 +11,7 @@ SLO templates require Elastic Stack version 9.4.0 or later.
 **The following SLO templates are available:**
 
 <details>
-<summary>Click to expand SLO templates</summary>
+<summary>View the SLO templates</summary>
 
 | Name | Description |
 |---|---|

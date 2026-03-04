@@ -89,7 +89,7 @@ SLO templates require Elastic Stack version 9.4.0 or later.
 
 func renderSloCollapsibleTable(builder *strings.Builder, templates []sloTemplate) {
 	builder.WriteString("<details>\n")
-	builder.WriteString("<summary>Click to expand SLO templates</summary>\n\n")
+	builder.WriteString("<summary>View the SLO templates</summary>\n\n")
 	builder.WriteString("| Name | Description |\n")
 	builder.WriteString("|---|---|\n")
 	for _, t := range templates {
