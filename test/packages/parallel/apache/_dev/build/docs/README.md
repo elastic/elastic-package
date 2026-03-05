@@ -128,6 +128,8 @@ For more information on architectures that can be used for scaling this integrat
 
 {{event "status"}}
 
+### Inputs used
+
 {{ inputDocs }}
 
 ### API usage
