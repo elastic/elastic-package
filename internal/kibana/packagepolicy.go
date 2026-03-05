@@ -102,57 +102,40 @@ func BuildIntegrationPackagePolicy(
 // All siblings that support the input type are
 // explicitly disabled so Fleet does not auto-enable them.
 func buildStreamsForInput(inputType string, manifest packages.PackageManifest, dsManifest packages.DataStreamManifest, enabled bool, vars common.MapStr, datastreams []packages.DataStreamManifest) map[string]PackagePolicyStream {
-	// Determine whether the data stream actually has a stream for this input type.
-	supportsInput := false
-	for _, s := range dsManifest.Streams {
-		if s.Input == inputType {
-			supportsInput = true
-			break
-		}
-	}
-
 	streams := map[string]PackagePolicyStream{}
 	for _, ds := range datastreams {
-		if ds.Name == dsManifest.Name && supportsInput {
-			// Primary data stream: use the caller-provided vars.
-			var streamVars Vars
-			for _, s := range ds.Streams {
-				if s.Input == inputType {
-					streamVars = SetKibanaVariables(s.Vars, vars)
-					break
-				}
-			}
-			streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
-				Enabled:           enabled,
-				Vars:              streamVars.ToMapStr(),
-				legacyVars:        streamVars,
-				dataStreamType:    ds.Type,
-				dataStreamDataset: datasetKey(manifest.Name, ds),
-			}
+		s, ok := streamForInput(ds, inputType)
+		if !ok {
 			continue
 		}
 
-		// Sibling data stream: always disabled.
-		siblingEntry := PackagePolicyStream{
-			Enabled:           false,
+		streamVars := SetKibanaVariables(s.Vars, common.MapStr{})
+		streamEnabled := false
+		if ds.Name == dsManifest.Name {
+			streamEnabled = enabled
+			streamVars = SetKibanaVariables(s.Vars, vars)
+		}
+		streams[datasetKey(manifest.Name, ds)] = PackagePolicyStream{
+			Enabled:           streamEnabled,
+			Vars:              streamVars.ToMapStr(),
+			legacyVars:        streamVars,
 			dataStreamType:    ds.Type,
 			dataStreamDataset: datasetKey(manifest.Name, ds),
 		}
-		supportsInput := false
-		for _, s := range ds.Streams {
-			if s.Input == inputType {
-				siblingVars := SetKibanaVariables(s.Vars, common.MapStr{})
-				siblingEntry.Vars = siblingVars.ToMapStr()
-				siblingEntry.legacyVars = siblingVars
-				supportsInput = true
-				break
-			}
-		}
-		if supportsInput {
-			streams[datasetKey(manifest.Name, ds)] = siblingEntry
-		}
 	}
 	return streams
+}
+
+// buildStreamsForInput builds a streams map for the inputType.
+// All siblings that support the input type are
+// explicitly disabled so Fleet does not auto-enable them.
+func streamForInput(ds packages.DataStreamManifest, inputType string) (packages.Stream, bool) {
+	for _, s := range ds.Streams {
+		if s.Input == inputType {
+			return s, true
+		}
+	}
+	return packages.Stream{}, false
 }
 
 // BuildInputPackagePolicy builds a PackagePolicy for an input package
