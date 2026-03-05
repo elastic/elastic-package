@@ -3,13 +3,14 @@
 set -ex
 
 TARGET_URL=${TARGET_URL:-http://backend:9000}
+SLEEP_TIME=${SLEEP_TIME:-5}
 
 # NOTE: it cannot be done using SIGHUP signal, since the backend container is also
 # killed and the traces would not be sent to the elastic-agent container.
 
 # Wait for the elastic-agent container to be ready with the corresponding
 # agent policy assigned
-sleep 20
+sleep ${SLEEP_TIME}
 
 echo "Sending traces to ${TARGET_URL}/api"
 i=0
