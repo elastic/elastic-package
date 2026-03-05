@@ -513,18 +513,19 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 		return nil, err
 	}
 
-	genlib.InitGeneratorTimeNow(time.Now())
-	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
-
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents, time.Now().Unix())
+		generator, err = genlib.NewGenerator(*config, fields, totEvents,
+			genlib.WithCustomTemplate(tpl),
+			genlib.WithRandSeed(time.Now().UnixNano()))
 	case "gotext":
-		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents, time.Now().Unix())
+		generator, err = genlib.NewGenerator(*config, fields, totEvents,
+			genlib.WithTextTemplate(tpl),
+			genlib.WithRandSeed(time.Now().UnixNano()))
 	}
 
 	if err != nil {
