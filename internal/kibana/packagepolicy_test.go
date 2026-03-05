@@ -472,8 +472,8 @@ func TestEnsureDatasetVar(t *testing.T) {
 		wantDataset    string
 	}{
 		{
-			name: "already set with fromUser=true is left unchanged",
-			vars: Vars{"data_stream.dataset": {Value: varValue("existing"), Type: "text", fromUser: true}},
+			name:           "already set with fromUser=true is left unchanged",
+			vars:           Vars{"data_stream.dataset": {Value: varValue("existing"), Type: "text", fromUser: true}},
 			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
 			varValues:      common.MapStr{"data_stream.dataset": "override"},
 			wantDataset:    "existing",
@@ -486,8 +486,8 @@ func TestEnsureDatasetVar(t *testing.T) {
 			wantDataset:    "custom.dataset",
 		},
 		{
-			name: "manifest default in vars is promoted",
-			vars: Vars{"data_stream.dataset": {Value: varValue("manifest.default"), Type: "text"}},
+			name:           "manifest default in vars is promoted",
+			vars:           Vars{"data_stream.dataset": {Value: varValue("manifest.default"), Type: "text"}},
 			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
 			varValues:      common.MapStr{},
 			wantDataset:    "manifest.default",
