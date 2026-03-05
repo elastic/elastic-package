@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -175,4 +176,101 @@ func TestToLegacyPackagePolicy(t *testing.T) {
 	require.Contains(t, enabledInput.Streams[0].Vars, "period")
 	assert.Equal(t, "30s", enabledInput.Streams[0].Vars["period"].Value.Value())
 	assert.Equal(t, "text", enabledInput.Streams[0].Vars["period"].Type)
+}
+
+func TestSetKibanaVariables(t *testing.T) {
+	varDef := func(name, typ string, defaultVal any) packages.Variable {
+		def := packages.Variable{Name: name, Type: typ}
+		if defaultVal != nil {
+			vv := packages.VarValue{}
+			vv.Unpack(defaultVal)
+			def.Default = &vv
+		}
+		return def
+	}
+
+	cases := []struct {
+		name        string
+		definitions []packages.Variable
+		values      common.MapStr
+		wantVars    map[string]any // name -> expected Value(). Only vars expected in result.
+	}{
+		{
+			name:        "empty definitions returns empty vars",
+			definitions: nil,
+			values:      common.MapStr{"any": "value"},
+			wantVars:    map[string]any{},
+		},
+		{
+			name:        "definition with default and no values uses default",
+			definitions: []packages.Variable{varDef("host", "text", "localhost")},
+			values:      common.MapStr{},
+			wantVars:    map[string]any{"host": "localhost"},
+		},
+		{
+			name:        "definition with default overridden by values",
+			definitions: []packages.Variable{varDef("host", "text", "localhost")},
+			values:      common.MapStr{"host": "elastic.co"},
+			wantVars:    map[string]any{"host": "elastic.co"},
+		},
+		{
+			name:        "definition with no default and no value is omitted",
+			definitions: []packages.Variable{varDef("optional", "text", nil)},
+			values:      common.MapStr{},
+			wantVars:    map[string]any{},
+		},
+		{
+			name:        "definition with no default but value in values is included",
+			definitions: []packages.Variable{varDef("optional", "text", nil)},
+			values:      common.MapStr{"optional": "set"},
+			wantVars:    map[string]any{"optional": "set"},
+		},
+		{
+			name: "nil values uses defaults only",
+			definitions: []packages.Variable{
+				varDef("a", "text", "default_a"),
+				varDef("b", "text", nil),
+			},
+			values:   nil,
+			wantVars: map[string]any{"a": "default_a"},
+		},
+		{
+			name: "multiple definitions mix default and override",
+			definitions: []packages.Variable{
+				varDef("host", "text", "localhost"),
+				varDef("port", "integer", 9200),
+				varDef("optional", "text", nil),
+			},
+			values: common.MapStr{"port": 9300},
+			wantVars: map[string]any{
+				"host": "localhost",
+				"port": 9300,
+			},
+		},
+		{
+			name:        "boolean and list types preserved",
+			definitions: []packages.Variable{varDef("enabled", "bool", true), varDef("hosts", "text", []any{"a", "b"})},
+			values:      common.MapStr{},
+			wantVars: map[string]any{
+				"enabled": true,
+				"hosts":   []any{"a", "b"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := SetKibanaVariables(c.definitions, c.values)
+
+			assert.Len(t, got, len(c.wantVars), "number of vars")
+			for name, wantVal := range c.wantVars {
+				require.Contains(t, got, name, "var %q should be present", name)
+				assert.Equal(t, wantVal, got[name].Value.Value(), "var %q value", name)
+			}
+			for name := range got {
+				_, ok := c.wantVars[name]
+				assert.True(t, ok, "unexpected var %q in result", name)
+			}
+		})
+	}
 }

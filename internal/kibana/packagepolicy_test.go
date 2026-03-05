@@ -352,3 +352,189 @@ func assertJSONGolden(t *testing.T, goldenPath string, got []byte) {
 	require.NoError(t, err)
 	assert.JSONEq(t, string(golden), string(got))
 }
+
+func TestEnsureUseAPMVar(t *testing.T) {
+	cases := []struct {
+		name              string
+		vars              Vars
+		varValues         common.MapStr
+		wantUseAPMPresent bool
+		wantUseAPM        bool
+		wantUnchanged     bool // existing keys must be unchanged
+	}{
+		{
+			name:              "use_apm already in vars is left unchanged",
+			vars:              Vars{"use_apm": {Value: varValue(false), Type: "boolean", fromUser: true}},
+			varValues:         common.MapStr{"use_apm": true},
+			wantUseAPMPresent: true,
+			wantUseAPM:        false,
+			wantUnchanged:     true,
+		},
+		{
+			name:              "no use_apm in varValues leaves vars unchanged",
+			vars:              Vars{},
+			varValues:         common.MapStr{},
+			wantUseAPMPresent: false,
+			wantUnchanged:     true,
+		},
+		{
+			name:              "use_apm true is added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": true},
+			wantUseAPMPresent: true,
+			wantUseAPM:        true,
+		},
+		{
+			name:              "use_apm false is added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": false},
+			wantUseAPMPresent: true,
+			wantUseAPM:        false,
+		},
+		{
+			name:              "use_apm as string true is added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": "true"},
+			wantUseAPMPresent: true,
+			wantUseAPM:        true,
+		},
+		{
+			name:              "use_apm as string false is added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": "false"},
+			wantUseAPMPresent: true,
+			wantUseAPM:        false,
+		},
+		{
+			name:              "use_apm as unexpected string is not added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": "foo"},
+			wantUseAPMPresent: false,
+			wantUnchanged:     true,
+		},
+		{
+			name:              "use_apm as int is not added",
+			vars:              Vars{},
+			varValues:         common.MapStr{"use_apm": 1},
+			wantUseAPMPresent: false,
+			wantUnchanged:     true,
+		},
+		{
+			name:              "other vars are preserved when adding use_apm",
+			vars:              Vars{"other": {Value: varValue("x"), Type: "text", fromUser: true}},
+			varValues:         common.MapStr{"use_apm": true},
+			wantUseAPMPresent: true,
+			wantUseAPM:        true,
+		},
+		{
+			name:              "nil varValues does not add use_apm",
+			vars:              Vars{},
+			varValues:         nil,
+			wantUseAPMPresent: false,
+			wantUnchanged:     true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := make(Vars, len(c.vars))
+			for k, v := range c.vars {
+				got[k] = v
+			}
+
+			ensureUseAPMVar(got, c.varValues)
+
+			if c.wantUnchanged {
+				assert.Len(t, got, len(c.vars), "vars length should be unchanged")
+			}
+			if c.wantUseAPMPresent {
+				require.Contains(t, got, "use_apm", "vars should contain use_apm")
+				assert.Equal(t, "boolean", got["use_apm"].Type)
+				assert.Equal(t, c.wantUseAPM, got["use_apm"].Value.Value())
+			} else {
+				assert.NotContains(t, got, "use_apm", "vars should not contain use_apm")
+			}
+			// Original vars must always be preserved.
+			for k, v := range c.vars {
+				require.Contains(t, got, k, "original var %q must be preserved", k)
+				assert.Equal(t, v.Value.Value(), got[k].Value.Value(), "value for %q", k)
+			}
+		})
+	}
+}
+
+func TestEnsureDatasetVar(t *testing.T) {
+	cases := []struct {
+		name           string
+		vars           Vars
+		policyTemplate packages.PolicyTemplate
+		varValues      common.MapStr
+		wantDataset    string
+	}{
+		{
+			name: "already set with fromUser=true is left unchanged",
+			vars: Vars{"data_stream.dataset": {Value: varValue("existing"), Type: "text", fromUser: true}},
+			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
+			varValues:      common.MapStr{"data_stream.dataset": "override"},
+			wantDataset:    "existing",
+		},
+		{
+			name:           "varValues overrides default",
+			vars:           Vars{},
+			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
+			varValues:      common.MapStr{"data_stream.dataset": "custom.dataset"},
+			wantDataset:    "custom.dataset",
+		},
+		{
+			name: "manifest default in vars is promoted",
+			vars: Vars{"data_stream.dataset": {Value: varValue("manifest.default"), Type: "text"}},
+			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
+			varValues:      common.MapStr{},
+			wantDataset:    "manifest.default",
+		},
+		{
+			name: "policyTemplate.Vars default is used when no user value",
+			vars: Vars{},
+			policyTemplate: packages.PolicyTemplate{
+				Name: "sql_query",
+				Vars: []packages.Variable{
+					{Name: "data_stream.dataset", Default: func() *packages.VarValue {
+						vv := packages.VarValue{}
+						vv.Unpack("template.default")
+						return &vv
+					}()},
+				},
+			},
+			varValues:   common.MapStr{},
+			wantDataset: "template.default",
+		},
+		{
+			name:           "falls back to policy template name",
+			vars:           Vars{},
+			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
+			varValues:      common.MapStr{},
+			wantDataset:    "sql_query",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := make(Vars, len(c.vars))
+			for k, v := range c.vars {
+				got[k] = v
+			}
+
+			ensureDatasetVar(got, c.policyTemplate, c.varValues)
+
+			require.Contains(t, got, "data_stream.dataset")
+			assert.Equal(t, "text", got["data_stream.dataset"].Type)
+			assert.Equal(t, c.wantDataset, got["data_stream.dataset"].Value.Value())
+		})
+	}
+}
+
+func varValue(v any) packages.VarValue {
+	vv := packages.VarValue{}
+	vv.Unpack(v)
+	return vv
+}
