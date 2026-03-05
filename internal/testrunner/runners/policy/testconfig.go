@@ -28,7 +28,7 @@ type testConfig struct {
 	// "" (auto-detect from Kibana version, default).
 	// Use "legacy" as a workaround when a Fleet simplified-API bug prevents the
 	// test from passing (e.g. select vars with "false"/"true" option values).
-	PolicyAPIFormat string `config:"policy_api_format" yaml:"policy_api_format,omitempty"`
+	PolicyAPIFormat string `config:"policy_api_format,omitempty" yaml:"policy_api_format,omitempty"`
 }
 
 func readTestConfig(testPath string) (*testConfig, error) {
