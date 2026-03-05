@@ -223,6 +223,14 @@ func renderReadme(repositoryRoot *os.Root, fileName, packageRoot, templatePath s
 		"inputDocs": func() (string, error) {
 			return renderInputDocs(packageRoot)
 		},
+		"ilm": func(args ...string) (string, error) {
+			logger.Debug("renderILMPaths")
+			return renderILMPaths(packageRoot, args)
+		},
+		"transform": func() (string, error) {
+			logger.Debug("renderTransformPaths")
+			return renderTransformPaths(repositoryRoot, packageRoot, schemaURLs)
+		},
 		"generatedHeader": func() string {
 			return doNotModifyStr
 		},
