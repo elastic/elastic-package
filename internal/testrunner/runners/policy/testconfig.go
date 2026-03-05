@@ -22,6 +22,13 @@ type testConfig struct {
 	DataStream struct {
 		Vars map[string]any `config:"vars,omitempty" yaml:"vars,omitempty"`
 	} `config:"data_stream" yaml:"data_stream"`
+
+	// PolicyAPIFormat overrides the Fleet API format used to create the package
+	// policy. Valid values: "simplified" (objects-based), "legacy" (arrays-based),
+	// "" (auto-detect from Kibana version, default).
+	// Use "legacy" as a workaround when a Fleet simplified-API bug prevents the
+	// test from passing (e.g. select vars with "false"/"true" option values).
+	PolicyAPIFormat string `config:"policy_api_format" yaml:"policy_api_format,omitempty"`
 }
 
 func readTestConfig(testPath string) (*testConfig, error) {

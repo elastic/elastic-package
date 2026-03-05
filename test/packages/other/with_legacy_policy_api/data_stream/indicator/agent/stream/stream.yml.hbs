@@ -5,3 +5,6 @@ paths:
 exclude_files: [".gz$"]
 processors:
   - add_locale: ~
+  - add_tags:
+     tags:
+       - revoked_{{revoked}}

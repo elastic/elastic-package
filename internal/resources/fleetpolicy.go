@@ -70,6 +70,10 @@ type FleetPackagePolicy struct {
 	// DataStreamVars contains the values for the variables at the data stream level.
 	DataStreamVars map[string]any
 
+	// PolicyAPIFormat overrides the Fleet API format used to create the package policy.
+	// Valid values: "simplified", "legacy", "" (auto-detect, default).
+	PolicyAPIFormat string
+
 	// Absent is set to true to indicate that the policy should not be present.
 	Absent bool
 }
@@ -144,7 +148,7 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 		if err != nil {
 			return fmt.Errorf("could not prepare package policy: %w", err)
 		}
-		_, err = provider.Client.CreatePackagePolicy(ctx, *pp, kibana.PolicyAPIFormatAuto)
+		_, err = provider.Client.CreatePackagePolicy(ctx, *pp, packagePolicy.PolicyAPIFormat)
 		if err != nil {
 			return fmt.Errorf("could not add package policy %q to agent policy %q: %w", packagePolicy.Name, f.Name, err)
 		}

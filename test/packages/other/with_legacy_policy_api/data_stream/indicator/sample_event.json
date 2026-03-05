@@ -1,0 +1,63 @@
+{
+    "@timestamp": "2026-03-05T11:32:41.383Z",
+    "agent": {
+        "ephemeral_id": "005eb1f2-9af1-498d-aa42-5a23f28ce1c4",
+        "id": "8e8fd576-5a0d-4d7f-8638-ac416e39670e",
+        "name": "elastic-agent-43290",
+        "type": "filebeat",
+        "version": "9.3.1"
+    },
+    "data_stream": {
+        "dataset": "with_legacy_policy_api.indicator",
+        "namespace": "71256",
+        "type": "logs"
+    },
+    "ecs": {
+        "version": "8.0.0"
+    },
+    "elastic_agent": {
+        "id": "8e8fd576-5a0d-4d7f-8638-ac416e39670e",
+        "snapshot": false,
+        "version": "9.3.1"
+    },
+    "event": {
+        "agent_id_status": "verified",
+        "dataset": "with_legacy_policy_api.indicator",
+        "ingested": "2026-03-05T11:32:43Z",
+        "module": "with_legacy_policy_api",
+        "timezone": "+00:00"
+    },
+    "host": {
+        "architecture": "x86_64",
+        "containerized": false,
+        "hostname": "elastic-agent-43290",
+        "ip": [
+            "172.27.0.2",
+            "172.18.0.4"
+        ],
+        "mac": [
+            "E2-D8-36-C0-7E-2C",
+            "F6-5B-43-41-6A-14"
+        ],
+        "name": "elastic-agent-43290",
+        "os": {
+            "family": "",
+            "kernel": "6.8.0-101-generic",
+            "name": "Wolfi",
+            "platform": "wolfi",
+            "type": "linux",
+            "version": "20230201"
+        }
+    },
+    "input": {
+        "type": "log"
+    },
+    "log": {
+        "file": {
+            "path": "/usr/share/elastic-agent/state/data/logs/elastic-agent-20260305.ndjson"
+        },
+        "offset": 0
+    },
+    "message": "{\"log.level\":\"info\",\"@timestamp\":\"2026-03-05T11:32:19.304Z\",\"log.origin\":{\"function\":\"github.com/elastic/elastic-agent/internal/pkg/agent/cmd.runElasticAgent\",\"file.name\":\"cmd/run.go\",\"file.line\":310},\"message\":\"Elastic Agent started\",\"log.source\":\"elastic-agent\",\"process.pid\":7,\"agent.version\":\"9.3.1\",\"agent.unprivileged\":true,\"ecs.version\":\"1.6.0\"}",
+    "tags": "revoked_false"
+}

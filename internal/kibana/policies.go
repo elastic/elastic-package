@@ -323,16 +323,13 @@ type PackagePolicyStream struct {
 	legacyVars        Vars
 }
 
-// PolicyAPIFormat controls which Fleet API format is used for package policy creation.
-type PolicyAPIFormat string
-
 const (
 	// PolicyAPIFormatAuto selects the format based on the Kibana version (default).
-	PolicyAPIFormatAuto PolicyAPIFormat = ""
+	PolicyAPIFormatAuto = ""
 	// PolicyAPIFormatSimplified forces the simplified (objects-based) API.
-	PolicyAPIFormatSimplified PolicyAPIFormat = "simplified"
+	PolicyAPIFormatSimplified = "simplified"
 	// PolicyAPIFormatLegacy forces the legacy (arrays-based) API.
-	PolicyAPIFormatLegacy PolicyAPIFormat = "legacy"
+	PolicyAPIFormatLegacy = "legacy"
 )
 
 // simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
@@ -351,10 +348,10 @@ func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
-// format controls which API format to use: Auto selects based on the Kibana
-// version, Simplified forces the objects-based API, Legacy forces the
+// format controls which API format to use: "" (auto) selects based on the Kibana
+// version, "simplified" forces the objects-based API, "legacy" forces the
 // arrays-based API.
-func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy, format PolicyAPIFormat) (*PackagePolicy, error) {
+func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy, format string) (*PackagePolicy, error) {
 	var reqBody []byte
 	var err error
 	useSimplified := format == PolicyAPIFormatSimplified ||

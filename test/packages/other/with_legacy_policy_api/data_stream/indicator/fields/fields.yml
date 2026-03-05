@@ -17,3 +17,7 @@
 - name: message
   type: match_only_text
   description: Log message optimized for viewing in a log viewer.
+- name: tags
+  type: keyword
+  description: List of keywords used to tag each event.
+  ignore_above: 1024
