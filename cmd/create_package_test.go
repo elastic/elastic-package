@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/licenses"
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/tui"
 )
 
@@ -117,25 +118,11 @@ func TestCreatePackageDescriptorFromAnswers_NoLicense(t *testing.T) {
 func TestAllowedPackageTypes(t *testing.T) {
 	valid := []string{"input", "integration", "content"}
 	for _, v := range valid {
-		found := false
-		for _, a := range allowedPackageTypes {
-			if a == v {
-				found = true
-				break
-			}
-		}
-		assert.True(t, found, "expected %q to be in allowedPackageTypes", v)
+		assert.Contains(t, packages.AllowedPackageTypes, v, "expected %q to be in AllowedPackageTypes", v)
 	}
 
 	invalid := []string{"", "foo", "INPUT", "Integration"}
 	for _, v := range invalid {
-		found := false
-		for _, a := range allowedPackageTypes {
-			if a == v {
-				found = true
-				break
-			}
-		}
-		assert.False(t, found, "expected %q to NOT be in allowedPackageTypes", v)
+		assert.NotContains(t, packages.AllowedPackageTypes, v, "expected %q to NOT be in AllowedPackageTypes", v)
 	}
 }

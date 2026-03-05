@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
@@ -34,18 +35,10 @@ type newDataStreamAnswers struct {
 	Synthetic              bool
 }
 
-// allowedDataStreamInputTypes lists valid input types for logs data streams (for non-interactive validation).
-var allowedDataStreamInputTypes = []string{
-	"aws-cloudwatch", "aws-s3", "azure-blob-storage", "azure-eventhub", "cel", "entity-analytics",
-	"etw", "filestream", "gcp-pubsub", "gcs", "http_endpoint", "journald", "netflow",
-	"redis", "tcp", "udp", "winlog",
-}
-
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
 
-	nonInteractive, _ := cmd.Flags().GetBool(createDataStreamNonInteractiveFlag)
-	if nonInteractive {
+	if cmd.Flags().Changed(createDataStreamNameFlag) || cmd.Flags().Changed(createDataStreamTypeFlag) || cmd.Flags().Changed(createDataStreamInputsFlag) {
 		return createDataStreamNonInteractive(cmd)
 	}
 
@@ -108,32 +101,11 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if answers.Type == "logs" {
-		// Map of possible inputs that can be used in the wizard, and their description.
-		inputsMap := map[string]string{
-			"aws-cloudwatch":     "AWS Cloudwatch",
-			"aws-s3":             "AWS S3",
-			"azure-blob-storage": "Azure Blob Storage",
-			"azure-eventhub":     "Azure Eventhub",
-			"cel":                "Common Expression Language (CEL)",
-			"entity-analytics":   "Entity Analytics",
-			"etw":                "Event Tracing for Windows (ETW)",
-			"filestream":         "Filestream",
-			"gcp-pubsub":         "GCP PubSub",
-			"gcs":                "Google Cloud Storage (GCS)",
-			"http_endpoint":      "HTTP Endpoint",
-			"journald":           "Journald",
-			"netflow":            "Netflow",
-			"redis":              "Redis",
-			"tcp":                "TCP",
-			"udp":                "UDP",
-			"winlog":             "WinLogBeat",
-		}
-		multiSelect := tui.NewMultiSelect("Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs", slices.Sorted(maps.Keys(inputsMap)), []string{})
+		multiSelect := tui.NewMultiSelect("Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs", slices.Sorted(maps.Keys(packages.AllowedLogsInputTypes)), []string{})
 		multiSelect.SetPageSize(50)
 		multiSelect.SetDescription(func(value string, index int) string {
-			val, ok := inputsMap[value]
-			if ok {
-				return val
+			if label, ok := packages.AllowedLogsInputTypes[value]; ok {
+				return label
 			}
 			return ""
 		})
@@ -188,13 +160,13 @@ func createDataStreamNonInteractive(cmd *cobra.Command) error {
 	inputs, _ := cmd.Flags().GetStringSlice(createDataStreamInputsFlag)
 
 	if dsName == "" {
-		return fmt.Errorf("--%s is required when using --%s", createDataStreamNameFlag, createDataStreamNonInteractiveFlag)
+		return fmt.Errorf("--%s is required", createDataStreamNameFlag)
 	}
 	if dsType == "" {
-		return fmt.Errorf("--%s is required when using --%s", createDataStreamTypeFlag, createDataStreamNonInteractiveFlag)
+		return fmt.Errorf("--%s is required", createDataStreamTypeFlag)
 	}
-	if dsType != "logs" && dsType != "metrics" {
-		return fmt.Errorf("--%s must be one of: logs, metrics", createDataStreamTypeFlag)
+	if !slices.Contains(packages.AllowedDataStreamTypes, dsType) {
+		return fmt.Errorf("--%s must be one of: %s", createDataStreamTypeFlag, strings.Join(packages.AllowedDataStreamTypes, ", "))
 	}
 
 	validator := tui.Validator{Cwd: "."}
@@ -209,13 +181,9 @@ func createDataStreamNonInteractive(cmd *cobra.Command) error {
 		if len(inputs) == 0 {
 			return fmt.Errorf("--%s is required when type is logs", createDataStreamInputsFlag)
 		}
-		allowedSet := make(map[string]bool)
-		for _, i := range allowedDataStreamInputTypes {
-			allowedSet[i] = true
-		}
 		for _, input := range inputs {
-			if !allowedSet[input] {
-				return fmt.Errorf("invalid input type %q; allowed values: %v", input, allowedDataStreamInputTypes)
+			if _, ok := packages.AllowedLogsInputTypes[input]; !ok {
+				return fmt.Errorf("invalid input type %q; allowed values: %v", input, slices.Sorted(maps.Keys(packages.AllowedLogsInputTypes)))
 			}
 		}
 	}
@@ -305,7 +273,7 @@ func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*tui.Que
 		},
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Type", []string{"logs", "metrics"}, "logs"),
+			Prompt:   tui.NewSelect("Type", packages.AllowedDataStreamTypes, "logs"),
 			Validate: tui.Required,
 		},
 	}

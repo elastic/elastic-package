@@ -40,6 +40,34 @@ const (
 	dataStreamTypeTraces     = "traces"
 )
 
+// AllowedPackageTypes lists the valid package types accepted by the create wizard.
+var AllowedPackageTypes = []string{"input", "integration", "content"}
+
+// AllowedDataStreamTypes lists the data stream types accepted by the create wizard.
+var AllowedDataStreamTypes = []string{"logs", "metrics"}
+
+// AllowedLogsInputTypes maps valid input type identifiers to their human-readable
+// labels. Both the TUI wizard and CLI validation derive their lists from this map.
+var AllowedLogsInputTypes = map[string]string{
+	"aws-cloudwatch":     "AWS Cloudwatch",
+	"aws-s3":             "AWS S3",
+	"azure-blob-storage": "Azure Blob Storage",
+	"azure-eventhub":     "Azure Eventhub",
+	"cel":                "Common Expression Language (CEL)",
+	"entity-analytics":   "Entity Analytics",
+	"etw":                "Event Tracing for Windows (ETW)",
+	"filestream":         "Filestream",
+	"gcp-pubsub":         "GCP PubSub",
+	"gcs":                "Google Cloud Storage (GCS)",
+	"http_endpoint":      "HTTP Endpoint",
+	"journald":           "Journald",
+	"netflow":            "Netflow",
+	"redis":              "Redis",
+	"tcp":                "TCP",
+	"udp":                "UDP",
+	"winlog":             "WinLogBeat",
+}
+
 // VarValue represents a variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
@@ -740,12 +768,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
-	supportedTypes := []string{
-		"content",
-		"input",
-		"integration",
-	}
-	return slices.Contains(supportedTypes, m.Type) && m.Version != "", nil
+	return slices.Contains(AllowedPackageTypes, m.Type) && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {

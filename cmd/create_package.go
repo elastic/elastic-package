@@ -6,6 +6,8 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -45,8 +47,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 
 	validator := tui.Validator{Cwd: "."}
 
-	nonInteractive, _ := cmd.Flags().GetBool(createPackageNonInteractiveFlag)
-	if nonInteractive {
+	if cmd.Flags().Changed(createPackageTypeFlag) || cmd.Flags().Changed(createPackageNameFlag) {
 		return createPackageNonInteractive(cmd, validator)
 	}
 
@@ -86,7 +87,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	qs := []*tui.Question{
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Package type", []string{"input", "integration", "content"}, "integration"),
+			Prompt:   tui.NewSelect("Package type", packages.AllowedPackageTypes, "integration"),
 			Validate: tui.Required,
 		},
 		{
@@ -151,7 +152,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		inputQs := []*tui.Question{
 			{
 				Name:     "datastream_type",
-				Prompt:   tui.NewSelect("Input Data Stream type", []string{"logs", "metrics"}, "logs"),
+				Prompt:   tui.NewSelect("Input Data Stream type", packages.AllowedDataStreamTypes, "logs"),
 				Validate: tui.Required,
 			},
 			{
@@ -183,29 +184,19 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// allowedPackageTypes lists valid package types for non-interactive mode validation.
-var allowedPackageTypes = []string{"input", "integration", "content"}
-
 func createPackageNonInteractive(cmd *cobra.Command, validator tui.Validator) error {
 	pkgType, _ := cmd.Flags().GetString(createPackageTypeFlag)
 	pkgName, _ := cmd.Flags().GetString(createPackageNameFlag)
 
 	if pkgType == "" {
-		return fmt.Errorf("--%s is required when using --%s", createPackageTypeFlag, createPackageNonInteractiveFlag)
+		return fmt.Errorf("--%s is required", createPackageTypeFlag)
 	}
 	if pkgName == "" {
-		return fmt.Errorf("--%s is required when using --%s", createPackageNameFlag, createPackageNonInteractiveFlag)
+		return fmt.Errorf("--%s is required", createPackageNameFlag)
 	}
 
-	validType := false
-	for _, t := range allowedPackageTypes {
-		if pkgType == t {
-			validType = true
-			break
-		}
-	}
-	if !validType {
-		return fmt.Errorf("--%s must be one of: input, integration, content", createPackageTypeFlag)
+	if !slices.Contains(packages.AllowedPackageTypes, pkgType) {
+		return fmt.Errorf("--%s must be one of: %s", createPackageTypeFlag, strings.Join(packages.AllowedPackageTypes, ", "))
 	}
 
 	if err := validator.PackageDoesNotExist(pkgName); err != nil {

@@ -5,12 +5,15 @@
 package cmd
 
 import (
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/tui"
 )
 
@@ -153,23 +156,19 @@ func TestCreateDataStreamDescriptorFromAnswers_MetricsSyntheticOnly(t *testing.T
 	assert.Empty(t, descriptor.Manifest.Elasticsearch.IndexMode)
 }
 
-func TestAllowedDataStreamInputTypes(t *testing.T) {
+func TestAllowedLogsInputTypes(t *testing.T) {
 	expected := []string{
 		"aws-cloudwatch", "aws-s3", "azure-blob-storage", "azure-eventhub", "cel",
 		"entity-analytics", "etw", "filestream", "gcp-pubsub", "gcs",
 		"http_endpoint", "journald", "netflow", "redis", "tcp", "udp", "winlog",
 	}
-	assert.ElementsMatch(t, expected, allowedDataStreamInputTypes)
+	assert.ElementsMatch(t, expected, slices.Collect(maps.Keys(packages.AllowedLogsInputTypes)))
 }
 
-func TestAllowedDataStreamInputTypes_RejectsInvalid(t *testing.T) {
-	allowedSet := make(map[string]bool)
-	for _, i := range allowedDataStreamInputTypes {
-		allowedSet[i] = true
-	}
-
+func TestAllowedLogsInputTypes_RejectsInvalid(t *testing.T) {
 	invalid := []string{"", "kafka", "syslog", "FILESTREAM", "file-stream"}
 	for _, v := range invalid {
-		assert.False(t, allowedSet[v], "expected %q to NOT be in allowedDataStreamInputTypes", v)
+		_, ok := packages.AllowedLogsInputTypes[v]
+		assert.False(t, ok, "expected %q to NOT be in AllowedLogsInputTypes", v)
 	}
 }
