@@ -1,0 +1,13 @@
+title: "Indicator"
+type: logs
+streams:
+  - input: logfile
+    title: Indicator logs
+    description: Collect indicator logs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        default:
+          - /var/log/*.log

@@ -1,0 +1,19 @@
+- name: ecs.version
+  type: keyword
+  description: ECS version this event conforms to.
+- name: input.type
+  type: keyword
+  description: Type of Filebeat input.
+- name: log.file.path
+  type: keyword
+  description: Full path to the log file this event came from.
+  ignore_above: 1024
+  multi_fields:
+    - name: text
+      type: text
+- name: log.offset
+  type: long
+  description: Offset of the entry in the log file.
+- name: message
+  type: match_only_text
+  description: Log message optimized for viewing in a log viewer.
