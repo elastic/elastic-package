@@ -314,12 +314,10 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 		fallthrough
 	case "", "placeholder":
 		return genlib.NewGenerator(config, fields, totEvents,
-			genlib.WithCustomTemplate(tpl),
-			genlib.WithRandSeed(time.Now().UnixNano()))
+			genlib.WithCustomTemplate(tpl))
 	case "gotext":
 		return genlib.NewGenerator(config, fields, totEvents,
-			genlib.WithTextTemplate(tpl),
-			genlib.WithRandSeed(time.Now().UnixNano()))
+			genlib.WithTextTemplate(tpl))
 	}
 }
 func (r *runner) collectGenerators(ctx context.Context) error {

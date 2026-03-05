@@ -520,12 +520,10 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 		fallthrough
 	case "", "placeholder":
 		generator, err = genlib.NewGenerator(*config, fields, totEvents,
-			genlib.WithCustomTemplate(tpl),
-			genlib.WithRandSeed(time.Now().UnixNano()))
+			genlib.WithCustomTemplate(tpl))
 	case "gotext":
 		generator, err = genlib.NewGenerator(*config, fields, totEvents,
-			genlib.WithTextTemplate(tpl),
-			genlib.WithRandSeed(time.Now().UnixNano()))
+			genlib.WithTextTemplate(tpl))
 	}
 
 	if err != nil {
