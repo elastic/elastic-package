@@ -83,8 +83,12 @@ func (vv VarValue) Value() any {
 
 // VarValueYamlString will return a YAML style string representation of vv,
 // in the given YAML field, and with numSpaces indentation if it's a list.
+//
+// The caller's template injects the result inline, so only the first line
+// inherits the template's base indentation. Continuation lines produced by
+// the yaml encoder (e.g. block-scalar content) must be shifted by numSpaces
+// so the relative indentation stays valid once the first line is prefixed.
 func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
-	// Default indentation is 4 spaces
 	n := 4
 	if len(numSpaces) == 1 {
 		n = numSpaces[0]
@@ -99,20 +103,33 @@ func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
 		return ""
 	}
 
-	// Use yaml.v3 encoder to ensure correct yaml string formatting
 	data := map[string]interface{}{
 		field: valueToMarshal,
 	}
 
 	var b strings.Builder
 	encoder := yamlv3.NewEncoder(&b)
-	encoder.SetIndent(n) // Apply the custom indentation.
+	encoder.SetIndent(n)
 
 	if err := encoder.Encode(&data); err != nil {
 		return ""
 	}
 
-	return strings.TrimSpace(b.String())
+	raw := strings.TrimSpace(b.String())
+	lines := strings.Split(raw, "\n")
+	if len(lines) <= 1 {
+		return raw
+	}
+
+	pad := strings.Repeat(" ", n)
+	var out strings.Builder
+	out.WriteString(lines[0])
+	for _, line := range lines[1:] {
+		out.WriteByte('\n')
+		out.WriteString(pad)
+		out.WriteString(line)
+	}
+	return out.String()
 }
 
 // Variable is an instance of configuration variable (named, typed).

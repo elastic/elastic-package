@@ -93,3 +93,83 @@ func TestCreateDataStreamDescriptorFromAnswers_SubobjectsTrueForSpecVersionGTE3_
 
 	require.Nil(t, descriptor.Manifest.Elasticsearch)
 }
+
+func TestCreateDataStreamDescriptorFromAnswers_LogsWithInputs(t *testing.T) {
+	specVersion := semver.MustParse("3.2.0")
+	answers := newDataStreamAnswers{
+		Name:   "access",
+		Title:  "access",
+		Type:   "logs",
+		Inputs: []string{"filestream", "tcp"},
+	}
+	descriptor := createDataStreamDescriptorFromAnswers(answers, "/tmp/package", specVersion)
+
+	require.Len(t, descriptor.Manifest.Streams, 2)
+	assert.Equal(t, "filestream", descriptor.Manifest.Streams[0].Input)
+	assert.Equal(t, "tcp", descriptor.Manifest.Streams[1].Input)
+}
+
+func TestCreateDataStreamDescriptorFromAnswers_LogsDefaultsToFilestream(t *testing.T) {
+	specVersion := semver.MustParse("3.2.0")
+	answers := newDataStreamAnswers{
+		Name:  "access",
+		Title: "access",
+		Type:  "logs",
+	}
+	descriptor := createDataStreamDescriptorFromAnswers(answers, "/tmp/package", specVersion)
+
+	require.Len(t, descriptor.Manifest.Streams, 1)
+	assert.Equal(t, "filestream", descriptor.Manifest.Streams[0].Input)
+}
+
+func TestCreateDataStreamDescriptorFromAnswers_MetricsWithTimeSeries(t *testing.T) {
+	specVersion := semver.MustParse("3.2.0")
+	answers := newDataStreamAnswers{
+		Name:                   "status",
+		Title:                  "status",
+		Type:                   "metrics",
+		SyntheticAndTimeSeries: true,
+	}
+	descriptor := createDataStreamDescriptorFromAnswers(answers, "/tmp/package", specVersion)
+
+	require.NotNil(t, descriptor.Manifest.Elasticsearch)
+	assert.Equal(t, "synthetic", descriptor.Manifest.Elasticsearch.SourceMode)
+	assert.Equal(t, "time_series", descriptor.Manifest.Elasticsearch.IndexMode)
+	assert.Empty(t, descriptor.Manifest.Streams)
+}
+
+func TestCreateDataStreamDescriptorFromAnswers_MetricsSyntheticOnly(t *testing.T) {
+	specVersion := semver.MustParse("3.2.0")
+	answers := newDataStreamAnswers{
+		Name:      "status",
+		Title:     "status",
+		Type:      "metrics",
+		Synthetic: true,
+	}
+	descriptor := createDataStreamDescriptorFromAnswers(answers, "/tmp/package", specVersion)
+
+	require.NotNil(t, descriptor.Manifest.Elasticsearch)
+	assert.Equal(t, "synthetic", descriptor.Manifest.Elasticsearch.SourceMode)
+	assert.Empty(t, descriptor.Manifest.Elasticsearch.IndexMode)
+}
+
+func TestAllowedDataStreamInputTypes(t *testing.T) {
+	expected := []string{
+		"aws-cloudwatch", "aws-s3", "azure-blob-storage", "azure-eventhub", "cel",
+		"entity-analytics", "etw", "filestream", "gcp-pubsub", "gcs",
+		"http_endpoint", "journald", "netflow", "redis", "tcp", "udp", "winlog",
+	}
+	assert.ElementsMatch(t, expected, allowedDataStreamInputTypes)
+}
+
+func TestAllowedDataStreamInputTypes_RejectsInvalid(t *testing.T) {
+	allowedSet := make(map[string]bool)
+	for _, i := range allowedDataStreamInputTypes {
+		allowedSet[i] = true
+	}
+
+	invalid := []string{"", "kafka", "syslog", "FILESTREAM", "file-stream"}
+	for _, v := range invalid {
+		assert.False(t, allowedSet[v], "expected %q to NOT be in allowedDataStreamInputTypes", v)
+	}
+}

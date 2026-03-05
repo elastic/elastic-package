@@ -16,6 +16,17 @@ The command can help bootstrap the first draft of a package using embedded packa
 
 For details on how to create a new package, review the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/create_new_package.md).`
 
+// Flags for non-interactive mode
+const (
+	createPackageNonInteractiveFlag    = "non-interactive"
+	createPackageTypeFlag              = "type"
+	createPackageNameFlag              = "name"
+	createDataStreamNonInteractiveFlag = "non-interactive"
+	createDataStreamNameFlag           = "name"
+	createDataStreamTypeFlag           = "type"
+	createDataStreamInputsFlag         = "inputs"
+)
+
 func setupCreateCommand() *cobraext.Command {
 	createPackageCmd := &cobra.Command{
 		Use:   "package",
@@ -24,6 +35,9 @@ func setupCreateCommand() *cobraext.Command {
 		Args:  cobra.NoArgs,
 		RunE:  createPackageCommandAction,
 	}
+	createPackageCmd.Flags().Bool(createPackageNonInteractiveFlag, false, "skip TUI wizard; requires --type and --name")
+	createPackageCmd.Flags().String(createPackageTypeFlag, "integration", "package type (input, integration, content); required with --non-interactive")
+	createPackageCmd.Flags().String(createPackageNameFlag, "new_package", "package name; required with --non-interactive")
 
 	createDataStreamCmd := &cobra.Command{
 		Use:   "data-stream",
@@ -32,6 +46,10 @@ func setupCreateCommand() *cobraext.Command {
 		Args:  cobra.NoArgs,
 		RunE:  createDataStreamCommandAction,
 	}
+	createDataStreamCmd.Flags().Bool(createDataStreamNonInteractiveFlag, false, "skip TUI wizard; requires --name and --type; --inputs required when type is logs")
+	createDataStreamCmd.Flags().String(createDataStreamNameFlag, "new_data_stream", "data stream name; required with --non-interactive")
+	createDataStreamCmd.Flags().String(createDataStreamTypeFlag, "logs", "data stream type (logs, metrics); required with --non-interactive")
+	createDataStreamCmd.Flags().StringSlice(createDataStreamInputsFlag, nil, "input types for logs data streams; required with --non-interactive when type is logs (e.g. filestream,tcp)")
 
 	cmd := &cobra.Command{
 		Use:   "create",

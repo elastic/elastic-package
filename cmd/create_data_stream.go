@@ -34,8 +34,20 @@ type newDataStreamAnswers struct {
 	Synthetic              bool
 }
 
+// allowedDataStreamInputTypes lists valid input types for logs data streams (for non-interactive validation).
+var allowedDataStreamInputTypes = []string{
+	"aws-cloudwatch", "aws-s3", "azure-blob-storage", "azure-eventhub", "cel", "entity-analytics",
+	"etw", "filestream", "gcp-pubsub", "gcs", "http_endpoint", "journald", "netflow",
+	"redis", "tcp", "udp", "winlog",
+}
+
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
+
+	nonInteractive, _ := cmd.Flags().GetBool(createDataStreamNonInteractiveFlag)
+	if nonInteractive {
+		return createDataStreamNonInteractive(cmd)
+	}
 
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -136,6 +148,87 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
+	}
+
+	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
+	err = archetype.CreateDataStream(descriptor)
+	if err != nil {
+		return fmt.Errorf("can't create new data stream: %w", err)
+	}
+
+	cmd.Println("Done")
+	return nil
+}
+
+func createDataStreamNonInteractive(cmd *cobra.Command) error {
+	packageRoot, err := packages.FindPackageRoot()
+	if err != nil {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
+			return errors.New("package root not found, you can only create new data stream in the package context")
+		}
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+	}
+
+	if manifest.Type == "input" {
+		return fmt.Errorf("data-streams are not supported in input packages")
+	}
+
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
+	}
+
+	dsName, _ := cmd.Flags().GetString(createDataStreamNameFlag)
+	dsType, _ := cmd.Flags().GetString(createDataStreamTypeFlag)
+	inputs, _ := cmd.Flags().GetStringSlice(createDataStreamInputsFlag)
+
+	if dsName == "" {
+		return fmt.Errorf("--%s is required when using --%s", createDataStreamNameFlag, createDataStreamNonInteractiveFlag)
+	}
+	if dsType == "" {
+		return fmt.Errorf("--%s is required when using --%s", createDataStreamTypeFlag, createDataStreamNonInteractiveFlag)
+	}
+	if dsType != "logs" && dsType != "metrics" {
+		return fmt.Errorf("--%s must be one of: logs, metrics", createDataStreamTypeFlag)
+	}
+
+	validator := tui.Validator{Cwd: "."}
+	if err := validator.DataStreamDoesNotExist(dsName); err != nil {
+		return err
+	}
+	if err := validator.DataStreamName(dsName); err != nil {
+		return err
+	}
+
+	if dsType == "logs" {
+		if len(inputs) == 0 {
+			return fmt.Errorf("--%s is required when type is logs", createDataStreamInputsFlag)
+		}
+		allowedSet := make(map[string]bool)
+		for _, i := range allowedDataStreamInputTypes {
+			allowedSet[i] = true
+		}
+		for _, input := range inputs {
+			if !allowedSet[input] {
+				return fmt.Errorf("invalid input type %q; allowed values: %v", input, allowedDataStreamInputTypes)
+			}
+		}
+	}
+
+	answers := newDataStreamAnswers{
+		Name:       dsName,
+		Title:      dsName,
+		Type:       dsType,
+		Inputs:     inputs,
+		Subobjects: false,
+	}
+	if dsType == "metrics" {
+		answers.SyntheticAndTimeSeries = true
 	}
 
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
