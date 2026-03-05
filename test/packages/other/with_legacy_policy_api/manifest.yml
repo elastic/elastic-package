@@ -17,6 +17,14 @@ conditions:
     version: "^8.12.2"
   elastic:
     subscription: "basic"
+vars:
+  - name: environment
+    type: text
+    title: Environment
+    description: Environment label added to all events (e.g. production, staging).
+    required: false
+    show_user: true
+    default: "production"
 policy_templates:
   - name: with_legacy_policy_api
     title: Indicator

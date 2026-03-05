@@ -4,20 +4,20 @@ inputs:
       meta:
         package:
             name: with_legacy_policy_api
-      name: test-default-with_legacy_policy_api
+      name: test-staging-with_legacy_policy_api
       streams:
         - data_stream:
             dataset: with_legacy_policy_api.indicator
           exclude_files:
             - .gz$
           paths:
-            - /var/log/prod-*.log
+            - /var/log/stag-*.log
           processors:
             - add_locale: null
             - add_tags:
                 tags:
-                    - revoked_true
-                    - env_production
+                    - revoked_false
+                    - env_staging
       type: logfile
       use_output: default
 output_permissions:

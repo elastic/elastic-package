@@ -191,6 +191,9 @@ func BuildInputPackagePolicy(
 
 		legacyPackageTitle: manifest.Title,
 	}
+	pkgVars := SetKibanaVariables(manifest.Vars, varValues)
+	policy.Vars = pkgVars.ToMapStr()
+	policy.legacyVars = pkgVars
 	policy.Package.Name = manifest.Name
 	policy.Package.Version = manifest.Version
 

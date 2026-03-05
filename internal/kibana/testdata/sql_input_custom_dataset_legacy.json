@@ -19,10 +19,6 @@
           "value": "custom.sql",
           "type": "text"
         },
-        "driver": {
-          "value": "mysql",
-          "type": "text"
-        },
         "hosts": {
           "value": [
             "http://127.0.0.1"
@@ -54,10 +50,6 @@
               "value": "custom.sql",
               "type": "text"
             },
-            "driver": {
-              "value": "mysql",
-              "type": "text"
-            },
             "hosts": {
               "value": [
                 "http://127.0.0.1"
@@ -82,5 +74,11 @@
     }
   ],
   "output_id": "",
+  "vars": {
+    "driver": {
+      "value": "mysql",
+      "type": "text"
+    }
+  },
   "force": false
 }

@@ -1,7 +1,6 @@
 # policy_api_format: legacy is required because this package has a select variable
 # (revoked) with "false" as an option value. Fleet's simplified API coerces the
 # string "false" to boolean false before validation, causing a 400 error.
-# See: https://github.com/elastic/kibana/issues/XXXXX
 policy_api_format: legacy
 vars:
   revoked: "false"
@@ -9,4 +8,4 @@ vars:
 data_stream:
   vars:
     paths:
-      - "/usr/share/elastic-agent/state/data/logs/*"
+      - /var/log/stag-*.log

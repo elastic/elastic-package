@@ -268,6 +268,22 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 			goldenSimplified:   "testdata/sql_input_default_dataset.json",
 			goldenLegacy:       "testdata/sql_input_default_dataset_legacy.json",
 		},
+		{
+			// Package-level variable: the user overrides the default package-level
+			// var (custom_tag). BuildInputPackagePolicy must forward manifest.Vars
+			// into the top-level policy vars just like BuildIntegrationPackagePolicy.
+			name:               "input_with_pkg_vars",
+			packageRoot:        "testdata/packages/input_with_pkg_vars",
+			policyTemplateName: "logs",
+			policyName:         "input-pkg-vars-test",
+			varValues: common.MapStr{
+				"paths":               []string{"/tmp/test.log"},
+				"data_stream.dataset": "custom.logs",
+				"custom_tag":          "my-tag",
+			},
+			goldenSimplified: "testdata/input_with_pkg_vars.json",
+			goldenLegacy:     "testdata/input_with_pkg_vars_legacy.json",
+		},
 	}
 
 	for _, tc := range tests {
