@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -164,6 +165,9 @@ func BuildInputPackagePolicy(
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
 	ensureDatasetVar(vars, policyTemplate, varValues)
+	if policyTemplate.Input == "otelcol" {
+		ensureUseAPMVar(vars, varValues)
+	}
 	inputEntry := PackagePolicyInput{
 		Enabled: enabled,
 		Streams: map[string]PackagePolicyStream{
@@ -213,26 +217,21 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 // ensureDatasetVar guarantees that vars contains a data_stream.dataset entry
 // marked fromUser=true, so that it is included in simplified API requests.
 // Fleet requires this field for input packages. The value resolution order is:
-//  1. user-provided value (already in vars with fromUser=true) — no-op
-//  2. user-provided value supplied via varValues (e.g. when the manifest does not declare the variable)
-//  3. manifest default already parsed into vars — promoted to fromUser=true
-//  4. explicit default in the policy-template var definitions
-//  5. policy template name as a final fallback
+//  1. user-provided value supplied via varValues (e.g. when the manifest does not declare the variable)
+//  2. manifest default already parsed into vars — promoted to fromUser=true
+//  3. explicit default in the policy-template var definitions
+//  4. policy template name as a final fallback
 func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr) {
-	if v, found := vars["data_stream.dataset"]; found && v.fromUser {
-		return
-	}
 	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
 		var val packages.VarValue
 		if err := val.Unpack(raw); err == nil {
-			vars["data_stream.dataset"] = Var{Type: "text", Value: val, fromUser: true}
+			setVarFromUser(vars, "data_stream.dataset", "text", val)
 			return
 		}
 	}
 	if v, found := vars["data_stream.dataset"]; found {
 		// Exists as a manifest default; promote it so ToMapStr includes it.
-		v.fromUser = true
-		vars["data_stream.dataset"] = v
+		setVarFromUser(vars, "data_stream.dataset", "text", v.Value)
 		return
 	}
 	dataset := policyTemplate.Name
@@ -246,5 +245,41 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 	}
 	var value packages.VarValue
 	value.Unpack(dataset)
-	vars["data_stream.dataset"] = Var{Value: value, Type: "text", fromUser: true}
+	setVarFromUser(vars, "data_stream.dataset", "text", value)
+}
+
+// ensureUseAPMVar injects use_apm into vars from varValues if not already present.
+// It is only meaningful for otelcol inputs. The value must be a bool or
+// "true"/"false" string in varValues; if absent or unparseable, vars is unchanged.
+func ensureUseAPMVar(vars Vars, varValues common.MapStr) {
+	raw, err := varValues.GetValue("use_apm")
+	if err != nil {
+		return
+	}
+	var val packages.VarValue
+	switch v := raw.(type) {
+	case bool:
+		val.Unpack(v)
+	case string:
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return
+		}
+		val.Unpack(b)
+	default:
+		return
+	}
+	if val.Value() != nil {
+		setVarFromUser(vars, "use_apm", "boolean", val)
+	}
+}
+
+// setVarFromUser sets vars[name] with fromUser=true so that the variable is included
+// in simplified API requests (ToMapStr). It is a no-op when the var is already
+// user-set, preserving any value previously established by SetKibanaVariables.
+func setVarFromUser(vars Vars, name, varType string, val packages.VarValue) {
+	if v, found := vars[name]; found && v.fromUser {
+		return
+	}
+	vars[name] = Var{Type: varType, Value: val, fromUser: true}
 }

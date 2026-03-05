@@ -1,0 +1,38 @@
+format_version: 3.5.0
+name: otel_traces_input
+title: OTel Traces Input Package
+description: >-
+  Minimal OTel traces input package used to test that use_apm is forwarded
+  correctly by BuildInputPackagePolicy when the manifest does not declare it.
+type: input
+version: 0.1.0
+categories:
+  - observability
+conditions:
+  kibana:
+    version: "^9.4.0"
+vars:
+  - name: endpoint
+    type: text
+    title: Endpoint
+    required: true
+    description: The host:port address to listen on.
+    default: localhost:9411
+    show_user: true
+policy_templates:
+  - name: receiver
+    type: traces
+    title: OTel Traces Receiver
+    description: Collect traces via OpenTelemetry Collector.
+    input: otelcol
+    template_path: input.yml.hbs
+    vars:
+      - name: parse_tags
+        type: bool
+        title: Parse Tags
+        required: false
+        default: false
+        show_user: true
+owner:
+  github: elastic/elastic-package
+  type: elastic

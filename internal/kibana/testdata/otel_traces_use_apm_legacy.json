@@ -1,0 +1,64 @@
+{
+  "name": "otel-traces-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "otel_traces_input",
+    "title": "OTel Traces Input Package",
+    "version": "0.1.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "receiver",
+      "type": "otelcol",
+      "enabled": true,
+      "vars": {
+        "data_stream.dataset": {
+          "value": "receiver",
+          "type": "text"
+        },
+        "parse_tags": {
+          "value": false,
+          "type": "bool"
+        },
+        "use_apm": {
+          "value": true,
+          "type": "boolean"
+        }
+      },
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "",
+            "dataset": "otel_traces_input.receiver"
+          },
+          "vars": {
+            "data_stream.dataset": {
+              "value": "receiver",
+              "type": "text"
+            },
+            "parse_tags": {
+              "value": false,
+              "type": "bool"
+            },
+            "use_apm": {
+              "value": true,
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "vars": {
+    "endpoint": {
+      "value": "0.0.0.0:9411",
+      "type": "text"
+    }
+  },
+  "force": false
+}

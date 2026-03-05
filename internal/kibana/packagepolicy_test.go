@@ -269,6 +269,20 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 			goldenLegacy:       "testdata/sql_input_default_dataset_legacy.json",
 		},
 		{
+			// OTel input package with use_apm set by the user. The manifest does not
+			// declare use_apm, so ensureUseAPMVar must inject it from varValues.
+			name:               "otel_traces_use_apm",
+			packageRoot:        "testdata/packages/otel_traces_input",
+			policyTemplateName: "receiver",
+			policyName:         "otel-traces-test",
+			varValues: common.MapStr{
+				"endpoint": "0.0.0.0:9411",
+				"use_apm":  true,
+			},
+			goldenSimplified: "testdata/otel_traces_use_apm.json",
+			goldenLegacy:     "testdata/otel_traces_use_apm_legacy.json",
+		},
+		{
 			// Package-level variable: the user overrides the default package-level
 			// var (custom_tag). BuildInputPackagePolicy must forward manifest.Vars
 			// into the top-level policy vars just like BuildIntegrationPackagePolicy.
