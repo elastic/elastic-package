@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	errEmptyWorkDir         = fmt.Errorf("working directory is empty")
-	errInvalidWorkDir       = fmt.Errorf("working directory must be an absolute path or a path relative to the repository root")
+	errRootNotAbs           = fmt.Errorf("repository root must have an absolute path")
+	errWorkDirNotAbs        = fmt.Errorf("working directory must be an absolute path")
+	errInvalidWorkDir       = fmt.Errorf("working directory invalid")
 	errInvalidWorkDirNotDir = fmt.Errorf("working directory is not a directory")
 	errFileNotUpToDate      = fmt.Errorf("linked file is not up to date")
 )
@@ -36,10 +37,14 @@ type PackageLinks struct {
 }
 
 // CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
-// workDir must be a path to a directory, relative to the repository root.
+// repositoryRoot must have an absolute path name.
+// workDir must be an absolute path inside the repository root.
 func CreateLinksFSFromPath(repositoryRoot *os.Root, workDir string) (*LinksFS, error) {
-	if workDir == "" {
-		return nil, errEmptyWorkDir
+	if !filepath.IsAbs(repositoryRoot.Name()) {
+		return nil, errRootNotAbs
+	}
+	if !filepath.IsAbs(workDir) {
+		return nil, errWorkDirNotAbs
 	}
 
 	relWorkDir, err := filepath.Rel(repositoryRoot.Name(), workDir)
