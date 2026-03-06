@@ -78,6 +78,10 @@ const FieldsQuery = `{
   }
 }`
 
+// doNotSkipDeferCleanup is the value for tearDownTest's skipDeferCleanup parameter
+// when the caller wants to keep the defer-cleanup wait (e.g. setup/teardown-only paths).
+const doNotSkipDeferCleanup = false
+
 type FieldsQueryResult struct {
 	Hits struct {
 		Total struct {
@@ -429,7 +433,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	scenario, err := r.prepareScenario(ctx, testConfig, stackConfig, svcInfo)
 	if r.runSetup && err != nil {
-		tdErr := r.tearDownTest(ctx)
+		tdErr := r.tearDownTest(ctx, doNotSkipDeferCleanup)
 		if tdErr != nil {
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
@@ -446,7 +450,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
 		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
-		tdErr := r.tearDownTest(ctx)
+		tdErr := r.tearDownTest(ctx, doNotSkipDeferCleanup)
 		if tdErr != nil {
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
@@ -459,7 +463,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 			logger.Errorf("failed to prepare scenario: %s", err.Error())
 			logger.Errorf("continue with the tear down process")
 		}
-		if err := r.tearDownTest(ctx); err != nil {
+		if err := r.tearDownTest(ctx, doNotSkipDeferCleanup); err != nil {
 			return result.WithError(err)
 		}
 
@@ -595,8 +599,8 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (r *tester) tearDownTest(ctx context.Context) error {
-	if r.deferCleanup > 0 {
+func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error {
+	if !skipDeferCleanup && r.deferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.deferCleanup)
 		select {
 		case <-time.After(r.deferCleanup):
@@ -736,7 +740,8 @@ func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config
 
 	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
-	tdErr := r.tearDownTest(ctx)
+	skipDeferCleanup := len(partial) > 0 && partial[0].Skipped != nil
+	tdErr := r.tearDownTest(ctx, skipDeferCleanup)
 	if err != nil {
 		return partial, err
 	}
