@@ -2007,17 +2007,17 @@ func createIntegrationPackageDatastream(
 	}
 
 	// Add dataStream-level vars
-	streams[0].Vars = setKibanaVariables(stream.Vars, cfgDSVars)
+	streams[0].Vars = kibana.SetKibanaVariables(stream.Vars, cfgDSVars)
 	r.Inputs[0].Streams = streams
 
 	// Add input-level vars
 	input := policyTemplate.FindInputByType(streamInput)
 	if input != nil {
-		r.Inputs[0].Vars = setKibanaVariables(input.Vars, cfgVars)
+		r.Inputs[0].Vars = kibana.SetKibanaVariables(input.Vars, cfgVars)
 	}
 
 	// Add package-level vars
-	r.Vars = setKibanaVariables(pkg.Vars, cfgVars)
+	r.Vars = kibana.SetKibanaVariables(pkg.Vars, cfgVars)
 
 	return r
 }
@@ -2063,28 +2063,23 @@ func createInputPackageDatastream(
 	}
 
 	// Add policyTemplate-level vars.
-	vars := setKibanaVariables(policyTemplate.Vars, cfgVars)
+	vars := kibana.SetKibanaVariables(policyTemplate.Vars, cfgVars)
 
 	// data_stream.dataset is required by Fleet for input packages, so mimic the value the
 	// UI would use if this is not defined in the config or doesn't have a default.
-	if _, found := vars["data_stream.dataset"]; !found {
-		// Fleet uses the policy template name as default dataset for input packages, do the same.
-		dataStreamDataset := policyTemplate.Name
-		v, _ := cfgVars.GetValue("data_stream.dataset")
-		if dataset, ok := v.(string); ok && dataset != "" {
-			dataStreamDataset = dataset
-		}
+	// Fleet uses the policy template name as default dataset for input packages, do the same.
+	vars = kibana.SetDataStreamDatasetVariable(vars, cfgVars, policyTemplate.Name)
 
-		var value packages.VarValue
-		value.Unpack(dataStreamDataset)
-		vars["data_stream.dataset"] = kibana.Var{
-			Value: value,
-			Type:  "text",
-		}
+	if policyTemplate.Input == "otelcol" {
+		vars = kibana.SetUseAPMVariable(vars, cfgVars)
 	}
 
 	streams[0].Vars = vars
 	r.Inputs[0].Streams = streams
+
+	// Add package-level vars
+	r.Vars = kibana.SetKibanaVariables(pkg.Vars, cfgVars)
+
 	return r
 }
 
@@ -2101,32 +2096,6 @@ func findDefaultValue(vars []packages.Variable, name string) string {
 		}
 	}
 	return ""
-}
-
-func setKibanaVariables(definitions []packages.Variable, values common.MapStr) kibana.Vars {
-	vars := kibana.Vars{}
-	for _, definition := range definitions {
-		// Elastic Package uses the deprecated 'inputs' array in its /api/fleet/package_policies request.
-		// When using this API parameter, default values are not automatically incorporated into
-		// the policy, whereas with the 'inputs' object, defaults are incorporated by the API service.
-		// This means that our client must include the default values in its request to ensure correct behavior.
-		val := definition.Default
-
-		value, err := values.GetValue(definition.Name)
-		if err == nil {
-			val = &packages.VarValue{}
-			val.Unpack(value)
-		} else if errors.Is(err, common.ErrKeyNotFound) && definition.Default == nil {
-			// Do not include nulls for unset variables.
-			continue
-		}
-
-		vars[definition.Name] = kibana.Var{
-			Type:  definition.Type,
-			Value: *val,
-		}
-	}
-	return vars
 }
 
 // getDataStreamIndex returns the index of the data stream whose input name
