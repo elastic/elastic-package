@@ -35,5 +35,5 @@ func setupUpdateCommand() *cobraext.Command {
 	cmd.AddCommand(updateDocumentationCmd)
 	cmd.PersistentFlags().StringP(cobraext.ProfileFlagName, "p", "", fmt.Sprintf(cobraext.ProfileFlagDescription, install.ProfileNameEnvVar))
 
-	return cobraext.NewCommand(cmd, cobraext.ContextGlobal)
+	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }

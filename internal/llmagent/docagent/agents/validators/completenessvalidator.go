@@ -635,7 +635,6 @@ func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string,
 
 	// Check for vendor-specific issues subsection
 	hasVendorSpecificIssues := strings.Contains(troubleshootingLower, "vendor-specific") ||
-		strings.Contains(troubleshootingLower, "vendor resources") ||
 		strings.Contains(troubleshootingLower, "common configuration")
 
 	if !hasVendorSpecificIssues {

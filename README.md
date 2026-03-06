@@ -704,7 +704,7 @@ The command uses Kibana API to uninstall the package in Kibana. The package must
 
 ### `elastic-package update`
 
-_Context: global_
+_Context: package_
 
 Use this command to update package resources.
 
@@ -712,7 +712,7 @@ The command can help update existing resources in a package. Currently only docu
 
 ### `elastic-package update documentation`
 
-_Context: global_
+_Context: package_
 
 Use this command to update package documentation using an AI agent or to get manual instructions for update.
 
@@ -905,10 +905,6 @@ The following is an optional reference for structuring `service_info.md`. Sectio
 ## API Authentication Errors
 
 /* For API authentication failures, credential errors, and similar */
-
-## Vendor Resources
-
-/* If the vendor has troubleshooting specific help pages, add them here. */
 
 # Documentation sites
 

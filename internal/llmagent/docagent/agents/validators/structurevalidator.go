@@ -26,12 +26,11 @@ type RequiredSection struct {
 }
 
 // optionalSubsectionTitles are subsections present in the template that are not required
-// (e.g. Agentless deployment, API usage, Vendor resources under Troubleshooting).
+// (e.g. Agentless deployment, API usage).
 // They are excluded from RequiredSections but may appear in RecommendedSections.
 var optionalSubsectionTitles = map[string]bool{
 	"Agentless deployment": true,
 	"API usage":            true,
-	"Vendor resources":     true, // under Troubleshooting; "Vendor documentation links" under Reference is required
 }
 
 // convertParsedToRequired builds RequiredSection slice from parsed template sections.
@@ -641,7 +640,6 @@ func (v *StructureValidator) checkSubsectionConsistency(content string) []Valida
 	expectedNames := map[string]string{
 		"vendor-specific issues":     "Vendor-specific issues",
 		"vendor specific issues":     "Vendor-specific issues",
-		"vendor resources":           "Vendor-specific issues",
 		"vendor documentation links": "Vendor documentation links",
 	}
 
@@ -651,7 +649,6 @@ func (v *StructureValidator) checkSubsectionConsistency(content string) []Valida
 		suggestion string
 	}{
 		{"Vendor-Specific Issues", "Vendor-specific issues"},
-		{"Vendor Resources", "Vendor-specific issues"},
 		{"Log File Input", "Log file input"},
 		{"TCP/Syslog Input", "TCP/Syslog input"},
 		{"UDP/Syslog Input", "UDP/Syslog input"},

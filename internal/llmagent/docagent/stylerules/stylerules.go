@@ -83,7 +83,6 @@ Under ## How do I deploy this integration? > ### Set up steps in [Product Name]:
 
 Under ## Troubleshooting:
 - "### Common configuration issues" (use Problem-Solution bullet format, NOT tables)
-- "### Vendor resources" (links to vendor documentation)
 
 Under ## Reference:
 - "### Inputs used" (required)

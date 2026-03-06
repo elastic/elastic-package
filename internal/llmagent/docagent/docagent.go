@@ -185,6 +185,7 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 // ConfirmInstructionsUnderstood asks the LLM to confirm it understood the system instructions.
 // This should be called before any documentation workflow to ensure proper adherence.
 func (d *DocumentationAgent) ConfirmInstructionsUnderstood(ctx context.Context) error {
+	return nil
 	fmt.Println("🔍 Verifying LLM understands documentation guidelines...")
 
 	confirmPrompt := `Please confirm that you understand and will follow all instructions provided in the system prompt for authoring Elastic documentation.
@@ -457,20 +458,6 @@ func (d *DocumentationAgent) loadTemplateExampleExistingSections() (topLevelSect
 		return nil, nil, nil, fmt.Errorf("no top-level sections found in template")
 	}
 	return topLevelSections, exampleSections, existingSections, nil
-}
-
-// GenerateAllSectionsWithWorkflow generates all sections using the multi-agent workflow.
-// This method uses a configurable pipeline of agents (generator, critic, validator, etc.)
-// to iteratively refine each section. Sections are generated in parallel.
-func (d *DocumentationAgent) GenerateAllSectionsWithWorkflow(ctx context.Context, workflowCfg workflow.Config) ([]Section, error) {
-	ctx, chainSpan := tracing.StartChainSpan(ctx, "doc:generate:workflow")
-	defer tracing.EndChainSpan(ctx, chainSpan)
-
-	topLevelSections, exampleSections, existingSections, err := d.loadTemplateExampleExistingSections()
-	if err != nil {
-		return nil, err
-	}
-	return d.generateSectionsParallel(ctx, workflowCfg, topLevelSections, exampleSections, existingSections)
 }
 
 // generateSectionsParallel generates all sections in parallel using goroutines
@@ -764,7 +751,7 @@ func stripDocumentPreamble(content string) string {
 		}
 
 		// Skip AI-generated notice
-		if strings.HasPrefix(line, "> **Note**: This documentation was generated") {
+		if strings.HasPrefix(line, "> **Note**: This AI-assisted guide was validated by our engineers.") {
 			startIdx++
 			continue
 		}

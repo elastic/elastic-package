@@ -25,9 +25,6 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
-// truncateLen is the maximum length for truncated strings in logging/tracing
-const truncateLen = 500
-
 // Builder constructs multi-agent workflows for documentation generation
 type Builder struct {
 	config Config
@@ -243,7 +240,7 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 	var outputs []string
 
 	// Track input for LLM span
-	inputMessages := []tracing.Message{{Role: "user", Content: truncate(prompt, truncateLen)}}
+	inputMessages := []tracing.Message{{Role: "user", Content: prompt}}
 
 	for event, err := range r.Run(agentCtx, "docagent", sess.Session.ID(), userContent, agent.RunConfig{}) {
 		if err != nil {
@@ -278,7 +275,7 @@ func (b *Builder) runAgentWithADK(ctx context.Context, agentName string, adkAgen
 	// Create a proper LLM span with token counts for Phoenix cost calculation
 	if promptTokens > 0 || completionTokens > 0 {
 		_, llmSpan := tracing.StartLLMSpan(agentCtx, "llm:"+agentName, b.config.ModelID, b.config.Provider, inputMessages)
-		outputMessages := []tracing.Message{{Role: "assistant", Content: truncate(output, truncateLen)}}
+		outputMessages := []tracing.Message{{Role: "assistant", Content: output}}
 		tracing.EndLLMSpan(agentCtx, llmSpan, outputMessages, promptTokens, completionTokens)
 	}
 

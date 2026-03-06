@@ -133,10 +133,6 @@ STRUCTURE (use Problem-Solution bullet format, NOT tables):
   - Another problem:
     - Solution for this problem
 
-  ### Vendor resources
-  Add links to vendor troubleshooting guides. Exclude this section if no vendor troubleshooting links are available.
-  - Link to vendor troubleshooting guides
-
 EXAMPLE FORMAT (follow this style):
   ### Common configuration issues
 
@@ -157,7 +153,6 @@ WHAT TO EXCLUDE (will be rejected):
 
 FORMATTING RULES (CRITICAL - will be rejected if violated):
 - Use ### subheadings for major issue categories, not bold list items
-- Vendor resources list MUST have an introductory sentence before it
 - Use monospace for configuration values, file paths, and commands
 - Use nested bullet points (use "- " only, not "*") for solutions, NOT tables`,
 
