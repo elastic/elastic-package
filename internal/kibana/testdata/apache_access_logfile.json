@@ -1,0 +1,37 @@
+{
+  "name": "apache-access-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "apache",
+    "version": "3.0.0"
+  },
+  "inputs": {
+    "apache-apache/metrics": {
+      "enabled": false,
+      "streams": {
+        "apache.status": {
+          "enabled": false
+        }
+      }
+    },
+    "apache-logfile": {
+      "enabled": true,
+      "streams": {
+        "apache.access": {
+          "enabled": true,
+          "vars": {
+            "paths": [
+              "/tmp/service_logs/access.log*"
+            ]
+          }
+        },
+        "apache.error": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "force": false
+}

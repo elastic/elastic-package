@@ -10,7 +10,12 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+	"strings"
 
+	"github.com/Masterminds/semver/v3"
+	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -192,73 +197,88 @@ func (c *Client) DeletePolicy(ctx context.Context, policyID string) error {
 type Var struct {
 	Value packages.VarValue `json:"value"`
 	Type  string            `json:"type"`
+
+	// fromUser indicates if this variable comes from user input, not from a manifest default
+	fromUser bool
 }
 
 // Vars is a collection of variables either at the package or
 // data stream level.
 type Vars map[string]Var
 
-// DataStream represents a data stream within a package.
-type DataStream struct {
-	Type    string `json:"type"`
-	Dataset string `json:"dataset"`
-}
-
-// Stream encapsulates a data stream and it's variables.
-type Stream struct {
-	ID         string     `json:"id"`
-	Enabled    bool       `json:"enabled"`
-	DataStream DataStream `json:"data_stream"`
-	Vars       Vars       `json:"vars"`
-}
-
-// Input represents a package-level input.
-type Input struct {
-	PolicyTemplate string   `json:"policy_template,omitempty"` // Name of policy_template from the package manifest that contains this input. If not specified the Kibana uses the first policy_template.
-	Type           string   `json:"type"`
-	Enabled        bool     `json:"enabled"`
-	Streams        []Stream `json:"streams"`
-	Vars           Vars     `json:"vars,omitempty"`
-}
-
-// PackageDataStream represents a request to add a single package's single data stream to a
-// Policy in Fleet.
-type PackageDataStream struct {
-	Name        string  `json:"name"`
-	Description string  `json:"description"`
-	Namespace   string  `json:"namespace"`
-	PolicyID    string  `json:"policy_id"`
-	Enabled     bool    `json:"enabled"`
-	OutputID    string  `json:"output_id"`
-	Inputs      []Input `json:"inputs"`
-	Vars        Vars    `json:"vars,omitempty"`
-	Package     struct {
-		Name    string `json:"name"`
-		Title   string `json:"title"`
-		Version string `json:"version"`
-	} `json:"package"`
-}
-
-// AddPackageDataStreamToPolicy adds a PackageDataStream to a Policy in Fleet.
-func (c *Client) AddPackageDataStreamToPolicy(ctx context.Context, r PackageDataStream) error {
-	reqBody, err := json.Marshal(r)
-	if err != nil {
-		return fmt.Errorf("could not convert policy-package (request) to JSON: %w", err)
+// ToMapStr converts Vars to the map format expected by PackagePolicyInput and PackagePolicyStream.
+// The objects-based Fleet API expects raw values (not {value, type} wrappers).
+// Only user-provided values (fromUser == true) are included; manifest defaults are
+// omitted so the simplified API can apply them server-side.
+//
+// For yaml-type variables, map or slice values are YAML-marshaled to a string because
+// the simplified API only accepts string|number|bool|array-of-scalars|null for yaml-type vars.
+// String values (including comment-only defaults like "#- tz_short: AEST\n") are passed through
+// as-is, matching the format sent by the Fleet UI.
+func (v Vars) ToMapStr() common.MapStr {
+	m := make(common.MapStr)
+	for k, val := range v {
+		if !val.fromUser {
+			continue
+		}
+		raw := val.Value.Value()
+		if val.Type == "yaml" && raw != nil {
+			if _, isString := raw.(string); !isString {
+				// Maps and slices (e.g. ssl written as YAML map in test configs):
+				// marshal to a YAML string so the simplified API accepts them.
+				// Empty results ("[]", "{}") are omitted so Fleet Handlebars
+				// {{#if}} guards evaluate to false, preventing invalid agent configs.
+				b, err := yaml.Marshal(raw)
+				if err != nil {
+					continue
+				}
+				s := strings.TrimRight(string(b), "\n")
+				if s == "[]" || s == "{}" {
+					continue
+				}
+				raw = s
+			}
+		}
+		m[k] = raw
 	}
-
-	statusCode, respBody, err := c.post(ctx, path.Join(FleetAPI, "package_policies"), reqBody)
-	if err != nil {
-		return fmt.Errorf("could not add package to policy: %w", err)
+	if len(m) == 0 {
+		return nil
 	}
-
-	if statusCode != http.StatusOK {
-		return fmt.Errorf("could not add package to policy; API status code = %d; response body = %s", statusCode, respBody)
-	}
-
-	return nil
+	return m
 }
 
-// PackagePolicy represents an Package Policy in Fleet.
+// SetKibanaVariables builds a Vars map from variable definitions and user-provided
+// values. For each definition, the user-provided value is stored and marked with
+// fromUser=true so that ToMapStr (simplified API) includes it; manifest defaults
+// are stored with fromUser=false so they are available for the legacy API
+// (toLegacyMapVar) but omitted from simplified requests. Multi-valued variables
+// with no user value and no manifest default are included as empty arrays.
+// Definitions with neither a user value nor a manifest default are omitted.
+func SetKibanaVariables(definitions []packages.Variable, values common.MapStr) Vars {
+	vars := Vars{}
+	for _, def := range definitions {
+		rawValue, err := values.GetValue(def.Name)
+		switch {
+		case err == nil:
+			var val packages.VarValue
+			val.Unpack(rawValue)
+			vars[def.Name] = Var{Type: def.Type, Value: val, fromUser: true}
+		case def.Default != nil:
+			// Fallback to default if available.
+			vars[def.Name] = Var{Type: def.Type, Value: *def.Default}
+		case def.Multi:
+			// Multi-valued var with no value and no default: keep for legacy.
+			var val packages.VarValue
+			val.Unpack([]interface{}{})
+			vars[def.Name] = Var{Type: def.Type, Value: val}
+		}
+	}
+	return vars
+}
+
+// PackagePolicy represents a Package Policy in Fleet using the simplified
+// (objects-based) inputs format.
+// CreatePackagePolicy transparently converts to the legacy format for older stacks.
 type PackagePolicy struct {
 	ID          string `json:"id,omitempty"`
 	Name        string `json:"name"`
@@ -269,24 +289,78 @@ type PackagePolicy struct {
 		Name    string `json:"name"`
 		Version string `json:"version"`
 	} `json:"package"`
-	Inputs map[string]PackagePolicyInput `json:"inputs,omitempty"`
-	Force  bool                          `json:"force"`
+	Inputs   map[string]PackagePolicyInput `json:"inputs,omitempty"`
+	OutputID string                        `json:"output_id,omitempty"`
+	// Vars holds package-level variables; for legacy conversion use legacyVars.
+	Vars  map[string]any `json:"vars,omitempty"`
+	Force bool           `json:"force"`
+
+	// Unexported: type-aware vars for legacy ({value,type}) conversion.
+	legacyPackageTitle string
+	legacyVars         Vars
 }
 
+// PackagePolicyInput is one input entry in a PackagePolicy (simplified format).
 type PackagePolicyInput struct {
 	Enabled bool                           `json:"enabled"`
-	Vars    map[string]interface{}         `json:"vars,omitempty"`
+	Vars    map[string]any                 `json:"vars,omitempty"`
 	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
+
+	// Unexported fields carry metadata used only for legacy API conversion.
+	inputType      string
+	policyTemplate string
+	legacyVars     Vars
 }
 
+// PackagePolicyStream is one stream entry in a PackagePolicyInput (simplified format).
 type PackagePolicyStream struct {
-	Enabled bool                   `json:"enabled"`
-	Vars    map[string]interface{} `json:"vars,omitempty"`
+	Enabled bool           `json:"enabled"`
+	Vars    map[string]any `json:"vars,omitempty"`
+
+	// Unexported fields carry metadata used only for legacy API conversion.
+	dataStreamType    string
+	dataStreamDataset string
+	legacyVars        Vars
+}
+
+const (
+	// PolicyAPIFormatAuto selects the format based on the Kibana version (default).
+	PolicyAPIFormatAuto = ""
+	// PolicyAPIFormatSimplified forces the simplified (objects-based) API.
+	PolicyAPIFormatSimplified = "simplified"
+	// PolicyAPIFormatLegacy forces the legacy (arrays-based) API.
+	PolicyAPIFormatLegacy = "legacy"
+)
+
+// simplifiedPolicyAPIMinVersion is the minimum Kibana version that supports
+// the simplified (objects-based) inputs format for package policy creation.
+// Introduced in Kibana 8.5.0 (PR #139420, September 2022).
+var simplifiedPolicyAPIMinVersion = semver.MustParse("8.5.0")
+
+// supportsSimplifiedPackagePolicyAPI reports whether the connected Kibana
+// supports the simplified (objects-based) Fleet package policy API.
+// Returns true for managed Kibana (no version available) assuming a modern stack.
+func (c *Client) supportsSimplifiedPackagePolicyAPI() bool {
+	if c.semver == nil {
+		return true
+	}
+	return !c.semver.LessThan(simplifiedPolicyAPIMinVersion)
 }
 
 // CreatePackagePolicy persists the given Package Policy in Fleet.
-func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy) (*PackagePolicy, error) {
-	reqBody, err := json.Marshal(p)
+// format controls which API format to use: "" (auto) selects based on the Kibana
+// version, "simplified" forces the objects-based API, "legacy" forces the
+// arrays-based API.
+func (c *Client) CreatePackagePolicy(ctx context.Context, p PackagePolicy, format string) (*PackagePolicy, error) {
+	var reqBody []byte
+	var err error
+	useSimplified := format == PolicyAPIFormatSimplified ||
+		(format == PolicyAPIFormatAuto && c.supportsSimplifiedPackagePolicyAPI())
+	if useSimplified {
+		reqBody, err = json.Marshal(p)
+	} else {
+		reqBody, err = json.Marshal(p.toLegacy())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not convert package policy (request) to JSON: %w", err)
 	}

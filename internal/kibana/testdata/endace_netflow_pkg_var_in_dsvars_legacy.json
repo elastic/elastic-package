@@ -1,0 +1,50 @@
+{
+  "name": "endace-log-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "endace",
+    "title": "Endace",
+    "version": "0.2.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "endace",
+      "type": "netflow",
+      "enabled": true,
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "logs",
+            "dataset": "endace.log"
+          },
+          "vars": {
+            "host": {
+              "value": "0.0.0.0",
+              "type": "text"
+            },
+            "port": {
+              "value": 2055,
+              "type": "integer"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "vars": {
+    "endace_url": {
+      "value": "http://test.elastic.co",
+      "type": "text"
+    },
+    "endace_view_window": {
+      "value": "10",
+      "type": "text"
+    }
+  },
+  "force": false
+}
