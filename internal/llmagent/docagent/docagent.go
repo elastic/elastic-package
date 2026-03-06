@@ -431,13 +431,6 @@ func placeholderSectionContent(sectionTitle string) string {
 	return fmt.Sprintf("## %s\n\n%s", sectionTitle, emptySectionPlaceholder)
 }
 
-// sectionResult holds the result of generating a single section
-type sectionResult struct {
-	index   int
-	section Section
-	err     error
-}
-
 // loadTemplateExampleExistingSections loads template, example, and existing doc sections and returns top-level template sections.
 func (d *DocumentationAgent) loadTemplateExampleExistingSections() (topLevelSections, exampleSections, existingSections []Section, err error) {
 	templateSections := parsing.ParseSections(archetype.GetPackageDocsReadmeTemplate())
@@ -458,59 +451,6 @@ func (d *DocumentationAgent) loadTemplateExampleExistingSections() (topLevelSect
 		return nil, nil, nil, fmt.Errorf("no top-level sections found in template")
 	}
 	return topLevelSections, exampleSections, existingSections, nil
-}
-
-// generateSectionsParallel generates all sections in parallel using goroutines
-func (d *DocumentationAgent) generateSectionsParallel(ctx context.Context, workflowCfg workflow.Config, topLevelSections, exampleSections, existingSections []Section) ([]Section, error) {
-	fmt.Printf("📝 Generating %d sections in parallel...\n", len(topLevelSections))
-
-	// Create channel to collect results
-	resultsChan := make(chan sectionResult, len(topLevelSections))
-
-	// Use WaitGroup to track goroutines
-	var wg sync.WaitGroup
-
-	// Generate sections in parallel
-	for idx, templateSection := range topLevelSections {
-		wg.Add(1)
-		go func(index int, tmplSection Section) {
-			defer wg.Done()
-			result := d.generateSingleSection(ctx, workflowCfg, index, tmplSection, exampleSections, existingSections)
-			resultsChan <- result
-		}(idx, templateSection)
-	}
-
-	// Wait for all goroutines to complete, then close channel
-	go func() {
-		wg.Wait()
-		close(resultsChan)
-	}()
-
-	// Collect results and maintain order
-	results := make([]sectionResult, len(topLevelSections))
-	successCount := 0
-	failCount := 0
-
-	for result := range resultsChan {
-		results[result.index] = result
-		if result.err != nil {
-			failCount++
-			fmt.Printf("  ❌ Section %d: %s (failed)\n", result.index+1, result.section.Title)
-		} else {
-			successCount++
-			fmt.Printf("  ✅ Section %d: %s (done)\n", result.index+1, result.section.Title)
-		}
-	}
-
-	fmt.Printf("📊 Generated %d/%d sections successfully\n", successCount, len(topLevelSections))
-
-	// Extract sections in order
-	generatedSections := make([]Section, len(topLevelSections))
-	for i, r := range results {
-		generatedSections[i] = r.section
-	}
-
-	return generatedSections, nil
 }
 
 // GenerateAllSectionsWithValidation generates all sections using per-section validation loops
@@ -951,49 +891,6 @@ func (d *DocumentationAgent) buildSectionContext(tmplSection Section, exampleSec
 		}
 	}
 	return sectionCtx
-}
-
-// generateSingleSection generates a single section using the workflow
-func (d *DocumentationAgent) generateSingleSection(ctx context.Context, workflowCfg workflow.Config, index int, tmplSection Section, exampleSections, existingSections []Section) sectionResult {
-	builder := workflow.NewBuilder(workflowCfg)
-	sectionCtx := d.buildSectionContext(tmplSection, exampleSections, existingSections)
-
-	// Execute workflow for this section
-	result, err := builder.ExecuteWorkflow(ctx, sectionCtx)
-	if err != nil {
-		logger.Debugf("Workflow failed for section %s: %v", tmplSection.Title, err)
-		// Fall back to placeholder on error
-		return sectionResult{
-			index: index,
-			section: Section{
-				Title:   tmplSection.Title,
-				Level:   tmplSection.Level,
-				Content: placeholderSectionContent(tmplSection.Title),
-			},
-			err: err,
-		}
-	}
-
-	// Create section from result
-	generatedSection := Section{
-		Title:   tmplSection.Title,
-		Level:   tmplSection.Level,
-		Content: result.Content,
-	}
-
-	// Parse to extract hierarchical structure
-	parsedGenerated := parsing.ParseSections(generatedSection.Content)
-	if len(parsedGenerated) > 0 {
-		generatedSection = parsedGenerated[0]
-	}
-
-	logger.Debugf("Section %s generated (iterations: %d, approved: %v)",
-		tmplSection.Title, result.Iterations, result.Approved)
-
-	return sectionResult{
-		index:   index,
-		section: generatedSection,
-	}
 }
 
 // GetWorkflowConfig returns a workflow configuration suitable for this agent

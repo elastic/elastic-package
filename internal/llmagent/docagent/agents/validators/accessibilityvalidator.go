@@ -40,8 +40,8 @@ The documentation content to validate is provided in the user message.
 - Address users as "you"
 
 ### Ableist and Violent Terms
-- DO NOT use: kill, execute, abort, invalid, hack, sanity check, cripple
-- Use instead: stop, run, cancel, not valid, workaround, soundness check, impair
+- DO NOT use: kill, execute, abort, invalid, hack, sanity check, cripple, dumb, lame, handicapped
+- Use instead: stop, run, cancel, not valid, workaround, soundness check, impair, mute, weak, disabled
 
 ## Output Format
 Output a JSON object with this exact structure:
@@ -240,8 +240,8 @@ func (v *AccessibilityValidator) checkDirectionalLanguage(content string) []Vali
 func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
-	// Terms to replace (but with context exceptions)
 	problematicTerms := map[string]string{
+		// Violent/ableist terms
 		`\bkill\b`:           "stop or terminate",
 		`\bkills\b`:          "stops or terminates",
 		`\bkilled\b`:         "stopped or terminated",
@@ -250,6 +250,10 @@ func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []Valida
 		`\baborts\b`:         "cancels or stops",
 		`\baborted\b`:        "canceled or stopped",
 		`\baborting\b`:       "canceling or stopping",
+		`\bexecute\b`:        "run or start",
+		`\bexecutes\b`:       "runs or starts",
+		`\bexecuted\b`:       "ran or started",
+		`\bexecuting\b`:      "running or starting",
 		`\bhack\b`:           "workaround",
 		`\bhacks\b`:          "workarounds",
 		`\bhacking\b`:        "working around",
@@ -259,6 +263,37 @@ func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []Valida
 		`\bwhitelist\b`:      "allowlist",
 		`\bcripple\b`:        "impair or disable",
 		`\bcrippled\b`:       "impaired or disabled",
+		// disability-defining language
+		`\bable-bodied\b`:          "non-disabled",
+		`\ba victim of\b`:          "a person who has / a person affected by",
+		`\bsuffers from\b`:         "has / lives with",
+		`\bstricken with\b`:        "has / lives with",
+		`\bbirth defect\b`:         "congenital condition",
+		`\bdifferently abled\b`:    "disabled",
+		`\bhandicapped\b`:          "disabled",
+		`\bhandicaps\b`:            "barriers",
+		`\bhearing-impaired\b`:     "deaf or hard of hearing",
+		`\bsight-impaired\b`:       "blind or low vision",
+		`\bvision-impaired\b`:      "blind or low vision",
+		`\bmentally handicapped\b`: "person with an intellectual disability",
+		`\bnormal person\b`:        "person without a disability",
+		`\bhealthy person\b`:       "person without a disability",
+		`\blame\b`:                 "weak or unconvincing",
+		`\bmaimed\b`:               "injured",
+		`\bdumb\b`:                 "mute / unable to speak",
+		// high-signal gendered job titles
+		`\bmanpower\b`:   "personnel or workforce",
+		`\bmanmade\b`:    "manufactured or synthetic",
+		`\bman-made\b`:   "manufactured or synthetic",
+		`\bauthoress\b`:  "author",
+		`\bwaitress\b`:   "waiter or server",
+		`\bmankind\b`:    "humanity or humankind",
+		`\bfireman\b`:    "firefighter",
+		`\bfiremen\b`:    "firefighters",
+		`\bpoliceman\b`:  "police officer",
+		`\bpolicemen\b`:  "police officers",
+		`\bchairman\b`:   "chairperson or chair",
+		`\bstewardess\b`: "flight attendant",
 	}
 
 	contextualTerms := map[string]struct {

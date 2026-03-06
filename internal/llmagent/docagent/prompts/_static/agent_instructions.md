@@ -96,9 +96,13 @@ This is **NON-NEGOTIABLE**. All content **MUST** be accessible and inclusive.
 
 -   **Language**: **ALWAYS** use American English (`-ize`, `-or`, `-ense`).
 -   **Tense**: **ALWAYS** use the present tense.
--   **Punctuation**: **ALWAYS** use the Oxford comma (e.g., `A, B, and C`).
+-   **Punctuation**: **ALWAYS** use the Oxford comma (e.g., `A, B, and C`). Place punctuation inside closing quotation marks. Use semicolons sparingly.
 -   **Abbreviations**: Use "for example" instead of "e.g." and "that is" instead of "i.e."
--   **No Latin**: Use "using" instead of "via", "for example" instead of "e.g."
+-   **No Latin**: Use "using" instead of "via", "for example" instead of "e.g.", "if needed" instead of "ad hoc".
+-   **Versions**: Use "later"/"earlier" for version comparisons (not "newer"/"older"/"higher"/"lower"). For example: "version 8.0 and later".
+-   **Positive phrasing**: Prefer stating what something *is* rather than what it is *not*. Avoid constructions like "cannot X without" — rephrase positively.
+-   **Device-agnostic language**: Use "select" instead of "tap" or "click", "select and hold" instead of "long press", "zoom out" instead of "pinch".
+-   **Clone**: Use "clone" only when referring to cloning a Git repository or creating a linked copy. Use "copy" or "duplicate" otherwise.
 
 ### Code samples
 

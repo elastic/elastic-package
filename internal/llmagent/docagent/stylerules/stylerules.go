@@ -15,6 +15,9 @@ const CriticalFormattingRules = `## CRITICAL FORMATTING REMINDERS
 - In lists, do not use bolding for conceptual emphasis.
 - NEVER use anchor links like [text](#section-name) - these break when published
 - NEVER use docs-content:// protocol links - use full https://www.elastic.co/... URLs
+- No exclamation points in body text
+- No ellipses (...)
+- Do not use first person (I, me, my) - address the user as "you"
 `
 
 // CriticRejectionCriteria provides criteria for the critic to check.
@@ -23,6 +26,10 @@ const CriticRejectionCriteria = `## REJECT if you find ANY of these:
 - Title Case headings: '### Vendor-Specific Issues' should be '### Vendor-specific issues'
 - Anchor links like [Reference](#reference) - these break when published
 - Internal docs-content:// links - must use full https://www.elastic.co/... URLs
+- First person pronouns (I, me, my) - address the user as "you"
+- Exclamation points in body text
+- Ellipses (...)
+- Version terms: use "later"/"earlier" instead of "newer"/"older"/"higher"/"lower"
 `
 
 // FullFormattingRules contains the complete formatting guidance for LLM system prompts.
@@ -66,9 +73,49 @@ This integration supports the following:
 - Use contractions: "you'll", "don't", "can't", "it's"
 - Use active voice: "You configure..." not "The configuration is..."
 - Be direct and friendly, not formal
+- Do NOT use first person (I, me, my) - address the user as "you"
+- Use exclamation points sparingly - prefer periods
+- Do not use ellipses (...)
 
 WRONG: "The user must configure the integration before data can be collected."
 RIGHT: "Before you can collect data, configure the integration settings."
+
+### WORDINESS - prefer concise phrasing:
+- "in order to" → "to"
+- "utilize" / "make use of" → "use"
+- "due to the fact that" / "because of the fact that" → "because"
+- "at the present time" / "at this point in time" → "now"
+- "has the ability to" / "has the capacity to" → "can"
+- "in the event that" → "if"
+- "prior to" / "previous to" → "before"
+- "subsequent to" → "after"
+
+### DONT USE these words/phrases:
+- "just", "please", "and/or", "note that", "realtime" (use "real time" or "real-time")
+- "thus", "very", "quite", "at this point", "a.k.a." / "aka"
+
+### LATIN TERMS - always replace:
+- "e.g." / "eg" → "for example"
+- "i.e." / "ie" → "that is"
+- "via" → "using" or "through"
+- "vs" → "versus"
+- "ad hoc" → "if needed"
+- "vice versa" → "and the reverse"
+
+### VERSIONS - use "later"/"earlier":
+- "and higher" / "and newer" / "or higher" / "or newer" → "and later" / "or later"
+- "and lower" / "and older" / "or lower" / "or older" → "and earlier" / "or earlier"
+- "newer version" / "higher version" → "later version"
+- "older version" / "lower version" → "earlier version"
+
+### NEGATIONS:
+- Prefer stating what something IS rather than what it is NOT
+- Avoid "cannot X without" — rephrase positively (for example, "you must Y before X")
+
+### DEVICE-AGNOSTIC LANGUAGE:
+- Use "select" instead of "tap" or "click"
+- Use "select and hold" instead of "long press"
+- Use "zoom out" instead of "pinch"
 
 ## CONSISTENCY REQUIREMENTS (CRITICAL)
 These ensure all integration docs look uniform:

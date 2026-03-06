@@ -101,6 +101,9 @@ func (v *QualityValidator) StaticValidate(ctx context.Context, content string, p
 	// Check 4: Very short sections
 	result.Issues = append(result.Issues, v.checkSectionLength(content)...)
 
+	// Check 5: Git conflict markers
+	result.Issues = append(result.Issues, v.checkConflictMarkers(content)...)
+
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
 		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
@@ -272,6 +275,25 @@ func (v *QualityValidator) checkSectionLength(content string) []ValidationIssue 
 				})
 			}
 		}
+	}
+
+	return issues
+}
+
+// checkConflictMarkers detects leftover Git merge conflict markers.
+func (v *QualityValidator) checkConflictMarkers(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	re := regexp.MustCompile(`(?m)^(?:<{7}\s|={7}$|>{7}\s)`)
+	if re.MatchString(content) {
+		issues = append(issues, ValidationIssue{
+			Severity:    SeverityCritical,
+			Category:    CategoryQuality,
+			Location:    "Document",
+			Message:     "Found Git merge conflict markers",
+			Suggestion:  "Resolve merge conflicts and remove conflict markers before publishing",
+			SourceCheck: "static",
+		})
 	}
 
 	return issues
