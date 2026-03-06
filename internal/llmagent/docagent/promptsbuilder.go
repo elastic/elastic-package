@@ -58,7 +58,7 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 	}
 
 	// Get section-specific instructions
-	sectionInstructions := prompts.GetSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
+	sectionInstructions := getSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
 	if sectionInstructions != "" {
 		sectionInstructions = fmt.Sprintf("\nSECTION-SPECIFIC REQUIREMENTS:\n%s\n\n", sectionInstructions)
 	}

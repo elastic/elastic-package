@@ -11,7 +11,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -86,7 +86,7 @@ Do NOT include any preamble, explanation, or meta-commentary about your process.
 // Build creates the underlying ADK agent.
 func (g *GeneratorAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
 	// Build the full instruction by combining prefix, shared formatting rules, and suffix
-	instruction := generatorInstructionPrefix + stylerules.FullFormattingRules
+	instruction := generatorInstructionPrefix + prompts.FullFormattingRules
 
 	// Note: CachedContent is not compatible with ADK llmagent because
 	// Gemini doesn't allow CachedContent with system_instruction or tools.

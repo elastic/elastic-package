@@ -8,6 +8,8 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 	accessibilityValidatorDescription = "Validates documentation for accessibility and inclusive language"
 )
 
-const accessibilityValidatorInstruction = `You are a documentation accessibility validator for Elastic integration packages.
+var accessibilityValidatorInstruction = `You are a documentation accessibility validator for Elastic integration packages.
 Your task is to validate that the documentation is accessible and uses inclusive language.
 
 ## Input
@@ -42,15 +44,7 @@ The documentation content to validate is provided in the user message.
 ### Ableist and Violent Terms
 - DO NOT use: kill, execute, abort, invalid, hack, sanity check, cripple, dumb, lame, handicapped
 - Use instead: stop, run, cancel, not valid, workaround, soundness check, impair, mute, weak, disabled
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "accessibility", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Accessibility issues are critical - set valid=false for any violation.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("accessibility", "Accessibility issues are critical - set valid=false for any violation.")
 
 // AccessibilityValidator validates documentation accessibility and inclusive language
 type AccessibilityValidator struct {

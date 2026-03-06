@@ -2,9 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-// Package stylerules provides shared formatting rules constants for documentation generation.
-// This package has no dependencies on other docagent packages to avoid import cycles.
-package stylerules
+package prompts
 
 // CriticalFormattingRules is a condensed version for user prompt reinforcement.
 // These rules address the most common rejection reasons and should be included

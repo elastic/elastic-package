@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 )
 
@@ -156,15 +157,7 @@ Static validation has already checked for required sections - focus on semantic 
 5. Tables are well-formed with headers
 6. Lists are consistent (bullet or numbered as appropriate)
 7. No orphaned content outside sections
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "structure", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=false if any major or critical issues are found. Minor issues alone do not invalidate.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("structure", "Set valid=false if any major or critical issues are found. Minor issues alone do not invalidate.")
 }
 
 var structureValidatorInstruction = buildStructureValidatorInstruction()

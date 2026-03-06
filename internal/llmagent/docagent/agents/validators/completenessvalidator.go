@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/parsing"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 	completenessValidatorDescription = "Validates that all required content is present in the documentation"
 )
 
-const completenessValidatorInstruction = `You are a documentation completeness validator for Elastic integration packages.
+var completenessValidatorInstruction = `You are a documentation completeness validator for Elastic integration packages.
 Your task is to validate that all required content is present and comprehensive.
 
 ## Input
@@ -38,18 +39,7 @@ You may also receive static validation context including data stream names and i
 - SSL/TLS configuration without inline examples (link to guide is sufficient)
 - UDP warnings that mention "data loss" - any warning format is acceptable
 - Scaling recommendations that are general rather than highly specific
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "completeness", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=false only if:
-- Missing data streams documentation (critical)
-- Missing setup instructions (critical)
-- Completely missing troubleshooting section (major)
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("completeness", "Set valid=false only if:\n- Missing data streams documentation (critical)\n- Missing setup instructions (critical)\n- Completely missing troubleshooting section (major)")
 
 // CompletenessValidator validates documentation completeness (Section C)
 type CompletenessValidator struct {

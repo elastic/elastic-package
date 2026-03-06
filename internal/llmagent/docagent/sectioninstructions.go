@@ -2,7 +2,7 @@
 // or more contributor license agreements. Licensed under the Elastic License;
 // you may not use this file except in compliance with the Elastic License.
 
-package prompts
+package docagent
 
 import (
 	"strings"
@@ -196,21 +196,18 @@ CRITICAL RULES:
 5. Check each data_stream/{name}/ folder for sample_event.json`,
 }
 
-// GetSectionInstructions returns section-specific instructions for the given section title.
-// If pkgCtx is provided, it can be used to customize instructions (e.g., for Reference section).
-func GetSectionInstructions(sectionTitle string, pkgCtx *validators.PackageContext) string {
+// getSectionInstructions returns section-specific instructions for the given section title.
+// If pkgCtx is provided, it can be used to customize instructions (for example, for Reference section).
+func getSectionInstructions(sectionTitle string, pkgCtx *validators.PackageContext) string {
 	titleLower := strings.ToLower(strings.TrimSpace(sectionTitle))
 
-	// Get base instructions
 	instructions, found := sectionInstructions[titleLower]
 	if !found {
 		return ""
 	}
 
-	// Replace {backquote} placeholder with actual backtick
 	instructions = strings.ReplaceAll(instructions, "{backquote}", "`")
 
-	// For Reference section, add data stream-specific guidance if pkgCtx is available
 	if titleLower == "reference" && pkgCtx != nil && len(pkgCtx.DataStreams) > 0 {
 		instructions += "\n\nDATA STREAMS IN THIS PACKAGE:\n"
 		for _, ds := range pkgCtx.DataStreams {
@@ -227,11 +224,9 @@ func GetSectionInstructions(sectionTitle string, pkgCtx *validators.PackageConte
 		}
 	}
 
-	// For deployment section, add package title and data stream info for validation
 	if titleLower == "how do i deploy this integration?" && pkgCtx != nil && pkgCtx.Manifest != nil {
 		instructions = strings.ReplaceAll(instructions, "{Product}", pkgCtx.Manifest.Title)
 
-		// Add data stream info for validation section
 		if len(pkgCtx.DataStreams) > 0 {
 			instructions += "\n\nDATA STREAMS FOR VALIDATION:\n"
 			for _, ds := range pkgCtx.DataStreams {

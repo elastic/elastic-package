@@ -63,9 +63,6 @@ type (
 	ConversationEntry = executor.ConversationEntry
 )
 
-// AgentInstructions is the system prompt for the agent
-var AgentInstructions = prompts.AgentInstructions
-
 // TaskResult is the result of an executor task
 type TaskResult = executor.TaskResult
 

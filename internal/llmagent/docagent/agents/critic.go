@@ -12,7 +12,7 @@ import (
 	"google.golang.org/genai"
 
 	"github.com/elastic/elastic-package/internal/llmagent/docagent/agents/validators"
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -85,7 +85,7 @@ type CriticResult struct {
 // Build creates the underlying ADK agent.
 func (c *CriticAgent) Build(ctx context.Context, cfg validators.AgentConfig) (agent.Agent, error) {
 	// Build the full instruction by combining prefix, shared rules, and suffix
-	instruction := criticInstructionPrefix + stylerules.FullFormattingRules + "\n" + stylerules.CriticRejectionCriteria + criticInstructionSuffix
+	instruction := criticInstructionPrefix + prompts.FullFormattingRules + "\n" + prompts.CriticRejectionCriteria + criticInstructionSuffix
 
 	// JSON response mode is incompatible with function calling on some models
 	// (e.g., gemini-2.5-pro). Disable auto-flow features that add transfer tools.

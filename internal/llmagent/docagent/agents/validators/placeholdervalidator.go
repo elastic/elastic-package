@@ -8,6 +8,8 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -18,7 +20,7 @@ const (
 // StandardPlaceholder is the expected format for missing information
 const StandardPlaceholder = "<!-- INFORMATION NOT AVAILABLE - PLEASE UPDATE -->"
 
-const placeholderValidatorInstruction = `You are a documentation placeholder validator for Elastic integration packages.
+var placeholderValidatorInstruction = `You are a documentation placeholder validator for Elastic integration packages.
 Your task is to validate that placeholders are used correctly for missing information.
 
 ## Input
@@ -37,15 +39,7 @@ The documentation content to validate is provided in the user message.
 - Never use placeholders for information that can be derived from the package
 - If a URL is invalid, use the standard placeholder
 - If a feature is unknown, use the standard placeholder
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "placeholders", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=false if informal placeholders are found or if critical information uses placeholders.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("placeholders", "Set valid=false if informal placeholders are found or if critical information uses placeholders.")
 
 // PlaceholderValidator validates placeholder usage (Section F)
 type PlaceholderValidator struct {

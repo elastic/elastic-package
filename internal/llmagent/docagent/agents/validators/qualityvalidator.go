@@ -8,6 +8,8 @@ import (
 	"context"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -15,7 +17,7 @@ const (
 	qualityValidatorDescription = "Validates writing quality, clarity, and professional tone"
 )
 
-const qualityValidatorInstruction = `You are a documentation quality validator for Elastic integration packages.
+var qualityValidatorInstruction = `You are a documentation quality validator for Elastic integration packages.
 Your task is to validate ONLY critical quality issues that significantly impact usability.
 
 ## Input
@@ -42,16 +44,7 @@ The documentation content to validate is provided in the user message.
 - Capitalization of UI element names - these match what users see in the vendor GUI
 - Product name variations due to vendor rebranding - all historical names are valid
 - Minor version mismatches in external documentation links
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "quality", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=true unless there are CRITICAL issues that would cause user failure.
-Most documentation should pass validation.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("quality", "Set valid=true unless there are CRITICAL issues that would cause user failure.\nMost documentation should pass validation.")
 
 // QualityValidator validates writing quality and clarity (Section E)
 type QualityValidator struct {

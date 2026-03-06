@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/elastic/elastic-package/internal/llmagent/docagent/stylerules"
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -26,16 +26,7 @@ The documentation content to validate is provided in the user message.
 
 `
 
-// styleValidatorInstructionSuffix is the final part of the style validator instruction
-const styleValidatorInstructionSuffix = `
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "style", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=false for critical formatting issues.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+var styleValidatorInstructionSuffix = prompts.ValidatorOutputSuffix("style", "Set valid=false for critical formatting issues.")
 
 // StyleValidator validates documentation against the Elastic Style Guide
 type StyleValidator struct {
@@ -45,7 +36,7 @@ type StyleValidator struct {
 // NewStyleValidator creates a new style validator
 func NewStyleValidator() *StyleValidator {
 	// Build the full instruction by combining prefix, shared formatting rules, and suffix
-	instruction := styleValidatorInstructionPrefix + stylerules.FullFormattingRules + styleValidatorInstructionSuffix
+	instruction := styleValidatorInstructionPrefix + prompts.FullFormattingRules + styleValidatorInstructionSuffix
 
 	return &StyleValidator{
 		BaseStagedValidator: BaseStagedValidator{

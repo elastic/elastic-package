@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
 )
 
 const (
@@ -16,7 +18,7 @@ const (
 	accuracyValidatorDescription = "Validates content accuracy against package metadata and service info"
 )
 
-const accuracyValidatorInstruction = `You are a documentation accuracy validator for Elastic integration packages.
+var accuracyValidatorInstruction = `You are a documentation accuracy validator for Elastic integration packages.
 Your task is to validate that the content is accurate and matches the source data.
 
 ## Input
@@ -57,15 +59,7 @@ You may also receive static validation context with issues already identified.
 - Feature-specific configuration steps beyond basic setup
 - Log facility settings
 - Missing optional configuration parameters
-
-## Output Format
-Output a JSON object with this exact structure:
-{"valid": true/false, "score": 0-100, "issues": [{"severity": "critical|major|minor", "category": "accuracy", "location": "Section Name", "message": "Issue description", "suggestion": "How to fix"}]}
-
-Set valid=false only if there are genuine factual inaccuracies.
-
-## IMPORTANT
-Output ONLY the JSON object. No other text.`
+` + prompts.ValidatorOutputSuffix("accuracy", "Set valid=false only if there are genuine factual inaccuracies.")
 
 // AccuracyValidator validates content accuracy against package metadata (Section B)
 type AccuracyValidator struct {

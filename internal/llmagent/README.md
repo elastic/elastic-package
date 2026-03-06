@@ -68,6 +68,8 @@ Orchestrates documentation generation and modification. Entry points are `Update
 | File | Description |
 |------|-------------|
 | `docagent.go` | **DocumentationAgent**: section-based generation, modification, validation loops, doc path/backup/restore, prompt building wiring. |
+| `agent_instructions.go` | **AgentInstructions**: revision-flow system prompt composed from preamble + **prompts.FullFormattingRules** + suffix. |
+| `sectioninstructions.go` | **getSectionInstructions**: section-specific instructions for the generator (e.g. Reference, Troubleshooting). Uses **validators.PackageContext**. |
 | `promptsbuilder.go` | Builds prompts from type (revision, section generation, modification analysis, modification) and **PromptContext**; loads templates via `prompts` package. |
 | `modificationanalyzer.go` | Analyzes modification requests to determine scope (global vs specific sections) and returns **ModificationScope**. |
 | `interactive.go` | Interactive review UI: display readme, user actions (approve/edit/cancel), revision prompts. |
@@ -112,21 +114,10 @@ Prompt templates and loading. Templates use `%s`/`%d` placeholders; **promptsbui
 | File | Description |
 |------|-------------|
 | `resources.go` | Embedded prompt files. |
-| `loader.go` | **Load** by type; returns embedded prompt content. **Type**: Revision, SectionGeneration, ModificationAnalysis, Modification. |
-| `sectioninstructions.go` | **GetSectionInstructions**: section-specific instructions for the generator (e.g. Reference, Troubleshooting). Uses **validators.PackageContext**. |
-| `_static/agent_instructions.md` | Main agent system prompt (style, voice, templates). |
-| `_static/section_generation_prompt.txt` | Section generation prompt template. |
-| `_static/revision_prompt.txt` | Revision prompt template. |
-| `_static/modification_prompt.txt` | Modification prompt template. |
-| `_static/modification_analysis_prompt.txt` | Modification scope analysis prompt template. |
-
-### `/docagent/stylerules`
-
-Shared formatting rule constants (no dependencies on other docagent packages to avoid cycles). Used by workflow, generator, critic, and style validator.
-
-| File | Description |
-|------|-------------|
+| `loader.go` | **Load** by type; returns embedded prompt content. **ValidatorOutputSuffix**: shared JSON output format for validators. |
 | `stylerules.go` | **CriticalFormattingRules**, **FullFormattingRules**, **CriticRejectionCriteria** (lists, headings, links, code blocks, voice). |
+| `section_generation_prompt.txt` | Section generation prompt template. |
+| `revision_prompt.txt` | Revision prompt template. |
 
 ### `/docagent/agents`
 
@@ -153,7 +144,7 @@ Staged validators and shared types. Used by workflow (static/LLM validation) and
 | `completenessvalidator.go` | Completeness (full-document): required content present. |
 | `accuracyvalidator.go` | Accuracy (section or both): content matches package. |
 | `qualityvalidator.go` | Quality (section or both): clarity, completeness of section. |
-| `stylevalidator.go` | Style (section or both): Elastic style; uses **stylerules.FullFormattingRules**. |
+| `stylevalidator.go` | Style (section or both): Elastic style; uses **prompts.FullFormattingRules**. |
 | `placeholdervalidator.go` | Placeholders (section or both): correct placeholder usage. |
 | `accessibilityvalidator.go` | Accessibility (section or both). |
 | `urlvalidator.go` | URL validation utilities. |
@@ -327,5 +318,5 @@ Tracing is optional and controlled by profile config (**llm.tracing.enabled**, *
 2. **Critic–generator loop**: Critic feedback is stored in state and passed into the next generator call.
 3. **Validation scope**: Full-document validators run after assembly; section-level (or “both”) validators run during section generation or in the workflow.
 4. **Service info as primary source**: **get_service_info** is the preferred source for vendor content; **ServiceInfoManager** and package layout are in docagent/tools, not in parsing.
-5. **stylerules package**: Formatting rules live in a small dependency-free package to avoid import cycles between docagent, workflow, and agents.
+5. **prompts package**: Formatting rules, embedded prompt templates, and shared validator helpers all live in the `prompts` package (a leaf with no docagent-internal imports).
 6. **Postprocessor**: **EnsureDataStreamTemplates** runs after assembly so `{{event}}` / `{{fields}}` are correct regardless of generator output.
