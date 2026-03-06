@@ -50,6 +50,13 @@ type testConfig struct {
 
 	SkipTransformValidation bool `config:"skip_transform_validation"`
 
+	// PolicyAPIFormat overrides the Fleet API format used to create the package
+	// policy. Valid values: "simplified" (objects-based), "legacy" (arrays-based),
+	// "" (auto-detect from Kibana version, default).
+	// Use "legacy" as a workaround when a Fleet simplified-API bug prevents the
+	// test from passing (e.g. select vars with "false"/"true" option values).
+	PolicyAPIFormat string `config:"policy_api_format"`
+
 	Assert struct {
 		// HitCount expected number of hits for a given test
 		HitCount int `config:"hit_count"`

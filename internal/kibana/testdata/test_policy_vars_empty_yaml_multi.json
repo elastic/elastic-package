@@ -1,0 +1,21 @@
+{
+  "name": "test-log-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "test_policy_vars",
+    "version": "1.0.0"
+  },
+  "inputs": {
+    "test-cel": {
+      "enabled": true,
+      "streams": {
+        "test_policy_vars.log": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "force": false
+}

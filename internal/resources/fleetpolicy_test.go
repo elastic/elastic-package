@@ -286,14 +286,22 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			require.Len(t, result.Inputs, 1)
-			require.Len(t, result.Inputs[0].Streams, 1)
 
-			streamVars := result.Inputs[0].Streams[0].Vars
+			// Find the enabled input by its key.
+			pt := c.manifest.PolicyTemplates[0]
+			inputKey := fmt.Sprintf("%s-%s", pt.Name, pt.Input)
+			inputEntry, ok := result.Inputs[inputKey]
+			require.True(t, ok, "expected input key %q in inputs map", inputKey)
+			require.True(t, inputEntry.Enabled)
+
+			streamKey := fmt.Sprintf("%s.%s", c.manifest.Name, pt.Name)
+			streamEntry, ok := inputEntry.Streams[streamKey]
+			require.True(t, ok, "expected stream key %q in streams map", streamKey)
+
+			streamVars := streamEntry.Vars
 			require.Contains(t, streamVars, "data_stream.dataset", "stream vars must contain data_stream.dataset")
 
-			datasetVar := streamVars["data_stream.dataset"]
-			val := datasetVar.Value.Value()
+			val := streamVars["data_stream.dataset"]
 			require.NotNil(t, val)
 			assert.Equal(t, c.expectedDataset, val, "data_stream.dataset variable value")
 		})

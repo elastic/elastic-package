@@ -1,0 +1,231 @@
+type: logs
+title: Sophos XG logs
+streams:
+  - input: tcp
+    vars:
+      - name: syslog_host
+        type: text
+        title: Syslog Host
+        multi: false
+        required: true
+        show_user: true
+        default: localhost
+      - name: syslog_port
+        type: integer
+        title: Syslog Port
+        multi: false
+        required: true
+        show_user: true
+        default: 9005
+      - name: default_host_name
+        type: text
+        title: Default Host Name
+        multi: false
+        required: true
+        show_user: true
+        default: firewall.localgroup.local
+      - name: known_devices
+        type: yaml
+        title: Known Devices
+        multi: false
+        required: true
+        show_user: true
+        default: |
+          - hostname: my_fancy_host
+            serial_number: "1234567890123456"
+          - hostname: some_other_host.local
+            serial_number: "1234567890123457"
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - sophos-xg
+          - forwarded
+      - name: preserve_original_event
+        required: true
+        show_user: true
+        title: Preserve original event
+        type: bool
+        multi: false
+        default: false
+      - name: tz_offset
+        type: text
+        title: Timezone
+        multi: false
+        required: true
+        show_user: false
+        default: UTC
+      - name: tz_map
+        type: yaml
+        title: Timezone Map
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #- tz_short: AEST
+          #  tz_long: Australia/Sydney
+      - name: ssl
+        type: yaml
+        title: SSL Configuration
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #certificate: "/etc/server/cert.pem"
+          #key: "/etc/server/key.pem"
+      - name: tcp_options
+        type: yaml
+        title: Custom TCP Options
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #max_connections: 1
+          #framing: delimiter
+          #line_delimiter: "\n"
+    template_path: tcp.yml.hbs
+    title: Sophos XG logs
+    description: Collect Sophos XG logs
+  - input: udp
+    vars:
+      - name: syslog_host
+        type: text
+        title: Syslog Host
+        multi: false
+        required: true
+        show_user: true
+        default: localhost
+      - name: syslog_port
+        type: integer
+        title: Syslog Port
+        multi: false
+        required: true
+        show_user: true
+        default: 9005
+      - name: default_host_name
+        type: text
+        title: Default Host Name
+        multi: false
+        required: true
+        show_user: true
+        default: firewall.localgroup.local
+      - name: known_devices
+        type: yaml
+        title: Known Devices
+        multi: false
+        required: true
+        show_user: true
+        default: |
+          - hostname: my_fancy_host
+            serial_number: "1234567890123456"
+          - hostname: some_other_host.local
+            serial_number: "1234567890123457"
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - sophos-xg
+          - forwarded
+      - name: preserve_original_event
+        required: true
+        show_user: true
+        title: Preserve original event
+        type: bool
+        multi: false
+        default: false
+      - name: tz_offset
+        type: text
+        title: Timezone
+        multi: false
+        required: true
+        show_user: false
+        default: UTC
+      - name: tz_map
+        type: yaml
+        title: Timezone Map
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #- tz_short: AEST
+          #  tz_long: Australia/Sydney
+      - name: udp_options
+        type: yaml
+        title: Custom UDP Options
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #read_buffer: 100MiB
+          #max_message_size: 50KiB
+          #timeout: 300s
+    template_path: udp.yml.hbs
+    title: Sophos XG logs
+    description: Collect Sophos XG logs
+  - input: logfile
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+      - name: default_host_name
+        type: text
+        title: Default Host Name
+        multi: false
+        required: true
+        show_user: true
+        default: firewall.localgroup.local
+      - name: known_devices
+        type: yaml
+        title: Known Devices
+        multi: false
+        required: true
+        show_user: true
+        default: |
+          - hostname: my_fancy_host
+            serial_number: "1234567890123456"
+          - hostname: some_other_host.local
+            serial_number: "1234567890123457"
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - sophos-xg
+          - forwarded
+      - name: preserve_original_event
+        required: true
+        show_user: true
+        title: Preserve original event
+        type: bool
+        multi: false
+        default: false
+      - name: tz_offset
+        type: text
+        title: Timezone
+        multi: false
+        required: true
+        show_user: false
+        default: UTC
+      - name: tz_map
+        type: yaml
+        title: Timezone Map
+        multi: false
+        required: false
+        show_user: false
+        default: |
+          #- tz_short: AEST
+          #  tz_long: Australia/Sydney
+    template_path: log.yml.hbs
+    title: Sophos XG logs
+    description: Collect Sophos XG logs

@@ -487,7 +487,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 	pp.Package.Name = r.scenario.Package
 	pp.Package.Version = r.scenario.Version
 
-	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)
+	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp, kibana.PolicyAPIFormatAuto)
 	if err != nil {
 		return nil, err
 	}

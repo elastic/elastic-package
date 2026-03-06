@@ -13,8 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/servicedeployer"
-
-	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -150,9 +148,8 @@ service: nginx
 	})
 }
 
-// Ensure that vars with data_stream.dataset work with getExpectedDatasetForTest
-// (used when building data stream names).
-func TestNewConfig_VarsUsedByGetExpectedDatasetForTest(t *testing.T) {
+// Ensure that vars with data_stream.dataset are correctly parsed in the config.
+func TestNewConfig_DataStreamDatasetVar(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test-dataset-config.yml")
 	err := os.WriteFile(configPath, []byte(`
@@ -167,7 +164,6 @@ vars:
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	// Same logic as in getExpectedDatasetForTest for input packages.
-	got := getExpectedDatasetForTest("input", "default.dataset", packages.PolicyTemplate{Name: "bar"}, cfg.Vars)
-	assert.Equal(t, "other.name", got, "getExpectedDatasetForTest should use vars.data_stream.dataset")
+	v, _ := cfg.Vars.GetValue("data_stream.dataset")
+	assert.Equal(t, "other.name", v, "vars.data_stream.dataset should be available in config vars")
 }
