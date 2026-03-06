@@ -38,6 +38,9 @@ const (
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
 
+	// KibanaDevConfigFile is the custom kibana config file.
+	KibanaDevConfigFile = "kibana.dev.yml"
+
 	// LogstashConfigFile is the logstash config file.
 	LogstashConfigFile = "logstash.conf"
 
@@ -200,7 +203,21 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})
-	resources := append([]resource.Resource{}, stackResources...)
+	// Create kibana resource with custom config support
+	kibanaResource := &resource.File{
+		Path:    KibanaConfigFile,
+		Content: kibanaConfigWithCustomContent(profile),
+	}
+
+	// Replace the kibana resource in stackResources with our custom one
+	resources := make([]resource.Resource, 0, len(stackResources))
+	for _, res := range stackResources {
+		if file, ok := res.(*resource.File); ok && file.Path == KibanaConfigFile {
+			resources = append(resources, kibanaResource)
+		} else {
+			resources = append(resources, res)
+		}
+	}
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
 	resourceManager.RegisterProvider(CertsFolder, &resource.FileProvider{
