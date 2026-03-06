@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -31,11 +32,13 @@ type BuildOptions struct {
 	BuildDir       string // directory where all the built packages are placed and zipped packages are stored
 	RepositoryRoot *os.Root
 
-	CreateZip      bool
-	SignPackage    bool
-	SkipValidation bool
-	UpdateReadmes  bool
-	SchemaURLs     fields.SchemaURLs
+	CreateZip         bool
+	SignPackage       bool
+	SkipValidation    bool
+	UpdateReadmes     bool
+	SchemaURLs        fields.SchemaURLs
+	RegistryClient    *registry.Client                     // Registry client for downloading input packages
+	RequiresOverrides map[string]packages.RequiresOverride // pre-merged requires overrides (test builds only)
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -230,6 +233,11 @@ func BuildPackage(options BuildOptions) (string, error) {
 	err = resolveTransformDefinitions(buildPackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
+	}
+
+	err = bundleInputPackageTemplates(options.PackageRoot, buildPackageRoot, options.RegistryClient, options.RequiresOverrides)
+	if err != nil {
+		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}
 
 	if options.UpdateReadmes {

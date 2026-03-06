@@ -1,0 +1,34 @@
+format_version: 3.6.0
+name: with_input_package_requires
+title: Integration With Required Input Package
+description: >-
+  Integration package that requires an input package, used to test template bundling.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+policy_templates:
+  - name: test_logs
+    title: Test logs
+    description: Collect test logs
+    data_streams:
+      - test_logs
+    inputs:
+      - package: sql_input
+        title: Collect test logs via input package
+        description: Use the test input package to collect logs
+      - type: logs
+        title: Collect test logs via logs input
+        description: Use the logs input to collect logs
+owner:
+  github: elastic/integrations
+  type: elastic

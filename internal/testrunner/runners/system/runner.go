@@ -295,11 +295,12 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !opts.installedPackage,
-			Force:          opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
-			SchemaURLs:     r.schemaURLs,
+			PackageRoot:       r.packageRoot,
+			Absent:            !opts.installedPackage,
+			Force:             opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:    r.repositoryRoot,
+			SchemaURLs:        r.schemaURLs,
+			RequiresOverrides: r.globalTestConfig.MergedRequiresOverrides,
 		},
 	}
 }

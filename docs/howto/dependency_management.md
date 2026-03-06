@@ -11,10 +11,21 @@ which field definition was correct, maintenance and typo correction process was 
 The described situation brought us to a point in time when a simple dependency management was a requirement to maintain
 all used fields, especially ones imported from external sources.
 
+Elastic Packages support two kinds of build-time dependency:
+
+- **Field dependencies** — import field definitions from external schemas (e.g. ECS) using
+  `_dev/build/build.yml`. Resolved from Git references and cached locally.
+- **Package dependencies** — composable (integration) packages can depend on **input packages**
+  declared under `requires.input` in `manifest.yml`. Resolved at build time by downloading from
+  the package registry.
+
+Both are described in the sections below.
+
 ## Principles of operation
 
-Currently Elastic Packages support build-time dependencies that can be used as external field sources. They use a flat
-dependency model represented with an additional build manifest, stored in an optional YAML file - `_dev/build/build.yml`:
+Currently Elastic Packages support build-time field dependencies that can be used as external
+field sources. They use a flat dependency model represented with an additional build manifest,
+stored in an optional YAML file - `_dev/build/build.yml`:
 
 ```yaml
 dependencies:
@@ -84,3 +95,28 @@ and use a following field definition:
 - name: event.category
   external: ecs
 ```
+
+## Composable packages and the package registry
+
+Composable (integration) packages can also depend on other packages — specifically **input
+packages** — by declaring them under `requires.input` in `manifest.yml`:
+
+```yaml
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+```
+
+This type of dependency is resolved at **build time** by downloading the required input package
+from the **package registry**. During `elastic-package build`, agent templates from the
+required input packages are fetched and bundled into the built integration so that Fleet can
+merge them at policy creation time.
+
+Unlike field-level dependencies (which are resolved from Git references and cached locally),
+package dependencies are fetched from the configured package registry URL
+(`package_registry.base_url` in `~/.elastic-package/config.yml`, defaulting to
+`https://epr.elastic.co`).
+
+For details on using a local or custom registry when the required input packages are still
+under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).

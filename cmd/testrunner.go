@@ -760,6 +760,12 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 
 	opts.Package = manifest.Name
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(pkgRoot)
+	if err != nil {
+		return fmt.Errorf("failed to read global config: %w", err)
+	}
+	opts.RequiresOverrides = globalTestConfig.RequiresOverrides("script")
+
 	var results []testrunner.TestResult
 	err = script.Run(&results, cmd.OutOrStderr(), opts)
 	if err != nil {

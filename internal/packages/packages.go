@@ -134,8 +134,32 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
-	Type string     `config:"type" json:"type" yaml:"type"`
-	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Type          string     `config:"type" json:"type" yaml:"type"`
+	PackageRef    string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+}
+
+// PackageDependency describes a dependency on another package.
+type PackageDependency struct {
+	Package string `config:"package" json:"package" yaml:"package"`
+	Version string `config:"version" json:"version" yaml:"version"`
+}
+
+// Requires lists the packages that an integration package depends on.
+type Requires struct {
+	Input   []PackageDependency `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Content []PackageDependency `config:"content,omitempty" json:"content,omitempty" yaml:"content,omitempty"`
+}
+
+// RequiresOverride represents a single entry in the _dev/test/config.yml
+// "requires" list, allowing developers to pin a version or point to a local
+// directory during development and testing.
+type RequiresOverride struct {
+	Package string `config:"package" json:"package" yaml:"package"`
+	Version string `config:"version,omitempty" json:"version,omitempty" yaml:"version,omitempty"`
+	Source  string `config:"source,omitempty" json:"source,omitempty" yaml:"source,omitempty"`
 }
 
 // Source contains metadata about the source code of the package.
@@ -176,10 +200,11 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input         string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type          string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars          []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -212,6 +237,7 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+	Requires        *Requires        `config:"requires,omitempty" json:"requires,omitempty" yaml:"requires,omitempty"`
 }
 
 type PackageDirNameAndManifest struct {
@@ -274,11 +300,13 @@ type TransformDefinition struct {
 
 // Stream contains information about an input stream.
 type Stream struct {
-	Input        string     `config:"input" json:"input" yaml:"input"`
-	Title        string     `config:"title" json:"title" yaml:"title"`
-	Description  string     `config:"description" json:"description" yaml:"description"`
-	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
-	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Input         string     `config:"input" json:"input" yaml:"input"`
+	PackageRef    string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Title         string     `config:"title" json:"title" yaml:"title"`
+	Description   string     `config:"description" json:"description" yaml:"description"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
@@ -706,6 +734,24 @@ func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 		return "."
 	}
 	return ""
+}
+
+// FindPackageInRepo searches the git repository rooted at repoRoot for a package
+// with the given name. It scans up to 4 directory levels from the repo root to
+// accommodate the common monorepo layout where packages live under a top-level
+// "packages/" directory. Returns the package root path and its manifest, or an
+// error when the package cannot be found.
+func FindPackageInRepo(repoRoot string, packageName string) (string, *PackageManifest, error) {
+	results, err := ReadAllPackageManifestsFromRepo(repoRoot, 4, "")
+	if err != nil {
+		return "", nil, fmt.Errorf("searching repository for package %q: %w", packageName, err)
+	}
+	for _, r := range results {
+		if r.Manifest.Name == packageName {
+			return r.Path, r.Manifest, nil
+		}
+	}
+	return "", nil, fmt.Errorf("package %q not found in repository", packageName)
 }
 
 // FindInputByType returns the input for the provided type.
