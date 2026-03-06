@@ -23,7 +23,7 @@ function cleanup() {
   if is_stack_created ; then
     # Dump stack logs
     # Required containers could not be running, so ignore the error
-    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}}" || true
+    elastic-package stack dump -v --output "build/elastic-stack-dump/check-${SUFFIX_FOLDER_DUMP_LOGS}" || true
 
     # Take down the stack
     elastic-package stack down -v

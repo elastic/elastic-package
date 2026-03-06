@@ -129,4 +129,28 @@ To include a generated list of fields from the `fields/` directory, uncomment an
 The event template function will be replace by a sample event, taken from `sample_event.json`, when building this integration.
 
 To include a sample event from `sample_event.json`, uncomment and use:
-{{/* {{ event "data_stream_name" }} */}}
+{{ event "data_stream_name" }}
+
+{{/* Export ILM Policies
+     This accepts a list of data stream names as arguments, and will export the ILM Policies
+     for each given data stream name. If no arguments are provided, all ILM Policies will be
+     exported.
+
+     If there are no ILM Policies defined, this will be an empty string.
+*/}}
+{{ ilm }}
+
+{{/* Export Transforms
+     This will export the transforms used by this integration.
+     If there are no transforms defined, this will be an empty string.
+*/}}
+{{ transform }}
+
+### Inputs used
+{{/* All inputs used by this package will be automatically listed here. */}}
+{{ inputDocs }}
+
+### API usage
+{{/* For integrations that use APIs to collect data, document all the APIs that are used, and link to relevent information */}}
+These APIs are used with this integration:
+* ...
