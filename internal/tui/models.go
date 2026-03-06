@@ -65,6 +65,11 @@ var (
 	helpStyle       = lipgloss.NewStyle().Foreground(ansiBrightBlack)
 	selectedStyle   = lipgloss.NewStyle().Foreground(ansiBrightGreen).Bold(true)
 	unselectedStyle = lipgloss.NewStyle().Foreground(ansiBrightBlack)
+
+	// Console output styles
+	warningStyle = lipgloss.NewStyle().Foreground(ansiYellow)
+	infoStyle    = lipgloss.NewStyle().Foreground(ansiCyan)
+	successStyle = lipgloss.NewStyle().Foreground(ansiGreen).Bold(true)
 )
 
 // ComposeValidators combines multiple validators
@@ -205,4 +210,24 @@ func DefaultKibanaVersionConditionValue() string {
 	ver := semver.MustParse(install.DefaultStackVersion)
 	v, _ := ver.SetPrerelease("")
 	return "^" + v.String()
+}
+
+// Warning renders text in warning color
+func Warning(text string) string {
+	return warningStyle.Render(text)
+}
+
+// Info renders text in info color
+func Info(text string) string {
+	return infoStyle.Render(text)
+}
+
+// Success renders text in success color
+func Success(text string) string {
+	return successStyle.Render(text)
+}
+
+// Error renders text in error color
+func Error(text string) string {
+	return errorStyle.Render(text)
 }

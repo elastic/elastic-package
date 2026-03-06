@@ -169,11 +169,25 @@ type DiscoveryField struct {
 	Name string `config:"name" json:"name" yaml:"name"`
 }
 
+// DeploymentModeConfig describes a deployment mode (e.g. default, agentless) in a policy template.
+type DeploymentModeConfig struct {
+	Enabled bool `config:"enabled" json:"enabled" yaml:"enabled"`
+}
+
+// DeploymentModes defines which deployment modes are available for a policy template.
+type DeploymentModes struct {
+	Default   *DeploymentModeConfig `config:"default,omitempty" json:"default,omitempty" yaml:"default,omitempty"`
+	Agentless *DeploymentModeConfig `config:"agentless,omitempty" json:"agentless,omitempty" yaml:"agentless,omitempty"`
+}
+
 // PolicyTemplate is a configuration of inputs responsible for collecting log or metric data.
 type PolicyTemplate struct {
 	Name        string   `config:"name" json:"name" yaml:"name"`                                                       // Name of policy template.
 	DataStreams []string `config:"data_streams,omitempty" json:"data_streams,omitempty" yaml:"data_streams,omitempty"` // List of data streams compatible with the policy template.
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
+
+	// DeploymentModes indicates which deployment modes (e.g. agentless) are enabled for this policy template.
+	DeploymentModes *DeploymentModes `config:"deployment_modes,omitempty" json:"deployment_modes,omitempty" yaml:"deployment_modes,omitempty"`
 
 	// For purposes of "input packages"
 	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
