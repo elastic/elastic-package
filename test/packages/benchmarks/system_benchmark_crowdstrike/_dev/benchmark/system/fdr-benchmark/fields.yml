@@ -1,0 +1,8 @@
+- name: id
+  type: keyword
+- name: cid
+  type: keyword
+- name: aid
+  type: keyword
+- name: timestamp
+  type: date

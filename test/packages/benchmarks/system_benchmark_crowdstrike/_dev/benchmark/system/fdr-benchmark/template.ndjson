@@ -1,0 +1,5 @@
+{{- $id := generate "id" }}
+{{- $cid := generate "cid" }}
+{{- $aid := generate "aid" }}
+{{- $timestamp := generate "timestamp" }}
+{"id":"{{ $id }}","cid":"{{ $cid }}","aid":"{{ $aid }}","timestamp":"{{ $timestamp }}"},

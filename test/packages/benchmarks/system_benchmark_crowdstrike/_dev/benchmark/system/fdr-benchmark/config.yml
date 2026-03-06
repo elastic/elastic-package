@@ -1,0 +1,9 @@
+fields:
+  - name: id
+    cardinality: 100000
+  - name: cid
+    cardinality: 100000
+  - name: aid
+    cardinality: 100000
+  - name: timestamp
+    period: -24h
