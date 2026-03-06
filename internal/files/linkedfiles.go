@@ -270,7 +270,7 @@ func (l *Link) updateChecksum() (bool, error) {
 	if l.IncludedFileContentsChecksum == "" {
 		return false, fmt.Errorf("checksum is empty for included file %s", l.IncludedFilePath)
 	}
-	newContent := fmt.Sprintf("%v %v", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
+	newContent := fmt.Sprintf("%v %v\n", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
 	if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
 		return false, fmt.Errorf("could not update checksum for link file %s: %w", l.LinkFilePath, err)
 	}
