@@ -80,7 +80,7 @@ func createSystemPackagePolicy(ctx context.Context, kibanaClient *kibana.Client,
 	packagePolicy.Package.Name = "system"
 	packagePolicy.Package.Version = systemPackages[0].Version
 
-	_, err = kibanaClient.CreatePackagePolicy(ctx, packagePolicy)
+	_, err = kibanaClient.CreatePackagePolicy(ctx, packagePolicy, kibana.PolicyAPIFormatAuto)
 	if err != nil {
 		return fmt.Errorf("error while creating package policy: %w", err)
 	}

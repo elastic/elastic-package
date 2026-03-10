@@ -1,0 +1,38 @@
+title: Apache error logs
+type: logs
+streams:
+  - input: logfile
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/apache2/error.log*
+          - /var/log/httpd/error_log*
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - apache-error
+      - name: preserve_original_event
+        required: true
+        show_user: true
+        title: Preserve original event
+        type: bool
+        multi: false
+        default: false
+      - name: processors
+        type: yaml
+        title: Processors
+        multi: false
+        required: false
+        show_user: false
+    template_path: log.yml.hbs
+    title: Apache error logs
+    description: Collect Apache error logs
