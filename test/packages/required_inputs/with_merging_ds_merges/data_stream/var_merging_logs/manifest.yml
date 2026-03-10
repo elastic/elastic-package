@@ -1,0 +1,13 @@
+title: Var Merging Logs
+type: logs
+streams:
+  - package: var_merging_input_pkg
+    title: Var Merging Logs
+    description: Collect logs using the var merging input package.
+    vars:
+      - name: encoding
+        title: Log Encoding Override
+      - name: custom_tag
+        type: text
+        title: Custom Tag
+        show_user: true

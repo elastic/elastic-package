@@ -1,0 +1,33 @@
+format_version: 3.6.0
+name: with_merging_duplicate_error
+title: Variable Merging - Duplicate Error
+description: >-
+  Composable package whose data stream manifest defines the "paths" variable
+  twice. This should cause the variable merging step to fail with a duplicate
+  variable name error.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: var_merging_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: var_merging_logs
+    title: Var Merging Logs
+    description: Collect logs via var merging input package
+    data_streams:
+      - var_merging_logs
+    inputs:
+      - package: var_merging_input_pkg
+        title: Collect logs via var merging input package
+        description: Use the var merging input package to collect logs
+owner:
+  github: elastic/integrations
+  type: elastic
