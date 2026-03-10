@@ -1,0 +1,57 @@
+format_version: 3.1.3
+name: with_legacy_policy_api
+title: "Package requiring legacy policy API format."
+version: 0.0.1
+source:
+  license: "Apache-2.0"
+description: >
+  This package has a select-type variable with "false" as an option value.
+  Fleet's simplified package policy API coerces the string "false" to a boolean,
+  causing validation to fail. The system test must use policy_api_format: legacy
+  to work around this Fleet bug.
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.12.2"
+  elastic:
+    subscription: "basic"
+vars:
+  - name: environment
+    type: text
+    title: Environment
+    description: Environment label added to all events (e.g. production, staging).
+    required: false
+    show_user: true
+    default: "production"
+policy_templates:
+  - name: with_legacy_policy_api
+    title: Indicator
+    description: Collect indicator data.
+    inputs:
+      - type: logfile
+        title: Collect indicator logs
+        description: Collect indicator logs
+        vars:
+          - name: revoked
+            type: select
+            title: Revoked Status
+            description: >
+              Filter by revoked status. This select variable has "false"/"true" as
+              option values, which triggers a Fleet bug in the simplified API where
+              string "false" is coerced to boolean false, failing validation.
+            options:
+              - text: All Indicators
+                value: ""
+              - text: Active Only (Not Revoked)
+                value: "false"
+              - text: Revoked Only
+                value: "true"
+            default: ""
+            multi: false
+            required: true
+            show_user: true
+owner:
+  github: elastic/elastic-package
+  type: elastic

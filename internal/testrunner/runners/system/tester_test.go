@@ -152,7 +152,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.testName, func(t *testing.T) {
-			name, err := FindPolicyTemplateForInput(tc.pkg, ds, inputName)
+			name, err := packages.FindPolicyTemplateForInput(tc.pkg, ds, inputName)
 
 			if tc.err != "" {
 				require.Errorf(t, err, "expected err containing %q", tc.err)
@@ -440,85 +440,139 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 	}
 }
 
-func TestGetExpectedDatasetForTest(t *testing.T) {
-	defaultValue := func(v any) *packages.VarValue {
-		vv := &packages.VarValue{}
-		vv.Unpack(v)
-		return vv
-	}
-
-	cases := []struct {
-		title    string
+func TestPipelineErrorMessage(t *testing.T) {
+	testCases := []struct {
+		name     string
+		doc      common.MapStr
 		expected string
-
-		packageType     string
-		datasetInPolicy string
-		policyTemplate  packages.PolicyTemplate
-		vars            common.MapStr
 	}{
 		{
-			title:           "data stream in integration package",
-			expected:        "foo.bar",
-			packageType:     "integration",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
+			name:     "empty doc",
+			doc:      common.MapStr{},
+			expected: "",
 		},
 		{
-			title:           "input package",
-			expected:        "bar",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
+			name: "doc without event.kind",
+			doc: common.MapStr{
+				"message": "something",
+			},
+			expected: "",
 		},
 		{
-			title:           "input package with default value",
-			expected:        "foo.default",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
+			name: "event.kind is not pipeline_error",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "event",
 				},
 			},
+			expected: "",
 		},
 		{
-			title:           "input package with user-defined variable",
-			expected:        "foo.custom",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-			vars: common.MapStr{
-				"data_stream.dataset": "foo.custom",
-			},
-		},
-		{
-			title:           "input package with default value and user-defined variable",
-			expected:        "foo.custom",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
+			name: "event.kind is non-string",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": 42,
 				},
 			},
-			vars: common.MapStr{
-				"data_stream.dataset": "foo.custom",
+			expected: "",
+		},
+		{
+			name: "pipeline_error without error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
 			},
+			expected: "found pipeline_error in document: no error message",
+		},
+		{
+			name: "pipeline_error with empty error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": "",
+				},
+			},
+			expected: "found pipeline_error in document with error message: \"\"",
+		},
+		{
+			name: "pipeline_error with non-string error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": 123,
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
+		},
+		{
+			name: "pipeline_error with error.message",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": "ingest pipeline failed",
+				},
+			},
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
+		},
+		{
+			name: "pipeline_error with error.message as array",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": common.MapStr{
+					"message": []any{"ingest pipeline failed"},
+				},
+			},
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
+		},
+		{
+			name: "pipeline_error using synthetic source mode",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": []any{"pipeline_error"},
+				},
+				"error": common.MapStr{
+					"message": []any{"ingest pipeline failed"},
+				},
+			},
+			expected: "found pipeline_error in document with error message: \"ingest pipeline failed\"",
+		},
+		{
+			name: "unexpected type for event field",
+			doc: common.MapStr{
+				"event": []any{"foo"},
+				"error": common.MapStr{
+					"message": "ingest pipeline failed",
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "unexpected type for error field",
+			doc: common.MapStr{
+				"event": common.MapStr{
+					"kind": "pipeline_error",
+				},
+				"error": []any{
+					"404 error code",
+				},
+			},
+			expected: "found pipeline_error in document: no error message",
 		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			found := getExpectedDatasetForTest(c.packageType, c.datasetInPolicy, c.policyTemplate, c.vars)
-			assert.Equal(t, c.expected, found)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := pipelineErrorMessage(tc.doc)
+			assert.Equal(t, tc.expected, got)
 		})
 	}
 }

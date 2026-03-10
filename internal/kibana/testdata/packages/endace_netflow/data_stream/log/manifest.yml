@@ -1,0 +1,19 @@
+type: logs
+title: Endace log
+streams:
+  - input: netflow
+    vars:
+      - name: host
+        type: text
+        title: Host
+        multi: false
+        required: true
+        show_user: true
+        default: "0.0.0.0"
+      - name: port
+        type: integer
+        title: Port
+        multi: false
+        required: true
+        show_user: true
+        default: 2055

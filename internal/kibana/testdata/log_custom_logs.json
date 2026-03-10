@@ -1,0 +1,27 @@
+{
+  "name": "log-logs-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "log",
+    "version": "2.4.4"
+  },
+  "inputs": {
+    "logs-logfile": {
+      "enabled": true,
+      "streams": {
+        "log.logs": {
+          "enabled": true,
+          "vars": {
+            "data_stream.dataset": "log.custom",
+            "paths": [
+              "/tmp/test.log"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "force": false
+}
