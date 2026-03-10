@@ -238,7 +238,7 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
-When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry (see "package_registry.base_url" in ~/.elastic-package/config.yml). For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md).
+When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry. The registry URL is resolved from the active profile (stack.epr.base_url) when using -p, otherwise from application config (package_registry.base_url in ~/.elastic-package/config.yml). For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md).
 
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
 

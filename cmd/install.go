@@ -93,7 +93,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+	eprClient := registry.NewClient(stack.PackageRegistryBaseURL(profile, appConfig))
 
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:         kibanaClient,

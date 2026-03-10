@@ -28,10 +28,10 @@ func packageRegistryProxyToURL(profile *profile.Profile, appConfig *install.Appl
 	return registry.ProductionURL
 }
 
-// packageRegistryBaseURL returns the package registry base URL to be used, considering
+// PackageRegistryBaseURL returns the package registry base URL to be used, considering
 // profile settings and application configuration. The priority is given to
 // profile settings over application configuration.
-func packageRegistryBaseURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
+func PackageRegistryBaseURL(profile *profile.Profile, appConfig *install.ApplicationConfiguration) string {
 	if registryURL := profile.Config(configElasticEPRURL, ""); registryURL != "" {
 		return registryURL
 	}
