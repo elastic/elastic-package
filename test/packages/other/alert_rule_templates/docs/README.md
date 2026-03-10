@@ -11,7 +11,7 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 **The following alert rule templates are available:**
 
 <details>
-<summary>Click to expand alert rule templates</summary>
+<summary>View the alert rule templates</summary>
 
 | Name | Description |
 |---|---|
