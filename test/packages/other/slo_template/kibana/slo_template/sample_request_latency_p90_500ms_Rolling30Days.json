@@ -1,0 +1,39 @@
+{
+  "attributes": {
+    "name": "sample_request_latency_p90_500ms_Rolling30Days",
+    "description": "This SLO tracks the latency of web server requests, ensuring that 90% of HTTP requests complete within 500 milliseconds over a rolling 30-day period to ensure responsive web service delivery.",
+    "indicator": {
+      "type": "sli.kql.custom",
+      "params": {
+        "index": "logs-sample.access-default",
+        "filter": "data_stream.dataset : \"sample.access\" ",
+        "good": "event.duration : < 500",
+        "total": "event.duration : *",
+        "timestampField": "@timestamp"
+      }
+    },
+    "budgetingMethod": "occurrences",
+    "timeWindow": {
+      "duration": "30d",
+      "type": "rolling"
+    },
+    "objective": {
+      "target": 0.90
+    },
+    "tags": [
+      "sample"
+    ],
+    "groupBy": [
+      "source.address"
+    ],
+    "artifacts": {
+      "dashboards": [
+        {
+          "id": "sample"
+        }
+      ]
+    }
+  },
+  "id": "sample_request_latency_p90_500ms_Rolling30Days",
+  "type": "slo_template"
+}

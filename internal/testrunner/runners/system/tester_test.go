@@ -152,7 +152,7 @@ func TestFindPolicyTemplateForInput(t *testing.T) {
 		tc := tc
 
 		t.Run(tc.testName, func(t *testing.T) {
-			name, err := FindPolicyTemplateForInput(tc.pkg, ds, inputName)
+			name, err := packages.FindPolicyTemplateForInput(tc.pkg, ds, inputName)
 
 			if tc.err != "" {
 				require.Errorf(t, err, "expected err containing %q", tc.err)
@@ -436,89 +436,6 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 			enabled, err := isSyntheticSourceModeEnabled(t.Context(), client.API, c.dataStreamName)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, enabled)
-		})
-	}
-}
-
-func TestGetExpectedDatasetForTest(t *testing.T) {
-	defaultValue := func(v any) *packages.VarValue {
-		vv := &packages.VarValue{}
-		vv.Unpack(v)
-		return vv
-	}
-
-	cases := []struct {
-		title    string
-		expected string
-
-		packageType     string
-		datasetInPolicy string
-		policyTemplate  packages.PolicyTemplate
-		vars            common.MapStr
-	}{
-		{
-			title:           "data stream in integration package",
-			expected:        "foo.bar",
-			packageType:     "integration",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-		},
-		{
-			title:           "input package",
-			expected:        "bar",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-		},
-		{
-			title:           "input package with default value",
-			expected:        "foo.default",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
-				},
-			},
-		},
-		{
-			title:           "input package with user-defined variable",
-			expected:        "foo.custom",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate:  packages.PolicyTemplate{Name: "bar"},
-			vars: common.MapStr{
-				"data_stream.dataset": "foo.custom",
-			},
-		},
-		{
-			title:           "input package with default value and user-defined variable",
-			expected:        "foo.custom",
-			packageType:     "input",
-			datasetInPolicy: "foo.bar",
-			policyTemplate: packages.PolicyTemplate{
-				Name: "bar",
-				Vars: []packages.Variable{
-					{
-						Name:    "data_stream.dataset",
-						Default: defaultValue("foo.default"),
-					},
-				},
-			},
-			vars: common.MapStr{
-				"data_stream.dataset": "foo.custom",
-			},
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.title, func(t *testing.T) {
-			found := getExpectedDatasetForTest(c.packageType, c.datasetInPolicy, c.policyTemplate, c.vars)
-			assert.Equal(t, c.expected, found)
 		})
 	}
 }

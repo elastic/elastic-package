@@ -8,6 +8,15 @@ version: 0.2.0
 categories:
   - custom
   - datastore
+vars:
+  - name: driver
+    type: text
+    title: Driver
+    description: "Supported database drivers: mssql, mysql, oracle, postgres"
+    multi: false
+    required: true
+    show_user: true
+    default: "mysql"
 policy_templates:
   - name: sql_query
     type: metrics
@@ -31,14 +40,6 @@ policy_templates:
         required: true
         show_user: true
         default: 10s
-      - name: driver
-        type: text
-        title: Driver
-        description: "Supported database drivers: mssql, mysql, oracle, postgres"
-        multi: false
-        required: true
-        show_user: true
-        default: "mysql"
       - name: sql_query
         type: text
         title: Query

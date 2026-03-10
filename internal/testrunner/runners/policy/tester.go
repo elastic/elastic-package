@@ -116,12 +116,13 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:           fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
-				PackageRoot:    r.packageRoot,
-				DataStreamName: r.testFolder.DataStream,
-				InputName:      testConfig.Input,
-				Vars:           testConfig.Vars,
-				DataStreamVars: testConfig.DataStream.Vars,
+				Name:            fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
+				PackageRoot:     r.packageRoot,
+				DataStreamName:  r.testFolder.DataStream,
+				InputName:       testConfig.Input,
+				Vars:            testConfig.Vars,
+				DataStreamVars:  testConfig.DataStream.Vars,
+				PolicyAPIFormat: testConfig.PolicyAPIFormat,
 			},
 		},
 	}

@@ -1,0 +1,28 @@
+{
+  "name": "otel-traces-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "otel_traces_input",
+    "version": "0.1.0"
+  },
+  "inputs": {
+    "receiver-otelcol": {
+      "enabled": true,
+      "streams": {
+        "otel_traces_input.receiver": {
+          "enabled": true,
+          "vars": {
+            "data_stream.dataset": "receiver",
+            "use_apm": true
+          }
+        }
+      }
+    }
+  },
+  "vars": {
+    "endpoint": "0.0.0.0:9411"
+  },
+  "force": false
+}
