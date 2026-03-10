@@ -104,8 +104,8 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 	testName := testNameFromPath(testPath)
 
 	if skip := testrunner.AnySkipConfig(testConfig.Skip, r.globalTestConfig.Skip); skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.testFolder.Package, r.testFolder.DataStream,
+		logger.Warnf("skipping %s %s test for %s/%s: %s (details: %s)",
+			testName, TestType, r.testFolder.Package, r.testFolder.DataStream,
 			skip.Reason, skip.Link)
 		return result.WithSkip(skip)
 	}
