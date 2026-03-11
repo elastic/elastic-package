@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"net"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"sync"
@@ -277,6 +279,9 @@ func (u *URLValidatorAgent) checkSingleURL(ctx context.Context, client *http.Cli
 	if isLocalhostURL(url) {
 		return false, false, fmt.Sprintf("URL points to localhost: %s", url)
 	}
+	if isPrivateAddress(url) {
+		return false, false, fmt.Sprintf("URL points to private address space: %s", url)
+	}
 
 	// Use GET request to be able to check response body for soft 404s
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -443,4 +448,28 @@ func isLocalhostURL(url string) bool {
 		}
 	}
 	return false
+}
+
+// isPrivateAddress returns true if the URL's host is a private/reserved IP (RFC 1918 IPv4, RFC 4193/RFC 4291 IPv6).
+func isPrivateAddress(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := u.Hostname()
+	if host == "" {
+		return false
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		// RFC 1918: 10/8, 172.16/12, 192.168/16
+		return ip4[0] == 10 ||
+			(ip4[0] == 172 && ip4[1] >= 16 && ip4[1] <= 31) ||
+			(ip4[0] == 192 && ip4[1] == 168)
+	}
+	// IPv6: fc00::/7 (ULA, RFC 4193), fe80::/10 (link-local, RFC 4291)
+	return len(ip) == 16 && (ip[0] == 0xfc || ip[0] == 0xfd || (ip[0] == 0xfe && (ip[1]&0xc0) == 0x80))
 }
