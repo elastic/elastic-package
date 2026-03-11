@@ -5,6 +5,10 @@
 package stack
 
 import (
+	"net/url"
+	"os"
+	"strings"
+
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
@@ -41,4 +45,29 @@ func PackageRegistryBaseURL(profile *profile.Profile, appConfig *install.Applica
 		}
 	}
 	return registry.ProductionURL
+}
+
+// RegistryClientOptions returns TLS options for the registry client so it works
+// with the elastic-package stack (same CA as Kibana/ES) or local HTTPS registries.
+// Profile may be nil (e.g. in build); then only CACertificateEnv is used for CA.
+func RegistryClientOptions(registryBaseURL string, profile *profile.Profile) []registry.ClientOption {
+	var opts []registry.ClientOption
+	caPath := os.Getenv(CACertificateEnv)
+	if caPath == "" && profile != nil {
+		caPath, _ = FindCACertificate(profile)
+	}
+	if caPath != "" {
+		if _, err := os.Stat(caPath); err == nil {
+			opts = append(opts, registry.CertificateAuthority(caPath))
+			return opts
+		}
+	}
+	u, err := url.Parse(registryBaseURL)
+	if err != nil {
+		return opts
+	}
+	if u.Scheme == "https" && (strings.ToLower(u.Hostname()) == "localhost" || u.Hostname() == "127.0.0.1") {
+		opts = append(opts, registry.TLSSkipVerify())
+	}
+	return opts
 }

@@ -5,11 +5,13 @@
 package registry
 
 import (
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 
+	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -17,16 +19,57 @@ const (
 	ProductionURL = "https://epr.elastic.co"
 )
 
-// Client is responsible for exporting dashboards from Kibana.
+// ClientOption is a functional option for the registry client.
+type ClientOption func(*Client)
+
+// Client is responsible for communicating with the Package Registry API.
 type Client struct {
-	baseURL string
+	baseURL              string
+	certificateAuthority string
+	tlsSkipVerify        bool
+	httpClient           *http.Client
 }
 
 // NewClient creates a new instance of the client.
-func NewClient(baseURL string) *Client {
-	return &Client{
-		baseURL: baseURL,
+func NewClient(baseURL string, opts ...ClientOption) *Client {
+	c := &Client{baseURL: baseURL}
+	for _, opt := range opts {
+		opt(c)
 	}
+	c.httpClient, _ = c.newHTTPClient()
+	return c
+}
+
+// CertificateAuthority sets the certificate authority to use for TLS verification.
+func CertificateAuthority(path string) ClientOption {
+	return func(c *Client) {
+		c.certificateAuthority = path
+	}
+}
+
+// TLSSkipVerify disables TLS certificate verification (e.g. for local HTTPS registries).
+func TLSSkipVerify() ClientOption {
+	return func(c *Client) {
+		c.tlsSkipVerify = true
+	}
+}
+
+func (c *Client) newHTTPClient() (*http.Client, error) {
+	client := &http.Client{}
+	if c.tlsSkipVerify {
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+	} else if c.certificateAuthority != "" {
+		rootCAs, err := certs.SystemPoolWithCACertificate(c.certificateAuthority)
+		if err != nil {
+			return nil, fmt.Errorf("reading CA certificate: %w", err)
+		}
+		client.Transport = &http.Transport{
+			TLSClientConfig: &tls.Config{RootCAs: rootCAs},
+		}
+	}
+	return client, nil
 }
 
 func (c *Client) get(resourcePath string) (int, []byte, error) {
@@ -50,7 +93,10 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 		return 0, nil, fmt.Errorf("could not create request to Package Registry API resource: %s: %w", resourcePath, err)
 	}
 
-	client := http.Client{}
+	client := c.httpClient
+	if client == nil {
+		client = &http.Client{}
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return 0, nil, fmt.Errorf("could not send request to Package Registry API: %w", err)
