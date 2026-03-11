@@ -13,3 +13,12 @@ var RevisionPrompt string
 
 //go:embed section_generation_prompt.txt
 var SectionGenerationPrompt string
+
+//go:embed critical_formatting_rules.txt
+var CriticalFormattingRules string
+
+//go:embed critic_rejection_criteria.txt
+var CriticRejectionCriteria string
+
+//go:embed full_formatting_rules.txt
+var FullFormattingRules string

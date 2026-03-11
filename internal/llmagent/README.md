@@ -113,11 +113,13 @@ Prompt templates and loading. Templates use `%s`/`%d` placeholders; **promptsbui
 
 | File | Description |
 |------|-------------|
-| `resources.go` | Embedded prompt files. |
+| `resources.go` | Embedded prompt and style rule files: **RevisionPrompt**, **SectionGenerationPrompt**, **CriticalFormattingRules**, **CriticRejectionCriteria**, **FullFormattingRules**. |
 | `loader.go` | **Load** by type; returns embedded prompt content. **ValidatorOutputSuffix**: shared JSON output format for validators. |
-| `stylerules.go` | **CriticalFormattingRules**, **FullFormattingRules**, **CriticRejectionCriteria** (lists, headings, links, code blocks, voice). |
 | `section_generation_prompt.txt` | Section generation prompt template. |
 | `revision_prompt.txt` | Revision prompt template. |
+| `critical_formatting_rules.txt` | Condensed formatting reminders for user prompts. |
+| `critic_rejection_criteria.txt` | Criteria for the critic to reject content. |
+| `full_formatting_rules.txt` | Full formatting guidance for LLM system prompts. |
 
 ### `/docagent/agents`
 
