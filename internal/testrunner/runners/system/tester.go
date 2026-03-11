@@ -1830,7 +1830,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 
 		// Write sample events file from first doc, if requested
-		if err := r.generateTestResultFile(docs, *specVersion); err != nil {
+		if err := r.generateTestResultFile(docs, *specVersion, sds, len(scenario.dataStreams) > 1); err != nil {
 			return result.WithError(err)
 		}
 
@@ -1938,7 +1938,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
-		err := dumpScenarioDocs(scenario.dataStreams[0].docs)
+		err := dumpScenarioDocs(scenario.dataStreams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
 		}
@@ -1960,7 +1960,12 @@ func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool 
 	return true
 }
 
-func dumpScenarioDocs(docs any) error {
+func dumpScenarioDocs(dataStreams []scenarioDataStream) error {
+	allDocs := make(map[string][]common.MapStr, len(dataStreams))
+	for _, sds := range dataStreams {
+		allDocs[sds.dataStream] = sds.docs
+	}
+
 	timestamp := time.Now().Format("20060102150405")
 	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
 	f, err := os.Create(path)
@@ -1974,7 +1979,7 @@ func dumpScenarioDocs(docs any) error {
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(docs); err != nil {
+	if err := enc.Encode(allDocs); err != nil {
 		return fmt.Errorf("failed to encode docs: %w", err)
 	}
 	return nil
@@ -2280,14 +2285,14 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 	return filtered
 }
 
-func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version) error {
+func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version, filename string) error {
 	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
 	body, err := jsonFormatter.Encode(doc)
 	if err != nil {
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
+	err = os.WriteFile(filepath.Join(path, filename), append(body, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
@@ -2443,7 +2448,7 @@ func assertHitCount(expected int, docs []common.MapStr) (pass bool, message stri
 	return true, ""
 }
 
-func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version) error {
+func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version, sds scenarioDataStream, qualifyByType bool) error {
 	if !r.generateTestResult {
 		return nil
 	}
@@ -2453,7 +2458,18 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
-	if err := writeSampleEvent(rootPath, docs[0], specVersion); err != nil {
+	filename := "sample_event.json"
+	if qualifyByType {
+		// For dynamic_signal_types packages, qualify the filename by signal type
+		// (e.g. "logs-sqlserverreceiver.otel-default" → "sample_event.logs.json").
+		signalType := sds.dataStream
+		if idx := strings.Index(signalType, "-"); idx >= 0 {
+			signalType = signalType[:idx]
+		}
+		filename = fmt.Sprintf("sample_event.%s.json", signalType)
+	}
+
+	if err := writeSampleEvent(rootPath, docs[0], specVersion, filename); err != nil {
 		return fmt.Errorf("failed to write sample event file: %w", err)
 	}
 
