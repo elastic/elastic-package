@@ -27,9 +27,25 @@ requires:
 
 - Optionally, a running local package registry that serves the required input packages.
 
-## Option 1: Configure the registry URL globally
+## Option 1: Use the built-in stack registry (recommended)
 
-Edit `~/.elastic-package/config.yml` and set `package_registry.base_url` to your registry URL:
+`elastic-package stack up` (with the default compose provider) automatically starts a local
+package registry that serves all packages found under the `build/packages/` directory. You can
+use this registry to serve locally-built input packages without running any additional
+infrastructure.
+
+```shell
+# 1. Build the required input package — this places the built package under build/packages/
+cd /path/to/sql_input
+elastic-package build
+
+# 2. Start the Elastic Stack — the bundled registry picks up build/packages/ automatically
+cd /path/to/your/integration
+elastic-package stack up -v -d
+```
+
+Then configure `~/.elastic-package/config.yml` to use the stack's local registry for
+`elastic-package build` and `elastic-package install`:
 
 ```yaml
 package_registry:
@@ -44,26 +60,25 @@ This setting is read by `elastic-package build`, `elastic-package install`, and
 > itself uses (served by `elastic-package stack`). To also redirect the stack, see
 > [Option 2](#option-2-configure-the-registry-url-per-profile) below.
 
-### Running a local package registry
+### Alternative: standalone package registry container
 
-To serve local packages, you can use the
-[Elastic Package Registry](https://github.com/elastic/package-registry) with the
-`--packages-path` flag pointing at a directory containing your built packages:
+If you are not running `elastic-package stack`, you can start a standalone registry container.
+Use a port other than `8080` to avoid conflicting with the stack's built-in registry:
 
 ```shell
 # Build your input package first
 cd /path/to/sql_input
 elastic-package build
 
-# Start a local registry serving the build/ directory
-docker run --rm -p 8080:8080 \
+# Start a standalone registry on port 8081
+docker run --rm -p 8081:8080 \
   -v /path/to/build/packages:/packages/package \
   docker.elastic.co/package-registry/distribution:latest \
   /package-registry serve --packages-path /packages
 ```
 
-With a registry running at `http://localhost:8080`, set `package_registry.base_url` as shown
-above and run `elastic-package build` from your integration package directory.
+Then point `package_registry.base_url` at `http://localhost:8081` and run
+`elastic-package build` from your integration package directory.
 
 ## Option 2: Configure the registry URL per profile
 

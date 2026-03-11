@@ -15,9 +15,10 @@ Elastic Packages support two kinds of build-time dependency:
 
 - **Field dependencies** — import field definitions from external schemas (e.g. ECS) using
   `_dev/build/build.yml`. Resolved from Git references and cached locally.
-- **Package dependencies** — composable (integration) packages can depend on **input packages**
-  declared under `requires.input` in `manifest.yml`. Resolved at build time by downloading from
-  the package registry.
+- **Package dependencies** — composable (integration) packages can depend on input and content packages
+  declared under `requires` in `manifest.yml`. **Input package** dependencies are resolved
+  at build time by downloading from the package registry. **Content package** dependencies are
+  resolved at runtime by Fleet.
 
 Both are described in the sections below.
 
@@ -98,8 +99,10 @@ and use a following field definition:
 
 ## Composable packages and the package registry
 
-Composable (integration) packages can also depend on other packages — specifically **input
-packages** — by declaring them under `requires.input` in `manifest.yml`:
+Composable (integration) packages can also depend on input or content packages by declaring them under
+`requires` in `manifest.yml`. Depending on the package type, dependencies are resolved
+differently: **input package** dependencies are fetched at build time; **content package**
+dependencies are resolved at runtime by Fleet.
 
 ```yaml
 requires:
