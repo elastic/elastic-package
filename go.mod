@@ -17,8 +17,8 @@ require (
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
-	github.com/elastic/go-ucfg v0.8.8
-	github.com/elastic/package-spec/v3 v3.5.7
+	github.com/elastic/go-ucfg v0.9.1
+	github.com/elastic/package-spec/v3 v3.5.8
 	github.com/fatih/color v1.18.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
@@ -29,7 +29,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/jedib0t/go-pretty v4.3.0+incompatible
-	github.com/magefile/mage v1.15.0
+	github.com/magefile/mage v1.16.0
 	github.com/maxmind/mmdbwriter v1.2.0
 	github.com/olekukonko/tablewriter v1.1.3
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
@@ -39,7 +39,7 @@ require (
 	github.com/spf13/pflag v1.0.10
 	github.com/stretchr/testify v1.11.1
 	go.opentelemetry.io/otel/trace v1.38.0
-	go.yaml.in/yaml/v2 v2.4.3
+	go.yaml.in/yaml/v2 v2.4.4
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
 	golang.org/x/tools v0.42.0
 	google.golang.org/adk v0.2.0

@@ -1267,7 +1267,10 @@ func Test_IsAllowedIPValue(t *testing.T) {
 
 func pathsForValidator(t *testing.T, packagesDir, packageName, dataStream string) (*os.Root, string, string) {
 	t.Helper()
-	repositoryRoot, err := os.OpenRoot(filepath.Join("..", "..", "test"))
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	repositoryRootPath := filepath.Clean(filepath.Join(wd, "..", "..", "test"))
+	repositoryRoot, err := os.OpenRoot(repositoryRootPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { repositoryRoot.Close() })
 	packageRoot := filepath.Join(repositoryRoot.Name(), "packages", packagesDir, packageName)
@@ -1281,10 +1284,13 @@ func pathsForValidator(t *testing.T, packagesDir, packageName, dataStream string
 
 func createValidatorForTestdata(t *testing.T, opts ...ValidatorOption) *Validator {
 	t.Helper()
-	repositoryRoot, err := os.OpenRoot("testdata")
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	repositoryRootPath := filepath.Join(wd, "testdata")
+	repositoryRoot, err := os.OpenRoot(repositoryRootPath)
 	require.NoError(t, err)
 	t.Cleanup(func() { repositoryRoot.Close() })
-	v, err := CreateValidator(repositoryRoot, "testdata", filepath.Join("testdata", "fields"), opts...)
+	v, err := CreateValidator(repositoryRoot, "testdata", filepath.Join(repositoryRoot.Name(), "fields"), opts...)
 	require.NoError(t, err)
 	require.NotNil(t, v)
 	return v
