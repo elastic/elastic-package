@@ -1,3 +1,7 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
 package requiredinputs
 
 import (
@@ -44,16 +48,17 @@ func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manif
 			paths := make([]string, 0)
 			if input.TemplatePath != "" {
 				// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
-				paths = append(inputPaths, input.TemplatePath)
+				paths = append(paths, input.TemplatePath)
 			} else if len(input.TemplatePaths) > 0 {
-				paths = append(inputPaths, input.TemplatePaths...)
+				paths = append(paths, input.TemplatePaths...)
 			} else if input.TemplatePath == "" {
 				// default input.yml.hbs
 				defaultTemplateFile := "input.yml.hbs"
 				if _, err := r.buildRoot.ReadFile(filepath.Join("agent", "input", defaultTemplateFile)); err == nil {
-					paths = append(inputPaths, defaultTemplateFile)
+					paths = append(paths, defaultTemplateFile)
 				}
 			}
+			paths = append(inputPaths, paths...)
 
 			if err := setInputPolicyTemplateTemplatePaths(&doc, ptIdx, inputIdx, paths); err != nil {
 				return fmt.Errorf("updating policy template manifest with input package templates: %w", err)

@@ -158,7 +158,6 @@ type Requires struct {
 // directory during development and testing.
 type RequiresOverride struct {
 	Package string `config:"package" json:"package" yaml:"package"`
-	Version string `config:"version,omitempty" json:"version,omitempty" yaml:"version,omitempty"`
 	Source  string `config:"source,omitempty" json:"source,omitempty" yaml:"source,omitempty"`
 }
 

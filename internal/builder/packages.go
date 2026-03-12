@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -235,7 +236,12 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	err = bundleInputPackageTemplates(options.PackageRoot, buildPackageRoot, options.RegistryClient, options.RequiresOverrides)
+	depResolver, err := requiredinputs.NewInputRequiredResolver(options.RegistryClient, buildPackageRoot)
+	if err != nil {
+		return "", fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
+	err = depResolver.BundleInputPackageTemplates()
 	if err != nil {
 		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}

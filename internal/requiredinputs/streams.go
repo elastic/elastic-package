@@ -10,9 +10,10 @@ import (
 	"io/fs"
 	"path/filepath"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"gopkg.in/yaml.v3"
 )
 
 func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[string]string) error {
