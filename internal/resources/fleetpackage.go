@@ -38,10 +38,6 @@ type FleetPackage struct {
 	// Force forces operations, as reinstalling a package that seems to
 	// be already installed.
 	Force bool
-
-	// RequiresOverrides holds pre-merged requires overrides for input
-	// packages. Only set during test builds.
-	RequiresOverrides map[string]packages.RequiresOverride
 }
 
 func (f *FleetPackage) String() string {
@@ -68,12 +64,11 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 	}
 
 	return installer.NewForPackage(installer.Options{
-		Kibana:            provider.Client,
-		PackageRoot:       f.PackageRoot,
-		SkipValidation:    true,
-		RepositoryRoot:    f.RepositoryRoot,
-		SchemaURLs:        f.SchemaURLs,
-		RequiresOverrides: f.RequiresOverrides,
+		Kibana:         provider.Client,
+		PackageRoot:    f.PackageRoot,
+		SkipValidation: true,
+		RepositoryRoot: f.RepositoryRoot,
+		SchemaURLs:     f.SchemaURLs,
 	})
 }
 

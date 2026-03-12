@@ -153,14 +153,6 @@ type Requires struct {
 	Content []PackageDependency `config:"content,omitempty" json:"content,omitempty" yaml:"content,omitempty"`
 }
 
-// RequiresOverride represents a single entry in the _dev/test/config.yml
-// "requires" list, allowing developers to pin a version or point to a local
-// directory during development and testing.
-type RequiresOverride struct {
-	Package string `config:"package" json:"package" yaml:"package"`
-	Source  string `config:"source,omitempty" json:"source,omitempty" yaml:"source,omitempty"`
-}
-
 // Source contains metadata about the source code of the package.
 type Source struct {
 	License string `config:"license" json:"license" yaml:"license"`

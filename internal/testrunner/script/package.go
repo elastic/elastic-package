@@ -61,17 +61,14 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
-	overrides, _ := ts.Value(requiresOverridesTag{}).(map[string]packages.RequiresOverride)
-
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRoot:       pkgRoot,
-		Absent:            false,
-		Force:             true,
-		RepositoryRoot:    root,
-		SchemaURLs:        fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
-		RequiresOverrides: overrides,
+		PackageRoot:    pkgRoot,
+		Absent:         false,
+		Force:          true,
+		RepositoryRoot: root,
+		SchemaURLs:     fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 

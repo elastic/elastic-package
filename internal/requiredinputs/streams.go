@@ -58,20 +58,21 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 				continue
 			}
 
-			// current manifest template paths
-			paths := make([]string, 0)
-			if stream.TemplatePath != "" {
-				// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
-				paths = append(inputPaths, stream.TemplatePath)
-			} else if len(stream.TemplatePaths) > 0 {
-				paths = append(inputPaths, stream.TemplatePaths...)
-			} else if stream.TemplatePath == "" {
-				// default stream.yml.hbs
-				defaultTemplateFile := "stream.yml.hbs"
-				if _, err := r.buildRoot.ReadFile(filepath.Join(dsRootDir, "agent", "stream", defaultTemplateFile)); err == nil {
-					paths = append(inputPaths, defaultTemplateFile)
-				}
+		// current manifest template paths
+		paths := make([]string, 0)
+		if stream.TemplatePath != "" {
+			// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
+			paths = append(paths, stream.TemplatePath)
+		} else if len(stream.TemplatePaths) > 0 {
+			paths = append(paths, stream.TemplatePaths...)
+		} else if stream.TemplatePath == "" {
+			// default stream.yml.hbs
+			defaultTemplateFile := "stream.yml.hbs"
+			if _, err := r.buildRoot.ReadFile(filepath.Join(dsRootDir, "agent", "stream", defaultTemplateFile)); err == nil {
+				paths = append(paths, defaultTemplateFile)
 			}
+		}
+		paths = append(inputPaths, paths...)
 
 			if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
 				return fmt.Errorf("setting stream template paths in manifest %q: %w", manifestPath, err)
@@ -88,7 +89,6 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 			return fmt.Errorf("writing updated manifest: %w", err)
 		}
 
-		return nil
 	}
 	return errors.Join(errorList...)
 }

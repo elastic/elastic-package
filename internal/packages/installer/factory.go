@@ -36,14 +36,13 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana            *kibana.Client
-	PackageRoot       string // Root path of the package to be installed.
-	ZipPath           string
-	SkipValidation    bool
-	RepositoryRoot    *os.Root // Root of the repository where package source code is located.
-	SchemaURLs        fields.SchemaURLs
-	RegistryClient    *registry.Client                     // Registry client for downloading input packages.
-	RequiresOverrides map[string]packages.RequiresOverride // Pre-merged requires overrides (test builds only).
+	Kibana         *kibana.Client
+	PackageRoot    string // Root path of the package to be installed.
+	ZipPath        string
+	SkipValidation bool
+	RepositoryRoot *os.Root // Root of the repository where package source code is located.
+	SchemaURLs     fields.SchemaURLs
+	RegistryClient *registry.Client // Registry client for downloading input packages.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -91,15 +90,14 @@ func NewForPackage(options Options) (Installer, error) {
 	}
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:       options.PackageRoot,
-		CreateZip:         supportsUploadZip,
-		SignPackage:       false,
-		SkipValidation:    options.SkipValidation,
-		RepositoryRoot:    options.RepositoryRoot,
-		UpdateReadmes:     false,
-		SchemaURLs:        options.SchemaURLs,
-		RegistryClient:    options.RegistryClient,
-		RequiresOverrides: options.RequiresOverrides,
+		PackageRoot:    options.PackageRoot,
+		CreateZip:      supportsUploadZip,
+		SignPackage:    false,
+		SkipValidation: options.SkipValidation,
+		RepositoryRoot: options.RepositoryRoot,
+		UpdateReadmes:  false,
+		SchemaURLs:     options.SchemaURLs,
+		RegistryClient: options.RegistryClient,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)
