@@ -19,35 +19,110 @@ func (d *DocumentationAgent) buildPrompt(promptType PromptType, ctx PromptContex
 	switch promptType {
 	case PromptTypeRevision:
 		promptContent = prompts.Load(prompts.TypeRevision)
-		formatArgs = d.buildRevisionPromptArgs(ctx)
+		formatArgs = d.buildRevisionPromptArgs(ctx).ToFormatArgs()
 	case PromptTypeSectionGeneration:
 		promptContent = prompts.Load(prompts.TypeSectionGeneration)
-		formatArgs = d.buildSectionGenerationPromptArgs(ctx)
+		formatArgs = d.buildSectionGenerationPromptArgs(ctx).ToFormatArgs()
 	}
 
 	return fmt.Sprintf(promptContent, formatArgs...)
 }
 
-// buildRevisionPromptArgs prepares arguments for revision prompt
-func (d *DocumentationAgent) buildRevisionPromptArgs(ctx PromptContext) []interface{} {
+// RevisionPromptArgs holds arguments for the revision prompt template.
+type RevisionPromptArgs struct {
+	TargetDocFile      string
+	Manifest           *packages.PackageManifest
+	FileRestriction    string
+	ReadCurrentContent string
+	ToolUsageGuideline string
+	Step1              string
+	Step7              string
+	Changes            string
+}
+
+// ToFormatArgs returns the slice of values in the order expected by the revision prompt format string.
+func (r RevisionPromptArgs) ToFormatArgs() []interface{} {
+	m := r.Manifest
+	name, title, pkgType, version, desc := "", "", "", "", ""
+	if m != nil {
+		name, title, pkgType, version, desc = m.Name, m.Title, m.Type, m.Version, m.Description
+	}
 	return []interface{}{
-		ctx.TargetDocFile, // target documentation file label
-		ctx.Manifest.Name,
-		ctx.Manifest.Title,
-		ctx.Manifest.Type,
-		ctx.Manifest.Version,
-		ctx.Manifest.Description,
-		ctx.TargetDocFile, // file restriction directive
-		ctx.TargetDocFile, // read current content directive
-		ctx.TargetDocFile, // tool usage guideline
-		ctx.TargetDocFile, // step 1 - read current file
-		ctx.TargetDocFile, // step 7 - write documentation
-		ctx.Changes,       // user-requested changes
+		r.TargetDocFile,
+		name, title, pkgType, version, desc,
+		r.FileRestriction,
+		r.ReadCurrentContent,
+		r.ToolUsageGuideline,
+		r.Step1,
+		r.Step7,
+		r.Changes,
+	}
+}
+
+// buildRevisionPromptArgs prepares arguments for revision prompt
+func (d *DocumentationAgent) buildRevisionPromptArgs(ctx PromptContext) RevisionPromptArgs {
+	return RevisionPromptArgs{
+		TargetDocFile:      ctx.TargetDocFile,
+		Manifest:           ctx.Manifest,
+		FileRestriction:    ctx.TargetDocFile,
+		ReadCurrentContent: ctx.TargetDocFile,
+		ToolUsageGuideline: ctx.TargetDocFile,
+		Step1:              ctx.TargetDocFile,
+		Step7:              ctx.TargetDocFile,
+		Changes:            ctx.Changes,
+	}
+}
+
+// SectionGenerationPromptArgs holds arguments for the section generation prompt template.
+type SectionGenerationPromptArgs struct {
+	SectionTitle           string
+	SectionLevel           int
+	TargetDocFile          string
+	LevelName              string
+	LevelPrefix            string
+	Manifest               *packages.PackageManifest
+	GetExampleSection      string
+	GetServiceInfoSection  string
+	TemplateSection        string
+	SectionInstructions    string
+	Step1GetExampleSection string
+	Step3GetServiceInfo    string
+	Step4LevelPrefix       string
+	Step4SectionTitle      string
+	Step5LevelPrefix       string
+	Step5SectionTitle      string
+}
+
+// ToFormatArgs returns the slice of values in the order expected by the section generation prompt format string.
+func (s SectionGenerationPromptArgs) ToFormatArgs() []interface{} {
+	m := s.Manifest
+	name, title, pkgType, version, desc := "", "", "", "", ""
+	if m != nil {
+		name, title, pkgType, version, desc = m.Name, m.Title, m.Type, m.Version, m.Description
+	}
+	return []interface{}{
+		s.SectionTitle,
+		s.SectionLevel,
+		s.TargetDocFile,
+		s.SectionTitle,
+		s.LevelName,
+		s.LevelPrefix,
+		name, title, pkgType, version, desc,
+		s.GetExampleSection,
+		s.GetServiceInfoSection,
+		s.TemplateSection,
+		s.SectionInstructions,
+		s.Step1GetExampleSection,
+		s.Step3GetServiceInfo,
+		s.Step4LevelPrefix,
+		s.Step4SectionTitle,
+		s.Step5LevelPrefix,
+		s.Step5SectionTitle,
 	}
 }
 
 // buildSectionGenerationPromptArgs prepares arguments for section generation prompt
-func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext) []interface{} {
+func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext) SectionGenerationPromptArgs {
 	levelStr := "##"
 	if ctx.SectionLevel == 3 {
 		levelStr = "###"
@@ -57,34 +132,28 @@ func (d *DocumentationAgent) buildSectionGenerationPromptArgs(ctx PromptContext)
 		levelName = "Level 3"
 	}
 
-	// Get section-specific instructions
 	sectionInstructions := getSectionInstructions(ctx.SectionTitle, ctx.PackageContext)
 	if sectionInstructions != "" {
 		sectionInstructions = fmt.Sprintf("\nSECTION-SPECIFIC REQUIREMENTS:\n%s\n\n", sectionInstructions)
 	}
 
-	return []interface{}{
-		ctx.SectionTitle,         // section title in task description
-		ctx.SectionLevel,         // section level number
-		ctx.TargetDocFile,        // target file name
-		ctx.SectionTitle,         // section title (repeated)
-		levelName,                // level name (Level 2 or Level 3)
-		levelStr,                 // level prefix (## or ###)
-		ctx.Manifest.Name,        // package name
-		ctx.Manifest.Title,       // package title
-		ctx.Manifest.Type,        // package type
-		ctx.Manifest.Version,     // package version
-		ctx.Manifest.Description, // package description
-		ctx.SectionTitle,         // section title for get_example in tool guidelines
-		ctx.SectionTitle,         // section title for get_service_info in tool guidelines
-		ctx.TemplateSection,      // template section content
-		sectionInstructions,      // section-specific instructions
-		ctx.SectionTitle,         // section title for get_example in step 1
-		ctx.SectionTitle,         // section title for get_service_info in step 3
-		levelStr,                 // level prefix for step 4
-		ctx.SectionTitle,         // section title for step 4
-		levelStr,                 // level prefix for step 5
-		ctx.SectionTitle,         // section title for step 5
+	return SectionGenerationPromptArgs{
+		SectionTitle:           ctx.SectionTitle,
+		SectionLevel:           ctx.SectionLevel,
+		TargetDocFile:          ctx.TargetDocFile,
+		LevelName:              levelName,
+		LevelPrefix:            levelStr,
+		Manifest:               ctx.Manifest,
+		GetExampleSection:      ctx.SectionTitle,
+		GetServiceInfoSection:  ctx.SectionTitle,
+		TemplateSection:        ctx.TemplateSection,
+		SectionInstructions:    sectionInstructions,
+		Step1GetExampleSection: ctx.SectionTitle,
+		Step3GetServiceInfo:    ctx.SectionTitle,
+		Step4LevelPrefix:       levelStr,
+		Step4SectionTitle:      ctx.SectionTitle,
+		Step5LevelPrefix:       levelStr,
+		Step5SectionTitle:      ctx.SectionTitle,
 	}
 }
 

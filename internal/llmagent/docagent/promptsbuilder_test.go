@@ -37,11 +37,17 @@ func TestBuildRevisionPromptArgs(t *testing.T) {
 
 	args := agent.buildRevisionPromptArgs(ctx)
 
-	// Should have 12 arguments (based on the implementation)
-	assert.Len(t, args, 12)
-	assert.Equal(t, "docs/README.md", args[0])
-	assert.Equal(t, "test-package", args[1])
-	assert.Equal(t, "Add more examples", args[11])
+	assert.Equal(t, "docs/README.md", args.TargetDocFile)
+	assert.Equal(t, "docs/README.md", args.FileRestriction)
+	assert.Equal(t, "Add more examples", args.Changes)
+	if assert.NotNil(t, args.Manifest) {
+		assert.Equal(t, "test-package", args.Manifest.Name)
+	}
+	formatArgs := args.ToFormatArgs()
+	assert.Len(t, formatArgs, 12)
+	assert.Equal(t, "docs/README.md", formatArgs[0])
+	assert.Equal(t, "test-package", formatArgs[1])
+	assert.Equal(t, "Add more examples", formatArgs[11])
 }
 
 func TestBuildPrompt(t *testing.T) {
