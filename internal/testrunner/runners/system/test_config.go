@@ -79,6 +79,10 @@ type testConfig struct {
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
 
+	// SignalTypes restricts dynamic_signal_types discovery to the listed signal type prefixes
+	// (e.g. ["logs", "metrics"]). When empty, all discovered streams are used.
+	SignalTypes []string `config:"signal_types"`
+
 	// Agent related properties
 	Agent struct {
 		agentdeployer.AgentSettings `config:",inline"`

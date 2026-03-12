@@ -1046,6 +1046,15 @@ type discoveredDataStream struct {
 
 // discoverDataStreams queries ES for all data streams matching the given wildcard pattern.
 // The caller is responsible for constructing the pattern, e.g. "*-{dataset}-{namespace}".
+// dataStreamDataType returns the data type prefix of a data stream name —
+// the segment before the first "-" (e.g. "logs" from "logs-sqlserverreceiver.otel-default").
+func dataStreamDataType(name string) string {
+	if idx := strings.Index(name, "-"); idx >= 0 {
+		return name[:idx]
+	}
+	return name
+}
+
 func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]discoveredDataStream, error) {
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
@@ -1083,9 +1092,8 @@ func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]dis
 	return result, nil
 }
 
-// waitUntilAnyDataStream polls discoverDataStreams until at least one matching data stream
-// appears in ES, or the waitForDataTimeout is reached. This bridges the gap between policy
-// assignment and the OTel agent starting to index into the discovered streams.
+// waitUntilAnyDataStream polls discoverDataStreams with the given wildcard pattern until at least
+// one stream appears, or the waitForDataTimeout is reached.
 func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
@@ -1100,11 +1108,11 @@ func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig,
 		if err != nil {
 			return false, err
 		}
-		if len(streams) > 0 {
-			discovered = streams
-			return true, nil
+		if len(streams) == 0 {
+			return false, nil
 		}
-		return false, nil
+		discovered = streams
+		return true, nil
 	}, 1*time.Second, waitForDataTimeout)
 
 	if waitErr != nil {
@@ -1322,20 +1330,30 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	if policyTemplate.DynamicSignalTypes {
-		// For dynamic_signal_types packages Fleet creates one data stream per signal type
-		// (e.g. logs, metrics). Discover them from ES since the names aren't known ahead of time.
+	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
+		// signal_types is explicit — build stream names directly without discovery.
 		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
-		discovered, err := r.waitUntilAnyDataStream(ctx, config, fmt.Sprintf("*-%s-%s", datasetPattern, policy.Namespace))
+		scenario.dataStreams = make([]scenarioDataStream, len(config.SignalTypes))
+		for i, st := range config.SignalTypes {
+			scenario.dataStreams[i] = scenarioDataStream{
+				dataStream:        fmt.Sprintf("%s-%s-%s", st, datasetPattern, policy.Namespace),
+				indexTemplateName: fmt.Sprintf("%s-%s", st, datasetPattern),
+			}
+		}
+	} else if policyTemplate.DynamicSignalTypes {
+		// No explicit signal_types — discover whatever Fleet produces from ES.
+		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
+		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, policy.Namespace)
+		discovered, err := r.waitUntilAnyDataStream(ctx, config, pattern)
 		if err != nil {
 			return nil, err
 		}
-		scenario.dataStreams = make([]scenarioDataStream, 0, len(discovered))
-		for _, dsd := range discovered {
-			scenario.dataStreams = append(scenario.dataStreams, scenarioDataStream{
+		scenario.dataStreams = make([]scenarioDataStream, len(discovered))
+		for i, dsd := range discovered {
+			scenario.dataStreams[i] = scenarioDataStream{
 				dataStream:        dsd.name,
 				indexTemplateName: dsd.indexTemplate,
-			})
+			}
 		}
 	} else {
 		scenario.dataStreams = []scenarioDataStream{{
@@ -2462,11 +2480,7 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 	if qualifyByType {
 		// For dynamic_signal_types packages, qualify the filename by signal type
 		// (e.g. "logs-sqlserverreceiver.otel-default" → "sample_event.logs.json").
-		signalType := sds.dataStream
-		if idx := strings.Index(signalType, "-"); idx >= 0 {
-			signalType = signalType[:idx]
-		}
-		filename = fmt.Sprintf("sample_event.%s.json", signalType)
+		filename = fmt.Sprintf("sample_event.%s.json", dataStreamDataType(sds.dataStream))
 	}
 
 	if err := writeSampleEvent(rootPath, docs[0], specVersion, filename); err != nil {
