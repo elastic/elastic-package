@@ -685,6 +685,20 @@ func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
 	return &m, nil
 }
 
+func ReadDataStreamManifestBytes(contents []byte) (*DataStreamManifest, error) {
+	cfg, err := yaml.NewConfig(contents, ucfg.PathSep("."))
+	if err != nil {
+		return nil, fmt.Errorf("reading manifest file failed: %w", err)
+	}
+
+	var m DataStreamManifest
+	err = cfg.Unpack(&m)
+	if err != nil {
+		return nil, fmt.Errorf("unpacking data stream manifest failed: %w", err)
+	}
+	return &m, nil
+}
+
 // ReadDataStreamManifest reads and parses the given data stream manifest file.
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
