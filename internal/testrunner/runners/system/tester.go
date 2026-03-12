@@ -1428,6 +1428,7 @@ func buildIndexTemplateName(dsType, dsDataset string) string {
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
 // when the package data stream is added to the policy.
+
 func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
 	dataset := dsDataset
 
