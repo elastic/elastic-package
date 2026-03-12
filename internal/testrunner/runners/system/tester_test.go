@@ -439,6 +439,33 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 		})
 	}
 }
+func TestDiscoverDataStreams(t *testing.T) {
+	const pattern = "*-foo.bar-default"
+
+	t.Run("happy path returns two streams", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-found", nil)
+		r := &tester{esAPI: client.API}
+
+		streams, err := r.discoverDataStreams(t.Context(), pattern)
+		require.NoError(t, err)
+		require.Len(t, streams, 2)
+
+		assert.Equal(t, "logs-foo.bar-default", streams[0].name)
+		assert.Equal(t, "logs-foo.bar", streams[0].indexTemplate)
+
+		assert.Equal(t, "metrics-foo.bar-default", streams[1].name)
+		assert.Equal(t, "metrics-foo.bar", streams[1].indexTemplate)
+	})
+
+	t.Run("404 returns empty slice with no error", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-notfound", nil)
+		r := &tester{esAPI: client.API}
+
+		streams, err := r.discoverDataStreams(t.Context(), pattern)
+		require.NoError(t, err)
+		assert.Empty(t, streams)
+	})
+}
 
 func TestPipelineErrorMessage(t *testing.T) {
 	testCases := []struct {
