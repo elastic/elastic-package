@@ -18,6 +18,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -464,6 +465,69 @@ func TestDiscoverDataStreams(t *testing.T) {
 		streams, err := r.discoverDataStreams(t.Context(), pattern)
 		require.NoError(t, err)
 		assert.Empty(t, streams)
+	})
+}
+
+func TestBuildDataStreamScenarios(t *testing.T) {
+	makeDS := func(dsType, dataset, namespace string) kibana.PackageDataStream {
+		return kibana.PackageDataStream{
+			Namespace: namespace,
+			Inputs: []kibana.Input{{
+				Streams: []kibana.Stream{{
+					DataStream: kibana.DataStream{
+						Type:    dsType,
+						Dataset: dataset,
+					},
+				}},
+			}},
+		}
+	}
+
+	t.Run("standard single stream derived from PackageDataStream", func(t *testing.T) {
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}
+		ds := makeDS("logs", "foo.bar", "default")
+		pt := packages.PolicyTemplate{Name: "bar"}
+		cfg := &testConfig{}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), ds, pt, cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "logs-foo.bar-default", got[0].dataStream)
+		assert.Equal(t, "logs-foo.bar", got[0].indexTemplateName)
+	})
+
+	t.Run("explicit signal_types produce one entry per type", func(t *testing.T) {
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "input"}}
+		ds := makeDS("logs", "", "default")
+		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
+		cfg := &testConfig{SignalTypes: []string{"logs", "metrics"}}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), ds, pt, cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "logs-myreceiver.otel-default", got[0].dataStream)
+		assert.Equal(t, "logs-myreceiver", got[0].indexTemplateName)
+		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
+		assert.Equal(t, "metrics-myreceiver", got[1].indexTemplateName)
+	})
+
+	t.Run("discovery path returns streams from ES", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-otel-found", nil)
+		r := &tester{
+			pkgManifest: &packages.PackageManifest{Type: "input"},
+			esAPI:       client.API,
+		}
+		ds := makeDS("logs", "", "default")
+		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
+		cfg := &testConfig{}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), ds, pt, cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "logs-myreceiver.otel-default", got[0].dataStream)
+		assert.Equal(t, "logs-myreceiver.otel", got[0].indexTemplateName)
+		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
+		assert.Equal(t, "metrics-myreceiver.otel", got[1].indexTemplateName)
 	})
 }
 
