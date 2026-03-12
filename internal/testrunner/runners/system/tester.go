@@ -1330,36 +1330,9 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
-		// signal_types is explicit — build stream names directly without discovery.
-		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
-		scenario.dataStreams = make([]scenarioDataStream, len(config.SignalTypes))
-		for i, st := range config.SignalTypes {
-			scenario.dataStreams[i] = scenarioDataStream{
-				dataStream:        fmt.Sprintf("%s-%s-%s", st, datasetPattern, policy.Namespace),
-				indexTemplateName: fmt.Sprintf("%s-%s", st, datasetPattern),
-			}
-		}
-	} else if policyTemplate.DynamicSignalTypes {
-		// No explicit signal_types — discover whatever Fleet produces from ES.
-		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
-		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, policy.Namespace)
-		discovered, err := r.waitUntilAnyDataStream(ctx, config, pattern)
-		if err != nil {
-			return nil, err
-		}
-		scenario.dataStreams = make([]scenarioDataStream, len(discovered))
-		for i, dsd := range discovered {
-			scenario.dataStreams[i] = scenarioDataStream{
-				dataStream:        dsd.name,
-				indexTemplateName: dsd.indexTemplate,
-			}
-		}
-	} else {
-		scenario.dataStreams = []scenarioDataStream{{
-			dataStream:        BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type),
-			indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
-		}}
+	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
+	if err != nil {
+		return nil, err
 	}
 
 	for i, sds := range scenario.dataStreams {
@@ -1420,8 +1393,46 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	return &scenario, nil
 }
 
+// buildDataStreamScenarios determines the set of data streams to test for a given scenario.
+// When policyTemplate.DynamicSignalTypes is true and config.SignalTypes is set, stream names
+// are built directly from the explicit signal types. When DynamicSignalTypes is true but
+// SignalTypes is empty, streams are discovered from Elasticsearch. Otherwise a single stream
+// is built from the dsType, dsDataset, and namespace.
+func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
+	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
+		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
+		scenarios := make([]scenarioDataStream, len(config.SignalTypes))
+		for i, st := range config.SignalTypes {
+			scenarios[i] = scenarioDataStream{
+				dataStream:        fmt.Sprintf("%s-%s-%s", st, datasetPattern, namespace),
+				indexTemplateName: fmt.Sprintf("%s-%s", st, datasetPattern),
+			}
+		}
+		return scenarios, nil
+	}
+	if policyTemplate.DynamicSignalTypes {
+		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
+		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, namespace)
+		discovered, err := r.waitUntilAnyDataStream(ctx, config, pattern)
+		if err != nil {
+			return nil, err
+		}
+		scenarios := make([]scenarioDataStream, len(discovered))
+		for i, dsd := range discovered {
+			scenarios[i] = scenarioDataStream{
+				dataStream:        dsd.name,
+				indexTemplateName: dsd.indexTemplate,
+			}
+		}
+		return scenarios, nil
+	}
+	return []scenarioDataStream{{
+		dataStream:        BuildDataStreamName(dsType, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
+		indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
+	}}, nil
+}
+
 // buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
-// when the package data stream is added to the policy.
 func buildIndexTemplateName(dsType, dsDataset string) string {
 	return fmt.Sprintf("%s-%s", dsType, dsDataset)
 }
