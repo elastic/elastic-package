@@ -781,24 +781,6 @@ func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 	return ""
 }
 
-// FindPackageInRepo searches the git repository rooted at repoRoot for a package
-// with the given name. It scans up to 4 directory levels from the repo root to
-// accommodate the common monorepo layout where packages live under a top-level
-// "packages/" directory. Returns the package root path and its manifest, or an
-// error when the package cannot be found.
-func FindPackageInRepo(repoRoot string, packageName string) (string, *PackageManifest, error) {
-	results, err := ReadAllPackageManifestsFromRepo(repoRoot, 4, "")
-	if err != nil {
-		return "", nil, fmt.Errorf("searching repository for package %q: %w", packageName, err)
-	}
-	for _, r := range results {
-		if r.Manifest.Name == packageName {
-			return r.Path, r.Manifest, nil
-		}
-	}
-	return "", nil, fmt.Errorf("package %q not found in repository", packageName)
-}
-
 // FindInputByType returns the input for the provided type.
 func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 	for _, input := range pt.Inputs {
