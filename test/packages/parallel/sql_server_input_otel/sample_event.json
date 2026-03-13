@@ -1,0 +1,79 @@
+{
+    "@timestamp": "2026-03-13T20:03:01.449Z",
+    "_metric_names_hash": "8986448896debcf6",
+    "data_stream": {
+        "dataset": "sqlserverreceiver.otel",
+        "namespace": "43256",
+        "type": "metrics"
+    },
+    "event": {
+        "agent_id_status": "missing",
+        "dataset": "sqlserverreceiver.otel",
+        "ingested": "2026-03-13T20:03:11Z"
+    },
+    "host": {
+        "name": "elastic-agent-63318",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "metrics": {
+        "sqlserver": {
+            "batch": {
+                "request": {
+                    "rate": 55
+                }
+            },
+            "lock": {
+                "wait": {
+                    "rate": 4
+                }
+            }
+        }
+    },
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-63318"
+            },
+            "os": {
+                "type": "linux"
+            },
+            "service": {
+                "instance": {
+                    "id": "svc-sql_server_input_otel:1433"
+                }
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.38.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
+        "version": "9.4.0"
+    },
+    "service": {
+        "instance": {
+            "id": "svc-sql_server_input_otel:1433"
+        },
+        "node": {
+            "name": "svc-sql_server_input_otel:1433"
+        }
+    },
+    "sqlserver": {
+        "batch": {
+            "request": {
+                "rate": 55
+            }
+        },
+        "lock": {
+            "wait": {
+                "rate": 4
+            }
+        }
+    },
+    "start_timestamp": "2026-03-13T20:03:00.311Z",
+    "unit": "{requests}/s"
+}
