@@ -534,6 +534,7 @@ for system tests.
 | policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |
 | service | string |  | Name of a specific Docker service to setup for the test. |
 | service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
+| signal_types | []string |  | For otel packages with dynamic_signal_types, this specifies which signal data streams to assert on. Otherwise all detected data streams for the dataset will be asserted against. 
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
 | skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
