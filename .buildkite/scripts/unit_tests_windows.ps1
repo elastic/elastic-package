@@ -9,15 +9,35 @@ function fixCRLF {
     git reset --quiet --hard
 }
 
-function withGolang($version) {
-    # Avoid conflicts with previous installations.
-    Remove-Item env:GOROOT
+function ensureBinPath {
+    $workDir = if ($env:WORKSPACE) { $env:WORKSPACE } else { $PWD.Path }
+    $binDir = Join-Path $workDir "bin"
+    if (-not (Test-Path $binDir)) { New-Item -ItemType Directory -Path $binDir | Out-Null }
+    $env:PATH = "$binDir;$env:PATH"
+    return $binDir
+}
 
-    Write-Host "-- Install golang $version --"
-    choco install -y golang --version $version
-    $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
-    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-    refreshenv
+function withGolang($version) {
+    Write-Host "--- Install golang (GVM)"
+    $binDir = ensureBinPath
+    $gvmExe = Join-Path $binDir "gvm-windows-amd64.exe"
+    $gvmUrl = "https://github.com/andrewkroh/gvm/releases/download/$env:SETUP_GVM_VERSION/gvm-windows-amd64.exe"
+
+    Write-Host "Installing GVM tool"
+    $maxTries = 5
+    for ($i = 1; $i -le $maxTries; $i++) {
+        try {
+            Invoke-WebRequest -Uri $gvmUrl -OutFile $gvmExe -UseBasicParsing
+            break
+        } catch {
+            if ($i -eq $maxTries) { throw }
+            Start-Sleep -Seconds 3
+        }
+    }
+
+    Write-Host "Installing Go version $version"
+    & $gvmExe --format=powershell $version | Invoke-Expression
+    $env:PATH = "$(go env GOPATH)\bin;$env:PATH"
     go version
     go env
 }
