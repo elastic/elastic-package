@@ -26,3 +26,5 @@
   name: event.type
 - external: ecs
   name: message
+- external: ecs
+  name: error.message
