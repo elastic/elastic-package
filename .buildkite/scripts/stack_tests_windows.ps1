@@ -25,9 +25,12 @@ function setupChocolateyPath() {
 
 fixCRLF
 
-withGolang $env:GO_VERSION
+# Chocolatey's refreshenv (called by withDocker/withDockerCompose) reloads PATH from the
+# registry, which wipes session-only changes made by GVM. Install Go after Chocolatey
+# packages so GVM's PATH entries are not lost.
 withDocker $env:DOCKER_VERSION
 withDockerCompose $env:DOCKER_COMPOSE_VERSION.Substring(1)
+withGolang $env:GO_VERSION
 
 Write-Host "--- Docker Info"
 docker info
