@@ -42,16 +42,16 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 			return fmt.Errorf("parsing data stream manifest %q: %w", manifestPath, err)
 		}
 		for idx, stream := range manifest.Streams {
-			if stream.PackageRef == "" {
+			if stream.Package == "" {
 				continue
 			}
-			pkgPath, ok := inputPkgPaths[stream.PackageRef]
+			pkgPath, ok := inputPkgPaths[stream.Package]
 			if !ok {
-				errorList = append(errorList, fmt.Errorf("stream in manifest %q references input package %q which is not listed in requires.input", manifestPath, stream.PackageRef))
+				errorList = append(errorList, fmt.Errorf("stream in manifest %q references input package %q which is not listed in requires.input", manifestPath, stream.Package))
 				continue
 			}
 			dsRootDir := filepath.Dir(manifestPath)
-			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.PackageRef, buildRoot)
+			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.Package, buildRoot)
 			if err != nil {
 				return fmt.Errorf("collecting and copying input package data stream templates for manifest %q: %w", manifestPath, err)
 			}

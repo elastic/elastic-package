@@ -30,14 +30,14 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 	// then update the policy template manifest to include the copied templates as template_paths
 	for ptIdx, pt := range manifest.PolicyTemplates {
 		for inputIdx, input := range pt.Inputs {
-			if input.PackageRef == "" {
+			if input.Package == "" {
 				continue
 			}
-			sourcePath, ok := inputPkgPaths[input.PackageRef]
+			sourcePath, ok := inputPkgPaths[input.Package]
 			if !ok || sourcePath == "" {
-				return fmt.Errorf("input package %q referenced by policy template %q not found", input.PackageRef, pt.Name)
+				return fmt.Errorf("input package %q referenced by policy template %q not found", input.Package, pt.Name)
 			}
-			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.PackageRef, buildRoot)
+			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.Package, buildRoot)
 			if err != nil {
 				return fmt.Errorf("collecting and copying input package policy templates: %w", err)
 			}

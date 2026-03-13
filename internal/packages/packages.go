@@ -135,7 +135,7 @@ type Variable struct {
 // Input is a single input configuration.
 type Input struct {
 	Type          string     `config:"type" json:"type" yaml:"type"`
-	PackageRef    string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
 	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
 	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
 	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
@@ -292,7 +292,7 @@ type TransformDefinition struct {
 // Stream contains information about an input stream.
 type Stream struct {
 	Input         string     `config:"input" json:"input" yaml:"input"`
-	PackageRef    string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
 	Title         string     `config:"title" json:"title" yaml:"title"`
 	Description   string     `config:"description" json:"description" yaml:"description"`
 	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
