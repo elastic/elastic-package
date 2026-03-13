@@ -14,16 +14,14 @@ conditions:
     subscription: basic
 requires:
   input:
-    - package: sql_input
-      version: "0.2.0"
+    - package: test_input_pkg
+      version: "0.1.0"
 policy_templates:
   - name: test_logs
     title: Test logs
     description: Collect test logs
-    data_streams:
-      - test_logs
     inputs:
-      - package: sql_input
+      - package: test_input_pkg
         title: Collect test logs via input package
         description: Use the test input package to collect logs
       - type: logs
