@@ -1400,12 +1400,11 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 // is built from the dsType, dsDataset, and namespace.
 func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
 	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
-		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
 		scenarios := make([]scenarioDataStream, len(config.SignalTypes))
 		for i, st := range config.SignalTypes {
 			scenarios[i] = scenarioDataStream{
-				dataStream:        fmt.Sprintf("%s-%s-%s", st, datasetPattern, namespace),
-				indexTemplateName: fmt.Sprintf("%s-%s", st, datasetPattern),
+				dataStream:        BuildDataStreamName(st, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
+				indexTemplateName: buildIndexTemplateName(st, dsDataset),
 			}
 		}
 		return scenarios, nil
