@@ -29,6 +29,8 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -331,6 +333,18 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
+	baseURL := appConfig.PackageRegistryBaseURL()
+	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
+	if err != nil {
+		return fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
 	withOpts := []rally.OptionFunc{
 		rally.WithVariant(variant),
 		rally.WithBenchmarkName(benchName),
@@ -344,6 +358,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
 		rally.WithRepositoryRoot(repositoryRoot),
+		rally.WithRequiredInputsResolver(requiredInputsResolver),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)
@@ -506,6 +521,18 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
+	baseURL := appConfig.PackageRegistryBaseURL()
+	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
+	if err != nil {
+		return fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
 	withOpts := []stream.OptionFunc{
 		stream.WithVariant(variant),
 		stream.WithBenchmarkName(benchName),
@@ -519,6 +546,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
 		stream.WithRepositoryRoot(repositoryRoot),
+		stream.WithRequiredInputsResolver(requiredInputsResolver),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))

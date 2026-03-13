@@ -16,45 +16,32 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type registryClient interface {
+type eprClient interface {
 	DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-// InputRequiredResolver is a helper for resolving required input packages.
-type InputRequiredResolver struct {
-	eprClient registryClient
-	tmpDir    string   // temporary directory for input packages only used for downloading input packages
-	buildRoot *os.Root // root directory of the build package where we will bundle input package templates and update manifests
+// RequiredInputsResolver is a helper for resolving required input packages.
+type RequiredInputsResolver struct {
+	eprClient eprClient
 }
 
-// NewInputRequiredResolver creates a new InputRequiredResolver.
-// It creates a temporary directory for input packages and returns a new InputRequiredResolver.
-func NewInputRequiredResolver(eprClient registryClient, buildPackageRoot string) (*InputRequiredResolver, error) {
-	tmpDir, err := os.MkdirTemp("", "elastic-package-input-pkgs-*")
-	if err != nil {
-		return nil, fmt.Errorf("creating temp directory for input packages: %w", err)
-	}
-	buildRoot, err := os.OpenRoot(buildPackageRoot)
-	if err != nil {
-		return nil, fmt.Errorf("opening build package root: %w", err)
-	}
-	return &InputRequiredResolver{
+// RequiredInputsResolver creates a new RequiredInputsResolver.
+// It creates a temporary directory for input packages and returns a new RequiredInputsResolver.
+func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
+	return &RequiredInputsResolver{
 		eprClient: eprClient,
-		tmpDir:    tmpDir,
-		buildRoot: buildRoot,
 	}, nil
 }
 
-func (r *InputRequiredResolver) Cleanup() error {
-	return errors.Join(
-		os.RemoveAll(r.tmpDir),
-		r.buildRoot.Close(),
-	)
-}
+func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot string) error {
 
-func (r *InputRequiredResolver) BundleInputPackageTemplates() error {
+	buildRoot, err := os.OpenRoot(buildPackageRoot)
+	if err != nil {
+		return fmt.Errorf("opening build package root: %w", err)
+	}
+	defer buildRoot.Close()
 
-	manifestBytes, err := r.buildRoot.ReadFile("manifest.yml")
+	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
 	if err != nil {
 		return fmt.Errorf("reading package manifest: %w", err)
 	}
@@ -72,16 +59,22 @@ func (r *InputRequiredResolver) BundleInputPackageTemplates() error {
 		return nil
 	}
 
-	inputPkgPaths, err := r.downloadInputsToTmp(manifest.Requires.Input)
+	tmpDir, err := os.MkdirTemp("", "elastic-package-input-pkgs-*")
+	if err != nil {
+		return fmt.Errorf("creating temp directory for input packages: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	inputPkgPaths, err := r.mapRequiredInputPackagesPaths(manifest.Requires.Input, tmpDir)
 	if err != nil {
 		return err
 	}
 
-	if err := r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths); err != nil {
+	if err := r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot); err != nil {
 		return fmt.Errorf("bundling policy template input package templates: %w", err)
 	}
 
-	if err := r.bundleDataStreamTemplates(inputPkgPaths); err != nil {
+	if err := r.bundleDataStreamTemplates(inputPkgPaths, buildRoot); err != nil {
 		return fmt.Errorf("bundling data stream input package templates: %w", err)
 	}
 
@@ -90,7 +83,7 @@ func (r *InputRequiredResolver) BundleInputPackageTemplates() error {
 
 // downloadInputsToTmp downloads required input packages to the temporary directory.
 // It returns a map of package name to zip path.
-func (r *InputRequiredResolver) downloadInputsToTmp(manifestInputRequires []packages.PackageDependency) (map[string]string, error) {
+func (r *RequiredInputsResolver) mapRequiredInputPackagesPaths(manifestInputRequires []packages.PackageDependency, tmpDir string) (map[string]string, error) {
 	inputPkgPaths := make(map[string]string, len(manifestInputRequires))
 	errs := make([]error, 0, len(manifestInputRequires))
 	for _, inputDependency := range manifestInputRequires {
@@ -98,7 +91,7 @@ func (r *InputRequiredResolver) downloadInputsToTmp(manifestInputRequires []pack
 			// skip if already downloaded
 			continue
 		}
-		zipPath, err := r.eprClient.DownloadPackage(inputDependency.Package, inputDependency.Version, r.tmpDir)
+		path, err := r.eprClient.DownloadPackage(inputDependency.Package, inputDependency.Version, tmpDir)
 		if err != nil {
 			// all required input packages must be downloaded successfully
 			errs = append(errs, fmt.Errorf("downloading input package %q: %w", inputDependency.Package, err))
@@ -106,8 +99,8 @@ func (r *InputRequiredResolver) downloadInputsToTmp(manifestInputRequires []pack
 		}
 
 		// key is package name, for now we only support one version per package
-		inputPkgPaths[inputDependency.Package] = zipPath
-		logger.Debugf("Resolved input package %q at %s", inputDependency.Package, zipPath)
+		inputPkgPaths[inputDependency.Package] = path
+		logger.Debugf("Resolved input package %q at %s", inputDependency.Package, path)
 	}
 
 	return inputPkgPaths, errors.Join(errs...)

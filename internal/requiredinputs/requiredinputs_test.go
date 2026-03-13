@@ -10,25 +10,26 @@ import (
 	"path"
 	"testing"
 
-	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
-type fakeRegistryClient struct {
+type fakeEprClient struct {
 	downloadPackageFunc func(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-func (f *fakeRegistryClient) DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error) {
+func (f *fakeEprClient) DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error) {
 	if f.downloadPackageFunc != nil {
 		return f.downloadPackageFunc(packageName, packageVersion, tmpDir)
 	}
-	return "", nil
+	return "", fmt.Errorf("download package not implemented")
 }
 
 func TestBundleInputPackageTemplates_Success(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
-	fakeEpr := &fakeRegistryClient{
+	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
 			return fakeInputPath, nil
 		},
@@ -50,10 +51,10 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewInputRequiredResolver(fakeEpr, buildPackageRoot)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates()
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)
 
 	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
@@ -75,24 +76,24 @@ policy_templates:
 
 func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
-	fakeEpr := &fakeRegistryClient{
+	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
 			return fakeInputPath, nil
 		},
 	}
 	buildPackageRoot := t.TempDir()
 
-	resolver, err := NewInputRequiredResolver(fakeEpr, buildPackageRoot)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates()
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "reading package manifest")
 }
 
 func TestBundleInputPackageTemplates_SkipNoIntegration(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
-	fakeEpr := &fakeRegistryClient{
+	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
 			return fakeInputPath, nil
 		},
@@ -106,15 +107,15 @@ type: input
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewInputRequiredResolver(fakeEpr, buildPackageRoot)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates()
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)
 }
 
 func TestBundleInputPackageTemplates_NoRequires(t *testing.T) {
-	fakeEpr := &fakeRegistryClient{
+	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
 			return "", fmt.Errorf("no download without requires")
 		},
@@ -131,10 +132,10 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewInputRequiredResolver(fakeEpr, buildPackageRoot)
+	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates()
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)
 
 	updatedManifestBytes, err := os.ReadFile(path.Join(buildPackageRoot, "manifest.yml"))

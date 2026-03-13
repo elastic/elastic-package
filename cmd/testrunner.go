@@ -21,6 +21,8 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -870,19 +872,27 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := appConfig.PackageRegistryBaseURL()
+	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
+	if err != nil {
+		return fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", stackVersion.Version())
 	runner := policy.NewPolicyTestRunner(policy.PolicyTestRunnerOptions{
-		PackageRoot:        packageRoot,
-		KibanaClient:       kibanaClient,
-		DataStreams:        dataStreams,
-		FailOnMissingTests: failOnMissing,
-		GenerateTestResult: generateTestResult,
-		GlobalTestConfig:   globalTestConfig.Policy,
-		WithCoverage:       testCoverage,
-		CoverageType:       testCoverageFormat,
-		RepositoryRoot:     repositoryRoot,
-		SchemaURLs:         appConfig.SchemaURLs(),
+		PackageRoot:            packageRoot,
+		KibanaClient:           kibanaClient,
+		DataStreams:            dataStreams,
+		FailOnMissingTests:     failOnMissing,
+		GenerateTestResult:     generateTestResult,
+		GlobalTestConfig:       globalTestConfig.Policy,
+		WithCoverage:           testCoverage,
+		CoverageType:           testCoverageFormat,
+		RepositoryRoot:         repositoryRoot,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)

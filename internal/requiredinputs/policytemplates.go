@@ -7,6 +7,7 @@ package requiredinputs
 import (
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
@@ -15,7 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manifestBytes []byte, manifest *packages.PackageManifest, inputPkgPaths map[string]string) error {
+func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(manifestBytes []byte, manifest *packages.PackageManifest, inputPkgPaths map[string]string, buildRoot *os.Root) error {
 
 	// parse the manifest YAML document preserving formatting for targeted modifications
 	// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
@@ -36,7 +37,7 @@ func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manif
 			if !ok || sourcePath == "" {
 				return fmt.Errorf("input package %q referenced by policy template %q not found", input.PackageRef, pt.Name)
 			}
-			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.PackageRef)
+			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.PackageRef, buildRoot)
 			if err != nil {
 				return fmt.Errorf("collecting and copying input package policy templates: %w", err)
 			}
@@ -54,7 +55,7 @@ func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manif
 			} else if input.TemplatePath == "" {
 				// default input.yml.hbs
 				defaultTemplateFile := "input.yml.hbs"
-				if _, err := r.buildRoot.ReadFile(filepath.Join("agent", "input", defaultTemplateFile)); err == nil {
+				if _, err := buildRoot.ReadFile(filepath.Join("agent", "input", defaultTemplateFile)); err == nil {
 					paths = append(paths, defaultTemplateFile)
 				}
 			}
@@ -71,7 +72,7 @@ func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manif
 	if err != nil {
 		return fmt.Errorf("formatting updated manifest: %w", err)
 	}
-	if err := r.buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
+	if err := buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
 		return fmt.Errorf("writing updated manifest: %w", err)
 	}
 
@@ -80,7 +81,7 @@ func (r *InputRequiredResolver) bundlePolicyTemplatesInputPackageTemplates(manif
 
 // collectAndCopyInputPkgPolicyTemplates collects the templates from the input package and copies them to the agent/input directory of the build package
 // it returns the list of copied template names
-func (r *InputRequiredResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string) ([]string, error) {
+func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
 	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening package %q: %w", inputPkgPath, err)
@@ -119,11 +120,11 @@ func (r *InputRequiredResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgPa
 			destName := inputPkgName + "-" + name
 			// create the agent/input directory if it doesn't exist
 			agentInputDir := filepath.Join("agent", "input")
-			if err := r.buildRoot.MkdirAll(agentInputDir, 0755); err != nil {
+			if err := buildRoot.MkdirAll(agentInputDir, 0755); err != nil {
 				return nil, fmt.Errorf("creating agent/input directory: %w", err)
 			}
 			destPath := filepath.Join(agentInputDir, destName)
-			if err := r.buildRoot.WriteFile(destPath, content, 0644); err != nil {
+			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
 				return nil, fmt.Errorf("writing template %s: %w", destName, err)
 			}
 			logger.Debugf("Copied input package template: %s -> %s", name, destName)

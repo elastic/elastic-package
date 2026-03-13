@@ -18,8 +18,6 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/registry"
-	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -28,17 +26,21 @@ const licenseTextFileName = "LICENSE.txt"
 
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
 
+type requiredInputsResolver interface {
+	BundleInputPackageTemplates(buildPackageRoot string) error
+}
+
 type BuildOptions struct {
 	PackageRoot    string // path to the package source content
 	BuildDir       string // directory where all the built packages are placed and zipped packages are stored
 	RepositoryRoot *os.Root
 
-	CreateZip      bool
-	SignPackage    bool
-	SkipValidation bool
-	UpdateReadmes  bool
-	SchemaURLs     fields.SchemaURLs
-	RegistryClient *registry.Client // Registry client for downloading input packages
+	CreateZip              bool
+	SignPackage            bool
+	SkipValidation         bool
+	UpdateReadmes          bool
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredInputsResolver
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.
@@ -235,13 +237,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	depResolver, err := requiredinputs.NewInputRequiredResolver(options.RegistryClient, buildPackageRoot)
-	if err != nil {
-		return "", fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
-	defer depResolver.Cleanup()
-
-	err = depResolver.BundleInputPackageTemplates()
+	err = options.RequiredInputsResolver.BundleInputPackageTemplates(buildPackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}

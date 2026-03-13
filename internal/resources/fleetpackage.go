@@ -19,6 +19,10 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/installer"
 )
 
+type requiredInputsResolver interface {
+	BundleInputPackageTemplates(buildPackageRoot string) error
+}
+
 type FleetPackage struct {
 	// Provider is the name of the provider to use, defaults to "kibana".
 	Provider string
@@ -38,6 +42,9 @@ type FleetPackage struct {
 	// Force forces operations, as reinstalling a package that seems to
 	// be already installed.
 	Force bool
+
+	// RequiredInputsResolver is the resolver for required input packages.
+	RequiredInputsResolver requiredInputsResolver
 }
 
 func (f *FleetPackage) String() string {
@@ -64,11 +71,12 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 	}
 
 	return installer.NewForPackage(installer.Options{
-		Kibana:         provider.Client,
-		PackageRoot:    f.PackageRoot,
-		SkipValidation: true,
-		RepositoryRoot: f.RepositoryRoot,
-		SchemaURLs:     f.SchemaURLs,
+		Kibana:                 provider.Client,
+		PackageRoot:            f.PackageRoot,
+		SkipValidation:         true,
+		RepositoryRoot:         f.RepositoryRoot,
+		SchemaURLs:             f.SchemaURLs,
+		RequiredInputsResolver: f.RequiredInputsResolver,
 	})
 }
 

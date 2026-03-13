@@ -20,13 +20,12 @@ func TestBundlePolicyTemplatesInputPackageTemplates_InvalidYAML(t *testing.T) {
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
-	r := &InputRequiredResolver{buildRoot: buildRoot}
-	defer r.Cleanup()
+	r := &RequiredInputsResolver{}
 
 	manifestBytes := []byte("foo: [")
 	manifest, _ := packages.ReadPackageManifestBytes(manifestBytes) // may be nil/partial
 
-	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, nil)
+	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, nil, buildRoot)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing manifest YAML")
 }
@@ -59,8 +58,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_SuccessTemplatesCopied(t *te
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
-	r := &InputRequiredResolver{buildRoot: buildRoot}
-	defer r.Cleanup()
+	r := &RequiredInputsResolver{}
 
 	// create current package manifest with one policy template input referencing an input package template
 	// it has an existing template, so both the existing and input package template should be copied and the manifest updated to reference both
@@ -80,6 +78,7 @@ policy_templates:
 	err = buildRoot.MkdirAll(filepath.Join("agent", "input"), 0755)
 	require.NoError(t, err)
 	err = buildRoot.WriteFile(filepath.Join("agent", "input", "existing.yml.hbs"), []byte("existing content"), 0644)
+	require.NoError(t, err)
 
 	// parse manifest to pass to function
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
@@ -88,7 +87,7 @@ policy_templates:
 	fakeInputDir := createFakeInputHelper(t)
 	inputPkgPaths := map[string]string{"sql": fakeInputDir}
 
-	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths)
+	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot)
 	require.NoError(t, err)
 
 	// Files exist.
@@ -114,8 +113,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_SuccessTemplatesCopied_Defau
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
-	r := &InputRequiredResolver{buildRoot: buildRoot}
-	defer r.Cleanup()
+	r := &RequiredInputsResolver{}
 
 	// create current package manifest with one policy template input referencing an input package template
 	// it has an existing template, so both the existing and input package template should be copied and the manifest updated to reference both
@@ -134,6 +132,7 @@ policy_templates:
 	err = buildRoot.MkdirAll(filepath.Join("agent", "input"), 0755)
 	require.NoError(t, err)
 	err = buildRoot.WriteFile(filepath.Join("agent", "input", "input.yml.hbs"), []byte("existing content"), 0644)
+	require.NoError(t, err)
 
 	// parse manifest to pass to function
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
@@ -142,7 +141,7 @@ policy_templates:
 	fakeInputDir := createFakeInputHelper(t)
 	inputPkgPaths := map[string]string{"sql": fakeInputDir}
 
-	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths)
+	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot)
 	require.NoError(t, err)
 
 	// Files exist.

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"os"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
@@ -16,16 +17,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[string]string) error {
+func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[string]string, buildRoot *os.Root) error {
 	// get all data stream manifest paths in the build package
-	dsManifestsPaths, err := fs.Glob(r.buildRoot.FS(), "data_stream/*/manifest.yml")
+	dsManifestsPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
 		return fmt.Errorf("globbing data stream manifests: %w", err)
 	}
 
 	errorList := make([]error, 0)
 	for _, manifestPath := range dsManifestsPaths {
-		manifestBytes, err := r.buildRoot.ReadFile(manifestPath)
+		manifestBytes, err := buildRoot.ReadFile(manifestPath)
 		if err != nil {
 			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
 		}
@@ -50,7 +51,7 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 				continue
 			}
 			dsRootDir := filepath.Dir(manifestPath)
-			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.PackageRef)
+			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.PackageRef, buildRoot)
 			if err != nil {
 				return fmt.Errorf("collecting and copying input package data stream templates for manifest %q: %w", manifestPath, err)
 			}
@@ -58,21 +59,21 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 				continue
 			}
 
-		// current manifest template paths
-		paths := make([]string, 0)
-		if stream.TemplatePath != "" {
-			// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
-			paths = append(paths, stream.TemplatePath)
-		} else if len(stream.TemplatePaths) > 0 {
-			paths = append(paths, stream.TemplatePaths...)
-		} else if stream.TemplatePath == "" {
-			// default stream.yml.hbs
-			defaultTemplateFile := "stream.yml.hbs"
-			if _, err := r.buildRoot.ReadFile(filepath.Join(dsRootDir, "agent", "stream", defaultTemplateFile)); err == nil {
-				paths = append(paths, defaultTemplateFile)
+			// current manifest template paths
+			paths := make([]string, 0)
+			if stream.TemplatePath != "" {
+				// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
+				paths = append(paths, stream.TemplatePath)
+			} else if len(stream.TemplatePaths) > 0 {
+				paths = append(paths, stream.TemplatePaths...)
+			} else if stream.TemplatePath == "" {
+				// default stream.yml.hbs
+				defaultTemplateFile := "stream.yml.hbs"
+				if _, err := buildRoot.ReadFile(filepath.Join(dsRootDir, "agent", "stream", defaultTemplateFile)); err == nil {
+					paths = append(paths, defaultTemplateFile)
+				}
 			}
-		}
-		paths = append(inputPaths, paths...)
+			paths = append(inputPaths, paths...)
 
 			if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
 				return fmt.Errorf("setting stream template paths in manifest %q: %w", manifestPath, err)
@@ -85,7 +86,7 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 		if err != nil {
 			return fmt.Errorf("formatting updated manifest: %w", err)
 		}
-		if err := r.buildRoot.WriteFile(manifestPath, updated, 0664); err != nil {
+		if err := buildRoot.WriteFile(manifestPath, updated, 0664); err != nil {
 			return fmt.Errorf("writing updated manifest: %w", err)
 		}
 
@@ -95,7 +96,7 @@ func (r *InputRequiredResolver) bundleDataStreamTemplates(inputPkgPaths map[stri
 
 // collectAndCopyInputPkgDataStreams collects the data streams from the input package and copies them to the agent/input directory of the build package
 // it returns the list of copied data stream names
-func (r *InputRequiredResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string) ([]string, error) {
+func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
 	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
 	if err != nil {
 		return nil, fmt.Errorf("opening package %q: %w", inputPkgPath, err)
@@ -134,11 +135,11 @@ func (r *InputRequiredResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inp
 			destName := inputPkgName + "-" + name
 			// create the agent/stream directory if it doesn't exist
 			agentStreamDir := filepath.Join(dsRootDir, "agent", "stream")
-			if err := r.buildRoot.MkdirAll(agentStreamDir, 0755); err != nil {
+			if err := buildRoot.MkdirAll(agentStreamDir, 0755); err != nil {
 				return nil, fmt.Errorf("creating agent/stream directory: %w", err)
 			}
 			destPath := filepath.Join(agentStreamDir, destName)
-			if err := r.buildRoot.WriteFile(destPath, content, 0644); err != nil {
+			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
 				return nil, fmt.Errorf("writing template %s: %w", destName, err)
 			}
 			logger.Debugf("Copied input package template: %s -> %s", name, destName)

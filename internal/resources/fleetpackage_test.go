@@ -29,13 +29,22 @@ func TestRequiredProvider(t *testing.T) {
 
 	_, err = manager.Apply(resource.Resources{
 		&FleetPackage{
-			PackageRoot:    "../../test/packages/parallel/nginx",
-			RepositoryRoot: repositoryRoot,
+			PackageRoot:            "../../test/packages/parallel/nginx",
+			RepositoryRoot:         repositoryRoot,
+			RequiredInputsResolver: &requiredInputsResolverMock{},
 		},
 	})
 	if assert.Error(t, err) {
 		assert.Contains(t, err.Error(), fmt.Sprintf("provider %q must be explicitly defined", DefaultKibanaProviderName))
 	}
+}
+
+type requiredInputsResolverMock struct {
+	BundleInputPackageTemplatesFunc func(buildPackageRoot string) error
+}
+
+func (r *requiredInputsResolverMock) BundleInputPackageTemplates(buildPackageRoot string) error {
+	return nil
 }
 
 func TestPackageLifecycle(t *testing.T) {
@@ -62,9 +71,10 @@ func TestPackageLifecycle(t *testing.T) {
 			packageRoot := filepath.Join(repositoryRoot.Name(), "test", "packages", "parallel", c.name)
 
 			fleetPackage := FleetPackage{
-				PackageRoot:    packageRoot,
-				RepositoryRoot: repositoryRoot,
-				SchemaURLs:     fields.NewSchemaURLs(),
+				PackageRoot:            packageRoot,
+				RepositoryRoot:         repositoryRoot,
+				SchemaURLs:             fields.NewSchemaURLs(),
+				RequiredInputsResolver: &requiredInputsResolverMock{},
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})

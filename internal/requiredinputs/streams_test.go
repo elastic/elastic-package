@@ -20,8 +20,7 @@ func TestBundleDataStreamTemplates_SuccessTemplatesCopied(t *testing.T) {
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
-	r := &InputRequiredResolver{buildRoot: buildRoot}
-	defer r.Cleanup()
+	r := &RequiredInputsResolver{}
 
 	datastreamDir := filepath.Join("data_stream", "test_ds")
 	err = buildRoot.MkdirAll(datastreamDir, 0755)
@@ -38,11 +37,12 @@ streams:
 	err = buildRoot.MkdirAll(filepath.Join(datastreamDir, "agent", "stream"), 0755)
 	require.NoError(t, err)
 	err = buildRoot.WriteFile(filepath.Join(datastreamDir, "agent", "stream", "existing.yml.hbs"), []byte("existing content"), 0644)
+	require.NoError(t, err)
 
 	fakeInputDir := createFakeInputHelper(t)
 	inputPkgPaths := map[string]string{"sql": fakeInputDir}
 
-	err = r.bundleDataStreamTemplates(inputPkgPaths)
+	err = r.bundleDataStreamTemplates(inputPkgPaths, buildRoot)
 	require.NoError(t, err)
 
 	// Files exist.
@@ -67,8 +67,7 @@ func TestBundleDataStreamTemplates_SuccessTemplatesCopied_DefaultEmptyTemplatePa
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
-	r := &InputRequiredResolver{buildRoot: buildRoot}
-	defer r.Cleanup()
+	r := &RequiredInputsResolver{}
 
 	datastreamDir := filepath.Join("data_stream", "test_ds")
 	err = buildRoot.MkdirAll(datastreamDir, 0755)
@@ -84,11 +83,12 @@ streams:
 	err = buildRoot.MkdirAll(filepath.Join(datastreamDir, "agent", "stream"), 0755)
 	require.NoError(t, err)
 	err = buildRoot.WriteFile(filepath.Join(datastreamDir, "agent", "stream", "stream.yml.hbs"), []byte("existing content"), 0644)
+	require.NoError(t, err)
 
 	fakeInputDir := createFakeInputHelper(t)
 	inputPkgPaths := map[string]string{"sql": fakeInputDir}
 
-	err = r.bundleDataStreamTemplates(inputPkgPaths)
+	err = r.bundleDataStreamTemplates(inputPkgPaths, buildRoot)
 	require.NoError(t, err)
 
 	// Files exist.

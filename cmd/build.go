@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -96,16 +97,21 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
 
+	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
+	if err != nil {
+		return fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
-		SchemaURLs:     appConfig.SchemaURLs(),
-		RegistryClient: eprClient,
+		PackageRoot:            packageRoot,
+		BuildDir:               buildDir,
+		CreateZip:              createZip,
+		SignPackage:            signPackage,
+		SkipValidation:         skipValidation,
+		RepositoryRoot:         repositoryRoot,
+		UpdateReadmes:          true,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
