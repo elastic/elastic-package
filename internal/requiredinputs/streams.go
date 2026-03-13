@@ -61,17 +61,12 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 
 			// current manifest template paths
 			paths := make([]string, 0)
+			// if composable package has included custom template path or paths, include them
+			// if no template paths are included at the manifest, only the imported templates are included
 			if stream.TemplatePath != "" {
-				// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
 				paths = append(paths, stream.TemplatePath)
 			} else if len(stream.TemplatePaths) > 0 {
 				paths = append(paths, stream.TemplatePaths...)
-			} else if stream.TemplatePath == "" {
-				// default stream.yml.hbs
-				defaultTemplateFile := "stream.yml.hbs"
-				if _, err := buildRoot.ReadFile(filepath.Join(dsRootDir, "agent", "stream", defaultTemplateFile)); err == nil {
-					paths = append(paths, defaultTemplateFile)
-				}
 			}
 			paths = append(inputPaths, paths...)
 

@@ -47,17 +47,12 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 
 			// current manifest template paths
 			paths := make([]string, 0)
+			// if composable package has included custom template path or paths, include them
+			// if no template paths are included at the manifest, only the imported templates are included
 			if input.TemplatePath != "" {
-				// include the existing template path if present, as the input package templates are in addition to any existing template rather than replacing it
 				paths = append(paths, input.TemplatePath)
 			} else if len(input.TemplatePaths) > 0 {
 				paths = append(paths, input.TemplatePaths...)
-			} else if input.TemplatePath == "" {
-				// default input.yml.hbs
-				defaultTemplateFile := "input.yml.hbs"
-				if _, err := buildRoot.ReadFile(filepath.Join("agent", "input", defaultTemplateFile)); err == nil {
-					paths = append(paths, defaultTemplateFile)
-				}
 			}
 			paths = append(inputPaths, paths...)
 
