@@ -128,6 +128,7 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout = 10 * time.Minute
+	dynamicSignalTypesTTL     = 60 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -1090,36 +1091,52 @@ func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]dis
 	return result, nil
 }
 
-// waitUntilAnyDataStream polls discoverDataStreams with the given wildcard pattern until at least
-// one stream appears, or the waitForDataTimeout is reached.
-func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
+// waitForAllDataStreams discovers all data streams matching the given wildcard pattern using a
+// two-phase approach. Phase 1 blocks until at least one stream appears (up to waitForDataTimeout).
+// Phase 2 then polls for dynamicSignalTypesTTL (60s) to catch streams that arrive later (e.g.
+// metrics with long collection intervals).
+func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
-
 	var discovered []discoveredDataStream
-	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+
+	poll := func(ctx context.Context) error {
 		streams, err := r.discoverDataStreams(ctx, pattern)
 		if err != nil {
-			return false, err
-		}
-		if len(streams) == 0 {
-			return false, nil
+			return err
 		}
 		discovered = streams
-		return true, nil
+		return nil
+	}
+
+	// Phase 1: block until at least one stream appears.
+	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
+
+	passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		if err := poll(ctx); err != nil {
+			return false, err
+		}
+		return len(discovered) > 0, nil
 	}, 1*time.Second, waitForDataTimeout)
 
-	if waitErr != nil {
-		return nil, waitErr
+	if err != nil {
+		return nil, err
 	}
 	if !passed {
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
 	}
 
+	// Phase 2: hold a fixed discovery window to catch streams that appear later.
+	logger.Debugf("First data stream(s) found; polling for additional streams for %s...", dynamicSignalTypesTTL)
+
+	if err := wait.ForDuration(ctx, poll, 1*time.Second, dynamicSignalTypesTTL); err != nil {
+		return nil, err
+	}
+
+	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s", len(discovered), pattern)
 	return discovered, nil
 }
 
@@ -1415,7 +1432,7 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 	if policyTemplate.DynamicSignalTypes {
 		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
 		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, namespace)
-		discovered, err := r.waitUntilAnyDataStream(ctx, config, pattern)
+		discovered, err := r.waitForAllDataStreams(ctx, config, pattern)
 		if err != nil {
 			return nil, err
 		}
