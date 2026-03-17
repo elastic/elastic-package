@@ -1044,17 +1044,15 @@ type discoveredDataStream struct {
 	indexTemplate string
 }
 
-// discoverDataStreams queries ES for all data streams matching the given wildcard pattern.
-// The caller is responsible for constructing the pattern, e.g. "*-{dataset}-{namespace}".
 // dataStreamDataType returns the data type prefix of a data stream name —
 // the segment before the first "-" (e.g. "logs" from "logs-sqlserverreceiver.otel-default").
 func dataStreamDataType(name string) string {
-	if idx := strings.Index(name, "-"); idx >= 0 {
-		return name[:idx]
-	}
-	return name
+	dataType, _, _ := strings.Cut(name, "-")
+	return dataType
 }
 
+// discoverDataStreams queries ES for all data streams matching the given wildcard pattern.
+// The caller is responsible for constructing the pattern, e.g. "*-{dataset}-{namespace}".
 func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]discoveredDataStream, error) {
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
