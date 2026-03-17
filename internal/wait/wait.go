@@ -9,6 +9,15 @@ import (
 	"time"
 )
 
+// ForDuration calls fn repeatedly on every period until duration has elapsed or the context is
+// cancelled. Returns the first non-nil error returned by fn, or ctx.Err() if cancelled.
+func ForDuration(ctx context.Context, fn func(ctx context.Context) error, period, duration time.Duration) error {
+	_, err := UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		return false, fn(ctx)
+	}, period, duration)
+	return err
+}
+
 // UntilTrue waits till the context is cancelled or the given function returns an error or true.
 func UntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), period, timeout time.Duration) (bool, error) {
 	timeoutTimer := time.NewTimer(timeout)
