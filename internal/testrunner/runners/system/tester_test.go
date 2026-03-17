@@ -467,6 +467,39 @@ func TestDiscoverDataStreams(t *testing.T) {
 	})
 }
 
+func TestWaitForAllDataStreams(t *testing.T) {
+	const pattern = "*-myreceiver.otel-default"
+
+	t.Run("returns error when no streams appear within timeout", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams-timeout", nil)
+		r := &tester{esAPI: client.API}
+		cfg := &testConfig{
+			WaitForDataTimeout:    100 * time.Millisecond,
+			DynamicSignalTypesTTL: 100 * time.Millisecond,
+		}
+
+		_, err := r.waitForAllDataStreams(t.Context(), cfg, pattern)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no data streams matching")
+	})
+
+	t.Run("phase 2 picks up late-arriving stream", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams", nil)
+		r := &tester{esAPI: client.API}
+		cfg := &testConfig{
+			DynamicSignalTypesTTL: 100 * time.Millisecond,
+		}
+
+		streams, err := r.waitForAllDataStreams(t.Context(), cfg, pattern)
+		require.NoError(t, err)
+		require.Len(t, streams, 2)
+		assert.Equal(t, "logs-myreceiver.otel-default", streams[0].name)
+		assert.Equal(t, "logs-myreceiver.otel", streams[0].indexTemplate)
+		assert.Equal(t, "metrics-myreceiver.otel-default", streams[1].name)
+		assert.Equal(t, "metrics-myreceiver.otel", streams[1].indexTemplate)
+	})
+}
+
 func TestBuildDataStreamScenarios(t *testing.T) {
 	t.Run("standard single stream", func(t *testing.T) {
 		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}
@@ -495,13 +528,13 @@ func TestBuildDataStreamScenarios(t *testing.T) {
 	})
 
 	t.Run("discovery path returns streams from ES", func(t *testing.T) {
-		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-otel-found", nil)
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams", nil)
 		r := &tester{
 			pkgManifest: &packages.PackageManifest{Type: "input"},
 			esAPI:       client.API,
 		}
 		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
-		cfg := &testConfig{}
+		cfg := &testConfig{DynamicSignalTypesTTL: 100 * time.Millisecond}
 
 		got, err := r.buildDataStreamScenarios(t.Context(), "logs", "myreceiver", "default", pt, cfg)
 		require.NoError(t, err)
