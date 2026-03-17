@@ -1101,6 +1101,11 @@ func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, 
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
+	ttl := dynamicSignalTypesTTL
+	if config.DynamicSignalTypesTTL > 0 {
+		ttl = config.DynamicSignalTypesTTL
+	}
+
 	var discovered []discoveredDataStream
 
 	poll := func(ctx context.Context) error {
@@ -1130,9 +1135,9 @@ func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, 
 	}
 
 	// Phase 2: hold a fixed discovery window to catch streams that appear later.
-	logger.Debugf("First data stream(s) found; polling for additional streams for %s...", dynamicSignalTypesTTL)
+	logger.Debugf("First data stream(s) found; polling for additional streams for %s...", ttl)
 
-	if err := wait.ForDuration(ctx, poll, 1*time.Second, dynamicSignalTypesTTL); err != nil {
+	if err := wait.ForDuration(ctx, poll, 1*time.Second, ttl); err != nil {
 		return nil, err
 	}
 
