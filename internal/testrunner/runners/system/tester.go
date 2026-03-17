@@ -1120,7 +1120,6 @@ func (r *tester) waitUntilAnyDataStream(ctx context.Context, config *testConfig,
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
 	}
 
-	logger.Debugf("Discovered %d data stream(s) matching %s: %v", len(discovered), pattern, discovered)
 	return discovered, nil
 }
 
@@ -1332,6 +1331,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if err != nil {
 		return nil, err
 	}
+
+	dataStreamNames := make([]string, len(scenario.dataStreams))
+	for i, sds := range scenario.dataStreams {
+		dataStreamNames[i] = sds.dataStream
+	}
+	logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "));
 
 	for i, sds := range scenario.dataStreams {
 		hits, waitErr := r.waitForDocs(ctx, config, sds.dataStream)
