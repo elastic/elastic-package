@@ -467,7 +467,7 @@ func TestDiscoverDataStreams(t *testing.T) {
 	})
 }
 
-func TestWaitForAllDataStreams(t *testing.T) {
+func TestDiscoverDataStreamsCh(t *testing.T) {
 	const pattern = "*-myreceiver.otel-default"
 
 	t.Run("returns error when no streams appear within timeout", func(t *testing.T) {
@@ -478,7 +478,10 @@ func TestWaitForAllDataStreams(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		_, err := r.waitForAllDataStreams(t.Context(), cfg, pattern)
+		ch, errCh := r.discoverDataStreamsCh(t.Context(), cfg, pattern)
+		for range ch {
+		}
+		err := <-errCh
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no data streams matching")
 	})
@@ -490,13 +493,20 @@ func TestWaitForAllDataStreams(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		streams, err := r.waitForAllDataStreams(t.Context(), cfg, pattern)
-		require.NoError(t, err)
+		ch, errCh := r.discoverDataStreamsCh(t.Context(), cfg, pattern)
+		var streams []discoveredDataStream
+		for s := range ch {
+			streams = append(streams, s)
+		}
+		require.NoError(t, <-errCh)
 		require.Len(t, streams, 2)
-		assert.Equal(t, "logs-myreceiver.otel-default", streams[0].name)
-		assert.Equal(t, "logs-myreceiver.otel", streams[0].indexTemplate)
-		assert.Equal(t, "metrics-myreceiver.otel-default", streams[1].name)
-		assert.Equal(t, "metrics-myreceiver.otel", streams[1].indexTemplate)
+
+		names := make(map[string]string)
+		for _, s := range streams {
+			names[s.name] = s.indexTemplate
+		}
+		assert.Equal(t, "logs-myreceiver.otel", names["logs-myreceiver.otel-default"])
+		assert.Equal(t, "metrics-myreceiver.otel", names["metrics-myreceiver.otel-default"])
 	})
 }
 
@@ -525,24 +535,6 @@ func TestBuildDataStreamScenarios(t *testing.T) {
 		assert.Equal(t, "logs-myreceiver", got[0].indexTemplateName)
 		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
 		assert.Equal(t, "metrics-myreceiver", got[1].indexTemplateName)
-	})
-
-	t.Run("discovery path returns streams from ES", func(t *testing.T) {
-		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams", nil)
-		r := &tester{
-			pkgManifest: &packages.PackageManifest{Type: "input"},
-			esAPI:       client.API,
-		}
-		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
-		cfg := &testConfig{DynamicSignalTypesTTL: 100 * time.Millisecond}
-
-		got, err := r.buildDataStreamScenarios(t.Context(), "logs", "myreceiver", "default", pt, cfg)
-		require.NoError(t, err)
-		require.Len(t, got, 2)
-		assert.Equal(t, "logs-myreceiver.otel-default", got[0].dataStream)
-		assert.Equal(t, "logs-myreceiver.otel", got[0].indexTemplateName)
-		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
-		assert.Equal(t, "metrics-myreceiver.otel", got[1].indexTemplateName)
 	})
 }
 

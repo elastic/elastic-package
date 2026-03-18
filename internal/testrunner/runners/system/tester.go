@@ -1094,63 +1094,10 @@ func (r *tester) discoverDataStreams(ctx context.Context, pattern string) ([]dis
 	return result, nil
 }
 
-// waitForAllDataStreams discovers all data streams matching the given wildcard pattern using a
-// two-phase approach. Phase 1 blocks until at least one stream appears (up to waitForDataTimeout).
-// Phase 2 then polls for dynamicSignalTypesTTL (60s) to catch streams that arrive later (e.g.
-// metrics with long collection intervals).
-func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
-	waitForDataTimeout := waitForDataDefaultTimeout
-	if config.WaitForDataTimeout > 0 {
-		waitForDataTimeout = config.WaitForDataTimeout
-	}
-
-	ttl := dynamicSignalTypesTTL
-	if config.DynamicSignalTypesTTL > 0 {
-		ttl = config.DynamicSignalTypesTTL
-	}
-
-	var discovered []discoveredDataStream
-
-	poll := func(ctx context.Context) error {
-		streams, err := r.discoverDataStreams(ctx, pattern)
-		if err != nil {
-			return err
-		}
-		discovered = streams
-		return nil
-	}
-
-	// Phase 1: block until at least one stream appears.
-	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
-
-	passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		if err := poll(ctx); err != nil {
-			return false, err
-		}
-		return len(discovered) > 0, nil
-	}, 1*time.Second, waitForDataTimeout)
-
-	if err != nil {
-		return nil, err
-	}
-	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
-	}
-
-	// Phase 2: hold a fixed discovery window to catch streams that appear later.
-	logger.Debugf("First data stream(s) found; polling for additional streams for %s...", ttl)
-
-	if err := wait.ForDuration(ctx, poll, 1*time.Second, ttl); err != nil {
-		return nil, err
-	}
-
-	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s", len(discovered), pattern)
-	return discovered, nil
-}
-
 // discoverDataStreamsCh discovers data streams matching pattern and sends each newly-seen
 // stream on the returned channel. The caller must drain the channel until it is closed.
-// Any error is sent on errCh (buffered with capacity 1) before the channel is closed.
+// On error, the error is sent on errCh before both channels are closed. On success, errCh
+// is closed without a value (so <-errCh returns nil).
 //
 // Phase 1: blocks until at least one stream appears (up to waitForDataTimeout), then
 // immediately sends all streams found in that first successful poll.
@@ -1173,6 +1120,7 @@ func (r *tester) discoverDataStreamsCh(ctx context.Context, config *testConfig, 
 
 	go func() {
 		defer close(ch)
+		defer close(errCh)
 
 		seen := make(map[string]struct{})
 
@@ -1532,20 +1480,31 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
-	if err != nil {
-		return nil, err
-	}
-
-	dataStreamNames := make([]string, len(scenario.dataStreams))
-	for i, sds := range scenario.dataStreams {
-		dataStreamNames[i] = sds.dataStream
-	}
-	logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "));
-
-	for i := range scenario.dataStreams {
-		if err := r.verifyDataStream(ctx, config, service, &scenario.dataStreams[i]); err != nil {
+	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) == 0 {
+		// Dynamic discovery path: discover streams and verify each one concurrently
+		// as it is found, rather than waiting for the full TTL window to close first.
+		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
+		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, policy.Namespace)
+		scenario.dataStreams, err = r.discoverAndVerifyDataStreams(ctx, config, service, pattern)
+		if err != nil {
 			return nil, err
+		}
+	} else {
+		scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
+		if err != nil {
+			return nil, err
+		}
+
+		dataStreamNames := make([]string, len(scenario.dataStreams))
+		for i, sds := range scenario.dataStreams {
+			dataStreamNames[i] = sds.dataStream
+		}
+		logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "))
+
+		for i := range scenario.dataStreams {
+			if err := r.verifyDataStream(ctx, config, service, &scenario.dataStreams[i]); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -1570,9 +1529,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 
 // buildDataStreamScenarios determines the set of data streams to test for a given scenario.
 // When policyTemplate.DynamicSignalTypes is true and config.SignalTypes is set, stream names
-// are built directly from the explicit signal types. When DynamicSignalTypes is true but
-// SignalTypes is empty, streams are discovered from Elasticsearch. Otherwise a single stream
-// is built from the dsType, dsDataset, and namespace.
+// are built directly from the explicit signal types. Otherwise a single stream is built from
+// the dsType, dsDataset, and namespace.
+// The pure dynamic discovery path (DynamicSignalTypes true, SignalTypes empty) is handled
+// separately in prepareScenario via discoverAndVerifyDataStreams.
 func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
 	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
 		scenarios := make([]scenarioDataStream, len(config.SignalTypes))
@@ -1580,22 +1540,6 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 			scenarios[i] = scenarioDataStream{
 				dataStream:        BuildDataStreamName(st, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
 				indexTemplateName: buildIndexTemplateName(st, dsDataset),
-			}
-		}
-		return scenarios, nil
-	}
-	if policyTemplate.DynamicSignalTypes {
-		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
-		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, namespace)
-		discovered, err := r.waitForAllDataStreams(ctx, config, pattern)
-		if err != nil {
-			return nil, err
-		}
-		scenarios := make([]scenarioDataStream, len(discovered))
-		for i, dsd := range discovered {
-			scenarios[i] = scenarioDataStream{
-				dataStream:        dsd.name,
-				indexTemplateName: dsd.indexTemplate,
 			}
 		}
 		return scenarios, nil
