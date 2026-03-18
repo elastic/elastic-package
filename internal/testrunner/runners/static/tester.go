@@ -6,7 +6,6 @@ package static
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -101,8 +100,8 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
-	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvent(pkgManifest)...), nil
+	// join together results from verifyStreamConfig and verifySampleEvents
+	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvents(pkgManifest)...), nil
 }
 
 func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []testrunner.TestResult {
@@ -134,96 +133,91 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []te
 	return results
 }
 
-func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
-	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+func (r tester) verifySampleEvents(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+	defaultResultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
 		DataStream: r.testFolder.DataStream,
 	})
 
-	sampleEventPath, found, err := r.getSampleEventPath()
+	sampleEventPaths, err := r.getSampleEventPaths()
 	if err != nil {
-		results, _ := resultComposer.WithError(err)
+		results, _ := defaultResultComposer.WithError(err)
 		return results
 	}
-	if !found {
+	if len(sampleEventPaths) == 0 {
 		// Nothing to do.
 		return []testrunner.TestResult{}
 	}
 
-	if r.withCoverage {
-		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
-		if err != nil {
-			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
-			return results
-		}
-		resultComposer = resultComposer.WithCoverage(coverage)
-	}
-
 	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
 	if err != nil {
-		results, _ := resultComposer.WithError(err)
+		results, _ := defaultResultComposer.WithError(err)
 		return results
 	}
 	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
 	if err != nil {
-		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		results, _ := defaultResultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
 		return results
 	}
 	defer repositoryRoot.Close()
-	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
-	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
-		fields.WithSpecVersion(pkgManifest.SpecVersion),
-		fields.WithDefaultNumericConversion(),
-		fields.WithExpectedDatasets(expectedDatasets),
-		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
-		fields.WithSchemaURLs(r.schemaURLs),
-	)
-	if err != nil {
-		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
-		return results
-	}
 
-	content, err := os.ReadFile(sampleEventPath)
-	if err != nil {
-		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
-		return results
-	}
-
-	multiErr := fieldsValidator.ValidateDocumentBody(content)
-	if len(multiErr) > 0 {
-		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  "one or more errors found in document",
-			Details: multiErr.Unique().Error(),
+	var allResults []testrunner.TestResult
+	for _, sampleEventPath := range sampleEventPaths {
+		resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+			Name:       "Verify " + filepath.Base(sampleEventPath),
+			TestType:   TestType,
+			Package:    r.testFolder.Package,
+			DataStream: r.testFolder.DataStream,
 		})
-		return results
-	}
 
-	results, _ := resultComposer.WithSuccess()
-	return results
-}
+		if r.withCoverage {
+			coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
+			if err != nil {
+				results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
+				allResults = append(allResults, results...)
+				continue
+			}
+			resultComposer = resultComposer.WithCoverage(coverage)
+		}
 
-func (r tester) getSampleEventPath() (string, bool, error) {
-	var sampleEventPath string
-	if r.testFolder.DataStream != "" {
-		sampleEventPath = filepath.Join(
-			r.packageRoot,
-			"data_stream",
-			r.testFolder.DataStream,
-			sampleEventJSON)
-	} else {
-		sampleEventPath = filepath.Join(r.packageRoot, sampleEventJSON)
+		fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
+		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+			fields.WithSpecVersion(pkgManifest.SpecVersion),
+			fields.WithDefaultNumericConversion(),
+			fields.WithExpectedDatasets(expectedDatasets),
+			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
+			fields.WithSchemaURLs(r.schemaURLs),
+		)
+		if err != nil {
+			results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
+			allResults = append(allResults, results...)
+			continue
+		}
+
+		content, err := os.ReadFile(sampleEventPath)
+		if err != nil {
+			results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
+			allResults = append(allResults, results...)
+			continue
+		}
+
+		multiErr := fieldsValidator.ValidateDocumentBody(content)
+		if len(multiErr) > 0 {
+			results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  "one or more errors found in document",
+				Details: multiErr.Unique().Error(),
+			})
+			allResults = append(allResults, results...)
+			continue
+		}
+
+		results, _ := resultComposer.WithSuccess()
+		allResults = append(allResults, results...)
 	}
-	_, err := os.Stat(sampleEventPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, fmt.Errorf("stat file failed: %w", err)
-	}
-	return sampleEventPath, true, nil
+	return allResults
 }
 
 func (r tester) getSampleEventPaths() ([]string, error) {
