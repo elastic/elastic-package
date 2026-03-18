@@ -1145,6 +1145,49 @@ func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, 
 	return discovered, nil
 }
 
+// verifyDataStream waits for documents to arrive in a single data stream, checks the service
+// exit code, fetches deprecation warnings, and checks synthetic source mode. All results are
+// written directly into the sds struct.
+func (r *tester) verifyDataStream(ctx context.Context, config *testConfig, service servicedeployer.DeployedService, sds *scenarioDataStream) error {
+	hits, waitErr := r.waitForDocs(ctx, config, sds.dataStream)
+
+	// before checking "waitErr" error, it is necessary to check if the service has finished
+	// with an error, to report it as a test case failed
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(ctx, config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return err
+		}
+		if exited && code > 0 {
+			return testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
+		}
+	}
+
+	if waitErr != nil {
+		return waitErr
+	}
+
+	warnings, err := r.getDeprecationWarnings(ctx, sds.dataStream)
+	if err != nil {
+		return fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", sds.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(warnings), sds.dataStream)
+	sds.deprecationWarnings = append(sds.deprecationWarnings, warnings...)
+
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", sds.dataStream)
+	syntheticEnabled, err := isSyntheticSourceModeEnabled(ctx, r.esAPI, sds.dataStream)
+	if err != nil {
+		return fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", sds.dataStream, err)
+	}
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", sds.dataStream, syntheticEnabled)
+
+	sds.syntheticEnabled = syntheticEnabled
+	sds.docs = hits.getDocs(syntheticEnabled)
+	sds.ignoredFields = hits.IgnoredFields
+	sds.degradedDocs = hits.DegradedDocs
+	return nil
+}
+
 func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackConfig stack.Config, svcInfo servicedeployer.ServiceInfo) (*scenarioTest, error) {
 	serviceOptions := r.createServiceOptions(config.ServiceVariantName, config.Deployer)
 
@@ -1360,43 +1403,10 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 	logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "));
 
-	for i, sds := range scenario.dataStreams {
-		hits, waitErr := r.waitForDocs(ctx, config, sds.dataStream)
-
-		// before checking "waitErr" error, it is necessary to check if the service has finished
-		// with an error, to report it as a test case failed
-		if service != nil && config.Service != "" && !config.IgnoreServiceError {
-			exited, code, err := service.ExitCode(ctx, config.Service)
-			if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
-				return nil, err
-			}
-			if exited && code > 0 {
-				return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
-			}
+	for i := range scenario.dataStreams {
+		if err := r.verifyDataStream(ctx, config, service, &scenario.dataStreams[i]); err != nil {
+			return nil, err
 		}
-
-		if waitErr != nil {
-			return nil, waitErr
-		}
-
-		warnings, err := r.getDeprecationWarnings(ctx, sds.dataStream)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", sds.dataStream, err)
-		}
-		logger.Debugf("Found %d deprecation warnings for data stream %s", len(warnings), sds.dataStream)
-		scenario.dataStreams[i].deprecationWarnings = append(scenario.dataStreams[i].deprecationWarnings, warnings...)
-
-		logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", sds.dataStream)
-		syntheticEnabled, err := isSyntheticSourceModeEnabled(ctx, r.esAPI, sds.dataStream)
-		if err != nil {
-			return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", sds.dataStream, err)
-		}
-		logger.Debugf("Data stream %s has synthetic source mode enabled: %t", sds.dataStream, syntheticEnabled)
-
-		scenario.dataStreams[i].syntheticEnabled = syntheticEnabled
-		scenario.dataStreams[i].docs = hits.getDocs(syntheticEnabled)
-		scenario.dataStreams[i].ignoredFields = hits.IgnoredFields
-		scenario.dataStreams[i].degradedDocs = hits.DegradedDocs
 	}
 
 	if r.runSetup {
