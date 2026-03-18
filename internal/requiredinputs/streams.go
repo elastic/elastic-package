@@ -18,6 +18,33 @@ import (
 )
 
 func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[string]string, buildRoot *os.Root) error {
+	// Build lookup: dsName → allowed input package names.
+	// Only policy templates that explicitly declare data_streams contribute.
+	rootManifestBytes, err := buildRoot.ReadFile(packages.PackageManifestFile)
+	if err != nil {
+		return fmt.Errorf("reading root manifest: %w", err)
+	}
+	rootManifest, err := packages.ReadPackageManifestBytes(rootManifestBytes)
+	if err != nil {
+		return fmt.Errorf("parsing root manifest: %w", err)
+	}
+	dsToInputPkgs := make(map[string]map[string]bool)
+	for _, pt := range rootManifest.PolicyTemplates {
+		if len(pt.DataStreams) == 0 {
+			continue
+		}
+		for _, dsName := range pt.DataStreams {
+			for _, input := range pt.Inputs {
+				if input.Package != "" {
+					if dsToInputPkgs[dsName] == nil {
+						dsToInputPkgs[dsName] = make(map[string]bool)
+					}
+					dsToInputPkgs[dsName][input.Package] = true
+				}
+			}
+		}
+	}
+
 	// get all data stream manifest paths in the build package
 	dsManifestsPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
@@ -26,6 +53,9 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 
 	errorList := make([]error, 0)
 	for _, manifestPath := range dsManifestsPaths {
+		dsName := filepath.Base(filepath.Dir(manifestPath))
+		allowedPkgs := dsToInputPkgs[dsName]
+
 		manifestBytes, err := buildRoot.ReadFile(manifestPath)
 		if err != nil {
 			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
@@ -43,6 +73,10 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 		}
 		for idx, stream := range manifest.Streams {
 			if stream.Package == "" {
+				continue
+			}
+			if !allowedPkgs[stream.Package] {
+				logger.Debugf("Input package %q not associated with data stream %q via data_streams field, skipping template bundling", stream.Package, dsName)
 				continue
 			}
 			pkgPath, ok := inputPkgPaths[stream.Package]
@@ -91,6 +125,18 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 
 // collectAndCopyInputPkgDataStreams collects the data streams from the input package and copies them to the agent/input directory of the build package
 // it returns the list of copied data stream names
+//
+// Design note: input package templates are authored for input-level compilation, where available
+// variables are: package vars + input.vars. When these templates are copied to the integration's
+// data_stream/<name>/agent/stream/ directory and compiled as stream templates, Fleet compiles them
+// with package vars + input.vars + stream.vars. For templates that only reference package-level
+// or input-level variables this works correctly. However, stream-level vars defined on the
+// integration's data stream will NOT be accessible from input package templates — the template
+// content must explicitly reference them. If stream-level vars need to be rendered, add an
+// integration-owned stream template and include it after the input package templates in
+// template_paths (integration templates are appended last and take precedence).
+// See https://github.com/elastic/elastic-package/issues/3279 for the follow-up work on
+// merging variable definitions from input packages and composable packages at build time.
 func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
 	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
 	if err != nil {

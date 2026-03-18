@@ -20,6 +20,8 @@ policy_templates:
   - name: test_logs
     title: Test logs
     description: Collect test logs
+    data_streams:
+      - test_logs
     inputs:
       - package: test_input_pkg
         title: Collect test logs via input package

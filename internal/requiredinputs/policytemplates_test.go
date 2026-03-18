@@ -30,27 +30,55 @@ func TestBundlePolicyTemplatesInputPackageTemplates_InvalidYAML(t *testing.T) {
 	assert.Contains(t, err.Error(), "parsing manifest YAML")
 }
 
-func createFakeInputHelper(t *testing.T) string {
-	t.Helper()
-	// create fake input package with manifest and template file
-	fakeDownloadedPkgDir := t.TempDir()
-	inputPkgDir := filepath.Join(fakeDownloadedPkgDir, "sql")
-	err := os.Mkdir(inputPkgDir, 0755)
+// TestBundlePolicyTemplatesInputPackageTemplates_MultiplePolicyTemplates verifies that templates
+// from ALL policy templates in an input package are bundled into agent/input/, not just the first
+// one (Issue 5 in the alignment review).
+func TestBundlePolicyTemplatesInputPackageTemplates_MultiplePolicyTemplates(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
-	inputManifestBytes := []byte(`name: sql
-version: 0.1.0
-type: input
+
+	r := &RequiredInputsResolver{}
+
+	manifestBytes := []byte(`
+type: integration
+requires:
+  input:
+    - package: sql
+      version: 0.1.0
 policy_templates:
-  - input: sql
-    template_path: input.yml.hbs
+  - inputs:
+      - package: sql
 `)
-	err = os.WriteFile(filepath.Join(inputPkgDir, "manifest.yml"), inputManifestBytes, 0644)
+	err = buildRoot.WriteFile("manifest.yml", manifestBytes, 0644)
 	require.NoError(t, err)
-	err = os.MkdirAll(filepath.Join(inputPkgDir, "agent", "input"), 0755)
+
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
 	require.NoError(t, err)
-	err = os.WriteFile(filepath.Join(inputPkgDir, "agent", "input", "input.yml.hbs"), []byte("template content"), 0644)
+
+	fakeInputDir := createFakeInputWithMultiplePolicyTemplates(t)
+	inputPkgPaths := map[string]string{"sql": fakeInputDir}
+
+	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot)
 	require.NoError(t, err)
-	return inputPkgDir
+
+	// All templates from both policy templates in the input package must be present.
+	_, err = buildRoot.ReadFile(filepath.Join("agent", "input", "sql-input.yml.hbs"))
+	require.NoError(t, err, "template from first policy_template must be bundled")
+	_, err = buildRoot.ReadFile(filepath.Join("agent", "input", "sql-metrics.yml.hbs"))
+	require.NoError(t, err, "template from second policy_template must be bundled")
+	_, err = buildRoot.ReadFile(filepath.Join("agent", "input", "sql-extra.yml.hbs"))
+	require.NoError(t, err, "extra template from second policy_template must be bundled")
+
+	updated, err := buildRoot.ReadFile("manifest.yml")
+	require.NoError(t, err)
+	updatedManifest, err := packages.ReadPackageManifestBytes(updated)
+	require.NoError(t, err)
+	require.Len(t, updatedManifest.PolicyTemplates, 1)
+	require.Len(t, updatedManifest.PolicyTemplates[0].Inputs, 1)
+	input := updatedManifest.PolicyTemplates[0].Inputs[0]
+	assert.Empty(t, input.TemplatePath)
+	assert.Equal(t, []string{"sql-input.yml.hbs", "sql-metrics.yml.hbs", "sql-extra.yml.hbs"}, input.TemplatePaths)
 }
 
 func TestBundlePolicyTemplatesInputPackageTemplates_SuccessTemplatesCopied(t *testing.T) {
