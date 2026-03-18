@@ -20,16 +20,22 @@ import (
 const sampleEventFile = "sample_event.json"
 
 func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
-	var eventPath string
+	var dir string
 	if dataStreamName == "" {
-		eventPath = filepath.Join(packageRoot, sampleEventFile)
+		dir = packageRoot
 	} else {
-		eventPath = filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
+		dir = filepath.Join(packageRoot, "data_stream", dataStreamName)
 	}
 
-	body, err := os.ReadFile(eventPath)
+	// Glob for all sample event files in the directory (e.g. sample_event.json,
+	// sample_event.logs.json, sample_event.metrics.json).
+	matches, err := filepath.Glob(filepath.Join(dir, "sample_event*.json"))
 	if err != nil {
-		return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
+		return "", fmt.Errorf("globbing for sample event files failed: %w", err)
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("reading sample event file failed (path: %s): %w",
+			filepath.Join(dir, sampleEventFile), os.ErrNotExist)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
@@ -40,24 +46,57 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
 	}
-
 	jsonFormatter := formatter.JSONFormatterBuilder(*specVersion)
-	formatted, _, err := jsonFormatter.Format(body)
-	if err != nil {
-		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
-	}
+
+	// Determine whether we have only the plain sample_event.json or type-qualified files.
+	hasBaseOnly := len(matches) == 1 && filepath.Base(matches[0]) == sampleEventFile
 
 	var builder strings.Builder
-	if dataStreamName == "" {
-		builder.WriteString("An example event looks as following:\n\n")
-	} else {
-		builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
-			stripDataStreamFolderSuffix(dataStreamName)))
+	for i, eventPath := range matches {
+		if i > 0 {
+			builder.WriteString("\n\n")
+		}
+
+		body, err := os.ReadFile(eventPath)
+		if err != nil {
+			return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
+		}
+		formatted, _, err := jsonFormatter.Format(body)
+		if err != nil {
+			return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
+		}
+
+		switch {
+		case hasBaseOnly && dataStreamName == "":
+			builder.WriteString("An example event looks as following:\n\n")
+		case hasBaseOnly:
+			builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
+				stripDataStreamFolderSuffix(dataStreamName)))
+		default:
+			sigType := sampleEventSignalType(filepath.Base(eventPath))
+			if sigType == "" {
+				return "", fmt.Errorf("cannot extract signal type from sample event filename %q", filepath.Base(eventPath))
+			}
+			builder.WriteString(fmt.Sprintf("An example **%s** event looks as following:\n\n", sigType))
+		}
+		builder.WriteString("```json\n")
+		builder.Write(bytes.TrimSpace(formatted))
+		builder.WriteString("\n```")
 	}
-	builder.WriteString("```json\n")
-	builder.Write(bytes.TrimSpace(formatted))
-	builder.WriteString("\n```")
 	return builder.String(), nil
+}
+
+// sampleEventSignalType extracts the signal type from a type-qualified sample
+// event filename such as "sample_event.logs.json" → "logs". Returns an empty
+// string when the filename does not match the expected pattern.
+func sampleEventSignalType(filename string) string {
+	// "sample_event.logs.json" → suffix "logs.json" → sigType "logs"
+	suffix, found := strings.CutPrefix(filename, "sample_event.")
+	if !found {
+		return ""
+	}
+	sigType, _, _ := strings.Cut(suffix, ".")
+	return sigType
 }
 
 func stripDataStreamFolderSuffix(dataStreamName string) string {

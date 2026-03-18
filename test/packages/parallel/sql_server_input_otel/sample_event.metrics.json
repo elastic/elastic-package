@@ -1,18 +1,18 @@
 {
-    "@timestamp": "2026-03-13T20:03:01.449Z",
+    "@timestamp": "2026-03-18T20:14:40.305Z",
     "_metric_names_hash": "8986448896debcf6",
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "43256",
+        "namespace": "57335",
         "type": "metrics"
     },
     "event": {
         "agent_id_status": "missing",
         "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-03-13T20:03:11Z"
+        "ingested": "2026-03-18T20:14:50Z"
     },
     "host": {
-        "name": "elastic-agent-63318",
+        "name": "elastic-agent-81025",
         "os": {
             "platform": "linux"
         }
@@ -21,12 +21,12 @@
         "sqlserver": {
             "batch": {
                 "request": {
-                    "rate": 55
+                    "rate": 86
                 }
             },
             "lock": {
                 "wait": {
-                    "rate": 4
+                    "rate": 3
                 }
             }
         }
@@ -37,7 +37,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-63318"
+                "name": "elastic-agent-81025"
             },
             "os": {
                 "type": "linux"
@@ -65,15 +65,15 @@
     "sqlserver": {
         "batch": {
             "request": {
-                "rate": 55
+                "rate": 86
             }
         },
         "lock": {
             "wait": {
-                "rate": 4
+                "rate": 3
             }
         }
     },
-    "start_timestamp": "2026-03-13T20:03:00.311Z",
+    "start_timestamp": "2026-03-18T20:14:39.177Z",
     "unit": "{requests}/s"
 }
