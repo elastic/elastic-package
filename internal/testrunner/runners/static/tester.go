@@ -226,6 +226,20 @@ func (r tester) getSampleEventPath() (string, bool, error) {
 	return sampleEventPath, true, nil
 }
 
+func (r tester) getSampleEventPaths() ([]string, error) {
+	var dir string
+	if r.testFolder.DataStream != "" {
+		dir = filepath.Join(r.packageRoot, "data_stream", r.testFolder.DataStream)
+	} else {
+		dir = r.packageRoot
+	}
+	matches, err := filepath.Glob(filepath.Join(dir, sampleEventGlob))
+	if err != nil {
+		return nil, fmt.Errorf("globbing for sample event files failed: %w", err)
+	}
+	return matches, nil
+}
+
 func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {
 	dsName := r.testFolder.DataStream
 	if dsName == "" {

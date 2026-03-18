@@ -20,6 +20,7 @@ const (
 	TestType testrunner.TestType = "static"
 
 	sampleEventJSON = "sample_event.json"
+	sampleEventGlob = "sample_event*.json"
 )
 
 type runner struct {
