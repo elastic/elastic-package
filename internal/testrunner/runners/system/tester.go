@@ -1001,21 +1001,21 @@ func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecation
 // scenarioDataStream holds per-stream data for one data stream within a test scenario.
 // A scenario always has at least one entry; dynamic_signal_types scenarios may have more.
 type scenarioDataStream struct {
-	dataStream        string
-	indexTemplateName string
-	docs              []common.MapStr
-	ignoredFields     []string
-	degradedDocs      []common.MapStr
-	syntheticEnabled  bool
+	dataStream          string
+	indexTemplateName   string
+	docs                []common.MapStr
+	ignoredFields       []string
+	degradedDocs        []common.MapStr
+	syntheticEnabled    bool
+	deprecationWarnings []deprecationWarning
 }
 
 type scenarioTest struct {
-	policyTemplate      packages.PolicyTemplate
-	kibanaPolicy        kibana.PackagePolicy
-	dataStreamDataset   string
-	deprecationWarnings []deprecationWarning
-	agent               agentdeployer.DeployedAgent
-	startTestTime       time.Time
+	policyTemplate    packages.PolicyTemplate
+	kibanaPolicy      kibana.PackagePolicy
+	dataStreamDataset string
+	agent             agentdeployer.DeployedAgent
+	startTestTime     time.Time
 	// dataStreams holds one entry for standard scenarios and one-or-more for dynamic_signal_types.
 	dataStreams []scenarioDataStream
 }
@@ -1384,7 +1384,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", sds.dataStream, err)
 		}
 		logger.Debugf("Found %d deprecation warnings for data stream %s", len(warnings), sds.dataStream)
-		scenario.deprecationWarnings = append(scenario.deprecationWarnings, warnings...)
+		scenario.dataStreams[i].deprecationWarnings = append(scenario.dataStreams[i].deprecationWarnings, warnings...)
 
 		logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", sds.dataStream)
 		syntheticEnabled, err := isSyntheticSourceModeEnabled(ctx, r.esAPI, sds.dataStream)
@@ -1910,7 +1910,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	if results := r.checkDeprecationWarnings(stackVersion, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+	var allDeprecationWarnings []deprecationWarning
+	for _, sds := range scenario.dataStreams {
+		allDeprecationWarnings = append(allDeprecationWarnings, sds.deprecationWarnings...)
+	}
+	if results := r.checkDeprecationWarnings(stackVersion, allDeprecationWarnings, config.Name()); len(results) > 0 {
 		return results, nil
 	}
 
