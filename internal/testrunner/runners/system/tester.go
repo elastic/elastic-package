@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -1143,6 +1144,102 @@ func (r *tester) waitForAllDataStreams(ctx context.Context, config *testConfig, 
 
 	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s", len(discovered), pattern)
 	return discovered, nil
+}
+
+// discoverDataStreamsCh discovers data streams matching pattern and sends each newly-seen
+// stream on the returned channel. The caller must drain the channel until it is closed.
+// Any error is sent on errCh (buffered with capacity 1) before the channel is closed.
+//
+// Phase 1: blocks until at least one stream appears (up to waitForDataTimeout), then
+// immediately sends all streams found in that first successful poll.
+// Phase 2: polls for additional streams during the dynamicSignalTypesTTL window, sending
+// only streams whose names were not seen in any previous poll.
+// The channel is closed (and errCh written if needed) when the TTL window ends.
+func (r *tester) discoverDataStreamsCh(ctx context.Context, config *testConfig, pattern string) (<-chan discoveredDataStream, <-chan error) {
+	ch := make(chan discoveredDataStream)
+	errCh := make(chan error, 1)
+
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
+	ttl := dynamicSignalTypesTTL
+	if config.DynamicSignalTypesTTL > 0 {
+		ttl = config.DynamicSignalTypesTTL
+	}
+
+	go func() {
+		defer close(ch)
+
+		seen := make(map[string]struct{})
+
+		seenNames := func() []string {
+			return slices.Collect(maps.Keys(seen))
+		}
+
+		sendNew := func(streams []discoveredDataStream) {
+			for _, s := range streams {
+				if _, ok := seen[s.name]; ok {
+					continue
+				}
+				seen[s.name] = struct{}{}
+				logger.Debugf("Discovered new data stream: %s", s.name)
+				ch <- s
+			}
+		}
+
+		var latestStreams []discoveredDataStream
+
+		poll := func(ctx context.Context) error {
+			streams, err := r.discoverDataStreams(ctx, pattern)
+			if err != nil {
+				return err
+			}
+			latestStreams = streams
+			return nil
+		}
+
+		// Phase 1: block until at least one stream appears.
+		logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
+
+		passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+			if err := poll(ctx); err != nil {
+				return false, err
+			}
+			return len(latestStreams) > 0, nil
+		}, 1*time.Second, waitForDataTimeout)
+
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if !passed {
+			errCh <- testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
+			return
+		}
+
+		// Send all streams found in the first successful poll immediately.
+		sendNew(latestStreams)
+
+		// Phase 2: hold a fixed discovery window to catch streams that appear later.
+		logger.Debugf("First data stream(s) found: %s; polling for additional streams for %s...", strings.Join(seenNames(), ", "), ttl)
+
+		if err := wait.ForDuration(ctx, func(ctx context.Context) error {
+			if err := poll(ctx); err != nil {
+				return err
+			}
+			sendNew(latestStreams)
+			return nil
+		}, 1*time.Second, ttl); err != nil {
+			errCh <- err
+			return
+		}
+
+		logger.Debugf("Discovery window closed; found %d data stream(s) matching %s: %s", len(seen), pattern, strings.Join(seenNames(), ", "))
+	}()
+
+	return ch, errCh
 }
 
 // verifyDataStream waits for documents to arrive in a single data stream, checks the service
