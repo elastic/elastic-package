@@ -17,9 +17,11 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
@@ -1240,6 +1242,47 @@ func (r *tester) discoverDataStreamsCh(ctx context.Context, config *testConfig, 
 	}()
 
 	return ch, errCh
+}
+
+// discoverAndVerifyDataStreams runs the dynamic discovery path concurrently.
+// It starts a producer goroutine that streams newly-discovered data streams via
+// discoverDataStreamsCh, then launches one verifyDataStream goroutine per stream
+// via an errgroup. The first error from any goroutine cancels all in-flight work.
+// Returns the fully-populated slice of scenarioDataStream entries.
+func (r *tester) discoverAndVerifyDataStreams(ctx context.Context, config *testConfig, service servicedeployer.DeployedService, pattern string) ([]scenarioDataStream, error) {
+	g, ctx := errgroup.WithContext(ctx)
+
+	streamCh, errCh := r.discoverDataStreamsCh(ctx, config, pattern)
+
+	var mu sync.Mutex
+	var ptrs []*scenarioDataStream
+
+	g.Go(func() error {
+		for dsd := range streamCh {
+			sds := &scenarioDataStream{
+				dataStream:        dsd.name,
+				indexTemplateName: dsd.indexTemplate,
+			}
+			mu.Lock()
+			ptrs = append(ptrs, sds)
+			mu.Unlock()
+
+			g.Go(func() error {
+				return r.verifyDataStream(ctx, config, service, sds)
+			})
+		}
+		return <-errCh
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	dataStreams := make([]scenarioDataStream, len(ptrs))
+	for i, p := range ptrs {
+		dataStreams[i] = *p
+	}
+	return dataStreams, nil
 }
 
 // verifyDataStream waits for documents to arrive in a single data stream, checks the service
