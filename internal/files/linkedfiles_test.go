@@ -787,8 +787,10 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:    "valid relative workDir",
-			workDir: filepath.Join(repoDir, "inside"),
+			name:        "invalid relative workDir",
+			workDir:     "inside",
+			expectError: true,
+			errorMsg:    "working directory must be an absolute path",
 		},
 		{
 			name:    "valid absolute workDir",
@@ -822,6 +824,44 @@ func TestLinksFS_WorkDirValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateLinksFSFromPathAbsolutePathPreconditions(t *testing.T) {
+	tempDir := t.TempDir()
+
+	repoDirRel := "repo"
+	repoDirAbs := filepath.Join(tempDir, repoDirRel)
+	insideDirRel := "inside"
+	insideDirAbs := filepath.Join(repoDirAbs, insideDirRel)
+	require.NoError(t, os.MkdirAll(insideDirAbs, 0755))
+
+	t.Run("repository root name must be absolute", func(t *testing.T) {
+		wd, err := os.Getwd()
+		require.NoError(t, err)
+		require.NoError(t, os.Chdir(tempDir))
+		t.Cleanup(func() { _ = os.Chdir(wd) })
+
+		// OpenRoot with a relative path keeps a relative root.Name().
+		root, err := os.OpenRoot(repoDirRel)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = root.Close() })
+		require.False(t, filepath.IsAbs(root.Name()))
+
+		lfs, err := CreateLinksFSFromPath(root, insideDirAbs)
+		assert.ErrorIs(t, err, errRootNotAbs)
+		assert.Nil(t, lfs)
+	})
+
+	t.Run("workdir must be absolute", func(t *testing.T) {
+		root, err := os.OpenRoot(repoDirAbs)
+		require.NoError(t, err)
+		t.Cleanup(func() { _ = root.Close() })
+		require.True(t, filepath.IsAbs(root.Name()))
+
+		lfs, err := CreateLinksFSFromPath(root, insideDirRel)
+		assert.ErrorIs(t, err, errWorkDirNotAbs)
+		assert.Nil(t, lfs)
+	})
 }
 
 func TestNewLinkedFile(t *testing.T) {

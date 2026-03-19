@@ -1,0 +1,47 @@
+format_version: "3.0.2"
+name: azure_application_insights
+title: Azure Application Insights Metrics Overview
+version: "1.9.1"
+description: Collect application insights metrics from Azure Monitor with Elastic Agent.
+type: integration
+conditions:
+  kibana:
+    version: "^8.13.0 || ^9.0.0"
+vars:
+  - name: application_id
+    type: text
+    title: Application ID
+    multi: false
+    required: true
+    show_user: true
+  - name: api_key
+    type: password
+    title: Api Key
+    secret: true
+    multi: false
+    required: true
+    show_user: true
+policy_templates:
+  - name: app_insights
+    title: Azure Application Insights Metrics
+    description: Collect application insights metrics from Azure Monitor with Elastic Agent.
+    data_streams:
+      - app_insights
+    inputs:
+      - type: "azure/metrics"
+        title: "Collect Azure Application Insights metrics"
+        description: "Collecting Azure Application Insights metrics"
+        input_group: metrics
+  - name: app_state
+    title: Azure Application State Insights Metrics
+    description: Collect application state related metrics from Azure Monitor with Elastic Agent.
+    data_streams:
+      - app_state
+    inputs:
+      - type: "azure/metrics"
+        title: "Collect Azure Application State Insights metrics"
+        description: "Collecting Azure Application State Insights metrics"
+        input_group: metrics
+owner:
+  github: elastic/obs-infraobs-integrations
+  type: elastic

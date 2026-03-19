@@ -1,0 +1,52 @@
+{
+  "name": "apache-access-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "apache",
+    "title": "Apache HTTP Server",
+    "version": "3.0.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "apache",
+      "type": "logfile",
+      "enabled": true,
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "logs",
+            "dataset": "apache.access"
+          },
+          "vars": {
+            "ignore_older": {
+              "value": "72h",
+              "type": "text"
+            },
+            "paths": {
+              "value": [
+                "/tmp/service_logs/access.log*"
+              ],
+              "type": "text"
+            },
+            "preserve_original_event": {
+              "value": false,
+              "type": "bool"
+            },
+            "tags": {
+              "value": [
+                "apache-access"
+              ],
+              "type": "text"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "force": false
+}

@@ -1,0 +1,86 @@
+{
+  "name": "log-logs-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "log",
+    "title": "Custom Logs (Deprecated)",
+    "version": "2.4.4"
+  },
+  "inputs": [
+    {
+      "policy_template": "logs",
+      "type": "logfile",
+      "enabled": true,
+      "vars": {
+        "custom": {
+          "value": "",
+          "type": "yaml"
+        },
+        "data_stream.dataset": {
+          "value": "log.custom",
+          "type": "text"
+        },
+        "exclude_files": {
+          "value": [],
+          "type": "text"
+        },
+        "ignore_older": {
+          "value": "72h",
+          "type": "text"
+        },
+        "paths": {
+          "value": [
+            "/tmp/test.log"
+          ],
+          "type": "text"
+        },
+        "tags": {
+          "value": [],
+          "type": "text"
+        }
+      },
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "",
+            "dataset": "log.logs"
+          },
+          "vars": {
+            "custom": {
+              "value": "",
+              "type": "yaml"
+            },
+            "data_stream.dataset": {
+              "value": "log.custom",
+              "type": "text"
+            },
+            "exclude_files": {
+              "value": [],
+              "type": "text"
+            },
+            "ignore_older": {
+              "value": "72h",
+              "type": "text"
+            },
+            "paths": {
+              "value": [
+                "/tmp/test.log"
+              ],
+              "type": "text"
+            },
+            "tags": {
+              "value": [],
+              "type": "text"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "force": false
+}

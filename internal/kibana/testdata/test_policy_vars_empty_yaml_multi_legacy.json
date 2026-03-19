@@ -1,0 +1,44 @@
+{
+  "name": "test-log-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "test_policy_vars",
+    "title": "Test Policy Vars",
+    "version": "1.0.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "test",
+      "type": "cel",
+      "enabled": true,
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "logs",
+            "dataset": "test_policy_vars.log"
+          },
+          "vars": {
+            "active.only": {
+              "value": true,
+              "type": "bool"
+            },
+            "file_selectors": {
+              "value": [],
+              "type": "yaml"
+            },
+            "revoked": {
+              "value": "",
+              "type": "select"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "force": false
+}

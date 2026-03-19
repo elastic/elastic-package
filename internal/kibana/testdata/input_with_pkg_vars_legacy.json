@@ -1,0 +1,60 @@
+{
+  "name": "input-pkg-vars-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "input_with_pkg_vars",
+    "title": "Input Package With Package-level Variables",
+    "version": "0.1.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "logs",
+      "type": "logfile",
+      "enabled": true,
+      "vars": {
+        "data_stream.dataset": {
+          "value": "custom.logs",
+          "type": "text"
+        },
+        "paths": {
+          "value": [
+            "/tmp/test.log"
+          ],
+          "type": "text"
+        }
+      },
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "",
+            "dataset": "input_with_pkg_vars.logs"
+          },
+          "vars": {
+            "data_stream.dataset": {
+              "value": "custom.logs",
+              "type": "text"
+            },
+            "paths": {
+              "value": [
+                "/tmp/test.log"
+              ],
+              "type": "text"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "vars": {
+    "custom_tag": {
+      "value": "my-tag",
+      "type": "text"
+    }
+  },
+  "force": false
+}
