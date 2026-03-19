@@ -1,1 +1,1 @@
-{"id":"{{.event_id}}","severity":"{{.severity}}","status":"{{.status}}","source_ip":"{{.source_ip}}","@timestamp":"2024-01-01T00:00:00Z"},
+{"id":"{{.EventId}}","severity":"{{.Severity}}","status":"{{.Status}}","source_ip":"{{.SourceIp}}","@timestamp":"2024-01-01T00:00:00Z"},
