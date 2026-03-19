@@ -1,0 +1,1 @@
+{{.IP}} - - [{{.Day}}/{{.Mon}}/2024:{{.H}}:{{.MS}}:{{.MS}} +0000] "GET /index.html HTTP/1.1" {{.StatusCode}} {{.Size}} "-" "benchmark-client/1.0"

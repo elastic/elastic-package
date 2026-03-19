@@ -1,0 +1,6 @@
+- name: multi_deployer.logfile
+  type: group
+  fields:
+    - name: message
+      type: text
+      description: Raw log line.

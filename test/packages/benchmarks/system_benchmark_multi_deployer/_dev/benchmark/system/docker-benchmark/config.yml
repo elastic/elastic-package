@@ -1,0 +1,16 @@
+fields:
+  - name: severity
+    enum:
+      - low
+      - medium
+      - high
+      - critical
+  - name: status
+    enum:
+      - open
+      - closed
+      - in_progress
+  - name: source_ip
+    cardinality: 1000
+  - name: event_id
+    cardinality: 100000

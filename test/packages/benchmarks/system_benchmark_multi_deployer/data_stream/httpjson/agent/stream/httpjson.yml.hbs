@@ -1,0 +1,12 @@
+config_version: 2
+interval: {{interval}}
+request.method: GET
+request.url: {{url}}/events
+response.split:
+  target: body.data
+  type: array
+processors:
+  - add_fields:
+      target: ''
+      fields:
+        ecs.version: "8.11.0"

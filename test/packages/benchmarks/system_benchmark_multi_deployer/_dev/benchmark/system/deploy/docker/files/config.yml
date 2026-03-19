@@ -1,0 +1,20 @@
+rules:
+  - path: /events
+    methods: ["GET"]
+    responses:
+      - status_code: 200
+        headers:
+          Content-Type:
+            - application/json
+        body: |-
+          {
+            "data": [
+              {{/* Comma is added at the end of each line inside the template to preserve JSON format */}}
+              {{- $g := glob "/var/log/corpus-*" -}}
+              {{- range $g -}}
+                {{- file . -}}
+              {{- end -}}
+              {{/* A last line of hard-coded data is required to properly close the JSON body */}}
+              {"id":"placeholder","severity":"low","status":"open","source_ip":"1.2.3.4","@timestamp":"2024-01-01T00:00:00Z"}
+            ]
+          }

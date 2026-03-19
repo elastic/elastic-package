@@ -1,0 +1,8 @@
+- name: event_id
+  type: keyword
+- name: severity
+  type: keyword
+- name: status
+  type: keyword
+- name: source_ip
+  type: ip

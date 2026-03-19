@@ -1,0 +1,23 @@
+---
+description: Benchmark events ingested via docker deployer (httpjson input)
+input: httpjson
+deployer: docker
+vars:
+  url: http://{{Hostname}}:{{Port}}
+data_stream:
+  name: httpjson
+  vars:
+    interval: 1s
+warmup_time_period: 2s
+corpora:
+  input_service:
+    name: multi_deployer_httpjson
+  generator:
+    total_events: 1000
+    template:
+      path: ./docker-benchmark/template.ndjson
+      type: gotext
+    config:
+      path: ./docker-benchmark/config.yml
+    fields:
+      path: ./docker-benchmark/fields.yml

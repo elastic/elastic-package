@@ -1,0 +1,31 @@
+title: Benchmark logfile data stream
+type: logs
+streams:
+  - input: filestream
+    title: Collect logs via filestream
+    description: Collect benchmark events via filestream input.
+    template_path: filestream.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/logfile-*.log
+      - name: tags
+        type: text
+        title: Tags
+        multi: true
+        required: true
+        show_user: false
+        default:
+          - forwarded
+          - multi_deployer-logfile
+      - name: preserve_original_event
+        type: bool
+        title: Preserve original event
+        required: true
+        show_user: true
+        default: false
