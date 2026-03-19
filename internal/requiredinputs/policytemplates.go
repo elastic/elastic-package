@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 
 	"gopkg.in/yaml.v3"
 
@@ -108,17 +108,17 @@ func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgP
 			}
 			seen[name] = true
 			// copy the template from "agent/input" directory of the input package to the "agent/input" directory of the build package
-			content, err := fs.ReadFile(inputPkgFS, filepath.Join("agent", "input", name))
+			content, err := fs.ReadFile(inputPkgFS, path.Join("agent", "input", name))
 			if err != nil {
 				return nil, fmt.Errorf("template %q declared in manifest not found in agent/input: %w", name, err)
 			}
 			destName := inputPkgName + "-" + name
 			// create the agent/input directory if it doesn't exist
-			agentInputDir := filepath.Join("agent", "input")
+			agentInputDir := path.Join("agent", "input")
 			if err := buildRoot.MkdirAll(agentInputDir, 0755); err != nil {
 				return nil, fmt.Errorf("creating agent/input directory: %w", err)
 			}
-			destPath := filepath.Join(agentInputDir, destName)
+			destPath := path.Join(agentInputDir, destName)
 			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
 				return nil, fmt.Errorf("writing template %s: %w", destName, err)
 			}

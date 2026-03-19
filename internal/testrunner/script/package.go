@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 )
 
@@ -64,11 +65,12 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRoot:    pkgRoot,
-		Absent:         false,
-		Force:          true,
-		RepositoryRoot: root,
-		SchemaURLs:     fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		PackageRoot:            pkgRoot,
+		Absent:                 false,
+		Force:                  true,
+		RepositoryRoot:         root,
+		SchemaURLs:             fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
@@ -117,10 +119,11 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRoot:    pkgRoot,
-		Absent:         true,
-		Force:          true,
-		RepositoryRoot: root, // Apparently not required, but adding for safety.
+		PackageRoot:            pkgRoot,
+		Absent:                 true,
+		Force:                  true,
+		RepositoryRoot:         root, // Apparently not required, but adding for safety.
+		RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 	}})
 	ts.Check(decoratedWith("removing package resources", err))
 

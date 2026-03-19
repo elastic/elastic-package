@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -88,11 +89,12 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !installedPackage,
-			Force:          installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
-			SchemaURLs:     r.schemaURLs,
+			PackageRoot:            r.packageRoot,
+			Absent:                 !installedPackage,
+			Force:                  installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:         r.repositoryRoot,
+			SchemaURLs:             r.schemaURLs,
+			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 		},
 	}
 }
