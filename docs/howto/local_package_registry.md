@@ -39,8 +39,9 @@ infrastructure.
 cd /path/to/sql_input
 elastic-package build
 
-# 2. Start the Elastic Stack — the bundled registry picks up build/packages/ automatically
-cd /path/to/your/integration
+# 2. Start the Elastic Stack from anywhere inside the repository.
+#    elastic-package resolves the repository root automatically and the bundled
+#    registry picks up build/packages/ from there.
 elastic-package stack up -v -d
 ```
 
@@ -105,56 +106,9 @@ stack-related behavior. The priority order is:
 For more details on profiles, see the
 [Elastic Package profiles section of the README](../../README.md#elastic-package-profiles).
 
-## Option 3: Use local source directories during tests (no registry required)
-
-For **testing** only, you can bypass the registry entirely for specific required packages by
-declaring **requires overrides** in `_dev/test/config.yml` with a `source` path pointing at a
-local package directory:
-
-```yaml
-requires:
-  - package: sql_input
-    source: ../../sql_input
-```
-
-The `source` path can be absolute or relative to the package root. When the test runner builds
-the package, it passes these overrides to the builder, which uses the local directory instead
-of downloading from the registry.
-
-You can also pin a version from the registry instead of using a local source:
-
-```yaml
-requires:
-  - package: sql_input
-    version: "0.1.0"
-```
-
-Overrides in `_dev/test/config.yml` apply to all test types. You can also scope them to a
-specific test type:
-
-```yaml
-requires:
-  - package: sql_input
-    source: ../../sql_input
-
-system:
-  requires:
-    - package: sql_input
-      version: "0.2.0"
-```
-
-In this example, system tests use version `0.2.0` from the registry while all other test types
-use the local source.
-
-> **Note:** Requires overrides in `_dev/test/config.yml` only affect the **test runner's
-> internal build step**. Running `elastic-package build` manually still uses the registry URL
-> from the global config. Use Options 1 or 2 for the manual build workflow.
-
 ## Summary
 
 | Goal | Configuration |
 |------|--------------|
 | Override registry for `build` / `install` | `package_registry.base_url` in `~/.elastic-package/config.yml` |
 | Override registry for `stack` (Fleet) | `stack.epr.base_url` / `stack.epr.proxy_to` in the active profile `config.yml` |
-| Use local package dir during tests | `requires[].source` in `_dev/test/config.yml` |
-| Pin a specific version during tests | `requires[].version` in `_dev/test/config.yml` |
