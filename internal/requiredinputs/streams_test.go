@@ -15,21 +15,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// rootManifestWithDataStreams returns a root manifest bytes that explicitly associates
-// the given data stream name with the given input package name via data_streams field.
-func rootManifestWithDataStreams(dsName, inputPkg string) []byte {
-	return []byte(`name: test_integration
-version: 0.1.0
-type: integration
-policy_templates:
-  - name: ` + dsName + `
-    data_streams:
-      - ` + dsName + `
-    inputs:
-      - package: ` + inputPkg + `
-`)
-}
-
 // TestBundleDataStreamTemplates_MultiplePolicyTemplates verifies that templates from ALL
 // policy templates in the input package are bundled, not just the first one (Issue 5).
 func TestBundleDataStreamTemplates_MultiplePolicyTemplates(t *testing.T) {
@@ -38,10 +23,6 @@ func TestBundleDataStreamTemplates_MultiplePolicyTemplates(t *testing.T) {
 	require.NoError(t, err)
 
 	r := &RequiredInputsResolver{}
-
-	// Write root manifest with explicit data_streams association.
-	err = buildRoot.WriteFile("manifest.yml", rootManifestWithDataStreams("test_ds", "sql"), 0644)
-	require.NoError(t, err)
 
 	datastreamDir := filepath.Join("data_stream", "test_ds")
 	err = buildRoot.MkdirAll(datastreamDir, 0755)
@@ -83,10 +64,6 @@ func TestBundleDataStreamTemplates_SuccessTemplatesCopied(t *testing.T) {
 
 	r := &RequiredInputsResolver{}
 
-	// Write root manifest with explicit data_streams association.
-	err = buildRoot.WriteFile("manifest.yml", rootManifestWithDataStreams("test_ds", "sql"), 0644)
-	require.NoError(t, err)
-
 	datastreamDir := filepath.Join("data_stream", "test_ds")
 	err = buildRoot.MkdirAll(datastreamDir, 0755)
 	require.NoError(t, err)
@@ -127,27 +104,15 @@ streams:
 	assert.Equal(t, []string{"sql-input.yml.hbs", "existing.yml.hbs"}, input.TemplatePaths)
 }
 
-// TestBundleDataStreamTemplates_SkipWhenNoDataStreamsAssociation verifies that a data stream
-// stream entry with package: X is NOT bundled when no policy template has data_streams
-// explicitly including that data stream name.
-func TestBundleDataStreamTemplates_SkipWhenNoDataStreamsAssociation(t *testing.T) {
+// TestBundleDataStreamTemplates_BundlesWithoutDataStreamsAssociation verifies that a data stream
+// stream entry with package: X IS bundled even when the root policy template has no data_streams
+// field. Bundling is driven solely by the data stream manifest's streams[].package reference.
+func TestBundleDataStreamTemplates_BundlesWithoutDataStreamsAssociation(t *testing.T) {
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
 
 	r := &RequiredInputsResolver{}
-
-	// Root manifest with a policy template that has NO data_streams field.
-	rootManifest := []byte(`name: test_integration
-version: 0.1.0
-type: integration
-policy_templates:
-  - name: test_ds
-    inputs:
-      - package: sql
-`)
-	err = buildRoot.WriteFile("manifest.yml", rootManifest, 0644)
-	require.NoError(t, err)
 
 	datastreamDir := filepath.Join("data_stream", "test_ds")
 	err = buildRoot.MkdirAll(datastreamDir, 0755)
@@ -166,15 +131,15 @@ streams:
 	err = r.bundleDataStreamTemplates(inputPkgPaths, buildRoot)
 	require.NoError(t, err)
 
-	// No templates should have been bundled — agent/stream dir should not contain input package template.
+	// Template must be bundled even without a data_streams association in the root manifest.
 	_, err = buildRoot.ReadFile(filepath.Join(datastreamDir, "agent", "stream", "sql-input.yml.hbs"))
-	require.Error(t, err, "template must NOT be bundled when data_streams association is absent")
+	require.NoError(t, err, "template must be bundled when stream references an input package, regardless of data_streams field")
 
-	// The data stream manifest should be unchanged (no template_paths set).
+	// The data stream manifest must have template_paths set.
 	updated, err := buildRoot.ReadFile(filepath.Join(datastreamDir, "manifest.yml"))
 	require.NoError(t, err)
 	updatedManifest, err := packages.ReadDataStreamManifestBytes(updated)
 	require.NoError(t, err)
 	require.Len(t, updatedManifest.Streams, 1)
-	assert.Empty(t, updatedManifest.Streams[0].TemplatePaths)
+	assert.Equal(t, []string{"sql-input.yml.hbs"}, updatedManifest.Streams[0].TemplatePaths)
 }

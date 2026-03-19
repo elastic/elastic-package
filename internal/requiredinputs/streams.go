@@ -18,33 +18,6 @@ import (
 )
 
 func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[string]string, buildRoot *os.Root) error {
-	// Build lookup: dsName → allowed input package names.
-	// Only policy templates that explicitly declare data_streams contribute.
-	rootManifestBytes, err := buildRoot.ReadFile(packages.PackageManifestFile)
-	if err != nil {
-		return fmt.Errorf("reading root manifest: %w", err)
-	}
-	rootManifest, err := packages.ReadPackageManifestBytes(rootManifestBytes)
-	if err != nil {
-		return fmt.Errorf("parsing root manifest: %w", err)
-	}
-	dsToInputPkgs := make(map[string]map[string]bool)
-	for _, pt := range rootManifest.PolicyTemplates {
-		if len(pt.DataStreams) == 0 {
-			continue
-		}
-		for _, dsName := range pt.DataStreams {
-			for _, input := range pt.Inputs {
-				if input.Package != "" {
-					if dsToInputPkgs[dsName] == nil {
-						dsToInputPkgs[dsName] = make(map[string]bool)
-					}
-					dsToInputPkgs[dsName][input.Package] = true
-				}
-			}
-		}
-	}
-
 	// get all data stream manifest paths in the build package
 	dsManifestsPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
@@ -53,9 +26,6 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 
 	errorList := make([]error, 0)
 	for _, manifestPath := range dsManifestsPaths {
-		dsName := filepath.Base(filepath.Dir(manifestPath))
-		allowedPkgs := dsToInputPkgs[dsName]
-
 		manifestBytes, err := buildRoot.ReadFile(manifestPath)
 		if err != nil {
 			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
@@ -73,10 +43,6 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 		}
 		for idx, stream := range manifest.Streams {
 			if stream.Package == "" {
-				continue
-			}
-			if !allowedPkgs[stream.Package] {
-				logger.Debugf("Input package %q not associated with data stream %q via data_streams field, skipping template bundling", stream.Package, dsName)
 				continue
 			}
 			pkgPath, ok := inputPkgPaths[stream.Package]
