@@ -6,11 +6,6 @@ streams:
     description: Collect benchmark events via httpjson input.
     template_path: httpjson.yml.hbs
     vars:
-      - name: url
-        type: url
-        title: URL
-        required: true
-        show_user: true
       - name: interval
         type: text
         title: Interval

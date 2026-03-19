@@ -16,6 +16,13 @@ policy_templates:
       - type: httpjson
         title: Collect logs via HTTP JSON
         description: Collecting logs via httpjson input.
+        vars:
+          - name: url
+            type: url
+            title: URL
+            description: URL of the HTTP endpoint to collect events from.
+            required: true
+            show_user: true
       - type: filestream
         title: Collect logs via filestream
         description: Collecting logs via filestream input.
