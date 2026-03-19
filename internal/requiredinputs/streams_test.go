@@ -21,6 +21,7 @@ func TestBundleDataStreamTemplates_MultiplePolicyTemplates(t *testing.T) {
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 
@@ -61,6 +62,7 @@ func TestBundleDataStreamTemplates_SuccessTemplatesCopied(t *testing.T) {
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 
@@ -111,6 +113,7 @@ func TestBundleDataStreamTemplates_BundlesWithoutDataStreamsAssociation(t *testi
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 

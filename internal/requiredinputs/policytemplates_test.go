@@ -19,6 +19,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_InvalidYAML(t *testing.T) {
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 
@@ -37,6 +38,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_MultiplePolicyTemplates(t *t
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 
@@ -85,6 +87,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_SuccessTemplatesCopied(t *te
 	buildRootPath := t.TempDir()
 	buildRoot, err := os.OpenRoot(buildRootPath)
 	require.NoError(t, err)
+	defer buildRoot.Close()
 
 	r := &RequiredInputsResolver{}
 
