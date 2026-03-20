@@ -10,18 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
