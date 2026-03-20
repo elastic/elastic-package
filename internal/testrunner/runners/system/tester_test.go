@@ -439,14 +439,14 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 		})
 	}
 }
-func TestDiscoverDataStreams(t *testing.T) {
+func TestSearchDataStreams(t *testing.T) {
 	const pattern = "*-foo.bar-default"
 
 	t.Run("happy path returns two streams", func(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-found", nil)
 		r := &tester{esAPI: client.API}
 
-		streams, err := r.discoverDataStreams(t.Context(), pattern)
+		streams, err := r.searchDataStreams(t.Context(), pattern)
 		require.NoError(t, err)
 		require.Len(t, streams, 2)
 
@@ -461,13 +461,13 @@ func TestDiscoverDataStreams(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-notfound", nil)
 		r := &tester{esAPI: client.API}
 
-		streams, err := r.discoverDataStreams(t.Context(), pattern)
+		streams, err := r.searchDataStreams(t.Context(), pattern)
 		require.NoError(t, err)
 		assert.Empty(t, streams)
 	})
 }
 
-func TestDiscoverDataStreamsCh(t *testing.T) {
+func TestDiscoverDataStreams(t *testing.T) {
 	const pattern = "*-myreceiver.otel-default"
 
 	t.Run("returns error when no streams appear within timeout", func(t *testing.T) {
@@ -478,10 +478,7 @@ func TestDiscoverDataStreamsCh(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		ch, errCh := r.discoverDataStreamsCh(t.Context(), cfg, pattern)
-		for range ch {
-		}
-		err := <-errCh
+		_, err := r.discoverDataStreams(t.Context(), cfg, pattern)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no data streams matching")
 	})
@@ -493,12 +490,8 @@ func TestDiscoverDataStreamsCh(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		ch, errCh := r.discoverDataStreamsCh(t.Context(), cfg, pattern)
-		var streams []discoveredDataStream
-		for s := range ch {
-			streams = append(streams, s)
-		}
-		require.NoError(t, <-errCh)
+		streams, err := r.discoverDataStreams(t.Context(), cfg, pattern)
+		require.NoError(t, err)
 		require.Len(t, streams, 2)
 
 		names := make(map[string]string)

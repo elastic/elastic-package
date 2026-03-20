@@ -1443,8 +1443,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 // dsDataset, and namespace.
 func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
 	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) == 0 {
-		datasetPattern := fmt.Sprintf("%s.%s", dsDataset, otelSuffixDataset)
-		pattern := fmt.Sprintf("*-%s-%s", datasetPattern, namespace)
+		pattern := fmt.Sprintf("*-*-%s", namespace)
 		discovered, err := r.discoverDataStreams(ctx, config, pattern)
 		if err != nil {
 			return nil, err
