@@ -446,7 +446,7 @@ func TestSearchDataStreams(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-found", nil)
 		r := &tester{esAPI: client.API}
 
-		streams, err := r.searchDataStreams(t.Context(), pattern)
+		streams, err := r.searchDataStreams(t.Context(), []string{pattern})
 		require.NoError(t, err)
 		require.Len(t, streams, 2)
 
@@ -461,7 +461,7 @@ func TestSearchDataStreams(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-notfound", nil)
 		r := &tester{esAPI: client.API}
 
-		streams, err := r.searchDataStreams(t.Context(), pattern)
+		streams, err := r.searchDataStreams(t.Context(), []string{pattern})
 		require.NoError(t, err)
 		assert.Empty(t, streams)
 	})
@@ -478,7 +478,7 @@ func TestDiscoverDataStreams(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		_, err := r.discoverDataStreams(t.Context(), cfg, pattern)
+		_, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no data streams matching")
 	})
@@ -490,7 +490,7 @@ func TestDiscoverDataStreams(t *testing.T) {
 			DynamicSignalTypesTTL: 100 * time.Millisecond,
 		}
 
-		streams, err := r.discoverDataStreams(t.Context(), cfg, pattern)
+		streams, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
 		require.NoError(t, err)
 		require.Len(t, streams, 2)
 

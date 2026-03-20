@@ -1052,9 +1052,11 @@ func dataStreamDataType(name string) string {
 	return dataType
 }
 
-// searchDataStreams queries ES for all data streams matching the given wildcard pattern.
-// The caller is responsible for constructing the pattern, e.g. "*-{dataset}-{namespace}".
-func (r *tester) searchDataStreams(ctx context.Context, pattern string) ([]discoveredDataStream, error) {
+// searchDataStreams queries ES for all data streams matching the given wildcard patterns.
+// Multiple patterns are joined with "," to use ES native multi-pattern syntax.
+// The caller is responsible for constructing the patterns, e.g. "*-{dataset}-{namespace}".
+func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]discoveredDataStream, error) {
+	pattern := strings.Join(patterns, ",")
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
@@ -1091,11 +1093,11 @@ func (r *tester) searchDataStreams(ctx context.Context, pattern string) ([]disco
 	return result, nil
 }
 
-// discoverDataStreams polls ES for data streams matching pattern using a two-phase approach.
+// discoverDataStreams polls ES for data streams matching patterns using a two-phase approach.
 // Phase 1: blocks until at least one stream appears (up to waitForDataTimeout).
 // Phase 2: polls for the dynamicSignalTypesTTL window, updating the result each tick.
 // Returns the final slice of all discovered streams after the TTL window closes.
-func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pattern string) ([]discoveredDataStream, error) {
+func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, patterns []string) ([]discoveredDataStream, error) {
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
 		waitForDataTimeout = config.WaitForDataTimeout
@@ -1116,11 +1118,13 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		return names
 	}
 
+	patternDisplay := strings.Join(patterns, ",")
+
 	// Phase 1: block until at least one stream appears.
-	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", pattern, waitForDataTimeout)
+	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", patternDisplay, waitForDataTimeout)
 
 	passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
-		streams, err := r.searchDataStreams(ctx, pattern)
+		streams, err := r.searchDataStreams(ctx, patterns)
 		if err != nil {
 			return false, err
 		}
@@ -1132,14 +1136,14 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		return nil, err
 	}
 	if !passed {
-		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", pattern, waitForDataTimeout)}
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", patternDisplay, waitForDataTimeout)}
 	}
 
 	// Phase 2: hold a fixed discovery window to catch streams that appear later.
 	logger.Debugf("First data stream(s) found: %s; polling for additional streams for %s...", strings.Join(streamNames(), ", "), ttl)
 
 	if err := wait.ForDuration(ctx, func(ctx context.Context) error {
-		streams, err := r.searchDataStreams(ctx, pattern)
+		streams, err := r.searchDataStreams(ctx, patterns)
 		if err != nil {
 			return err
 		}
@@ -1149,7 +1153,7 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		return nil, err
 	}
 
-	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s: %s", len(currentStreams), pattern, strings.Join(streamNames(), ", "))
+	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s: %s", len(currentStreams), patternDisplay, strings.Join(streamNames(), ", "))
 	return currentStreams, nil
 }
 
@@ -1437,14 +1441,21 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 }
 
 // buildDataStreamScenarios determines the set of data streams to test for a given scenario.
-// When policyTemplate.DynamicSignalTypes is true and config.SignalTypes is empty, data streams
-// are discovered dynamically via ES polling. When SignalTypes is set, stream names are built
-// directly from the explicit signal types. Otherwise a single stream is built from the dsType,
-// dsDataset, and namespace.
+// When policyTemplate.DynamicSignalTypes is true, data streams are discovered dynamically
+// via ES polling. If SignalTypes is empty, a full wildcard pattern is used; otherwise one
+// pattern per signal type is built and all are sent to ES in a single request.
+// When DynamicSignalTypes is false, a single stream is built from dsType, dsDataset, and namespace.
 func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
-	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) == 0 {
-		pattern := fmt.Sprintf("*-*-%s", namespace)
-		discovered, err := r.discoverDataStreams(ctx, config, pattern)
+	if policyTemplate.DynamicSignalTypes {
+		var patterns []string
+		if len(config.SignalTypes) == 0 {
+			patterns = []string{fmt.Sprintf("*-*-%s", namespace)}
+		} else {
+			for _, st := range config.SignalTypes {
+				patterns = append(patterns, fmt.Sprintf("%s-*-%s", st, namespace))
+			}
+		}
+		discovered, err := r.discoverDataStreams(ctx, config, patterns)
 		if err != nil {
 			return nil, err
 		}
@@ -1453,16 +1464,6 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 			scenarios[i] = scenarioDataStream{
 				dataStream:        dsd.name,
 				indexTemplateName: dsd.indexTemplate,
-			}
-		}
-		return scenarios, nil
-	}
-	if policyTemplate.DynamicSignalTypes && len(config.SignalTypes) > 0 {
-		scenarios := make([]scenarioDataStream, len(config.SignalTypes))
-		for i, st := range config.SignalTypes {
-			scenarios[i] = scenarioDataStream{
-				dataStream:        BuildDataStreamName(st, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
-				indexTemplateName: buildIndexTemplateName(st, dsDataset),
 			}
 		}
 		return scenarios, nil
