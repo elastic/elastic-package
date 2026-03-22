@@ -39,7 +39,7 @@ type testConfig struct {
 	ServiceNotifySignal               string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
 	IgnoreServiceError                bool          `config:"ignore_service_error"`
 	WaitForDataTimeout                time.Duration `config:"wait_for_data_timeout"`
-	DynamicSignalTypesSearchPollCount int           `config:"dynamic_signal_types_search_poll_count"` // Consecutive data-stream search polls (see code for interval) with the same stream count as the prior poll before ending phase 2 (default 5).
+	DynamicSignalTypesSearchPollCount int           `config:"dynamic_signal_types_search_poll_count"` // Consecutive data-stream search polls (see code for interval) with the same stream count as the prior poll before ending phase 2 (default 10).
 	SkipIgnoredFields                 []string      `config:"skip_ignored_fields"`
 
 	Deployer string `config:"deployer"` // Name of the service deployer to use for this test.

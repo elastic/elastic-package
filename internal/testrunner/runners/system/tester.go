@@ -128,7 +128,7 @@ const (
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
 	waitForDataDefaultTimeout            = 10 * time.Minute
-	dynamicSignalTypesDefaultSearchPolls = 5
+	dynamicSignalTypesDefaultSearchPolls = 10
 	dataStreamDiscoveryPollInterval      = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
