@@ -1142,7 +1142,7 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 	}
 
 	// Phase 2: poll until searchPollsRequired consecutive search polls with no change in stream count.
-	logger.Debugf("First data stream(s) found: %s; polling until %d consecutive search poll(s) with no stream count change (period %s) after the last count change...", strings.Join(streamNames(), ", "), searchPollsRequired, dataStreamDiscoveryPollInterval)
+	logger.Debugf("First data stream(s) found: %s; polling until %d consecutive search poll(s) with no stream count change (period %s)", strings.Join(streamNames(), ", "), searchPollsRequired, dataStreamDiscoveryPollInterval)
 
 	searchPollsLeft := searchPollsRequired
 	for {
