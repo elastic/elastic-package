@@ -41,8 +41,6 @@ export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 go run ./scripts/gpgkey
 
-# Pass 1: Build packages that do NOT have requires.input
-# (packages with requires.input need the local registry running)
 for d in test/packages/*/*/; do
   # Added set +x in a sub-shell to avoid printing the testype command in the output
   # This helps to keep the CI output cleaner
@@ -50,10 +48,6 @@ for d in test/packages/*/*/; do
   # Packages in false_positives can have issues.
   if [ "${packageTestType}" == "false_positives" ]; then
     continue
-  fi
-  has_requires_input=$(yq '.requires.input | length' "${d}/manifest.yml" 2>/dev/null || echo "0")
-  if [[ "${has_requires_input}" -gt 0 ]]; then
-    continue  # defer to second pass (needs local registry)
   fi
   echo "--- Building package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
@@ -65,34 +59,6 @@ rm -r build/packages/*/
 echo "--- Prepare Elastic stack"
 # Boot up the stack
 elastic-package stack up -d -v
-
-# Configure local registry so packages with requires.input can resolve dependencies
-# The local registry is at https://localhost:8080 (served from build/packages/ zips)
-# RegistryClientOptions automatically skips TLS verification for localhost
-echo "--- Configure package registry to use local stack"
-mkdir -p ~/.elastic-package
-if [ -f ~/.elastic-package/config.yml ]; then
-  yq -i '.package_registry.base_url = "https://localhost:8080"' ~/.elastic-package/config.yml
-else
-  printf 'package_registry:\n  base_url: "https://localhost:8080"\n' > ~/.elastic-package/config.yml
-fi
-
-# Pass 2: Build packages WITH requires.input (local registry is now running)
-for d in test/packages/*/*/; do
-  packageTestType=$(set +x ; testype "$d")
-  if [ "${packageTestType}" == "false_positives" ]; then
-    continue
-  fi
-  has_requires_input=$(yq '.requires.input | length' "${d}/manifest.yml" 2>/dev/null || echo "0")
-  if [[ "${has_requires_input}" -eq 0 ]]; then
-    continue  # already built in pass 1
-  fi
-  echo "--- Building package: ${d}"
-  elastic-package build -C "$d" --zip --sign -v
-done
-
-# Remove unzipped built packages from pass 2, leave .zip files
-rm -r build/packages/*/
 
 eval "$(elastic-package stack shellinit)"
 

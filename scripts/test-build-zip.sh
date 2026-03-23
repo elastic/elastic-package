@@ -41,12 +41,6 @@ for d in test/packages/*/*/; do
   if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
-  # Skip packages that require input packages from a registry.
-  # This target runs on macOS ARM without Docker, so no local registry is available.
-  if grep -q "^requires:" "${d}/manifest.yml" && grep -A5 "^requires:" "${d}/manifest.yml" | grep -q "input:"; then
-    echo "--- Skipping package with requires.input (no registry available on macOS ARM): ${d}"
-    continue
-  fi
   echo "--- Building zip package: ${d}"
   elastic-package build -C "$d" --zip --sign -v
 done
