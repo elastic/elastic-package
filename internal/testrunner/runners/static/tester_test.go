@@ -32,8 +32,9 @@ func TestGetSampleEventPaths(t *testing.T) {
 			title:       "OTel input package with type-qualified sample events",
 			packageRoot: otelPackageRoot,
 			expectedNames: []string{
-				"sample_event.logs.json",
-				"sample_event.metrics.json",
+				"sample_event.json",
+				"sample_event_logs.json",
+				"sample_event_metrics.json",
 			},
 		},
 		{

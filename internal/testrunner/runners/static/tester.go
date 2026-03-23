@@ -132,7 +132,7 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []te
 	results, _ := resultComposer.WithSuccess()
 	return results
 }
-
+	
 func (r tester) verifySampleEvents(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	defaultResultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
@@ -165,59 +165,60 @@ func (r tester) verifySampleEvents(pkgManifest *packages.PackageManifest) []test
 
 	var allResults []testrunner.TestResult
 	for _, sampleEventPath := range sampleEventPaths {
-		resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
-			Name:       "Verify " + filepath.Base(sampleEventPath),
-			TestType:   TestType,
-			Package:    r.testFolder.Package,
-			DataStream: r.testFolder.DataStream,
-		})
-
-		if r.withCoverage {
-			coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
-			if err != nil {
-				results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
-				allResults = append(allResults, results...)
-				continue
-			}
-			resultComposer = resultComposer.WithCoverage(coverage)
-		}
-
-		fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
-		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
-			fields.WithSpecVersion(pkgManifest.SpecVersion),
-			fields.WithDefaultNumericConversion(),
-			fields.WithExpectedDatasets(expectedDatasets),
-			fields.WithEnabledImportAllECSSChema(true),
-			fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
-			fields.WithSchemaURLs(r.schemaURLs),
-		)
-		if err != nil {
-			results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
-			allResults = append(allResults, results...)
-			continue
-		}
-
-		content, err := os.ReadFile(sampleEventPath)
-		if err != nil {
-			results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
-			allResults = append(allResults, results...)
-			continue
-		}
-
-		multiErr := fieldsValidator.ValidateDocumentBody(content)
-		if len(multiErr) > 0 {
-			results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  "one or more errors found in document",
-				Details: multiErr.Unique().Error(),
-			})
-			allResults = append(allResults, results...)
-			continue
-		}
-
-		results, _ := resultComposer.WithSuccess()
+		results := r.verifySampleEvent(sampleEventPath, pkgManifest, expectedDatasets, repositoryRoot)
 		allResults = append(allResults, results...)
 	}
 	return allResults
+}
+
+func (r tester) verifySampleEvent(sampleEventPath string, pkgManifest *packages.PackageManifest, expectedDatasets []string, repositoryRoot *os.Root) []testrunner.TestResult {
+	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+		Name:       "Verify " + filepath.Base(sampleEventPath),
+		TestType:   TestType,
+		Package:    r.testFolder.Package,
+		DataStream: r.testFolder.DataStream,
+	})
+
+	if r.withCoverage {
+		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
+		if err != nil {
+			results, _ := resultComposer.WithErrorf("coverage report generation failed: %w", err)
+			return results
+		}
+		resultComposer = resultComposer.WithCoverage(coverage)
+	}
+
+	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
+	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+		fields.WithSpecVersion(pkgManifest.SpecVersion),
+		fields.WithDefaultNumericConversion(),
+		fields.WithExpectedDatasets(expectedDatasets),
+		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
+		fields.WithSchemaURLs(r.schemaURLs),
+	)
+	if err != nil {
+		results, _ := resultComposer.WithError(fmt.Errorf("creating fields validator for data stream failed: %w", err))
+		return results
+	}
+
+	content, err := os.ReadFile(sampleEventPath)
+	if err != nil {
+		results, _ := resultComposer.WithError(fmt.Errorf("can't read file: %w", err))
+		return results
+	}
+
+	multiErr := fieldsValidator.ValidateDocumentBody(content)
+	if len(multiErr) > 0 {
+		results, _ := resultComposer.WithError(testrunner.ErrTestCaseFailed{
+			Reason:  "one or more errors found in document",
+			Details: multiErr.Unique().Error(),
+		})
+		return results
+	}
+
+	results, _ := resultComposer.WithSuccess()
+	return results
 }
 
 func (r tester) getSampleEventPaths() ([]string, error) {
