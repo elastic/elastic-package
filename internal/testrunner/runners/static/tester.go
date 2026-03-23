@@ -132,7 +132,7 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []te
 	results, _ := resultComposer.WithSuccess()
 	return results
 }
-	
+
 func (r tester) verifySampleEvents(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
 	defaultResultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
