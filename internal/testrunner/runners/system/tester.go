@@ -127,9 +127,9 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout            = 10 * time.Minute
-	dynamicSignalTypesDefaultSearchPolls = 10
-	dataStreamDiscoveryPollInterval      = 1 * time.Second
+	waitForDataDefaultTimeout           = 10 * time.Minute
+	waitForDynamicStreamsStableDuration = 10 * time.Second
+	dataStreamDiscoveryPollInterval     = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -1094,23 +1094,23 @@ func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]di
 	return result, nil
 }
 
-// discoverDataStreams polls ES for data streams matching patterns using a two-phase approach.
-// Phase 1: blocks until at least one stream appears (up to waitForDataTimeout).
-// Phase 2: polls every dataStreamDiscoveryPollInterval until searchPollsRequired consecutive
-// searchDataStreams polls see no change in stream count; any change resets the countdown.
-// Returns the final slice of discovered streams.
+// discoverDataStreams polls Elasticsearch for data streams matching patterns until there is at least
+// one match and the stream count has stayed the same for waitForDynamicStreamsStable.
 func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, patterns []string) ([]discoveredDataStream, error) {
 	waitForDataTimeout := waitForDataDefaultTimeout
 	if config.WaitForDataTimeout > 0 {
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	searchPollsRequired := dynamicSignalTypesDefaultSearchPolls
-	if config.DynamicSignalTypesSearchPollCount > 0 {
-		searchPollsRequired = config.DynamicSignalTypesSearchPollCount
+	waitForStableDuration := waitForDynamicStreamsStableDuration
+	if config.WaitForDynamicStreamsStable > 0 {
+		waitForStableDuration = config.WaitForDynamicStreamsStable
 	}
+	period := dataStreamDiscoveryPollInterval
+	initialPollCount := wait.PollBudget(waitForStableDuration, period)
 
 	var currentStreams []discoveredDataStream
+	pollCount := initialPollCount
 
 	streamNames := func() []string {
 		names := make([]string, len(currentStreams))
@@ -1122,53 +1122,35 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 
 	patternDisplay := strings.Join(patterns, ",")
 
-	// Phase 1: block until at least one stream appears.
-	logger.Debugf("Waiting for data streams matching %s to appear (timeout: %s)...", patternDisplay, waitForDataTimeout)
+	logger.Debugf("Waiting for data streams matching %s (timeout: %s, or results are stable for: %s)...",
+		patternDisplay, waitForDataTimeout, waitForStableDuration)
 
 	passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		streams, err := r.searchDataStreams(ctx, patterns)
 		if err != nil {
 			return false, err
 		}
+		if len(streams) == 0 {
+			return false, nil
+		}
+		if len(streams) != len(currentStreams) {
+			pollCount = initialPollCount
+		} else {
+			pollCount--
+		}
 		currentStreams = streams
-		return len(currentStreams) > 0, nil
-	}, dataStreamDiscoveryPollInterval, waitForDataTimeout)
+		return pollCount == 0, nil
+	}, period, waitForDataTimeout)
 
 	if err != nil {
 		return nil, err
 	}
-	if !passed {
+	if !passed && len(currentStreams) == 0 {
 		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", patternDisplay, waitForDataTimeout)}
 	}
-
-	// Phase 2: poll until searchPollsRequired consecutive search polls with no change in stream count.
-	logger.Debugf("First data stream(s) found: %s; polling until %d consecutive search poll(s) with no stream count change (period %s)", strings.Join(streamNames(), ", "), searchPollsRequired, dataStreamDiscoveryPollInterval)
-
-	searchPollsLeft := searchPollsRequired
-	for {
-		streams, err := r.searchDataStreams(ctx, patterns)
-		if err != nil {
-			return nil, err
-		}
-		if len(streams) != len(currentStreams) {
-			searchPollsLeft = searchPollsRequired
-		} else {
-			searchPollsLeft--
-		}
-		currentStreams = streams
-
-		if searchPollsLeft == 0 {
-			break
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-time.After(dataStreamDiscoveryPollInterval):
-		}
+	if passed {
+		logger.Debugf("Discovery finished; found %d data stream(s) matching %s: %s", len(currentStreams), patternDisplay, strings.Join(streamNames(), ", "))
 	}
-
-	logger.Debugf("Discovery window closed; found %d data stream(s) matching %s: %s", len(currentStreams), patternDisplay, strings.Join(streamNames(), ", "))
 	return currentStreams, nil
 }
 

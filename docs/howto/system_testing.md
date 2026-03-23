@@ -541,6 +541,7 @@ for system tests.
 | skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
+| wait_for_dynamic_streams_stable | duration |  | For packages with dynamic data streams (e.g. `dynamic_signal_types`), minimum time the discovered data stream count must stay unchanged after the first stream appears before discovery completes. Defaults to 10s. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.

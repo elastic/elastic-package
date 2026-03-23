@@ -474,8 +474,8 @@ func TestDiscoverDataStreams(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams-timeout", nil)
 		r := &tester{esAPI: client.API}
 		cfg := &testConfig{
-			WaitForDataTimeout:                100 * time.Millisecond,
-			DynamicSignalTypesSearchPollCount: 2,
+			WaitForDataTimeout:          100 * time.Millisecond,
+			WaitForDynamicStreamsStable: 2 * time.Second,
 		}
 
 		_, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
@@ -487,7 +487,7 @@ func TestDiscoverDataStreams(t *testing.T) {
 		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams", nil)
 		r := &tester{esAPI: client.API}
 		cfg := &testConfig{
-			DynamicSignalTypesSearchPollCount: 2,
+			WaitForDynamicStreamsStable: 2 * time.Second,
 		}
 
 		streams, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
@@ -521,8 +521,8 @@ func TestBuildDataStreamScenarios(t *testing.T) {
 		r := &tester{pkgManifest: &packages.PackageManifest{Type: "input"}, esAPI: client.API}
 		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
 		cfg := &testConfig{
-			SignalTypes:                       []string{"logs", "metrics"},
-			DynamicSignalTypesSearchPollCount: 2,
+			SignalTypes:                 []string{"logs", "metrics"},
+			WaitForDynamicStreamsStable: 2 * time.Second,
 		}
 
 		got, err := r.buildDataStreamScenarios(t.Context(), "logs", "myreceiver", "default", pt, cfg)

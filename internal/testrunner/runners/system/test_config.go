@@ -33,14 +33,14 @@ var (
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input                             string        `config:"input"`
-	PolicyTemplate                    string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
-	Service                           string        `config:"service"`
-	ServiceNotifySignal               string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
-	IgnoreServiceError                bool          `config:"ignore_service_error"`
-	WaitForDataTimeout                time.Duration `config:"wait_for_data_timeout"`
-	DynamicSignalTypesSearchPollCount int           `config:"dynamic_signal_types_search_poll_count"` // Consecutive data-stream search polls (see code for interval) with the same stream count as the prior poll before ending phase 2 (default 10).
-	SkipIgnoredFields                 []string      `config:"skip_ignored_fields"`
+	Input                       string        `config:"input"`
+	PolicyTemplate              string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
+	Service                     string        `config:"service"`
+	ServiceNotifySignal         string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	IgnoreServiceError          bool          `config:"ignore_service_error"`
+	WaitForDataTimeout          time.Duration `config:"wait_for_data_timeout"`
+	WaitForDynamicStreamsStable time.Duration `config:"wait_for_dynamic_streams_stable"` // The minimum time the count of discovered data streams must stay unchanged before discovery finishes. Default is 10s.
+	SkipIgnoredFields           []string      `config:"skip_ignored_fields"`
 
 	Deployer string `config:"deployer"` // Name of the service deployer to use for this test.
 
