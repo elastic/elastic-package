@@ -4,7 +4,7 @@ go 1.25.8
 
 require (
 	github.com/Masterminds/semver/v3 v3.4.0
-	github.com/ProtonMail/gopenpgp/v2 v2.9.0
+	github.com/ProtonMail/gopenpgp/v2 v2.10.0
 	github.com/aymerick/raymond v2.0.2+incompatible
 	github.com/boumenot/gocover-cobertura v1.4.0
 	github.com/cbroglie/mustache v1.4.0
@@ -19,7 +19,7 @@ require (
 	github.com/elastic/go-resource v0.2.0
 	github.com/elastic/go-ucfg v0.9.1
 	github.com/elastic/package-spec/v3 v3.5.8
-	github.com/fatih/color v1.18.0
+	github.com/fatih/color v1.19.0
 	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/gobwas/glob v0.2.3
 	github.com/goccy/go-yaml v1.19.2
@@ -46,9 +46,9 @@ require (
 	gotest.tools/gotestsum v1.13.0
 	helm.sh/helm/v3 v3.20.1
 	honnef.co/go/tools v0.7.0
-	k8s.io/apimachinery v0.35.2
-	k8s.io/cli-runtime v0.35.2
-	k8s.io/client-go v0.35.2
+	k8s.io/apimachinery v0.35.3
+	k8s.io/cli-runtime v0.35.3
+	k8s.io/client-go v0.35.3
 )
 
 require (
@@ -60,7 +60,7 @@ require (
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/PaesslerAG/gval v1.2.1 // indirect
 	github.com/PaesslerAG/jsonpath v0.1.1 // indirect
-	github.com/ProtonMail/go-crypto v1.3.0 // indirect
+	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/ProtonMail/go-mime v0.0.0-20230322103455-7d82a3887f2f // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -173,7 +173,7 @@ require (
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/api v0.35.2 // indirect
+	k8s.io/api v0.35.3 // indirect
 	k8s.io/apiextensions-apiserver v0.35.1 // indirect
 	k8s.io/component-base v0.35.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
