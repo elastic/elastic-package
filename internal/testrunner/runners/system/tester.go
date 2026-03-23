@@ -2552,8 +2552,8 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 	filename := "sample_event.json"
 	if qualifyByType {
 		// For dynamic_signal_types packages, qualify the filename by signal type
-		// (e.g. "logs-sqlserverreceiver.otel-default" → "sample_event.logs.json").
-		filename = fmt.Sprintf("sample_event.%s.json", dataStreamDataType(sds.dataStream))
+		// (e.g. "logs-sqlserverreceiver.otel-default" → "sample_event_logs.json").
+		filename = fmt.Sprintf("sample_event_%s.json", dataStreamDataType(sds.dataStream))
 	}
 
 	if err := writeSampleEvent(rootPath, docs[0], specVersion, filename); err != nil {
