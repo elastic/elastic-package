@@ -195,8 +195,8 @@ An example **metrics** event looks as following:
 }
 ` + "```",
 			typedSampleEvents: map[string]string{
-				"sample_event.logs.json":    `{"id": "log1"}`,
-				"sample_event.metrics.json": `{"id": "metric1"}`,
+				"sample_event_logs.json":    `{"id": "log1"}`,
+				"sample_event_metrics.json": `{"id": "metric1"}`,
 			},
 		},
 	}

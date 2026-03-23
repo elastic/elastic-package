@@ -28,7 +28,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	}
 
 	// Glob for all sample event files in the directory (e.g. sample_event.json,
-	// sample_event.logs.json, sample_event.metrics.json).
+	// sample_event_logs.json, sample_event_metrics.json).
 	matches, err := filepath.Glob(filepath.Join(dir, "sample_event*.json"))
 	if err != nil {
 		return "", fmt.Errorf("globbing for sample event files failed: %w", err)
@@ -87,11 +87,11 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 }
 
 // sampleEventSignalType extracts the signal type from a type-qualified sample
-// event filename such as "sample_event.logs.json" → "logs". Returns an empty
+// event filename such as "sample_event_logs.json" → "logs". Returns an empty
 // string when the filename does not match the expected pattern.
 func sampleEventSignalType(filename string) string {
-	// "sample_event.logs.json" → suffix "logs.json" → sigType "logs"
-	suffix, found := strings.CutPrefix(filename, "sample_event.")
+	// "sample_event_logs.json" → suffix "logs.json" → sigType "logs"
+	suffix, found := strings.CutPrefix(filename, "sample_event_")
 	if !found {
 		return ""
 	}
