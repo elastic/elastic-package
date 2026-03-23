@@ -96,6 +96,10 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 		return fmt.Errorf("merging variables from input packages: %w", err)
 	}
 
+	if err := r.mergeVariables(manifest, inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("merging variables from input packages: %w", err)
+	}
+
 	return nil
 }
 
