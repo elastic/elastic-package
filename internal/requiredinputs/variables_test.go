@@ -1,0 +1,419 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package requiredinputs
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/packages"
+)
+
+// ---- helpers -----------------------------------------------------------------
+
+// varNode builds a minimal YAML mapping node representing a variable with the
+// given name and extra key=value pairs (passed as alternating key, value
+// strings for simple scalar values).
+func varNode(name string, extras ...string) *yaml.Node {
+	n := &yaml.Node{Kind: yaml.MappingNode}
+	upsertKey(n, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: name})
+	for i := 0; i+1 < len(extras); i += 2 {
+		upsertKey(n, extras[i], &yaml.Node{Kind: yaml.ScalarNode, Value: extras[i+1]})
+	}
+	return n
+}
+
+// copyFixturePackage copies the named package from test/packages/required_inputs
+// to a fresh temp dir and returns that dir path.
+func copyFixturePackage(t *testing.T, fixtureName string) string {
+	t.Helper()
+	srcPath := filepath.Join("..", "..", "test", "packages", "required_inputs", fixtureName)
+	destPath := t.TempDir()
+	err := os.CopyFS(destPath, os.DirFS(srcPath))
+	require.NoError(t, err, "copying fixture package %q", fixtureName)
+	return destPath
+}
+
+// ---- unit tests --------------------------------------------------------------
+
+func TestCloneNode(t *testing.T) {
+	original := varNode("paths", "type", "text", "multi", "true")
+	cloned := cloneNode(original)
+
+	// Mutating the clone must not affect the original.
+	upsertKey(cloned, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
+	assert.Equal(t, "text", mappingValue(original, "type").Value)
+}
+
+func TestMergeVarNode(t *testing.T) {
+	base := varNode("paths", "type", "text", "title", "Paths", "multi", "true")
+
+	t.Run("full override", func(t *testing.T) {
+		override := varNode("paths", "type", "keyword", "title", "Custom Paths", "multi", "false")
+		merged, err := mergeVarNode(base, override)
+		require.NoError(t, err)
+		assert.Equal(t, "paths", varNodeName(merged))
+		assert.Equal(t, "keyword", mappingValue(merged, "type").Value)
+		assert.Equal(t, "Custom Paths", mappingValue(merged, "title").Value)
+		assert.Equal(t, "false", mappingValue(merged, "multi").Value)
+	})
+
+	t.Run("partial override", func(t *testing.T) {
+		override := varNode("paths", "title", "My Paths")
+		merged, err := mergeVarNode(base, override)
+		require.NoError(t, err)
+		assert.Equal(t, "paths", varNodeName(merged))
+		assert.Equal(t, "text", mappingValue(merged, "type").Value) // from base
+		assert.Equal(t, "My Paths", mappingValue(merged, "title").Value)
+		assert.Equal(t, "true", mappingValue(merged, "multi").Value) // from base
+	})
+
+	t.Run("empty override", func(t *testing.T) {
+		override := varNode("paths")
+		merged, err := mergeVarNode(base, override)
+		require.NoError(t, err)
+		assert.Equal(t, "paths", varNodeName(merged))
+		assert.Equal(t, "text", mappingValue(merged, "type").Value)   // from base
+		assert.Equal(t, "Paths", mappingValue(merged, "title").Value) // from base
+	})
+
+	t.Run("name not renamed", func(t *testing.T) {
+		// Even if the override specifies a different name value, base name wins.
+		override := &yaml.Node{Kind: yaml.MappingNode}
+		upsertKey(override, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: "should-be-ignored"})
+		upsertKey(override, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
+		merged, err := mergeVarNode(base, override)
+		require.NoError(t, err)
+		assert.Equal(t, "paths", varNodeName(merged))
+	})
+
+	t.Run("adds new field from override", func(t *testing.T) {
+		override := varNode("paths", "description", "My description")
+		merged, err := mergeVarNode(base, override)
+		require.NoError(t, err)
+		assert.Equal(t, "My description", mappingValue(merged, "description").Value)
+		assert.Equal(t, "text", mappingValue(merged, "type").Value) // base preserved
+	})
+}
+
+func TestCheckDuplicateVarNodes(t *testing.T) {
+	t.Run("no duplicates", func(t *testing.T) {
+		nodes := []*yaml.Node{varNode("paths"), varNode("encoding"), varNode("timeout")}
+		assert.NoError(t, checkDuplicateVarNodes(nodes))
+	})
+
+	t.Run("one duplicate", func(t *testing.T) {
+		nodes := []*yaml.Node{varNode("paths"), varNode("encoding"), varNode("paths")}
+		err := checkDuplicateVarNodes(nodes)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "paths")
+	})
+
+	t.Run("empty slice", func(t *testing.T) {
+		assert.NoError(t, checkDuplicateVarNodes(nil))
+	})
+}
+
+func TestMergeInputLevelVarNodes(t *testing.T) {
+	pathsBase := varNode("paths", "type", "text", "multi", "true")
+	encodingBase := varNode("encoding", "type", "text", "show_user", "false")
+	timeoutBase := varNode("timeout", "type", "text", "default", "30s")
+
+	baseOrder := []string{"paths", "encoding", "timeout"}
+	baseByName := map[string]*yaml.Node{
+		"paths":    pathsBase,
+		"encoding": encodingBase,
+		"timeout":  timeoutBase,
+	}
+
+	t.Run("empty promoted → empty sequence", func(t *testing.T) {
+		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
+		require.NoError(t, err)
+		assert.Empty(t, seq.Content)
+	})
+
+	t.Run("one promoted partial override", func(t *testing.T) {
+		promotedOverrides := map[string]*yaml.Node{
+			"paths": varNode("paths", "default", "/var/log/custom/*.log"),
+		}
+		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 1)
+		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
+		assert.Equal(t, "/var/log/custom/*.log", mappingValue(seq.Content[0], "default").Value)
+		assert.Equal(t, "text", mappingValue(seq.Content[0], "type").Value) // from base
+	})
+
+	t.Run("multiple promoted in base order", func(t *testing.T) {
+		promotedOverrides := map[string]*yaml.Node{
+			"timeout":  varNode("timeout", "default", "60s"),
+			"encoding": varNode("encoding", "show_user", "true"),
+		}
+		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 2)
+		// Order must follow baseOrder: encoding before timeout.
+		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
+		assert.Equal(t, "timeout", varNodeName(seq.Content[1]))
+		assert.Equal(t, "true", mappingValue(seq.Content[0], "show_user").Value)
+		assert.Equal(t, "60s", mappingValue(seq.Content[1], "default").Value)
+	})
+}
+
+func TestMergeStreamLevelVarNodes(t *testing.T) {
+	pathsBase := varNode("paths", "type", "text", "multi", "true")
+	encodingBase := varNode("encoding", "type", "text", "show_user", "false")
+	timeoutBase := varNode("timeout", "type", "text", "default", "30s")
+
+	baseOrder := []string{"paths", "encoding", "timeout"}
+	baseByName := map[string]*yaml.Node{
+		"paths":    pathsBase,
+		"encoding": encodingBase,
+		"timeout":  timeoutBase,
+	}
+
+	t.Run("no promoted, no overrides → all base vars", func(t *testing.T) {
+		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 3)
+		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
+		assert.Equal(t, "encoding", varNodeName(seq.Content[1]))
+		assert.Equal(t, "timeout", varNodeName(seq.Content[2]))
+	})
+
+	t.Run("some promoted → promoted excluded", func(t *testing.T) {
+		promoted := map[string]bool{"paths": true, "encoding": true}
+		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 1)
+		assert.Equal(t, "timeout", varNodeName(seq.Content[0]))
+	})
+
+	t.Run("DS override on existing base var", func(t *testing.T) {
+		dsOverrides := []*yaml.Node{varNode("encoding", "show_user", "true")}
+		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 3)
+		// encoding is merged
+		encodingMerged := seq.Content[1]
+		assert.Equal(t, "encoding", varNodeName(encodingMerged))
+		assert.Equal(t, "true", mappingValue(encodingMerged, "show_user").Value)
+		assert.Equal(t, "text", mappingValue(encodingMerged, "type").Value) // from base
+	})
+
+	t.Run("novel DS var appended", func(t *testing.T) {
+		dsOverrides := []*yaml.Node{varNode("custom_tag", "type", "text")}
+		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
+		require.NoError(t, err)
+		require.Len(t, seq.Content, 4) // 3 base + 1 novel
+		assert.Equal(t, "custom_tag", varNodeName(seq.Content[3]))
+	})
+
+	t.Run("mixed: promoted + DS merge + novel", func(t *testing.T) {
+		promoted := map[string]bool{"paths": true}
+		dsOverrides := []*yaml.Node{
+			varNode("encoding", "show_user", "true"),
+			varNode("custom_tag", "type", "text"),
+		}
+		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
+		require.NoError(t, err)
+		// paths excluded (promoted); encoding merged; timeout base; custom_tag novel
+		require.Len(t, seq.Content, 3)
+		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
+		assert.Equal(t, "true", mappingValue(seq.Content[0], "show_user").Value)
+		assert.Equal(t, "timeout", varNodeName(seq.Content[1]))
+		assert.Equal(t, "custom_tag", varNodeName(seq.Content[2]))
+	})
+}
+
+func TestLoadInputPkgVarNodes(t *testing.T) {
+	t.Run("fixture with three vars", func(t *testing.T) {
+		pkgPath := filepath.Join("..", "..", "test", "packages", "required_inputs", "var_merging_input_pkg")
+		order, byName, err := loadInputPkgVarNodes(pkgPath)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"paths", "encoding", "timeout"}, order)
+		assert.Equal(t, "text", mappingValue(byName["paths"], "type").Value)
+		assert.Equal(t, "text", mappingValue(byName["encoding"], "type").Value)
+		assert.Equal(t, "text", mappingValue(byName["timeout"], "type").Value)
+	})
+
+	t.Run("package with no vars", func(t *testing.T) {
+		// Use the fake input helper which has no vars in its manifest.
+		pkgPath := createFakeInputHelper(t)
+		order, byName, err := loadInputPkgVarNodes(pkgPath)
+		require.NoError(t, err)
+		assert.Empty(t, order)
+		assert.Empty(t, byName)
+	})
+}
+
+// ---- integration tests -------------------------------------------------------
+
+func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
+	t.Helper()
+	inputPkgPath := filepath.Join("..", "..", "test", "packages", "required_inputs", "var_merging_input_pkg")
+	return &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgPath, nil
+		},
+	}
+}
+
+func TestMergeVariables_Full(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_full")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	// Check package manifest: input should have 2 vars (paths, encoding).
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	inputVars := manifest.PolicyTemplates[0].Inputs[0].Vars
+	require.Len(t, inputVars, 2)
+	assert.Equal(t, "paths", inputVars[0].Name)
+	assert.Equal(t, "encoding", inputVars[1].Name)
+
+	// paths: base fields preserved, default overridden.
+	assert.Equal(t, "text", inputVars[0].Type)
+	require.NotNil(t, inputVars[0].Default)
+
+	// encoding: show_user overridden to true.
+	assert.True(t, inputVars[1].ShowUser)
+	assert.Equal(t, "text", inputVars[1].Type)
+
+	// Check DS manifest: streams[0] should have 2 vars (timeout, custom_tag).
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	require.Len(t, streamVars, 2)
+	assert.Equal(t, "timeout", streamVars[0].Name)
+	assert.Equal(t, "custom_tag", streamVars[1].Name)
+
+	// timeout: merged from base + DS override (description).
+	assert.Equal(t, "text", streamVars[0].Type)
+	assert.Equal(t, "Timeout for log collection.", streamVars[0].Description)
+}
+
+func TestMergeVariables_PromotesToInput(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_promotes_to_input")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	// Input should have 1 var: paths (promoted, merged with composable override).
+	inputVars := manifest.PolicyTemplates[0].Inputs[0].Vars
+	require.Len(t, inputVars, 1)
+	assert.Equal(t, "paths", inputVars[0].Name)
+	assert.Equal(t, "text", inputVars[0].Type) // from base
+
+	// DS should have 2 vars: encoding and timeout (both from base, no DS overrides).
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	require.Len(t, streamVars, 2)
+	assert.Equal(t, "encoding", streamVars[0].Name)
+	assert.Equal(t, "timeout", streamVars[1].Name)
+}
+
+func TestMergeVariables_DsMerges(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_ds_merges")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	// No input-level vars (nothing promoted).
+	assert.Empty(t, manifest.PolicyTemplates[0].Inputs[0].Vars)
+
+	// DS should have 4 vars: paths, encoding (merged), timeout, custom_tag.
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	require.Len(t, streamVars, 4)
+	assert.Equal(t, "paths", streamVars[0].Name)
+	assert.Equal(t, "encoding", streamVars[1].Name)
+	assert.Equal(t, "timeout", streamVars[2].Name)
+	assert.Equal(t, "custom_tag", streamVars[3].Name)
+
+	// encoding: title overridden.
+	assert.Equal(t, "Log Encoding Override", streamVars[1].Title)
+	assert.Equal(t, "text", streamVars[1].Type) // from base
+}
+
+func TestMergeVariables_NoOverride(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_no_override")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	// No input-level vars.
+	assert.Empty(t, manifest.PolicyTemplates[0].Inputs[0].Vars)
+
+	// DS should have 3 vars: all from base, unmodified.
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+
+	streamVars := dsManifest.Streams[0].Vars
+	require.Len(t, streamVars, 3)
+	assert.Equal(t, "paths", streamVars[0].Name)
+	assert.Equal(t, "encoding", streamVars[1].Name)
+	assert.Equal(t, "timeout", streamVars[2].Name)
+
+	// Base fields preserved.
+	assert.Equal(t, "text", streamVars[0].Type)
+	assert.True(t, streamVars[0].Multi)
+	assert.True(t, streamVars[0].Required)
+}
+
+func TestMergeVariables_DuplicateError(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_duplicate_error")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "paths")
+}
