@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
@@ -47,7 +48,8 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 
 	validator := tui.Validator{Cwd: "."}
 
-	if cmd.Flags().Changed(createPackageTypeFlag) || cmd.Flags().Changed(createPackageNameFlag) {
+	if flags := cmd.Flags(); flags.Changed(cobraext.CreatePackageTypeFlagName) ||
+		flags.Changed(cobraext.CreatePackageNameFlagName) {
 		return createPackageNonInteractive(cmd, validator)
 	}
 
@@ -185,18 +187,18 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 }
 
 func createPackageNonInteractive(cmd *cobra.Command, validator tui.Validator) error {
-	pkgType, _ := cmd.Flags().GetString(createPackageTypeFlag)
-	pkgName, _ := cmd.Flags().GetString(createPackageNameFlag)
+	pkgType, _ := cmd.Flags().GetString(cobraext.CreatePackageTypeFlagName)
+	pkgName, _ := cmd.Flags().GetString(cobraext.CreatePackageNameFlagName)
 
 	if pkgType == "" {
-		return fmt.Errorf("--%s is required", createPackageTypeFlag)
+		return fmt.Errorf("--%s is required", cobraext.CreatePackageTypeFlagName)
 	}
 	if pkgName == "" {
-		return fmt.Errorf("--%s is required", createPackageNameFlag)
+		return fmt.Errorf("--%s is required", cobraext.CreatePackageNameFlagName)
 	}
 
 	if !slices.Contains(packages.AllowedPackageTypes, pkgType) {
-		return fmt.Errorf("--%s must be one of: %s", createPackageTypeFlag, strings.Join(packages.AllowedPackageTypes, ", "))
+		return fmt.Errorf("--%s must be one of: %s", cobraext.CreatePackageTypeFlagName, strings.Join(packages.AllowedPackageTypes, ", "))
 	}
 
 	if err := validator.PackageDoesNotExist(pkgName); err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -38,7 +39,9 @@ type newDataStreamAnswers struct {
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
 
-	if cmd.Flags().Changed(createDataStreamNameFlag) || cmd.Flags().Changed(createDataStreamTypeFlag) || cmd.Flags().Changed(createDataStreamInputsFlag) {
+	if flags := cmd.Flags(); flags.Changed(cobraext.CreateDataStreamNameFlagName) ||
+		flags.Changed(cobraext.CreateDataStreamTypeFlagName) ||
+		flags.Changed(cobraext.CreateDataStreamInputsFlagName) {
 		return createDataStreamNonInteractive(cmd)
 	}
 
@@ -155,18 +158,18 @@ func createDataStreamNonInteractive(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
 	}
 
-	dsName, _ := cmd.Flags().GetString(createDataStreamNameFlag)
-	dsType, _ := cmd.Flags().GetString(createDataStreamTypeFlag)
-	inputs, _ := cmd.Flags().GetStringSlice(createDataStreamInputsFlag)
+	dsName, _ := cmd.Flags().GetString(cobraext.CreateDataStreamNameFlagName)
+	dsType, _ := cmd.Flags().GetString(cobraext.CreateDataStreamTypeFlagName)
+	inputs, _ := cmd.Flags().GetStringSlice(cobraext.CreateDataStreamInputsFlagName)
 
 	if dsName == "" {
-		return fmt.Errorf("--%s is required", createDataStreamNameFlag)
+		return fmt.Errorf("--%s is required", cobraext.CreateDataStreamNameFlagName)
 	}
 	if dsType == "" {
-		return fmt.Errorf("--%s is required", createDataStreamTypeFlag)
+		return fmt.Errorf("--%s is required", cobraext.CreateDataStreamTypeFlagName)
 	}
 	if !slices.Contains(packages.AllowedDataStreamTypes, dsType) {
-		return fmt.Errorf("--%s must be one of: %s", createDataStreamTypeFlag, strings.Join(packages.AllowedDataStreamTypes, ", "))
+		return fmt.Errorf("--%s must be one of: %s", cobraext.CreateDataStreamTypeFlagName, strings.Join(packages.AllowedDataStreamTypes, ", "))
 	}
 
 	validator := tui.Validator{Cwd: "."}
@@ -179,7 +182,7 @@ func createDataStreamNonInteractive(cmd *cobra.Command) error {
 
 	if dsType == "logs" {
 		if len(inputs) == 0 {
-			return fmt.Errorf("--%s is required when type is logs", createDataStreamInputsFlag)
+			return fmt.Errorf("--%s is required when type is logs", cobraext.CreateDataStreamInputsFlagName)
 		}
 		for _, input := range inputs {
 			if _, ok := packages.AllowedLogsInputTypes[input]; !ok {
