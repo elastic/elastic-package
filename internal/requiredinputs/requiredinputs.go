@@ -100,6 +100,10 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 		return fmt.Errorf("merging variables from input packages: %w", err)
 	}
 
+	if err := r.bundleDataStreamFields(inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("bundling data stream fields from input packages: %w", err)
+	}
+
 	return nil
 }
 

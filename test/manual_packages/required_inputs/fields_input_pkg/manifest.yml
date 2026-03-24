@@ -1,0 +1,32 @@
+format_version: 3.6.0
+name: fields_input_pkg
+title: Fields Input Package
+description: Input package used as a test fixture for field bundling.
+version: 0.1.0
+type: input
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+policy_templates:
+  - name: field_bundling
+    type: logs
+    title: Field Bundling
+    description: Collect logs with field bundling.
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/*.log
+owner:
+  github: elastic/integrations
+  type: elastic
