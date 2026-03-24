@@ -84,6 +84,21 @@ func (d *documentStore) Text(filePath string) (string, bool) {
 	return text, ok
 }
 
+func (d *documentStore) Snapshot(packageRoot string) map[string]string {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+
+	snapshot := make(map[string]string)
+	for filePath, text := range d.text {
+		relPath, ok := relativeFSPath(packageRoot, filePath)
+		if !ok {
+			continue
+		}
+		snapshot[relPath] = text
+	}
+	return snapshot
+}
+
 func (s *Server) documentText(filePath string) string {
 	if text, ok := s.documents.Text(filePath); ok {
 		return text

@@ -123,6 +123,7 @@ func (s *Server) textDocumentDidOpen(ctx *glsp.Context, params *protocol.DidOpen
 
 func (s *Server) textDocumentDidChange(ctx *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
 	s.documents.Update(params.TextDocument.URI, params.ContentChanges)
+	s.triggerValidation(ctx, params.TextDocument.URI)
 	return nil
 }
 
@@ -133,6 +134,7 @@ func (s *Server) textDocumentDidSave(ctx *glsp.Context, params *protocol.DidSave
 
 func (s *Server) textDocumentDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
 	s.documents.Delete(params.TextDocument.URI)
+	s.triggerValidation(ctx, params.TextDocument.URI)
 	return nil
 }
 
@@ -155,7 +157,7 @@ func (s *Server) triggerValidation(ctx *glsp.Context, uri protocol.DocumentUri) 
 
 	s.debouncer.Trigger(packageRoot, func() {
 		s.logger.Infof("debounce fired, validating %s", packageRoot)
-		diags := validatePackage(packageRoot)
+		diags := validatePackageFS(packageRoot, newOverlayFS(packageRoot, s.documents.Snapshot(packageRoot)))
 		s.logger.Infof("validation returned %d file(s) with diagnostics", len(diags))
 		s.publishAllDiagnostics(packageRoot, diags)
 	})

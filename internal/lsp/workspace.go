@@ -47,5 +47,5 @@ func pathToURI(path string) string {
 	if !strings.HasPrefix(path, "/") {
 		path = "/" + path
 	}
-	return "file://" + path
+	return (&url.URL{Scheme: "file", Path: path}).String()
 }

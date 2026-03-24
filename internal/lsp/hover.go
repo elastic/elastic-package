@@ -7,6 +7,7 @@ package lsp
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/tliron/glsp"
 	protocol "github.com/tliron/glsp/protocol_3_16"
@@ -114,23 +115,18 @@ func hoverFieldDefinition(line string, pos protocol.Position, filePath string) s
 		return ""
 	}
 
-	trimmed := strings.TrimSpace(line)
-
 	// Hovering over a type value.
-	if strings.HasPrefix(trimmed, "type:") {
-		typeName := strings.TrimSpace(strings.TrimPrefix(trimmed, "type:"))
+	if typeName := valueAfterKeyAtCursor(line, pos, "type:"); typeName != "" {
 		return fieldTypeDocs(typeName)
 	}
 
 	// Hovering over a unit value.
-	if strings.HasPrefix(trimmed, "unit:") {
-		unit := strings.TrimSpace(strings.TrimPrefix(trimmed, "unit:"))
+	if unit := valueAfterKeyAtCursor(line, pos, "unit:"); unit != "" {
 		return unitDocs(unit)
 	}
 
 	// Hovering over a metric_type value.
-	if strings.HasPrefix(trimmed, "metric_type:") {
-		mt := strings.TrimSpace(strings.TrimPrefix(trimmed, "metric_type:"))
+	if mt := valueAfterKeyAtCursor(line, pos, "metric_type:"); mt != "" {
 		return metricTypeDocs(mt)
 	}
 
@@ -223,19 +219,78 @@ func yamlIndent(line string) int {
 
 func extractFieldValueAtCursor(line string, pos protocol.Position) string {
 	for _, key := range []string{"field:", "target_field:", "source:", "copy_to:"} {
-		idx := strings.Index(line, key)
-		if idx < 0 {
-			continue
-		}
-		valueStart := idx + len(key)
-		value := strings.TrimSpace(line[valueStart:])
-		// Remove quotes.
-		value = strings.Trim(value, `"'`)
-		if value != "" {
+		if value := valueAfterKeyAtCursor(line, pos, key); value != "" {
 			return value
 		}
 	}
 	return ""
+}
+
+func valueAfterKeyAtCursor(line string, pos protocol.Position, key string) string {
+	value, start, end, ok := valueAfterKey(line, key)
+	if !ok {
+		return ""
+	}
+
+	cursor := utf16ColumnToRuneOffset(line, int(pos.Character))
+	if cursor < start || cursor >= end {
+		return ""
+	}
+
+	return value
+}
+
+func valueAfterKey(line string, key string) (string, int, int, bool) {
+	start, ok := yamlKeyValueStart(line, key)
+	if !ok {
+		return "", 0, 0, false
+	}
+
+	runes := []rune(line)
+	for start < len(runes) && unicode.IsSpace(runes[start]) {
+		start++
+	}
+
+	if start >= len(runes) {
+		return "", 0, 0, false
+	}
+
+	quote := rune(0)
+	if runes[start] == '"' || runes[start] == '\'' {
+		quote = runes[start]
+		start++
+	}
+
+	end := start
+	if quote != 0 {
+		for end < len(runes) && runes[end] != quote {
+			end++
+		}
+	} else {
+		for end < len(runes) && !unicode.IsSpace(runes[end]) && runes[end] != '#' {
+			end++
+		}
+	}
+
+	if end <= start {
+		return "", 0, 0, false
+	}
+
+	return string(runes[start:end]), start, end, true
+}
+
+func yamlKeyValueStart(line string, key string) (int, bool) {
+	trimmed := strings.TrimLeftFunc(line, unicode.IsSpace)
+	leadingRunes := len([]rune(line)) - len([]rune(trimmed))
+
+	switch {
+	case strings.HasPrefix(trimmed, key):
+		return leadingRunes + len([]rune(key)), true
+	case strings.HasPrefix(trimmed, "- "+key):
+		return leadingRunes + len([]rune("- "+key)), true
+	default:
+		return 0, false
+	}
 }
 
 func extractYAMLKey(line string) string {

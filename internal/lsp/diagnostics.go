@@ -5,6 +5,7 @@
 package lsp
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -20,10 +21,19 @@ var (
 	// Matches: file "path/to/file" is invalid: message
 	fileErrorRe = regexp.MustCompile(`^file "([^"]+)" is invalid: (.+)$`)
 
+	// Matches: item [name] is not allowed in folder [path]
+	itemInFolderErrorRe = regexp.MustCompile(`^item \[([^\]]+)\] is not allowed in folder \[([^\]]+)\]$`)
+
 	// Matches folder-based errors like:
 	// "expecting to find [X] folder in folder [/path/to/dir]"
 	// "expecting to find [X] file in folder [/path/to/dir]"
 	folderErrorRe = regexp.MustCompile(`in folder \[([^\]]+)\]`)
+
+	// Matches: references found in dashboard kibana/dashboard/foo.json: id (type), ...
+	dashboardReferencesErrorRe = regexp.MustCompile(`^references found in dashboard ([^:]+): (.+)$`)
+
+	// Matches: reference found in dashboard kibana/dashboard/foo.json: id (type)
+	dashboardReferenceErrorRe = regexp.MustCompile(`^reference found in dashboard ([^:]+): (.+)$`)
 
 	// Matches error code suffix like (SVR00001)
 	errorCodeRe = regexp.MustCompile(`\(([A-Z]{2,3}\d{5})\)$`)
@@ -32,9 +42,21 @@ var (
 // validatePackage runs validation on the package at the given root path and
 // returns diagnostics grouped by absolute file path.
 func validatePackage(packageRoot string) map[string][]protocol.Diagnostic {
+	return validatePackageWith(packageRoot, os.DirFS(packageRoot), func() (error, error) {
+		return validation.ValidateAndFilterFromPath(packageRoot)
+	})
+}
+
+func validatePackageFS(packageRoot string, fsys fs.FS) map[string][]protocol.Diagnostic {
+	return validatePackageWith(packageRoot, fsys, func() (error, error) {
+		return validation.ValidateAndFilterFromFS(packageRoot, fsys)
+	})
+}
+
+func validatePackageWith(packageRoot string, fsys fs.FS, validate func() (error, error)) map[string][]protocol.Diagnostic {
 	diagsByFile := make(map[string][]protocol.Diagnostic)
 
-	errs, _ := validation.ValidateAndFilterFromPath(packageRoot)
+	errs, _ := validate()
 	if errs == nil {
 		// No errors — return empty map (will clear diagnostics).
 		// Include the manifest so we clear any previous diagnostics for it.
@@ -64,20 +86,22 @@ func validatePackage(packageRoot string) map[string][]protocol.Diagnostic {
 	}
 
 	for _, errMsg := range individualErrors {
-		filePath, message, code := parseError(errMsg, packageRoot)
+		for _, expandedErrMsg := range expandDiagnosticMessages(errMsg) {
+			filePath, message, code := parseError(expandedErrMsg, packageRoot)
 
-		diag := protocol.Diagnostic{
-			Range:    findPosition(filePath, message),
-			Severity: diagnosticSeverityPtr(protocol.DiagnosticSeverityError),
-			Source:   strPtr(serverName),
-			Message:  message,
+			diag := protocol.Diagnostic{
+				Range:    findPositionInFS(packageRoot, filePath, fsys, message),
+				Severity: diagnosticSeverityPtr(protocol.DiagnosticSeverityError),
+				Source:   strPtr(serverName),
+				Message:  message,
+			}
+
+			if code != "" {
+				diag.Code = &protocol.IntegerOrString{Value: code}
+			}
+
+			diagsByFile[filePath] = append(diagsByFile[filePath], diag)
 		}
-
-		if code != "" {
-			diag.Code = &protocol.IntegerOrString{Value: code}
-		}
-
-		diagsByFile[filePath] = append(diagsByFile[filePath], diag)
 	}
 
 	// Ensure we publish empty diagnostics for files that previously had errors
@@ -85,6 +109,24 @@ func validatePackage(packageRoot string) map[string][]protocol.Diagnostic {
 	// For now, we only publish files that have errors.
 
 	return diagsByFile
+}
+
+func expandDiagnosticMessages(errMsg string) []string {
+	match := dashboardReferencesErrorRe.FindStringSubmatch(errMsg)
+	if match == nil {
+		return []string{errMsg}
+	}
+
+	refs := strings.Split(match[2], ", ")
+	if len(refs) <= 1 {
+		return []string{errMsg}
+	}
+
+	expanded := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		expanded = append(expanded, "reference found in dashboard "+match[1]+": "+ref)
+	}
+	return expanded
 }
 
 // parseError extracts the file path, message, and error code from an error string.
@@ -96,33 +138,59 @@ func parseError(errMsg string, packageRoot string) (filePath, message, code stri
 
 	// Try the "file X is invalid: Y" pattern.
 	if m := fileErrorRe.FindStringSubmatch(errMsg); m != nil {
-		rawPath := m[1]
+		filePath = resolveErrorPath(m[1], packageRoot)
 		message = m[2]
+		return filePath, message, code
+	}
 
-		// The path may be absolute or relative to the package root.
-		if filepath.IsAbs(rawPath) {
-			filePath = rawPath
-		} else {
-			filePath = filepath.Join(packageRoot, rawPath)
-		}
+	// Attribute forbidden items to the exact offending file or directory path.
+	if m := itemInFolderErrorRe.FindStringSubmatch(errMsg); m != nil {
+		filePath = filepath.Join(resolveErrorPath(m[2], packageRoot), m[1])
+		message = errMsg
+		return filePath, message, code
+	}
+
+	// By-reference dashboard warnings report the file path inline instead of
+	// using the standard "file X is invalid" wrapper.
+	if m := dashboardReferenceErrorRe.FindStringSubmatch(errMsg); m != nil {
+		filePath = resolveErrorPath(m[1], packageRoot)
+		message = "reference found in dashboard: " + m[2]
+		return filePath, message, code
+	}
+
+	if m := dashboardReferencesErrorRe.FindStringSubmatch(errMsg); m != nil {
+		filePath = resolveErrorPath(m[1], packageRoot)
+		message = "references found in dashboard: " + m[2]
 		return filePath, message, code
 	}
 
 	// Try folder-based pattern: attribute to manifest.yml in that folder.
 	if m := folderErrorRe.FindStringSubmatch(errMsg); m != nil {
-		dir := m[1]
+		dir := resolveErrorPath(m[1], packageRoot)
 		candidate := filepath.Join(dir, "manifest.yml")
 		if _, statErr := os.Stat(candidate); statErr == nil {
 			filePath = candidate
 			message = errMsg
 			return filePath, message, code
 		}
+
+		filePath = dir
+		message = errMsg
+		return filePath, message, code
 	}
 
 	// Fallback: attribute to manifest.yml.
 	filePath = filepath.Join(packageRoot, "manifest.yml")
 	message = errMsg
 	return filePath, message, code
+}
+
+func resolveErrorPath(rawPath, packageRoot string) string {
+	if filepath.IsAbs(rawPath) {
+		return filepath.Clean(rawPath)
+	}
+
+	return filepath.Clean(filepath.Join(packageRoot, rawPath))
 }
 
 // stripNumbering removes leading numbering like "   1. " from a line.

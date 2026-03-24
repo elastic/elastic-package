@@ -73,10 +73,7 @@ func (s *Server) completeFieldNames(packageRoot, filePath, line string) []protoc
 			continue
 		}
 		info := idx[name]
-		detail := info.Type
-		if info.Unit != "" {
-			detail += " (" + info.Unit + ")"
-		}
+		detail := formatFieldDetail(info)
 		doc := info.Description
 		item := protocol.CompletionItem{
 			Label:  name,
@@ -100,6 +97,10 @@ func completeFieldTypeValues(line string) []protocol.CompletionItem {
 	if !strings.HasPrefix(trimmed, "type:") {
 		return nil
 	}
+	prefix, _, _, ok := valueAfterKey(trimmed, "type:")
+	if !ok {
+		prefix = ""
+	}
 
 	types := []string{
 		"keyword", "text", "match_only_text", "wildcard", "constant_keyword",
@@ -116,6 +117,9 @@ func completeFieldTypeValues(line string) []protocol.CompletionItem {
 	enumKind := protocol.CompletionItemKindEnumMember
 	var items []protocol.CompletionItem
 	for _, t := range types {
+		if prefix != "" && !strings.HasPrefix(t, prefix) {
+			continue
+		}
 		label := t
 		items = append(items, protocol.CompletionItem{
 			Label: label,
@@ -138,6 +142,9 @@ func completeManifestKeys(filePath, packageRoot, line, documentText string) []pr
 	propKind := protocol.CompletionItemKindProperty
 	var items []protocol.CompletionItem
 	for _, k := range keys {
+		if trimmed != "" && !strings.HasPrefix(k, trimmed) {
+			continue
+		}
 		label := k
 		items = append(items, protocol.CompletionItem{
 			Label:      label,
@@ -151,17 +158,18 @@ func completeManifestKeys(filePath, packageRoot, line, documentText string) []pr
 // --- helpers ---
 
 func isFieldValueContext(line string) bool {
-	trimmed := strings.TrimSpace(line)
-	return strings.HasPrefix(trimmed, "field:") ||
-		strings.HasPrefix(trimmed, "target_field:") ||
-		strings.HasPrefix(trimmed, "source:") ||
-		strings.HasPrefix(trimmed, "copy_to:")
+	for _, key := range []string{"field:", "target_field:", "source:", "copy_to:"} {
+		if _, ok := yamlKeyValueStart(line, key); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func extractFieldPrefix(line string) string {
 	for _, key := range []string{"field:", "target_field:", "source:", "copy_to:"} {
-		if idx := strings.Index(line, key); idx >= 0 {
-			return strings.TrimSpace(line[idx+len(key):])
+		if value, _, _, ok := valueAfterKey(line, key); ok {
+			return value
 		}
 	}
 	return ""
