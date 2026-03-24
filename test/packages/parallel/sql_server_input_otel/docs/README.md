@@ -52,3 +52,87 @@ For a complete list of log attributes, refer to the [SQL Server Receiver logs do
 ### Feature gate: `receiver.sqlserver.RemoveServerResourceAttribute`
 
 Starting with EDOT Collector versions based on OpenTelemetry Collector Contrib v0.129.0+, the upstream receiver includes a feature gate `receiver.sqlserver.RemoveServerResourceAttribute` that removes `server.address` and `server.port` from resource attributes, as they are not identified as resource attributes in the semantic conventions. This feature gate is currently opt-in. Refer to the [upstream documentation](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/sqlserverreceiver#feature-gate) for details.
+
+An example event looks as following:
+
+```json
+{
+    "@timestamp": "2026-03-23T18:57:30.184Z",
+    "_metric_names_hash": "8986448896debcf6",
+    "data_stream": {
+        "dataset": "sqlserverreceiver.otel",
+        "namespace": "25898",
+        "type": "metrics"
+    },
+    "event": {
+        "agent_id_status": "missing",
+        "dataset": "sqlserverreceiver.otel",
+        "ingested": "2026-03-23T18:57:40Z"
+    },
+    "host": {
+        "name": "elastic-agent-58948",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "metrics": {
+        "sqlserver": {
+            "batch": {
+                "request": {
+                    "rate": 64
+                }
+            },
+            "lock": {
+                "wait": {
+                    "rate": 3
+                }
+            }
+        }
+    },
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-58948"
+            },
+            "os": {
+                "type": "linux"
+            },
+            "service": {
+                "instance": {
+                    "id": "svc-sql_server_input_otel:1433"
+                }
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.38.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
+        "version": "9.4.0"
+    },
+    "service": {
+        "instance": {
+            "id": "svc-sql_server_input_otel:1433"
+        },
+        "node": {
+            "name": "svc-sql_server_input_otel:1433"
+        }
+    },
+    "sqlserver": {
+        "batch": {
+            "request": {
+                "rate": 64
+            }
+        },
+        "lock": {
+            "wait": {
+                "rate": 3
+            }
+        }
+    },
+    "start_timestamp": "2026-03-23T18:57:29.073Z",
+    "unit": "{requests}/s"
+}
+```
