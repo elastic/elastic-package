@@ -52,3 +52,5 @@ For a complete list of log attributes, refer to the [SQL Server Receiver logs do
 ### Feature gate: `receiver.sqlserver.RemoveServerResourceAttribute`
 
 Starting with EDOT Collector versions based on OpenTelemetry Collector Contrib v0.129.0+, the upstream receiver includes a feature gate `receiver.sqlserver.RemoveServerResourceAttribute` that removes `server.address` and `server.port` from resource attributes, as they are not identified as resource attributes in the semantic conventions. This feature gate is currently opt-in. Refer to the [upstream documentation](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/sqlserverreceiver#feature-gate) for details.
+
+{{ event }}
