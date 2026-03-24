@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -21,25 +20,16 @@ import (
 const sampleEventFile = "sample_event.json"
 
 func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
-	var dir string
+	var eventPath string
 	if dataStreamName == "" {
-		dir = packageRoot
+		eventPath = filepath.Join(packageRoot, sampleEventFile)
 	} else {
-		dir = filepath.Join(packageRoot, "data_stream", dataStreamName)
+		eventPath = filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
 	}
 
-	// Glob for all sample event files in the directory (e.g. sample_event.json,
-	// sample_event_logs.json, sample_event_metrics.json).
-	matches, err := filepath.Glob(filepath.Join(dir, "sample_event*.json"))
+	body, err := os.ReadFile(eventPath)
 	if err != nil {
-		return "", fmt.Errorf("globbing for sample event files failed: %w", err)
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		return filepath.Base(matches[i]) < filepath.Base(matches[j])
-	})
-	if len(matches) == 0 {
-		return "", fmt.Errorf("searching for sample event files failed (path: %s): %w",
-			filepath.Join(dir, sampleEventFile), os.ErrNotExist)
+		return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
@@ -50,55 +40,24 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing format version %q failed: %w", manifest.SpecVersion, err)
 	}
+
 	jsonFormatter := formatter.JSONFormatterBuilder(*specVersion)
+	formatted, _, err := jsonFormatter.Format(body)
+	if err != nil {
+		return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
+	}
 
 	var builder strings.Builder
-	for _, eventPath := range matches {
-		base := filepath.Base(eventPath)
-		name := sampleEventName(base)
-		if base != sampleEventFile && name == "" {
-			continue
-		}
-
-		if builder.Len() > 0 {
-			builder.WriteString("\n\n")
-		}
-
-		body, err := os.ReadFile(eventPath)
-		if err != nil {
-			return "", fmt.Errorf("reading sample event file failed (path: %s): %w", eventPath, err)
-		}
-		formatted, _, err := jsonFormatter.Format(body)
-		if err != nil {
-			return "", fmt.Errorf("formatting sample event file failed (path: %s): %w", eventPath, err)
-		}
-
-		switch {
-		case base == sampleEventFile && dataStreamName == "":
-			builder.WriteString("An example event looks as following:\n\n")
-		case base == sampleEventFile:
-			builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
-				stripDataStreamFolderSuffix(dataStreamName)))
-		default:
-			builder.WriteString(fmt.Sprintf("An example **%s** event looks as following:\n\n", name))
-		}
-		builder.WriteString("```json\n")
-		builder.Write(bytes.TrimSpace(formatted))
-		builder.WriteString("\n```")
+	if dataStreamName == "" {
+		builder.WriteString("An example event looks as following:\n\n")
+	} else {
+		builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
+			stripDataStreamFolderSuffix(dataStreamName)))
 	}
+	builder.WriteString("```json\n")
+	builder.Write(bytes.TrimSpace(formatted))
+	builder.WriteString("\n```")
 	return builder.String(), nil
-}
-
-// sampleEventName returns the name segment from a sample event filename of the
-// form "sample_event_<name>.json" (e.g. "logs", "metrics"). It returns an empty
-// string for "sample_event.json" or any basename that does not match that pattern.
-func sampleEventName(filename string) string {
-	suffix, found := strings.CutPrefix(filename, "sample_event_")
-	if !found {
-		return ""
-	}
-	name, _, _ := strings.Cut(suffix, ".")
-	return name
 }
 
 func stripDataStreamFolderSuffix(dataStreamName string) string {
