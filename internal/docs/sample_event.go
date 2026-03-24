@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -33,9 +34,12 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("globbing for sample event files failed: %w", err)
 	}
+	sort.Slice(matches, func(i, j int) bool {
+		return filepath.Base(matches[i]) < filepath.Base(matches[j])
+	})
 	if len(matches) == 0 {
-		return "", fmt.Errorf("searching forsample event files failed (path: %s): %w",
-		filepath.Join(dir, sampleEventFile), os.ErrNotExist)
+		return "", fmt.Errorf("searching for sample event files failed (path: %s): %w",
+			filepath.Join(dir, sampleEventFile), os.ErrNotExist)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
@@ -51,7 +55,7 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	var builder strings.Builder
 	for _, eventPath := range matches {
 		base := filepath.Base(eventPath)
-		name := sampleEventSignalType(base)
+		name := sampleEventName(base)
 		if base != sampleEventFile && name == "" {
 			continue
 		}
@@ -85,17 +89,16 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	return builder.String(), nil
 }
 
-// sampleEventSignalType extracts the signal type from a type-qualified sample
-// event filename such as "sample_event_logs.json" → "logs". Returns an empty
-// string when the filename does not match the expected pattern.
-func sampleEventSignalType(filename string) string {
-	// "sample_event_logs.json" → suffix "logs.json" → sigType "logs"
+// sampleEventName returns the name segment from a sample event filename of the
+// form "sample_event_<name>.json" (e.g. "logs", "metrics"). It returns an empty
+// string for "sample_event.json" or any basename that does not match that pattern.
+func sampleEventName(filename string) string {
 	suffix, found := strings.CutPrefix(filename, "sample_event_")
 	if !found {
 		return ""
 	}
-	sigType, _, _ := strings.Cut(suffix, ".")
-	return sigType
+	name, _, _ := strings.Cut(suffix, ".")
+	return name
 }
 
 func stripDataStreamFolderSuffix(dataStreamName string) string {
