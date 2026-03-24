@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
@@ -20,11 +21,15 @@ import (
 const sampleEventFile = "sample_event.json"
 
 func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
-	var eventPath string
+	var dir string
 	if dataStreamName == "" {
-		eventPath = filepath.Join(packageRoot, sampleEventFile)
+		dir = packageRoot
 	} else {
-		eventPath = filepath.Join(packageRoot, "data_stream", dataStreamName, sampleEventFile)
+		dir = filepath.Join(packageRoot, "data_stream", dataStreamName)
+	}
+	eventPath, err := resolveSampleEventPath(dir)
+	if err != nil {
+		return "", err
 	}
 
 	body, err := os.ReadFile(eventPath)
@@ -58,6 +63,27 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	builder.Write(bytes.TrimSpace(formatted))
 	builder.WriteString("\n```")
 	return builder.String(), nil
+}
+
+func resolveSampleEventPath(dir string) (string, error) {
+	plain := filepath.Join(dir, sampleEventFile)
+	if info, err := os.Stat(plain); err == nil && !info.IsDir() {
+		return plain, nil
+	}
+
+	matches, err := filepath.Glob(filepath.Join(dir, "sample_event_*.json"))
+	if err != nil {
+		return "", fmt.Errorf("glob sample_event_*.json failed (dir: %s): %w", dir, err)
+	}
+	if len(matches) == 0 {
+		return "", fmt.Errorf("sample event file not found (looked for %s and sample_event_*.json under %s): %w",
+			sampleEventFile, dir, os.ErrNotExist)
+	}
+
+	sort.Slice(matches, func(i, j int) bool {
+		return filepath.Base(matches[i]) < filepath.Base(matches[j])
+	})
+	return matches[0], nil
 }
 
 func stripDataStreamFolderSuffix(dataStreamName string) string {
