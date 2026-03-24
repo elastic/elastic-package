@@ -925,16 +925,26 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.svcInfo.Logs.Folder.Local, err)
 	}
 
-	reader := csv.NewReader(reportCSV)
+	return parseRallyReport(reportCSV, r.svcInfo.Logs.Folder.Local, errOutput.String())
+}
 
+func parseRallyReport(report io.ReadCloser, logsPath string, stderr string) (_ []rallyStat, err error) {
+	defer func() {
+		closeErr := report.Close()
+		if err == nil && closeErr != nil {
+			err = fmt.Errorf("could not close esrally report in path: %s: %w", logsPath, closeErr)
+		}
+	}()
+
+	reader := csv.NewReader(report)
 	stats := make([]rallyStat, 0)
 	for {
-		record, err := reader.Read()
-		if err == io.EOF {
+		record, readErr := reader.Read()
+		if readErr == io.EOF {
 			break
 		}
-		if err != nil {
-			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", r.svcInfo.Logs.Folder.Local, errOutput.String(), err)
+		if readErr != nil {
+			return nil, fmt.Errorf("could not read esrally report in path: %s (stderr=%q): %w", logsPath, stderr, readErr)
 		}
 
 		stats = append(stats, rallyStat{Metric: record[0], Task: record[1], Value: record[2], Unit: record[3]})
