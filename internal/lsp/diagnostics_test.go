@@ -63,6 +63,39 @@ func TestParseError_NoFilePattern(t *testing.T) {
 	assert.Equal(t, "", code)
 }
 
+func TestParseError_ItemInFolder(t *testing.T) {
+	packageRoot := "/home/user/packages/apache"
+
+	filePath, message, code := parseError(
+		`item [routing_rules.yml] is not allowed in folder [data_stream/rules]`,
+		packageRoot,
+	)
+
+	assert.Equal(t, "/home/user/packages/apache/data_stream/rules/routing_rules.yml", filePath)
+	assert.Equal(t, `item [routing_rules.yml] is not allowed in folder [data_stream/rules]`, message)
+	assert.Equal(t, "", code)
+}
+
+func TestParseError_DashboardReferenceWarning(t *testing.T) {
+	packageRoot := "/home/user/packages/apache"
+
+	filePath, message, code := parseError(
+		`reference found in dashboard kibana/dashboard/example.json: missing-ref (search) (SVR00004)`,
+		packageRoot,
+	)
+
+	assert.Equal(t, "/home/user/packages/apache/kibana/dashboard/example.json", filePath)
+	assert.Equal(t, "reference found in dashboard: missing-ref (search) (SVR00004)", message)
+	assert.Equal(t, "SVR00004", code)
+}
+
+func TestExpandDiagnosticMessagesSplitsDashboardReferences(t *testing.T) {
+	assert.Equal(t, []string{
+		`reference found in dashboard kibana/dashboard/example.json: first-ref (search)`,
+		`reference found in dashboard kibana/dashboard/example.json: second-ref (lens)`,
+	}, expandDiagnosticMessages(`references found in dashboard kibana/dashboard/example.json: first-ref (search), second-ref (lens)`))
+}
+
 func TestStripNumbering(t *testing.T) {
 	assert.Equal(t, "hello world", stripNumbering("   1. hello world"))
 	assert.Equal(t, "error msg", stripNumbering("  12. error msg"))
