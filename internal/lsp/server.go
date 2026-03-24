@@ -17,12 +17,20 @@ const serverName = "elastic-package-lsp"
 
 var version = "0.1.0"
 
+// notifyFunc is a function that sends a notification to the client.
+type notifyFunc = glsp.NotifyFunc
+
 // Server is the elastic-package LSP server.
 type Server struct {
 	handler   protocol.Handler
 	server    *server.Server
 	debouncer *Debouncer
+	documents *documentStore
 	logger    commonlog.Logger
+
+	// notify is captured during initialize and used for async notifications.
+	notifyMu sync.Mutex
+	notify   notifyFunc
 
 	// prevDiagFiles tracks which files had diagnostics published in the last
 	// validation run per package root, so we can clear them when errors are fixed.
@@ -34,18 +42,22 @@ type Server struct {
 func NewServer() *Server {
 	s := &Server{
 		debouncer:     NewDebouncer(),
+		documents:     newDocumentStore(),
 		logger:        commonlog.GetLogger(serverName),
 		prevDiagFiles: make(map[string]map[string]struct{}),
 	}
 
 	s.handler = protocol.Handler{
 		Initialize:             s.initialize,
-		Initialized:           s.initialized,
-		Shutdown:              s.shutdown,
-		SetTrace:              s.setTrace,
-		TextDocumentDidOpen:   s.textDocumentDidOpen,
-		TextDocumentDidSave:   s.textDocumentDidSave,
-		TextDocumentDidClose:  s.textDocumentDidClose,
+		Initialized:            s.initialized,
+		Shutdown:               s.shutdown,
+		SetTrace:               s.setTrace,
+		TextDocumentDidOpen:    s.textDocumentDidOpen,
+		TextDocumentDidChange:  s.textDocumentDidChange,
+		TextDocumentDidSave:    s.textDocumentDidSave,
+		TextDocumentDidClose:   s.textDocumentDidClose,
+		TextDocumentCompletion: s.textDocumentCompletion,
+		TextDocumentHover:      s.textDocumentHover,
 	}
 
 	s.server = server.NewServer(&s.handler, serverName, false)
@@ -59,6 +71,13 @@ func (s *Server) RunStdio() error {
 }
 
 func (s *Server) initialize(ctx *glsp.Context, params *protocol.InitializeParams) (any, error) {
+	// Capture the notify function for use in async handlers (debounced validation).
+	s.notifyMu.Lock()
+	s.notify = ctx.Notify
+	s.notifyMu.Unlock()
+
+	s.logger.Infof("initialize request received")
+
 	capabilities := s.handler.CreateServerCapabilities()
 
 	sync := protocol.TextDocumentSyncKindFull
@@ -69,6 +88,8 @@ func (s *Server) initialize(ctx *glsp.Context, params *protocol.InitializeParams
 			IncludeText: boolPtr(false),
 		},
 	}
+	capabilities.CompletionProvider = &protocol.CompletionOptions{}
+	capabilities.HoverProvider = true
 
 	return protocol.InitializeResult{
 		Capabilities: capabilities,
@@ -95,7 +116,13 @@ func (s *Server) setTrace(ctx *glsp.Context, params *protocol.SetTraceParams) er
 }
 
 func (s *Server) textDocumentDidOpen(ctx *glsp.Context, params *protocol.DidOpenTextDocumentParams) error {
+	s.documents.Set(params.TextDocument.URI, params.TextDocument.Text)
 	s.triggerValidation(ctx, params.TextDocument.URI)
+	return nil
+}
+
+func (s *Server) textDocumentDidChange(ctx *glsp.Context, params *protocol.DidChangeTextDocumentParams) error {
+	s.documents.Update(params.TextDocument.URI, params.ContentChanges)
 	return nil
 }
 
@@ -105,6 +132,7 @@ func (s *Server) textDocumentDidSave(ctx *glsp.Context, params *protocol.DidSave
 }
 
 func (s *Server) textDocumentDidClose(ctx *glsp.Context, params *protocol.DidCloseTextDocumentParams) error {
+	s.documents.Delete(params.TextDocument.URI)
 	return nil
 }
 
@@ -115,19 +143,34 @@ func (s *Server) triggerValidation(ctx *glsp.Context, uri protocol.DocumentUri) 
 		return
 	}
 
+	s.logger.Infof("triggerValidation for %s", filePath)
+
 	packageRoot, err := findPackageRoot(filePath)
 	if err != nil {
-		// File is not inside a package — nothing to validate.
+		s.logger.Infof("file not inside a package: %s", filePath)
 		return
 	}
 
+	s.logger.Infof("found package root: %s", packageRoot)
+
 	s.debouncer.Trigger(packageRoot, func() {
+		s.logger.Infof("debounce fired, validating %s", packageRoot)
 		diags := validatePackage(packageRoot)
-		s.publishAllDiagnostics(ctx, packageRoot, diags)
+		s.logger.Infof("validation returned %d file(s) with diagnostics", len(diags))
+		s.publishAllDiagnostics(packageRoot, diags)
 	})
 }
 
-func (s *Server) publishAllDiagnostics(ctx *glsp.Context, packageRoot string, diagsByFile map[string][]protocol.Diagnostic) {
+func (s *Server) publishAllDiagnostics(packageRoot string, diagsByFile map[string][]protocol.Diagnostic) {
+	s.notifyMu.Lock()
+	notify := s.notify
+	s.notifyMu.Unlock()
+
+	if notify == nil {
+		s.logger.Errorf("cannot publish diagnostics: no notify function (initialize not called?)")
+		return
+	}
+
 	s.prevDiagFilesMu.Lock()
 	defer s.prevDiagFilesMu.Unlock()
 
@@ -136,7 +179,7 @@ func (s *Server) publishAllDiagnostics(ctx *glsp.Context, packageRoot string, di
 		for filePath := range prev {
 			if _, stillHasErrors := diagsByFile[filePath]; !stillHasErrors {
 				uri := pathToURI(filePath)
-				ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+				notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 					URI:         uri,
 					Diagnostics: []protocol.Diagnostic{},
 				})
@@ -148,7 +191,8 @@ func (s *Server) publishAllDiagnostics(ctx *glsp.Context, packageRoot string, di
 	currentFiles := make(map[string]struct{}, len(diagsByFile))
 	for filePath, diags := range diagsByFile {
 		uri := pathToURI(filePath)
-		ctx.Notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
+		s.logger.Infof("publishing %d diagnostic(s) for %s", len(diags), filePath)
+		notify(protocol.ServerTextDocumentPublishDiagnostics, protocol.PublishDiagnosticsParams{
 			URI:         uri,
 			Diagnostics: diags,
 		})

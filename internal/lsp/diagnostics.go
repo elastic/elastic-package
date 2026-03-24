@@ -67,10 +67,7 @@ func validatePackage(packageRoot string) map[string][]protocol.Diagnostic {
 		filePath, message, code := parseError(errMsg, packageRoot)
 
 		diag := protocol.Diagnostic{
-			Range: protocol.Range{
-				Start: protocol.Position{Line: 0, Character: 0},
-				End:   protocol.Position{Line: 0, Character: 0},
-			},
+			Range:    findPosition(filePath, message),
 			Severity: diagnosticSeverityPtr(protocol.DiagnosticSeverityError),
 			Source:   strPtr(serverName),
 			Message:  message,
