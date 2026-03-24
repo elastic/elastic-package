@@ -123,6 +123,9 @@ policy_templates:
               #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
               #    sxSmbIUfc2SGJGCJD4I=
               #    -----END CERTIFICATE-----
+      - type: filestream
+        title: M365 defender logs using filestream input
+        description: Collect M365 defender logs using filestream input.
       - type: azure-eventhub
         title: "Collect events using Azure Event Hub"
         description: "Collect events from Microsoft Defender XDR using Azure Event Hub"
