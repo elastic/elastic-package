@@ -39,14 +39,6 @@ var (
 	errorCodeRe = regexp.MustCompile(`\(([A-Z]{2,3}\d{5})\)$`)
 )
 
-// validatePackage runs validation on the package at the given root path and
-// returns diagnostics grouped by absolute file path.
-func validatePackage(packageRoot string) map[string][]protocol.Diagnostic {
-	return validatePackageWith(packageRoot, os.DirFS(packageRoot), func() (error, error) {
-		return validation.ValidateAndFilterFromPath(packageRoot)
-	})
-}
-
 func validatePackageFS(packageRoot string, fsys fs.FS) map[string][]protocol.Diagnostic {
 	return validatePackageWith(packageRoot, fsys, func() (error, error) {
 		return validation.ValidateAndFilterFromFS(packageRoot, fsys)

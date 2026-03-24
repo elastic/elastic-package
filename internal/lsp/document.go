@@ -159,7 +159,7 @@ func utf16ColumnToRuneOffset(line string, target int) int {
 
 	offset := 0
 	column := 0
-	for _, r := range []rune(line) {
+	for _, r := range line {
 		if column >= target {
 			return offset
 		}

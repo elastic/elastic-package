@@ -14,12 +14,12 @@ import (
 
 // FieldInfo holds metadata about a single field from fields/*.yml.
 type FieldInfo struct {
-	Name        string `yaml:"name"`
-	Type        string `yaml:"type"`
-	Description string `yaml:"description"`
-	Unit        string `yaml:"unit,omitempty"`
-	MetricType  string `yaml:"metric_type,omitempty"`
-	External    string `yaml:"external,omitempty"`
+	Name        string      `yaml:"name"`
+	Type        string      `yaml:"type"`
+	Description string      `yaml:"description"`
+	Unit        string      `yaml:"unit,omitempty"`
+	MetricType  string      `yaml:"metric_type,omitempty"`
+	External    string      `yaml:"external,omitempty"`
 	Fields      []FieldInfo `yaml:"fields,omitempty"`
 }
 
