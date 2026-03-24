@@ -172,7 +172,7 @@ func createDataStreamNonInteractive(cmd *cobra.Command) error {
 		return fmt.Errorf("--%s must be one of: %s", cobraext.CreateDataStreamTypeFlagName, strings.Join(packages.AllowedDataStreamTypes, ", "))
 	}
 
-	validator := tui.Validator{Cwd: "."}
+	validator := tui.Validator{Cwd: packageRoot}
 	if err := validator.DataStreamDoesNotExist(dsName); err != nil {
 		return err
 	}
