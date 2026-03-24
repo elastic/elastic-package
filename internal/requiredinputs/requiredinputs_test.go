@@ -68,7 +68,8 @@ policy_templates:
 	require.Equal(t, "sql", updatedManifest.Requires.Input[0].Package)
 	require.Equal(t, "0.1.0", updatedManifest.Requires.Input[0].Version)
 
-	require.Equal(t, "sql", updatedManifest.PolicyTemplates[0].Inputs[0].Package)
+	require.Equal(t, "sql", updatedManifest.PolicyTemplates[0].Inputs[0].Type)
+	require.Empty(t, updatedManifest.PolicyTemplates[0].Inputs[0].Package)
 	require.Len(t, updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths, 1)
 	require.Equal(t, "sql-input.yml.hbs", updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths[0])
 

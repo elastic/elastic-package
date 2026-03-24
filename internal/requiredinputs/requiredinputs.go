@@ -106,6 +106,10 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 		return fmt.Errorf("bundling data stream fields from input packages: %w", err)
 	}
 
+	if err := r.resolveStreamInputTypes(manifest, inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("resolving stream input types from input packages: %w", err)
+	}
+
 	return nil
 }
 
