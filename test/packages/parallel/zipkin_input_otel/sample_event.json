@@ -1,0 +1,116 @@
+{
+    "@timestamp": "2026-03-05T13:05:14.439Z",
+    "agent": {
+        "name": "otlp",
+        "version": "unknown"
+    },
+    "attributes": {
+        "event": {
+            "outcome": "success",
+            "success_count": 1
+        },
+        "http": {
+            "method": "GET",
+            "path": "/api"
+        },
+        "net": {
+            "host": {
+                "ip": "172.28.0.2"
+            },
+            "peer": {
+                "ip": "172.28.0.3",
+                "port": 39034
+            }
+        },
+        "processor": {
+            "event": "transaction"
+        },
+        "span": {
+            "id": "3d3f1f56d1c91af8"
+        },
+        "timestamp": {
+            "us": 1772715914439970
+        },
+        "transaction": {
+            "duration": {
+                "us": 2328
+            },
+            "id": "3d3f1f56d1c91af8",
+            "name": "GET /api",
+            "representative_count": 1,
+            "result": "Success",
+            "root": true,
+            "sampled": true,
+            "type": "request"
+        }
+    },
+    "data_stream": {
+        "dataset": "zipkinreceiver.otel",
+        "namespace": "50659",
+        "type": "traces"
+    },
+    "duration": 2328000,
+    "event": {
+        "agent_id_status": "missing",
+        "dataset": "zipkinreceiver.otel",
+        "ingested": "2026-03-05T13:05:24Z",
+        "outcome": "success",
+        "success_count": 1
+    },
+    "http": {
+        "method": "GET",
+        "path": "/api"
+    },
+    "kind": "Server",
+    "name": "GET /api",
+    "net": {
+        "host": {
+            "ip": "172.28.0.2"
+        },
+        "peer": {
+            "ip": "172.28.0.3",
+            "port": 39034
+        }
+    },
+    "processor": {
+        "event": "transaction"
+    },
+    "resource": {
+        "attributes": {
+            "agent": {
+                "name": "otlp",
+                "version": "unknown"
+            },
+            "service": {
+                "name": "backend"
+            }
+        }
+    },
+    "service": {
+        "name": "backend"
+    },
+    "span": {
+        "id": "3d3f1f56d1c91af8",
+        "name": "GET /api"
+    },
+    "span_id": "3d3f1f56d1c91af8",
+    "timestamp": {
+        "us": 1772715914439970
+    },
+    "trace": {
+        "id": "00000000000000003d3f1f56d1c91af8"
+    },
+    "trace_id": "00000000000000003d3f1f56d1c91af8",
+    "transaction": {
+        "duration": {
+            "us": 2328
+        },
+        "id": "3d3f1f56d1c91af8",
+        "name": "GET /api",
+        "representative_count": 1,
+        "result": "Success",
+        "root": true,
+        "sampled": true,
+        "type": "request"
+    }
+}

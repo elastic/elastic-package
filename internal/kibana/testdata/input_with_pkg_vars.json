@@ -1,0 +1,30 @@
+{
+  "name": "input-pkg-vars-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "input_with_pkg_vars",
+    "version": "0.1.0"
+  },
+  "inputs": {
+    "logs-logfile": {
+      "enabled": true,
+      "streams": {
+        "input_with_pkg_vars.logs": {
+          "enabled": true,
+          "vars": {
+            "data_stream.dataset": "custom.logs",
+            "paths": [
+              "/tmp/test.log"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "vars": {
+    "custom_tag": "my-tag"
+  },
+  "force": false
+}

@@ -725,6 +725,46 @@ func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*Da
 	return ReadDataStreamManifest(filepath.Join(packageRoot, "data_stream", name, DataStreamManifestFile))
 }
 
+// ReadAllDataStreamManifests reads the manifests for all data streams in a package.
+func ReadAllDataStreamManifests(packageRoot string) ([]DataStreamManifest, error) {
+	dirs, err := os.ReadDir(filepath.Join(packageRoot, "data_stream"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not list data streams: %w", err)
+	}
+	var manifests []DataStreamManifest
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+		m, err := ReadDataStreamManifestFromPackageRoot(packageRoot, dir.Name())
+		if err != nil {
+			return nil, fmt.Errorf("could not read data stream manifest for %q: %w", dir.Name(), err)
+		}
+		manifests = append(manifests, *m)
+	}
+	return manifests, nil
+}
+
+// FilterDatastreamsForPolicyTemplate returns the subset of the provided data
+// streams that belong to the given policy template. When the policy template
+// declares an explicit DataStreams list, only data streams whose names appear
+// in that list are returned; otherwise all provided data streams are returned.
+func FilterDatastreamsForPolicyTemplate(datastreams []DataStreamManifest, pt PolicyTemplate) []DataStreamManifest {
+	if len(pt.DataStreams) == 0 {
+		return datastreams
+	}
+	result := make([]DataStreamManifest, 0, len(pt.DataStreams))
+	for _, ds := range datastreams {
+		if slices.Contains(pt.DataStreams, ds.Name) {
+			result = append(result, ds)
+		}
+	}
+	return result
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
@@ -779,4 +819,110 @@ func isDataStreamManifest(path string) (bool, error) {
 	return m.Title != "" &&
 			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),
 		nil
+}
+
+// GetDataStreamIndex returns the index of the stream in ds whose input name
+// matches inputName. If inputName is empty, returns 0 (first stream). If no
+// stream matches, logs a debug message and falls back to index 0.
+func GetDataStreamIndex(inputName string, ds DataStreamManifest) int {
+	if inputName == "" {
+		return 0
+	}
+	for i, s := range ds.Streams {
+		if s.Input == inputName {
+			return i
+		}
+	}
+	logger.Debugf("no stream found with input %q in data stream %q, using first stream", inputName, ds.Name)
+	return 0
+}
+
+// FindPolicyTemplateForInput returns the name of the policy template that
+// applies to the given data stream and input type. Pass nil for ds when
+// working with input packages. An error is returned when no template matches
+// or when multiple templates match and the result would be ambiguous.
+func FindPolicyTemplateForInput(pkg *PackageManifest, ds *DataStreamManifest, inputName string) (string, error) {
+	if ds != nil {
+		return findPolicyTemplateForDataStream(*pkg, *ds, inputName)
+	}
+	return findPolicyTemplateForInputPackage(*pkg, inputName)
+}
+
+func findPolicyTemplateForDataStream(pkg PackageManifest, ds DataStreamManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(ds.Streams) == 0 {
+			return "", errors.New("no streams declared in data stream manifest")
+		}
+		inputName = ds.Streams[0].Input
+	}
+
+	var matchedPolicyTemplates []string
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		// Does this policy_template include this input type?
+		if policyTemplate.FindInputByType(inputName) == nil {
+			continue
+		}
+
+		// Does the policy_template apply to this data stream (when data streams are specified)?
+		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
+			continue
+		}
+
+		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
+	}
+
+	switch len(matchedPolicyTemplates) {
+	case 1:
+		return matchedPolicyTemplates[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found for data stream %q "+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", ds.Name, inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"were found that apply to data stream %q with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
+	}
+}
+
+func findPolicyTemplateForInputPackage(pkg PackageManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(pkg.PolicyTemplates) == 0 {
+			return "", errors.New("no policy templates specified for input package")
+		}
+		inputName = pkg.PolicyTemplates[0].Input
+	}
+
+	var matched []string
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		if policyTemplate.Input != inputName {
+			continue
+		}
+		matched = append(matched, policyTemplate.Name)
+	}
+
+	switch len(matched) {
+	case 1:
+		return matched[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found "+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matched, ", "), inputName)
+	}
+}
+
+// SelectPolicyTemplateByName returns the policy template with the given name.
+func SelectPolicyTemplateByName(policies []PolicyTemplate, name string) (PolicyTemplate, error) {
+	for _, pt := range policies {
+		if pt.Name == name {
+			return pt, nil
+		}
+	}
+	return PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }
