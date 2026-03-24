@@ -226,40 +226,6 @@ policy_templates:
               #    yvgJ38BRsFOtkRuAGSf6ZUwTO8JJRRIFnpUzXflAnGivK9M13D5GEQMmIl6U9Pvk
               #    sxSmbIUfc2SGJGCJD4I=
               #    -----END CERTIFICATE-----
-icons:
-  - src: /img/logo.svg
-    title: M365 logo
-    size: 32x32
-    type: image/svg+xml
-screenshots:
-  - src: /img/m365_defender-alert-api.png
-    title: Microsoft Defender XDR Alert Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-incident.png
-    title: Microsoft Defender XDR (Incidents) Incidents Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-alert-eventhub.png
-    title: Microsoft Defender XDR (Events) Alerts Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-device.png
-    title: Microsoft Defender XDR (Events) Device Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-email.png
-    title: Microsoft Defender XDR (Events) Email Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-app_and_identity.png
-    title: Microsoft Defender XDR (Events) App & Identity Dashboard
-    size: 600x600
-    type: image/png
-  - src: /img/m365_defender-vulnerability.png
-    title: Microsoft Defender XDR Vulnerability
-    size: 600x600
-    type: image/png
 owner:
   github: elastic/security-service-integrations
   type: elastic
