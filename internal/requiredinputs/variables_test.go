@@ -30,19 +30,30 @@ func varNode(name string, extras ...string) *yaml.Node {
 	return n
 }
 
-// copyFixturePackage copies the named package from test/packages/required_inputs
+// copyFixturePackage copies the named package from test/manual_packages/required_inputs
 // to a fresh temp dir and returns that dir path.
 func copyFixturePackage(t *testing.T, fixtureName string) string {
 	t.Helper()
-	srcPath := filepath.Join("..", "..", "test", "packages", "required_inputs", fixtureName)
+	srcPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", fixtureName)
 	destPath := t.TempDir()
 	err := os.CopyFS(destPath, os.DirFS(srcPath))
 	require.NoError(t, err, "copying fixture package %q", fixtureName)
 	return destPath
 }
 
+// Variable merge tests exercise mergeVariables (see variables.go): when an
+// integration declares requires.input and references that input package under
+// policy_templates[].inputs with optional vars, definitions from the input
+// package must be merged into the built integration—composable and data-stream
+// overrides on top of the input package as base, with selected vars promoted
+// to input-level. Unit tests cover helpers; integration tests run
+// BundleInputPackageTemplates on manual fixture packages.
+
 // ---- unit tests --------------------------------------------------------------
 
+// TestCloneNode checks that YAML variable nodes are deep-cloned before merge.
+// mergeVariables mutates cloned trees when applying overrides; without
+// isolation, the resolver could corrupt cached or shared input-package nodes.
 func TestCloneNode(t *testing.T) {
 	original := varNode("paths", "type", "text", "multi", "true")
 	cloned := cloneNode(original)
@@ -52,6 +63,11 @@ func TestCloneNode(t *testing.T) {
 	assert.Equal(t, "text", mappingValue(original, "type").Value)
 }
 
+// TestMergeVarNode verifies mergeVarNode: per-variable field merge where the
+// input package definition is the base and override keys from the composable
+// package or data stream replace or add fields; the variable name always stays
+// from the base. This is the primitive used for both promoted input vars and
+// stream-level merges.
 func TestMergeVarNode(t *testing.T) {
 	base := varNode("paths", "type", "text", "title", "Paths", "multi", "true")
 
@@ -103,6 +119,9 @@ func TestMergeVarNode(t *testing.T) {
 	})
 }
 
+// TestCheckDuplicateVarNodes ensures duplicate var names in a single vars list
+// are rejected before merge. That catches invalid integration manifests early
+// instead of producing ambiguous merged output for Fleet.
 func TestCheckDuplicateVarNodes(t *testing.T) {
 	t.Run("no duplicates", func(t *testing.T) {
 		nodes := []*yaml.Node{varNode("paths"), varNode("encoding"), varNode("timeout")}
@@ -121,6 +140,10 @@ func TestCheckDuplicateVarNodes(t *testing.T) {
 	})
 }
 
+// TestMergeInputLevelVarNodes covers mergeInputLevelVarNodes: vars that appear
+// under policy_templates[].inputs[] next to package: <input_pkg> are promoted
+// to merged input-level var definitions, in input-package declaration order,
+// with only explicitly listed names included.
 func TestMergeInputLevelVarNodes(t *testing.T) {
 	pathsBase := varNode("paths", "type", "text", "multi", "true")
 	encodingBase := varNode("encoding", "type", "text", "show_user", "false")
@@ -167,6 +190,10 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 	})
 }
 
+// TestMergeStreamLevelVarNodes covers mergeStreamLevelVarNodes: base vars from
+// the input package that are not promoted stay on the data stream stream entry;
+// they can be field-merged with DS overrides, and DS-only vars are appended.
+// Promoted names must not appear on the stream to avoid duplicating Fleet vars.
 func TestMergeStreamLevelVarNodes(t *testing.T) {
 	pathsBase := varNode("paths", "type", "text", "multi", "true")
 	encodingBase := varNode("encoding", "type", "text", "show_user", "false")
@@ -233,9 +260,12 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 	})
 }
 
+// TestLoadInputPkgVarNodes checks loadInputPkgVarNodes: variable definitions
+// are loaded from the resolved input package manifest so mergeVariables uses
+// the input package as the authoritative base (order and fields) for merging.
 func TestLoadInputPkgVarNodes(t *testing.T) {
 	t.Run("fixture with three vars", func(t *testing.T) {
-		pkgPath := filepath.Join("..", "..", "test", "packages", "required_inputs", "var_merging_input_pkg")
+		pkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
 		order, byName, err := loadInputPkgVarNodes(pkgPath)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"paths", "encoding", "timeout"}, order)
@@ -256,9 +286,12 @@ func TestLoadInputPkgVarNodes(t *testing.T) {
 
 // ---- integration tests -------------------------------------------------------
 
+// makeFakeEprForVarMerging supplies the var_merging_input_pkg fixture path as
+// if it were downloaded from the registry, so integration tests do not need a
+// running stack.
 func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 	t.Helper()
-	inputPkgPath := filepath.Join("..", "..", "test", "packages", "required_inputs", "var_merging_input_pkg")
+	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
 	return &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
 			return inputPkgPath, nil
@@ -266,6 +299,11 @@ func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 	}
 }
 
+// TestMergeVariables_Full runs the full merge pipeline: composable vars under
+// the package input promote paths and encoding to manifest input-level defs
+// (merged with input package defaults), while timeout stays on the data stream
+// merged with a DS override and a novel DS-only var is appended—matching the
+// end state Fleet expects for a mixed promotion + DS customization scenario.
 func TestMergeVariables_Full(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_full")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
@@ -309,6 +347,10 @@ func TestMergeVariables_Full(t *testing.T) {
 	assert.Equal(t, "Timeout for log collection.", streamVars[0].Description)
 }
 
+// TestMergeVariables_PromotesToInput verifies partial promotion: only vars
+// listed under the composable input move to input level; remaining input
+// package vars stay on the stream unchanged when the data stream supplies no
+// overrides.
 func TestMergeVariables_PromotesToInput(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_promotes_to_input")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
@@ -340,6 +382,10 @@ func TestMergeVariables_PromotesToInput(t *testing.T) {
 	assert.Equal(t, "timeout", streamVars[1].Name)
 }
 
+// TestMergeVariables_DsMerges covers the case where the composable input
+// declares no vars (nothing promoted): all base vars remain on the stream, the
+// data stream manifest can merge fields into an existing base var (e.g. title),
+// and extra stream-only vars are kept in declaration order after base vars.
 func TestMergeVariables_DsMerges(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_ds_merges")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
@@ -374,6 +420,10 @@ func TestMergeVariables_DsMerges(t *testing.T) {
 	assert.Equal(t, "text", streamVars[1].Type) // from base
 }
 
+// TestMergeVariables_NoOverride ensures that when the integration does not
+// specify composable or data-stream var overrides, merge still materializes
+// input package var definitions onto the stream (cloned base) so behavior stays
+// correct for packages that only declare requires.input without local var edits.
 func TestMergeVariables_NoOverride(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_no_override")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
@@ -408,6 +458,9 @@ func TestMergeVariables_NoOverride(t *testing.T) {
 	assert.True(t, streamVars[0].Required)
 }
 
+// TestMergeVariables_DuplicateError checks that an invalid data stream manifest
+// listing the same var name twice fails during mergeVariables, surfacing a
+// clear duplicate-variable error instead of silent corruption.
 func TestMergeVariables_DuplicateError(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_duplicate_error")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
@@ -416,4 +469,61 @@ func TestMergeVariables_DuplicateError(t *testing.T) {
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "paths")
+}
+
+// TestMergeVariables_TwoPolicyTemplatesScopedPromotion verifies that promotion
+// is scoped per policy template data stream: composable vars under one template
+// promote only for that template’s streams; another template referencing the
+// same input package without composable vars keeps all base vars on its streams.
+// This guards against incorrectly applying one template’s promotions to every
+// stream that uses the same input package.
+func TestMergeVariables_TwoPolicyTemplatesScopedPromotion(t *testing.T) {
+	buildPackageRoot := copyFixturePackage(t, "with_merging_two_policy_templates")
+	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	require.NoError(t, err)
+
+	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	require.NoError(t, err)
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+	require.Len(t, manifest.PolicyTemplates, 2)
+
+	// pt_alpha: composable input has promoted paths (merged title).
+	alphaPT := manifest.PolicyTemplates[0]
+	require.Equal(t, "pt_alpha", alphaPT.Name)
+	require.GreaterOrEqual(t, len(alphaPT.Inputs), 1)
+	alphaInputVars := alphaPT.Inputs[0].Vars
+	require.Len(t, alphaInputVars, 1)
+	assert.Equal(t, "paths", alphaInputVars[0].Name)
+	assert.Equal(t, "Alpha-only promoted paths title", alphaInputVars[0].Title)
+	assert.Equal(t, "text", alphaInputVars[0].Type)
+
+	// pt_beta: no promotion — no vars on the composable input entry.
+	betaPT := manifest.PolicyTemplates[1]
+	require.Equal(t, "pt_beta", betaPT.Name)
+	assert.Empty(t, betaPT.Inputs[0].Vars)
+
+	// alpha_logs: paths promoted — stream keeps encoding + timeout only.
+	alphaDSBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "alpha_logs", "manifest.yml"))
+	require.NoError(t, err)
+	alphaDS, err := packages.ReadDataStreamManifestBytes(alphaDSBytes)
+	require.NoError(t, err)
+	alphaStreamVars := alphaDS.Streams[0].Vars
+	require.Len(t, alphaStreamVars, 2)
+	assert.Equal(t, "encoding", alphaStreamVars[0].Name)
+	assert.Equal(t, "timeout", alphaStreamVars[1].Name)
+
+	// beta_logs: no promotion — all three base vars on the stream.
+	betaDSBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "beta_logs", "manifest.yml"))
+	require.NoError(t, err)
+	betaDS, err := packages.ReadDataStreamManifestBytes(betaDSBytes)
+	require.NoError(t, err)
+	betaStreamVars := betaDS.Streams[0].Vars
+	require.Len(t, betaStreamVars, 3)
+	assert.Equal(t, "paths", betaStreamVars[0].Name)
+	assert.Equal(t, "encoding", betaStreamVars[1].Name)
+	assert.Equal(t, "timeout", betaStreamVars[2].Name)
 }
