@@ -1293,12 +1293,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.dataStreamDataset = dsDataset
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		for _, sds := range scenario.dataStreams {
-			if err := r.deleteDataStream(ctx, sds.dataStream); err != nil {
-				return err
-			}
-		}
-		return nil
+		pattern := fmt.Sprintf("*-*-%s", policy.Namespace)
+		return r.deleteDataStream(ctx, pattern)
 	}
 
 	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
