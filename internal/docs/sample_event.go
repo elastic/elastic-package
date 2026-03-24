@@ -34,8 +34,8 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 		return "", fmt.Errorf("globbing for sample event files failed: %w", err)
 	}
 	if len(matches) == 0 {
-		return "", fmt.Errorf("reading sample event file failed (path: %s): %w",
-			filepath.Join(dir, sampleEventFile), os.ErrNotExist)
+		return "", fmt.Errorf("searching forsample event files failed (path: %s): %w",
+		filepath.Join(dir, sampleEventFile), os.ErrNotExist)
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
@@ -48,12 +48,15 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	}
 	jsonFormatter := formatter.JSONFormatterBuilder(*specVersion)
 
-	// Determine whether we have only the plain sample_event.json or type-qualified files.
-	hasBaseOnly := len(matches) == 1 && filepath.Base(matches[0]) == sampleEventFile
-
 	var builder strings.Builder
-	for i, eventPath := range matches {
-		if i > 0 {
+	for _, eventPath := range matches {
+		base := filepath.Base(eventPath)
+		name := sampleEventSignalType(base)
+		if base != sampleEventFile && name == "" {
+			continue
+		}
+
+		if builder.Len() > 0 {
 			builder.WriteString("\n\n")
 		}
 
@@ -67,17 +70,13 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 		}
 
 		switch {
-		case hasBaseOnly && dataStreamName == "":
+		case base == sampleEventFile && dataStreamName == "":
 			builder.WriteString("An example event looks as following:\n\n")
-		case hasBaseOnly:
+		case base == sampleEventFile:
 			builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
 				stripDataStreamFolderSuffix(dataStreamName)))
 		default:
-			sigType := sampleEventSignalType(filepath.Base(eventPath))
-			if sigType == "" {
-				return "", fmt.Errorf("cannot extract signal type from sample event filename %q", filepath.Base(eventPath))
-			}
-			builder.WriteString(fmt.Sprintf("An example **%s** event looks as following:\n\n", sigType))
+			builder.WriteString(fmt.Sprintf("An example **%s** event looks as following:\n\n", name))
 		}
 		builder.WriteString("```json\n")
 		builder.Write(bytes.TrimSpace(formatted))
