@@ -1,5 +1,5 @@
 # newer versions go on top
-- version: "5.11.1"
+- version: "5.11.1000"
   changes:
     - description: Fix table formatting in README.
       type: bugfix
