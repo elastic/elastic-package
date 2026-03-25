@@ -1434,12 +1434,14 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 }
 
 // buildDataStreamScenarios determines the set of data streams to test for a given scenario.
-// When policyTemplate.DynamicSignalTypes is true, data streams are discovered dynamically
+// When policyTemplate.DynamicSignalTypes is true or is an otelcol input with type "traces", data streams are discovered dynamically
 // via ES polling. If SignalTypes is empty, a full wildcard pattern is used; otherwise one
 // pattern per signal type is built and all are sent to ES in a single request.
 // When DynamicSignalTypes is false, a single stream is built from dsType, dsDataset, and namespace.
 func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
-	if policyTemplate.DynamicSignalTypes {
+	canHaveMultipleDataStreams := policyTemplate.DynamicSignalTypes || (policyTemplate.Input == otelCollectorInputName && policyTemplate.Type == "traces")
+
+	if canHaveMultipleDataStreams {
 		var patterns []string
 		if len(config.SignalTypes) == 0 {
 			patterns = []string{fmt.Sprintf("*-*-%s", namespace)}
@@ -1970,8 +1972,11 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 			// Input packages whose input is `otelcol` must add the `.otel` suffix
 			// Example: httpcheck.metrics.otel
 			expectedDataset += "." + otelSuffixDataset
+			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).
+			expectedDatasets = []string{expectedDataset, "generic." + otelSuffixDataset}
+		} else {
+			expectedDatasets = []string{expectedDataset}
 		}
-		expectedDatasets = []string{expectedDataset}
 	}
 
 	return expectedDatasets, nil
