@@ -14,6 +14,22 @@ import (
 	protocol "github.com/tliron/glsp/protocol_3_16"
 )
 
+type manifestCompletionMode int
+
+const (
+	manifestCompletionModeKey manifestCompletionMode = iota
+	manifestCompletionModeValue
+)
+
+type manifestCompletionContext struct {
+	mode           manifestCompletionMode
+	path           string
+	prefix         string
+	currentIndent  int
+	parentIndent   int
+	listItemPrefix bool
+}
+
 func (s *Server) textDocumentCompletion(ctx *glsp.Context, params *protocol.CompletionParams) (any, error) {
 	filePath, err := uriToPath(params.TextDocument.URI)
 	if err != nil {
@@ -35,7 +51,7 @@ func (s *Server) textDocumentCompletion(ctx *glsp.Context, params *protocol.Comp
 		// Completing a "field: " value in a pipeline — suggest field names.
 		items = s.completeFieldNames(packageRoot, filePath, line)
 	case isManifestFile(filePath, packageRoot):
-		items = completeManifestKeys(filePath, packageRoot, line, documentText)
+		items = completeManifestItems(filePath, packageRoot, documentText, params.Position)
 	case isFieldsDefinitionFile(filePath):
 		items = completeFieldTypeValues(line)
 	}
@@ -129,27 +145,74 @@ func completeFieldTypeValues(line string) []protocol.CompletionItem {
 	return items
 }
 
-// completeManifestKeys suggests top-level manifest keys based on package-spec.
-func completeManifestKeys(filePath, packageRoot, line, documentText string) []protocol.CompletionItem {
-	trimmed := strings.TrimSpace(line)
-	// Only suggest at start of a line (not inside a value).
-	if strings.Contains(trimmed, ":") {
+// completeManifestItems suggests manifest keys or values based on package-spec.
+func completeManifestItems(filePath, packageRoot, documentText string, pos protocol.Position) []protocol.CompletionItem {
+	kind := manifestSchemaKindForFile(filePath, packageRoot, documentText)
+	context, ok := resolveManifestCompletionContext(documentText, pos)
+	if !ok {
 		return nil
 	}
 
-	keys := manifestTopLevelKeys(manifestSchemaKindForFile(filePath, packageRoot, documentText))
+	switch context.mode {
+	case manifestCompletionModeKey:
+		return completeManifestKeyItems(kind, context)
+	case manifestCompletionModeValue:
+		return completeManifestValueItems(kind, context)
+	default:
+		return nil
+	}
+}
+
+func completeManifestKeyItems(kind manifestSchemaKind, context manifestCompletionContext) []protocol.CompletionItem {
+	keys, fromArray := manifestChildKeys(context.path, kind)
+	if len(keys) == 0 {
+		return nil
+	}
+
+	insertPrefix := ""
+	if fromArray && !context.listItemPrefix && context.parentIndent >= 0 &&
+		context.currentIndent == context.parentIndent+2 {
+		insertPrefix = "- "
+	}
 
 	propKind := protocol.CompletionItemKindProperty
 	var items []protocol.CompletionItem
 	for _, k := range keys {
-		if trimmed != "" && !strings.HasPrefix(k, trimmed) {
+		if context.prefix != "" && !strings.HasPrefix(k, context.prefix) {
 			continue
 		}
 		label := k
-		items = append(items, protocol.CompletionItem{
+		item := protocol.CompletionItem{
 			Label:      label,
 			Kind:       &propKind,
-			InsertText: strPtr(k + ": "),
+			InsertText: strPtr(insertPrefix + k + ": "),
+		}
+		if doc := manifestDoc(joinManifestPath(context.path, k), kind); doc != "" {
+			item.Documentation = &protocol.MarkupContent{
+				Kind:  protocol.MarkupKindMarkdown,
+				Value: doc,
+			}
+		}
+		items = append(items, item)
+	}
+	return items
+}
+
+func completeManifestValueItems(kind manifestSchemaKind, context manifestCompletionContext) []protocol.CompletionItem {
+	values := manifestValueCandidates(context.path, kind)
+	if len(values) == 0 {
+		return nil
+	}
+
+	enumKind := protocol.CompletionItemKindEnumMember
+	var items []protocol.CompletionItem
+	for _, value := range values {
+		if context.prefix != "" && !strings.HasPrefix(value, context.prefix) {
+			continue
+		}
+		items = append(items, protocol.CompletionItem{
+			Label: value,
+			Kind:  &enumKind,
 		})
 	}
 	return items
@@ -207,6 +270,129 @@ func dataStreamFromPath(filePath, packageRoot string) string {
 	return ""
 }
 
+func resolveManifestCompletionContext(documentText string, pos protocol.Position) (manifestCompletionContext, bool) {
+	lines := splitLines(documentText)
+	lineNum := int(pos.Line)
+	if lineNum < 0 || lineNum >= len(lines) {
+		return manifestCompletionContext{}, false
+	}
+
+	linePrefix := linePrefixAtPosition(lines[lineNum], pos)
+	trimmed := strings.TrimSpace(linePrefix)
+	if strings.HasPrefix(trimmed, "#") {
+		return manifestCompletionContext{}, false
+	}
+
+	if context, ok := resolveManifestValueContext(lines, lineNum, linePrefix); ok {
+		return context, true
+	}
+
+	return resolveManifestKeyContext(lines, lineNum, linePrefix), true
+}
+
+func resolveManifestValueContext(lines []string, lineNum int, linePrefix string) (manifestCompletionContext, bool) {
+	key, _, _ := yamlKeyDetails(linePrefix)
+	if key == "" || !strings.Contains(linePrefix, ":") {
+		return manifestCompletionContext{}, false
+	}
+
+	path, parentIndent := resolveManifestParentPath(lines, lineNum, yamlIndent(linePrefix))
+	prefix := ""
+	if value, _, _, ok := valueAfterKey(linePrefix, key+":"); ok {
+		prefix = value
+	}
+
+	return manifestCompletionContext{
+		mode:           manifestCompletionModeValue,
+		path:           joinManifestPath(strings.Join(path, "."), key),
+		prefix:         prefix,
+		currentIndent:  yamlIndent(linePrefix),
+		parentIndent:   parentIndent,
+		listItemPrefix: hasListItemPrefix(linePrefix),
+	}, true
+}
+
+func resolveManifestKeyContext(lines []string, lineNum int, linePrefix string) manifestCompletionContext {
+	path, parentIndent := resolveManifestParentPath(lines, lineNum, yamlIndent(linePrefix))
+
+	return manifestCompletionContext{
+		mode:           manifestCompletionModeKey,
+		path:           strings.Join(path, "."),
+		prefix:         extractManifestKeyPrefix(linePrefix),
+		currentIndent:  yamlIndent(linePrefix),
+		parentIndent:   parentIndent,
+		listItemPrefix: hasListItemPrefix(linePrefix),
+	}
+}
+
+func resolveManifestParentPath(lines []string, lineNum, currentIndent int) ([]string, int) {
+	currentIndent = max(currentIndent, 0)
+
+	var path []string
+	parentIndent := -1
+	indentLimit := currentIndent
+	for i := lineNum - 1; i >= 0; i-- {
+		line := lines[i]
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		indent := yamlIndent(line)
+		if indent >= indentLimit {
+			continue
+		}
+
+		key, isListItem, hasInlineValue := yamlKeyDetails(line)
+		if key == "" {
+			continue
+		}
+		if isListItem && hasInlineValue {
+			continue
+		}
+
+		if parentIndent < 0 {
+			parentIndent = indent
+		}
+		path = append([]string{key}, path...)
+		indentLimit = indent
+		if indent == 0 {
+			break
+		}
+	}
+
+	return path, parentIndent
+}
+
+func linePrefixAtPosition(line string, pos protocol.Position) string {
+	runes := []rune(line)
+	offset := utf16ColumnToRuneOffset(line, int(pos.Character))
+	offset = min(offset, len(runes))
+	return string(runes[:offset])
+}
+
+func extractManifestKeyPrefix(linePrefix string) string {
+	trimmed := strings.TrimSpace(linePrefix)
+	if strings.HasPrefix(trimmed, "-") {
+		trimmed = strings.TrimSpace(strings.TrimPrefix(trimmed, "-"))
+	}
+	if colonIdx := strings.Index(trimmed, ":"); colonIdx >= 0 {
+		trimmed = trimmed[:colonIdx]
+	}
+	return strings.TrimSpace(trimmed)
+}
+
+func joinManifestPath(base, child string) string {
+	if base == "" {
+		return child
+	}
+	return base + "." + child
+}
+
+func hasListItemPrefix(line string) bool {
+	return strings.HasPrefix(strings.TrimSpace(line), "-")
+}
+
 // formatFieldDetail returns a short detail string for a field.
 func formatFieldDetail(f FieldInfo) string {
 	parts := []string{f.Type}
@@ -217,4 +403,18 @@ func formatFieldDetail(f FieldInfo) string {
 		parts = append(parts, fmt.Sprintf("metric: %s", f.MetricType))
 	}
 	return strings.Join(parts, ", ")
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

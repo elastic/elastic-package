@@ -68,6 +68,22 @@ func manifestTopLevelKeys(kind manifestSchemaKind) []string {
 	return keys
 }
 
+func manifestChildKeys(dottedPath string, kind manifestSchemaKind) ([]string, bool) {
+	keys, fromArray, err := schemaLoader.childPropertiesForPath(string(kind), dottedPath)
+	if err != nil {
+		return nil, false
+	}
+	return keys, fromArray
+}
+
+func manifestValueCandidates(dottedPath string, kind manifestSchemaKind) []string {
+	values, err := schemaLoader.valueCandidatesForPath(string(kind), dottedPath)
+	if err != nil {
+		return nil
+	}
+	return values
+}
+
 func manifestDoc(dottedPath string, kind manifestSchemaKind) string {
 	doc, err := schemaLoader.docForPath(string(kind), dottedPath)
 	if err != nil {
@@ -133,6 +149,61 @@ func (l *manifestSchemaLoader) docForPath(schemaPath, dottedPath string) (string
 	return formatManifestDoc(dottedPath, node, required), nil
 }
 
+func (l *manifestSchemaLoader) childPropertiesForPath(schemaPath, dottedPath string) ([]string, bool, error) {
+	nodes, err := l.nodesForPath(schemaPath, dottedPath)
+	if err != nil {
+		return nil, false, err
+	}
+
+	keys := make(map[string]struct{})
+	var fromArray bool
+	for _, node := range nodes {
+		childKeys, childFromArray, err := l.childProperties(node.path, node.node)
+		if err != nil {
+			continue
+		}
+		fromArray = fromArray || childFromArray
+		for _, key := range childKeys {
+			keys[key] = struct{}{}
+		}
+	}
+
+	if len(keys) == 0 {
+		return nil, fromArray, nil
+	}
+
+	out := make([]string, 0, len(keys))
+	for key := range keys {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out, fromArray, nil
+}
+
+func (l *manifestSchemaLoader) valueCandidatesForPath(schemaPath, dottedPath string) ([]string, error) {
+	nodes, err := l.nodesForPath(schemaPath, dottedPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []string
+	seen := make(map[string]struct{})
+	for _, node := range nodes {
+		values, err := l.valueCandidates(node.path, node.node)
+		if err != nil {
+			continue
+		}
+		for _, value := range values {
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			out = append(out, value)
+		}
+	}
+	return out, nil
+}
+
 func (l *manifestSchemaLoader) child(schemaPath string, node any, segment string) (string, any, bool, error) {
 	schemaPath, current, err := l.normalize(schemaPath, node)
 	if err != nil {
@@ -160,6 +231,200 @@ func (l *manifestSchemaLoader) child(schemaPath string, node any, segment string
 	}
 
 	return "", nil, false, fmt.Errorf("schema path not found: %s", segment)
+}
+
+type manifestSchemaNode struct {
+	path string
+	node map[string]any
+}
+
+func (l *manifestSchemaLoader) nodesForPath(schemaPath, dottedPath string) ([]manifestSchemaNode, error) {
+	root, err := l.load(schemaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := l.expandNodes(schemaPath, root)
+	if err != nil {
+		return nil, err
+	}
+
+	if dottedPath == "" {
+		return nodes, nil
+	}
+
+	for _, segment := range strings.Split(dottedPath, ".") {
+		if segment == "" {
+			continue
+		}
+
+		var next []manifestSchemaNode
+		for _, node := range nodes {
+			children, err := l.childNodes(node.path, node.node, segment)
+			if err != nil {
+				continue
+			}
+			next = append(next, children...)
+		}
+
+		if len(next) == 0 {
+			return nil, fmt.Errorf("schema path not found: %s", dottedPath)
+		}
+		nodes = next
+	}
+
+	return nodes, nil
+}
+
+func (l *manifestSchemaLoader) expandNodes(schemaPath string, node any) ([]manifestSchemaNode, error) {
+	schemaPath, current, err := l.normalize(schemaPath, node)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes := []manifestSchemaNode{{path: schemaPath, node: current}}
+	for _, key := range []string{"allOf", "oneOf", "anyOf", "then", "else"} {
+		for _, branch := range schemaBranches(current[key]) {
+			branchNodes, err := l.expandNodes(schemaPath, branch)
+			if err != nil {
+				continue
+			}
+			nodes = append(nodes, branchNodes...)
+		}
+	}
+
+	return nodes, nil
+}
+
+func (l *manifestSchemaLoader) childNodes(schemaPath string, node map[string]any, segment string) ([]manifestSchemaNode, error) {
+	if props := asMap(node["properties"]); props != nil {
+		if child, ok := props[segment]; ok {
+			return l.expandNodes(schemaPath, child)
+		}
+	}
+
+	if items, ok := node["items"]; ok {
+		itemNodes, err := l.expandNodes(schemaPath, items)
+		if err != nil {
+			return nil, err
+		}
+
+		var children []manifestSchemaNode
+		for _, itemNode := range itemNodes {
+			itemChildren, err := l.childNodes(itemNode.path, itemNode.node, segment)
+			if err != nil {
+				continue
+			}
+			children = append(children, itemChildren...)
+		}
+		if len(children) > 0 {
+			return children, nil
+		}
+	}
+
+	return nil, fmt.Errorf("schema path not found: %s", segment)
+}
+
+func (l *manifestSchemaLoader) childProperties(schemaPath string, node map[string]any) ([]string, bool, error) {
+	schemaPath, current, err := l.normalize(schemaPath, node)
+	if err != nil {
+		return nil, false, err
+	}
+
+	keys := make(map[string]struct{})
+	for key := range asMap(current["properties"]) {
+		keys[key] = struct{}{}
+	}
+
+	for _, branchKey := range []string{"allOf", "oneOf", "anyOf", "then", "else"} {
+		for _, branch := range schemaBranches(current[branchKey]) {
+			branchKeys, _, err := l.childProperties(schemaPath, asMap(branch))
+			if err != nil {
+				continue
+			}
+			for _, key := range branchKeys {
+				keys[key] = struct{}{}
+			}
+		}
+	}
+
+	if len(keys) > 0 {
+		out := make([]string, 0, len(keys))
+		for key := range keys {
+			out = append(out, key)
+		}
+		sort.Strings(out)
+		return out, false, nil
+	}
+
+	if items, ok := current["items"]; ok {
+		itemNodes, err := l.expandNodes(schemaPath, items)
+		if err != nil {
+			return nil, false, err
+		}
+
+		for _, itemNode := range itemNodes {
+			itemKeys, _, err := l.childProperties(itemNode.path, itemNode.node)
+			if err != nil {
+				continue
+			}
+			for _, key := range itemKeys {
+				keys[key] = struct{}{}
+			}
+		}
+	}
+
+	out := make([]string, 0, len(keys))
+	for key := range keys {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out, len(out) > 0, nil
+}
+
+func (l *manifestSchemaLoader) valueCandidates(schemaPath string, node map[string]any) ([]string, error) {
+	_, current, err := l.normalize(schemaPath, node)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []string
+	seen := make(map[string]struct{})
+	for _, value := range schemaEnum(current) {
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+
+	if schemaHasType(current, "boolean") {
+		for _, value := range []string{"true", "false"} {
+			if _, ok := seen[value]; ok {
+				continue
+			}
+			seen[value] = struct{}{}
+			out = append(out, value)
+		}
+	}
+
+	for _, branchKey := range []string{"allOf", "oneOf", "anyOf", "then", "else"} {
+		for _, branch := range schemaBranches(current[branchKey]) {
+			branchValues, err := l.valueCandidates(schemaPath, asMap(branch))
+			if err != nil {
+				continue
+			}
+			for _, value := range branchValues {
+				if _, ok := seen[value]; ok {
+					continue
+				}
+				seen[value] = struct{}{}
+				out = append(out, value)
+			}
+		}
+	}
+
+	return out, nil
 }
 
 func (l *manifestSchemaLoader) normalize(schemaPath string, node any) (string, map[string]any, error) {
@@ -304,6 +569,20 @@ func schemaEnum(node map[string]any) []string {
 	return out
 }
 
+func schemaHasType(node map[string]any, target string) bool {
+	switch value := node["type"].(type) {
+	case string:
+		return value == target
+	case []any:
+		for _, item := range value {
+			if str, ok := item.(string); ok && str == target {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func navigate(node any, segment string) (any, bool) {
 	switch current := node.(type) {
 	case map[string]any:
@@ -334,6 +613,16 @@ func asSlice(value any) []any {
 		return list
 	}
 	return nil
+}
+
+func schemaBranches(value any) []any {
+	if list := asSlice(value); list != nil {
+		return list
+	}
+	if value == nil {
+		return nil
+	}
+	return []any{value}
 }
 
 func asStringSlice(value any) []string {

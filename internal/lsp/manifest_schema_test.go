@@ -43,6 +43,24 @@ func TestManifestDocCoversNestedPolicyTemplateFields(t *testing.T) {
 	assert.Contains(t, doc, "deployment mode")
 }
 
+func TestManifestCompletionSchemaHelpers(t *testing.T) {
+	keys, fromArray := manifestChildKeys("policy_templates", manifestSchemaIntegration)
+	require.NotEmpty(t, keys)
+	assert.True(t, fromArray)
+	assert.Contains(t, keys, "inputs")
+	assert.Contains(t, keys, "name")
+
+	keys, fromArray = manifestChildKeys("policy_templates.inputs", manifestSchemaIntegration)
+	require.NotEmpty(t, keys)
+	assert.True(t, fromArray)
+	assert.Contains(t, keys, "type")
+	assert.Contains(t, keys, "vars")
+
+	assert.Contains(t, manifestValueCandidates("owner.type", manifestSchemaIntegration), "elastic")
+	assert.Contains(t, manifestValueCandidates("policy_templates_behavior", manifestSchemaIntegration), "combined_policy")
+	assert.Contains(t, manifestValueCandidates("vars.required", manifestSchemaInput), "true")
+}
+
 func TestResolveYAMLPathFromDocumentText(t *testing.T) {
 	path := resolveYAMLPath(`policy_templates:
   - name: apache
