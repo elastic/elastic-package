@@ -1,0 +1,367 @@
+# CrowdStrike Integration
+
+## Overview
+
+The [CrowdStrike](https://www.crowdstrike.com/) integration allows you to efficiently connect your CrowdStrike Falcon platform to Elastic for seamless onboarding of alerts and telemetry from CrowdStrike Falcon and Falcon Data Replicator. Elastic Security can leverage this data for security analytics including correlation, visualization, and incident response.
+
+For a demo, refer to the following video (click to view).
+
+[![CrowdStrike integration video](https://play.vidyard.com/VKKWSpg4sDEk1DBXATkyEP.jpg)](https://videos.elastic.co/watch/VKKWSpg4sDEk1DBXATkyEP)
+
+### Compatibility
+
+This integration is compatible with CrowdStrike Falcon SIEM Connector v2.0, REST API, and CrowdStrike Event Streams API.
+
+### How it works
+
+The integration collects data from multiple sources within CrowdStrike Falcon and ingests it into Elasticsearch for security analysis and visualization:
+
+![CrowdStrike Integration Flowchart](../img/crowdstrike-elastic-data-flow.drawio.svg)
+
+1. **CrowdStrike Event Streams** — Real-time security events (auth, CSPM, firewall, user activity, XDR, detections). You can collect this data in two ways:
+    - **Falcon SIEM Connector** — A pre-built integration that connects CrowdStrike Falcon with your SIEM. The connector collects event stream data and writes it to files; this integration reads from the connector's output path (the `output_path` in `cs.falconhoseclient.cfg`).
+    - **Event Streams API** — Continuously streams security logs from CrowdStrike Falcon for proactive monitoring and threat detection.
+
+    Data from either method is indexed into the `falcon` dataset in Elasticsearch.
+
+2. **CrowdStrike REST API** — The integration uses the REST API to pull alerts, host inventory, and vulnerability data (indexed into the `alert`, `host`, and `vulnerability` datasets).
+
+    :::{note}
+    GovCloud CID users must enable the GovCloud option in the integration configuration to query the `/devices/queries/devices/v1` endpoint instead of the unsupported `/devices/combined/devices/v1` endpoint.
+    :::
+
+3. **Falcon Data Replicator (FDR)** — Batch data from your endpoints, cloud workloads, and identities using the Falcon platform's lightweight agent. Data is written to CrowdStrike-managed S3; this integration consumes it using SQS notifications (or from your own S3 bucket if you use the FDR tool to replicate). Logs are indexed into the `fdr` dataset in Elasticsearch.
+
+## What data does this integration collect?
+
+- **Event Streams** (falcon dataset)
+- **FDR** (fdr dataset)
+- **Alerts** (alert dataset)
+- **Hosts** (host dataset)
+- **Vulnerability** (vulnerability dataset)
+
+## What do I need to use this integration?
+
+This section describes the requirements and configuration details for each supported data source.
+
+### Collect data using CrowdStrike Falcon SIEM Connector
+
+To collect data using the Falcon SIEM Connector, you need the file path where the connector stores event data received from the Event Streams.
+This is the same as the `output_path` setting in the `cs.falconhoseclient.cfg` configuration file.
+
+The integration supports only JSON output format from the Falcon SIEM Connector. Other formats such as Syslog and CEF are not supported.
+
+Additionally, this integration collects logs only through the file system. Ingestion using a Syslog server is not supported.
+
+:::{note}
+The log files are written to multiple rotated output files based on the `output_path` setting in the `cs.falconhoseclient.cfg` file. The default output location for the Falcon SIEM Connector is `/var/log/crowdstrike/falconhoseclient/output`.
+By default, files named `output*` in `/var/log/crowdstrike/falconhoseclient` directory contain valid JSON event data and should be used as the source for ingestion.
+
+Files with names like `cs.falconhoseclient-*.log` in the same directory are primarily used for logging internal operations of the Falcon SIEM Connector and are not intended to be consumed by this integration.
+:::
+
+By default, the configuration file for the Falcon SIEM Connector is located at `/opt/crowdstrike/etc/cs.falconhoseclient.cfg`, which provides configuration options related to the events collected. The `EventTypeCollection` and `EventSubTypeCollection` sections list which event types the connector collects.
+
+### Collect data using CrowdStrike Event Streams
+
+The following parameters from your CrowdStrike instance are required:
+
+1. Client ID
+2. Client Secret
+3. Token URL
+4. API Endpoint URL
+5. CrowdStrike App ID
+6. Required scopes for event streams:
+
+    | Data Stream   | Scope               |
+    | ------------- | ------------------- |
+    | Event Stream  | read: Event streams |
+
+:::{note}
+You can use the Falcon SIEM Connector as an alternative to the Event Streams API.
+:::
+
+#### Supported Event Streams event types
+
+The following event types are supported for CrowdStrike Event Streams (whether you use the Falcon SIEM Connector or the Event Streams API):
+
+- CustomerIOCEvent
+- DataProtectionDetectionSummaryEvent
+- DetectionSummaryEvent
+- EppDetectionSummaryEvent
+- IncidentSummaryEvent
+- UserActivityAuditEvent
+- AuthActivityAuditEvent
+- FirewallMatchEvent
+- RemoteResponseSessionStartEvent
+- RemoteResponseSessionEndEvent
+- CSPM Streaming events
+- CSPM Search events
+- IDP Incidents
+- IDP Summary events
+- Mobile Detection events
+- Recon Notification events
+- XDR Detection events
+- Scheduled Report Notification events
+
+### Collect data using CrowdStrike REST API
+
+The following parameters from your CrowdStrike instance are required:
+
+1. Client ID
+2. Client Secret
+3. Token URL
+4. API Endpoint URL
+5. Required scopes for each data stream:
+
+    | Data Stream   | Scope         |
+    | ------------- | ------------- |
+    | Alert         | read:alert    |
+    | Host          | read:host     |
+    | Vulnerability | read:vulnerability |
+
+### Collect data using CrowdStrike Falcon Data Replicator (FDR)
+
+The CrowdStrike Falcon Data Replicator allows CrowdStrike users to replicate data from CrowdStrike
+managed S3 buckets. When new data is written to S3, notifications are sent to a CrowdStrike-managed SQS queue (using S3 event notifications configured in AWS), so this integration can consume them.
+
+This integration can be used in two ways. It can consume SQS notifications directly from the CrowdStrike managed
+SQS queue or it can be used in conjunction with the FDR tool that replicates the data to a self-managed S3 bucket
+and the integration can read from there.
+
+In both cases SQS messages are deleted after they are processed. This allows you to operate more than one Elastic
+Agent with this integration if needed and not have duplicate events, but it means you cannot ingest the data a second time.
+
+#### Use with CrowdStrike managed S3/SQS
+
+This is the simplest way to setup the integration, and also the default.
+
+You need to set the integration up with the SQS queue URL provided by CrowdStrike FDR.
+
+#### Use with FDR tool and data replicated to a self-managed S3 bucket
+
+This option can be used if you want to archive the raw CrowdStrike data.
+
+You need to follow the steps below:
+
+- Create an S3 bucket to receive the logs.
+- Create an SQS queue.
+- Configure your S3 bucket to send object created notifications to your SQS queue.
+- Follow the [FDR tool](https://github.com/CrowdStrike/FDR) instructions to replicate data to your own S3 bucket.
+- Configure the integration to read from your self-managed SQS topic.
+
+:::{note}
+While the FDR tool can replicate the files from S3 to your local file system, this integration cannot read those files because they are gzip compressed, and the log file input does not support reading compressed files.
+:::
+
+#### Configuration for the S3 input
+
+AWS credentials are required for running this integration if you want to use the S3 input.
+
+##### Configuration parameters
+* `access_key_id`: first part of access key.
+* `secret_access_key`: second part of access key.
+* `session_token`: required when using temporary security credentials.
+* `credential_profile_name`: profile name in shared credentials file.
+* `shared_credential_file`: directory of the shared credentials file.
+* `endpoint`: URL of the entry point for an AWS web service.
+* `role_arn`: AWS IAM Role to assume.
+
+##### Credential Types
+There are three types of AWS credentials that can be used:
+
+- access keys,
+- temporary security credentials, and
+- IAM role ARN.
+
+##### Access keys
+
+`AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are the two parts of access keys.
+They are long-term credentials for an IAM user, or the AWS account root user.
+See [AWS Access Keys and Secret Access Keys](https://docs.aws.amazon.com/general/latest/gr/aws-sec-cred-types.html#access-keys-and-secret-access-keys)
+for more details.
+
+##### Temporary security credentials
+
+Temporary security credentials have a limited lifetime and consist of an
+access key ID, a secret access key, and a security token which are typically returned
+from `GetSessionToken`.
+
+MFA-enabled IAM users would need to submit an MFA code
+while calling `GetSessionToken`. `default_region` identifies the AWS Region
+whose servers you want to send your first API request to by default.
+
+This is typically the Region closest to you, but it can be any Region. See
+[Temporary Security Credentials](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+for more details.
+
+`sts get-session-token` AWS CLI can be used to generate temporary credentials.
+For example, with MFA-enabled:
+```bash
+aws> sts get-session-token --serial-number arn:aws:iam::1234:mfa/your-email@example.com --duration-seconds 129600 --token-code 123456
+```
+
+Because temporary security credentials are short term, after they expire, the
+user needs to generate new ones and manually update the package configuration in
+order to continue collecting `aws` metrics.
+
+This will cause data loss if the configuration is not updated with new credentials before the old ones expire.
+
+##### IAM role ARN
+
+An IAM role is an IAM identity that you can create in your account that has
+specific permissions that determine what the identity can and cannot do in AWS.
+
+A role does not have standard long-term credentials such as a password or access
+keys associated with it. Instead, when you assume a role, it provides you with
+temporary security credentials for your role session.
+IAM role Amazon Resource Name (ARN) can be used to specify which AWS IAM role to assume to generate
+temporary credentials.
+
+See [AssumeRole API documentation](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html) for more details.
+
+##### Supported Formats
+1. Use access keys: Access keys include `access_key_id`, `secret_access_key`
+and/or `session_token`.
+2. Use `role_arn`: `role_arn` is used to specify which AWS IAM role to assume
+    for generating temporary credentials.
+    If `role_arn` is given, the package will check if access keys are given.
+    If not, the package will check for credential profile name.
+    If neither is given, default credential profile will be used.
+
+  Ensure credentials are given under either a credential profile or
+  access keys.
+3. Use `credential_profile_name` and/or `shared_credential_file`:
+    If `access_key_id`, `secret_access_key` and `role_arn` are all not given, then
+    the package will check for `credential_profile_name`.
+    If you use different credentials for different tools or applications, you can use profiles to
+    configure multiple access keys in the same configuration file.
+    If there is no `credential_profile_name` given, the default profile will be used.
+    `shared_credential_file` is optional to specify the directory of your shared
+    credentials file.
+    If it's empty, the default directory will be used.
+    In Windows, shared credentials file is at `C:\Users\<yourUserName>\.aws\credentials`.
+    For Linux, macOS or Unix, the file is located at `~/.aws/credentials`.
+    See [Create Shared Credentials File](https://docs.aws.amazon.com/ses/latest/DeveloperGuide/create-shared-credentials-file.html)
+    for more details.
+
+#### Supported FDR data
+
+The FDR dataset includes:
+
+- Events generated by the Falcon sensor on your hosts
+- DataProtectionDetectionSummaryEvent (Data Protection detection summary)
+- File Integrity Monitor: FileIntegrityMonitorRuleMatched and FileIntegrityMonitorRuleMatchedEnriched events
+- EppDetectionSummaryEvent (EPP detection summary)
+- CSPM: Indicators of Misconfiguration (IOM) and Indicators of Attack (IOA) events
+
+## How do I deploy this integration?
+
+1. In Kibana, go to **Management > Integrations**.
+2. In the "Search for integrations" search bar, type **CrowdStrike**.
+3. Click the **CrowdStrike** integration from the search results.
+4. Click the **Add CrowdStrike** button to add the integration.
+5. Configure the integration.
+6. Click **Save and Continue** to save the integration.
+
+### Agentless enabled integration
+
+Agentless integrations allow you to collect data without having to manage Elastic Agent in your cloud. They make manual agent deployment unnecessary, so you can focus on your data instead of the agent that collects it. For more information, refer to [Agentless integrations](https://www.elastic.co/guide/en/serverless/current/security-agentless-integrations.html) and the [Agentless integrations FAQ](https://www.elastic.co/guide/en/serverless/current/agentless-integration-troubleshooting.html).
+
+Agentless deployments are only supported in Elastic Serverless and Elastic Cloud environments. This functionality is in beta and is subject to change. Beta features are not subject to the support SLA of official GA features.
+
+### Agent based installation
+
+Elastic Agent must be installed. For more details, check the Elastic Agent [installation instructions](docs-content://reference/fleet/install-elastic-agents.md).
+You can install only one Elastic Agent per host.
+Elastic Agent is required to stream data from the AWS SQS, Event Streams API, REST API, or SIEM Connector and ship the data to Elastic, where the events will then be processed using the integration's ingest pipelines.
+
+## Troubleshooting
+
+### Vulnerability API returns 404 Not found
+
+This error can occur for the following reasons:
+1. Too many records in the response.
+2. The pagination token has expired. Tokens expire 120 seconds after a call is made.
+
+To resolve this, adjust the `Batch Size` setting in the integration to reduce the number of records returned per pagination call.
+
+### Duplicate Events
+
+The option `Enable Data Deduplication` allows you to avoid consuming duplicate events. By default, this option is set to `false`, and so duplicate events can be ingested. When this option is enabled, a [fingerprint processor](https://www.elastic.co/guide/en/elasticsearch/reference/current/fingerprint-processor.html) is used to calculate a hash from a set of CrowdStrike fields that uniquely identify the event. The hash is assigned to the Elasticsearch [`_id`](https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-id-field.html) field that makes the document unique and prevent duplicates.
+
+If duplicate events are ingested, to help find them, the integration's `event.id` field is populated by concatenating a few CrowdStrike fields that uniquely identify the event. These fields are `id`, `aid`, and `cid` from the CrowdStrike event. The fields are separated with pipe `|`.
+For example, if your CrowdStrike event contains `id: 123`, `aid: 456`, and `cid: 789` then the `event.id` would be `123|456|789`.
+
+### Alert severity mapping
+
+The values used in `event.severity` are consistent with Elastic Detection Rules.
+
+| Severity Name              | `event.severity` |
+|----------------------------|:----------------:|
+| Low, Info or Informational | 21               |
+| Medium                     | 47               |
+| High                       | 73               |
+| Critical                   | 99               |
+
+The integration sets `event.severity` according to the mapping in the table above. If the severity name is not available from the original document, it is determined from the numeric severity value according to the following table.
+
+| CrowdStrike Severity | Severity Name |
+|------------------------|:-------------:|
+| 0 - 19                 | info          |
+| 20 - 39                | low           |
+| 40 - 59                | medium        |
+| 60 - 79                | high          |
+| 80 - 100               | critical      |
+
+## Logs
+
+### Alert
+
+This is the `alert` dataset.
+
+#### Example
+
+{{event "alert"}}
+
+{{fields "alert"}}
+
+### Falcon
+
+This is the `falcon` dataset.
+
+#### Example 
+
+{{event "falcon"}}
+
+{{fields "falcon"}}
+
+### FDR
+
+This is the `fdr` dataset.
+
+#### Example
+
+{{event "fdr"}}
+
+{{fields "fdr"}}
+
+### Host
+
+This is the `host` dataset.
+
+#### Example
+
+{{event "host"}}
+
+{{fields "host"}}
+
+### Vulnerability
+
+This is the `vulnerability` dataset.
+
+#### Example
+
+{{event "vulnerability"}}
+
+{{fields "vulnerability"}}
