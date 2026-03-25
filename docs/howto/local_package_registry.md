@@ -74,9 +74,11 @@ elastic-package build
 # Start a standalone registry on port 8081
 docker run --rm -p 8081:8080 \
   -v /path/to/build/packages:/packages/package \
-  docker.elastic.co/package-registry/distribution:latest \
+  docker.elastic.co/package-registry/package-registry:v1.37.0 \
   /package-registry serve --packages-path /packages
 ```
+
+> **Note:** For a smaller image you can use `docker.elastic.co/package-registry/distribution:lite` with the same volume mount and `serve` command. The registry image tag above matches `PackageRegistryBaseImage` in [`internal/stack/versions.go`](../../internal/stack/versions.go); that constant is what `elastic-package stack` uses and is updated by automation, while this document is not—check there when upgrading.
 
 Then point `package_registry.base_url` at `http://localhost:8081` and run
 `elastic-package build` from your integration package directory.
