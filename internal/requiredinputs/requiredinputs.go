@@ -117,16 +117,22 @@ func (r *RequiredInputsResolver) mapRequiredInputPackagesPaths(manifestInputRequ
 
 // openPackageFS returns an fs.FS rooted at the package root (manifest.yml at
 // the top level) and a close function that must be called when done. For
-// directory packages the close function is a no-op; for zip packages it closes
-// the underlying zip.ReadCloser.
+// directory packages it closes the os.Root; for zip packages it closes the
+// underlying zip.ReadCloser.
 func openPackageFS(pkgPath string) (fs.FS, func() error, error) {
 	info, err := os.Stat(pkgPath)
 	if err != nil {
 		return nil, nil, err
 	}
 	if info.IsDir() {
-		return os.DirFS(pkgPath), func() error { return nil }, nil
+		// open the package directory as a root
+		root, err := os.OpenRoot(pkgPath)
+		if err != nil {
+			return nil, nil, err
+		}
+		return root.FS(), root.Close, nil
 	}
+	// open the package zip as a zip reader
 	zipRC, err := zip.OpenReader(pkgPath)
 	if err != nil {
 		return nil, nil, err
