@@ -21,25 +21,25 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 	// get all data stream manifest paths in the build package
 	dsManifestsPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
-		return fmt.Errorf("globbing data stream manifests: %w", err)
+		return fmt.Errorf("failed to glob data stream manifests: %w", err)
 	}
 
 	errorList := make([]error, 0)
 	for _, manifestPath := range dsManifestsPaths {
 		manifestBytes, err := buildRoot.ReadFile(manifestPath)
 		if err != nil {
-			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
+			return fmt.Errorf("failed to read data stream manifest %q: %w", manifestPath, err)
 		}
 		// parse the manifest YAML document preserving formatting for targeted modifications
 		// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
 		var doc yaml.Node
 		if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
-			return fmt.Errorf("parsing manifest YAML: %w", err)
+			return fmt.Errorf("failed to parse data stream manifest YAML: %w", err)
 		}
 
 		manifest, err := packages.ReadDataStreamManifestBytes(manifestBytes)
 		if err != nil {
-			return fmt.Errorf("parsing data stream manifest %q: %w", manifestPath, err)
+			return fmt.Errorf("failed to parse data stream manifest %q: %w", manifestPath, err)
 		}
 		for idx, stream := range manifest.Streams {
 			if stream.Package == "" {
@@ -47,13 +47,13 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 			}
 			pkgPath, ok := inputPkgPaths[stream.Package]
 			if !ok {
-				errorList = append(errorList, fmt.Errorf("stream in manifest %q references input package %q which is not listed in requires.input", manifestPath, stream.Package))
+				errorList = append(errorList, fmt.Errorf("failed to resolve input package %q for stream in manifest %q: not listed in requires.input", stream.Package, manifestPath))
 				continue
 			}
 			dsRootDir := path.Dir(manifestPath)
 			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.Package, buildRoot)
 			if err != nil {
-				return fmt.Errorf("collecting and copying input package data stream templates for manifest %q: %w", manifestPath, err)
+				return fmt.Errorf("failed to collect and copy input package data stream templates for manifest %q: %w", manifestPath, err)
 			}
 			if len(inputPaths) == 0 {
 				continue
@@ -71,7 +71,7 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 			paths = append(inputPaths, paths...)
 
 			if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
-				return fmt.Errorf("setting stream template paths in manifest %q: %w", manifestPath, err)
+				return fmt.Errorf("failed to set stream template paths in manifest %q: %w", manifestPath, err)
 			}
 
 		}
@@ -79,10 +79,10 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 		// Serialise the updated YAML document back to disk.
 		updated, err := formatYAMLNode(&doc)
 		if err != nil {
-			return fmt.Errorf("formatting updated manifest: %w", err)
+			return fmt.Errorf("failed to format updated manifest: %w", err)
 		}
 		if err := buildRoot.WriteFile(manifestPath, updated, 0664); err != nil {
-			return fmt.Errorf("writing updated manifest: %w", err)
+			return fmt.Errorf("failed to write updated manifest: %w", err)
 		}
 
 	}
@@ -106,17 +106,17 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
 	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
 	if err != nil {
-		return nil, fmt.Errorf("opening package %q: %w", inputPkgPath, err)
+		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
 	}
 	defer closeFn()
 
 	manifestBytes, err := fs.ReadFile(inputPkgFS, "manifest.yml")
 	if err != nil {
-		return nil, fmt.Errorf("reading manifest: %w", err)
+		return nil, fmt.Errorf("failed to read input package manifest: %w", err)
 	}
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
 	if err != nil {
-		return nil, fmt.Errorf("parsing manifest: %w", err)
+		return nil, fmt.Errorf("failed to parse input package manifest: %w", err)
 	}
 
 	seen := make(map[string]bool)
@@ -137,17 +137,17 @@ func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, in
 			// copy the template from "agent/input" directory of the input package to the "agent/stream" directory of the build package
 			content, err := fs.ReadFile(inputPkgFS, path.Join("agent", "input", name))
 			if err != nil {
-				return nil, fmt.Errorf("template %q declared in manifest not found in agent/input: %w", name, err)
+				return nil, fmt.Errorf("failed to read template %q from agent/input (declared in manifest): %w", name, err)
 			}
 			destName := inputPkgName + "-" + name
 			// create the agent/stream directory if it doesn't exist
 			agentStreamDir := path.Join(dsRootDir, "agent", "stream")
 			if err := buildRoot.MkdirAll(agentStreamDir, 0755); err != nil {
-				return nil, fmt.Errorf("creating agent/stream directory: %w", err)
+				return nil, fmt.Errorf("failed to create agent/stream directory: %w", err)
 			}
 			destPath := path.Join(agentStreamDir, destName)
 			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
-				return nil, fmt.Errorf("writing template %s: %w", destName, err)
+				return nil, fmt.Errorf("failed to write template %q: %w", destName, err)
 			}
 			logger.Debugf("Copied input package template: %s -> %s", name, destName)
 			copiedNames = append(copiedNames, destName)
@@ -161,28 +161,28 @@ func setStreamTemplatePaths(doc *yaml.Node, streamIdx int, paths []string) error
 	root := doc
 	if root.Kind == yaml.DocumentNode {
 		if len(root.Content) == 0 {
-			return fmt.Errorf("empty YAML document")
+			return fmt.Errorf("failed to set stream template paths: empty YAML document")
 		}
 		root = root.Content[0]
 	}
 	if root.Kind != yaml.MappingNode {
-		return fmt.Errorf("expected mapping node at document root")
+		return fmt.Errorf("failed to set stream template paths: expected mapping node at document root")
 	}
 
 	streamsNode := mappingValue(root, "streams")
 	if streamsNode == nil {
-		return fmt.Errorf("'streams' key not found in manifest")
+		return fmt.Errorf("failed to set stream template paths: 'streams' key not found in manifest")
 	}
 	if streamsNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("'streams' is not a sequence")
+		return fmt.Errorf("failed to set stream template paths: 'streams' is not a sequence")
 	}
 	if streamIdx >= len(streamsNode.Content) {
-		return fmt.Errorf("stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Content))
+		return fmt.Errorf("failed to set stream template paths: stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Content))
 	}
 
 	streamNode := streamsNode.Content[streamIdx]
 	if streamNode.Kind != yaml.MappingNode {
-		return fmt.Errorf("stream entry %d is not a mapping", streamIdx)
+		return fmt.Errorf("failed to set stream template paths: stream entry %d is not a mapping", streamIdx)
 	}
 
 	// Remove singular template_path if present.

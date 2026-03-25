@@ -46,17 +46,17 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 
 	buildRoot, err := os.OpenRoot(buildPackageRoot)
 	if err != nil {
-		return fmt.Errorf("opening build package root: %w", err)
+		return fmt.Errorf("failed to open build package root: %w", err)
 	}
 	defer buildRoot.Close()
 
 	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
 	if err != nil {
-		return fmt.Errorf("reading package manifest: %w", err)
+		return fmt.Errorf("failed to read package manifest: %w", err)
 	}
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
 	if err != nil {
-		return fmt.Errorf("reading package manifest: %w", err)
+		return fmt.Errorf("failed to parse package manifest: %w", err)
 	}
 
 	// validate that the package is an integration and has required input packages
@@ -70,7 +70,7 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 
 	tmpDir, err := os.MkdirTemp("", "elastic-package-input-pkgs-*")
 	if err != nil {
-		return fmt.Errorf("creating temp directory for input packages: %w", err)
+		return fmt.Errorf("failed to create temp directory for input packages: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -80,11 +80,11 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 	}
 
 	if err := r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, inputPkgPaths, buildRoot); err != nil {
-		return fmt.Errorf("bundling policy template input package templates: %w", err)
+		return fmt.Errorf("failed to bundle policy template input package templates: %w", err)
 	}
 
 	if err := r.bundleDataStreamTemplates(inputPkgPaths, buildRoot); err != nil {
-		return fmt.Errorf("bundling data stream input package templates: %w", err)
+		return fmt.Errorf("failed to bundle data stream input package templates: %w", err)
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func (r *RequiredInputsResolver) mapRequiredInputPackagesPaths(manifestInputRequ
 		path, err := r.eprClient.DownloadPackage(inputDependency.Package, inputDependency.Version, tmpDir)
 		if err != nil {
 			// all required input packages must be downloaded successfully
-			errs = append(errs, fmt.Errorf("downloading input package %q: %w", inputDependency.Package, err))
+			errs = append(errs, fmt.Errorf("failed to download input package %q: %w", inputDependency.Package, err))
 			continue
 		}
 
@@ -140,7 +140,7 @@ func openPackageFS(pkgPath string) (fs.FS, func() error, error) {
 	matched, err := fs.Glob(zipRC, "*/"+packages.PackageManifestFile)
 	if err != nil || len(matched) == 0 {
 		zipRC.Close()
-		return nil, nil, fmt.Errorf("no manifest found in zip %s", pkgPath)
+		return nil, nil, fmt.Errorf("failed to find package manifest in zip %s", pkgPath)
 	}
 	subFS, err := fs.Sub(zipRC, path.Dir(matched[0]))
 	if err != nil {

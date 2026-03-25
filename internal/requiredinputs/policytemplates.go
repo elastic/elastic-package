@@ -22,7 +22,7 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 	// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
 	var doc yaml.Node
 	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
-		return fmt.Errorf("parsing manifest YAML: %w", err)
+		return fmt.Errorf("failed to parse manifest YAML: %w", err)
 	}
 
 	// for each policy template, with an input package reference:
@@ -35,11 +35,11 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 			}
 			sourcePath, ok := inputPkgPaths[input.Package]
 			if !ok || sourcePath == "" {
-				return fmt.Errorf("input package %q referenced by policy template %q not found", input.Package, pt.Name)
+				return fmt.Errorf("failed to find input package %q referenced by policy template %q", input.Package, pt.Name)
 			}
 			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.Package, buildRoot)
 			if err != nil {
-				return fmt.Errorf("collecting and copying input package policy templates: %w", err)
+				return fmt.Errorf("failed to collect and copy input package policy templates: %w", err)
 			}
 			if len(inputPaths) == 0 {
 				continue
@@ -57,7 +57,7 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 			paths = append(inputPaths, paths...)
 
 			if err := setInputPolicyTemplateTemplatePaths(&doc, ptIdx, inputIdx, paths); err != nil {
-				return fmt.Errorf("updating policy template manifest with input package templates: %w", err)
+				return fmt.Errorf("failed to update policy template manifest with input package templates: %w", err)
 			}
 		}
 	}
@@ -65,10 +65,10 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 	// Serialise the updated YAML document back to disk.
 	updated, err := formatYAMLNode(&doc)
 	if err != nil {
-		return fmt.Errorf("formatting updated manifest: %w", err)
+		return fmt.Errorf("failed to format updated manifest: %w", err)
 	}
 	if err := buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
-		return fmt.Errorf("writing updated manifest: %w", err)
+		return fmt.Errorf("failed to write updated manifest: %w", err)
 	}
 
 	return nil
@@ -79,17 +79,17 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
 	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
 	if err != nil {
-		return nil, fmt.Errorf("opening package %q: %w", inputPkgPath, err)
+		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
 	}
 	defer closeFn()
 
 	manifestBytes, err := fs.ReadFile(inputPkgFS, packages.PackageManifestFile)
 	if err != nil {
-		return nil, fmt.Errorf("reading manifest: %w", err)
+		return nil, fmt.Errorf("failed to read input package manifest: %w", err)
 	}
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
 	if err != nil {
-		return nil, fmt.Errorf("parsing manifest: %w", err)
+		return nil, fmt.Errorf("failed to parse input package manifest: %w", err)
 	}
 
 	seen := make(map[string]bool)
@@ -110,17 +110,17 @@ func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgP
 			// copy the template from "agent/input" directory of the input package to the "agent/input" directory of the build package
 			content, err := fs.ReadFile(inputPkgFS, path.Join("agent", "input", name))
 			if err != nil {
-				return nil, fmt.Errorf("template %q declared in manifest not found in agent/input: %w", name, err)
+				return nil, fmt.Errorf("failed to read template %q from agent/input (declared in manifest): %w", name, err)
 			}
 			destName := inputPkgName + "-" + name
 			// create the agent/input directory if it doesn't exist
 			agentInputDir := path.Join("agent", "input")
 			if err := buildRoot.MkdirAll(agentInputDir, 0755); err != nil {
-				return nil, fmt.Errorf("creating agent/input directory: %w", err)
+				return nil, fmt.Errorf("failed to create agent/input directory: %w", err)
 			}
 			destPath := path.Join(agentInputDir, destName)
 			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
-				return nil, fmt.Errorf("writing template %s: %w", destName, err)
+				return nil, fmt.Errorf("failed to write template %q: %w", destName, err)
 			}
 			logger.Debugf("Copied input package template: %s -> %s", name, destName)
 			copiedNames = append(copiedNames, destName)
@@ -135,12 +135,12 @@ func setInputPolicyTemplateTemplatePaths(doc *yaml.Node, policyTemplatesIdx int,
 	root := doc
 	if root.Kind == yaml.DocumentNode {
 		if len(root.Content) == 0 {
-			return fmt.Errorf("empty YAML document")
+			return fmt.Errorf("failed to set policy template input paths: empty YAML document")
 		}
 		root = root.Content[0]
 	}
 	if root.Kind != yaml.MappingNode {
-		return fmt.Errorf("expected mapping node at document root")
+		return fmt.Errorf("failed to set policy template input paths: expected mapping node at document root")
 	}
 
 	// policy_templates:
@@ -148,34 +148,34 @@ func setInputPolicyTemplateTemplatePaths(doc *yaml.Node, policyTemplatesIdx int,
 	//   - template_path: foo
 	policyTemplatesNode := mappingValue(root, "policy_templates")
 	if policyTemplatesNode == nil {
-		return fmt.Errorf("'policy_templates' key not found in manifest")
+		return fmt.Errorf("failed to set policy template input paths: 'policy_templates' key not found in manifest")
 	}
 	if policyTemplatesNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("'policy_templates' is not a sequence")
+		return fmt.Errorf("failed to set policy template input paths: 'policy_templates' is not a sequence")
 	}
 	if policyTemplatesIdx < 0 || policyTemplatesIdx >= len(policyTemplatesNode.Content) {
-		return fmt.Errorf("policy template index %d out of range (len=%d)", policyTemplatesIdx, len(policyTemplatesNode.Content))
+		return fmt.Errorf("failed to set policy template input paths: policy template index %d out of range (len=%d)", policyTemplatesIdx, len(policyTemplatesNode.Content))
 	}
 
 	policyTemplateNode := policyTemplatesNode.Content[policyTemplatesIdx]
 	if policyTemplateNode.Kind != yaml.MappingNode {
-		return fmt.Errorf("policy template entry %d is not a mapping", policyTemplatesIdx)
+		return fmt.Errorf("failed to set policy template input paths: policy template entry %d is not a mapping", policyTemplatesIdx)
 	}
 
 	inputsNode := mappingValue(policyTemplateNode, "inputs")
 	if inputsNode == nil {
-		return fmt.Errorf("'inputs' key not found in policy template %d", policyTemplatesIdx)
+		return fmt.Errorf("failed to set policy template input paths: 'inputs' key not found in policy template %d", policyTemplatesIdx)
 	}
 	if inputsNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("'inputs' is not a sequence")
+		return fmt.Errorf("failed to set policy template input paths: 'inputs' is not a sequence")
 	}
 	if inputIdx < 0 || inputIdx >= len(inputsNode.Content) {
-		return fmt.Errorf("input index %d out of range (len=%d)", inputIdx, len(inputsNode.Content))
+		return fmt.Errorf("failed to set policy template input paths: input index %d out of range (len=%d)", inputIdx, len(inputsNode.Content))
 	}
 
 	inputNode := inputsNode.Content[inputIdx]
 	if inputNode.Kind != yaml.MappingNode {
-		return fmt.Errorf("input entry %d is not a mapping", inputIdx)
+		return fmt.Errorf("failed to set policy template input paths: input entry %d is not a mapping", inputIdx)
 	}
 
 	// Remove singular template_path if present.

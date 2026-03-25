@@ -88,7 +88,7 @@ func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "reading package manifest")
+	assert.ErrorContains(t, err, "failed to read package manifest")
 }
 
 func TestBundleInputPackageTemplates_SkipNoIntegration(t *testing.T) {

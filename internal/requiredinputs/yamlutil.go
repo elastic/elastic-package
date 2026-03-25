@@ -51,12 +51,12 @@ func upsertKey(node *yaml.Node, key string, value *yaml.Node) {
 func formatYAMLNode(doc *yaml.Node) ([]byte, error) {
 	raw, err := yaml.Marshal(doc)
 	if err != nil {
-		return nil, fmt.Errorf("marshalling YAML: %w", err)
+		return nil, fmt.Errorf("failed to marshal YAML: %w", err)
 	}
 	yamlFormatter := formatter.NewYAMLFormatter(formatter.KeysWithDotActionNone)
 	formatted, _, err := yamlFormatter.Format(raw)
 	if err != nil {
-		return nil, fmt.Errorf("formatting YAML: %w", err)
+		return nil, fmt.Errorf("failed to format YAML: %w", err)
 	}
 	return formatted, nil
 }

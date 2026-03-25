@@ -28,7 +28,7 @@ func TestBundlePolicyTemplatesInputPackageTemplates_InvalidYAML(t *testing.T) {
 
 	err = r.bundlePolicyTemplatesInputPackageTemplates(manifestBytes, manifest, nil, buildRoot)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing manifest YAML")
+	assert.Contains(t, err.Error(), "failed to parse manifest YAML")
 }
 
 // TestBundlePolicyTemplatesInputPackageTemplates_MultiplePolicyTemplates verifies that templates
