@@ -1293,8 +1293,12 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.dataStreamDataset = dsDataset
 
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
+		logger.Debugf("Deleting data streams for test %s in namespace %s", r.configFileName, policy.Namespace)
 		pattern := fmt.Sprintf("*-*-%s", policy.Namespace)
-		return r.deleteDataStream(ctx, pattern)
+		if err := r.deleteDataStream(ctx, pattern); err != nil {
+			return fmt.Errorf("failed to delete data streams for test %s in namespace %s: %w", r.configFileName, policy.Namespace, err)
+		}
+		return nil
 	}
 
 	// While there could be created Elastic Agents within `setupService()` (custom agents and k8s agents),
@@ -1839,6 +1843,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	for _, sds := range scenario.dataStreams {
+		logger.Debugf("Validating data stream %s (index template %s)", sds.dataStream, sds.indexTemplateName) 
 		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 			fields.WithSchemaURLs(r.schemaURLs),
 			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
