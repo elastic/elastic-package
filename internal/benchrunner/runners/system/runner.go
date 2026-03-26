@@ -660,7 +660,13 @@ func (r *runner) runGenerator(destDir string) error {
 
 	r.corporaFile = f.Name()
 	r.clearCorporaHandler = func(ctx context.Context) error {
-		return os.Remove(r.corporaFile)
+		// TearDown stops the service deployer before this handler runs; compose TearDown
+		// clears the service_logs directory (files.RemoveContent), which may already
+		// remove the corpus file written under that path.
+		if err := os.Remove(r.corporaFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
 	}
 
 	return r.generator.Close()
