@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/aymerick/raymond"
@@ -17,6 +19,8 @@ import (
 
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 )
+
+var allowedDeployerNames = []string{"docker", "k8s", "tf"}
 
 type scenario struct {
 	Package             string                 `config:"package" json:"package"`
@@ -30,6 +34,7 @@ type scenario struct {
 	BenchmarkTimePeriod time.Duration          `config:"benchmark_time_period" json:"benchmark_time_period"`
 	WaitForDataTimeout  *time.Duration         `config:"wait_for_data_timeout" json:"wait_for_data_timeout"`
 	Corpora             corpora                `config:"corpora" json:"corpora"`
+	Deployer            string                 `config:"deployer" json:"deployer"` // Name of the service deployer to use for this scenario.
 }
 
 type dataStream struct {
@@ -112,6 +117,10 @@ func readConfig(benchPath string, scenario string, svcInfo *servicedeployer.Serv
 	c := defaultConfig()
 	if err := cfg.Unpack(c); err != nil {
 		return nil, fmt.Errorf("can't unpack scenario configuration: %s: %w", configPath, err)
+	}
+	if c.Deployer != "" && !slices.Contains(allowedDeployerNames, c.Deployer) {
+		return nil, fmt.Errorf("invalid deployer name %q in system benchmark configuration file %q, allowed values are: %s",
+			c.Deployer, configPath, strings.Join(allowedDeployerNames, ", "))
 	}
 	return c, nil
 }

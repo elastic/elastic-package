@@ -6,9 +6,12 @@ package cmd
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/licenses"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
@@ -44,6 +47,11 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new package")
 
 	validator := tui.Validator{Cwd: "."}
+
+	if flags := cmd.Flags(); flags.Changed(cobraext.CreatePackageTypeFlagName) ||
+		flags.Changed(cobraext.CreatePackageNameFlagName) {
+		return createPackageNonInteractive(cmd, validator)
+	}
 
 	// Create license select with description
 	licenseSelect := tui.NewSelect("License", []string{licenses.Elastic20, licenses.Apache20, noLicenseValue}, licenses.Elastic20)
@@ -81,7 +89,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 	qs := []*tui.Question{
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Package type", []string{"input", "integration", "content"}, "integration"),
+			Prompt:   tui.NewSelect("Package type", packages.AllowedPackageTypes, "integration"),
 			Validate: tui.Required,
 		},
 		{
@@ -146,7 +154,7 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		inputQs := []*tui.Question{
 			{
 				Name:     "datastream_type",
-				Prompt:   tui.NewSelect("Input Data Stream type", []string{"logs", "metrics"}, "logs"),
+				Prompt:   tui.NewSelect("Input Data Stream type", packages.AllowedDataStreamTypes, "logs"),
 				Validate: tui.Required,
 			},
 			{
@@ -160,6 +168,63 @@ func createPackageCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
+	}
+
+	descriptor := createPackageDescriptorFromAnswers(answers)
+	specVersion, err := archetype.GetLatestStableSpecVersion()
+	if err != nil {
+		return fmt.Errorf("failed to get spec version: %w", err)
+	}
+	descriptor.Manifest.SpecVersion = specVersion.String()
+
+	err = archetype.CreatePackage(descriptor)
+	if err != nil {
+		return fmt.Errorf("can't create new package: %w", err)
+	}
+
+	cmd.Println("Done")
+	return nil
+}
+
+func createPackageNonInteractive(cmd *cobra.Command, validator tui.Validator) error {
+	pkgType, _ := cmd.Flags().GetString(cobraext.CreatePackageTypeFlagName)
+	pkgName, _ := cmd.Flags().GetString(cobraext.CreatePackageNameFlagName)
+
+	if pkgType == "" {
+		return fmt.Errorf("--%s is required", cobraext.CreatePackageTypeFlagName)
+	}
+	if pkgName == "" {
+		return fmt.Errorf("--%s is required", cobraext.CreatePackageNameFlagName)
+	}
+
+	if !slices.Contains(packages.AllowedPackageTypes, pkgType) {
+		return fmt.Errorf("--%s must be one of: %s", cobraext.CreatePackageTypeFlagName, strings.Join(packages.AllowedPackageTypes, ", "))
+	}
+
+	if err := validator.PackageDoesNotExist(pkgName); err != nil {
+		return err
+	}
+	if err := validator.PackageName(pkgName); err != nil {
+		return err
+	}
+
+	answers := newPackageAnswers{
+		Type:                pkgType,
+		Name:                pkgName,
+		Version:             "0.0.1",
+		SourceLicense:       licenses.Elastic20,
+		Title:               pkgName,
+		Description:         "This is a new package.",
+		Categories:          []string{"custom"},
+		KibanaVersion:       tui.DefaultKibanaVersionConditionValue(),
+		ElasticSubscription: "basic",
+		GithubOwner:         "elastic/integrations",
+		OwnerType:           "elastic",
+		DataStreamType:      "logs",
+		Subobjects:          false,
+	}
+	if pkgType == "input" {
+		answers.DataStreamType = "logs"
 	}
 
 	descriptor := createPackageDescriptorFromAnswers(answers)
