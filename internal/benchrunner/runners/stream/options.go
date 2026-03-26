@@ -11,11 +11,8 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 )
-
-type requiredInputsResolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
-}
 
 // Options contains benchmark runner options.
 type Options struct {
@@ -31,7 +28,7 @@ type Options struct {
 	Variant                string
 	Profile                *profile.Profile
 	RepositoryRoot         *os.Root
-	RequiredInputsResolver requiredInputsResolver
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 type ClientOptions struct {
@@ -121,7 +118,7 @@ func WithRepositoryRoot(r *os.Root) OptionFunc {
 	}
 }
 
-func WithRequiredInputsResolver(r requiredInputsResolver) OptionFunc {
+func WithRequiredInputsResolver(r requiredinputs.Resolver) OptionFunc {
 	return func(opts *Options) {
 		opts.RequiredInputsResolver = r
 	}

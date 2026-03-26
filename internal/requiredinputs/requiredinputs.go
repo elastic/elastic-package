@@ -20,7 +20,12 @@ type eprClient interface {
 	DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-// NoopRequiredInputsResolver is a no-op implementation of the requiredInputsResolver interface.
+// Resolver bundles required input package templates into a built package tree.
+type Resolver interface {
+	BundleInputPackageTemplates(buildPackageRoot string) error
+}
+
+// NoopRequiredInputsResolver is a no-op implementation of Resolver.
 // TODO: Replace with a resolver that supports test overrides (e.g. local package paths)
 // when implementing local input package resolution for development and testing workflows.
 type NoopRequiredInputsResolver struct{}
@@ -34,8 +39,7 @@ type RequiredInputsResolver struct {
 	eprClient eprClient
 }
 
-// RequiredInputsResolver creates a new RequiredInputsResolver.
-// It creates a temporary directory for input packages and returns a new RequiredInputsResolver.
+// NewRequiredInputsResolver returns a Resolver that downloads required input packages from the registry.
 func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
 	return &RequiredInputsResolver{
 		eprClient: eprClient,

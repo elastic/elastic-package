@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -40,15 +41,11 @@ type runner struct {
 	repositoryRoot *os.Root
 
 	schemaURLs             fields.SchemaURLs
-	requiredInputsResolver requiredInputsResolver
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
-
-type requiredInputsResolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
-}
 
 type PolicyTestRunnerOptions struct {
 	KibanaClient           *kibana.Client
@@ -61,7 +58,7 @@ type PolicyTestRunnerOptions struct {
 	CoverageType           string
 	RepositoryRoot         *os.Root
 	SchemaURLs             fields.SchemaURLs
-	RequiredInputsResolver requiredInputsResolver
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {

@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -25,10 +26,6 @@ const builtPackagesDir = "packages"
 const licenseTextFileName = "LICENSE.txt"
 
 var repositoryLicenseEnv = environment.WithElasticPackagePrefix("REPOSITORY_LICENSE")
-
-type requiredInputsResolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
-}
 
 type BuildOptions struct {
 	PackageRoot    string // path to the package source content
@@ -40,7 +37,7 @@ type BuildOptions struct {
 	SkipValidation         bool
 	UpdateReadmes          bool
 	SchemaURLs             fields.SchemaURLs
-	RequiredInputsResolver requiredInputsResolver
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 // BuildDirectory function locates the target build directory. If the directory doesn't exist, it will create it.

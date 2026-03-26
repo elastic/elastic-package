@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -33,10 +34,6 @@ type Installer interface {
 	Manifest(context.Context) (*packages.PackageManifest, error)
 }
 
-type requiredInputsResolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
-}
-
 // Options are the parameters used to build an installer.
 type Options struct {
 	Kibana                 *kibana.Client
@@ -45,7 +42,7 @@ type Options struct {
 	SkipValidation         bool
 	RepositoryRoot         *os.Root // Root of the repository where package source code is located.
 	SchemaURLs             fields.SchemaURLs
-	RequiredInputsResolver requiredInputsResolver // Input dependency resolver for downloading input packages.
+	RequiredInputsResolver requiredinputs.Resolver // Input dependency resolver for downloading input packages.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.

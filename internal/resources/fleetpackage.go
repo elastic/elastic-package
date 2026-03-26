@@ -17,11 +17,8 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 )
-
-type requiredInputsResolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
-}
 
 type FleetPackage struct {
 	// Provider is the name of the provider to use, defaults to "kibana".
@@ -44,7 +41,7 @@ type FleetPackage struct {
 	Force bool
 
 	// RequiredInputsResolver is the resolver for required input packages.
-	RequiredInputsResolver requiredInputsResolver
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func (f *FleetPackage) String() string {
