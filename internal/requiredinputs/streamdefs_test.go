@@ -113,7 +113,7 @@ policy_templates:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -169,7 +169,7 @@ policy_templates:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ policy_templates:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -276,7 +276,7 @@ policy_templates:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -346,7 +346,7 @@ streams:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
 	require.NoError(t, err)
@@ -417,7 +417,7 @@ streams:
 	}
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildRoot))
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
 	require.NoError(t, err)
@@ -432,14 +432,14 @@ streams:
 }
 
 // TestResolveStreamInputTypes_FieldBundlingFixture runs the full
-// BundleInputPackageTemplates pipeline on the with_field_bundling fixture and
+// Bundle pipeline on the with_field_bundling fixture and
 // verifies that package: references are replaced in both the main manifest and
 // the data stream manifest.
 func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 	require.NoError(t, err)
-	require.NoError(t, resolver.BundleInputPackageTemplates(buildPackageRoot))
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
 
 	// Check main manifest: package: fields_input_pkg → type: logfile
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))

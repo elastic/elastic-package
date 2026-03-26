@@ -2,7 +2,7 @@
 
 Packages under `test/manual_packages/` are **not** picked up by CI build/install scripts (which glob `test/packages/*/*/`). They require manual setup to exercise.
 
-All **`requires.input`** and **variable-merge** fixtures live under [`test/manual_packages/required_inputs/`](required_inputs/). The same trees are used as fixtures by `go test` in [`internal/requiredinputs/variables_test.go`](../../internal/requiredinputs/variables_test.go).
+All **`requires.input`** fixtures live under [`test/manual_packages/required_inputs/`](required_inputs/). The same trees are used as fixtures by `go test` in [`internal/requiredinputs/variables_test.go`](../../internal/requiredinputs/variables_test.go) (variable merge) and [`internal/requiredinputs/fields_test.go`](../../internal/requiredinputs/fields_test.go) (field bundling).
 
 ## required_inputs
 
@@ -25,6 +25,19 @@ When an integration lists `requires.input` and its policy template references th
 | `required_inputs/with_merging_two_policy_templates` | Two PTs on the same input pkg: one promotes `paths` for its DS only; the other leaves all vars on the DS (`TestMergeVariables_TwoPolicyTemplatesScopedPromotion`). |
 | `required_inputs/with_merging_duplicate_error` | Invalid: duplicate `paths` at DS level; **build should fail** with an error mentioning `paths`. |
 
+### Field bundling
+
+| Package | Role |
+| --- | --- |
+| `required_inputs/fields_input_pkg` | Required input package supplying field definitions. |
+| `required_inputs/with_field_bundling` | Integration that requires `fields_input_pkg`; exercises merging field defs into the built data stream. |
+
+Build `fields_input_pkg` before `with_field_bundling`. See `TestBundleDataStreamFields_*` in [`fields_test.go`](../../internal/requiredinputs/fields_test.go).
+
+### Stream and input `package:` resolution
+
+After templates, variables, and fields are applied, the build replaces `package: <input-pkg>` on policy template inputs and data stream streams with the real input **type** from that required input package (implementation in [`internal/requiredinputs/streamdefs.go`](../../internal/requiredinputs/streamdefs.go)).
+
 ### Manual testing workflow
 
 1. Start the stack and local package registry:
@@ -46,7 +59,13 @@ When an integration lists `requires.input` and its policy template references th
    elastic-package build -C test/manual_packages/required_inputs/with_merging_full --zip
    ```
 
-4. Install via the local registry in the same order (e.g. `test_input_pkg` before `with_input_package_requires`; `var_merging_input_pkg` before any `with_merging_*` integration).
+   Field bundling (build `fields_input_pkg` first, then the integration):
+   ```bash
+   elastic-package build -C test/manual_packages/required_inputs/fields_input_pkg --zip
+   elastic-package build -C test/manual_packages/required_inputs/with_field_bundling --zip
+   ```
+
+4. Install via the local registry in the same order (e.g. `test_input_pkg` before `with_input_package_requires`; `var_merging_input_pkg` before any `with_merging_*` integration; `fields_input_pkg` before `with_field_bundling`).
 
 For **expected merged manifests** after a successful variable-merge build, see `TestMergeVariables_*` in [`variables_test.go`](../../internal/requiredinputs/variables_test.go). For `with_merging_duplicate_error`, expect `elastic-package build` to fail and the error to contain `paths`.
 

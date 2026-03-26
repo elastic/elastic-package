@@ -21,8 +21,9 @@ type eprClient interface {
 }
 
 // Resolver enriches a built integration package using required input packages from the registry:
-// policy and data stream templates, merged manifest variables, and data stream field definitions
-// where applicable.
+// policy and data stream templates, merged manifest variables, data stream field definitions,
+// and resolution of package: references on inputs and streams to the effective input type
+// from the required input package, where applicable.
 type Resolver interface {
 	Bundle(buildPackageRoot string) error
 }
@@ -52,7 +53,9 @@ func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, er
 
 // Bundle updates buildPackageRoot (a built package directory) for integrations that declare
 // requires.input: it downloads those input packages, copies policy and data stream templates,
-// merges variables into the integration manifest, and bundles data stream field definitions.
+// merges variables into the integration manifest, bundles data stream field definitions, and
+// replaces package: references on policy template inputs and data stream streams with the
+// concrete input type from the referenced input package (last, after variable merge).
 // Non-integration packages or packages without requires.input are left unchanged.
 func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 	buildRoot, err := os.OpenRoot(buildPackageRoot)
