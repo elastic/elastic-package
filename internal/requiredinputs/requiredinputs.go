@@ -20,8 +20,9 @@ type eprClient interface {
 	DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-// Resolver bundles required input package templates into a built package tree and merges
-// variables from those input packages when applicable.
+// Resolver enriches a built integration package using required input packages from the registry:
+// policy and data stream templates, merged manifest variables, and data stream field definitions
+// where applicable.
 type Resolver interface {
 	Bundle(buildPackageRoot string) error
 }
@@ -35,20 +36,25 @@ func (r *NoopRequiredInputsResolver) Bundle(_ string) error {
 	return nil
 }
 
-// RequiredInputsResolver is a helper for resolving required input packages.
+// RequiredInputsResolver implements Resolver by downloading required input packages via an EPR client
+// and applying Bundle to the built package tree.
 type RequiredInputsResolver struct {
 	eprClient eprClient
 }
 
-// NewRequiredInputsResolver returns a Resolver that downloads required input packages from the registry.
+// NewRequiredInputsResolver returns a Resolver backed by eprClient. Required input packages are
+// downloaded when Bundle runs.
 func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
 	return &RequiredInputsResolver{
 		eprClient: eprClient,
 	}, nil
 }
 
+// Bundle updates buildPackageRoot (a built package directory) for integrations that declare
+// requires.input: it downloads those input packages, copies policy and data stream templates,
+// merges variables into the integration manifest, and bundles data stream field definitions.
+// Non-integration packages or packages without requires.input are left unchanged.
 func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
-
 	buildRoot, err := os.OpenRoot(buildPackageRoot)
 	if err != nil {
 		return fmt.Errorf("failed to open build package root: %w", err)
@@ -69,7 +75,7 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 		return nil
 	}
 	if manifest.Requires == nil || len(manifest.Requires.Input) == 0 {
-		logger.Debug("Package has no required input packages, skipping template bundling")
+		logger.Debug("Package has no required input packages, skipping required input processing")
 		return nil
 	}
 
@@ -90,10 +96,6 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 
 	if err := r.bundleDataStreamTemplates(inputPkgPaths, buildRoot); err != nil {
 		return fmt.Errorf("failed to bundle data stream input package templates: %w", err)
-	}
-
-	if err := r.mergeVariables(manifest, inputPkgPaths, buildRoot); err != nil {
-		return fmt.Errorf("merging variables from input packages: %w", err)
 	}
 
 	if err := r.mergeVariables(manifest, inputPkgPaths, buildRoot); err != nil {

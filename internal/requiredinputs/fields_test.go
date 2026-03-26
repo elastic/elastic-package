@@ -143,7 +143,7 @@ func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "field_logs", "fields", "fields_input_pkg-fields.yml")
@@ -185,7 +185,7 @@ func TestBundleDataStreamFields_AllFieldsOverlap(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "test_logs", "fields", "test_input_pkg-fields.yml")
@@ -267,7 +267,7 @@ streams:
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	// No bundled fields file should be created.
@@ -292,7 +292,7 @@ func TestBundleDataStreamFields_StreamWithoutPackage(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(epr)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	// The non-package stream (logs input) should not produce a bundled fields file.
