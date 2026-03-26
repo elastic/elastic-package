@@ -1843,7 +1843,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	}
 
 	for _, sds := range scenario.dataStreams {
-		logger.Debugf("Validating data stream %s (index template %s)", sds.dataStream, sds.indexTemplateName) 
+		logger.Debugf("Validating data stream %s (index template %s)", sds.dataStream, sds.indexTemplateName)
 		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 			fields.WithSchemaURLs(r.schemaURLs),
 			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
