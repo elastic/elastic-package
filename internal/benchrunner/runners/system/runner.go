@@ -188,6 +188,15 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.scenario = scenario
 
+	// If no deployer was explicitly set in the config but a service was used,
+	// resolve the actual deployer name (the only one present in the deploy dir).
+	if serviceName != "" && r.scenario.Deployer == "" {
+		devDeployDir := filepath.Clean(filepath.Join(r.options.PackageRoot, r.options.BenchPath, "deploy"))
+		if deployers, err := servicedeployer.FindAllServiceDeployers(devDeployDir); err == nil && len(deployers) == 1 {
+			r.scenario.Deployer = deployers[0]
+		}
+	}
+
 	if r.scenario.Corpora.Generator != nil {
 		var err error
 		r.generator, err = r.initializeGenerator(ctx)
