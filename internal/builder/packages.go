@@ -234,7 +234,7 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	err = options.RequiredInputsResolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = options.RequiredInputsResolver.Bundle(buildPackageRoot)
 	if err != nil {
 		return "", fmt.Errorf("bundling input package templates failed: %w", err)
 	}

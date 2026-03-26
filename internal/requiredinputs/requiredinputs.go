@@ -20,9 +20,10 @@ type eprClient interface {
 	DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-// Resolver bundles required input package templates into a built package tree.
+// Resolver bundles required input package templates into a built package tree and merges
+// variables from those input packages when applicable.
 type Resolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
+	Bundle(buildPackageRoot string) error
 }
 
 // NoopRequiredInputsResolver is a no-op implementation of Resolver.
@@ -30,7 +31,7 @@ type Resolver interface {
 // when implementing local input package resolution for development and testing workflows.
 type NoopRequiredInputsResolver struct{}
 
-func (r *NoopRequiredInputsResolver) BundleInputPackageTemplates(_ string) error {
+func (r *NoopRequiredInputsResolver) Bundle(_ string) error {
 	return nil
 }
 
@@ -46,7 +47,7 @@ func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, er
 	}, nil
 }
 
-func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot string) error {
+func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 
 	buildRoot, err := os.OpenRoot(buildPackageRoot)
 	if err != nil {

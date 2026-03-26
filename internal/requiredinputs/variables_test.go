@@ -47,7 +47,7 @@ func copyFixturePackage(t *testing.T, fixtureName string) string {
 // package must be merged into the built integration—composable and data-stream
 // overrides on top of the input package as base, with selected vars promoted
 // to input-level. Unit tests cover helpers; integration tests run
-// BundleInputPackageTemplates on manual fixture packages.
+// Integration tests exercise Bundle on manual fixture packages.
 
 // ---- unit tests --------------------------------------------------------------
 
@@ -309,7 +309,7 @@ func TestMergeVariables_Full(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	// Check package manifest: input should have 2 vars (paths, encoding).
@@ -356,7 +356,7 @@ func TestMergeVariables_PromotesToInput(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -391,7 +391,7 @@ func TestMergeVariables_DsMerges(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -429,7 +429,7 @@ func TestMergeVariables_NoOverride(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -466,7 +466,7 @@ func TestMergeVariables_DuplicateError(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "paths")
 }
@@ -482,7 +482,7 @@ func TestMergeVariables_TwoPolicyTemplatesScopedPromotion(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
