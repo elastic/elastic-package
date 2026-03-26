@@ -32,6 +32,7 @@ type report struct {
 	}
 	Parameters struct {
 		PackageVersion      string
+		Deployer            string
 		Input               string
 		Vars                map[string]interface{}
 		DataStream          dataStream
@@ -75,6 +76,7 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, 
 	report.Info.Duration = time.Duration(sum.CollectionEndTs-sum.CollectionStartTs) * time.Second
 	report.Info.GeneratedCorporaFile = corporaFile
 	report.Parameters.PackageVersion = s.Version
+	report.Parameters.Deployer = s.Deployer
 	report.Parameters.Input = s.Input
 	report.Parameters.Vars = maskSecretVars(s.Vars, secretVarNames)
 	report.Parameters.DataStream = dataStream{
@@ -118,6 +120,7 @@ func reportHumanFormat(r *report) []byte {
 
 	pkvs := []interface{}{
 		"package version", r.Parameters.PackageVersion,
+		"deployer", r.Parameters.Deployer,
 		"input", r.Parameters.Input,
 	}
 

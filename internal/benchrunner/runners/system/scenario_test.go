@@ -45,9 +45,9 @@ func TestReadConfig_DeployerValidation(t *testing.T) {
 		},
 	}
 
-	t.Parallel()
 	for _, tc := range testCases {
 		t.Run(tc.testName, func(t *testing.T) {
+			t.Parallel()
 			scenario, err := readRawConfig("testdata", tc.scenarioName)
 
 			if tc.errContains != "" {
