@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,105 @@ func TestVarValue_MarshalJSON(t *testing.T) {
 		data, err := json.Marshal(vv)
 		require.NoError(t, err)
 		assert.Equal(t, string(data), `["hello","world"]`)
+	})
+}
+
+func TestVarValueYamlString(t *testing.T) {
+	t.Run("nil value returns empty", func(t *testing.T) {
+		var vv VarValue
+		assert.Equal(t, "", VarValueYamlString(vv, "default"))
+	})
+
+	t.Run("simple scalar", func(t *testing.T) {
+		vv := VarValue{scalar: "10s"}
+		assert.Equal(t, "default: 10s", VarValueYamlString(vv, "default"))
+	})
+
+	t.Run("scalar with special characters is quoted", func(t *testing.T) {
+		vv := VarValue{scalar: "hello: world"}
+		assert.Equal(t, "default: 'hello: world'", VarValueYamlString(vv, "default"))
+	})
+
+	t.Run("integer scalar", func(t *testing.T) {
+		vv := VarValue{scalar: 42}
+		assert.Equal(t, "default: 42", VarValueYamlString(vv, "default"))
+	})
+
+	t.Run("boolean scalar", func(t *testing.T) {
+		vv := VarValue{scalar: true}
+		assert.Equal(t, "default: true", VarValueYamlString(vv, "default"))
+	})
+
+	t.Run("list with default indent adds padding for template embedding", func(t *testing.T) {
+		vv := VarValue{list: []interface{}{"a", "b", "c"}}
+		result := VarValueYamlString(vv, "default")
+		lines := strings.Split(result, "\n")
+		require.Len(t, lines, 4)
+		assert.Equal(t, "default:", lines[0])
+		pad := strings.Repeat(" ", 4)
+		for _, line := range lines[1:] {
+			assert.True(t, strings.HasPrefix(line, pad), "continuation line %q should start with 4-space pad", line)
+		}
+	})
+
+	t.Run("list with custom indent 6", func(t *testing.T) {
+		vv := VarValue{list: []interface{}{"x", "y"}}
+		result := VarValueYamlString(vv, "default", 6)
+		lines := strings.Split(result, "\n")
+		require.Len(t, lines, 3)
+		assert.Equal(t, "default:", lines[0])
+		pad := strings.Repeat(" ", 6)
+		for _, line := range lines[1:] {
+			assert.True(t, strings.HasPrefix(line, pad), "continuation line %q should start with 6-space pad", line)
+		}
+	})
+
+	t.Run("list continuation lines are padded for template embedding", func(t *testing.T) {
+		vv := VarValue{list: []interface{}{"/var/log/*.log", "/tmp/*.log"}}
+		result := VarValueYamlString(vv, "default", 6)
+		lines := strings.Split(result, "\n")
+		require.Len(t, lines, 3)
+		assert.Equal(t, "default:", lines[0])
+		pad := strings.Repeat(" ", 6)
+		for _, line := range lines[1:] {
+			assert.True(t, strings.HasPrefix(line, pad), "continuation line %q should start with 6-space pad", line)
+		}
+	})
+
+	t.Run("single element list", func(t *testing.T) {
+		vv := VarValue{list: []interface{}{"only"}}
+		result := VarValueYamlString(vv, "default")
+		lines := strings.Split(result, "\n")
+		require.Len(t, lines, 2)
+		assert.Equal(t, "default:", lines[0])
+		assert.True(t, strings.HasPrefix(lines[1], "    "), "continuation line should start with 4-space pad")
+		assert.Contains(t, lines[1], "- only")
+	})
+
+	t.Run("multiline list embeds correctly in template at indent 6", func(t *testing.T) {
+		// Simulates how the dataStream-manifest.yml.tmpl uses yamlString:
+		//   "      {[ yamlString .Default "default" 6 ]}"
+		// The template provides 6 leading spaces for the first line only.
+		// The function must pad continuation lines so the full embedded
+		// result is valid YAML. The YAML encoder indents list items by 6
+		// (its SetIndent value), and the function prepends another 6 spaces
+		// so continuation lines align at column 12 (matching the template's
+		// 6-space base + the encoder's 6-space relative indent).
+		vv := VarValue{list: []interface{}{"/var/log/*.log", "/tmp/*.log"}}
+		result := VarValueYamlString(vv, "default", 6)
+
+		templateIndent := "      "
+		var embedded strings.Builder
+		for i, line := range strings.Split(result, "\n") {
+			if i == 0 {
+				embedded.WriteString(templateIndent)
+			}
+			embedded.WriteString(line)
+			embedded.WriteByte('\n')
+		}
+
+		expected := "      default:\n            - /var/log/*.log\n            - /tmp/*.log\n"
+		assert.Equal(t, expected, embedded.String())
 	})
 }
 
