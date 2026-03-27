@@ -34,6 +34,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -53,6 +54,7 @@ type Options struct {
 	UpdateScripts   bool   // testscript.Params.UpdateScripts
 	ContinueOnError bool   // testscript.Params.ContinueOnError
 	TestWork        bool   // testscript.Params.TestWork
+
 }
 
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
@@ -370,9 +372,10 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-			PackageRoot: pkgRoot,
-			Absent:      true,
-			Force:       true,
+			PackageRoot:            pkgRoot,
+			Absent:                 true,
+			Force:                  true,
+			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 		}})
 		if err != nil {
 			errs = append(errs, err)

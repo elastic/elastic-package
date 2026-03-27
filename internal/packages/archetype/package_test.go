@@ -96,17 +96,26 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 	}
 }
 
+type requiredInputsResolverMock struct {
+	BundleInputPackageTemplatesFunc func(buildPackageRoot string) error
+}
+
+func (r *requiredInputsResolverMock) BundleInputPackageTemplates(buildPackageRoot string) error {
+	return nil
+}
+
 func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
 
 	_, err = builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
-		SchemaURLs:     fields.SchemaURLs{},
+		PackageRoot:            packageRoot,
+		BuildDir:               buildDir,
+		RepositoryRoot:         repositoryRoot,
+		UpdateReadmes:          true,
+		SchemaURLs:             fields.SchemaURLs{},
+		RequiredInputsResolver: &requiredInputsResolverMock{},
 	})
 	return err
 }

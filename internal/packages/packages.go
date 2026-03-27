@@ -179,8 +179,23 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
-	Type string     `config:"type" json:"type" yaml:"type"`
-	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Type          string     `config:"type" json:"type" yaml:"type"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+}
+
+// PackageDependency describes a dependency on another package.
+type PackageDependency struct {
+	Package string `config:"package" json:"package" yaml:"package"`
+	Version string `config:"version" json:"version" yaml:"version"`
+}
+
+// Requires lists the packages that an integration package depends on.
+type Requires struct {
+	Input   []PackageDependency `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Content []PackageDependency `config:"content,omitempty" json:"content,omitempty" yaml:"content,omitempty"`
 }
 
 // Source contains metadata about the source code of the package.
@@ -221,10 +236,11 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input         string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type          string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars          []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -257,6 +273,7 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+	Requires        *Requires        `config:"requires,omitempty" json:"requires,omitempty" yaml:"requires,omitempty"`
 }
 
 type PackageDirNameAndManifest struct {
@@ -319,11 +336,13 @@ type TransformDefinition struct {
 
 // Stream contains information about an input stream.
 type Stream struct {
-	Input        string     `config:"input" json:"input" yaml:"input"`
-	Title        string     `config:"title" json:"title" yaml:"title"`
-	Description  string     `config:"description" json:"description" yaml:"description"`
-	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
-	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Input         string     `config:"input" json:"input" yaml:"input"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Title         string     `config:"title" json:"title" yaml:"title"`
+	Description   string     `config:"description" json:"description" yaml:"description"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
@@ -698,6 +717,20 @@ func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
 	err = cfg.Unpack(&m)
 	if err != nil {
 		return nil, fmt.Errorf("unpacking package manifest failed: %w", err)
+	}
+	return &m, nil
+}
+
+func ReadDataStreamManifestBytes(contents []byte) (*DataStreamManifest, error) {
+	cfg, err := yaml.NewConfig(contents, ucfg.PathSep("."))
+	if err != nil {
+		return nil, fmt.Errorf("reading manifest file failed: %w", err)
+	}
+
+	var m DataStreamManifest
+	err = cfg.Unpack(&m)
+	if err != nil {
+		return nil, fmt.Errorf("unpacking data stream manifest failed: %w", err)
 	}
 	return &m, nil
 }
