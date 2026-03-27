@@ -34,7 +34,7 @@ func kibanaCustomContent() resource.FileContent {
 			return fmt.Errorf("failed to read custom kibana config: %w", err)
 		}
 
-		logger.Warnf("Custom Kibana configuration detected at %s - this may affect Kibana behavior", customConfigPath)
+		logger.Infof("Custom Kibana configuration detected at %s - this may affect Kibana behavior", customConfigPath)
 
 		if _, err = w.Write([]byte("\n\n# Custom Kibana Configuration\n")); err != nil {
 			return fmt.Errorf("failed to write custom config separator: %w", err)
