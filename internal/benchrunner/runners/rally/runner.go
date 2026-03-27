@@ -924,18 +924,12 @@ func (r *runner) runRally(ctx context.Context) ([]rallyStat, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not open esrally report in path: %s: %w", r.svcInfo.Logs.Folder.Local, err)
 	}
+	defer reportCSV.Close()
 
 	return parseRallyReport(reportCSV, r.svcInfo.Logs.Folder.Local, errOutput.String())
 }
 
-func parseRallyReport(report io.ReadCloser, logsPath string, stderr string) (_ []rallyStat, err error) {
-	defer func() {
-		closeErr := report.Close()
-		if err == nil && closeErr != nil {
-			err = fmt.Errorf("could not close esrally report in path: %s: %w", logsPath, closeErr)
-		}
-	}()
-
+func parseRallyReport(report io.Reader, logsPath string, stderr string) ([]rallyStat, error) {
 	reader := csv.NewReader(report)
 	stats := make([]rallyStat, 0)
 	for {
