@@ -287,72 +287,78 @@ vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
 	assert.Equal(t, exp, s)
 }
 
-func testFileContentString(s string) resource.FileContent {
-	return func(_ resource.Context, w io.Writer) error {
-		_, err := io.WriteString(w, s)
-		return err
+func TestFileContentAppender(t *testing.T) {
+	fcString := func(s string) resource.FileContent {
+		return func(_ resource.Context, w io.Writer) error {
+			_, err := io.WriteString(w, s)
+			return err
+		}
 	}
-}
-
-func testFileContentError(msg string) resource.FileContent {
-	return func(_ resource.Context, w io.Writer) error {
-		return errors.New(msg)
-	}
-}
-
-func TestFileContentAppender_NoSources(t *testing.T) {
-	ctx := resource.NewManager().Context(context.Background())
-	var buf bytes.Buffer
-	err := fileContentAppender()(ctx, &buf)
-	require.NoError(t, err)
-	assert.Empty(t, buf.String())
-}
-
-func TestFileContentAppender_SingleSource(t *testing.T) {
-	ctx := resource.NewManager().Context(context.Background())
-	var buf bytes.Buffer
-	err := fileContentAppender(testFileContentString("hello"))(ctx, &buf)
-	require.NoError(t, err)
-	assert.Equal(t, "hello", buf.String())
-}
-
-func TestFileContentAppender_MultipleSources(t *testing.T) {
-	ctx := resource.NewManager().Context(context.Background())
-	var buf bytes.Buffer
-	err := fileContentAppender(
-		testFileContentString("foo"),
-		testFileContentString("bar"),
-		testFileContentString("baz"),
-	)(ctx, &buf)
-	require.NoError(t, err)
-	assert.Equal(t, "foobarbaz", buf.String())
-}
-
-func TestFileContentAppender_StopsOnError(t *testing.T) {
-	ctx := resource.NewManager().Context(context.Background())
-	var buf bytes.Buffer
-	err := fileContentAppender(
-		testFileContentString("first"),
-		testFileContentError("boom"),
-		testFileContentString("never reached"),
-	)(ctx, &buf)
-	require.Error(t, err)
-	assert.Equal(t, "boom", err.Error())
-	assert.Equal(t, "first", buf.String())
-}
-
-func TestFileContentAppender_ContextPassedThrough(t *testing.T) {
-	manager := resource.NewManager()
-	manager.AddFacter(resource.StaticFacter{"key": "value"})
-	ctx := manager.Context(context.Background())
-
-	var captured string
-	source := func(c resource.Context, w io.Writer) error {
-		captured, _ = c.Fact("key")
-		return nil
+	fcError := func(msg string) resource.FileContent {
+		return func(_ resource.Context, w io.Writer) error {
+			return errors.New(msg)
+		}
 	}
 
-	err := fileContentAppender(source)(ctx, &bytes.Buffer{})
-	require.NoError(t, err)
-	assert.Equal(t, "value", captured)
+	cases := []struct {
+		name        string
+		sources     []resource.FileContent
+		facters     resource.StaticFacter
+		wantOutput  string
+		wantErr     string
+	}{
+		{
+			name:       "no sources",
+			wantOutput: "",
+		},
+		{
+			name:       "single source",
+			sources:    []resource.FileContent{fcString("hello")},
+			wantOutput: "hello",
+		},
+		{
+			name:       "multiple sources concatenated in order",
+			sources:    []resource.FileContent{fcString("foo"), fcString("bar"), fcString("baz")},
+			wantOutput: "foobarbaz",
+		},
+		{
+			name:       "stops on first error",
+			sources:    []resource.FileContent{fcString("first"), fcError("boom"), fcString("never reached")},
+			wantOutput: "first",
+			wantErr:    "boom",
+		},
+		{
+			name:    "context passed through to each source",
+			facters: resource.StaticFacter{"key": "value"},
+			sources: []resource.FileContent{
+				func(c resource.Context, w io.Writer) error {
+					v, _ := c.Fact("key")
+					_, err := io.WriteString(w, v)
+					return err
+				},
+			},
+			wantOutput: "value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manager := resource.NewManager()
+			if tc.facters != nil {
+				manager.AddFacter(tc.facters)
+			}
+			ctx := manager.Context(context.Background())
+
+			var buf bytes.Buffer
+			err := fileContentAppender(tc.sources...)(ctx, &buf)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Equal(t, tc.wantErr, err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.wantOutput, buf.String())
+		})
+	}
 }

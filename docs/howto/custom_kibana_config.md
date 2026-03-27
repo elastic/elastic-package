@@ -27,10 +27,10 @@ You can provide additional Kibana configuration that will be appended to the bas
    logging.loggers:
      - name: plugins.security
        level: debug
-   
+
    server.customResponseHeaders:
      X-Custom-Header: "MyValue"
-   
+
    xpack.security.enabled: true
    ```
 
@@ -111,7 +111,7 @@ You can have different custom configurations for different profiles:
 # Development profile with debug settings
 ~/.elastic-package/profiles/development/kibana.dev.yml
 
-# Production profile with optimized settings  
+# Production profile with optimized settings
 ~/.elastic-package/profiles/production/kibana.dev.yml
 ```
 
