@@ -1,0 +1,33 @@
+{
+  "name": "azure-app-insights-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "azure_application_insights",
+    "version": "1.9.1"
+  },
+  "inputs": {
+    "app_insights-azure/metrics": {
+      "enabled": true,
+      "streams": {
+        "azure.app_insights": {
+          "enabled": true,
+          "vars": {
+            "metrics": "- id: [\"requests/count\"]\n  aggregation: [\"sum\"]\n  interval: \"P5M\"\n",
+            "period": "300s"
+          }
+        }
+      }
+    },
+    "app_state-azure/metrics": {
+      "enabled": false,
+      "streams": {
+        "azure.app_state": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "force": false
+}

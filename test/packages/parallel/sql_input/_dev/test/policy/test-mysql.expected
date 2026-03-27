@@ -7,7 +7,7 @@ inputs:
       name: test-mysql-sql_input
       streams:
         - data_stream:
-            dataset: sql_input.sql_query
+            dataset: sql_query
           driver: mysql
           hosts:
             - root:test@tcp(localhost:3306)/

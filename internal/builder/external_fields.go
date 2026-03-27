@@ -22,7 +22,7 @@ import (
 
 var semver3_0_0 = semver.MustParse("3.0.0")
 
-func resolveExternalFields(packageRoot, buildPackageRoot string) error {
+func resolveExternalFields(packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) error {
 	bm, ok, err := buildmanifest.ReadBuildManifest(packageRoot)
 	if err != nil {
 		return fmt.Errorf("can't read build manifest: %w", err)
@@ -37,7 +37,7 @@ func resolveExternalFields(packageRoot, buildPackageRoot string) error {
 	}
 
 	logger.Debugf("Package has external dependencies defined")
-	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies)
+	fdm, err := fields.CreateFieldDependencyManager(bm.Dependencies, schemaURLs)
 	if err != nil {
 		return fmt.Errorf("can't create field dependency manager: %w", err)
 	}

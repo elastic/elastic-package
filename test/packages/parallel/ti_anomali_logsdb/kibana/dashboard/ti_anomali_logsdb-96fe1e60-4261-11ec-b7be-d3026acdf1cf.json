@@ -800,11 +800,6 @@
             "id": "ti_anomali_logsdb-fleet-managed-default",
             "name": "tag-ref-fleet-managed-default",
             "type": "tag"
-        },
-        {
-            "id": "ti_anomali_logsdb-fleet-pkg-ti_anomali_logsdb-default",
-            "name": "tag-ref-fleet-pkg-ti_anomali_logsdb-default",
-            "type": "tag"
         }
     ],
     "type": "dashboard"

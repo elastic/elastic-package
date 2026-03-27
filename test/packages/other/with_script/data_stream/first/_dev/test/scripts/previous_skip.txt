@@ -1,0 +1,7 @@
+[has_previous_release] skip 'Skipping change with previous release.'
+
+# Trigger a failure.
+cmp stdout note
+
+-- note --
+This should fail if it does not skip.

@@ -1,26 +1,6 @@
 $ErrorActionPreference = "Stop" # set -e
 
-# Forcing to checkout again all the files with a correct autocrlf.
-# Doing this here because we cannot set git clone options before.
-function fixCRLF {
-    Write-Host "-- Fixing CRLF in git checkout --"
-    git config core.autocrlf input
-    git rm --quiet --cached -r .
-    git reset --quiet --hard
-}
-
-function withGolang($version) {
-    # Avoid conflicts with previous installations.
-    Remove-Item env:GOROOT
-
-    Write-Host "-- Install golang $version --"
-    choco install -y golang --version $version
-    $env:ChocolateyInstall = Convert-Path "$((Get-Command choco).Path)\..\.."
-    Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-    refreshenv
-    go version
-    go env
-}
+. "$PSScriptRoot\common_windows.ps1"
 
 function installGoDependencies {
     $installPackages = @(

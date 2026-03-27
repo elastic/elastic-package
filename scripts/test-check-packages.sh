@@ -93,9 +93,10 @@ run_serverless_tests() {
   # skip system tests
   elastic-package test asset -C "$package_path" $test_options $coverage_options
   elastic-package test static -C "$package_path" $test_options $coverage_options
-  # FIXME: adding test-coverage for serverless results in errors like this:
+  # FIXME: adding test-coverage in pipeline tests for serverless results in errors like this:
   # Error: error running package pipeline tests: could not complete test run: error calculating pipeline coverage: error fetching pipeline stats for code coverage calculations: need exactly one ES node in stats response (got 4)
   elastic-package test pipeline -C "$package_path" $test_options
+  elastic-package test policy -C "$package_path" $test_options $coverage_options
 }
 
 run_pipeline_benchmark() {

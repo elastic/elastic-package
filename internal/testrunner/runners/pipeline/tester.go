@@ -55,6 +55,8 @@ type tester struct {
 
 	provider       stack.Provider
 	repositoryRoot *os.Root
+
+	schemaURLs fields.SchemaURLs
 }
 
 type PipelineTesterOptions struct {
@@ -69,6 +71,7 @@ type PipelineTesterOptions struct {
 	TestCaseFile       string
 	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
 	RepositoryRoot     *os.Root
+	SchemaURLs         fields.SchemaURLs
 }
 
 func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
@@ -88,6 +91,7 @@ func NewPipelineTester(options PipelineTesterOptions) (*tester, error) {
 		coverageType:       options.CoverageType,
 		globalTestConfig:   options.GlobalTestConfig,
 		repositoryRoot:     options.RepositoryRoot,
+		schemaURLs:         options.SchemaURLs,
 	}
 
 	stackConfig, err := stack.LoadConfig(r.profile)
@@ -217,6 +221,7 @@ func (r *tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		fields.WithEnabledAllowedIPCheck(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
+		fields.WithSchemaURLs(r.schemaURLs),
 	}
 	result, err := r.runTestCase(ctx, r.testCaseFile, dataStreamRoot, dsManifest.Type, entryPipeline, validatorOptions)
 	if err != nil {
@@ -326,8 +331,8 @@ func (r *tester) runTestCase(ctx context.Context, testCaseFile string, dsPath st
 	rc.Name = tc.name
 
 	if skip := testrunner.AnySkipConfig(tc.config.Skip, r.globalTestConfig.Skip); skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.testFolder.Package, r.testFolder.DataStream,
+		logger.Warnf("skipping %s %s test for %s/%s: %s (details: %s)",
+			tc.name, TestType, r.testFolder.Package, r.testFolder.DataStream,
 			skip.Reason, skip.Link)
 		results, _ := rc.WithSkip(skip)
 		return results, nil

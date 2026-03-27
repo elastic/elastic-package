@@ -1,0 +1,6 @@
+---
+vars: ~
+data_stream:
+  vars:
+    paths:
+      - "/usr/share/elastic-agent/state/data/logs/*"

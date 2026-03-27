@@ -26,7 +26,9 @@ import (
 	"github.com/elastic/elastic-package/internal/benchrunner"
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/common"
+	pkgcommon "github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
+	"github.com/elastic/elastic-package/internal/environment"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/multierror"
@@ -46,6 +48,8 @@ const (
 	defaultNamespace = "ep"
 )
 
+var prefixServiceBenchRunIDEnv = environment.WithElasticPackagePrefix("PREFIX_SERVICE_TEST_RUN_ID")
+
 type runner struct {
 	options  Options
 	scenario *scenario
@@ -58,7 +62,8 @@ type runner struct {
 	mcollector        *collector
 	corporaFile       string
 
-	service servicedeployer.DeployedService
+	service        servicedeployer.DeployedService
+	secretVarNames map[string]bool
 
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	deletePolicyHandler     func(context.Context) error
@@ -146,7 +151,11 @@ func (r *runner) setUp(ctx context.Context) error {
 	serviceLogsDir := locationManager.ServiceLogDir()
 	r.svcInfo.Logs.Folder.Local = serviceLogsDir
 	r.svcInfo.Logs.Folder.Agent = ServiceLogsAgentDir
-	r.svcInfo.Test.RunID = common.NewRunID()
+	prefix := ""
+	if v, found := os.LookupEnv(prefixServiceBenchRunIDEnv); found && v != "" {
+		prefix = v
+	}
+	r.svcInfo.Test.RunID = pkgcommon.CreateTestRunIDWithPrefix(prefix)
 
 	outputDir, err := servicedeployer.CreateOutputDir(locationManager, r.svcInfo.Test.RunID)
 	if err != nil {
@@ -154,7 +163,7 @@ func (r *runner) setUp(ctx context.Context) error {
 	}
 	r.svcInfo.OutputDir = outputDir
 
-	serviceName, err := r.serviceDefinedInConfig()
+	serviceName, deployerName, err := r.serviceDefinedInConfig()
 	if err != nil {
 		return fmt.Errorf("failed to determine if service is defined in config: %w", err)
 	}
@@ -163,7 +172,7 @@ func (r *runner) setUp(ctx context.Context) error {
 		// Just in the case service deployer is needed (input_service field), setup the service now so all the
 		// required information is available in r.svcInfo (e.g. hostname, port, etc).
 		// This info may be needed to render the variables in the configuration.
-		s, err := r.setupService(ctx, serviceName)
+		s, err := r.setupService(ctx, serviceName, deployerName)
 		if errors.Is(err, os.ErrNotExist) {
 			logger.Debugf("No service deployer defined for this benchmark")
 		} else if err != nil {
@@ -178,6 +187,15 @@ func (r *runner) setUp(ctx context.Context) error {
 		return err
 	}
 	r.scenario = scenario
+
+	// If no deployer was explicitly set in the config but a service was used,
+	// resolve the actual deployer name (the only one present in the deploy dir).
+	if serviceName != "" && r.scenario.Deployer == "" {
+		devDeployDir := filepath.Clean(filepath.Join(r.options.PackageRoot, r.options.BenchPath, "deploy"))
+		if deployers, err := servicedeployer.FindAllServiceDeployers(devDeployDir); err == nil && len(deployers) == 1 {
+			r.scenario.Deployer = deployers[0]
+		}
+	}
 
 	if r.scenario.Corpora.Generator != nil {
 		var err error
@@ -221,6 +239,8 @@ func (r *runner) setUp(ctx context.Context) error {
 		return fmt.Errorf("reading data stream manifest failed: %w", err)
 	}
 
+	r.secretVarNames = collectSecretVarNames(pkgManifest, dataStreamManifest)
+
 	r.runtimeDataStream = fmt.Sprintf(
 		"%s-%s.%s-%s",
 		dataStreamManifest.Type,
@@ -263,19 +283,19 @@ func (r *runner) setUp(ctx context.Context) error {
 	return nil
 }
 
-func (r *runner) serviceDefinedInConfig() (string, error) {
+func (r *runner) serviceDefinedInConfig() (string, string, error) {
 	// Read of the configuration to know if a service deployer is needed.
 	// No need to render any template at this point.
 	scenario, err := readRawConfig(r.options.BenchPath, r.options.BenchName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if scenario.Corpora.InputService == nil {
-		return "", nil
+		return "", "", nil
 	}
 
-	return scenario.Corpora.InputService.Name, nil
+	return scenario.Corpora.InputService.Name, scenario.Deployer, nil
 }
 
 func (r *runner) run(ctx context.Context) (report reporters.Reportable, err error) {
@@ -319,10 +339,10 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, fmt.Errorf("can't reindex data: %w", err)
 	}
 
-	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum)
+	return createReport(r.options.BenchName, r.corporaFile, r.scenario, msum, r.secretVarNames)
 }
 
-func (r *runner) setupService(ctx context.Context, serviceName string) (servicedeployer.DeployedService, error) {
+func (r *runner) setupService(ctx context.Context, serviceName string, deployerName string) (servicedeployer.DeployedService, error) {
 	stackVersion, err := r.options.KibanaClient.Version()
 	if err != nil {
 		return nil, fmt.Errorf("cannot request Kibana version: %w", err)
@@ -330,7 +350,7 @@ func (r *runner) setupService(ctx context.Context, serviceName string) (serviced
 
 	// Setup service.
 	logger.Debug("Setting up service...")
-	devDeployDir := filepath.Clean(filepath.Join(r.options.BenchPath, "deploy"))
+	devDeployDir := filepath.Clean(filepath.Join(r.options.PackageRoot, r.options.BenchPath, "deploy"))
 	opts := servicedeployer.FactoryOptions{
 		PackageRoot:            r.options.PackageRoot,
 		DevDeployDir:           devDeployDir,
@@ -339,6 +359,7 @@ func (r *runner) setupService(ctx context.Context, serviceName string) (serviced
 		Type:                   servicedeployer.TypeBench,
 		StackVersion:           stackVersion.Version(),
 		DeployIndependentAgent: false,
+		DeployerName:           deployerName,
 	}
 	serviceDeployer, err := servicedeployer.Factory(opts)
 	if err != nil {
@@ -487,7 +508,7 @@ func (r *runner) createPackagePolicy(ctx context.Context, pkgManifest *packages.
 	pp.Package.Name = r.scenario.Package
 	pp.Package.Version = r.scenario.Version
 
-	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp)
+	policy, err := r.options.KibanaClient.CreatePackagePolicy(ctx, pp, kibana.PolicyAPIFormatAuto)
 	if err != nil {
 		return nil, err
 	}
@@ -513,18 +534,17 @@ func (r *runner) initializeGenerator(ctx context.Context) (genlib.Generator, err
 		return nil, err
 	}
 
-	genlib.InitGeneratorTimeNow(time.Now())
-	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
-
 	var generator genlib.Generator
 	switch r.scenario.Corpora.Generator.Template.Type {
 	default:
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", r.scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		generator, err = genlib.NewGeneratorWithCustomTemplate(tpl, *config, fields, totEvents)
+		generator, err = genlib.NewGenerator(*config, fields, totEvents,
+			genlib.WithCustomTemplate(tpl))
 	case "gotext":
-		generator, err = genlib.NewGeneratorWithTextTemplate(tpl, *config, fields, totEvents)
+		generator, err = genlib.NewGenerator(*config, fields, totEvents,
+			genlib.WithTextTemplate(tpl))
 	}
 
 	if err != nil {
@@ -661,7 +681,13 @@ func (r *runner) runGenerator(destDir string) error {
 
 	r.corporaFile = f.Name()
 	r.clearCorporaHandler = func(ctx context.Context) error {
-		return os.Remove(r.corporaFile)
+		// TearDown stops the service deployer before this handler runs; compose TearDown
+		// clears the service_logs directory (files.RemoveContent), which may already
+		// remove the corpus file written under that path.
+		if err := os.Remove(r.corporaFile); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		return nil
 	}
 
 	return r.generator.Close()

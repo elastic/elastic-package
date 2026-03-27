@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
@@ -63,6 +64,7 @@ func TestPackageLifecycle(t *testing.T) {
 			fleetPackage := FleetPackage{
 				PackageRoot:    packageRoot,
 				RepositoryRoot: repositoryRoot,
+				SchemaURLs:     fields.NewSchemaURLs(),
 			}
 			manager := resource.NewManager()
 			manager.RegisterProvider(DefaultKibanaProviderName, &KibanaProvider{Client: kibanaClient})

@@ -5,12 +5,17 @@
 package common
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"math/rand"
+	"os"
 	"slices"
 	"strings"
 
 	"github.com/elastic/go-resource"
+
+	"github.com/elastic/elastic-package/internal/logger"
 )
 
 const (
@@ -73,4 +78,49 @@ func ProcessResourceApplyResults(results resource.ApplyResults) string {
 		}
 	}
 	return strings.Join(errors, ", ")
+}
+
+// GCPCredentialFacters reads the GOOGLE_APPLICATION_CREDENTIALS environment variable
+// and returns a StaticFacter with the relevant GCP credential information.
+// If the environment variable is set but the file doesn't exist, it logs a warning
+// and returns empty credential values instead of an error.
+func GCPCredentialFacters() (resource.StaticFacter, error) {
+	defaultValue := resource.StaticFacter{
+		"google_credential_source_file":  "",
+		"google_application_credentials": "",
+	}
+	googleApplicationCredentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	if googleApplicationCredentials == "" {
+		return defaultValue, nil
+	}
+
+	if _, err := os.Stat(googleApplicationCredentials); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			logger.Warn("GOOGLE_APPLICATION_CREDENTIALS environment variable is set, but the file does not exist. Skipping inclusion in configuration.")
+			return defaultValue, nil
+		}
+		return resource.StaticFacter{}, fmt.Errorf("failed to access GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
+	}
+
+	// Parse the file to check if it contains a credential source (external account)
+	type googleAppCredentials struct {
+		CredentialSource struct {
+			File string `json:"file"`
+		} `json:"credential_source"`
+	}
+	credentials := &googleAppCredentials{}
+	data, err := os.ReadFile(googleApplicationCredentials)
+	if err != nil {
+		return resource.StaticFacter{}, fmt.Errorf("could not read GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
+	}
+
+	err = json.Unmarshal(data, credentials)
+	if err != nil {
+		return resource.StaticFacter{}, fmt.Errorf("could not parse GOOGLE_APPLICATION_CREDENTIALS file: %w", err)
+	}
+
+	return resource.StaticFacter{
+		"google_credential_source_file":  credentials.CredentialSource.File,
+		"google_application_credentials": googleApplicationCredentials,
+	}, nil
 }

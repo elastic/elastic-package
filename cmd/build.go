@@ -13,6 +13,7 @@ import (
 	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -78,6 +79,11 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	logger.Debugf("Use build directory: %s", buildDir)
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		BuildDir:       buildDir,
@@ -86,6 +92,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		SkipValidation: skipValidation,
 		RepositoryRoot: repositoryRoot,
 		UpdateReadmes:  true,
+		SchemaURLs:     appConfig.SchemaURLs(),
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

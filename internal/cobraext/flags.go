@@ -115,6 +115,21 @@ const (
 	ContinueOnErrorFlagName        = "continue"
 	ContinueOnErrorFlagDescription = "continue running the script if an error occurs"
 
+	CreatePackageNameFlagName        = "name"
+	CreatePackageNameFlagDescription = "set to create an empty package with the given name in a non-interactive way"
+
+	CreatePackageTypeFlagName        = "type"
+	CreatePackageTypeFlagDescription = "set to 'input', 'integration' or 'content' to create an empty package of the given type in a non-interactive way"
+
+	CreateDataStreamNameFlagName        = "name"
+	CreateDataStreamNameFlagDescription = "set to create a data stream with the given name in a non-interactive way"
+
+	CreateDataStreamTypeFlagName        = "type"
+	CreateDataStreamTypeFlagDescription = "set to 'logs' or 'metrics' to create a data stream of the given type in a non-interactive way"
+
+	CreateDataStreamInputsFlagName        = "inputs"
+	CreateDataStreamInputsFlagDescription = "set to create a data stream with the given input types in a non-interactive way"
+
 	DaemonModeFlagName        = "daemon"
 	DaemonModeFlagDescription = "daemon mode"
 
@@ -275,7 +290,7 @@ const (
 	TearDownFlagDescription = "trigger just the tear-down phase of testing"
 
 	NoProvisionFlagName        = "no-provision"
-	NoProvisionFlagDescription = "trigger just system tests wihout setup nor teardown"
+	NoProvisionFlagDescription = "trigger just system tests without setup nor teardown"
 
 	UpdateScriptTestArchiveFlagName        = "update"
 	UpdateScriptTestArchiveFlagDescription = "update archive file if a cmp fails"

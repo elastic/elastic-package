@@ -313,9 +313,11 @@ func (r *runner) initializeGenerator(tpl []byte, config genlib.Config, fields ge
 		logger.Debugf("unknown generator template type %q, defaulting to \"placeholder\"", scenario.Corpora.Generator.Template.Type)
 		fallthrough
 	case "", "placeholder":
-		return genlib.NewGeneratorWithCustomTemplate(tpl, config, fields, totEvents)
+		return genlib.NewGenerator(config, fields, totEvents,
+			genlib.WithCustomTemplate(tpl))
 	case "gotext":
-		return genlib.NewGeneratorWithTextTemplate(tpl, config, fields, totEvents)
+		return genlib.NewGenerator(config, fields, totEvents,
+			genlib.WithTextTemplate(tpl))
 	}
 }
 func (r *runner) collectGenerators(ctx context.Context) error {
@@ -350,9 +352,6 @@ func (r *runner) createGenerator(ctx context.Context, scenarioName string, scena
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to obtain template from for scenario %q: %w", scenarioName, err)
 	}
-
-	genlib.InitGeneratorTimeNow(time.Now())
-	genlib.InitGeneratorRandSeed(time.Now().UnixNano())
 
 	generator, err := r.initializeGenerator(tpl, *config, fields, scenario, 0, 0)
 	if err != nil {

@@ -82,6 +82,7 @@ a stack, starting agents and services and validating results.
 - `PACKAGE_NAME`: the name of the running package
 - `PACKAGE_BASE`: the basename of the path to the root of the running package
 - `PACKAGE_ROOT`: the path to the root of the running package
+- `LATEST_EPR_VERSION`: the version of the latest EPR-available version
 - `CURRENT_VERSION`: the current version of the package
 - `PREVIOUS_VERSION`: the previous version of the package
 - `DATA_STREAM`: the name of the data stream
@@ -93,9 +94,20 @@ a stack, starting agents and services and validating results.
 
 The testscript package allows conditions to be set that allow conditional
 execution of commands. The test script command adds a condition that reflects
-the state of the `--external-stack` flag. This allows tests to be written that
-conditionally use either an externally managed stack, or a stack that has been
-started by the test script.
+the state of the `--external-stack` flag, `external_stack`. This allows tests to
+be written that conditionally use either an externally managed stack, or a stack
+that has been started by the test script.
+
+The breaking-change status of the most recent version of the package is available
+as the `breaking_change` condition. If a test is not expected to pass due to a
+breaking change, this condition can be used to skip it.
+
+Whether the current version is greater than the latest EPR-available version is
+made available via the `is_latest_version` condition. This can be use to skip
+test for changes that are back-ports.
+
+The `has_previous_release` condition indicates whether there is a previous version
+in the changelog file.
 
 
 ## Example

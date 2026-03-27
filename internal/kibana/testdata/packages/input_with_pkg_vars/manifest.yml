@@ -1,0 +1,41 @@
+format_version: 3.1.5
+name: input_with_pkg_vars
+title: Input Package With Package-level Variables
+description: >-
+  Minimal input package used to test that package-level variables are
+  forwarded correctly by BuildInputPackagePolicy.
+type: input
+version: 0.1.0
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.8.0 || ^9.0.0"
+vars:
+  - name: custom_tag
+    type: text
+    title: Custom Tag
+    description: A tag applied to all events from this package.
+    required: false
+    show_user: true
+    default: "default-tag"
+policy_templates:
+  - name: logs
+    type: logs
+    title: Custom log file
+    description: Collect custom log files.
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: paths
+        required: true
+        title: Log file path
+        type: text
+        multi: true
+      - name: data_stream.dataset
+        required: true
+        title: Dataset name
+        type: text
+owner:
+  github: elastic/elastic-package
+  type: elastic

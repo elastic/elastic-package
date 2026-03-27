@@ -13,6 +13,7 @@ import (
 	"github.com/Masterminds/semver/v3"
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
@@ -27,6 +28,9 @@ type FleetPackage struct {
 
 	// RepositoryRoot is the root of the repository.
 	RepositoryRoot *os.Root
+
+	// SchemaURLs holds the URLs to download the fields schemas.
+	SchemaURLs fields.SchemaURLs
 
 	// Absent is set to true to indicate that the package should not be installed.
 	Absent bool
@@ -64,6 +68,7 @@ func (f *FleetPackage) installer(ctx resource.Context) (installer.Installer, err
 		PackageRoot:    f.PackageRoot,
 		SkipValidation: true,
 		RepositoryRoot: f.RepositoryRoot,
+		SchemaURLs:     f.SchemaURLs,
 	})
 }
 

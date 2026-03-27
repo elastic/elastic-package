@@ -1,0 +1,22 @@
+---
+description: Benchmark 1000 falcon events ingested
+input: logfile
+deployer: tf
+data_stream:
+  name: falcon
+  vars:
+    paths:
+      - "{{SERVICE_LOGS_DIR}}/tf-benchmark-{{TEST_RUN_ID}}.log"
+warmup_time_period: 2s
+corpora:
+  input_service:
+    name: crowdstrike
+  generator:
+    total_events: 1000
+    template:
+      path: ./falcon-benchmark/template.ndjson
+      type: gotext
+    config:
+      path: ./falcon-benchmark/config.yml
+    fields:
+      path: ./falcon-benchmark/fields.yml

@@ -24,6 +24,8 @@ func setupCreateCommand() *cobraext.Command {
 		Args:  cobra.NoArgs,
 		RunE:  createPackageCommandAction,
 	}
+	createPackageCmd.Flags().String(cobraext.CreatePackageTypeFlagName, "integration", cobraext.CreatePackageTypeFlagDescription)
+	createPackageCmd.Flags().String(cobraext.CreatePackageNameFlagName, "new_package", cobraext.CreatePackageNameFlagDescription)
 
 	createDataStreamCmd := &cobra.Command{
 		Use:   "data-stream",
@@ -32,6 +34,9 @@ func setupCreateCommand() *cobraext.Command {
 		Args:  cobra.NoArgs,
 		RunE:  createDataStreamCommandAction,
 	}
+	createDataStreamCmd.Flags().String(cobraext.CreateDataStreamNameFlagName, "new_data_stream", cobraext.CreateDataStreamNameFlagDescription)
+	createDataStreamCmd.Flags().String(cobraext.CreateDataStreamTypeFlagName, "logs", cobraext.CreateDataStreamTypeFlagDescription)
+	createDataStreamCmd.Flags().StringSlice(cobraext.CreateDataStreamInputsFlagName, nil, cobraext.CreateDataStreamInputsFlagDescription)
 
 	cmd := &cobra.Command{
 		Use:   "create",

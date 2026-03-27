@@ -1,0 +1,37 @@
+format_version: "3.0.0"
+name: endace
+title: Endace
+version: "0.2.0"
+description: Endace integration with package-level vars.
+type: integration
+conditions:
+  kibana:
+    version: "^8.13.0 || ^9.0.0"
+vars:
+  - name: endace_url
+    type: text
+    title: Endace UI URL
+    multi: false
+    required: true
+    show_user: true
+  - name: endace_view_window
+    type: text
+    title: View Window Time
+    multi: false
+    required: true
+    show_user: true
+    default: "10"
+policy_templates:
+  - name: endace
+    title: Endace Flow logs
+    description: Capture network traffic
+    inputs:
+      - type: packet
+        title: Capture network traffic
+        description: Collecting network traffic.
+      - type: netflow
+        title: Collect Endace Flow logs
+        description: Collecting Endace Flow logs using the netflow input.
+owner:
+  github: elastic/integration-experience
+  type: partner

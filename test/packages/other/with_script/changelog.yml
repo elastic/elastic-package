@@ -1,7 +1,7 @@
 - version: "0.0.2"
   changes:
     - description: next release
-      type: enhancement
+      type: breaking-change
       link: https://github.com/elastic/elastic-package/pull/9001
 - version: "0.0.1"
   changes:

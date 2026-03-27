@@ -40,6 +40,34 @@ const (
 	dataStreamTypeTraces     = "traces"
 )
 
+// AllowedPackageTypes lists the valid package types accepted by the create wizard.
+var AllowedPackageTypes = []string{"input", "integration", "content"}
+
+// AllowedDataStreamTypes lists the data stream types accepted by the create wizard.
+var AllowedDataStreamTypes = []string{"logs", "metrics"}
+
+// AllowedLogsInputTypes maps valid input type identifiers to their human-readable
+// labels. Both the TUI wizard and CLI validation derive their lists from this map.
+var AllowedLogsInputTypes = map[string]string{
+	"aws-cloudwatch":     "AWS Cloudwatch",
+	"aws-s3":             "AWS S3",
+	"azure-blob-storage": "Azure Blob Storage",
+	"azure-eventhub":     "Azure Eventhub",
+	"cel":                "Common Expression Language (CEL)",
+	"entity-analytics":   "Entity Analytics",
+	"etw":                "Event Tracing for Windows (ETW)",
+	"filestream":         "Filestream",
+	"gcp-pubsub":         "GCP PubSub",
+	"gcs":                "Google Cloud Storage (GCS)",
+	"http_endpoint":      "HTTP Endpoint",
+	"journald":           "Journald",
+	"netflow":            "Netflow",
+	"redis":              "Redis",
+	"tcp":                "TCP",
+	"udp":                "UDP",
+	"winlog":             "WinLogBeat",
+}
+
 // VarValue represents a variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
@@ -83,8 +111,12 @@ func (vv VarValue) Value() any {
 
 // VarValueYamlString will return a YAML style string representation of vv,
 // in the given YAML field, and with numSpaces indentation if it's a list.
+//
+// The caller's template injects the result inline, so only the first line
+// inherits the template's base indentation. Continuation lines produced by
+// the yaml encoder (e.g. block-scalar content) must be shifted by numSpaces
+// so the relative indentation stays valid once the first line is prefixed.
 func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
-	// Default indentation is 4 spaces
 	n := 4
 	if len(numSpaces) == 1 {
 		n = numSpaces[0]
@@ -99,20 +131,33 @@ func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
 		return ""
 	}
 
-	// Use yaml.v3 encoder to ensure correct yaml string formatting
 	data := map[string]interface{}{
 		field: valueToMarshal,
 	}
 
 	var b strings.Builder
 	encoder := yamlv3.NewEncoder(&b)
-	encoder.SetIndent(n) // Apply the custom indentation.
+	encoder.SetIndent(n)
 
 	if err := encoder.Encode(&data); err != nil {
 		return ""
 	}
 
-	return strings.TrimSpace(b.String())
+	raw := strings.TrimSpace(b.String())
+	lines := strings.Split(raw, "\n")
+	if len(lines) <= 1 {
+		return raw
+	}
+
+	pad := strings.Repeat(" ", n)
+	var out strings.Builder
+	out.WriteString(lines[0])
+	for _, line := range lines[1:] {
+		out.WriteByte('\n')
+		out.WriteString(pad)
+		out.WriteString(line)
+	}
+	return out.String()
 }
 
 // Variable is an instance of configuration variable (named, typed).
@@ -680,6 +725,46 @@ func ReadDataStreamManifestFromPackageRoot(packageRoot string, name string) (*Da
 	return ReadDataStreamManifest(filepath.Join(packageRoot, "data_stream", name, DataStreamManifestFile))
 }
 
+// ReadAllDataStreamManifests reads the manifests for all data streams in a package.
+func ReadAllDataStreamManifests(packageRoot string) ([]DataStreamManifest, error) {
+	dirs, err := os.ReadDir(filepath.Join(packageRoot, "data_stream"))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("could not list data streams: %w", err)
+	}
+	var manifests []DataStreamManifest
+	for _, dir := range dirs {
+		if !dir.IsDir() {
+			continue
+		}
+		m, err := ReadDataStreamManifestFromPackageRoot(packageRoot, dir.Name())
+		if err != nil {
+			return nil, fmt.Errorf("could not read data stream manifest for %q: %w", dir.Name(), err)
+		}
+		manifests = append(manifests, *m)
+	}
+	return manifests, nil
+}
+
+// FilterDatastreamsForPolicyTemplate returns the subset of the provided data
+// streams that belong to the given policy template. When the policy template
+// declares an explicit DataStreams list, only data streams whose names appear
+// in that list are returned; otherwise all provided data streams are returned.
+func FilterDatastreamsForPolicyTemplate(datastreams []DataStreamManifest, pt PolicyTemplate) []DataStreamManifest {
+	if len(pt.DataStreams) == 0 {
+		return datastreams
+	}
+	result := make([]DataStreamManifest, 0, len(pt.DataStreams))
+	for _, ds := range datastreams {
+		if slices.Contains(pt.DataStreams, ds.Name) {
+			result = append(result, ds)
+		}
+	}
+	return result
+}
+
 // GetPipelineNameOrDefault returns the name of the data stream's pipeline, if one is explicitly defined in the
 // data stream manifest. If not, the default pipeline name is returned.
 func (dsm *DataStreamManifest) GetPipelineNameOrDefault() string {
@@ -723,12 +808,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
-	supportedTypes := []string{
-		"content",
-		"input",
-		"integration",
-	}
-	return slices.Contains(supportedTypes, m.Type) && m.Version != "", nil
+	return slices.Contains(AllowedPackageTypes, m.Type) && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {
@@ -739,4 +819,110 @@ func isDataStreamManifest(path string) (bool, error) {
 	return m.Title != "" &&
 			(m.Type == dataStreamTypeLogs || m.Type == dataStreamTypeMetrics || m.Type == dataStreamTypeSynthetics || m.Type == dataStreamTypeTraces),
 		nil
+}
+
+// GetDataStreamIndex returns the index of the stream in ds whose input name
+// matches inputName. If inputName is empty, returns 0 (first stream). If no
+// stream matches, logs a debug message and falls back to index 0.
+func GetDataStreamIndex(inputName string, ds DataStreamManifest) int {
+	if inputName == "" {
+		return 0
+	}
+	for i, s := range ds.Streams {
+		if s.Input == inputName {
+			return i
+		}
+	}
+	logger.Debugf("no stream found with input %q in data stream %q, using first stream", inputName, ds.Name)
+	return 0
+}
+
+// FindPolicyTemplateForInput returns the name of the policy template that
+// applies to the given data stream and input type. Pass nil for ds when
+// working with input packages. An error is returned when no template matches
+// or when multiple templates match and the result would be ambiguous.
+func FindPolicyTemplateForInput(pkg *PackageManifest, ds *DataStreamManifest, inputName string) (string, error) {
+	if ds != nil {
+		return findPolicyTemplateForDataStream(*pkg, *ds, inputName)
+	}
+	return findPolicyTemplateForInputPackage(*pkg, inputName)
+}
+
+func findPolicyTemplateForDataStream(pkg PackageManifest, ds DataStreamManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(ds.Streams) == 0 {
+			return "", errors.New("no streams declared in data stream manifest")
+		}
+		inputName = ds.Streams[0].Input
+	}
+
+	var matchedPolicyTemplates []string
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		// Does this policy_template include this input type?
+		if policyTemplate.FindInputByType(inputName) == nil {
+			continue
+		}
+
+		// Does the policy_template apply to this data stream (when data streams are specified)?
+		if len(policyTemplate.DataStreams) > 0 && !slices.Contains(policyTemplate.DataStreams, ds.Name) {
+			continue
+		}
+
+		matchedPolicyTemplates = append(matchedPolicyTemplates, policyTemplate.Name)
+	}
+
+	switch len(matchedPolicyTemplates) {
+	case 1:
+		return matchedPolicyTemplates[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found for data stream %q "+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", ds.Name, inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"were found that apply to data stream %q with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matchedPolicyTemplates, ", "), ds.Name, inputName)
+	}
+}
+
+func findPolicyTemplateForInputPackage(pkg PackageManifest, inputName string) (string, error) {
+	if inputName == "" {
+		if len(pkg.PolicyTemplates) == 0 {
+			return "", errors.New("no policy templates specified for input package")
+		}
+		inputName = pkg.PolicyTemplates[0].Input
+	}
+
+	var matched []string
+	for _, policyTemplate := range pkg.PolicyTemplates {
+		if policyTemplate.Input != inputName {
+			continue
+		}
+		matched = append(matched, policyTemplate.Name)
+	}
+
+	switch len(matched) {
+	case 1:
+		return matched[0], nil
+	case 0:
+		return "", fmt.Errorf("no policy template was found "+
+			"with input type %q: verify that you have included the data stream "+
+			"and input in the package's policy_template list", inputName)
+	default:
+		return "", fmt.Errorf("ambiguous result: multiple policy templates ([%s]) "+
+			"with input type %q: please "+
+			"specify the 'policy_template' in the system test config",
+			strings.Join(matched, ", "), inputName)
+	}
+}
+
+// SelectPolicyTemplateByName returns the policy template with the given name.
+func SelectPolicyTemplateByName(policies []PolicyTemplate, name string) (PolicyTemplate, error) {
+	for _, pt := range policies {
+		if pt.Name == name {
+			return pt, nil
+		}
+	}
+	return PolicyTemplate{}, fmt.Errorf("policy template %q not found", name)
 }

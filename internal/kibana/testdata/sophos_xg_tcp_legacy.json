@@ -1,0 +1,39 @@
+{
+  "name": "sophos-xg-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "sophos",
+    "title": "Sophos",
+    "version": "3.17.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "sophos",
+      "type": "tcp",
+      "enabled": true,
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {"type": "logs", "dataset": "sophos.xg"},
+          "vars": {
+            "syslog_host": {"value": "0.0.0.0", "type": "text"},
+            "syslog_port": {"value": 9549, "type": "integer"},
+            "default_host_name": {"value": "firewall.localgroup.local", "type": "text"},
+            "known_devices": {"value": "- hostname: XG230\n  serial_number: \"1234567890123456\"\n- hostname: SG430\n  serial_number: \"S4000806149EE49\"\n", "type": "yaml"},
+            "tags": {"value": ["sophos-xg", "forwarded"], "type": "text"},
+            "preserve_original_event": {"value": false, "type": "bool"},
+            "tz_offset": {"value": "UTC", "type": "text"},
+            "tz_map": {"value": "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n", "type": "yaml"},
+            "ssl": {"value": "#certificate: \"/etc/server/cert.pem\"\n#key: \"/etc/server/key.pem\"\n", "type": "yaml"},
+            "tcp_options": {"value": "#max_connections: 1\n#framing: delimiter\n#line_delimiter: \"\\n\"\n", "type": "yaml"}
+          }
+        }
+      ]
+    }
+  ],
+  "force": false,
+  "output_id": ""
+}

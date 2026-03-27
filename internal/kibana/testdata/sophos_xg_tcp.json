@@ -1,0 +1,51 @@
+{
+  "name": "sophos-xg-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "sophos",
+    "version": "3.17.0"
+  },
+  "inputs": {
+    "sophos-tcp": {
+      "enabled": true,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false
+        },
+        "sophos.xg": {
+          "enabled": true,
+          "vars": {
+            "syslog_host": "0.0.0.0",
+            "syslog_port": 9549,
+            "known_devices": "- hostname: XG230\n  serial_number: \"1234567890123456\"\n- hostname: SG430\n  serial_number: \"S4000806149EE49\"\n"
+          }
+        }
+      }
+    },
+    "sophos-udp": {
+      "enabled": false,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false
+        },
+        "sophos.xg": {
+          "enabled": false
+        }
+      }
+    },
+    "sophos-logfile": {
+      "enabled": false,
+      "streams": {
+        "sophos.utm": {
+          "enabled": false
+        },
+        "sophos.xg": {
+          "enabled": false
+        }
+      }
+    }
+  },
+  "force": false
+}
