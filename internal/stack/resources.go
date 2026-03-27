@@ -9,6 +9,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -111,8 +112,11 @@ var (
 			Content:      staticSource.File("_static/GeoLite2-Country.mmdb"),
 		},
 		&resource.File{
-			Path:    KibanaConfigFile,
-			Content: staticSource.Template("_static/kibana.yml.tmpl"),
+			Path: KibanaConfigFile,
+			Content: fileContentAppender(
+				staticSource.Template("_static/kibana.yml.tmpl"),
+				kibanaCustomContent(),
+			),
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
@@ -148,6 +152,18 @@ var (
 		"trial",
 	}
 )
+
+// fileContentAppender returns a FileContent that sequentially writes all given sources.
+func fileContentAppender(sources ...resource.FileContent) resource.FileContent {
+	return func(ctx resource.Context, w io.Writer) error {
+		for _, src := range sources {
+			if err := src(ctx, w); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
 
 func applyResources(profile *profile.Profile, stackVersion string, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
@@ -195,21 +211,8 @@ func applyResources(profile *profile.Profile, stackVersion string, agentVersion 
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})
-	// Create kibana resource with custom config support
-	kibanaResource := &resource.File{
-		Path:    KibanaConfigFile,
-		Content: kibanaConfigWithCustomContent(profile),
-	}
-
-	// Replace the kibana resource in stackResources with our custom one
-	resources := make([]resource.Resource, 0, len(stackResources))
-	for _, res := range stackResources {
-		if file, ok := res.(*resource.File); ok && file.Path == KibanaConfigFile {
-			resources = append(resources, kibanaResource)
-		} else {
-			resources = append(resources, res)
-		}
-	}
+	resourceManager.RegisterProvider("profile", profile)
+	resources := append([]resource.Resource{}, stackResources...)
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.
 	resourceManager.RegisterProvider(CertsFolder, &resource.FileProvider{

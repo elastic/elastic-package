@@ -5,11 +5,16 @@
 package stack
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -113,4 +118,74 @@ vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
 	s = indent("\n", "        ")
 	exp = "\n        "
 	assert.Equal(t, exp, s)
+}
+
+func testFileContentString(s string) resource.FileContent {
+	return func(_ resource.Context, w io.Writer) error {
+		_, err := io.WriteString(w, s)
+		return err
+	}
+}
+
+func testFileContentError(msg string) resource.FileContent {
+	return func(_ resource.Context, w io.Writer) error {
+		return errors.New(msg)
+	}
+}
+
+func TestFileContentAppender_NoSources(t *testing.T) {
+	ctx := resource.NewManager().Context(context.Background())
+	var buf bytes.Buffer
+	err := fileContentAppender()(ctx, &buf)
+	require.NoError(t, err)
+	assert.Empty(t, buf.String())
+}
+
+func TestFileContentAppender_SingleSource(t *testing.T) {
+	ctx := resource.NewManager().Context(context.Background())
+	var buf bytes.Buffer
+	err := fileContentAppender(testFileContentString("hello"))(ctx, &buf)
+	require.NoError(t, err)
+	assert.Equal(t, "hello", buf.String())
+}
+
+func TestFileContentAppender_MultipleSources(t *testing.T) {
+	ctx := resource.NewManager().Context(context.Background())
+	var buf bytes.Buffer
+	err := fileContentAppender(
+		testFileContentString("foo"),
+		testFileContentString("bar"),
+		testFileContentString("baz"),
+	)(ctx, &buf)
+	require.NoError(t, err)
+	assert.Equal(t, "foobarbaz", buf.String())
+}
+
+func TestFileContentAppender_StopsOnError(t *testing.T) {
+	ctx := resource.NewManager().Context(context.Background())
+	var buf bytes.Buffer
+	err := fileContentAppender(
+		testFileContentString("first"),
+		testFileContentError("boom"),
+		testFileContentString("never reached"),
+	)(ctx, &buf)
+	require.Error(t, err)
+	assert.Equal(t, "boom", err.Error())
+	assert.Equal(t, "first", buf.String())
+}
+
+func TestFileContentAppender_ContextPassedThrough(t *testing.T) {
+	manager := resource.NewManager()
+	manager.AddFacter(resource.StaticFacter{"key": "value"})
+	ctx := manager.Context(context.Background())
+
+	var captured string
+	source := func(c resource.Context, w io.Writer) error {
+		captured, _ = c.Fact("key")
+		return nil
+	}
+
+	err := fileContentAppender(source)(ctx, &bytes.Buffer{})
+	require.NoError(t, err)
+	assert.Equal(t, "value", captured)
 }

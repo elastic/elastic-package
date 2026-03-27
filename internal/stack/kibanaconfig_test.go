@@ -65,79 +65,56 @@ func createTestProfile(t *testing.T, profileName string) *profile.Profile {
 	return p
 }
 
-// createTestResourceContext creates a resource context with default test values.
-// This helper reduces duplication across test functions.
-func createTestResourceContext() resource.Context {
+// createTestResourceContext creates a resource context with default test values and the given profile registered.
+func createTestResourceContext(p *profile.Profile) resource.Context {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(testFacterData)
+	resourceManager.RegisterProvider("profile", p)
 	return resourceManager.Context(context.Background())
 }
 
 func TestKibanaConfigWithCustomContent_NoCustomConfig(t *testing.T) {
-	// Create a test profile
 	p := createTestProfile(t, "test-profile")
 
-	// Capture log output to test warning message
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 	defer log.SetOutput(os.Stderr)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
+	ctx := createTestResourceContext(p)
 
-	// Create a resource context with default test values
-	ctx := createTestResourceContext()
-
-	// Generate the config
 	var output bytes.Buffer
-	err := configGenerator(ctx, &output)
+	err := kibanaCustomContent()(ctx, &output)
 	require.NoError(t, err)
 
-	// Check the generated content contains base config
-	generatedContent := output.String()
-	assert.Contains(t, generatedContent, "server.name: kibana")
-
-	// Check no warning message
 	logOutput := logBuffer.String()
 	assert.NotContains(t, logOutput, "Custom Kibana configuration detected")
 }
 
 func TestKibanaConfigWithCustomContent_WithCustomConfig(t *testing.T) {
-	// Create a test profile
 	p := createTestProfile(t, "test-profile")
 
-	// Create custom config file
 	customConfigPath := p.Path(KibanaDevConfigFile)
 	customConfigContent := "logging.loggers:\n  - name: root\n    level: debug\n"
 	err := os.WriteFile(customConfigPath, []byte(customConfigContent), 0644)
 	require.NoError(t, err)
 	defer os.Remove(customConfigPath)
 
-	// Capture log output to test warning message
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 	defer log.SetOutput(os.Stderr)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
+	ctx := createTestResourceContext(p)
 
-	// Create a resource context with default test values
-	ctx := createTestResourceContext()
-
-	// Generate the config
 	var output bytes.Buffer
-	err = configGenerator(ctx, &output)
+	err = kibanaCustomContent()(ctx, &output)
 	require.NoError(t, err)
 
-	// Check the generated content
 	generatedContent := output.String()
-	assert.Contains(t, generatedContent, "server.name: kibana")
 	assert.Contains(t, generatedContent, "# Custom Kibana Configuration")
 	assert.Contains(t, generatedContent, "logging.loggers:")
 	assert.Contains(t, generatedContent, "- name: root")
 	assert.Contains(t, generatedContent, "level: debug")
 
-	// Check warning message
 	logOutput := logBuffer.String()
 	assert.Contains(t, logOutput, "Custom Kibana configuration detected")
 	assert.Contains(t, logOutput, KibanaDevConfigFile)
@@ -145,85 +122,61 @@ func TestKibanaConfigWithCustomContent_WithCustomConfig(t *testing.T) {
 }
 
 func TestKibanaConfigWithCustomContent_FileNaming(t *testing.T) {
-	// Create a test profile
 	p := createTestProfile(t, "test-profile")
 
-	// Create custom config file with the correct name
 	customConfigPath := p.Path(KibanaDevConfigFile)
 	customConfigContent := "logging.loggers:\n  - name: test\n    level: debug\n"
 	err := os.WriteFile(customConfigPath, []byte(customConfigContent), 0644)
 	require.NoError(t, err)
 	defer os.Remove(customConfigPath)
 
-	// Capture log output to verify the correct path is mentioned
 	var logBuffer bytes.Buffer
 	log.SetOutput(&logBuffer)
 	defer log.SetOutput(os.Stderr)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
+	ctx := createTestResourceContext(p)
 
-	// Create a resource context with default test values
-	ctx := createTestResourceContext()
-
-	// Generate the config
 	var output bytes.Buffer
-	err = configGenerator(ctx, &output)
+	err = kibanaCustomContent()(ctx, &output)
 	require.NoError(t, err)
 
-	// Verify the warning message contains the correct file path
 	logOutput := logBuffer.String()
 	assert.Contains(t, logOutput, KibanaDevConfigFile)
 	assert.Contains(t, logOutput, "kibana.dev.yml")
 }
 
 func TestKibanaConfigWithCustomContent_NoTemplateProcessing(t *testing.T) {
-	// Create a test profile
 	p := createTestProfile(t, "test-profile")
 
-	// Create custom config with template-like content that should NOT be processed
 	customConfigPath := p.Path(KibanaDevConfigFile)
 	customConfigContent := "server.name: kibana-{{ fact \"kibana_version\" }}\nlogging.level: {{ if eq .debug \"true\" }}debug{{ else }}info{{ end }}\n"
 	err := os.WriteFile(customConfigPath, []byte(customConfigContent), 0644)
 	require.NoError(t, err)
 	defer os.Remove(customConfigPath)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
+	ctx := createTestResourceContext(p)
 
-	// Create a resource context with default test values
-	ctx := createTestResourceContext()
-
-	// Generate the config
 	var output bytes.Buffer
-	err = configGenerator(ctx, &output)
+	err = kibanaCustomContent()(ctx, &output)
 	require.NoError(t, err)
 
-	// Verify the raw template content is preserved (not processed)
 	generatedContent := output.String()
 	assert.Contains(t, generatedContent, "server.name: kibana-{{ fact \"kibana_version\" }}")
 	assert.Contains(t, generatedContent, "logging.level: {{ if eq .debug \"true\" }}debug{{ else }}info{{ end }}")
 }
 
 func TestKibanaConfigWithCustomContent_ErrorCases(t *testing.T) {
-	// Create a test profile
 	p := createTestProfile(t, "test-profile")
 
-	// Create a directory with the same name as the config file to cause read error
 	customConfigPath := p.Path(KibanaDevConfigFile)
 	err := os.MkdirAll(customConfigPath, 0755)
 	require.NoError(t, err)
 	defer os.RemoveAll(customConfigPath)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
+	ctx := createTestResourceContext(p)
 
-	// Create a resource context with default test values
-	ctx := createTestResourceContext()
-
-	// Generate the config
 	var output bytes.Buffer
-	err = configGenerator(ctx, &output)
+	err = kibanaCustomContent()(ctx, &output)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to read custom kibana config")
 }
@@ -234,12 +187,10 @@ func TestKibanaDevConfigFileConstant(t *testing.T) {
 
 // Benchmark test to ensure performance is acceptable
 func BenchmarkKibanaConfigWithCustomContent(b *testing.B) {
-	// Create a temporary profile
 	tempDir := b.TempDir()
 	profilesPath := filepath.Join(tempDir, "profiles")
 	profileName := "benchmark-profile"
 
-	// Set environment variable to use our temporary directory
 	originalEnv := os.Getenv("ELASTIC_PACKAGE_DATA_HOME")
 	os.Setenv("ELASTIC_PACKAGE_DATA_HOME", tempDir)
 	defer os.Setenv("ELASTIC_PACKAGE_DATA_HOME", originalEnv)
@@ -253,33 +204,23 @@ func BenchmarkKibanaConfigWithCustomContent(b *testing.B) {
 	p, err := profile.LoadProfile(profileName)
 	require.NoError(b, err)
 
-	// Create custom config file
 	customConfigPath := p.Path(KibanaDevConfigFile)
 	customConfigContent := strings.Repeat("logging.loggers:\n  - name: test\n    level: debug\n", 10)
 	err = os.WriteFile(customConfigPath, []byte(customConfigContent), 0644)
 	require.NoError(b, err)
 	defer os.Remove(customConfigPath)
 
-	// Create the config generator function
-	configGenerator := kibanaConfigWithCustomContent(p)
-
-	// Create a resource context with default test values
-	ctx := createBenchmarkResourceContext()
+	resourceManager := resource.NewManager()
+	resourceManager.AddFacter(testFacterData)
+	resourceManager.RegisterProvider("profile", p)
+	ctx := resourceManager.Context(context.Background())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var output bytes.Buffer
-		err := configGenerator(ctx, &output)
+		err := kibanaCustomContent()(ctx, &output)
 		if err != nil {
 			b.Fatal(err)
 		}
 	}
-}
-
-// createBenchmarkResourceContext creates a resource context for benchmarks.
-// Similar to createTestResourceContext but doesn't require testing.T.
-func createBenchmarkResourceContext() resource.Context {
-	resourceManager := resource.NewManager()
-	resourceManager.AddFacter(testFacterData)
-	return resourceManager.Context(context.Background())
 }
