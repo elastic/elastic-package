@@ -39,13 +39,13 @@ func profileContext(p *profile.Profile) resource.Context {
 
 func TestKibanaCustomContent(t *testing.T) {
 	cases := []struct {
-		name           string
-		devConfigFile  string
-		wantOutput     string
-		wantErr        string
+		name          string
+		devConfigFile string
+		wantOutput    string
+		wantErr       string
 	}{
 		{
-			name:      "no custom config file",
+			name:       "no custom config file",
 			wantOutput: "",
 		},
 		{

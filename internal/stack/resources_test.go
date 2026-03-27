@@ -301,11 +301,11 @@ func TestFileContentAppender(t *testing.T) {
 	}
 
 	cases := []struct {
-		name        string
-		sources     []resource.FileContent
-		facters     resource.StaticFacter
-		wantOutput  string
-		wantErr     string
+		name       string
+		sources    []resource.FileContent
+		facters    resource.StaticFacter
+		wantOutput string
+		wantErr    string
 	}{
 		{
 			name:       "no sources",
