@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/cobra"
 
+	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/archetype"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -36,6 +38,12 @@ type newDataStreamAnswers struct {
 
 func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	cmd.Println("Create a new data stream")
+
+	if flags := cmd.Flags(); flags.Changed(cobraext.CreateDataStreamNameFlagName) ||
+		flags.Changed(cobraext.CreateDataStreamTypeFlagName) ||
+		flags.Changed(cobraext.CreateDataStreamInputsFlagName) {
+		return createDataStreamNonInteractive(cmd)
+	}
 
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
@@ -96,32 +104,11 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	if answers.Type == "logs" {
-		// Map of possible inputs that can be used in the wizard, and their description.
-		inputsMap := map[string]string{
-			"aws-cloudwatch":     "AWS Cloudwatch",
-			"aws-s3":             "AWS S3",
-			"azure-blob-storage": "Azure Blob Storage",
-			"azure-eventhub":     "Azure Eventhub",
-			"cel":                "Common Expression Language (CEL)",
-			"entity-analytics":   "Entity Analytics",
-			"etw":                "Event Tracing for Windows (ETW)",
-			"filestream":         "Filestream",
-			"gcp-pubsub":         "GCP PubSub",
-			"gcs":                "Google Cloud Storage (GCS)",
-			"http_endpoint":      "HTTP Endpoint",
-			"journald":           "Journald",
-			"netflow":            "Netflow",
-			"redis":              "Redis",
-			"tcp":                "TCP",
-			"udp":                "UDP",
-			"winlog":             "WinLogBeat",
-		}
-		multiSelect := tui.NewMultiSelect("Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs", slices.Sorted(maps.Keys(inputsMap)), []string{})
+		multiSelect := tui.NewMultiSelect("Select input types which will be used in this data stream. See https://www.elastic.co/docs/reference/fleet/elastic-agent-inputs-list for description of the inputs", slices.Sorted(maps.Keys(packages.AllowedLogsInputTypes)), []string{})
 		multiSelect.SetPageSize(50)
 		multiSelect.SetDescription(func(value string, index int) string {
-			val, ok := inputsMap[value]
-			if ok {
-				return val
+			if label, ok := packages.AllowedLogsInputTypes[value]; ok {
+				return label
 			}
 			return ""
 		})
@@ -136,6 +123,83 @@ func createDataStreamCommandAction(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
+	}
+
+	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
+	err = archetype.CreateDataStream(descriptor)
+	if err != nil {
+		return fmt.Errorf("can't create new data stream: %w", err)
+	}
+
+	cmd.Println("Done")
+	return nil
+}
+
+func createDataStreamNonInteractive(cmd *cobra.Command) error {
+	packageRoot, err := packages.FindPackageRoot()
+	if err != nil {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
+			return errors.New("package root not found, you can only create new data stream in the package context")
+		}
+		return fmt.Errorf("locating package root failed: %w", err)
+	}
+
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
+	if err != nil {
+		return fmt.Errorf("reading package manifest failed (path: %s): %w", packageRoot, err)
+	}
+
+	if manifest.Type == "input" {
+		return fmt.Errorf("data-streams are not supported in input packages")
+	}
+
+	sv, err := semver.NewVersion(manifest.SpecVersion)
+	if err != nil {
+		return fmt.Errorf("failed to obtain spec version from package manifest in \"%s\": %w", packageRoot, err)
+	}
+
+	dsName, _ := cmd.Flags().GetString(cobraext.CreateDataStreamNameFlagName)
+	dsType, _ := cmd.Flags().GetString(cobraext.CreateDataStreamTypeFlagName)
+	inputs, _ := cmd.Flags().GetStringSlice(cobraext.CreateDataStreamInputsFlagName)
+
+	if dsName == "" {
+		return fmt.Errorf("--%s is required", cobraext.CreateDataStreamNameFlagName)
+	}
+	if dsType == "" {
+		return fmt.Errorf("--%s is required", cobraext.CreateDataStreamTypeFlagName)
+	}
+	if !slices.Contains(packages.AllowedDataStreamTypes, dsType) {
+		return fmt.Errorf("--%s must be one of: %s", cobraext.CreateDataStreamTypeFlagName, strings.Join(packages.AllowedDataStreamTypes, ", "))
+	}
+
+	validator := tui.Validator{Cwd: packageRoot}
+	if err := validator.DataStreamDoesNotExist(dsName); err != nil {
+		return err
+	}
+	if err := validator.DataStreamName(dsName); err != nil {
+		return err
+	}
+
+	if dsType == "logs" {
+		if len(inputs) == 0 {
+			return fmt.Errorf("--%s is required when type is logs", cobraext.CreateDataStreamInputsFlagName)
+		}
+		for _, input := range inputs {
+			if _, ok := packages.AllowedLogsInputTypes[input]; !ok {
+				return fmt.Errorf("invalid input type %q; allowed values: %v", input, slices.Sorted(maps.Keys(packages.AllowedLogsInputTypes)))
+			}
+		}
+	}
+
+	answers := newDataStreamAnswers{
+		Name:       dsName,
+		Title:      dsName,
+		Type:       dsType,
+		Inputs:     inputs,
+		Subobjects: false,
+	}
+	if dsType == "metrics" {
+		answers.SyntheticAndTimeSeries = true
 	}
 
 	descriptor := createDataStreamDescriptorFromAnswers(answers, packageRoot, sv)
@@ -212,7 +276,7 @@ func getInitialSurveyQuestionsForVersion(specVersion *semver.Version) []*tui.Que
 		},
 		{
 			Name:     "type",
-			Prompt:   tui.NewSelect("Type", []string{"logs", "metrics"}, "logs"),
+			Prompt:   tui.NewSelect("Type", packages.AllowedDataStreamTypes, "logs"),
 			Validate: tui.Required,
 		},
 	}

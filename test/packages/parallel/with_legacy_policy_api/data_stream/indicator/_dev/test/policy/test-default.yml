@@ -1,0 +1,9 @@
+# policy_api_format: legacy is required because this package has a select variable
+# (revoked) with "false" as an option value. Fleet's simplified API coerces the
+# string "false" to boolean false before validation, causing a 400 error.
+policy_api_format: legacy
+data_stream:
+  vars:
+    revoked: "true"
+    paths:
+      - /var/log/prod-*.log

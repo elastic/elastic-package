@@ -177,6 +177,8 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		installedAgents:      make(map[string]*installedAgent),
 		installedDataStreams: make(map[string]struct{}),
 		installedPipelines:   make(map[string]installedPipelines),
+		registryPackages:     make(map[string][]registryPackage),
+		registryPackageRoots: make(map[string]string),
 	}
 	if opt.RunPattern != "" {
 		t.run, err = regexp.Compile(opt.RunPattern)
@@ -226,6 +228,32 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			continue
 		}
 		n++
+		scriptEnv := map[string]string{
+			"PROFILE":                   appConfig.CurrentProfile(),
+			"CONFIG_ROOT":               loc.RootDir(),
+			"CONFIG_PROFILES":           loc.ProfileDir(),
+			"HOME":                      home,
+			"ECS_BASE_SCHEMA_URL":       appConfig.SchemaURLs().ECSBase(),
+			"PACKAGE_REGISTRY_BASE_URL": appConfig.PackageRegistryBaseURL(),
+		}
+		if pkgRoot != "" {
+			scriptEnv["PACKAGE_NAME"] = manifest.Name
+			scriptEnv["PACKAGE_BASE"] = filepath.Base(pkgRoot)
+			scriptEnv["PACKAGE_ROOT"] = pkgRoot
+		}
+		if latestEPRVersion != "" {
+			scriptEnv["LATEST_EPR_VERSION"] = latestEPRVersion
+		}
+		if currVersion != "" {
+			scriptEnv["CURRENT_VERSION"] = currVersion
+		}
+		if prevVersion != "" {
+			scriptEnv["PREVIOUS_VERSION"] = prevVersion
+		}
+		if dsRoot != "" {
+			scriptEnv["DATA_STREAM"] = d
+			scriptEnv["DATA_STREAM_ROOT"] = dsRoot
+		}
 		p := testscript.Params{
 			Dir:             scripts,
 			WorkdirRoot:     workdirRoot,
@@ -233,76 +261,62 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			ContinueOnError: opt.ContinueOnError,
 			TestWork:        opt.TestWork,
 			Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-				"sleep":                  sleep,
-				"date":                   date,
-				"GET":                    get,
-				"POST":                   post,
-				"stack_up":               stackUp,
-				"use_stack":              useStack,
-				"stack_down":             stackDown,
-				"docker_up":              dockerUp,
-				"docker_down":            dockerDown,
-				"docker_signal":          dockerSignal,
-				"docker_wait_exit":       dockerWaitExit,
-				"install_pipelines":      installPipelines,
-				"simulate":               simulate,
-				"uninstall_pipelines":    uninstallPipelines,
-				"install_agent":          installAgent,
-				"add_package":            addPackage,
-				"remove_package":         removePackage,
-				"upgrade_package_latest": upgradePackageLatest,
-				"add_package_zip":        addPackageZip,
-				"remove_package_zip":     removePackageZip,
-				"add_package_policy":     addPackagePolicy,
-				"remove_package_policy":  removePackagePolicy,
-				"uninstall_agent":        uninstallAgent,
-				"get_docs":               getDocs,
-				"dump_logs":              dumpLogs,
-				"match_file":             match,
-				"get_policy":             getPolicyCommand,
-				"compile_registry_state": compileRegistryState,
+				"sleep":                         sleep,
+				"date":                          date,
+				"GET":                           get,
+				"POST":                          post,
+				"stack_up":                      stackUp,
+				"use_stack":                     useStack,
+				"stack_down":                    stackDown,
+				"docker_up":                     dockerUp,
+				"docker_down":                   dockerDown,
+				"docker_signal":                 dockerSignal,
+				"docker_wait_exit":              dockerWaitExit,
+				"install_pipelines":             installPipelines,
+				"simulate":                      simulate,
+				"uninstall_pipelines":           uninstallPipelines,
+				"install_agent":                 installAgent,
+				"add_package":                   addPackage,
+				"remove_package":                removePackage,
+				"upgrade_package_latest":        upgradePackageLatest,
+				"add_package_zip":               addPackageZip,
+				"install_package_from_registry": installPackageFromRegistry,
+				"remove_package_zip":            removePackageZip,
+				"add_package_policy":            addPackagePolicy,
+				"remove_package_policy":         removePackagePolicy,
+				"uninstall_agent":               uninstallAgent,
+				"get_docs":                      getDocs,
+				"dump_logs":                     dumpLogs,
+				"match_file":                    match,
+				"get_policy":                    getPolicyCommand,
+				"compile_registry_state":        compileRegistryState,
 			},
 			Setup: func(e *testscript.Env) error {
-				e.Setenv("PROFILE", appConfig.CurrentProfile())
-				e.Setenv("CONFIG_ROOT", loc.RootDir())
-				e.Setenv("CONFIG_PROFILES", loc.ProfileDir())
-				e.Setenv("HOME", home)
-				if pkgRoot != "" {
-					e.Setenv("PACKAGE_NAME", manifest.Name)
-					e.Setenv("PACKAGE_BASE", filepath.Base(pkgRoot))
-					e.Setenv("PACKAGE_ROOT", pkgRoot)
+				for k, v := range scriptEnv {
+					e.Setenv(k, v)
 				}
-				if latestEPRVersion != "" {
-					e.Setenv("LATEST_EPR_VERSION", latestEPRVersion)
-				}
-				if currVersion != "" {
-					e.Setenv("CURRENT_VERSION", currVersion)
-				}
-				if prevVersion != "" {
-					e.Setenv("PREVIOUS_VERSION", prevVersion)
-				}
-				if dsRoot != "" {
-					e.Setenv("DATA_STREAM", d)
-					e.Setenv("DATA_STREAM_ROOT", dsRoot)
-				}
-				e.Setenv("ECS_BASE_SCHEMA_URL", appConfig.SchemaURLs().ECSBase())
 				e.Values[deployedServiceTag{}] = t.deployedService
 				e.Values[runningStackTag{}] = t.runningStack
 				e.Values[installedAgentsTag{}] = t.installedAgents
 				e.Values[installedDataStreamsTag{}] = t.installedDataStreams
 				e.Values[installedPipelinesTag{}] = t.installedPipelines
+				e.Values[registryPackagesTag{}] = t.registryPackages
+				e.Values[registryPackageRootsTag{}] = t.registryPackageRoots
 				return nil
 			},
 			Condition: func(cond string) (bool, error) {
-				switch cond {
-				case "external_stack":
+				switch {
+				case cond == "external_stack":
 					return opt.ExternalStack, nil
-				case "breaking_change":
+				case cond == "breaking_change":
 					return breakingChange, nil
-				case "is_latest_version":
+				case cond == "is_latest_version":
 					return isLatestVersion, nil
-				case "has_previous_release":
+				case cond == "has_previous_release":
 					return prevVersion != "", nil
+				case strings.HasPrefix(cond, "env:"):
+					_, ok := scriptEnv[cond[len("env:"):]]
+					return ok, nil
 				default:
 					return false, fmt.Errorf("unknown condition: %s", cond)
 				}
@@ -328,6 +342,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			t.installedDataStreams,
 			t.installedAgents,
 			t.installedPipelines,
+			t.registryPackages,
 			t.runningStack,
 		)
 		if err != nil {
@@ -340,13 +355,13 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	return nil
 }
 
-func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, stacks map[string]*runningStack) error {
+func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, regPkgs map[string][]registryPackage, stacks map[string]*runningStack) error {
 	// We most likely have only one stack, but just iterate over
 	// all if there is more than one. What could possibly go wrong?
 	// If this _is_ problematic, we'll need to record the stack that
 	// was used for each item when it's created.
 	var errs []error
-	for _, stk := range stacks {
+	for prof, stk := range stacks {
 		for _, pipe := range pipes {
 			ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes)
 		}
@@ -367,6 +382,13 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 			deletePolicies(ctx, stk.kibana, installed)
 		}
 
+		for _, pkg := range regPkgs[prof] {
+			_, err := stk.kibana.RemovePackage(ctx, pkg.name, pkg.version)
+			if err != nil && !strings.Contains(err.Error(), "status code = 404") && !strings.Contains(err.Error(), "is not installed") {
+				errs = append(errs, fmt.Errorf("removing registry package %s-%s: %w", pkg.name, pkg.version, err))
+			}
+		}
+
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
@@ -374,7 +396,7 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 			Absent:      true,
 			Force:       true,
 		}})
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "is not installed") {
 			errs = append(errs, err)
 		}
 
@@ -509,6 +531,8 @@ type T struct {
 	installedAgents      map[string]*installedAgent
 	installedDataStreams map[string]struct{}
 	installedPipelines   map[string]installedPipelines
+	registryPackages     map[string][]registryPackage
+	registryPackageRoots map[string]string
 }
 
 // clearRegistries prevents tests within a directory from communicating
@@ -520,6 +544,8 @@ func (t *T) clearRegistries() {
 	clear(t.installedDataStreams)
 	clear(t.installedAgents)
 	clear(t.runningStack)
+	clear(t.registryPackages)
+	clear(t.registryPackageRoots)
 }
 
 func (t *T) Skip(is ...any) {
