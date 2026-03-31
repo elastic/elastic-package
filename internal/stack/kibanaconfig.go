@@ -5,6 +5,7 @@
 package stack
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -51,7 +52,7 @@ func kibanaCustomContent() resource.FileContent {
 		if contentErr != nil {
 			return contentErr
 		}
-		if len(content) == 0 {
+		if len(bytes.TrimSpace(content)) == 0 {
 			return nil
 		}
 

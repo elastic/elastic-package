@@ -59,6 +59,26 @@ func TestKibanaCustomContent(t *testing.T) {
 			wantOutput:    "\n\n# Custom Kibana Configuration\nserver.name: kibana-{{ fact \"kibana_version\" }}\n",
 		},
 		{
+			name:          "empty lines only treated as no content",
+			devConfigFile: "\n\n\n",
+			wantOutput:    "",
+		},
+		{
+			name:          "whitespace only treated as no content",
+			devConfigFile: "   \t  \n  \t\n",
+			wantOutput:    "",
+		},
+		{
+			name:          "empty custom config file",
+			devConfigFile: " ",
+			wantOutput:    "",
+		},
+		{
+			name:          "custom config with only empty lines",
+			devConfigFile: "\n\n\n",
+			wantOutput:    "",
+		},
+		{
 			name:    "error reading custom config",
 			wantErr: "failed to read custom kibana config",
 		},
