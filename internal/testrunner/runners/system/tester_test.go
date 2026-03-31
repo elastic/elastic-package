@@ -439,6 +439,101 @@ func TestIsSyntheticSourceModeEnabled(t *testing.T) {
 		})
 	}
 }
+func TestSearchDataStreams(t *testing.T) {
+	const pattern = "*-foo.bar-default"
+
+	t.Run("happy path returns two streams", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-found", nil)
+		r := &tester{esAPI: client.API}
+
+		streams, err := r.searchDataStreams(t.Context(), []string{pattern})
+		require.NoError(t, err)
+		require.Len(t, streams, 2)
+
+		assert.Equal(t, "logs-foo.bar-default", streams[0].name)
+		assert.Equal(t, "logs-foo.bar", streams[0].indexTemplate)
+
+		assert.Equal(t, "metrics-foo.bar-default", streams[1].name)
+		assert.Equal(t, "metrics-foo.bar", streams[1].indexTemplate)
+	})
+
+	t.Run("404 returns empty slice with no error", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-discover-datastreams-notfound", nil)
+		r := &tester{esAPI: client.API}
+
+		streams, err := r.searchDataStreams(t.Context(), []string{pattern})
+		require.NoError(t, err)
+		assert.Empty(t, streams)
+	})
+}
+
+func TestDiscoverDataStreams(t *testing.T) {
+	const pattern = "*-myreceiver.otel-default"
+
+	t.Run("returns error when no streams appear within timeout", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams-timeout", nil)
+		r := &tester{esAPI: client.API}
+		cfg := &testConfig{
+			WaitForDataTimeout:          100 * time.Millisecond,
+			WaitForDynamicStreamsStable: 2 * time.Second,
+		}
+
+		_, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no data streams matching")
+	})
+
+	t.Run("phase 2 picks up late-arriving stream", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-wait-for-all-datastreams", nil)
+		r := &tester{esAPI: client.API}
+		cfg := &testConfig{
+			WaitForDynamicStreamsStable: 2 * time.Second,
+		}
+
+		streams, err := r.discoverDataStreams(t.Context(), cfg, []string{pattern})
+		require.NoError(t, err)
+		require.Len(t, streams, 2)
+
+		names := make(map[string]string)
+		for _, s := range streams {
+			names[s.name] = s.indexTemplate
+		}
+		assert.Equal(t, "logs-myreceiver.otel", names["logs-myreceiver.otel-default"])
+		assert.Equal(t, "metrics-myreceiver.otel", names["metrics-myreceiver.otel-default"])
+	})
+}
+
+func TestBuildDataStreamScenarios(t *testing.T) {
+	t.Run("standard single stream", func(t *testing.T) {
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}
+		pt := packages.PolicyTemplate{Name: "bar"}
+		cfg := &testConfig{}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), "logs", "foo.bar", "default", pt, cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, "logs-foo.bar-default", got[0].dataStream)
+		assert.Equal(t, "logs-foo.bar", got[0].indexTemplateName)
+	})
+
+	t.Run("explicit signal_types produce one entry per type", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-build-datastream-scenarios-explicit-signal-types", nil)
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "input"}, esAPI: client.API}
+		pt := packages.PolicyTemplate{Name: "myreceiver", Input: "otelcol", DynamicSignalTypes: true}
+		cfg := &testConfig{
+			SignalTypes:                 []string{"logs", "metrics"},
+			WaitForDynamicStreamsStable: 2 * time.Second,
+		}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), "logs", "myreceiver", "default", pt, cfg)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		assert.Equal(t, "logs-myreceiver.otel-default", got[0].dataStream)
+		assert.Equal(t, "logs-myreceiver", got[0].indexTemplateName)
+		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
+		assert.Equal(t, "metrics-myreceiver", got[1].indexTemplateName)
+	})
+}
 
 func TestPipelineErrorMessage(t *testing.T) {
 	testCases := []struct {

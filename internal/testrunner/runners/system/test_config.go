@@ -33,13 +33,14 @@ var (
 type testConfig struct {
 	testrunner.SkippableConfig `config:",inline"`
 
-	Input               string        `config:"input"`
-	PolicyTemplate      string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
-	Service             string        `config:"service"`
-	ServiceNotifySignal string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
-	IgnoreServiceError  bool          `config:"ignore_service_error"`
-	WaitForDataTimeout  time.Duration `config:"wait_for_data_timeout"`
-	SkipIgnoredFields   []string      `config:"skip_ignored_fields"`
+	Input                       string        `config:"input"`
+	PolicyTemplate              string        `config:"policy_template"` // Policy template associated with input. Required when multiple policy templates include the input being tested.
+	Service                     string        `config:"service"`
+	ServiceNotifySignal         string        `config:"service_notify_signal"` // Signal to send when the agent policy is applied.
+	IgnoreServiceError          bool          `config:"ignore_service_error"`
+	WaitForDataTimeout          time.Duration `config:"wait_for_data_timeout"`
+	WaitForDynamicStreamsStable time.Duration `config:"wait_for_dynamic_streams_stable"` // The minimum time the count of discovered data streams must stay unchanged before discovery finishes. Default is 10s.
+	SkipIgnoredFields           []string      `config:"skip_ignored_fields"`
 
 	Deployer string `config:"deployer"` // Name of the service deployer to use for this test.
 
@@ -78,6 +79,10 @@ type testConfig struct {
 
 	Path               string `config:",ignore"` // Path of config file.
 	ServiceVariantName string `config:",ignore"` // Name of test variant when using variants.yml.
+
+	// SignalTypes restricts dynamic_signal_types discovery to the listed signal type prefixes
+	// (e.g. ["logs", "metrics"]). When empty, all discovered streams are used.
+	SignalTypes []string `config:"signal_types"`
 
 	// Agent related properties
 	Agent struct {
