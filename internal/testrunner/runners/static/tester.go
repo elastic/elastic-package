@@ -6,7 +6,6 @@ package static
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -101,8 +100,8 @@ func (r tester) run(ctx context.Context) ([]testrunner.TestResult, error) {
 		return result.WithError(fmt.Errorf("failed to read manifest: %w", err))
 	}
 
-	// join together results from verifyStreamConfig and verifySampleEvent
-	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvent(pkgManifest)...), nil
+	// join together results from verifyStreamConfig and verifySampleEvents
+	return append(r.verifyStreamConfig(ctx, r.packageRoot), r.verifySampleEvents(pkgManifest)...), nil
 }
 
 func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []testrunner.TestResult {
@@ -134,23 +133,51 @@ func (r tester) verifyStreamConfig(ctx context.Context, packageRoot string) []te
 	return results
 }
 
-func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
-	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+func (r tester) verifySampleEvents(pkgManifest *packages.PackageManifest) []testrunner.TestResult {
+	defaultResultComposer := testrunner.NewResultComposer(testrunner.TestResult{
 		Name:       "Verify " + sampleEventJSON,
 		TestType:   TestType,
 		Package:    r.testFolder.Package,
 		DataStream: r.testFolder.DataStream,
 	})
 
-	sampleEventPath, found, err := r.getSampleEventPath()
+	sampleEventPaths, err := r.getSampleEventPaths()
 	if err != nil {
-		results, _ := resultComposer.WithError(err)
+		results, _ := defaultResultComposer.WithError(err)
 		return results
 	}
-	if !found {
+	if len(sampleEventPaths) == 0 {
 		// Nothing to do.
 		return []testrunner.TestResult{}
 	}
+
+	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
+	if err != nil {
+		results, _ := defaultResultComposer.WithError(err)
+		return results
+	}
+	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
+	if err != nil {
+		results, _ := defaultResultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
+		return results
+	}
+	defer repositoryRoot.Close()
+
+	var allResults []testrunner.TestResult
+	for _, sampleEventPath := range sampleEventPaths {
+		results := r.verifySampleEvent(sampleEventPath, pkgManifest, expectedDatasets, repositoryRoot)
+		allResults = append(allResults, results...)
+	}
+	return allResults
+}
+
+func (r tester) verifySampleEvent(sampleEventPath string, pkgManifest *packages.PackageManifest, expectedDatasets []string, repositoryRoot *os.Root) []testrunner.TestResult {
+	resultComposer := testrunner.NewResultComposer(testrunner.TestResult{
+		Name:       "Verify " + filepath.Base(sampleEventPath),
+		TestType:   TestType,
+		Package:    r.testFolder.Package,
+		DataStream: r.testFolder.DataStream,
+	})
 
 	if r.withCoverage {
 		coverage, err := testrunner.GenerateBaseFileCoverageReport(resultComposer.CoveragePackageName(), sampleEventPath, r.coverageType, true)
@@ -161,17 +188,6 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 		resultComposer = resultComposer.WithCoverage(coverage)
 	}
 
-	expectedDatasets, err := r.getExpectedDatasets(pkgManifest)
-	if err != nil {
-		results, _ := resultComposer.WithError(err)
-		return results
-	}
-	repositoryRoot, err := files.FindRepositoryRootFrom(r.packageRoot)
-	if err != nil {
-		results, _ := resultComposer.WithErrorf("cannot find repository root from %s: %w", r.packageRoot, err)
-		return results
-	}
-	defer repositoryRoot.Close()
 	fieldsDir := filepath.Join(filepath.Dir(sampleEventPath), "fields")
 	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
 		fields.WithSpecVersion(pkgManifest.SpecVersion),
@@ -205,25 +221,18 @@ func (r tester) verifySampleEvent(pkgManifest *packages.PackageManifest) []testr
 	return results
 }
 
-func (r tester) getSampleEventPath() (string, bool, error) {
-	var sampleEventPath string
+func (r tester) getSampleEventPaths() ([]string, error) {
+	var dir string
 	if r.testFolder.DataStream != "" {
-		sampleEventPath = filepath.Join(
-			r.packageRoot,
-			"data_stream",
-			r.testFolder.DataStream,
-			sampleEventJSON)
+		dir = filepath.Join(r.packageRoot, "data_stream", r.testFolder.DataStream)
 	} else {
-		sampleEventPath = filepath.Join(r.packageRoot, sampleEventJSON)
+		dir = r.packageRoot
 	}
-	_, err := os.Stat(sampleEventPath)
-	if errors.Is(err, os.ErrNotExist) {
-		return "", false, nil
-	}
+	matches, err := filepath.Glob(filepath.Join(dir, sampleEventGlob))
 	if err != nil {
-		return "", false, fmt.Errorf("stat file failed: %w", err)
+		return nil, fmt.Errorf("globbing for sample event files failed: %w", err)
 	}
-	return sampleEventPath, true, nil
+	return matches, nil
 }
 
 func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]string, error) {

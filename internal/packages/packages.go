@@ -235,10 +235,11 @@ type PolicyTemplate struct {
 	DeploymentModes *DeploymentModes `config:"deployment_modes,omitempty" json:"deployment_modes,omitempty" yaml:"deployment_modes,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input              string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type               string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	DynamicSignalTypes bool       `config:"dynamic_signal_types,omitempty" json:"dynamic_signal_types,omitempty" yaml:"dynamic_signal_types,omitempty"`
+	TemplatePath       string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	Vars               []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.

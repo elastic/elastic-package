@@ -534,12 +534,14 @@ for system tests.
 | policy_template | string |  | Name of policy template associated with the data stream and input. Required when multiple policy templates include the input being tested. |
 | service | string |  | Name of a specific Docker service to setup for the test. |
 | service_notify_signal | string |  | Signal name to send to 'service' when the test policy has been applied to the Agent. This can be used to trigger the service after the Agent is ready to receive data. |
+| signal_types | []string |  | For otel packages with dynamic_signal_types, this specifies which signal data streams to assert on. Otherwise all detected data streams for the dataset will be asserted against. 
 | skip.link | URL |  | URL linking to an issue about why the test is skipped. |
 | skip.reason | string |  | Reason to skip the test. If specified the test will not execute. |
 | skip_ignored_fields | array string |  | List of fields to be skipped when performing validation of fields ignored during ingestion. |
 | skip_transform_validation | boolean |  | Disable or enable the transforms validation performed in system tests. |
 | vars | dictionary |  | Package level variables to set (i.e. declared in `$package_root/manifest.yml`). If not specified the defaults from the manifest are used. |
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
+| wait_for_dynamic_streams_stable | duration |  | For packages with dynamic data streams (e.g. `dynamic_signal_types`), minimum time the discovered data stream count must stay unchanged after the first stream appears before discovery completes. Defaults to 10s. |
 
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
