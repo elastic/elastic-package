@@ -439,6 +439,15 @@ Use this command to validate the contents of a package using the package specifi
 
 The command ensures that the package is aligned with the package spec and the README file is up-to-date with its template (if present).
 
+### `elastic-package lsp`
+
+_Context: global_
+
+Start a Language Server Protocol (LSP) server for Elastic integration packages.
+
+The LSP server communicates over stdin/stdout and provides real-time validation
+diagnostics for integration packages opened in supported editors.
+
 ### `elastic-package modify`
 
 _Context: package_
