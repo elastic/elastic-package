@@ -97,10 +97,13 @@ func createPackageDescriptorForTest(packageType, kibanaVersion string) PackageDe
 }
 
 type requiredInputsResolverMock struct {
-	BundleInputPackageTemplatesFunc func(buildPackageRoot string) error
+	BundleFunc func(buildPackageRoot string) error
 }
 
-func (r *requiredInputsResolverMock) BundleInputPackageTemplates(buildPackageRoot string) error {
+func (r *requiredInputsResolverMock) Bundle(buildPackageRoot string) error {
+	if r.BundleFunc != nil {
+		return r.BundleFunc(buildPackageRoot)
+	}
 	return nil
 }
 

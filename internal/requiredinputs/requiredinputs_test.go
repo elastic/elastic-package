@@ -27,7 +27,7 @@ func (f *fakeEprClient) DownloadPackage(packageName string, packageVersion strin
 	return "", fmt.Errorf("download package not implemented")
 }
 
-func TestBundleInputPackageTemplates_Success(t *testing.T) {
+func TestBundle_Success(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
 	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
@@ -54,7 +54,7 @@ policy_templates:
 	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
@@ -68,13 +68,14 @@ policy_templates:
 	require.Equal(t, "sql", updatedManifest.Requires.Input[0].Package)
 	require.Equal(t, "0.1.0", updatedManifest.Requires.Input[0].Version)
 
-	require.Equal(t, "sql", updatedManifest.PolicyTemplates[0].Inputs[0].Package)
+	require.Equal(t, "sql", updatedManifest.PolicyTemplates[0].Inputs[0].Type)
+	require.Empty(t, updatedManifest.PolicyTemplates[0].Inputs[0].Package)
 	require.Len(t, updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths, 1)
 	require.Equal(t, "sql-input.yml.hbs", updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths[0])
 
 }
 
-func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
+func TestBundle_NoManifest(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
 	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
@@ -86,12 +87,12 @@ func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
 	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to read package manifest")
 }
 
-func TestBundleInputPackageTemplates_SkipNoIntegration(t *testing.T) {
+func TestBundle_SkipNoIntegration(t *testing.T) {
 	fakeInputPath := createFakeInputHelper(t)
 	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
@@ -110,11 +111,11 @@ type: input
 	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 }
 
-func TestBundleInputPackageTemplates_NoRequires(t *testing.T) {
+func TestBundle_NoRequires(t *testing.T) {
 	fakeEprClient := &fakeEprClient{
 		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
 			return "", fmt.Errorf("no download without requires")
@@ -135,7 +136,7 @@ policy_templates:
 	resolver, err := NewRequiredInputsResolver(fakeEprClient)
 	require.NoError(t, err)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	updatedManifestBytes, err := os.ReadFile(path.Join(buildPackageRoot, "manifest.yml"))

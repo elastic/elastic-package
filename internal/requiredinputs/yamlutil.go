@@ -48,6 +48,22 @@ func upsertKey(node *yaml.Node, key string, value *yaml.Node) {
 	node.Content = append(node.Content, keyNode, value)
 }
 
+// cloneNode returns a deep copy of the YAML node tree so base nodes from the
+// input package can be reused for multiple independent merges without aliasing.
+func cloneNode(n *yaml.Node) *yaml.Node {
+	if n == nil {
+		return nil
+	}
+	clone := *n
+	if len(n.Content) > 0 {
+		clone.Content = make([]*yaml.Node, len(n.Content))
+		for i, c := range n.Content {
+			clone.Content[i] = cloneNode(c)
+		}
+	}
+	return &clone
+}
+
 func formatYAMLNode(doc *yaml.Node) ([]byte, error) {
 	raw, err := yaml.Marshal(doc)
 	if err != nil {

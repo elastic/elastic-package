@@ -1,0 +1,38 @@
+format_version: 3.6.0
+name: with_merging_promotes_to_input
+title: Variable Merging - Promotes to Input Var
+description: >-
+  Composable package whose policy template overrides the "paths" variable from
+  the input package. This causes "paths" to be promoted from a data stream
+  variable to an input variable and merged. "encoding" and "timeout" remain as
+  data stream variables.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: var_merging_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: var_merging_logs
+    title: Var Merging Logs
+    description: Collect logs via var merging input package
+    data_streams:
+      - var_merging_logs
+    inputs:
+      - package: var_merging_input_pkg
+        title: Collect logs via var merging input package
+        description: Use the var merging input package to collect logs
+        vars:
+          - name: paths
+            default:
+              - /var/log/custom/*.log
+owner:
+  github: elastic/integrations
+  type: elastic

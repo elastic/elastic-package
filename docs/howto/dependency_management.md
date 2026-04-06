@@ -112,9 +112,12 @@ requires:
 ```
 
 This type of dependency is resolved at **build time** by downloading the required input package
-from the **package registry**. During `elastic-package build`, agent templates from the
-required input packages are fetched and bundled into the built integration so that Fleet can
-merge them at policy creation time.
+from the **package registry**. During `elastic-package build`, elastic-package fetches those
+packages and updates the built integration: it bundles agent templates (policy and data stream),
+merges variable definitions from the input packages into the composable manifest, adds data
+stream field definitions where configured, and rewrites `package:` references on inputs and
+streams to the concrete input types Fleet needs. Fleet still merges policy-specific values at
+policy creation time.
 
 Unlike field-level dependencies (which are resolved from Git references and cached locally),
 package dependencies are fetched from the configured package registry URL

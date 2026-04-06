@@ -20,9 +20,12 @@ type eprClient interface {
 	DownloadPackage(packageName string, packageVersion string, tmpDir string) (string, error)
 }
 
-// Resolver bundles required input package templates into a built package tree.
+// Resolver enriches a built integration package using required input packages from the registry:
+// policy and data stream templates, merged manifest variables, data stream field definitions,
+// and resolution of package: references on inputs and streams to the effective input type
+// from the required input package, where applicable.
 type Resolver interface {
-	BundleInputPackageTemplates(buildPackageRoot string) error
+	Bundle(buildPackageRoot string) error
 }
 
 // NoopRequiredInputsResolver is a no-op implementation of Resolver.
@@ -30,24 +33,31 @@ type Resolver interface {
 // when implementing local input package resolution for development and testing workflows.
 type NoopRequiredInputsResolver struct{}
 
-func (r *NoopRequiredInputsResolver) BundleInputPackageTemplates(_ string) error {
+func (r *NoopRequiredInputsResolver) Bundle(_ string) error {
 	return nil
 }
 
-// RequiredInputsResolver is a helper for resolving required input packages.
+// RequiredInputsResolver implements Resolver by downloading required input packages via an EPR client
+// and applying Bundle to the built package tree.
 type RequiredInputsResolver struct {
 	eprClient eprClient
 }
 
-// NewRequiredInputsResolver returns a Resolver that downloads required input packages from the registry.
+// NewRequiredInputsResolver returns a Resolver backed by eprClient. Required input packages are
+// downloaded when Bundle runs.
 func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
 	return &RequiredInputsResolver{
 		eprClient: eprClient,
 	}, nil
 }
 
-func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot string) error {
-
+// Bundle updates buildPackageRoot (a built package directory) for integrations that declare
+// requires.input: it downloads those input packages, copies policy and data stream templates,
+// merges variables into the integration manifest, bundles data stream field definitions, and
+// replaces package: references on policy template inputs and data stream streams with the
+// concrete input type from the referenced input package (last, after variable merge).
+// Non-integration packages or packages without requires.input are left unchanged.
+func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 	buildRoot, err := os.OpenRoot(buildPackageRoot)
 	if err != nil {
 		return fmt.Errorf("failed to open build package root: %w", err)
@@ -68,7 +78,7 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 		return nil
 	}
 	if manifest.Requires == nil || len(manifest.Requires.Input) == 0 {
-		logger.Debug("Package has no required input packages, skipping template bundling")
+		logger.Debug("Package has no required input packages, skipping required input processing")
 		return nil
 	}
 
@@ -89,6 +99,18 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 
 	if err := r.bundleDataStreamTemplates(inputPkgPaths, buildRoot); err != nil {
 		return fmt.Errorf("failed to bundle data stream input package templates: %w", err)
+	}
+
+	if err := r.mergeVariables(manifest, inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("merging variables from input packages: %w", err)
+	}
+
+	if err := r.bundleDataStreamFields(inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("bundling data stream fields from input packages: %w", err)
+	}
+
+	if err := r.resolveStreamInputTypes(manifest, inputPkgPaths, buildRoot); err != nil {
+		return fmt.Errorf("resolving stream input types from input packages: %w", err)
 	}
 
 	return nil
