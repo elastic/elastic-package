@@ -4,3 +4,7 @@ streams:
   - package: filelog_otel
     title: Nginx access logs via filelog OTel receiver
     description: Collect Nginx access log files using the filelog receiver from the filelog_otel input package.
+    vars:
+      - name: include
+        default:
+          - /var/log/nginx/access.log*

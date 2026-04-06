@@ -1,4 +1,2 @@
 vars:
-  include:
-    - /var/log/nginx/access.log*
   start_at: beginning
