@@ -1,0 +1,47 @@
+format_version: 3.6.0
+name: nginx_composable
+title: "Nginx (composable)"
+version: 0.1.0
+source:
+  license: "Elastic-2.0"
+description: >-
+  Collect logs and metrics from Nginx using OTel-based input packages.
+  This package tests composable integration support: it depends on the
+  filelog_otel input package for log collection, the nginx_otel_input
+  input package for metrics, and the nginx_otel content package for dashboards.
+type: integration
+categories:
+  - web
+  - observability
+  - opentelemetry
+conditions:
+  kibana:
+    version: "^9.2.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: filelog_otel
+      version: "0.2.0"
+    - package: nginx_otel_input
+      version: "0.2.0"
+  content:
+    - package: nginx_otel
+      version: "^0.3.0"
+policy_templates:
+  - name: nginx
+    title: Nginx logs and metrics
+    description: Collect logs and metrics from Nginx instances
+    data_streams:
+      - access
+      - stubstatus
+    inputs:
+      - package: filelog_otel
+        title: Collect Nginx access logs via filelog OTel receiver
+        description: Use the filelog_otel input package to tail Nginx access log files.
+      - package: nginx_otel_input
+        title: Collect Nginx stub status metrics via OTel receiver
+        description: Use the nginx_otel_input package to scrape Nginx stub_status metrics.
+owner:
+  github: elastic/ecosystem
+  type: elastic
