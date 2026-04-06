@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
 	kibanatest "github.com/elastic/elastic-package/internal/kibana/test"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestRequiredProvider(t *testing.T) {
@@ -47,6 +48,10 @@ func (r *requiredInputsResolverMock) Bundle(buildPackageRoot string) error {
 	if r.BundleFunc != nil {
 		return r.BundleFunc(buildPackageRoot)
 	}
+	return nil
+}
+
+func (r *requiredInputsResolverMock) ResolveInputTypes(_ *packages.PackageManifest, _ []packages.DataStreamManifest) error {
 	return nil
 }
 

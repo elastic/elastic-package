@@ -630,29 +630,37 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := appConfig.PackageRegistryBaseURL()
+	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
+	if err != nil {
+		return fmt.Errorf("creating required inputs resolver failed: %w", err)
+	}
+
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", info.Version.Number)
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:              profile,
-		PackageRoot:          packageRoot,
-		KibanaClient:         kibanaClient,
-		SchemaURLs:           appConfig.SchemaURLs(),
-		API:                  esClient.API,
-		ESClient:             esClient,
-		ConfigFilePath:       configFileFlag,
-		RunSetup:             runSetup,
-		RunTearDown:          runTearDown,
-		RunTestsOnly:         runTestsOnly,
-		DataStreams:          dataStreams,
-		ServiceVariant:       variantFlag,
-		FailOnMissingTests:   failOnMissing,
-		GenerateTestResult:   generateTestResult,
-		DeferCleanup:         deferCleanup,
-		GlobalTestConfig:     globalTestConfig.System,
-		WithCoverage:         testCoverage,
-		CoverageType:         testCoverageFormat,
-		RepositoryRoot:       repositoryRoot,
-		OverrideAgentVersion: agentVersion,
+		Profile:                profile,
+		PackageRoot:            packageRoot,
+		KibanaClient:           kibanaClient,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		API:                    esClient.API,
+		ESClient:               esClient,
+		ConfigFilePath:         configFileFlag,
+		RunSetup:               runSetup,
+		RunTearDown:            runTearDown,
+		RunTestsOnly:           runTestsOnly,
+		DataStreams:            dataStreams,
+		ServiceVariant:         variantFlag,
+		FailOnMissingTests:     failOnMissing,
+		GenerateTestResult:     generateTestResult,
+		DeferCleanup:           deferCleanup,
+		GlobalTestConfig:       globalTestConfig.System,
+		WithCoverage:           testCoverage,
+		CoverageType:           testCoverageFormat,
+		RepositoryRoot:         repositoryRoot,
+		OverrideAgentVersion:   agentVersion,
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 
 	logger.Debugf("Running suite...")

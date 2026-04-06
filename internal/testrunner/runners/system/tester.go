@@ -35,6 +35,7 @@ import (
 	"github.com/elastic/elastic-package/internal/multierror"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -239,6 +240,8 @@ type tester struct {
 
 	kibanaPolicyOverrides map[string]any
 
+	requiredInputsResolver requiredinputs.Resolver
+
 	// Execution order of following handlers is defined in runner.TearDown() method.
 	removeAgentHandler        func(context.Context) error
 	deleteTestPolicyHandler   func(context.Context) error
@@ -273,6 +276,8 @@ type SystemTesterOptions struct {
 	RunSetup     bool
 	RunTearDown  bool
 	RunTestsOnly bool
+
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewSystemTester(options SystemTesterOptions) (*tester, error) {
@@ -296,6 +301,7 @@ func NewSystemTester(options SystemTesterOptions) (*tester, error) {
 		coverageType:               options.CoverageType,
 		runIndependentElasticAgent: true,
 		overrideAgentVersion:       options.OverrideAgentVersion,
+		requiredInputsResolver:     options.RequiredInputsResolver,
 	}
 	r.resourcesManager = resources.NewManager()
 	r.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: r.kibanaClient})
@@ -1111,7 +1117,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
+	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot, r.requiredInputsResolver)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
 	}
@@ -1929,6 +1935,7 @@ func CreatePackagePolicy(
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 	packageRoot string,
+	resolver requiredinputs.Resolver,
 ) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
 	if pkg.Type == "input" {
 		p := kibana.BuildInputPackagePolicy(
@@ -1949,6 +1956,21 @@ func CreatePackagePolicy(
 	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
+	}
+
+	// Resolve package: references so BuildIntegrationPackagePolicy sees concrete input types.
+	// allDatastreams is resolved in-place; ds is then updated from the resolved slice so both
+	// the policy builder and the data stream reference agree on the input type.
+	if resolver != nil {
+		if err := resolver.ResolveInputTypes(pkg, allDatastreams); err != nil {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("resolving input types from required input packages: %w", err)
+		}
+		for i := range allDatastreams {
+			if allDatastreams[i].Name == ds.Name {
+				ds = &allDatastreams[i]
+				break
+			}
+		}
 	}
 
 	p, err := kibana.BuildIntegrationPackagePolicy(

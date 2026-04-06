@@ -26,6 +26,13 @@ type eprClient interface {
 // from the required input package, where applicable.
 type Resolver interface {
 	Bundle(buildPackageRoot string) error
+
+	// ResolveInputTypes resolves package: references in-place on:
+	//   - manifest.PolicyTemplates[].Inputs[] (sets Type, clears Package)
+	//   - each element of dataStreams[].Streams[] (sets Input, clears Package)
+	// It is a no-op when manifest.Requires is nil or has no input dependencies.
+	// This allows policy builders to work with source manifests without a prior build.
+	ResolveInputTypes(manifest *packages.PackageManifest, dataStreams []packages.DataStreamManifest) error
 }
 
 // NoopRequiredInputsResolver is a no-op implementation of Resolver.
@@ -34,6 +41,10 @@ type Resolver interface {
 type NoopRequiredInputsResolver struct{}
 
 func (r *NoopRequiredInputsResolver) Bundle(_ string) error {
+	return nil
+}
+
+func (r *NoopRequiredInputsResolver) ResolveInputTypes(_ *packages.PackageManifest, _ []packages.DataStreamManifest) error {
 	return nil
 }
 
@@ -49,6 +60,67 @@ func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, er
 	return &RequiredInputsResolver{
 		eprClient: eprClient,
 	}, nil
+}
+
+// ResolveInputTypes resolves package: references in-place on policy template inputs and
+// data stream stream entries by downloading the required input packages and reading their
+// input type identifiers. It is a no-op when manifest.Requires has no input dependencies.
+func (r *RequiredInputsResolver) ResolveInputTypes(manifest *packages.PackageManifest, dataStreams []packages.DataStreamManifest) error {
+	if manifest.Requires == nil || len(manifest.Requires.Input) == 0 {
+		return nil
+	}
+
+	tmpDir, err := os.MkdirTemp("", "elastic-package-input-pkgs-*")
+	if err != nil {
+		return fmt.Errorf("creating temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	inputPkgPaths, err := r.mapRequiredInputPackagesPaths(manifest.Requires.Input, tmpDir)
+	if err != nil {
+		return err
+	}
+
+	infoByPkg := make(map[string]inputPkgInfo, len(inputPkgPaths))
+	for pkgName, pkgPath := range inputPkgPaths {
+		info, err := loadInputPkgInfo(pkgPath)
+		if err != nil {
+			return fmt.Errorf("loading input package info for %q: %w", pkgName, err)
+		}
+		infoByPkg[pkgName] = info
+	}
+
+	for ptIdx := range manifest.PolicyTemplates {
+		for inputIdx := range manifest.PolicyTemplates[ptIdx].Inputs {
+			input := &manifest.PolicyTemplates[ptIdx].Inputs[inputIdx]
+			if input.Package == "" {
+				continue
+			}
+			info, ok := infoByPkg[input.Package]
+			if !ok {
+				return fmt.Errorf("input package %q referenced in policy_templates[%d].inputs[%d] not found in requires.input", input.Package, ptIdx, inputIdx)
+			}
+			input.Type = info.identifier
+			input.Package = ""
+		}
+	}
+
+	for dsIdx := range dataStreams {
+		for streamIdx := range dataStreams[dsIdx].Streams {
+			stream := &dataStreams[dsIdx].Streams[streamIdx]
+			if stream.Package == "" {
+				continue
+			}
+			info, ok := infoByPkg[stream.Package]
+			if !ok {
+				return fmt.Errorf("input package %q referenced in data stream %q streams[%d] not found in requires.input", stream.Package, dataStreams[dsIdx].Name, streamIdx)
+			}
+			stream.Input = info.identifier
+			stream.Package = ""
+		}
+	}
+
+	return nil
 }
 
 // Bundle updates buildPackageRoot (a built package directory) for integrations that declare

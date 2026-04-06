@@ -107,6 +107,10 @@ func (r *requiredInputsResolverMock) Bundle(buildPackageRoot string) error {
 	return nil
 }
 
+func (r *requiredInputsResolverMock) ResolveInputTypes(_ *packages.PackageManifest, _ []packages.DataStreamManifest) error {
+	return nil
+}
+
 func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) error {
 	buildDir := filepath.Join(repositoryRoot.Name(), "build")
 	err := os.MkdirAll(buildDir, 0o755)
