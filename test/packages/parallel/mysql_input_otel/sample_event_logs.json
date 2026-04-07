@@ -1,0 +1,121 @@
+{
+    "@timestamp": "2026-04-07T13:27:54.607Z",
+    "attributes": {
+        "client": {
+            "address": "172.29.0.2",
+            "port": 48332
+        },
+        "db": {
+            "namespace": "",
+            "query": {
+                "text": "SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE ( TABLE_ROWS, ? ), COALESCE ( AVG_ROW_LENGTH, ? ), COALESCE ( DATA_LENGTH, ? ), COALESCE ( INDEX_LENGTH, ? ) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT in ( ? )"
+            },
+            "system": {
+                "name": "mysql"
+            }
+        },
+        "mysql": {
+            "event_id": 5,
+            "events_statements_current": {
+                "digest": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+            },
+            "events_waits_current": {
+                "timer_wait": 0
+            },
+            "threads": {
+                "processlist_command": "Query",
+                "processlist_state": "Opening tables",
+                "thread_id": 52
+            },
+            "wait_type": "other"
+        },
+        "network": {
+            "peer": {
+                "address": "172.29.0.2",
+                "port": 48332
+            }
+        },
+        "user": {
+            "name": "root"
+        }
+    },
+    "client": {
+        "address": "172.29.0.2",
+        "port": 48332
+    },
+    "data_stream": {
+        "dataset": "mysqlreceiver.otel",
+        "namespace": "97979",
+        "type": "logs"
+    },
+    "db": {
+        "namespace": "",
+        "query": {
+            "text": "SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE ( TABLE_ROWS, ? ), COALESCE ( AVG_ROW_LENGTH, ? ), COALESCE ( DATA_LENGTH, ? ), COALESCE ( INDEX_LENGTH, ? ) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT in ( ? )"
+        },
+        "system": {
+            "name": "mysql"
+        }
+    },
+    "event": {
+        "dataset": "mysqlreceiver.otel"
+    },
+    "event_name": "db.server.query_sample",
+    "host": {
+        "name": "elastic-agent-75030",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "mysql": {
+        "event_id": 5,
+        "events_statements_current": {
+            "digest": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+        },
+        "events_waits_current": {
+            "timer_wait": 0
+        },
+        "threads": {
+            "processlist_command": "Query",
+            "processlist_state": "Opening tables",
+            "thread_id": 52
+        },
+        "wait_type": "other"
+    },
+    "network": {
+        "peer": {
+            "address": "172.29.0.2",
+            "port": 48332
+        }
+    },
+    "observed_timestamp": "1970-01-01T00:00:00.000Z",
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-75030"
+            },
+            "os": {
+                "type": "linux"
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
+        "version": "9.4.0"
+    },
+    "span": {
+        "id": "b5890df7e2f59ece"
+    },
+    "span_id": "b5890df7e2f59ece",
+    "trace": {
+        "id": "c6236594c33ddc9a25f604748ced5b06"
+    },
+    "trace_id": "c6236594c33ddc9a25f604748ced5b06",
+    "user": {
+        "name": "root"
+    }
+}

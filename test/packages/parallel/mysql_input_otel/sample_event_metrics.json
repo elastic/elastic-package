@@ -1,0 +1,58 @@
+{
+    "@timestamp": "2026-04-07T13:27:54.607Z",
+    "_metric_names_hash": "8402b118dcca946a",
+    "attributes": {
+        "kind": "merge_passes"
+    },
+    "data_stream": {
+        "dataset": "mysqlreceiver.otel",
+        "namespace": "97979",
+        "type": "metrics"
+    },
+    "event": {
+        "dataset": "mysqlreceiver.otel"
+    },
+    "host": {
+        "name": "elastic-agent-75030",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "kind": "merge_passes",
+    "metrics": {
+        "mysql": {
+            "sorts": 0
+        }
+    },
+    "mysql": {
+        "instance": {
+            "endpoint": "svc-mysql_input_otel:3306"
+        },
+        "sorts": 0
+    },
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-75030"
+            },
+            "mysql": {
+                "instance": {
+                    "endpoint": "svc-mysql_input_otel:3306"
+                }
+            },
+            "os": {
+                "type": "linux"
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
+        "version": "9.4.0"
+    },
+    "start_timestamp": "2026-04-07T13:27:53.591Z",
+    "unit": "1"
+}
