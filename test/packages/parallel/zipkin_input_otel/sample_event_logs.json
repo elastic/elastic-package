@@ -1,0 +1,50 @@
+{
+    "@timestamp": "2026-04-07T10:57:35.581Z",
+    "agent": {
+        "name": "otlp",
+        "version": "unknown"
+    },
+    "attributes": {
+        "event": {
+            "name": "wr"
+        },
+        "timestamp": {
+            "us": 1775559455581041
+        }
+    },
+    "data_stream": {
+        "dataset": "generic.otel",
+        "namespace": "88673",
+        "type": "logs"
+    },
+    "event": {
+        "dataset": "generic.otel",
+        "name": "wr"
+    },
+    "event_name": "wr",
+    "resource": {
+        "attributes": {
+            "agent": {
+                "name": "otlp",
+                "version": "unknown"
+            },
+            "service": {
+                "name": "backend"
+            }
+        }
+    },
+    "service": {
+        "name": "backend"
+    },
+    "span": {
+        "id": "e86a426e61162cce"
+    },
+    "span_id": "e86a426e61162cce",
+    "timestamp": {
+        "us": 1775559455581041
+    },
+    "trace": {
+        "id": "0000000000000000e86a426e61162cce"
+    },
+    "trace_id": "0000000000000000e86a426e61162cce"
+}

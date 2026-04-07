@@ -1,43 +1,42 @@
 {
-    "@timestamp": "2026-03-23T18:56:05.948Z",
-    "_metric_names_hash": "8986448896debcf6",
+    "@timestamp": "2026-04-07T11:01:48.409Z",
+    "_metric_names_hash": "7ee276998c966647",
+    "attributes": {
+        "performance_counter": {
+            "object_name": "SQLServer:Buffer Node"
+        }
+    },
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "73861",
+        "namespace": "19985",
         "type": "metrics"
     },
     "event": {
-        "agent_id_status": "missing",
-        "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-03-23T18:56:15Z"
+        "dataset": "sqlserverreceiver.otel"
     },
     "host": {
-        "name": "elastic-agent-75417",
+        "name": "elastic-agent-10224",
         "os": {
             "platform": "linux"
         }
     },
     "metrics": {
         "sqlserver": {
-            "batch": {
-                "request": {
-                    "rate": 65
-                }
-            },
-            "lock": {
-                "wait": {
-                    "rate": 5
-                }
+            "page": {
+                "life_expectancy": 22
             }
         }
     },
     "os": {
         "type": "linux"
     },
+    "performance_counter": {
+        "object_name": "SQLServer:Buffer Node"
+    },
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-75417"
+                "name": "elastic-agent-10224"
             },
             "os": {
                 "type": "linux"
@@ -48,7 +47,7 @@
                 }
             }
         },
-        "schema_url": "https://opentelemetry.io/schemas/1.38.0"
+        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
     },
     "scope": {
         "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
@@ -63,17 +62,10 @@
         }
     },
     "sqlserver": {
-        "batch": {
-            "request": {
-                "rate": 65
-            }
-        },
-        "lock": {
-            "wait": {
-                "rate": 5
-            }
+        "page": {
+            "life_expectancy": 22
         }
     },
-    "start_timestamp": "2026-03-23T18:56:04.825Z",
-    "unit": "{requests}/s"
+    "start_timestamp": "2026-04-07T11:01:47.281Z",
+    "unit": "s"
 }

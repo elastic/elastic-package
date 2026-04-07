@@ -1,0 +1,111 @@
+{
+    "@timestamp": "2026-04-07T10:57:35.580Z",
+    "agent": {
+        "name": "otlp",
+        "version": "unknown"
+    },
+    "attributes": {
+        "event": {
+            "outcome": "success",
+            "success_count": 1
+        },
+        "http": {
+            "method": "GET",
+            "path": "/api"
+        },
+        "net": {
+            "host": {
+                "ip": "172.30.0.2"
+            },
+            "peer": {
+                "ip": "172.30.0.3",
+                "port": 45894
+            }
+        },
+        "processor": {
+            "event": "transaction"
+        },
+        "timestamp": {
+            "us": 1775559455580995
+        },
+        "transaction": {
+            "duration": {
+                "us": 709
+            },
+            "id": "e86a426e61162cce",
+            "name": "GET /api",
+            "representative_count": 1,
+            "result": "Success",
+            "root": true,
+            "sampled": true,
+            "type": "request"
+        }
+    },
+    "data_stream": {
+        "dataset": "generic.otel",
+        "namespace": "88673",
+        "type": "traces"
+    },
+    "duration": 709000,
+    "event": {
+        "dataset": "generic.otel",
+        "outcome": "success",
+        "success_count": 1
+    },
+    "http": {
+        "method": "GET",
+        "path": "/api"
+    },
+    "kind": "Server",
+    "name": "GET /api",
+    "net": {
+        "host": {
+            "ip": "172.30.0.2"
+        },
+        "peer": {
+            "ip": "172.30.0.3",
+            "port": 45894
+        }
+    },
+    "processor": {
+        "event": "transaction"
+    },
+    "resource": {
+        "attributes": {
+            "agent": {
+                "name": "otlp",
+                "version": "unknown"
+            },
+            "service": {
+                "name": "backend"
+            }
+        }
+    },
+    "service": {
+        "name": "backend"
+    },
+    "span": {
+        "id": "e86a426e61162cce",
+        "name": "GET /api"
+    },
+    "span_id": "e86a426e61162cce",
+    "timestamp": {
+        "us": 1775559455580995
+    },
+    "trace": {
+        "id": "0000000000000000e86a426e61162cce"
+    },
+    "trace_id": "0000000000000000e86a426e61162cce",
+    "transaction": {
+        "duration": {
+            "us": 709
+        },
+        "id": "e86a426e61162cce",
+        "name": "GET /api",
+        "representative_count": 1,
+        "result": "Success",
+        "root": true,
+        "sampled": true,
+        "type": "request"
+    }
+}
