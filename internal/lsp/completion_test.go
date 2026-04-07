@@ -169,6 +169,18 @@ streams:
 `)
 	items = completeManifestItems(dataStreamManifestPath, packageRoot, documentText, pos)
 	assert.NotNil(t, findCompletionItem(items, "enabled"))
+
+	// Cursor at column 0 on a blank line (editors without YAML auto-indent):
+	// should suggest subkeys of the parent block, not root-level keys.
+	ownerDoc := "owner:\n"
+	ownerItems := completeManifestItems(manifestPath, packageRoot, ownerDoc, protocol.Position{Line: 1, Character: 0})
+	assert.NotNil(t, findCompletionItem(ownerItems, "github"))
+	assert.Nil(t, findCompletionItem(ownerItems, "name"), "root keys must not appear inside owner block")
+
+	conditionsDoc := "conditions:\n  kibana:\n"
+	condItems := completeManifestItems(manifestPath, packageRoot, conditionsDoc, protocol.Position{Line: 2, Character: 0})
+	assert.NotNil(t, findCompletionItem(condItems, "version"))
+	assert.Nil(t, findCompletionItem(condItems, "name"), "root keys must not appear inside conditions.kibana block")
 }
 
 func TestCompleteManifestItemsSuggestsSchemaValues(t *testing.T) {

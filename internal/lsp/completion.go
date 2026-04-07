@@ -283,6 +283,14 @@ func resolveManifestCompletionContext(documentText string, pos protocol.Position
 		return manifestCompletionContext{}, false
 	}
 
+	// When the cursor is at column 0 on a blank line (common in editors that
+	// don't auto-indent YAML), synthesise leading spaces from context so that
+	// path resolution finds the right schema node instead of falling back to
+	// the root level.
+	if pos.Character == 0 && strings.TrimSpace(lines[lineNum]) == "" {
+		linePrefix = inferBlankLineIndent(lines, lineNum)
+	}
+
 	if context, ok := resolveManifestValueContext(lines, lineNum, linePrefix); ok {
 		return context, true
 	}
@@ -417,4 +425,25 @@ func max(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// inferBlankLineIndent returns a string of spaces representing the inferred
+// indentation for a blank line. It looks backward for the nearest non-blank
+// line: if that line is a bare key (no inline value), it returns indent+2 to
+// represent the inside of a new block; otherwise it returns the same indent as
+// the previous line (a sibling position).
+func inferBlankLineIndent(lines []string, lineNum int) string {
+	for i := lineNum - 1; i >= 0; i-- {
+		line := lines[i]
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		indent := yamlIndent(line)
+		_, _, hasInlineValue := yamlKeyDetails(line)
+		if !hasInlineValue {
+			return strings.Repeat(" ", indent+2)
+		}
+		return strings.Repeat(" ", indent)
+	}
+	return ""
 }
