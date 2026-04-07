@@ -172,10 +172,13 @@ streams:
 
 	// Cursor at column 0 on a blank line (editors without YAML auto-indent):
 	// should suggest subkeys of the parent block, not root-level keys.
-	ownerDoc := "owner:\n"
-	ownerItems := completeManifestItems(manifestPath, packageRoot, ownerDoc, protocol.Position{Line: 1, Character: 0})
-	assert.NotNil(t, findCompletionItem(ownerItems, "github"))
-	assert.Nil(t, findCompletionItem(ownerItems, "name"), "root keys must not appear inside owner block")
+	// Also covers the case where the document has an empty line but the editor
+	// sends pos.Character > 0 (cursor past end-of-line).
+	for _, char := range []uint32{0, 2, 5} {
+		ownerItems := completeManifestItems(manifestPath, packageRoot, "owner:\n", protocol.Position{Line: 1, Character: char})
+		assert.NotNil(t, findCompletionItem(ownerItems, "github"), "char=%d: expected owner subkey", char)
+		assert.Nil(t, findCompletionItem(ownerItems, "name"), "char=%d: root key must not appear inside owner block", char)
+	}
 
 	conditionsDoc := "conditions:\n  kibana:\n"
 	condItems := completeManifestItems(manifestPath, packageRoot, conditionsDoc, protocol.Position{Line: 2, Character: 0})
@@ -225,6 +228,28 @@ streams:
 `)
 	items = completeManifestItems(dataStreamManifestPath, packageRoot, documentText, pos)
 	assert.NotNil(t, findCompletionItem(items, "true"))
+
+	// categories: array-of-enum — completions on both "- |" list item and inline value
+	documentText, pos = completionDocument(t, `categories:
+  - |
+`)
+	items = completeManifestItems(manifestPath, packageRoot, documentText, pos)
+	assert.NotNil(t, findCompletionItem(items, "security"))
+	assert.NotNil(t, findCompletionItem(items, "observability"))
+
+	documentText, pos = completionDocument(t, `categories: sec|`)
+	items = completeManifestItems(manifestPath, packageRoot, documentText, pos)
+	assert.NotNil(t, findCompletionItem(items, "security"))
+
+	// conditions.elastic.subscription values
+	documentText, pos = completionDocument(t, `conditions:
+  elastic:
+    subscription: |
+`)
+	items = completeManifestItems(manifestPath, packageRoot, documentText, pos)
+	assert.NotNil(t, findCompletionItem(items, "basic"))
+	assert.NotNil(t, findCompletionItem(items, "gold"))
+	assert.NotNil(t, findCompletionItem(items, "enterprise"))
 }
 
 func TestCompleteFieldTypeValuesSuggestsKnownTypes(t *testing.T) {

@@ -166,7 +166,9 @@ func completeManifestItems(filePath, packageRoot, documentText string, pos proto
 func completeManifestKeyItems(kind manifestSchemaKind, context manifestCompletionContext) []protocol.CompletionItem {
 	keys, fromArray := manifestChildKeys(context.path, kind)
 	if len(keys) == 0 {
-		return nil
+		// The array may hold scalar enum values rather than objects (e.g.
+		// "categories"). Return enum values directly without a ": " suffix.
+		return completeArrayEnumItems(kind, context)
 	}
 
 	insertPrefix := ""
@@ -194,6 +196,28 @@ func completeManifestKeyItems(kind manifestSchemaKind, context manifestCompletio
 			}
 		}
 		items = append(items, item)
+	}
+	return items
+}
+
+// completeArrayEnumItems handles the case where the current path points to an
+// array whose items are scalar enum values (e.g. "categories"). It returns the
+// enum values as completion items without a ": " suffix.
+func completeArrayEnumItems(kind manifestSchemaKind, context manifestCompletionContext) []protocol.CompletionItem {
+	values := manifestValueCandidates(context.path, kind)
+	if len(values) == 0 {
+		return nil
+	}
+	enumKind := protocol.CompletionItemKindEnumMember
+	var items []protocol.CompletionItem
+	for _, value := range values {
+		if context.prefix != "" && !strings.HasPrefix(value, context.prefix) {
+			continue
+		}
+		items = append(items, protocol.CompletionItem{
+			Label: value,
+			Kind:  &enumKind,
+		})
 	}
 	return items
 }
@@ -283,11 +307,12 @@ func resolveManifestCompletionContext(documentText string, pos protocol.Position
 		return manifestCompletionContext{}, false
 	}
 
-	// When the cursor is at column 0 on a blank line (common in editors that
-	// don't auto-indent YAML), synthesise leading spaces from context so that
-	// path resolution finds the right schema node instead of falling back to
-	// the root level.
-	if pos.Character == 0 && strings.TrimSpace(lines[lineNum]) == "" {
+	// When the effective indent is zero on a blank line, the cursor may be
+	// past the end of the (empty) line — linePrefixAtPosition clamps to the
+	// line length, so pos.Character > 0 still yields linePrefix "". In both
+	// cases infer the indent from the surrounding context so that path
+	// resolution finds the right schema node instead of falling back to root.
+	if strings.TrimSpace(lines[lineNum]) == "" && yamlIndent(linePrefix) == 0 {
 		linePrefix = inferBlankLineIndent(lines, lineNum)
 	}
 

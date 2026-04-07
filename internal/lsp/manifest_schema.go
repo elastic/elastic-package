@@ -424,6 +424,21 @@ func (l *manifestSchemaLoader) valueCandidates(schemaPath string, node map[strin
 		}
 	}
 
+	// For array types, surface enum values from the items schema so that
+	// both inline ("categories: sec") and list-item ("- sec") contexts
+	// get value suggestions.
+	if items, ok := current["items"]; ok {
+		itemValues, err := l.valueCandidates(schemaPath, asMap(items))
+		if err == nil {
+			for _, value := range itemValues {
+				if _, ok := seen[value]; !ok {
+					seen[value] = struct{}{}
+					out = append(out, value)
+				}
+			}
+		}
+	}
+
 	return out, nil
 }
 
