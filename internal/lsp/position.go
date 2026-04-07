@@ -206,7 +206,7 @@ func findJSONPropertyValueRange(text, key, value string) (protocol.Range, bool) 
 
 		return protocol.Range{
 			Start: protocol.Position{Line: uint32(lineIndex), Character: uint32(start + 1)},
-			End:   protocol.Position{Line: uint32(lineIndex), Character: uint32(start + 1 + len(value))},
+			End:   protocol.Position{Line: uint32(lineIndex), Character: uint32(start + len(quotedValue) - 1)},
 		}, true
 	}
 

@@ -67,7 +67,8 @@ for line in sys.stdin:
 }
 
 extract_diags() {
-  sed 's/Content-Length: [0-9]*/\n---/g' | grep publishDiagnostics | print_diags
+  sed 's/Content-Length: [0-9]*/\
+---/g' | grep publishDiagnostics | print_diags
 }
 
 # ─── Scenario 1: Valid package ────────────────────────────────────────────────
@@ -91,7 +92,7 @@ fi
 # ─── Scenario 2: Broken package ──────────────────────────────────────────────
 
 BROKEN_DIR=$(mktemp -d)
-trap "rm -rf $BROKEN_DIR" EXIT
+trap 'rm -rf "$BROKEN_DIR"' EXIT
 
 mkdir -p "$BROKEN_DIR/data_stream/mystream"
 cat > "$BROKEN_DIR/manifest.yml" << 'YAML'

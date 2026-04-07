@@ -383,7 +383,7 @@ func (l *manifestSchemaLoader) childProperties(schemaPath string, node map[strin
 }
 
 func (l *manifestSchemaLoader) valueCandidates(schemaPath string, node map[string]any) ([]string, error) {
-	_, current, err := l.normalize(schemaPath, node)
+	schemaPath, current, err := l.normalize(schemaPath, node)
 	if err != nil {
 		return nil, err
 	}
