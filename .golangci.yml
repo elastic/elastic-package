@@ -1,0 +1,41 @@
+version: "2"
+
+linters:
+  enable:
+    - contextcheck
+    - exhaustive
+    - gocognit
+    - gocyclo
+    - nilerr
+    - revive
+    - unparam
+    - unused
+
+  settings:
+    gocyclo:
+      min-complexity: 15
+    gocognit:
+      min-complexity: 20
+    revive:
+      rules:
+        - name: argument-limit
+          arguments: [8]
+
+  exclusions:
+    rules:
+      # defer x.Close() errors are conventionally ignored.
+      - linters: [errcheck]
+        text: 'Error return value of `.+\.Close` is not checked'
+
+      # fmt.Fprint* write to io.Writer sinks (stderr, logs) where errors are
+      # not actionable — callers cannot recover from a write failure there.
+      - linters: [errcheck]
+        text: 'Error return value of `fmt\.Fprint'
+
+      # Test helpers: network mock servers ignore conn.Write, io.ReadFull errors.
+      - linters: [errcheck]
+        path: '_test\.go'
+
+      # Cyclomatic and cognitive complexity are expected to be high in large test functions.
+      - linters: [gocyclo, gocognit]
+        path: '_test\.go'
