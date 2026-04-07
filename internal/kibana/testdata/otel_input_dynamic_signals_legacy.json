@@ -1,0 +1,42 @@
+{
+  "name": "otel-dynamic-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "enabled": true,
+  "package": {
+    "name": "otel_dynamic_input",
+    "title": "OTel Dynamic Signals Input Package",
+    "version": "0.1.0"
+  },
+  "inputs": [
+    {
+      "policy_template": "sqlreceiver",
+      "type": "otelcol",
+      "enabled": true,
+      "vars": {
+        "data_stream.dataset": {
+          "value": "generic.otel",
+          "type": "text"
+        }
+      },
+      "streams": [
+        {
+          "enabled": true,
+          "data_stream": {
+            "type": "",
+            "dataset": "generic.otel"
+          },
+          "vars": {
+            "data_stream.dataset": {
+              "value": "generic.otel",
+              "type": "text"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "output_id": "",
+  "force": false
+}

@@ -1974,9 +1974,17 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
 		if scenario.policyTemplate.Input == otelCollectorInputName {
-			// Input packages whose input is `otelcol` must add the `.otel` suffix
-			// Example: httpcheck.metrics.otel
-			expectedDataset += "." + otelSuffixDataset
+			if scenario.policyTemplate.DynamicSignalTypes {
+				// For dynamic_signal_types packages, Fleet stores "generic.otel" as the
+				// policy dataset, but the OTel collector routes documents to scope-based
+				// data streams (e.g. <policyTemplateName>.otel). Derive the expected
+				// dataset from the policy template name, not the policy variable.
+				expectedDataset = scenario.policyTemplate.Name + "." + otelSuffixDataset
+			} else {
+				// Input packages whose input is `otelcol` must add the `.otel` suffix
+				// Example: httpcheck.metrics.otel
+				expectedDataset += "." + otelSuffixDataset
+			}
 			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).
 			expectedDatasets = []string{expectedDataset, "generic." + otelSuffixDataset}
 		} else {
