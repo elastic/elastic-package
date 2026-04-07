@@ -88,6 +88,8 @@ func (r *runner) run(ctx context.Context) (reporters.Reportable, error) {
 	switch r.options.Format {
 	case ReportFormatHuman:
 		return reporters.NewReport(r.options.Folder.Package, formattedReport), nil
+	case ReportFormatJSON, ReportFormatXUnit:
+		// handled below
 	}
 
 	return reporters.NewFileReport(

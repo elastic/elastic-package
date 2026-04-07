@@ -54,6 +54,6 @@ func Version() string {
 		sb.WriteString(Tag)
 		sb.WriteString(" ")
 	}
-	sb.WriteString(fmt.Sprintf("version-hash %s (build time: %s)", CommitHash, buildTimeFormatted()))
+	fmt.Fprintf(&sb, "version-hash %s (build time: %s)", CommitHash, buildTimeFormatted())
 	return sb.String()
 }

@@ -427,10 +427,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			case common.MapStr:
 				// Replace map keys
 				for k, e := range val {
-					key := k
 					if regexp.MatchString(k) {
 						delete(val, k)
-						key = regexp.ReplaceAllString(k, replacement)
+						key := regexp.ReplaceAllString(k, replacement)
 						val[key] = e
 					}
 				}

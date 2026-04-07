@@ -77,14 +77,13 @@ type VarValue struct {
 
 // Unpack knows how to parse a variable value from a package or data stream
 // manifest file into a VarValue.
-func (vv *VarValue) Unpack(value interface{}) error {
+func (vv *VarValue) Unpack(value interface{}) {
 	switch u := value.(type) {
 	case []interface{}:
 		vv.list = u
 	default:
 		vv.scalar = u
 	}
-	return nil
 }
 
 // MarshalJSON knows how to serialize a VarValue into the appropriate
@@ -436,7 +435,7 @@ func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, err
 	if err != nil {
 		return nil, fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	contents, err := extractPackageManifestZipPackage(zipPackage, PackageManifestFile)
 	if err != nil {

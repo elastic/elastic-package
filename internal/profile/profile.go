@@ -247,7 +247,7 @@ func LoadProfileFrom(dir, profileName string) (*Profile, error) {
 		return nil, err
 	}
 
-	err = profile.migrate(currentVersion)
+	err = profile.migrate()
 	if err != nil {
 		return nil, fmt.Errorf("error migrating profile to version %v: %w", currentVersion, err)
 	}

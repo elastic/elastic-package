@@ -56,8 +56,8 @@ func renderSampleEvent(packageRoot, dataStreamName string) (string, error) {
 	if dataStreamName == "" {
 		builder.WriteString("An example event looks as following:\n\n")
 	} else {
-		builder.WriteString(fmt.Sprintf("An example event for `%s` looks as following:\n\n",
-			stripDataStreamFolderSuffix(dataStreamName)))
+		fmt.Fprintf(&builder, "An example event for `%s` looks as following:\n\n",
+			stripDataStreamFolderSuffix(dataStreamName))
 	}
 	builder.WriteString("```json\n")
 	builder.Write(bytes.TrimSpace(formatted))

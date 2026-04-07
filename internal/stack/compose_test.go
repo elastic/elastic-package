@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/elastic/elastic-package/internal/docker"
 )
@@ -164,8 +163,7 @@ func TestNewServiceStatus(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			serviceStatus, err := newServiceStatus(&c.description)
-			require.NoError(t, err)
+			serviceStatus := newServiceStatus(&c.description)
 			assert.Equal(t, &c.expected, serviceStatus)
 		})
 	}

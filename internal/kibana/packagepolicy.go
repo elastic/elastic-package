@@ -224,10 +224,9 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr) {
 	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
 		var val packages.VarValue
-		if err := val.Unpack(raw); err == nil {
-			setVarFromUser(vars, "data_stream.dataset", "text", val)
-			return
-		}
+		val.Unpack(raw)
+		setVarFromUser(vars, "data_stream.dataset", "text", val)
+		return
 	}
 	if v, found := vars["data_stream.dataset"]; found {
 		// Exists as a manifest default; promote it so ToMapStr includes it.

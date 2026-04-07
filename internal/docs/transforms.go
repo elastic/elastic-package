@@ -64,13 +64,12 @@ func renderTransformPaths(repositoryRoot *os.Root, packageRoot string, schemaURL
 	sort.Strings(keys)
 
 	for _, name := range keys {
-		renderedDocs.WriteString(fmt.Sprintf("\n#### %s\n", escaper.Replace(name)))
+		fmt.Fprintf(&renderedDocs, "\n#### %s\n", escaper.Replace(name))
 		transform := transformPaths[name]
 		// get the description from the nested map
 		description, ok := transform.NestedMap["description"]
 		if ok {
-			renderedDocs.WriteString(fmt.Sprintf(
-				"* Description: %s\n", escaper.Replace(description)))
+			fmt.Fprintf(&renderedDocs, "* Description: %s\n", escaper.Replace(description))
 		}
 		// get the source from the nested map
 		source, ok := transform.NestedMap["source.index"]
@@ -81,8 +80,7 @@ func renderTransformPaths(repositoryRoot *os.Root, packageRoot string, schemaURL
 			}
 		}
 		if ok {
-			renderedDocs.WriteString(fmt.Sprintf(
-				"* Source Index: %s\n", escaper.Replace(source)))
+			fmt.Fprintf(&renderedDocs, "* Source Index: %s\n", escaper.Replace(source))
 		}
 		// get the dest from the nested map
 		dest, ok := transform.NestedMap["dest.index"]
@@ -93,8 +91,7 @@ func renderTransformPaths(repositoryRoot *os.Root, packageRoot string, schemaURL
 			}
 		}
 		if ok {
-			renderedDocs.WriteString(fmt.Sprintf(
-				"* Destination Index: %s\n", escaper.Replace(dest)))
+			fmt.Fprintf(&renderedDocs, "* Destination Index: %s\n", escaper.Replace(dest))
 		}
 
 		// now, render the transform fields

@@ -46,9 +46,18 @@ func NewCommand(cmd *cobra.Command, context CommandContext) *Command {
 	return &c
 }
 
+// MustMarkFlagRequired marks a flag as required and panics if the flag does not exist.
+// This mirrors the behaviour of cobra's MarkFlagsRequiredTogether and similar helpers
+// that do not return an error because a missing flag name is always a programmer mistake.
+func MustMarkFlagRequired(cmd *cobra.Command, name string) {
+	if err := cmd.MarkFlagRequired(name); err != nil {
+		panic(fmt.Sprintf("marking flag %q as required: %v", name, err))
+	}
+}
+
 // Name returns the name of the elastic-package command.
 func (c *Command) Name() string {
-	return c.Command.Use
+	return c.Use
 }
 
 // Short returns a short description for the elastic-package command.

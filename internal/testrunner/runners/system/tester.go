@@ -1813,7 +1813,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	logger.Info("Validating test case...")
-	expectedDatasets, err := r.expectedDatasets(scenario, config)
+	expectedDatasets, err := r.expectedDatasets(scenario)
 	if err != nil {
 		return nil, err
 	}
@@ -1947,7 +1947,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([]string, error) {
+func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
