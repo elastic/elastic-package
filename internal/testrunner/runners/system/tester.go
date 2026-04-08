@@ -1029,8 +1029,8 @@ type scenarioTest struct {
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
-		// Include hidden data streams (e.g. APM connector rollup streams) so they
-		// are also removed during cleanup.
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to ensure they are deleted too.
 		r.esAPI.Indices.DeleteDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
@@ -1069,7 +1069,8 @@ func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]di
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
-		// Include hidden data streams (e.g. APM connector rollup streams).
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to find them too.
 		r.esAPI.Indices.GetDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
@@ -1500,15 +1501,13 @@ var apmRollupDataStreamPattern = regexp.MustCompile(`^metrics-.*\.(1m|10m|60m)\.
 // filterOtelAPMRollupDataStreams removes APM connector-generated rollup data streams
 // from the discovered list. It logs an info message for each filtered stream.
 func filterOtelAPMRollupDataStreams(streams []discoveredDataStream) []discoveredDataStream {
-	filtered := streams[:0:0]
-	for _, s := range streams {
+	return slices.DeleteFunc(streams, func(s discoveredDataStream) bool {
 		if apmRollupDataStreamPattern.MatchString(s.name) {
 			logger.Infof("Skipping APM connector-generated data stream %q", s.name)
-			continue
+			return true
 		}
-		filtered = append(filtered, s)
-	}
-	return filtered
+		return false
+	})
 }
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
