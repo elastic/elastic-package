@@ -613,12 +613,14 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	var merr multierror.Error
+
 	// This handler should be run before shutting down Elastic Agents (agent deployer)
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
@@ -628,47 +630,50 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
 		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
-	if r.cleanTestScenarioHandler != nil {
-		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.cleanTestScenarioHandler = nil
-	}
-
 	if r.resetAgentLogLevelHandler != nil {
 		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.removeAgentHandler != nil {
 		if err := r.removeAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.removeAgentHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.deleteTestPolicyHandler = nil
 	}
 
-	return nil
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			merr = append(merr, err)
+		}
+		r.cleanTestScenarioHandler = nil
+	}
+
+	if len(merr) == 0 {
+		return nil
+	}
+	return merr
 }
 
 func (r *tester) newResult(name string) *testrunner.ResultComposer {
