@@ -283,11 +283,7 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/otel_traces_use_apm_legacy.json",
 		},
 		{
-			// Input package with dynamic_signal_types: true. Fleet now uses
-			// "generic.otel" as the stream path/dataset for such packages, so
-			// BuildInputPackagePolicy must use "generic.otel" as the stream key
-			// and the data_stream.dataset variable value.
-			name:               "otel_input_dynamic_signals",
+			name:               "otel_dynamic_signal_types_default_dataset",
 			packageRoot:        "testdata/packages/otel_dynamic_input",
 			policyTemplateName: "sqlreceiver",
 			policyName:         "otel-dynamic-test",
@@ -529,11 +525,11 @@ func TestEnsureDatasetVar(t *testing.T) {
 			wantDataset:    "sql_query",
 		},
 		{
-			name:           "dynamic_signal_types uses generic.otel",
+			name:           "dynamic_signal_types falls back to policy template name",
 			vars:           Vars{},
 			policyTemplate: packages.PolicyTemplate{Name: "sqlreceiver", DynamicSignalTypes: true},
 			varValues:      common.MapStr{},
-			wantDataset:    "generic.otel",
+			wantDataset:    "sqlreceiver",
 		},
 	}
 

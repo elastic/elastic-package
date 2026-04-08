@@ -161,12 +161,7 @@ func BuildInputPackagePolicy(
 	}
 
 	// Dataset key for the stream: <package name>.<policy template name>.
-	// For packages with dynamic_signal_types, Fleet uses "generic.otel" as the
-	// stream path, so we must match that key in the simplified API request.
 	streamDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
-	if policyTemplate.DynamicSignalTypes {
-		streamDataset = "generic.otel"
-	}
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
 	ensureDatasetVar(vars, policyTemplate, varValues)
@@ -240,9 +235,6 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 		return
 	}
 	dataset := policyTemplate.Name
-	if policyTemplate.DynamicSignalTypes {
-		dataset = "generic.otel"
-	}
 	for _, def := range policyTemplate.Vars {
 		if def.Name == "data_stream.dataset" && def.Default != nil {
 			if s, ok := def.Default.Value().(string); ok && s != "" {

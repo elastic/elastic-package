@@ -11,10 +11,10 @@
     "sqlreceiver-otelcol": {
       "enabled": true,
       "streams": {
-        "generic.otel": {
+        "otel_dynamic_input.sqlreceiver": {
           "enabled": true,
           "vars": {
-            "data_stream.dataset": "generic.otel"
+            "data_stream.dataset": "sqlreceiver"
           }
         }
       }

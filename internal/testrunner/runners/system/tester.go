@@ -1978,12 +1978,11 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 		if scenario.policyTemplate.Input == otelCollectorInputName {
 			// Input packages whose input is `otelcol` must add the `.otel` suffix.
 			// The suffix is conditional to avoid double-appending when the stored dataset
-			// already ends in `.otel` (e.g. "generic.otel").
+			// already ends in `.otel` (user-configured via data_stream.dataset).
 			if !strings.HasSuffix(expectedDataset, "."+otelSuffixDataset) {
 				expectedDataset += "." + otelSuffixDataset
 			}
-			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).
-			expectedDatasets = []string{expectedDataset, "generic." + otelSuffixDataset}
+			expectedDatasets = []string{expectedDataset}
 		} else {
 			expectedDatasets = []string{expectedDataset}
 		}

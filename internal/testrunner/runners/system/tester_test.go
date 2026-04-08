@@ -534,11 +534,11 @@ func TestBuildDataStreamName(t *testing.T) {
 		{
 			title:          "otelcol input: no double-suffix when dataset already ends in .otel",
 			dsType:         "logs",
-			dsDataset:      "generic.otel",
+			dsDataset:      "custom.otel",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
 			packageType:    "input",
-			expected:       "logs-generic.otel-default",
+			expected:       "logs-custom.otel-default",
 		},
 		{
 			title:          "otelcol input on integration package type: no suffix added",
@@ -574,20 +574,20 @@ func TestExpectedDatasets(t *testing.T) {
 			expected: []string{"nginx.access"},
 		},
 		{
-			title: "otelcol input: .otel suffix appended and generic.otel included",
+			title: "otelcol input: .otel suffix appended",
 			scenario: &scenarioTest{
 				dataStreamDataset: "httpcheck",
 				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
 			},
-			expected: []string{"httpcheck.otel", "generic.otel"},
+			expected: []string{"httpcheck.otel"},
 		},
 		{
-			title: "otelcol input with generic.otel dataset: no double-suffix",
+			title: "otelcol input with user dataset already ending in .otel: no double-suffix",
 			scenario: &scenarioTest{
 				dataStreamDataset: "generic.otel",
 				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
 			},
-			expected: []string{"generic.otel", "generic.otel"},
+			expected: []string{"generic.otel"},
 		},
 		{
 			title: "otelcol dynamic_signal_types: uses stored dataset, not policyTemplate.Name",
@@ -599,10 +599,10 @@ func TestExpectedDatasets(t *testing.T) {
 					DynamicSignalTypes: true,
 				},
 			},
-			expected: []string{"sqlserverreceiver.otel", "generic.otel"},
+			expected: []string{"sqlserverreceiver.otel"},
 		},
 		{
-			title: "otelcol dynamic_signal_types with generic.otel dataset: no double-suffix",
+			title: "otelcol dynamic_signal_types with user dataset already ending in .otel: no double-suffix",
 			scenario: &scenarioTest{
 				dataStreamDataset: "generic.otel",
 				policyTemplate: packages.PolicyTemplate{
@@ -611,7 +611,7 @@ func TestExpectedDatasets(t *testing.T) {
 					DynamicSignalTypes: true,
 				},
 			},
-			expected: []string{"generic.otel", "generic.otel"},
+			expected: []string{"generic.otel"},
 		},
 	}
 

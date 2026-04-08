@@ -16,7 +16,7 @@
       "enabled": true,
       "vars": {
         "data_stream.dataset": {
-          "value": "generic.otel",
+          "value": "sqlreceiver",
           "type": "text"
         }
       },
@@ -25,11 +25,11 @@
           "enabled": true,
           "data_stream": {
             "type": "",
-            "dataset": "generic.otel"
+            "dataset": "otel_dynamic_input.sqlreceiver"
           },
           "vars": {
             "data_stream.dataset": {
-              "value": "generic.otel",
+              "value": "sqlreceiver",
               "type": "text"
             }
           }
