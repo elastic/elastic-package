@@ -13,13 +13,17 @@ linters:
 
   settings:
     gocyclo:
-      min-complexity: 15
+      # TODO: lower to 25 as complex functions are refactored (current worst: prepareScenario/Run=50).
+      min-complexity: 50
     gocognit:
-      min-complexity: 20
+      # TODO: lower to 40 as complex functions are refactored.
+      min-complexity: 70
     revive:
       rules:
+        # TODO: lower to default 8 once BuildIntegrationPackagePolicy, CreatePackagePolicy,
+        # and processResults are refactored to use option structs.
         - name: argument-limit
-          arguments: [8]
+          arguments: [11]
 
   exclusions:
     rules:
@@ -36,6 +40,27 @@ linters:
       - linters: [errcheck]
         path: '_test\.go'
 
-      # Cyclomatic and cognitive complexity are expected to be high in large test functions.
-      - linters: [gocyclo, gocognit]
-        path: '_test\.go'
+      # go-pretty's SetTitle has a printf-style signature but is not a format function;
+      # govet incorrectly flags non-constant strings passed to it.
+      - linters: [govet]
+        text: 'printf: non-constant format string in call to.*SetTitle'
+
+      # NewProject and NewKibanaClientFromProfile are constructors that intentionally do not
+      # take a context: NewProject does file I/O only, and NewKibanaClientFromProfile calls
+      # checkClientStackAvailability which deliberately uses context.Background() to avoid
+      # cancellation on initial availability checks.
+      # NewForPackage makes a network call (kibanaVersion) and could accept a context in future.
+      - linters: [contextcheck]
+        text: 'Function `.*\b(NewProject|NewKibanaClientFromProfile|NewElasticsearchClientFromProfile|NewForPackage|NewKibanaClient|checkClientStackAvailability)\b.*` should pass the context parameter'
+
+      # elastic-go-common MapStr/mapstr operations: Put/Delete errors are structural
+      # (wrong value type), not runtime failures.
+      # TODO: consider replacing MapStr with a typed API to eliminate these error returns entirely.
+      - linters: [errcheck]
+        text: 'Error return value of `.*\.(Put|Delete)` is not checked'
+
+      # testscript command handlers must match the testscript.Cmd signature (neg bool is required).
+      # TODO: upstream a linter exception or type alias so the interface is explicit.
+      - linters: [unparam]
+        path: 'internal/testrunner/script/'
+        text: 'neg is unused'

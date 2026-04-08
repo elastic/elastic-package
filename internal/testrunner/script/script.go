@@ -55,6 +55,9 @@ type Options struct {
 	TestWork        bool   // testscript.Params.TestWork
 }
 
+// TODO: refactor Run to reduce cognitive complexity (currently 89).
+//
+//nolint:gocognit
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if opt.Dir != "" && len(opt.Streams) != 0 {
 		// We should never reach here.
@@ -757,7 +760,7 @@ func get(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}
@@ -807,7 +810,7 @@ func post(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}

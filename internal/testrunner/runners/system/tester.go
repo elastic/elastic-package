@@ -702,7 +702,7 @@ func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []t
 	if err != nil {
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -2560,7 +2560,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for logs: %w", err)
 	}
-	defer os.Remove(f.Name())
+	defer os.Remove(f.Name()) //nolint:errcheck // best-effort cleanup of temp file
 
 	for _, patternsContainer := range errorPatterns {
 		if patternsContainer.containerName != "elastic-agent" {

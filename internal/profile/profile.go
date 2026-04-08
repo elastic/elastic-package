@@ -99,7 +99,7 @@ func createProfile(options Options, resources []resource.Resource) error {
 		"profile_path":  profileDir,
 	})
 
-	os.MkdirAll(profileDir, 0o755)
+	os.MkdirAll(profileDir, 0o755) //nolint:errcheck // subsequent resource writes will fail with a clear error if this fails
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: profileDir,
 	})

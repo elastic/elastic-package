@@ -47,7 +47,7 @@ func (p *Project) runDockerComposeCmd(ctx context.Context, opts dockerComposeOpt
 	defer ptty.Close()
 	logger.Tracef("running command: %s", cmd)
 
-	io.Copy(stderr, ptty)
+	io.Copy(stderr, ptty) //nolint:errcheck // PTY closes with EOF when the process exits; the real error is captured by cmd.Wait()
 
 	if err := cmd.Wait(); err != nil {
 		if msg := cleanComposeError(errBuffer.String()); len(msg) > 0 {
