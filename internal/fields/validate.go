@@ -820,10 +820,10 @@ func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition, logg
 				multifields = append(multifields, k)
 				continue
 			}
-			warnMsg := fmt.Sprintf("not able to add key %s: %s", k, err)
-			if _, alreadyWarned := loggedWarnings[warnMsg]; !alreadyWarned {
-				logger.Warnf(warnMsg)
-				loggedWarnings[warnMsg] = struct{}{}
+			warnKey := k + ":" + err.Error()
+			if _, alreadyWarned := loggedWarnings[warnKey]; !alreadyWarned {
+				logger.Warnf("not able to add key %s: %s", k, err)
+				loggedWarnings[warnKey] = struct{}{}
 			}
 			continue
 		}
