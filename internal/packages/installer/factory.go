@@ -56,7 +56,6 @@ func NewForPackage(options Options) (Installer, error) {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
 	// Zip-only installs validate and upload the archive; they do not use the repository tree.
-	// Building from package source still requires RepositoryRoot (license copy, links, etc.).
 	if options.RepositoryRoot == nil && options.ZipPath == "" {
 		return nil, errors.New("missing repository root")
 	}
