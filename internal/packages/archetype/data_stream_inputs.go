@@ -85,7 +85,7 @@ func unpackVars(output *[]packages.Variable, input []InputVariable) {
 		newVar.Description = inputVar.Description
 		if inputVar.Default != nil {
 			newVar.Default = &packages.VarValue{}
-			newVar.Default.Unpack(inputVar.Default)
+			newVar.Default.MustUnpack(inputVar.Default)
 		}
 		*output = append(*output, newVar)
 	}

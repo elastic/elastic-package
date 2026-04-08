@@ -75,14 +75,29 @@ type VarValue struct {
 	list   []interface{}
 }
 
+// Compile-time assertion that VarValue implements go-ucfg's Unpacker interface,
+// which is required for go-ucfg to deserialize manifest fields into VarValue.
+var _ ucfg.Unpacker = (*VarValue)(nil)
+
 // Unpack knows how to parse a variable value from a package or data stream
-// manifest file into a VarValue.
-func (vv *VarValue) Unpack(value interface{}) {
+// manifest file into a VarValue. It implements go-ucfg's Unpacker interface
+// and always returns nil.
+func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
 	case []interface{}:
 		vv.list = u
 	default:
 		vv.scalar = u
+	}
+	return nil
+}
+
+// MustUnpack sets the VarValue from value. It panics if Unpack returns an error,
+// which cannot happen in the current implementation but would surface immediately
+// if Unpack ever gains a real error path.
+func (vv *VarValue) MustUnpack(value interface{}) {
+	if err := vv.Unpack(value); err != nil {
+		panic(fmt.Sprintf("unpacking VarValue: %v", err))
 	}
 }
 

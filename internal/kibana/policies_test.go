@@ -20,7 +20,7 @@ func TestVarsToMapStr(t *testing.T) {
 		// (e.g. ssl: |- ... ), it must not be double-encoded.
 		yamlStr := "verification_mode: none\ncertificate: /etc/pki/cert.pem\n"
 		var sslValue packages.VarValue
-		sslValue.Unpack(yamlStr)
+		sslValue.MustUnpack(yamlStr)
 		vars := Vars{
 			"ssl": Var{Type: "yaml", Value: sslValue, fromUser: true},
 		}
@@ -37,7 +37,7 @@ func TestVarsToMapStr(t *testing.T) {
 		// simplified Fleet API only accepts strings for yaml-type vars, so
 		// ToMapStr must serialize the map to a YAML string.
 		var sslValue packages.VarValue
-		sslValue.Unpack(map[string]interface{}{"verification_mode": "none"})
+		sslValue.MustUnpack(map[string]interface{}{"verification_mode": "none"})
 		vars := Vars{
 			"ssl": Var{Type: "yaml", Value: sslValue, fromUser: true},
 		}
@@ -52,7 +52,7 @@ func TestVarsToMapStr(t *testing.T) {
 		// Comment-only YAML strings provided by the user are passed through unchanged.
 		commentOnly := "#- tz_short: AEST\n#  tz_long: Australia/Sydney\n"
 		var tzValue packages.VarValue
-		tzValue.Unpack(commentOnly)
+		tzValue.MustUnpack(commentOnly)
 		vars := Vars{
 			"tz_map": Var{Type: "yaml", Value: tzValue, fromUser: true},
 		}
@@ -65,7 +65,7 @@ func TestVarsToMapStr(t *testing.T) {
 
 	t.Run("non-yaml type is passed through as-is", func(t *testing.T) {
 		var val packages.VarValue
-		val.Unpack("http://localhost:8080")
+		val.MustUnpack("http://localhost:8080")
 		vars := Vars{
 			"url": Var{Type: "text", Value: val, fromUser: true},
 		}
@@ -91,7 +91,7 @@ func TestVarsToMapStr(t *testing.T) {
 		// Vars with fromUser==false (manifest defaults) must not appear in simplified
 		// API requests; the server applies them when compiling templates.
 		var val packages.VarValue
-		val.Unpack("UTC")
+		val.MustUnpack("UTC")
 		vars := Vars{
 			"tz_offset": Var{Type: "text", Value: val},
 		}
@@ -107,8 +107,8 @@ func TestToLegacyPackagePolicy(t *testing.T) {
 	// Build a PackagePolicy as BuildIntegrationPackagePolicy would produce it,
 	// then verify the legacy conversion has the right structure.
 	var periodVal, hostVal packages.VarValue
-	periodVal.Unpack("30s")
-	hostVal.Unpack("http://localhost:8080")
+	periodVal.MustUnpack("30s")
+	hostVal.MustUnpack("http://localhost:8080")
 
 	streamVars := Vars{
 		"period": Var{Type: "text", Value: periodVal},
@@ -183,7 +183,7 @@ func TestSetKibanaVariables(t *testing.T) {
 		def := packages.Variable{Name: name, Type: typ}
 		if defaultVal != nil {
 			vv := packages.VarValue{}
-			vv.Unpack(defaultVal)
+			vv.MustUnpack(defaultVal)
 			def.Default = &vv
 		}
 		return def

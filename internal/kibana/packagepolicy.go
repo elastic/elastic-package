@@ -224,9 +224,10 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr) {
 	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
 		var val packages.VarValue
-		val.Unpack(raw)
-		setVarFromUser(vars, "data_stream.dataset", "text", val)
-		return
+		if err := val.Unpack(raw); err == nil {
+			setVarFromUser(vars, "data_stream.dataset", "text", val)
+			return
+		}
 	}
 	if v, found := vars["data_stream.dataset"]; found {
 		// Exists as a manifest default; promote it so ToMapStr includes it.
@@ -243,7 +244,7 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 		}
 	}
 	var value packages.VarValue
-	value.Unpack(dataset)
+	value.MustUnpack(dataset)
 	setVarFromUser(vars, "data_stream.dataset", "text", value)
 }
 
@@ -258,13 +259,13 @@ func ensureUseAPMVar(vars Vars, varValues common.MapStr) {
 	var val packages.VarValue
 	switch v := raw.(type) {
 	case bool:
-		val.Unpack(v)
+		val.MustUnpack(v)
 	case string:
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return
 		}
-		val.Unpack(b)
+		val.MustUnpack(b)
 	default:
 		return
 	}
