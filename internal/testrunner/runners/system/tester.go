@@ -1029,6 +1029,9 @@ type scenarioTest struct {
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
+		// Include hidden data streams (e.g. APM connector rollup streams) so they
+		// are also removed during cleanup.
+		r.esAPI.Indices.DeleteDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
@@ -1066,6 +1069,8 @@ func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]di
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
+		// Include hidden data streams (e.g. APM connector rollup streams).
+		r.esAPI.Indices.GetDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %w", pattern, err)
