@@ -1305,42 +1305,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
 		logger.Debugf("Deleting data streams for test %s in namespace %s", r.configFileName, policy.Namespace)
 		pattern := fmt.Sprintf("*-*-%s", policy.Namespace)
-
 		if err := r.deleteDataStream(ctx, pattern); err != nil {
 			return fmt.Errorf("failed to delete data streams for test %s in namespace %s: %w", r.configFileName, policy.Namespace, err)
-		}
-
-		if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) {
-			return nil
-		}
-
-		// For those scenarios where there could be created data streams by the APM connector transforms,
-		// we need to retry the deletion a few times to ensure full cleanup.
-		if scenario.policyTemplate.DynamicSignalTypes || scenario.policyTemplate.Type == "traces" {
-			// APM connector transforms create rollup data streams asynchronously, so
-			// some streams may appear after the initial delete. Retry a few times to
-			// ensure full cleanup.
-			const maxCleanupAttempts = 3
-			for attempt := 1; attempt <= maxCleanupAttempts; attempt++ {
-				if err := r.deleteDataStream(ctx, pattern); err != nil {
-					return fmt.Errorf("failed to delete data streams for test %s in namespace %s: %w", r.configFileName, policy.Namespace, err)
-				}
-				// Sleep before checking: APM connector transforms create rollup data
-				// streams asynchronously, so waiting ensures the search reflects any
-				// streams that appeared after the delete.
-				time.Sleep(5 * time.Second)
-				remaining, err := r.searchDataStreams(ctx, []string{pattern})
-				if err != nil {
-					return fmt.Errorf("failed to check remaining data streams for namespace %s: %w", policy.Namespace, err)
-				}
-				if len(remaining) == 0 {
-					return nil
-				}
-				logger.Debugf("%d data stream(s) still present after cleanup attempt %d/%d for namespace %s, retrying...",
-					len(remaining), attempt, maxCleanupAttempts, policy.Namespace)
-			}
-			logger.Warnf("Some data streams in namespace %s could not be fully removed after %d cleanup attempts", policy.Namespace, maxCleanupAttempts)
-
 		}
 		return nil
 	}
