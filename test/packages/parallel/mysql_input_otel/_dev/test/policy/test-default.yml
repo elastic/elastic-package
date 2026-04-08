@@ -1,2 +1,1 @@
-vars:
-  data_stream.dataset: mysql_input_otel.test
+vars: ~

@@ -1,34 +1,35 @@
 {
-    "@timestamp": "2026-04-07T13:27:54.607Z",
-    "_metric_names_hash": "8402b118dcca946a",
+    "@timestamp": "2026-04-08T13:54:17.208Z",
+    "_metric_names_hash": "800d765540031faf",
     "attributes": {
-        "kind": "merge_passes"
+        "status": "overflow"
     },
     "data_stream": {
-        "dataset": "mysqlreceiver.otel",
-        "namespace": "97979",
+        "dataset": "mysql_input_otel.generic.otel",
+        "namespace": "53297",
         "type": "metrics"
     },
     "event": {
-        "dataset": "mysqlreceiver.otel"
+        "agent_id_status": "missing",
+        "dataset": "mysql_input_otel.generic.otel",
+        "ingested": "2026-04-08T13:54:27Z"
     },
     "host": {
-        "name": "elastic-agent-75030",
+        "name": "elastic-agent-23953",
         "os": {
             "platform": "linux"
         }
     },
-    "kind": "merge_passes",
     "metrics": {
         "mysql": {
-            "sorts": 0
+            "table_open_cache": 0
         }
     },
     "mysql": {
         "instance": {
             "endpoint": "svc-mysql_input_otel:3306"
         },
-        "sorts": 0
+        "table_open_cache": 0
     },
     "os": {
         "type": "linux"
@@ -36,7 +37,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-75030"
+                "name": "elastic-agent-23953"
             },
             "mysql": {
                 "instance": {
@@ -53,6 +54,7 @@
         "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
         "version": "9.4.0"
     },
-    "start_timestamp": "2026-04-07T13:27:53.591Z",
+    "start_timestamp": "2026-04-08T13:54:16.199Z",
+    "status": "overflow",
     "unit": "1"
 }

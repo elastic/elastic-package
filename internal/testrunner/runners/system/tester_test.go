@@ -503,6 +503,128 @@ func TestDiscoverDataStreams(t *testing.T) {
 	})
 }
 
+func TestBuildDataStreamName(t *testing.T) {
+	cases := []struct {
+		title          string
+		dsType         string
+		dsDataset      string
+		namespace      string
+		policyTemplate packages.PolicyTemplate
+		packageType    string
+		expected       string
+	}{
+		{
+			title:          "non-otelcol input: no suffix added",
+			dsType:         "logs",
+			dsDataset:      "nginx.access",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: "logfile"},
+			packageType:    "integration",
+			expected:       "logs-nginx.access-default",
+		},
+		{
+			title:          "otelcol input: .otel suffix appended",
+			dsType:         "logs",
+			dsDataset:      "httpcheck",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "input",
+			expected:       "logs-httpcheck.otel-default",
+		},
+		{
+			title:          "otelcol input: no double-suffix when dataset already ends in .otel",
+			dsType:         "logs",
+			dsDataset:      "generic.otel",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "input",
+			expected:       "logs-generic.otel-default",
+		},
+		{
+			title:          "otelcol input on integration package type: no suffix added",
+			dsType:         "metrics",
+			dsDataset:      "myreceiver",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "integration",
+			expected:       "metrics-myreceiver-default",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate, c.packageType)
+			assert.Equal(t, c.expected, got)
+		})
+	}
+}
+
+func TestExpectedDatasets(t *testing.T) {
+	cases := []struct {
+		title    string
+		scenario *scenarioTest
+		expected []string
+	}{
+		{
+			title: "non-otelcol package: dataset returned as-is",
+			scenario: &scenarioTest{
+				dataStreamDataset: "nginx.access",
+				policyTemplate:    packages.PolicyTemplate{Input: "logfile"},
+			},
+			expected: []string{"nginx.access"},
+		},
+		{
+			title: "otelcol input: .otel suffix appended and generic.otel included",
+			scenario: &scenarioTest{
+				dataStreamDataset: "httpcheck",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"httpcheck.otel", "generic.otel"},
+		},
+		{
+			title: "otelcol input with generic.otel dataset: no double-suffix",
+			scenario: &scenarioTest{
+				dataStreamDataset: "generic.otel",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"generic.otel", "generic.otel"},
+		},
+		{
+			title: "otelcol dynamic_signal_types: uses stored dataset, not policyTemplate.Name",
+			scenario: &scenarioTest{
+				dataStreamDataset: "sqlserverreceiver",
+				policyTemplate: packages.PolicyTemplate{
+					Name:               "sqlserverreceiver",
+					Input:              otelCollectorInputName,
+					DynamicSignalTypes: true,
+				},
+			},
+			expected: []string{"sqlserverreceiver.otel", "generic.otel"},
+		},
+		{
+			title: "otelcol dynamic_signal_types with generic.otel dataset: no double-suffix",
+			scenario: &scenarioTest{
+				dataStreamDataset: "generic.otel",
+				policyTemplate: packages.PolicyTemplate{
+					Name:               "sqlserverreceiver",
+					Input:              otelCollectorInputName,
+					DynamicSignalTypes: true,
+				},
+			},
+			expected: []string{"generic.otel", "generic.otel"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			r := &tester{}
+			got, err := r.expectedDatasets(c.scenario, nil)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, got)
+		})
+	}
+}
+
 func TestBuildDataStreamScenarios(t *testing.T) {
 	t.Run("standard single stream", func(t *testing.T) {
 		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}

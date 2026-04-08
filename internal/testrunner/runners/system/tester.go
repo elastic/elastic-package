@@ -1486,7 +1486,9 @@ func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate pac
 
 	// Input packages using the otel collector input require to add a specific dataset suffix
 	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
-		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
+		if !strings.HasSuffix(dataset, "."+otelSuffixDataset) {
+			dataset = dataset + "." + otelSuffixDataset
+		}
 	}
 
 	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
@@ -1974,15 +1976,10 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
 		if scenario.policyTemplate.Input == otelCollectorInputName {
-			if scenario.policyTemplate.DynamicSignalTypes {
-				// For dynamic_signal_types packages, Fleet stores "generic.otel" as the
-				// policy dataset, but the OTel collector routes documents to scope-based
-				// data streams (e.g. <policyTemplateName>.otel). Derive the expected
-				// dataset from the policy template name, not the policy variable.
-				expectedDataset = scenario.policyTemplate.Name + "." + otelSuffixDataset
-			} else {
-				// Input packages whose input is `otelcol` must add the `.otel` suffix
-				// Example: httpcheck.metrics.otel
+			// Input packages whose input is `otelcol` must add the `.otel` suffix.
+			// The suffix is conditional to avoid double-appending when the stored dataset
+			// already ends in `.otel` (e.g. "generic.otel").
+			if !strings.HasSuffix(expectedDataset, "."+otelSuffixDataset) {
 				expectedDataset += "." + otelSuffixDataset
 			}
 			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).

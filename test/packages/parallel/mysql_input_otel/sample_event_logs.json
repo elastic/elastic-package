@@ -1,9 +1,9 @@
 {
-    "@timestamp": "2026-04-07T13:27:54.607Z",
+    "@timestamp": "2026-04-08T13:54:17.208Z",
     "attributes": {
         "client": {
             "address": "172.29.0.2",
-            "port": 48332
+            "port": 39480
         },
         "db": {
             "namespace": "",
@@ -32,7 +32,7 @@
         "network": {
             "peer": {
                 "address": "172.29.0.2",
-                "port": 48332
+                "port": 39480
             }
         },
         "user": {
@@ -41,11 +41,11 @@
     },
     "client": {
         "address": "172.29.0.2",
-        "port": 48332
+        "port": 39480
     },
     "data_stream": {
-        "dataset": "mysqlreceiver.otel",
-        "namespace": "97979",
+        "dataset": "mysql_input_otel.generic.otel",
+        "namespace": "53297",
         "type": "logs"
     },
     "db": {
@@ -58,11 +58,13 @@
         }
     },
     "event": {
-        "dataset": "mysqlreceiver.otel"
+        "agent_id_status": "missing",
+        "dataset": "mysql_input_otel.generic.otel",
+        "ingested": "2026-04-08T13:54:27Z"
     },
     "event_name": "db.server.query_sample",
     "host": {
-        "name": "elastic-agent-75030",
+        "name": "elastic-agent-23953",
         "os": {
             "platform": "linux"
         }
@@ -85,7 +87,7 @@
     "network": {
         "peer": {
             "address": "172.29.0.2",
-            "port": 48332
+            "port": 39480
         }
     },
     "observed_timestamp": "1970-01-01T00:00:00.000Z",
@@ -95,7 +97,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-75030"
+                "name": "elastic-agent-23953"
             },
             "os": {
                 "type": "linux"
@@ -108,13 +110,13 @@
         "version": "9.4.0"
     },
     "span": {
-        "id": "b5890df7e2f59ece"
+        "id": "8439d48bb0ce6738"
     },
-    "span_id": "b5890df7e2f59ece",
+    "span_id": "8439d48bb0ce6738",
     "trace": {
-        "id": "c6236594c33ddc9a25f604748ced5b06"
+        "id": "2c3069c1a55670bee4d912639a0e184c"
     },
-    "trace_id": "c6236594c33ddc9a25f604748ced5b06",
+    "trace_id": "2c3069c1a55670bee4d912639a0e184c",
     "user": {
         "name": "root"
     }
