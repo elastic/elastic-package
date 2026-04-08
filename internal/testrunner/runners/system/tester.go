@@ -127,9 +127,9 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout           = 10 * time.Minute
-	waitForDynamicStreamsStableDuration = 10 * time.Second
-	dataStreamDiscoveryPollInterval     = 1 * time.Second
+	waitForDataDefaultTimeout                  = 10 * time.Minute
+	waitForDynamicStreamsStableDefaultDuration = 60 * time.Second
+	dataStreamDiscoveryPollInterval            = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -1102,7 +1102,7 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	waitForStableDuration := waitForDynamicStreamsStableDuration
+	waitForStableDuration := waitForDynamicStreamsStableDefaultDuration
 	if config.WaitForDynamicStreamsStable > 0 {
 		waitForStableDuration = config.WaitForDynamicStreamsStable
 	}
