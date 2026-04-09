@@ -42,7 +42,7 @@ func TestMigrationsFromLegacy(t *testing.T) {
 	}
 	assert.Equal(t, expectedMeta, profile.metadata)
 
-	err = profile.migrate(currentVersion)
+	err = profile.migrate()
 	require.NoError(t, err)
 
 	// Check that the in-memory profile is updated.

@@ -330,10 +330,7 @@ func (r *runner) run(ctx context.Context) (report reporters.Reportable, err erro
 		return nil, errors.New("timeout exceeded")
 	}
 
-	msum, err := r.collectAndSummarizeMetrics()
-	if err != nil {
-		return nil, fmt.Errorf("can't summarize metrics: %w", err)
-	}
+	msum := r.collectAndSummarizeMetrics()
 
 	if err := r.reindexData(ctx); err != nil {
 		return nil, fmt.Errorf("can't reindex data: %w", err)
@@ -400,10 +397,9 @@ func (r *runner) startMetricsColletion(ctx context.Context) {
 	r.mcollector.start(ctx)
 }
 
-func (r *runner) collectAndSummarizeMetrics() (*metricsSummary, error) {
+func (r *runner) collectAndSummarizeMetrics() *metricsSummary {
 	r.mcollector.stop()
-	sum, err := r.mcollector.summarize()
-	return sum, err
+	return r.mcollector.summarize()
 }
 
 func (r *runner) deleteDataStreamDocs(ctx context.Context, dataStream string) error {
@@ -929,13 +925,13 @@ type searchResponse struct {
 func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchResponse) error {
 	var bulkBodyBuilder strings.Builder
 	for _, hit := range sr.Hits {
-		bulkBodyBuilder.WriteString(fmt.Sprintf("{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID))
+		fmt.Fprintf(&bulkBodyBuilder, "{\"index\":{\"_index\":\"%s\",\"_id\":\"%s\"}}\n", indexName, hit.ID)
 		enriched := r.enrichEventWithBenchmarkMetadata(hit.Source)
 		src, err := json.Marshal(enriched)
 		if err != nil {
 			return fmt.Errorf("error decoding _source: %w", err)
 		}
-		bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+		fmt.Fprintf(&bulkBodyBuilder, "%s\n", string(src))
 	}
 
 	logger.Debugf("bulk request of %d events...", len(sr.Hits))

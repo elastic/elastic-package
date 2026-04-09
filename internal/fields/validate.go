@@ -853,7 +853,7 @@ func skipLeafOfObject(root, name string, specVersion semver.Version, schema []Fi
 	if root != "" {
 		key = root + "." + name
 	}
-	_, ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
+	ancestor := findAncestorElementDefinition(key, schema, func(key string, def *FieldDefinition) bool {
 		// Don't look for ancestors beyond root, these objects have been already traversed.
 		if len(key) < len(root) {
 			return false
@@ -916,7 +916,7 @@ func isArrayOfObjects(val any) bool {
 }
 
 func isFlattenedSubfield(key string, schema []FieldDefinition) bool {
-	_, ancestor := findAncestorElementDefinition(key, schema, func(_ string, def *FieldDefinition) bool {
+	ancestor := findAncestorElementDefinition(key, schema, func(_ string, def *FieldDefinition) bool {
 		return def.Type == "flattened"
 	})
 
@@ -971,7 +971,7 @@ func findParentElementDefinition(key string, fieldDefinitions []FieldDefinition)
 	return FindElementDefinition(parentKey, fieldDefinitions)
 }
 
-func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinition, cond func(string, *FieldDefinition) bool) (string, *FieldDefinition) {
+func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinition, cond func(string, *FieldDefinition) bool) *FieldDefinition {
 	for strings.Contains(key, ".") {
 		i := strings.LastIndex(key, ".")
 		key = key[:i]
@@ -980,11 +980,11 @@ func findAncestorElementDefinition(key string, fieldDefinitions []FieldDefinitio
 			continue
 		}
 		if cond(key, ancestor) {
-			return key, ancestor
+			return ancestor
 		}
 	}
 
-	return "", nil
+	return nil
 }
 
 // compareKeys checks if `searchedKey` matches with the given `key`. `key` can contain

@@ -360,6 +360,9 @@ func applyNormalization(node any, idMapping map[string]string) {
 	}
 }
 
+// TODO: refactor cleanPolicyMap to reduce cognitive complexity (currently 103).
+//
+//nolint:gocognit
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
 	for _, entry := range entries {
 		v, err := policyMap.GetValue(entry.name)
@@ -427,10 +430,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			case common.MapStr:
 				// Replace map keys
 				for k, e := range val {
-					key := k
 					if regexp.MatchString(k) {
 						delete(val, k)
-						key = regexp.ReplaceAllString(k, replacement)
+						key := regexp.ReplaceAllString(k, replacement)
 						val[key] = e
 					}
 				}

@@ -214,7 +214,7 @@ func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset
 func formatAssetsAsString(assets []packages.Asset) string {
 	var sb strings.Builder
 	for _, asset := range assets {
-		sb.WriteString(fmt.Sprintf("- %s\n", asset.String()))
+		fmt.Fprintf(&sb, "- %s\n", asset.String())
 	}
 	return sb.String()
 }

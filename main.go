@@ -40,7 +40,7 @@ func errIsInterruption(err error) bool {
 	}
 
 	var exitError *exec.ExitError
-	if errors.As(err, &exitError) && (*exitError).ProcessState.ExitCode() == 130 { // 130 -> subcommand killed by sigint
+	if errors.As(err, &exitError) && exitError.ExitCode() == 130 { // 130 -> subcommand killed by sigint
 		return true
 	}
 
