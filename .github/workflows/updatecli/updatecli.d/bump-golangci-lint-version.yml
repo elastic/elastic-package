@@ -40,5 +40,5 @@ targets:
     scmid: default
     spec:
       file: Makefile
-      matchpattern: 'GOLANGCI_LINT_VERSION \?= v[0-9.]+'
+      matchpattern: 'GOLANGCI_LINT_VERSION [?]= v[0-9.]+'
       replacepattern: 'GOLANGCI_LINT_VERSION ?= {{ source "latestVersion" }}'
