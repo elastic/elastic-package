@@ -1,0 +1,9 @@
+## CRITICAL FORMATTING REMINDERS
+- Every list MUST have an introductory sentence ending with colon
+- Use sentence case for headings: "Vendor-specific issues" not "Vendor-Specific Issues"
+- In lists, do not use bolding for conceptual emphasis.
+- NEVER use anchor links like [text](#section-name) - these break when published
+- NEVER use docs-content:// protocol links - use full https://www.elastic.co/... URLs
+- No exclamation points in body text
+- No ellipses (...)
+- Do not use first person (I, me, my) - address the user as "you"

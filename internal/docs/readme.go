@@ -69,7 +69,7 @@ func isReadmeUpToDate(repositoryRoot *os.Root, fileName, linksFilePath, packageR
 	logger.Debugf("Check if %s is up-to-date", fileName)
 
 	// the readme is generated within the package root, so source should be the packageRoot files too
-	rendered, shouldBeRendered, err := generateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
+	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
 	if err != nil {
 		return false, "", fmt.Errorf("generating readme file failed: %w", err)
 	}
@@ -132,7 +132,7 @@ func UpdateReadmes(repositoryRoot *os.Root, packageRoot, buildPackageRoot string
 func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot, buildPackageRoot string, schemaURLs fields.SchemaURLs) (string, error) {
 	logger.Debugf("Update the %s file", fileName)
 
-	rendered, shouldBeRendered, err := generateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
+	rendered, shouldBeRendered, err := GenerateReadme(repositoryRoot, fileName, linksFilePath, packageRoot, schemaURLs)
 	if err != nil {
 		return "", err
 	}
@@ -152,10 +152,10 @@ func updateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot,
 	return target, nil
 }
 
-// generateReadme function generates the readme file content
+// GenerateReadme function generates the readme file content
 // the readme takes a template that lives under the _dev/build/docs directory at the packageRoot.
 // the readme template reads data from the packageRoot directory.
-func generateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
+func GenerateReadme(repositoryRoot *os.Root, fileName, linksFilePath, packageRoot string, schemaURLs fields.SchemaURLs) ([]byte, bool, error) {
 	logger.Debugf("Generate %s file (package: %s)", fileName, packageRoot)
 	templatePath, found, err := findReadmeTemplatePath(fileName, packageRoot)
 	if err != nil {
