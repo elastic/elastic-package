@@ -13,6 +13,9 @@ JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit.xml
 else
 JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit-$(PLATFORM).xml
 endif
+GOLANGCI_LINT_VERSION ?= v2.11.4
+GOLANGCI_LINT_BINARY = $(PWD)/build/tools/golangci-lint-$(GOLANGCI_LINT_VERSION)
+
 
 .PHONY: build
 
@@ -29,8 +32,14 @@ format:
 install:
 	go install -ldflags "$(VERSION_LDFLAGS)" github.com/elastic/elastic-package
 
-lint:
-	go run honnef.co/go/tools/cmd/staticcheck ./...
+$(GOLANGCI_LINT_BINARY):
+	# Not using golangci-lint with go run as other tools because it has too many dependencies that would go to go.mod.
+	mkdir -p $(dir $@)
+	GOBIN=$(dir $@) go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	mv $(dir $@)golangci-lint $@
+
+lint: $(GOLANGCI_LINT_BINARY)
+	$(GOLANGCI_LINT_BINARY) run
 
 licenser:
 	go run github.com/elastic/go-licenser -license Elastic
@@ -76,10 +85,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.14-a5eef4f7-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.14-794fd882-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.4.0-9a772a93-SNAPSHOT
+	./scripts/test-stack-command.sh 9.4.0-624008de-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh

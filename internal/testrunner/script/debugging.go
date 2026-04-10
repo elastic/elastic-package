@@ -99,7 +99,9 @@ func getPolicy(ctx context.Context, cli *elasticsearch.API, name string) (string
 	}
 	defer resp.Body.Close()
 	var buf bytes.Buffer
-	io.Copy(&buf, resp.Body)
+	if _, err := io.Copy(&buf, resp.Body); err != nil {
+		return "", fmt.Errorf("reading response body: %w", err)
+	}
 	var body struct {
 		DataStreams []json.RawMessage `json:"data_streams"`
 	}

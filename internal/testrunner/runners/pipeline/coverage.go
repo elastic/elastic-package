@@ -67,10 +67,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 			if err != nil {
 				return nil, err
 			}
-			covered, class, err := coberturaForSinglePipeline(pipelineName, pipelineRelPath, src, pstats)
-			if err != nil {
-				return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
-			}
+			covered, class := coberturaForSinglePipeline(pipelineName, pipelineRelPath, src, pstats)
 			pkg.Classes = append(pkg.Classes, class)
 			cobertura.LinesValid += int64(len(class.Methods))
 			cobertura.LinesCovered += covered
@@ -91,10 +88,7 @@ func getPipelineCoverage(pkgName string, options PipelineTesterOptions, pipeline
 			if err != nil {
 				return nil, err
 			}
-			_, file, err := genericCoverageForSinglePipeline(pipelineRelPath, src, pstats)
-			if err != nil {
-				return nil, fmt.Errorf("error calculating coverage for pipeline '%s': %w", pipeline.Filename(), err)
-			}
+			_, file := genericCoverageForSinglePipeline(pipelineRelPath, src, pstats)
 			coverage.Files = append(coverage.Files, file)
 		}
 		return coverage, nil
@@ -158,7 +152,7 @@ func pipelineDataForCoverage(pipeline ingest.Pipeline, stats ingest.PipelineStat
 	return pipelineName, pipelineRelPath, src, pstats, nil
 }
 
-func genericCoverageForSinglePipeline(pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.GenericFile, err error) {
+func genericCoverageForSinglePipeline(pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.GenericFile) {
 	// Report every pipeline as a "file".
 	file := &testrunner.GenericFile{
 		Path: pipelineRelPath,
@@ -175,10 +169,10 @@ func genericCoverageForSinglePipeline(pipelineRelPath string, src []ingest.Proce
 			file.Lines = append(file.Lines, line)
 		}
 	}
-	return linesCovered, file, nil
+	return linesCovered, file
 }
 
-func coberturaForSinglePipeline(pipelineName, pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.CoberturaClass, err error) {
+func coberturaForSinglePipeline(pipelineName, pipelineRelPath string, src []ingest.Processor, pstats ingest.PipelineStats) (linesCovered int64, class *testrunner.CoberturaClass) {
 	// Report every pipeline as a "class".
 	class = &testrunner.CoberturaClass{
 		Name:     pipelineName,
@@ -203,5 +197,5 @@ func coberturaForSinglePipeline(pipelineName, pipelineRelPath string, src []inge
 		}
 		class.Methods = append(class.Methods, &method)
 	}
-	return linesCovered, class, nil
+	return linesCovered, class
 }

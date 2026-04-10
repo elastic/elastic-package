@@ -84,8 +84,8 @@ Alert rule templates require Elastic Stack version 9.2.0 or later.
 		builder.WriteString("The following alert rule templates are available:\n\n")
 
 		for _, template := range templates {
-			builder.WriteString(fmt.Sprintf("**%s**\n\n", template.Attributes.Name))
-			builder.WriteString(fmt.Sprintf("%s\n\n", template.Attributes.Description))
+			fmt.Fprintf(&builder, "**%s**\n\n", template.Attributes.Name)
+			fmt.Fprintf(&builder, "%s\n\n", template.Attributes.Description)
 		}
 	}
 

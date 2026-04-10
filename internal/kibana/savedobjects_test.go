@@ -25,11 +25,11 @@ func TestSetManagedSavedObject(t *testing.T) {
 	client := kibanatest.NewClient(t, "testdata/kibana-8-mock-set-managed")
 
 	id := preloadDashboard(t, client)
-	require.True(t, getManagedSavedObject(t, client, "dashboard", id))
+	require.True(t, getManagedSavedObject(t, client, id))
 
 	err := client.SetManagedSavedObject(t.Context(), "dashboard", id, false)
 	require.NoError(t, err)
-	assert.False(t, getManagedSavedObject(t, client, "dashboard", id))
+	assert.False(t, getManagedSavedObject(t, client, id))
 }
 
 func preloadDashboard(t *testing.T, client *kibana.Client) string {
@@ -59,7 +59,7 @@ func preloadDashboard(t *testing.T, client *kibana.Client) string {
 	return id
 }
 
-func getManagedSavedObject(t *testing.T, client *kibana.Client, savedObjectType string, id string) bool {
+func getManagedSavedObject(t *testing.T, client *kibana.Client, id string) bool {
 	exportRequest := kibana.ExportSavedObjectsRequest{
 		ExcludeExportDetails: true,
 		Objects: []kibana.ExportSavedObjectsRequestObject{

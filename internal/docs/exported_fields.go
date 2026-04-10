@@ -84,15 +84,15 @@ func renderFieldsTable(builder *strings.Builder, collected []fieldsTableRecord) 
 		if c.runtime {
 			fieldType += " (runtime)"
 		}
-		builder.WriteString(fmt.Sprintf("| %s | %s | %s |",
+		fmt.Fprintf(builder, "| %s | %s | %s |",
 			escaper.Replace(c.name),
 			escaper.Replace(description),
-			fieldType))
+			fieldType)
 		if unitsPresent {
-			builder.WriteString(fmt.Sprintf(" %s |", c.unit))
+			fmt.Fprintf(builder, " %s |", c.unit)
 		}
 		if metricTypesPresent {
-			builder.WriteString(fmt.Sprintf(" %s |", c.metricType))
+			fmt.Fprintf(builder, " %s |", c.metricType)
 		}
 		builder.WriteString("\n")
 	}

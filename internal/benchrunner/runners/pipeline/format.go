@@ -104,12 +104,10 @@ func reportXUnitFormat(b *BenchmarkResult) ([]byte, error) {
 func filenameByFormat(pkg string, format Format) string {
 	var ext string
 	switch format {
-	default:
-		fallthrough
-	case ReportFormatJSON:
-		ext = "json"
 	case ReportFormatXUnit:
 		ext = "xml"
+	case ReportFormatJSON, ReportFormatHuman:
+		ext = "json"
 	}
 	fileName := fmt.Sprintf(
 		"%s_%d.%s",

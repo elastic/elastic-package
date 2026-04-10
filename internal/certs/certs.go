@@ -211,7 +211,7 @@ func New(certType int, issuer *Issuer, opts ...Option) (*Certificate, error) {
 	}
 
 	// Self-signed unless an issuer has been received.
-	var parent *x509.Certificate = &template
+	parent := &template
 	var signer crypto.Signer = key
 	var issuerCert *Certificate
 	if issuer != nil {
@@ -335,7 +335,7 @@ func checkExpectedCertUsage(cert *x509.Certificate) error {
 	if !cert.IsCA {
 		// Required for Chrome in OSX to show the "Proceed anyway" link.
 		// https://stackoverflow.com/a/64309893/28855
-		if !(containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) || containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth)) {
+		if !containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) && !containsExtKeyUsage(cert.ExtKeyUsage, x509.ExtKeyUsageClientAuth) {
 			return fmt.Errorf("missing either of server/client auth key usage in certificate")
 		}
 	}

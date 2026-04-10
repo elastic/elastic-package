@@ -5,6 +5,8 @@
 package cobraext
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +38,9 @@ func ComposeCommands(parent *cobra.Command, args []string, composed ...*Command)
 
 func ComposeCommandsParentContext(parent *cobra.Command, args []string, composed ...*cobra.Command) error {
 	for _, cmd := range composed {
-		cmd.ParseFlags(args)
+		if err := cmd.ParseFlags(args); err != nil {
+			return fmt.Errorf("parsing flags for command %q: %w", cmd.Name(), err)
+		}
 		cmd.SetContext(parent.Context())
 		err := cmd.RunE(cmd, args)
 		if err != nil {

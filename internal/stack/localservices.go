@@ -80,10 +80,7 @@ func (m *localServicesManager) destroy(ctx context.Context) error {
 func (m *localServicesManager) status() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	serviceStatusFunc := func(description docker.ContainerDescription) error {
-		service, err := newServiceStatus(&description)
-		if err != nil {
-			return err
-		}
+		service := newServiceStatus(&description)
 		services = append(services, *service)
 		return nil
 	}

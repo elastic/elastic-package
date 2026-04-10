@@ -191,7 +191,7 @@ func (d *Document) DeleteNode(path string) (bool, error) {
 		return false, errors.New("cannot delete root node")
 	}
 
-	switch parentNode.Type() {
+	switch parentNode.Type() { //nolint:exhaustive // all non-container node types are handled by default
 	case ast.MappingType:
 		mn := parentNode.(*ast.MappingNode)
 		for i, kv := range mn.Values {
