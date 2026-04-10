@@ -160,6 +160,10 @@ type Validator struct {
 	injectFieldsOptions InjectFieldsOptions
 
 	schemaURLs SchemaURLs
+
+	// loggedWarnings tracks keys for which a warning has already been emitted, to
+	// avoid repeating the same message for every validated document.
+	loggedWarnings map[string]struct{}
 }
 
 // ValidatorOption represents an optional flag that can be passed to  CreateValidatorForDirectory.
@@ -272,6 +276,7 @@ func CreateValidator(repositoryRoot *os.Root, packageRoot string, fieldsDir stri
 	v = new(Validator)
 	// In validator, inject fields with settings used for validation, such as `allowed_values`.
 	v.injectFieldsOptions.IncludeValidationSettings = true
+	v.loggedWarnings = make(map[string]struct{})
 	for _, opt := range opts {
 		if err := opt(v); err != nil {
 			return nil, err
@@ -751,7 +756,7 @@ func (v *Validator) SanitizeSyntheticSourceDocs(docs []common.MapStr) ([]common.
 				}
 			}
 		}
-		expandedDoc, newMultifields, err := createDocExpandingObjects(doc, v.Schema)
+		expandedDoc, newMultifields, err := createDocExpandingObjects(doc, v.Schema, v.loggedWarnings)
 		if err != nil {
 			return nil, fmt.Errorf("failure while expanding objects from doc: %w", err)
 		}
@@ -786,7 +791,7 @@ func (v *Validator) shouldValueBeArray(definition *FieldDefinition) bool {
 	return false
 }
 
-func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (common.MapStr, []string, error) {
+func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition, loggedWarnings map[string]struct{}) (common.MapStr, []string, error) {
 	keys := make([]string, 0)
 	for k := range doc {
 		keys = append(keys, k)
@@ -815,7 +820,11 @@ func createDocExpandingObjects(doc common.MapStr, schema []FieldDefinition) (com
 				multifields = append(multifields, k)
 				continue
 			}
-			logger.Warnf("not able to add key %s: %s", k, err)
+			warnKey := k + ":" + err.Error()
+			if _, alreadyWarned := loggedWarnings[warnKey]; !alreadyWarned {
+				logger.Warnf("not able to add key %s: %s", k, err)
+				loggedWarnings[warnKey] = struct{}{}
+			}
 			continue
 		}
 		return nil, nil, fmt.Errorf("not added key %s with value %s: %w", k, value, err)
