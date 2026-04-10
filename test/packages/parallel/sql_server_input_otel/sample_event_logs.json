@@ -1,15 +1,12 @@
 {
-    "@timestamp": "2026-04-08T13:50:11.062Z",
+    "@timestamp": "2026-04-10T13:47:44.483Z",
     "attributes": {
         "client": {
-            "address": "elastic-agent-71667",
-            "port": 32812
+            "address": "elastic-agent-15653",
+            "port": 49412
         },
         "db": {
             "namespace": "master",
-            "query": {
-                "text": "WITH PerfCounters SELECT DISTINCT RTRIM ( spi. object_name ) object_name, RTRIM ( spi. counter_name ) counter_name, RTRIM ( spi. instance_name ), CAST ( spi. cntr_value ), spi. cntr_type FROM sys.dm_os_performance_counters WHERE counter_name IN ( ? ) OR ( spi. object_name LIKE ? OR spi. object_name LIKE ? OR spi. object_name LIKE ? ) OR ( spi. instance_name IN ( ? ) AND spi. counter_name IN ( ? ) ) ) INSERT INTO @PCounters SELECT * FROM PerfCounters"
-            },
             "system": {
                 "name": "microsoft.sql_server"
             }
@@ -17,56 +14,53 @@
         "network": {
             "peer": {
                 "address": "172.29.0.2",
-                "port": 32812
+                "port": 49412
             }
         },
         "sqlserver": {
             "blocking_session_id": 0,
-            "command": "INSERT",
+            "command": "SELECT",
             "context_info": "",
-            "cpu_time": 0.052,
-            "deadlock_priority": -10,
+            "cpu_time": 0.061,
+            "deadlock_priority": 0,
             "estimated_completion_time": 0,
             "lock_timeout": -0.001,
-            "logical_reads": 607,
+            "logical_reads": 669,
             "open_transaction_count": 0,
             "percent_complete": 0,
             "procedure_id": "0",
             "procedure_name": "",
-            "query_hash": "6df033ef55623a4a",
-            "query_plan_hash": "49c16c014d7e4505",
-            "query_start": "2026-04-08T13:50:10.997+00:00",
-            "reads": 40,
+            "query_hash": "30447d7d5ef3066a",
+            "query_plan_hash": "0c97dc34ff850504",
+            "query_start": "2026-04-10T13:47:44.407+00:00",
+            "reads": 104,
             "request_status": "running",
-            "row_count": 1,
+            "row_count": 0,
             "session_id": 51,
             "session_status": "running",
-            "total_elapsed_time": 0.053,
-            "transaction_id": 0,
+            "total_elapsed_time": 0.063,
+            "transaction_id": 1881,
             "transaction_isolation_level": 2,
             "wait_resource": "",
             "wait_time": 0,
             "wait_type": "",
-            "writes": 19
+            "writes": 0
         },
         "user": {
             "name": "sa"
         }
     },
     "client": {
-        "address": "elastic-agent-71667",
-        "port": 32812
+        "address": "elastic-agent-15653",
+        "port": 49412
     },
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "78202",
+        "namespace": "44690",
         "type": "logs"
     },
     "db": {
         "namespace": "master",
-        "query": {
-            "text": "WITH PerfCounters SELECT DISTINCT RTRIM ( spi. object_name ) object_name, RTRIM ( spi. counter_name ) counter_name, RTRIM ( spi. instance_name ), CAST ( spi. cntr_value ), spi. cntr_type FROM sys.dm_os_performance_counters WHERE counter_name IN ( ? ) OR ( spi. object_name LIKE ? OR spi. object_name LIKE ? OR spi. object_name LIKE ? ) OR ( spi. instance_name IN ( ? ) AND spi. counter_name IN ( ? ) ) ) INSERT INTO @PCounters SELECT * FROM PerfCounters"
-        },
         "system": {
             "name": "microsoft.sql_server"
         }
@@ -74,11 +68,11 @@
     "event": {
         "agent_id_status": "missing",
         "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-04-08T13:50:21Z"
+        "ingested": "2026-04-10T13:47:54Z"
     },
     "event_name": "db.server.query_sample",
     "host": {
-        "name": "elastic-agent-71667",
+        "name": "elastic-agent-15653",
         "os": {
             "platform": "linux"
         }
@@ -86,7 +80,7 @@
     "network": {
         "peer": {
             "address": "172.29.0.2",
-            "port": 32812
+            "port": 49412
         }
     },
     "observed_timestamp": "1970-01-01T00:00:00.000Z",
@@ -96,7 +90,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-71667"
+                "name": "elastic-agent-15653"
             },
             "os": {
                 "type": "linux"
@@ -123,32 +117,32 @@
     },
     "sqlserver": {
         "blocking_session_id": 0,
-        "command": "INSERT",
+        "command": "SELECT",
         "context_info": "",
-        "cpu_time": 0.052,
-        "deadlock_priority": -10,
+        "cpu_time": 0.061,
+        "deadlock_priority": 0,
         "estimated_completion_time": 0,
         "lock_timeout": -0.001,
-        "logical_reads": 607,
+        "logical_reads": 669,
         "open_transaction_count": 0,
         "percent_complete": 0,
         "procedure_id": "0",
         "procedure_name": "",
-        "query_hash": "6df033ef55623a4a",
-        "query_plan_hash": "49c16c014d7e4505",
-        "query_start": "2026-04-08T13:50:10.997+00:00",
-        "reads": 40,
+        "query_hash": "30447d7d5ef3066a",
+        "query_plan_hash": "0c97dc34ff850504",
+        "query_start": "2026-04-10T13:47:44.407+00:00",
+        "reads": 104,
         "request_status": "running",
-        "row_count": 1,
+        "row_count": 0,
         "session_id": 51,
         "session_status": "running",
-        "total_elapsed_time": 0.053,
-        "transaction_id": 0,
+        "total_elapsed_time": 0.063,
+        "transaction_id": 1881,
         "transaction_isolation_level": 2,
         "wait_resource": "",
         "wait_time": 0,
         "wait_type": "",
-        "writes": 19
+        "writes": 0
     },
     "user": {
         "name": "sa"

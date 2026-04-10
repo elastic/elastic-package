@@ -1,23 +1,23 @@
 {
-    "@timestamp": "2026-04-08T13:50:11.123Z",
+    "@timestamp": "2026-04-10T13:47:44.574Z",
     "_metric_names_hash": "7ee276998c966647",
     "attributes": {
         "performance_counter": {
-            "object_name": "SQLServer:Buffer Manager"
+            "object_name": "SQLServer:Buffer Node"
         }
     },
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "78202",
+        "namespace": "44690",
         "type": "metrics"
     },
     "event": {
         "agent_id_status": "missing",
         "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-04-08T13:50:21Z"
+        "ingested": "2026-04-10T13:47:54Z"
     },
     "host": {
-        "name": "elastic-agent-71667",
+        "name": "elastic-agent-15653",
         "os": {
             "platform": "linux"
         }
@@ -25,7 +25,7 @@
     "metrics": {
         "sqlserver": {
             "page": {
-                "life_expectancy": 17
+                "life_expectancy": 20
             }
         }
     },
@@ -33,12 +33,12 @@
         "type": "linux"
     },
     "performance_counter": {
-        "object_name": "SQLServer:Buffer Manager"
+        "object_name": "SQLServer:Buffer Node"
     },
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-71667"
+                "name": "elastic-agent-15653"
             },
             "os": {
                 "type": "linux"
@@ -65,9 +65,9 @@
     },
     "sqlserver": {
         "page": {
-            "life_expectancy": 17
+            "life_expectancy": 20
         }
     },
-    "start_timestamp": "2026-04-08T13:50:09.970Z",
+    "start_timestamp": "2026-04-10T13:47:43.383Z",
     "unit": "s"
 }

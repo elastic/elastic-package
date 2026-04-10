@@ -57,25 +57,25 @@ An example event looks as following:
 
 ```json
 {
-    "@timestamp": "2026-04-08T13:51:30.682Z",
+    "@timestamp": "2026-04-10T13:49:55.739Z",
     "_metric_names_hash": "7ee276998c966647",
     "attributes": {
         "performance_counter": {
-            "object_name": "SQLServer:Buffer Manager"
+            "object_name": "SQLServer:Buffer Node"
         }
     },
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "24063",
+        "namespace": "40722",
         "type": "metrics"
     },
     "event": {
         "agent_id_status": "missing",
         "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-04-08T13:51:40Z"
+        "ingested": "2026-04-10T13:50:05Z"
     },
     "host": {
-        "name": "elastic-agent-75226",
+        "name": "elastic-agent-70881",
         "os": {
             "platform": "linux"
         }
@@ -83,7 +83,7 @@ An example event looks as following:
     "metrics": {
         "sqlserver": {
             "page": {
-                "life_expectancy": 16
+                "life_expectancy": 21
             }
         }
     },
@@ -91,12 +91,12 @@ An example event looks as following:
         "type": "linux"
     },
     "performance_counter": {
-        "object_name": "SQLServer:Buffer Manager"
+        "object_name": "SQLServer:Buffer Node"
     },
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-75226"
+                "name": "elastic-agent-70881"
             },
             "os": {
                 "type": "linux"
@@ -123,10 +123,10 @@ An example event looks as following:
     },
     "sqlserver": {
         "page": {
-            "life_expectancy": 16
+            "life_expectancy": 21
         }
     },
-    "start_timestamp": "2026-04-08T13:51:29.559Z",
+    "start_timestamp": "2026-04-10T13:49:54.565Z",
     "unit": "s"
 }
 ```

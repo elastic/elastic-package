@@ -1,35 +1,44 @@
 {
-    "@timestamp": "2026-04-08T13:54:17.208Z",
-    "_metric_names_hash": "800d765540031faf",
+    "@timestamp": "2026-04-10T13:54:38.937Z",
+    "_metric_names_hash": "9541e212302c9863",
     "attributes": {
-        "status": "overflow"
+        "kind": "sent"
     },
     "data_stream": {
-        "dataset": "mysql_input_otel.generic.otel",
-        "namespace": "53297",
+        "dataset": "custom.default.otel",
+        "namespace": "74861",
         "type": "metrics"
     },
     "event": {
         "agent_id_status": "missing",
-        "dataset": "mysql_input_otel.generic.otel",
-        "ingested": "2026-04-08T13:54:27Z"
+        "dataset": "custom.default.otel",
+        "ingested": "2026-04-10T13:54:49Z"
     },
     "host": {
-        "name": "elastic-agent-23953",
+        "name": "elastic-agent-31189",
         "os": {
             "platform": "linux"
         }
     },
+    "kind": "sent",
     "metrics": {
         "mysql": {
-            "table_open_cache": 0
+            "client": {
+                "network": {
+                    "io": 17901
+                }
+            }
         }
     },
     "mysql": {
+        "client": {
+            "network": {
+                "io": 17901
+            }
+        },
         "instance": {
             "endpoint": "svc-mysql_input_otel:3306"
-        },
-        "table_open_cache": 0
+        }
     },
     "os": {
         "type": "linux"
@@ -37,7 +46,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-23953"
+                "name": "elastic-agent-31189"
             },
             "mysql": {
                 "instance": {
@@ -54,7 +63,6 @@
         "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
         "version": "9.4.0"
     },
-    "start_timestamp": "2026-04-08T13:54:16.199Z",
-    "status": "overflow",
-    "unit": "1"
+    "start_timestamp": "2026-04-10T13:54:37.923Z",
+    "unit": "By"
 }
