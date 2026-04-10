@@ -1982,10 +1982,8 @@ func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 			if !strings.HasSuffix(expectedDataset, "."+otelSuffixDataset) {
 				expectedDataset += "." + otelSuffixDataset
 			}
-			expectedDatasets = []string{expectedDataset}
-		} else {
-			expectedDatasets = []string{expectedDataset}
 		}
+		expectedDatasets = []string{expectedDataset}
 	}
 
 	return expectedDatasets, nil

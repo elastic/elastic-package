@@ -618,7 +618,7 @@ func TestExpectedDatasets(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			r := &tester{}
-			got, err := r.expectedDatasets(c.scenario, nil)
+			got, err := r.expectedDatasets(c.scenario)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, got)
 		})
