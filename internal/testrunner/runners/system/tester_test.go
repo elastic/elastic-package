@@ -532,13 +532,13 @@ func TestBuildDataStreamName(t *testing.T) {
 			expected:       "logs-httpcheck.otel-default",
 		},
 		{
-			title:          "otelcol input: no double-suffix when dataset already ends in .otel",
+			title:          "otelcol input: policy dataset already ending in .otel yields ...otel.otel (agent still appends)",
 			dsType:         "logs",
 			dsDataset:      "custom.otel",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
 			packageType:    "input",
-			expected:       "logs-custom.otel-default",
+			expected:       "logs-custom.otel.otel-default",
 		},
 		{
 			title:          "otelcol input on integration package type: no suffix added",
@@ -561,9 +561,10 @@ func TestBuildDataStreamName(t *testing.T) {
 
 func TestExpectedDatasets(t *testing.T) {
 	cases := []struct {
-		title    string
-		scenario *scenarioTest
-		expected []string
+		title       string
+		packageType string // tester.pkgManifest.Type; empty leaves pkgManifest nil (no otel append)
+		scenario    *scenarioTest
+		expected    []string
 	}{
 		{
 			title: "non-otelcol package: dataset returned as-is",
@@ -574,7 +575,8 @@ func TestExpectedDatasets(t *testing.T) {
 			expected: []string{"nginx.access"},
 		},
 		{
-			title: "otelcol input: .otel suffix appended",
+			title:       "otelcol input package: .otel suffix appended like Elastic Agent",
+			packageType: "input",
 			scenario: &scenarioTest{
 				dataStreamDataset: "httpcheck",
 				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
@@ -582,15 +584,17 @@ func TestExpectedDatasets(t *testing.T) {
 			expected: []string{"httpcheck.otel"},
 		},
 		{
-			title: "otelcol input with user dataset already ending in .otel: no double-suffix",
+			title:       "otelcol input package: policy value already ending in .otel still gets agent suffix",
+			packageType: "input",
 			scenario: &scenarioTest{
 				dataStreamDataset: "generic.otel",
 				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
 			},
-			expected: []string{"generic.otel"},
+			expected: []string{"generic.otel.otel"},
 		},
 		{
-			title: "otelcol dynamic_signal_types: uses stored dataset, not policyTemplate.Name",
+			title:       "otelcol dynamic_signal_types: uses stored dataset, not policyTemplate.Name",
+			packageType: "input",
 			scenario: &scenarioTest{
 				dataStreamDataset: "sqlserverreceiver",
 				policyTemplate: packages.PolicyTemplate{
@@ -602,7 +606,8 @@ func TestExpectedDatasets(t *testing.T) {
 			expected: []string{"sqlserverreceiver.otel"},
 		},
 		{
-			title: "otelcol dynamic_signal_types with user dataset already ending in .otel: no double-suffix",
+			title:       "otelcol dynamic_signal_types: policy value ending in .otel gets agent suffix",
+			packageType: "input",
 			scenario: &scenarioTest{
 				dataStreamDataset: "generic.otel",
 				policyTemplate: packages.PolicyTemplate{
@@ -611,13 +616,16 @@ func TestExpectedDatasets(t *testing.T) {
 					DynamicSignalTypes: true,
 				},
 			},
-			expected: []string{"generic.otel"},
+			expected: []string{"generic.otel.otel"},
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
 			r := &tester{}
+			if c.packageType != "" {
+				r.pkgManifest = &packages.PackageManifest{Type: c.packageType}
+			}
 			got, err := r.expectedDatasets(c.scenario)
 			require.NoError(t, err)
 			assert.Equal(t, c.expected, got)
