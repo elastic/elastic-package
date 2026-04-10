@@ -127,9 +127,9 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout           = 10 * time.Minute
-	waitForDynamicStreamsStableDuration = 10 * time.Second
-	dataStreamDiscoveryPollInterval     = 1 * time.Second
+	waitForDataDefaultTimeout                  = 10 * time.Minute
+	waitForDynamicStreamsStableDefaultDuration = 60 * time.Second
+	dataStreamDiscoveryPollInterval            = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -613,12 +613,14 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	var merr multierror.Error
+
 	// This handler should be run before shutting down Elastic Agents (agent deployer)
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
@@ -628,47 +630,50 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
 		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
-	if r.cleanTestScenarioHandler != nil {
-		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.cleanTestScenarioHandler = nil
-	}
-
 	if r.resetAgentLogLevelHandler != nil {
 		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.removeAgentHandler != nil {
 		if err := r.removeAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.removeAgentHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.deleteTestPolicyHandler = nil
 	}
 
-	return nil
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			merr = append(merr, err)
+		}
+		r.cleanTestScenarioHandler = nil
+	}
+
+	if len(merr) == 0 {
+		return nil
+	}
+	return merr
 }
 
 func (r *tester) newResult(name string) *testrunner.ResultComposer {
@@ -1024,6 +1029,9 @@ type scenarioTest struct {
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to ensure they are deleted too.
+		r.esAPI.Indices.DeleteDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
@@ -1061,6 +1069,9 @@ func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]di
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to find them too.
+		r.esAPI.Indices.GetDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %w", pattern, err)
@@ -1102,7 +1113,7 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	waitForStableDuration := waitForDynamicStreamsStableDuration
+	waitForStableDuration := waitForDynamicStreamsStableDefaultDuration
 	if config.WaitForDynamicStreamsStable > 0 {
 		waitForStableDuration = config.WaitForDynamicStreamsStable
 	}
@@ -1458,6 +1469,7 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 		if err != nil {
 			return nil, err
 		}
+		discovered = filterOtelAPMRollupDataStreams(discovered)
 		scenarios := make([]scenarioDataStream, len(discovered))
 		for i, dsd := range discovered {
 			scenarios[i] = scenarioDataStream{
@@ -1476,6 +1488,26 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 // buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
 func buildIndexTemplateName(dsType, dsDataset string) string {
 	return fmt.Sprintf("%s-%s", dsType, dsDataset)
+}
+
+// apmRollupDataStreamPattern matches data streams generated by the APM connector as
+// time-rollup aggregations (e.g. metrics-service_destination.1m.otel-<namespace>).
+// These are not produced directly by the OTel receiver and should not be validated
+// as part of the package's system tests.
+// Other signal types (logs-*, traces-*) may need adding here if future APM connector
+// versions generate rollup streams of those types.
+var apmRollupDataStreamPattern = regexp.MustCompile(`^metrics-.*\.(1m|10m|60m)\.otel-`)
+
+// filterOtelAPMRollupDataStreams removes APM connector-generated rollup data streams
+// from the discovered list. It logs an info message for each filtered stream.
+func filterOtelAPMRollupDataStreams(streams []discoveredDataStream) []discoveredDataStream {
+	return slices.DeleteFunc(streams, func(s discoveredDataStream) bool {
+		if apmRollupDataStreamPattern.MatchString(s.name) {
+			logger.Infof("Skipping APM connector-generated data stream %q", s.name)
+			return true
+		}
+		return false
+	})
 }
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch

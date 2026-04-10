@@ -79,7 +79,7 @@ interactions:
                 - go-elasticsearch/7.17.10 (linux amd64; Go 1.22.1)
             X-Elastic-Client-Meta:
                 - es=7.17.10,go=1.22.1,t=7.17.10,hc=1.22.1
-        url: https://127.0.0.1:9200/_data_stream/*-foo.bar-default
+        url: https://127.0.0.1:9200/_data_stream/*-foo.bar-default?expand_wildcards=all
         method: GET
       response:
         proto: HTTP/1.1
