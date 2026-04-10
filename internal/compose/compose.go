@@ -372,8 +372,8 @@ func (p *Project) WaitForHealthy(ctx context.Context, opts CommandOptions) error
 		for _, d := range descriptions {
 			dockerID := fmt.Sprintf("%.*s", 12, d.ID) // Ensure it is always 12 characters long
 			switch {
-			// No healthcheck defined for service
-			case d.State.Status == "running" && d.State.Health == nil:
+			// No healthcheck defined for service (podman returns a non-nil Health with empty Status)
+			case d.State.Status == "running" && (d.State.Health == nil || d.State.Health.Status == ""):
 				logger.Debugf("Container %s (%s) status: %s (no health status)", d.Config.Labels.ComposeService, dockerID, d.State.Status)
 				// Service is up and running and it's healthy
 			case d.State.Status == "running" && d.State.Health.Status == "healthy":
