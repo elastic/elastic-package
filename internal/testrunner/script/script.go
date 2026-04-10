@@ -55,6 +55,9 @@ type Options struct {
 	TestWork        bool   // testscript.Params.TestWork
 }
 
+// TODO: refactor Run to reduce cognitive complexity (currently 89).
+//
+//nolint:gocognit
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if opt.Dir != "" && len(opt.Streams) != 0 {
 		// We should never reach here.
@@ -363,23 +366,36 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 	var errs []error
 	for prof, stk := range stacks {
 		for _, pipe := range pipes {
-			ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes)
+			if err := ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes); err != nil {
+				errs = append(errs, fmt.Errorf("uninstalling pipelines: %w", err))
+			}
 		}
 
 		for _, srv := range srvs {
-			srv.TearDown(ctx)
+			if err := srv.TearDown(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("tearing down service: %w", err))
+			}
 		}
 
 		for ds := range streams {
-			stk.es.Indices.DeleteDataStream([]string{ds},
+			_, err := stk.es.Indices.DeleteDataStream([]string{ds},
 				stk.es.Indices.DeleteDataStream.WithContext(ctx),
 			)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("deleting data stream %s: %w", ds, err))
+			}
 		}
 
 		for _, installed := range agents {
-			stk.kibana.RemoveAgent(ctx, installed.enrolled)
-			installed.deployed.TearDown(ctx)
-			deletePolicies(ctx, stk.kibana, installed)
+			if err := stk.kibana.RemoveAgent(ctx, installed.enrolled); err != nil {
+				errs = append(errs, fmt.Errorf("removing agent: %w", err))
+			}
+			if err := installed.deployed.TearDown(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("tearing down agent deployer: %w", err))
+			}
+			if err := deletePolicies(ctx, stk.kibana, installed); err != nil {
+				errs = append(errs, fmt.Errorf("deleting policies: %w", err))
+			}
 		}
 
 		for _, pkg := range regPkgs[prof] {
@@ -403,7 +419,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		if stk.external {
 			continue
 		}
-		stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile})
+		if err := stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile}); err != nil {
+			errs = append(errs, fmt.Errorf("tearing down stack provider: %w", err))
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -505,10 +523,8 @@ func runTests(t *T, p testscript.Params) (err error) {
 }
 
 var (
-	//lint:ignore ST1012 This naming is conventional for testscript.
-	failedRun = errors.New("failed run")
-	//lint:ignore ST1012 This naming is conventional for testscript.
-	skipRun = errors.New("skip")
+	failedRun = errors.New("failed run") //nolint:staticcheck // testscript convention: these sentinel errors are accessed by name, not via errors.Is
+	skipRun   = errors.New("skip")       //nolint:staticcheck // testscript convention
 )
 
 // T implements testscript.T and is used in the call to testscript.Run
@@ -744,7 +760,7 @@ func get(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}
@@ -794,7 +810,7 @@ func post(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}

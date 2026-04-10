@@ -190,7 +190,9 @@ func removePackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("requesting data stream removal for "+dsName, err))
 	defer resp.Body.Close()
 	var body bytes.Buffer
-	io.Copy(&body, resp.Body)
+	if _, err := io.Copy(&body, resp.Body); err != nil {
+		ts.Fatalf("reading response body: %v", err)
+	}
 	if resp.StatusCode == http.StatusNotFound {
 		// Data stream doesn't exist, there was nothing to do.
 		fmt.Fprintf(ts.Stderr(), "%s data stream policy templates do not exist for %s/%s\n", dsName, pkg, ds)

@@ -39,8 +39,7 @@ func CheckConditions(manifest PackageManifest, keyValuePairs []string) error {
 
 		logger.Debugf("Verify Kibana version (constraint: %s, requirement: %s)", manifest.Conditions.Kibana.Version, requirements.kibana.version)
 		if ok, errs := kibanaConstraint.Validate(requirements.kibana.version); !ok {
-			//lint:ignore ST1005 error starting with product name can be capitalized
-			return fmt.Errorf("Kibana constraint unsatisfied: %w", multierror.Error(errs))
+			return fmt.Errorf("Kibana constraint unsatisfied: %w", multierror.Error(errs)) //nolint:staticcheck // capitalized product name is intentional
 		}
 		logger.Debugf("Constraint %s = %s is satisfied", kibanaVersionRequirement, manifest.Conditions.Kibana.Version)
 	}

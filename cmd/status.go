@@ -218,27 +218,28 @@ func getServerlessManifests(registryClient *registry.Client, packageName string,
 
 // print formats and prints package information into a table
 func print(p *status.PackageStatus, w io.Writer, extraParameters []string) error {
-	bold.Fprint(w, "Package: ")
-	cyan.Fprintln(w, p.Name)
+	bold.Fprint(w, "Package: ") //nolint:errcheck
+	cyan.Fprintln(w, p.Name)    //nolint:errcheck
 
 	if p.Local != nil {
-		bold.Fprint(w, "Owner: ")
-		cyan.Fprintln(w, formatOwner(p))
+		bold.Fprint(w, "Owner: ")        //nolint:errcheck
+		cyan.Fprintln(w, formatOwner(p)) //nolint:errcheck
 	}
 
 	if p.PendingChanges != nil {
-		renderPendingChanges(p, w)
+		if err := renderPendingChanges(p, w); err != nil {
+			return err
+		}
 	}
 
-	renderPackageVersions(p, w, extraParameters)
-	return nil
+	return renderPackageVersions(p, w, extraParameters)
 }
 
 // renderPendingChanges formats and prints pending changes in the package into a table
-func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
-	bold.Fprint(w, "Next Version: ")
-	red.Fprintln(w, p.PendingChanges.Version)
-	bold.Fprintln(w, "Pending Changes:")
+func renderPendingChanges(p *status.PackageStatus, w io.Writer) error {
+	bold.Fprint(w, "Next Version: ")          //nolint:errcheck
+	red.Fprintln(w, p.PendingChanges.Version) //nolint:errcheck
+	bold.Fprintln(w, "Pending Changes:")      //nolint:errcheck
 	var changelogTable [][]string
 	for _, change := range p.PendingChanges.Changes {
 		changelogTable = append(changelogTable, formatChangelogEntry(change))
@@ -249,12 +250,17 @@ func renderPendingChanges(p *status.PackageStatus, w io.Writer) {
 		tablewriter.WithConfig(defaultTableConfig),
 	)
 	table.Header([]string{"Type", "Description", "Link"})
-	table.Bulk(changelogTable)
-	table.Render()
+	if err := table.Bulk(changelogTable); err != nil {
+		return fmt.Errorf("populating pending changes table: %w", err)
+	}
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("rendering pending changes table: %w", err)
+	}
+	return nil
 }
 
 // renderPackageVersions formats and prints local and production versions of the package into a table
-func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) {
+func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters []string) error {
 	var environmentTable [][]string
 	if p.Local != nil {
 		environmentTable = append(environmentTable, formatManifest("Local", "-", *p.Local, nil, extraParameters))
@@ -269,7 +275,7 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 	headers := []string{"Environment", "Version", "Release", "Title", "Description"}
 	headers = append(headers, extraParameters...)
 
-	bold.Fprintln(w, "Package Versions:")
+	bold.Fprintln(w, "Package Versions:") //nolint:errcheck
 	colorCfg := defaultColorizedConfig()
 	colorCfg.Column = renderer.Tint{
 		Columns: []renderer.Tint{
@@ -283,8 +289,13 @@ func renderPackageVersions(p *status.PackageStatus, w io.Writer, extraParameters
 		tablewriter.WithConfig(defaultTableConfig),
 	)
 	table.Header(headers)
-	table.Bulk(environmentTable)
-	table.Render()
+	if err := table.Bulk(environmentTable); err != nil {
+		return fmt.Errorf("populating package versions table: %w", err)
+	}
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("rendering package versions table: %w", err)
+	}
+	return nil
 }
 
 // formatOwner returns the name of the package owner

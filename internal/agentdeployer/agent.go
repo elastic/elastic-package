@@ -194,7 +194,9 @@ func (d *DockerComposeAgentDeployer) SetUp(ctx context.Context, agentInfo AgentI
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		agent.agentInfo = agentInfo
-		agent.TearDown(context.WithoutCancel(ctx))
+		if err := agent.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down agent: %v", err)
+		}
 	}()
 
 	if d.runTestsOnly || d.runTearDown {
@@ -320,7 +322,7 @@ func (d *DockerComposeAgentDeployer) installDockerCompose(ctx context.Context, a
 
 	agentImage, err := selectElasticAgentImage(agentVersion, agentInfo.Agent.BaseImage)
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("selecting elastic agent image: %w", err)
 	}
 
 	gcpFacters, err := common.GCPCredentialFacters()
