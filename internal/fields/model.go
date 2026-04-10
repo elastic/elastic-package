@@ -49,7 +49,7 @@ type FieldDefinitions []FieldDefinition
 
 func (fds *FieldDefinitions) UnmarshalYAML(value *yaml.Node) error {
 	nilNode := yaml.Kind(0)
-	switch value.Kind {
+	switch value.Kind { //nolint:exhaustive // DocumentNode, ScalarNode, AliasNode are covered by default
 	case yaml.SequenceNode:
 		// Fields are defined as a list, this happens in Beats fields files.
 		var fields []FieldDefinition

@@ -95,9 +95,9 @@ func renderSloCollapsibleTable(builder *strings.Builder, templates []sloTemplate
 	for _, t := range templates {
 		name := strings.TrimSpace(t.Attributes.Name)
 		description := strings.TrimSpace(strings.ReplaceAll(t.Attributes.Description, "\n", " "))
-		builder.WriteString(fmt.Sprintf("| %s | %s |\n",
+		fmt.Fprintf(builder, "| %s | %s |\n",
 			escaper.Replace(name),
-			escaper.Replace(description)))
+			escaper.Replace(description))
 	}
 	builder.WriteString("\n</details>\n")
 }

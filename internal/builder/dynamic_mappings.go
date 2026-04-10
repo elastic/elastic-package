@@ -179,6 +179,8 @@ func renameMappingsNames(doc *yaml.Node) {
 		}
 	case yaml.DocumentNode:
 		renameMappingsNames(doc.Content[0])
+	case yaml.ScalarNode, yaml.AliasNode:
+		// nothing to rename in scalar or alias nodes
 	}
 }
 
@@ -219,6 +221,8 @@ func appendElements(root *yaml.Node, path []string, values *yaml.Node) error {
 		}
 
 		return appendElements(root.Content[index], rest, values)
+	case yaml.ScalarNode, yaml.AliasNode:
+		// cannot descend into scalar or alias nodes
 	}
 	return nil
 }

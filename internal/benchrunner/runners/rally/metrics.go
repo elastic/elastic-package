@@ -207,7 +207,7 @@ func (c *collector) indexName() string {
 	return fmt.Sprintf("bench-metrics-%s-%s", c.datastream, c.svcInfo.Test.RunID)
 }
 
-func (c *collector) summarize() (*metricsSummary, error) {
+func (c *collector) summarize() *metricsSummary {
 	sum := metricsSummary{
 		RunID:               c.svcInfo.Test.RunID,
 		IngestPipelineStats: make(map[string]ingest.PipelineStatsMap),
@@ -266,7 +266,7 @@ func (c *collector) summarize() (*metricsSummary, error) {
 		sum.IngestPipelineStats[node] = sumStats
 	}
 
-	return &sum, nil
+	return &sum
 }
 
 func (c *collector) collectIngestMetrics() map[string]ingest.PipelineStatsMap {

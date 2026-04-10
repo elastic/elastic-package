@@ -154,7 +154,9 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		service.TearDown(context.WithoutCancel(ctx))
+		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down service: %v", err)
+		}
 	}()
 
 	// Boot up service
@@ -169,8 +171,7 @@ func (tsd TerraformServiceDeployer) SetUp(ctx context.Context, svcInfo ServiceIn
 
 	err = p.WaitForHealthy(ctx, opts)
 	if err != nil {
-		//lint:ignore ST1005 error starting with product name can be capitalized
-		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err)
+		return nil, fmt.Errorf("Terraform deployer is unhealthy: %w", err) //nolint:staticcheck // capitalized product name is intentional
 	}
 
 	svcInfo.Agent.Host.NamePrefix = "docker-fleet-agent"
