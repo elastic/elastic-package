@@ -762,6 +762,12 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 
 	opts.Package = manifest.Name
 
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+	opts.Profile = profile
+
 	var results []testrunner.TestResult
 	err = script.Run(&results, cmd.OutOrStderr(), opts)
 	if err != nil {
@@ -872,7 +878,7 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
 	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
 	if err != nil {

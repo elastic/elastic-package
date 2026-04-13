@@ -250,11 +250,11 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input         string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type          string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
-	Vars          []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input              string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type               string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath       string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths      []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars               []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
 	DynamicSignalTypes bool       `config:"dynamic_signal_types,omitempty" json:"dynamic_signal_types,omitempty" yaml:"dynamic_signal_types,omitempty"`
 }
 

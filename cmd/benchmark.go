@@ -338,7 +338,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
 	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
 	if err != nil {
@@ -526,7 +526,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
 	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
 	if err != nil {
