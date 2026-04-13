@@ -1,0 +1,500 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package requiredinputs
+
+import (
+	"fmt"
+	"io/fs"
+	"maps"
+	"os"
+	"path"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/elastic/elastic-package/internal/packages"
+)
+
+// pkgDsKey uniquely identifies the (input-package, data-stream) pair used to
+// index promoted variable overrides.
+type pkgDsKey struct {
+	pkg    string
+	dsName string
+}
+
+// mergeVariables merges variable definitions from input packages into the
+// composable package's manifests (package-level and data-stream-level).
+//
+// Merging rule: input package vars are the base; composable package override
+// fields win when explicitly specified.
+//
+// Input-level vars: vars declared in policy_templates[].inputs[].vars are
+// "promoted" — they become input-level variables in the merged manifest.
+//
+// Data-stream-level vars: all remaining (non-promoted) base vars are placed at
+// the data-stream level, merged with any stream-level overrides the composable
+// package declares.
+func (r *RequiredInputsResolver) mergeVariables(
+	manifest *packages.PackageManifest,
+	inputPkgPaths map[string]string,
+	buildRoot *os.Root,
+) error {
+	// Step A — Re-read manifest.yml from disk as a YAML node so edits from the
+	// earlier template-bundling step are included.
+	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
+	if err != nil {
+		return fmt.Errorf("reading manifest: %w", err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+		return fmt.Errorf("parsing manifest YAML: %w", err)
+	}
+
+	// Step B — Build a promotedIndex: (pkg, dsName) → map[varName]overrideNode.
+	// The override nodes come from policy_templates[ptIdx].inputs[inputIdx].vars
+	// in the composable package manifest.
+	promotedIndex := make(map[pkgDsKey]map[string]*yaml.Node)
+	for ptIdx, pt := range manifest.PolicyTemplates {
+		for inputIdx, input := range pt.Inputs {
+			if input.Package == "" || len(input.Vars) == 0 {
+				continue
+			}
+
+			inputNode, err := getInputMappingNode(&doc, ptIdx, inputIdx)
+			if err != nil {
+				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+			}
+
+			overrideNodes, err := readVarNodes(inputNode)
+			if err != nil {
+				return fmt.Errorf("reading override var nodes at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+			}
+
+			overrideByName := make(map[string]*yaml.Node, len(overrideNodes))
+			for _, n := range overrideNodes {
+				overrideByName[varNodeName(n)] = n
+			}
+
+			dsNames := pt.DataStreams
+			if len(dsNames) == 0 {
+				dsNames = []string{""}
+			}
+			for _, dsName := range dsNames {
+				promotedIndex[pkgDsKey{pkg: input.Package, dsName: dsName}] = overrideByName
+			}
+		}
+	}
+
+	// Step C — Merge and write input-level vars in manifest.yml.
+	for ptIdx, pt := range manifest.PolicyTemplates {
+		for inputIdx, input := range pt.Inputs {
+			if input.Package == "" {
+				continue
+			}
+			pkgPath, ok := inputPkgPaths[input.Package]
+			if !ok {
+				continue
+			}
+
+			baseVarOrder, baseVarByName, err := loadInputPkgVarNodes(pkgPath)
+			if err != nil {
+				return fmt.Errorf("loading input pkg var nodes for %q: %w", input.Package, err)
+			}
+			if len(baseVarOrder) == 0 {
+				continue
+			}
+
+			// Union of promoted overrides across all data streams for this input.
+			promotedOverrides := make(map[string]*yaml.Node)
+			dsNames := pt.DataStreams
+			if len(dsNames) == 0 {
+				dsNames = []string{""}
+			}
+			for _, dsName := range dsNames {
+				maps.Copy(promotedOverrides, promotedIndex[pkgDsKey{pkg: input.Package, dsName: dsName}])
+			}
+
+			inputNode, err := getInputMappingNode(&doc, ptIdx, inputIdx)
+			if err != nil {
+				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+			}
+
+			mergedSeq, err := mergeInputLevelVarNodes(baseVarOrder, baseVarByName, promotedOverrides)
+			if err != nil {
+				return fmt.Errorf("merging input-level vars for pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+			}
+
+			if len(mergedSeq.Content) > 0 {
+				upsertKey(inputNode, "vars", mergedSeq)
+			} else {
+				removeKey(inputNode, "vars")
+			}
+		}
+	}
+
+	// Step D — Write the updated manifest.yml back to disk.
+	updated, err := formatYAMLNode(&doc)
+	if err != nil {
+		return fmt.Errorf("formatting updated manifest: %w", err)
+	}
+	if err := buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
+		return fmt.Errorf("writing updated manifest: %w", err)
+	}
+
+	// Step E — Process each data_stream/*/manifest.yml.
+	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
+	if err != nil {
+		return fmt.Errorf("globbing data stream manifests: %w", err)
+	}
+
+	for _, manifestPath := range dsManifestPaths {
+		// data_stream/var_merging_logs/manifest.yml → var_merging_logs
+		dsName := path.Base(path.Dir(manifestPath))
+
+		dsManifestBytes, err := buildRoot.ReadFile(manifestPath)
+		if err != nil {
+			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
+		}
+
+		var dsDoc yaml.Node
+		if err := yaml.Unmarshal(dsManifestBytes, &dsDoc); err != nil {
+			return fmt.Errorf("parsing data stream manifest YAML %q: %w", manifestPath, err)
+		}
+
+		dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+		if err != nil {
+			return fmt.Errorf("parsing data stream manifest %q: %w", manifestPath, err)
+		}
+
+		for streamIdx, stream := range dsManifest.Streams {
+			if stream.Package == "" {
+				continue
+			}
+			pkgPath, ok := inputPkgPaths[stream.Package]
+			if !ok {
+				continue
+			}
+
+			baseVarOrder, baseVarByName, err := loadInputPkgVarNodes(pkgPath)
+			if err != nil {
+				return fmt.Errorf("loading input pkg var nodes for %q: %w", stream.Package, err)
+			}
+			if len(baseVarOrder) == 0 {
+				continue
+			}
+
+			// Promoted names for this (pkg, dsName) combination.
+			promotedNames := make(map[string]bool)
+			for _, key := range []pkgDsKey{{stream.Package, dsName}, {stream.Package, ""}} {
+				for varName := range promotedIndex[key] {
+					promotedNames[varName] = true
+				}
+			}
+
+			streamNode, err := getStreamMappingNode(&dsDoc, streamIdx)
+			if err != nil {
+				return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
+			}
+
+			dsOverrideNodes, err := readVarNodes(streamNode)
+			if err != nil {
+				return fmt.Errorf("reading DS override var nodes in %q: %w", manifestPath, err)
+			}
+
+			if err := checkDuplicateVarNodes(dsOverrideNodes); err != nil {
+				return fmt.Errorf("duplicate vars in data stream manifest %q: %w", manifestPath, err)
+			}
+
+			mergedSeq, err := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
+			if err != nil {
+				return fmt.Errorf("merging stream-level vars in %q: %w", manifestPath, err)
+			}
+
+			if len(mergedSeq.Content) > 0 {
+				upsertKey(streamNode, "vars", mergedSeq)
+			} else {
+				removeKey(streamNode, "vars")
+			}
+		}
+
+		// Step F — Write each updated DS manifest.
+		dsUpdated, err := formatYAMLNode(&dsDoc)
+		if err != nil {
+			return fmt.Errorf("formatting updated data stream manifest %q: %w", manifestPath, err)
+		}
+		if err := buildRoot.WriteFile(manifestPath, dsUpdated, 0664); err != nil {
+			return fmt.Errorf("writing updated data stream manifest %q: %w", manifestPath, err)
+		}
+	}
+
+	return nil
+}
+
+// loadInputPkgVarNodes opens the input package at pkgPath, reads all vars from
+// all policy templates (dedup by name, first wins) and returns them as an
+// ordered slice and a name→node lookup map.
+func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*yaml.Node, error) {
+	pkgFS, closeFn, err := openPackageFS(pkgPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("opening package: %w", err)
+	}
+	defer closeFn()
+
+	manifestBytes, err := fs.ReadFile(pkgFS, packages.PackageManifestFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("reading manifest: %w", err)
+	}
+
+	var doc yaml.Node
+	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+		return nil, nil, fmt.Errorf("parsing manifest YAML: %w", err)
+	}
+
+	root := &doc
+	if root.Kind == yaml.DocumentNode {
+		if len(root.Content) == 0 {
+			return nil, nil, nil
+		}
+		root = root.Content[0]
+	}
+	if root.Kind != yaml.MappingNode {
+		return nil, nil, fmt.Errorf("expected mapping node at document root")
+	}
+
+	policyTemplatesNode := mappingValue(root, "policy_templates")
+	if policyTemplatesNode == nil || policyTemplatesNode.Kind != yaml.SequenceNode {
+		return nil, nil, nil
+	}
+
+	order := make([]string, 0)
+	byName := make(map[string]*yaml.Node)
+
+	for _, ptNode := range policyTemplatesNode.Content {
+		if ptNode.Kind != yaml.MappingNode {
+			continue
+		}
+		varsNode := mappingValue(ptNode, "vars")
+		if varsNode == nil || varsNode.Kind != yaml.SequenceNode {
+			continue
+		}
+		for _, varNode := range varsNode.Content {
+			if varNode.Kind != yaml.MappingNode {
+				continue
+			}
+			name := varNodeName(varNode)
+			if name == "" || byName[name] != nil {
+				continue // skip empty names and duplicates (first wins)
+			}
+			order = append(order, name)
+			byName[name] = varNode
+		}
+	}
+
+	return order, byName, nil
+}
+
+// mergeInputLevelVarNodes returns a sequence node containing only the promoted
+// vars (those in promotedOverrides), each merged with the override fields.
+// Order follows baseVarOrder (input package declaration order).
+func mergeInputLevelVarNodes(
+	baseVarOrder []string,
+	baseVarByName map[string]*yaml.Node,
+	promotedOverrides map[string]*yaml.Node,
+) (*yaml.Node, error) {
+	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+	for _, varName := range baseVarOrder {
+		overrideNode, promoted := promotedOverrides[varName]
+		if !promoted {
+			continue
+		}
+		merged, err := mergeVarNode(baseVarByName[varName], overrideNode)
+		if err != nil {
+			return nil, fmt.Errorf("merging var %q: %w", varName, err)
+		}
+		seqNode.Content = append(seqNode.Content, merged)
+	}
+	return seqNode, nil
+}
+
+// mergeStreamLevelVarNodes returns a sequence node containing:
+//  1. Non-promoted base vars (in input package order), merged with any DS
+//     override where names match.
+//  2. Novel DS vars (names not in baseVarByName) appended in their declaration
+//     order.
+func mergeStreamLevelVarNodes(
+	baseVarOrder []string,
+	baseVarByName map[string]*yaml.Node,
+	promotedNames map[string]bool,
+	dsOverrides []*yaml.Node,
+) (*yaml.Node, error) {
+	dsOverrideByName := make(map[string]*yaml.Node, len(dsOverrides))
+	for _, v := range dsOverrides {
+		dsOverrideByName[varNodeName(v)] = v
+	}
+
+	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+
+	// Non-promoted base vars first (in input pkg order).
+	for _, varName := range baseVarOrder {
+		if promotedNames[varName] {
+			continue
+		}
+		baseNode := baseVarByName[varName]
+		overrideNode, hasOverride := dsOverrideByName[varName]
+		var (
+			merged *yaml.Node
+			merr   error
+		)
+		if hasOverride {
+			merged, merr = mergeVarNode(baseNode, overrideNode)
+		} else {
+			merged = cloneNode(baseNode)
+		}
+		if merr != nil {
+			return nil, fmt.Errorf("merging var %q: %w", varName, merr)
+		}
+		seqNode.Content = append(seqNode.Content, merged)
+	}
+
+	// Novel DS vars (not present in base) appended in declaration order.
+	for _, v := range dsOverrides {
+		if _, inBase := baseVarByName[varNodeName(v)]; !inBase {
+			seqNode.Content = append(seqNode.Content, cloneNode(v))
+		}
+	}
+
+	return seqNode, nil
+}
+
+// mergeVarNode merges fields from overrideNode into a clone of baseNode.
+// All keys in override win; absent keys in override are inherited from base.
+// The "name" key is always preserved from base.
+func mergeVarNode(base, override *yaml.Node) (*yaml.Node, error) {
+	result := cloneNode(base)
+	for i := 0; i+1 < len(override.Content); i += 2 {
+		keyNode := override.Content[i]
+		valNode := override.Content[i+1]
+		if keyNode.Value == "name" {
+			continue // always preserve name from base
+		}
+		upsertKey(result, keyNode.Value, cloneNode(valNode))
+	}
+	return result, nil
+}
+
+// checkDuplicateVarNodes returns an error if any var name appears more than
+// once in the provided nodes.
+func checkDuplicateVarNodes(varNodes []*yaml.Node) error {
+	seen := make(map[string]bool, len(varNodes))
+	for _, v := range varNodes {
+		name := varNodeName(v)
+		if seen[name] {
+			return fmt.Errorf("duplicate variable %q", name)
+		}
+		seen[name] = true
+	}
+	return nil
+}
+
+// varNodeName extracts the value of the "name" key from a var mapping node.
+func varNodeName(v *yaml.Node) string {
+	nameVal := mappingValue(v, "name")
+	if nameVal == nil {
+		return ""
+	}
+	return nameVal.Value
+}
+
+// readVarNodes extracts the individual var mapping nodes from the "vars"
+// sequence of the given mapping node. Returns nil if no "vars" key is present.
+func readVarNodes(mappingNode *yaml.Node) ([]*yaml.Node, error) {
+	varsNode := mappingValue(mappingNode, "vars")
+	if varsNode == nil {
+		return nil, nil
+	}
+	if varsNode.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("'vars' is not a sequence node")
+	}
+	result := make([]*yaml.Node, 0, len(varsNode.Content))
+	for _, item := range varsNode.Content {
+		if item.Kind != yaml.MappingNode {
+			return nil, fmt.Errorf("var entry is not a mapping node")
+		}
+		result = append(result, item)
+	}
+	return result, nil
+}
+
+// getInputMappingNode navigates to policy_templates[ptIdx].inputs[inputIdx] in
+// the given YAML document and returns the input mapping node.
+func getInputMappingNode(doc *yaml.Node, ptIdx, inputIdx int) (*yaml.Node, error) {
+	root := doc
+	if root.Kind == yaml.DocumentNode {
+		if len(root.Content) == 0 {
+			return nil, fmt.Errorf("empty YAML document")
+		}
+		root = root.Content[0]
+	}
+	if root.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("expected mapping node at document root")
+	}
+
+	ptsNode := mappingValue(root, "policy_templates")
+	if ptsNode == nil || ptsNode.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("'policy_templates' not found or not a sequence")
+	}
+	if ptIdx < 0 || ptIdx >= len(ptsNode.Content) {
+		return nil, fmt.Errorf("policy template index %d out of range (len=%d)", ptIdx, len(ptsNode.Content))
+	}
+
+	ptNode := ptsNode.Content[ptIdx]
+	if ptNode.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("policy template %d is not a mapping", ptIdx)
+	}
+
+	inputsNode := mappingValue(ptNode, "inputs")
+	if inputsNode == nil || inputsNode.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("'inputs' not found or not a sequence in policy template %d", ptIdx)
+	}
+	if inputIdx < 0 || inputIdx >= len(inputsNode.Content) {
+		return nil, fmt.Errorf("input index %d out of range (len=%d)", inputIdx, len(inputsNode.Content))
+	}
+
+	inputNode := inputsNode.Content[inputIdx]
+	if inputNode.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("input %d is not a mapping", inputIdx)
+	}
+
+	return inputNode, nil
+}
+
+// getStreamMappingNode navigates to streams[streamIdx] in the given YAML
+// document and returns the stream mapping node.
+func getStreamMappingNode(doc *yaml.Node, streamIdx int) (*yaml.Node, error) {
+	root := doc
+	if root.Kind == yaml.DocumentNode {
+		if len(root.Content) == 0 {
+			return nil, fmt.Errorf("empty YAML document")
+		}
+		root = root.Content[0]
+	}
+	if root.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("expected mapping node at document root")
+	}
+
+	streamsNode := mappingValue(root, "streams")
+	if streamsNode == nil || streamsNode.Kind != yaml.SequenceNode {
+		return nil, fmt.Errorf("'streams' not found or not a sequence")
+	}
+	if streamIdx < 0 || streamIdx >= len(streamsNode.Content) {
+		return nil, fmt.Errorf("stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Content))
+	}
+
+	streamNode := streamsNode.Content[streamIdx]
+	if streamNode.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("stream %d is not a mapping", streamIdx)
+	}
+
+	return streamNode, nil
+}
