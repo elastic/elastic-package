@@ -11,26 +11,28 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 )
 
 // Options contains benchmark runner options.
 type Options struct {
-	ESAPI               *elasticsearch.API
-	KibanaClient        *kibana.Client
-	DeferCleanup        time.Duration
-	MetricsInterval     time.Duration
-	ReindexData         bool
-	ESMetricsAPI        *elasticsearch.API
-	BenchName           string
-	PackageRoot         string
-	Variant             string
-	Profile             *profile.Profile
-	RallyTrackOutputDir string
-	DryRun              bool
-	PackageName         string
-	PackageVersion      string
-	CorpusAtPath        string
-	RepositoryRoot      *os.Root
+	ESAPI                  *elasticsearch.API
+	KibanaClient           *kibana.Client
+	DeferCleanup           time.Duration
+	MetricsInterval        time.Duration
+	ReindexData            bool
+	ESMetricsAPI           *elasticsearch.API
+	BenchName              string
+	PackageRoot            string
+	Variant                string
+	Profile                *profile.Profile
+	RallyTrackOutputDir    string
+	DryRun                 bool
+	PackageName            string
+	PackageVersion         string
+	CorpusAtPath           string
+	RepositoryRoot         *os.Root
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 type ClientOptions struct {
@@ -124,5 +126,11 @@ func WithRallyCorpusAtPath(c string) OptionFunc {
 func WithRepositoryRoot(r *os.Root) OptionFunc {
 	return func(opts *Options) {
 		opts.RepositoryRoot = r
+	}
+}
+
+func WithRequiredInputsResolver(r requiredinputs.Resolver) OptionFunc {
+	return func(opts *Options) {
+		opts.RequiredInputsResolver = r
 	}
 }

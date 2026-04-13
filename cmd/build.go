@@ -16,6 +16,10 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
+	"github.com/elastic/elastic-package/internal/stack"
 )
 
 const buildLongDescription = `Use this command to build a package.
@@ -25,6 +29,8 @@ Built packages are stored in the "build/" folder located at the root folder of t
 Built packages are served up by the Elastic Package Registry running locally (see "elastic-package stack"). If you want a local package to be served up by the local Elastic Package Registry, make sure to build that package first using "elastic-package build".
 
 Built packages can also be published to the global package registry service.
+
+When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry (see "package_registry.base_url" in ~/.elastic-package/config.yml). The build then incorporates their policy and data stream templates, merges variable definitions into the integration manifest, bundles data stream field definitions, and resolves package: references on inputs and streams to the effective input types expected by Fleet. For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md).
 
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).`
 
@@ -84,15 +90,25 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := appConfig.PackageRegistryBaseURL()
+	prof, err := profile.LoadProfile(appConfig.CurrentProfile())
+	if err != nil {
+		return fmt.Errorf("could not load profile: %w", err)
+	}
+	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
+
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
+
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    packageRoot,
-		BuildDir:       buildDir,
-		CreateZip:      createZip,
-		SignPackage:    signPackage,
-		SkipValidation: skipValidation,
-		RepositoryRoot: repositoryRoot,
-		UpdateReadmes:  true,
-		SchemaURLs:     appConfig.SchemaURLs(),
+		PackageRoot:            packageRoot,
+		BuildDir:               buildDir,
+		CreateZip:              createZip,
+		SignPackage:            signPackage,
+		SkipValidation:         skipValidation,
+		RepositoryRoot:         repositoryRoot,
+		UpdateReadmes:          true,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)

@@ -11,22 +11,24 @@ import (
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 )
 
 // Options contains benchmark runner options.
 type Options struct {
-	ESAPI           *elasticsearch.API
-	KibanaClient    *kibana.Client
-	BenchName       string
-	BackFill        time.Duration
-	EventsPerPeriod uint64
-	PeriodDuration  time.Duration
-	PerformCleanup  bool
-	TimestampField  string
-	PackageRoot     string
-	Variant         string
-	Profile         *profile.Profile
-	RepositoryRoot  *os.Root
+	ESAPI                  *elasticsearch.API
+	KibanaClient           *kibana.Client
+	BenchName              string
+	BackFill               time.Duration
+	EventsPerPeriod        uint64
+	PeriodDuration         time.Duration
+	PerformCleanup         bool
+	TimestampField         string
+	PackageRoot            string
+	Variant                string
+	Profile                *profile.Profile
+	RepositoryRoot         *os.Root
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 type ClientOptions struct {
@@ -113,5 +115,11 @@ func WithTimestampField(t string) OptionFunc {
 func WithRepositoryRoot(r *os.Root) OptionFunc {
 	return func(opts *Options) {
 		opts.RepositoryRoot = r
+	}
+}
+
+func WithRequiredInputsResolver(r requiredinputs.Resolver) OptionFunc {
+	return func(opts *Options) {
+		opts.RequiredInputsResolver = r
 	}
 }

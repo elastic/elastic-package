@@ -33,7 +33,9 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -53,6 +55,33 @@ type Options struct {
 	UpdateScripts   bool   // testscript.Params.UpdateScripts
 	ContinueOnError bool   // testscript.Params.ContinueOnError
 	TestWork        bool   // testscript.Params.TestWork
+
+	// Profile selects the package registry URL from profile config (with app
+	// config as fallback). When nil, the current profile name from application
+	// configuration is loaded.
+	Profile *profile.Profile
+}
+
+func profileAndPackageRegistryBaseURL(opt Options, appConfig *install.ApplicationConfiguration) (*profile.Profile, string, error) {
+	prof := opt.Profile
+	if prof == nil {
+		var err error
+		prof, err = profile.LoadProfile(appConfig.CurrentProfile())
+		if err != nil {
+			return nil, "", fmt.Errorf("loading profile %q: %w", appConfig.CurrentProfile(), err)
+		}
+	}
+	return prof, stack.PackageRegistryBaseURL(prof, appConfig), nil
+}
+
+func scriptTestWorkdirRoot(workRoot string, opt Options) (workdirRoot string, err error) {
+	if opt.TestWork {
+		return os.MkdirTemp(workRoot, "*")
+	}
+	if err := os.Setenv("GOTMPDIR", workRoot); err != nil {
+		return "", fmt.Errorf("could not set temp dir var: %w", err)
+	}
+	return "", nil
 }
 
 // TODO: refactor Run to reduce cognitive complexity (currently 89).
@@ -72,6 +101,10 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return fmt.Errorf("could read configuration: %w", err)
 	}
+	prof, eprBaseURL, err := profileAndPackageRegistryBaseURL(opt, appConfig)
+	if err != nil {
+		return err
+	}
 	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return err
@@ -81,27 +114,14 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return fmt.Errorf("could not make work space root: %w", err)
 	}
-	var workdirRoot string
-	if opt.TestWork {
-		// Only create a work root and pass it in if --work has been requested.
-		// The behaviour of testscript is to set TestWork to true if the work
-		// root is non-zero, so just let testscript put it where it wants in the
-		// case that we have not requested work to be retained. This will be in
-		// os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-test-script") which on most
-		// systems will be /tmp/go-test-script. However, due to… decisions, we
-		// cannot operate in that directory…
-		workdirRoot, err = os.MkdirTemp(workRoot, "*")
-		if err != nil {
+	// Only pass a non-zero work root when --work is set; otherwise set $GOTMPDIR
+	// so testscript uses a directory we can operate in (see scriptTestWorkdirRoot).
+	workdirRoot, err := scriptTestWorkdirRoot(workRoot, opt)
+	if err != nil {
+		if opt.TestWork {
 			return fmt.Errorf("could not make work space: %w", err)
 		}
-	} else {
-		// … so set $GOTMPDIR to a location that we can work in.
-		//
-		// This is all obviously awful.
-		err = os.Setenv("GOTMPDIR", workRoot)
-		if err != nil {
-			return fmt.Errorf("could not set temp dir var: %w", err)
-		}
+		return err
 	}
 
 	dirs, err := scripts(opt.Dir)
@@ -201,7 +221,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		if err != nil {
 			return err
 		}
-		eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+		eprClient := registry.NewClient(eprBaseURL, stack.RegistryClientOptions(eprBaseURL, prof)...)
 		revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
 		if err != nil {
 			return err
@@ -237,7 +257,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			"CONFIG_PROFILES":           loc.ProfileDir(),
 			"HOME":                      home,
 			"ECS_BASE_SCHEMA_URL":       appConfig.SchemaURLs().ECSBase(),
-			"PACKAGE_REGISTRY_BASE_URL": appConfig.PackageRegistryBaseURL(),
+			"PACKAGE_REGISTRY_BASE_URL": eprBaseURL,
 		}
 		if pkgRoot != "" {
 			scriptEnv["PACKAGE_NAME"] = manifest.Name
@@ -408,9 +428,10 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-			PackageRoot: pkgRoot,
-			Absent:      true,
-			Force:       true,
+			PackageRoot:            pkgRoot,
+			Absent:                 true,
+			Force:                  true,
+			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 		}})
 		if err != nil && !strings.Contains(err.Error(), "is not installed") {
 			errs = append(errs, err)

@@ -19,6 +19,7 @@ import (
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -295,11 +296,12 @@ func (r *runner) Type() testrunner.TestType {
 func (r *runner) resources(opts resourcesOptions) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !opts.installedPackage,
-			Force:          opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
-			SchemaURLs:     r.schemaURLs,
+			PackageRoot:            r.packageRoot,
+			Absent:                 !opts.installedPackage,
+			Force:                  opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:         r.repositoryRoot,
+			SchemaURLs:             r.schemaURLs,
+			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 		},
 	}
 }
