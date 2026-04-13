@@ -40,10 +40,10 @@ type RequiredInputsResolver struct {
 }
 
 // NewRequiredInputsResolver returns a Resolver that downloads required input packages from the registry.
-func NewRequiredInputsResolver(eprClient eprClient) (*RequiredInputsResolver, error) {
+func NewRequiredInputsResolver(eprClient eprClient) *RequiredInputsResolver {
 	return &RequiredInputsResolver{
 		eprClient: eprClient,
-	}, nil
+	}
 }
 
 func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot string) error {
@@ -76,7 +76,7 @@ func (r *RequiredInputsResolver) BundleInputPackageTemplates(buildPackageRoot st
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory for input packages: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	inputPkgPaths, err := r.mapRequiredInputPackagesPaths(manifest.Requires.Input, tmpDir)
 	if err != nil {

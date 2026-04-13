@@ -340,10 +340,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	withOpts := []rally.OptionFunc{
 		rally.WithVariant(variant),
@@ -528,10 +525,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	withOpts := []stream.OptionFunc{
 		stream.WithVariant(variant),

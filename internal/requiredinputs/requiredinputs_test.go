@@ -51,8 +51,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)
@@ -83,10 +82,9 @@ func TestBundleInputPackageTemplates_NoManifest(t *testing.T) {
 	}
 	buildPackageRoot := t.TempDir()
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
-	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
+	err := resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to read package manifest")
 }
@@ -107,8 +105,7 @@ type: input
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)
@@ -132,8 +129,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.BundleInputPackageTemplates(buildPackageRoot)
 	require.NoError(t, err)

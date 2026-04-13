@@ -97,10 +97,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	}
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
 
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
 		PackageRoot:            packageRoot,

@@ -81,7 +81,7 @@ func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgP
 	if err != nil {
 		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	manifestBytes, err := fs.ReadFile(inputPkgFS, packages.PackageManifestFile)
 	if err != nil {

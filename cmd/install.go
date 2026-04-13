@@ -97,10 +97,7 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
 
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	installer, err := installer.NewForPackage(installer.Options{
 		Kibana:                 kibanaClient,

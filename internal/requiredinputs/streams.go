@@ -108,7 +108,7 @@ func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, in
 	if err != nil {
 		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	manifestBytes, err := fs.ReadFile(inputPkgFS, "manifest.yml")
 	if err != nil {
