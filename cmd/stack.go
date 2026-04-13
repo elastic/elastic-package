@@ -347,8 +347,7 @@ func setupStackCommand() *cobraext.Command {
 			}
 
 			cmd.Println("Status of Elastic stack services:")
-			printStatus(cmd, servicesStatus)
-			return nil
+			return printStatus(cmd, servicesStatus)
 		},
 	}
 
@@ -396,10 +395,10 @@ func validateServicesFlag(services []string) error {
 	return nil
 }
 
-func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
+func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) error {
 	if len(servicesStatus) == 0 {
 		cmd.Printf(" - No service running\n")
-		return
+		return nil
 	}
 	config := defaultColorizedConfig()
 	config.Settings.Separators.BetweenRows = tw.Off
@@ -414,9 +413,14 @@ func printStatus(cmd *cobra.Command, servicesStatus []stack.ServiceStatus) {
 			buildDate = formatTime(service.Labels.BuildDate)
 			vcsRef = truncate(service.Labels.VCSRef, 10)
 		}
-		table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef)
+		if err := table.Append(service.Name, service.Version, service.Status, buildDate, vcsRef); err != nil {
+			return fmt.Errorf("appending service status row: %w", err)
+		}
 	}
-	table.Render()
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("rendering services status table: %w", err)
+	}
+	return nil
 }
 
 // formatTime returns the given RFC3339 time formated as 2006-01-02T15:04Z.

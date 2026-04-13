@@ -173,7 +173,9 @@ func (d *CustomAgentDeployer) SetUp(ctx context.Context, svcInfo ServiceInfo) (D
 		logger.Debug("Tearing down service due to setup error")
 		// Update svcInfo with the latest info before tearing down
 		service.svcInfo = svcInfo
-		service.TearDown(context.WithoutCancel(ctx))
+		if err := service.TearDown(context.WithoutCancel(ctx)); err != nil {
+			logger.Debugf("Error tearing down service: %v", err)
+		}
 	}()
 
 	if d.runTestsOnly || d.runTearDown {

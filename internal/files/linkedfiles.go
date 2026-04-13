@@ -515,11 +515,7 @@ func getLinkedFileChecksumFromRoot(repositoryRoot *os.Root, relativePath string)
 	if err != nil {
 		return "", err
 	}
-	cs, err := checksum(b)
-	if err != nil {
-		return "", err
-	}
-	return cs, nil
+	return checksum(b), nil
 }
 
 // readFirstLine reads and returns the first line of a file.
@@ -543,7 +539,7 @@ func readFirstLine(filePath string) (string, error) {
 }
 
 // checksum calculates the SHA256 checksum of a byte slice.
-func checksum(b []byte) (string, error) {
+func checksum(b []byte) string {
 	hash := sha256.Sum256(b)
-	return hex.EncodeToString(hash[:]), nil
+	return hex.EncodeToString(hash[:])
 }

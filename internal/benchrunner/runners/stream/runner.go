@@ -479,8 +479,8 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 		return bulkBodyBuilder, err
 	}
 
-	bulkBodyBuilder.WriteString(fmt.Sprintf("{\"create\":{\"_index\":\"%s\"}}\n", indexName))
-	bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+	fmt.Fprintf(&bulkBodyBuilder, "{\"create\":{\"_index\":\"%s\"}}\n", indexName)
+	fmt.Fprintf(&bulkBodyBuilder, "%s\n", string(src))
 
 	buf.Reset()
 

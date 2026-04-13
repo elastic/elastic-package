@@ -16,6 +16,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/benchrunner/reporters"
 	"github.com/elastic/elastic-package/internal/elasticsearch/ingest"
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 type report struct {
@@ -31,6 +32,7 @@ type report struct {
 	}
 	Parameters struct {
 		PackageVersion      string
+		Deployer            string
 		Input               string
 		Vars                map[string]interface{}
 		DataStream          dataStream
@@ -47,8 +49,8 @@ type report struct {
 	TotalHits           int
 }
 
-func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) (reporters.Reportable, error) {
-	r := newReport(benchName, corporaFile, s, sum)
+func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, secretVarNames map[string]bool) (reporters.Reportable, error) {
+	r := newReport(benchName, corporaFile, s, sum, secretVarNames)
 	human := reporters.NewReport(s.Package, reportHumanFormat(r))
 
 	jsonBytes, err := reportJSONFormat(r)
@@ -63,7 +65,7 @@ func createReport(benchName, corporaFile string, s *scenario, sum *metricsSummar
 	return mr, nil
 }
 
-func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) *report {
+func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary, secretVarNames map[string]bool) *report {
 	var report report
 	report.Info.Benchmark = benchName
 	report.Info.Description = s.Description
@@ -74,9 +76,13 @@ func newReport(benchName, corporaFile string, s *scenario, sum *metricsSummary) 
 	report.Info.Duration = time.Duration(sum.CollectionEndTs-sum.CollectionStartTs) * time.Second
 	report.Info.GeneratedCorporaFile = corporaFile
 	report.Parameters.PackageVersion = s.Version
+	report.Parameters.Deployer = s.Deployer
 	report.Parameters.Input = s.Input
-	report.Parameters.Vars = s.Vars
-	report.Parameters.DataStream = s.DataStream
+	report.Parameters.Vars = maskSecretVars(s.Vars, secretVarNames)
+	report.Parameters.DataStream = dataStream{
+		Name: s.DataStream.Name,
+		Vars: maskSecretVars(s.DataStream.Vars, secretVarNames),
+	}
 	report.Parameters.WarmupTimePeriod = s.WarmupTimePeriod
 	report.Parameters.BenchmarkTimePeriod = s.BenchmarkTimePeriod
 	report.Parameters.WaitForDataTimeout = *s.WaitForDataTimeout
@@ -114,6 +120,7 @@ func reportHumanFormat(r *report) []byte {
 
 	pkvs := []interface{}{
 		"package version", r.Parameters.PackageVersion,
+		"deployer", r.Parameters.Deployer,
 		"input", r.Parameters.Input,
 	}
 
@@ -216,6 +223,52 @@ func reportHumanFormat(r *report) []byte {
 	}
 
 	return []byte(report.String())
+}
+
+func collectSecretVarNames(pkgManifest *packages.PackageManifest, dsManifest *packages.DataStreamManifest) map[string]bool {
+	secrets := make(map[string]bool)
+	for _, v := range pkgManifest.Vars {
+		if v.Secret {
+			secrets[v.Name] = true
+		}
+	}
+	for _, pt := range pkgManifest.PolicyTemplates {
+		for _, input := range pt.Inputs {
+			for _, v := range input.Vars {
+				if v.Secret {
+					secrets[v.Name] = true
+				}
+			}
+		}
+		for _, v := range pt.Vars {
+			if v.Secret {
+				secrets[v.Name] = true
+			}
+		}
+	}
+	for _, stream := range dsManifest.Streams {
+		for _, v := range stream.Vars {
+			if v.Secret {
+				secrets[v.Name] = true
+			}
+		}
+	}
+	return secrets
+}
+
+func maskSecretVars(vars map[string]interface{}, secretNames map[string]bool) map[string]interface{} {
+	if len(vars) == 0 || len(secretNames) == 0 {
+		return vars
+	}
+	masked := make(map[string]interface{}, len(vars))
+	for k, v := range vars {
+		if secretNames[k] {
+			masked[k] = "xxxx"
+		} else {
+			masked[k] = v
+		}
+	}
+	return masked
 }
 
 func renderBenchmarkTable(title string, kv ...interface{}) string {

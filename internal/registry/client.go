@@ -10,6 +10,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/certs"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -109,4 +111,23 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 	}
 
 	return resp.StatusCode, body, nil
+}
+
+// DownloadPackage downloads a package zip from the registry and writes it to destDir.
+// It returns the path to the downloaded zip file.
+func (c *Client) DownloadPackage(name, version, destDir string) (string, error) {
+	resourcePath := fmt.Sprintf("/epr/%s/%s-%s.zip", name, name, version)
+	statusCode, body, err := c.get(resourcePath)
+	if err != nil {
+		return "", fmt.Errorf("downloading package %s-%s: %w", name, version, err)
+	}
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("downloading package %s-%s: unexpected status code %d", name, version, statusCode)
+	}
+
+	zipPath := filepath.Join(destDir, fmt.Sprintf("%s-%s.zip", name, version))
+	if err := os.WriteFile(zipPath, body, 0o644); err != nil {
+		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
+	}
+	return zipPath, nil
 }

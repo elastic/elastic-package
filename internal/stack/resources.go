@@ -9,6 +9,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -37,6 +38,9 @@ const (
 
 	// KibanaConfigFile is the kibana config file.
 	KibanaConfigFile = "kibana.yml"
+
+	// KibanaDevConfigFile is the custom kibana config file.
+	KibanaDevConfigFile = "kibana.dev.yml"
 
 	// LogstashConfigFile is the logstash config file.
 	LogstashConfigFile = "logstash.conf"
@@ -114,8 +118,11 @@ var (
 			Content:      staticSource.File("_static/GeoLite2-Country.mmdb"),
 		},
 		&resource.File{
-			Path:    KibanaConfigFile,
-			Content: staticSource.Template("_static/kibana.yml.tmpl"),
+			Path: KibanaConfigFile,
+			Content: fileContentAppender(
+				staticSource.Template("_static/kibana.yml.tmpl"),
+				kibanaCustomContent(),
+			),
 		},
 		&resource.File{
 			Path:    KibanaHealthcheckFile,
@@ -151,6 +158,18 @@ var (
 		"trial",
 	}
 )
+
+// fileContentAppender returns a FileContent that sequentially writes all given sources.
+func fileContentAppender(sources ...resource.FileContent) resource.FileContent {
+	return func(ctx resource.Context, w io.Writer) error {
+		for _, src := range sources {
+			if err := src(ctx, w); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
 
 func applyResources(profile *profile.Profile, appConfig *install.ApplicationConfiguration, stackVersion, agentVersion string) error {
 	stackDir := filepath.Join(profile.ProfilePath, ProfileStackPath)
@@ -200,6 +219,7 @@ func applyResources(profile *profile.Profile, appConfig *install.ApplicationConf
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})
+	resourceManager.RegisterProvider("profile", profile)
 	resources := append([]resource.Resource{}, stackResources...)
 
 	// Keeping certificates in the profile directory for backwards compatibility reasons.

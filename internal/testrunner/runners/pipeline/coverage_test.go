@@ -137,7 +137,7 @@ func TestGenericCoverageForSinglePipeline(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.title, func(t *testing.T) {
-			linesCoveredResult, fileResult, _ := genericCoverageForSinglePipeline(testcase.pipelineRelPath, testcase.src, testcase.pstats)
+			linesCoveredResult, fileResult := genericCoverageForSinglePipeline(testcase.pipelineRelPath, testcase.src, testcase.pstats)
 			assert.Equal(t, testcase.expectedLinesCovered, linesCoveredResult)
 			assert.Equal(t, testcase.expectedFile, fileResult)
 		})
@@ -260,7 +260,7 @@ func TestCoberturaForSinglePipeline(t *testing.T) {
 		},
 	} {
 		t.Run(testcase.title, func(t *testing.T) {
-			linesCoveredResult, classResult, _ := coberturaForSinglePipeline(testcase.pipelineName, testcase.pipelineRelPath, testcase.src, testcase.pstats)
+			linesCoveredResult, classResult := coberturaForSinglePipeline(testcase.pipelineName, testcase.pipelineRelPath, testcase.src, testcase.pstats)
 			assert.Equal(t, testcase.expectedLinesCovered, linesCoveredResult)
 			assert.Equal(t, testcase.expectedClass, classResult)
 		})
