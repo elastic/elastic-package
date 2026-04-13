@@ -73,8 +73,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("full override", func(t *testing.T) {
 		override := varNode("paths", "type", "keyword", "title", "Custom Paths", "multi", "false")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "keyword", mappingValue(merged, "type").Value)
 		assert.Equal(t, "Custom Paths", mappingValue(merged, "title").Value)
@@ -83,8 +82,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("partial override", func(t *testing.T) {
 		override := varNode("paths", "title", "My Paths")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "text", mappingValue(merged, "type").Value) // from base
 		assert.Equal(t, "My Paths", mappingValue(merged, "title").Value)
@@ -93,8 +91,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("empty override", func(t *testing.T) {
 		override := varNode("paths")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "text", mappingValue(merged, "type").Value)   // from base
 		assert.Equal(t, "Paths", mappingValue(merged, "title").Value) // from base
@@ -105,15 +102,13 @@ func TestMergeVarNode(t *testing.T) {
 		override := &yaml.Node{Kind: yaml.MappingNode}
 		upsertKey(override, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: "should-be-ignored"})
 		upsertKey(override, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 	})
 
 	t.Run("adds new field from override", func(t *testing.T) {
 		override := varNode("paths", "description", "My description")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "My description", mappingValue(merged, "description").Value)
 		assert.Equal(t, "text", mappingValue(merged, "type").Value) // base preserved
 	})
@@ -157,8 +152,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 	}
 
 	t.Run("empty promoted → empty sequence", func(t *testing.T) {
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
 		assert.Empty(t, seq.Content)
 	})
 
@@ -166,8 +160,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 		promotedOverrides := map[string]*yaml.Node{
 			"paths": varNode("paths", "default", "/var/log/custom/*.log"),
 		}
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
 		require.Len(t, seq.Content, 1)
 		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
 		assert.Equal(t, "/var/log/custom/*.log", mappingValue(seq.Content[0], "default").Value)
@@ -179,8 +172,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 			"timeout":  varNode("timeout", "default", "60s"),
 			"encoding": varNode("encoding", "show_user", "true"),
 		}
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
 		require.Len(t, seq.Content, 2)
 		// Order must follow baseOrder: encoding before timeout.
 		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
@@ -207,8 +199,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 	}
 
 	t.Run("no promoted, no overrides → all base vars", func(t *testing.T) {
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
 		require.Len(t, seq.Content, 3)
 		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
 		assert.Equal(t, "encoding", varNodeName(seq.Content[1]))
@@ -217,16 +208,14 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 
 	t.Run("some promoted → promoted excluded", func(t *testing.T) {
 		promoted := map[string]bool{"paths": true, "encoding": true}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
 		require.Len(t, seq.Content, 1)
 		assert.Equal(t, "timeout", varNodeName(seq.Content[0]))
 	})
 
 	t.Run("DS override on existing base var", func(t *testing.T) {
 		dsOverrides := []*yaml.Node{varNode("encoding", "show_user", "true")}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
 		require.Len(t, seq.Content, 3)
 		// encoding is merged
 		encodingMerged := seq.Content[1]
@@ -237,8 +226,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 
 	t.Run("novel DS var appended", func(t *testing.T) {
 		dsOverrides := []*yaml.Node{varNode("custom_tag", "type", "text")}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
 		require.Len(t, seq.Content, 4) // 3 base + 1 novel
 		assert.Equal(t, "custom_tag", varNodeName(seq.Content[3]))
 	})
@@ -249,8 +237,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 			varNode("encoding", "show_user", "true"),
 			varNode("custom_tag", "type", "text"),
 		}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
 		// paths excluded (promoted); encoding merged; timeout base; custom_tag novel
 		require.Len(t, seq.Content, 3)
 		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))

@@ -70,7 +70,7 @@ func (r *RequiredInputsResolver) mergeInputPkgFields(dsRootDir, inputPkgPath, in
 	if err != nil {
 		return fmt.Errorf("opening package %q: %w", inputPkgPath, err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	inputFieldFiles, err := fs.Glob(inputPkgFS, "fields/*.yml")
 	if err != nil {

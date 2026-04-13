@@ -140,9 +140,9 @@ func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 	// "log.level". After bundling, only "message" and "log.level" should appear
 	// in the generated file.
 	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
-	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))	
+	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 
-	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
 
 	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "field_logs", "fields", "fields_input_pkg-fields.yml")
 	data, err := os.ReadFile(bundledPath)

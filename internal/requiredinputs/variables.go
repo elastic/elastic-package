@@ -35,6 +35,8 @@ type pkgDsKey struct {
 // Data-stream-level vars: all remaining (non-promoted) base vars are placed at
 // the data-stream level, merged with any stream-level overrides the composable
 // package declares.
+//
+//nolint:gocognit // multi-step merge pipeline (promotion, DS manifests, policy templates)
 func (r *RequiredInputsResolver) mergeVariables(
 	manifest *packages.PackageManifest,
 	inputPkgPaths map[string]string,
@@ -120,10 +122,7 @@ func (r *RequiredInputsResolver) mergeVariables(
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
-			mergedSeq, err := mergeInputLevelVarNodes(baseVarOrder, baseVarByName, promotedOverrides)
-			if err != nil {
-				return fmt.Errorf("merging input-level vars for pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
-			}
+			mergedSeq := mergeInputLevelVarNodes(baseVarOrder, baseVarByName, promotedOverrides)
 
 			if len(mergedSeq.Content) > 0 {
 				upsertKey(inputNode, "vars", mergedSeq)
@@ -206,10 +205,7 @@ func (r *RequiredInputsResolver) mergeVariables(
 				return fmt.Errorf("duplicate vars in data stream manifest %q: %w", manifestPath, err)
 			}
 
-			mergedSeq, err := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
-			if err != nil {
-				return fmt.Errorf("merging stream-level vars in %q: %w", manifestPath, err)
-			}
+			mergedSeq := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
 
 			if len(mergedSeq.Content) > 0 {
 				upsertKey(streamNode, "vars", mergedSeq)
@@ -239,7 +235,7 @@ func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*yaml.Node, erro
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening package: %w", err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	manifestBytes, err := fs.ReadFile(pkgFS, packages.PackageManifestFile)
 	if err != nil {
@@ -301,20 +297,17 @@ func mergeInputLevelVarNodes(
 	baseVarOrder []string,
 	baseVarByName map[string]*yaml.Node,
 	promotedOverrides map[string]*yaml.Node,
-) (*yaml.Node, error) {
+) *yaml.Node {
 	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
 	for _, varName := range baseVarOrder {
 		overrideNode, promoted := promotedOverrides[varName]
 		if !promoted {
 			continue
 		}
-		merged, err := mergeVarNode(baseVarByName[varName], overrideNode)
-		if err != nil {
-			return nil, fmt.Errorf("merging var %q: %w", varName, err)
-		}
+		merged := mergeVarNode(baseVarByName[varName], overrideNode)
 		seqNode.Content = append(seqNode.Content, merged)
 	}
-	return seqNode, nil
+	return seqNode
 }
 
 // mergeStreamLevelVarNodes returns a sequence node containing:
@@ -327,7 +320,7 @@ func mergeStreamLevelVarNodes(
 	baseVarByName map[string]*yaml.Node,
 	promotedNames map[string]bool,
 	dsOverrides []*yaml.Node,
-) (*yaml.Node, error) {
+) *yaml.Node {
 	dsOverrideByName := make(map[string]*yaml.Node, len(dsOverrides))
 	for _, v := range dsOverrides {
 		dsOverrideByName[varNodeName(v)] = v
@@ -342,17 +335,11 @@ func mergeStreamLevelVarNodes(
 		}
 		baseNode := baseVarByName[varName]
 		overrideNode, hasOverride := dsOverrideByName[varName]
-		var (
-			merged *yaml.Node
-			merr   error
-		)
+		var merged *yaml.Node
 		if hasOverride {
-			merged, merr = mergeVarNode(baseNode, overrideNode)
+			merged = mergeVarNode(baseNode, overrideNode)
 		} else {
 			merged = cloneNode(baseNode)
-		}
-		if merr != nil {
-			return nil, fmt.Errorf("merging var %q: %w", varName, merr)
 		}
 		seqNode.Content = append(seqNode.Content, merged)
 	}
@@ -364,13 +351,13 @@ func mergeStreamLevelVarNodes(
 		}
 	}
 
-	return seqNode, nil
+	return seqNode
 }
 
 // mergeVarNode merges fields from overrideNode into a clone of baseNode.
 // All keys in override win; absent keys in override are inherited from base.
 // The "name" key is always preserved from base.
-func mergeVarNode(base, override *yaml.Node) (*yaml.Node, error) {
+func mergeVarNode(base, override *yaml.Node) *yaml.Node {
 	result := cloneNode(base)
 	for i := 0; i+1 < len(override.Content); i += 2 {
 		keyNode := override.Content[i]
@@ -380,7 +367,7 @@ func mergeVarNode(base, override *yaml.Node) (*yaml.Node, error) {
 		}
 		upsertKey(result, keyNode.Value, cloneNode(valNode))
 	}
-	return result, nil
+	return result
 }
 
 // checkDuplicateVarNodes returns an error if any var name appears more than

@@ -112,7 +112,7 @@ policy_templates:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -167,7 +167,7 @@ policy_templates:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -219,7 +219,7 @@ policy_templates:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -272,7 +272,7 @@ policy_templates:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
 	require.NoError(t, err)
@@ -341,7 +341,7 @@ streams:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
+	require.NoError(t, resolver.Bundle(buildRoot))
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
@@ -410,8 +410,7 @@ streams:
 		},
 	}
 	resolver := NewRequiredInputsResolver(epr)
-	err := resolver.Bundle(buildRoot)
-	require.NoError(t, err)
+	require.NoError(t, resolver.Bundle(buildRoot))
 
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
 	require.NoError(t, err)
@@ -432,7 +431,7 @@ streams:
 func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
 	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
-	err := resolver.Bundle(buildPackageRoot)
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
 
 	// Check main manifest: package: fields_input_pkg → type: logfile
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
