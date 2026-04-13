@@ -37,7 +37,7 @@ func AutodetectShell() string {
 func ShellInit(elasticStackProfile *profile.Profile, shellType string) (string, error) {
 	config, err := StackInitConfig(elasticStackProfile)
 	if err != nil {
-		return "", nil
+		return "", fmt.Errorf("reading stack init config: %w", err)
 	}
 	return shellInitWithConfig(config, shellType)
 }

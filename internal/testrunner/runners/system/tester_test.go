@@ -503,6 +503,87 @@ func TestDiscoverDataStreams(t *testing.T) {
 	})
 }
 
+func TestFilterOtelAPMRollupDataStreams(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    []discoveredDataStream
+		expected []string
+	}{
+		{
+			name:     "empty input returns empty output",
+			input:    []discoveredDataStream{},
+			expected: []string{},
+		},
+		{
+			name: "APM rollup streams with 1m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_destination.1m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "APM rollup streams with 10m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_destination.10m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "APM rollup streams with 60m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_summary.60m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "all known APM rollup stream types are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-zipkinreceiver.otel-default"},
+				{name: "metrics-service_destination.1m.otel-default"},
+				{name: "metrics-service_destination.10m.otel-default"},
+				{name: "metrics-service_summary.1m.otel-default"},
+				{name: "metrics-service_summary.10m.otel-default"},
+				{name: "metrics-service_transaction.1m.otel-default"},
+				{name: "metrics-service_transaction.10m.otel-default"},
+				{name: "metrics-transaction.1m.otel-default"},
+				{name: "metrics-transaction.10m.otel-default"},
+			},
+			expected: []string{"traces-zipkinreceiver.otel-default"},
+		},
+		{
+			name: "legitimate metrics stream without interval suffix is not filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-myreceiver.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default", "metrics-myreceiver.otel-default"},
+		},
+		{
+			name: "no streams match the filter, all are returned",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "logs-myreceiver.otel-default"},
+				{name: "metrics-myreceiver.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default", "logs-myreceiver.otel-default", "metrics-myreceiver.otel-default"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := filterOtelAPMRollupDataStreams(c.input)
+			names := make([]string, len(got))
+			for i, s := range got {
+				names[i] = s.name
+			}
+			assert.Equal(t, c.expected, names)
+		})
+	}
+}
+
 func TestBuildDataStreamScenarios(t *testing.T) {
 	t.Run("standard single stream", func(t *testing.T) {
 		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}
@@ -532,6 +613,27 @@ func TestBuildDataStreamScenarios(t *testing.T) {
 		assert.Equal(t, "logs-myreceiver", got[0].indexTemplateName)
 		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
 		assert.Equal(t, "metrics-myreceiver", got[1].indexTemplateName)
+	})
+
+	t.Run("otelcol traces package filters APM rollup streams, keeps legitimate streams", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-build-datastream-scenarios-apm-rollup-filtered", nil)
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "input"}, esAPI: client.API}
+		pt := packages.PolicyTemplate{Name: "zipkinreceiver", Input: "otelcol", Type: "traces"}
+		cfg := &testConfig{
+			WaitForDynamicStreamsStable: 2 * time.Second,
+		}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), "traces", "zipkinreceiver", "default", pt, cfg)
+		require.NoError(t, err)
+
+		// Only the two legitimate streams should remain; the four APM rollup streams must be filtered.
+		require.Len(t, got, 2)
+		names := make(map[string]bool)
+		for _, s := range got {
+			names[s.dataStream] = true
+		}
+		assert.True(t, names["traces-zipkinreceiver.otel-default"], "traces stream should be present")
+		assert.True(t, names["metrics-zipkinreceiver.otel-default"], "legitimate metrics stream should be present")
 	})
 }
 

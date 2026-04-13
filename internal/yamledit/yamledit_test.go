@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func mustNewDocumentFile(filename string) *Document {
-	d, err := NewDocumentFile(filename)
+func mustNewDocumentFile() *Document {
+	d, err := NewDocumentFile("testdata/valid.yml")
 	if err != nil {
 		panic(err)
 	}
@@ -50,12 +50,12 @@ func TestDocument_GetNode(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			doc:  mustNewDocumentFile("testdata/valid.yml"),
+			doc:  mustNewDocumentFile(),
 			path: "$.string",
 		},
 		{
 			name:    "not-found",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.missing",
 			wantErr: true,
 		},
@@ -87,18 +87,18 @@ func TestDocument_GetMappingNode(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			doc:  mustNewDocumentFile("testdata/valid.yml"),
+			doc:  mustNewDocumentFile(),
 			path: "$.map",
 		},
 		{
 			name:    "wrong-type",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			wantErr: true,
 		},
 		{
 			name:    "not-found",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.missing",
 			wantErr: true,
 		},
@@ -133,18 +133,18 @@ func TestDocument_GetSequenceNode(t *testing.T) {
 	}{
 		{
 			name: "ok",
-			doc:  mustNewDocumentFile("testdata/valid.yml"),
+			doc:  mustNewDocumentFile(),
 			path: "$.list",
 		},
 		{
 			name:    "wrong-type",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			wantErr: true,
 		},
 		{
 			name:    "not-found",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.missing",
 			wantErr: true,
 		},
@@ -180,30 +180,30 @@ func TestDocument_GetParentNode(t *testing.T) {
 	}{
 		{
 			name:     "ok-mapping",
-			doc:      mustNewDocumentFile("testdata/valid.yml"),
+			doc:      mustNewDocumentFile(),
 			path:     "$.string",
 			wantNode: mustYAMLPathString("$"),
 		},
 		{
 			name:     "ok-sequence",
-			doc:      mustNewDocumentFile("testdata/valid.yml"),
+			doc:      mustNewDocumentFile(),
 			path:     "$.list[1]",
 			wantNode: mustYAMLPathString("$.list"),
 		},
 		{
 			name: "ok-root",
-			doc:  mustNewDocumentFile("testdata/valid.yml"),
+			doc:  mustNewDocumentFile(),
 			path: "$",
 		},
 		{
 			name:     "ok-not-found-parent-exists",
-			doc:      mustNewDocumentFile("testdata/valid.yml"),
+			doc:      mustNewDocumentFile(),
 			path:     "$.missing",
 			wantNode: mustYAMLPathString("$"),
 		},
 		{
 			name:    "bad-not-found",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.missing.gone",
 			wantErr: true,
 		},
@@ -244,7 +244,7 @@ func TestDocument_AddValue(t *testing.T) {
 	}{
 		{
 			name:    "ok-append",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			index:   IndexAppend,
 			value:   "four",
@@ -253,7 +253,7 @@ func TestDocument_AddValue(t *testing.T) {
 		},
 		{
 			name:    "ok-prepend",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			index:   IndexPrepend,
 			value:   "four",
@@ -262,7 +262,7 @@ func TestDocument_AddValue(t *testing.T) {
 		},
 		{
 			name:    "ok-replace",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			index:   1,
 			replace: true,
@@ -272,7 +272,7 @@ func TestDocument_AddValue(t *testing.T) {
 		},
 		{
 			name:    "ok-replace-equal",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			index:   1,
 			replace: true,
@@ -281,7 +281,7 @@ func TestDocument_AddValue(t *testing.T) {
 		},
 		{
 			name:    "bad-not-a-sequence",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			index:   1,
 			replace: true,
@@ -330,7 +330,7 @@ func TestDocument_PrependValue(t *testing.T) {
 	}{
 		{
 			name:    "ok",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			value:   "four",
 			want:    mustNodeFromString("[four, one, two, three]"),
@@ -338,7 +338,7 @@ func TestDocument_PrependValue(t *testing.T) {
 		},
 		{
 			name:    "bad-not-a-sequence",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			value:   "two",
 			wantErr: true,
@@ -385,7 +385,7 @@ func TestDocument_AppendValue(t *testing.T) {
 	}{
 		{
 			name:    "ok",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			value:   "four",
 			want:    mustNodeFromString("[one, two, three, four]"),
@@ -393,7 +393,7 @@ func TestDocument_AppendValue(t *testing.T) {
 		},
 		{
 			name:    "bad-not-a-sequence",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			value:   "two",
 			wantErr: true,
@@ -441,7 +441,7 @@ func TestDocument_SetKeyValue(t *testing.T) {
 	}{
 		{
 			name:    "ok-append-new",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			key:     "new_item",
 			index:   IndexAppend,
@@ -450,7 +450,7 @@ func TestDocument_SetKeyValue(t *testing.T) {
 		},
 		{
 			name:    "ok-prepend-new",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			key:     "new_item",
 			index:   IndexPrepend,
@@ -459,7 +459,7 @@ func TestDocument_SetKeyValue(t *testing.T) {
 		},
 		{
 			name:    "ok-prepend-new",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			key:     "string",
 			index:   IndexAppend,
@@ -468,7 +468,7 @@ func TestDocument_SetKeyValue(t *testing.T) {
 		},
 		{
 			name:    "bad-not-a-mapping",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list",
 			index:   IndexAppend,
 			value:   "foobar",
@@ -512,37 +512,37 @@ func TestDocument_DeleteNode(t *testing.T) {
 	}{
 		{
 			name:    "ok-sequence",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list[1]",
 			wantMod: true,
 		},
 		{
 			name:    "ok-mapping",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map",
 			wantMod: true,
 		},
 		{
 			name:    "bad-missing-sequence",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.list[4]",
 			wantErr: true,
 		},
 		{
 			name:    "bad-missing-mapping",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$.map.missing",
 			wantErr: true,
 		},
 		{
 			name:    "bad-invalid-path",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    ".map.missing",
 			wantErr: true,
 		},
 		{
 			name:    "bad-root",
-			doc:     mustNewDocumentFile("testdata/valid.yml"),
+			doc:     mustNewDocumentFile(),
 			path:    "$",
 			wantErr: true,
 		},
