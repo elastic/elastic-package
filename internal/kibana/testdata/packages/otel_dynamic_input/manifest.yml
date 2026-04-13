@@ -1,0 +1,25 @@
+format_version: 3.5.0
+name: otel_dynamic_input
+title: OTel Dynamic Signals Input Package
+description: >-
+  Minimal OTel input package with dynamic_signal_types used to verify that
+  BuildInputPackagePolicy uses the "{package}.{policy_template}" stream key and
+  resolves data_stream.dataset from user vars, manifest defaults, or the policy
+  template name.
+type: input
+version: 0.1.0
+categories:
+  - observability
+conditions:
+  kibana:
+    version: "^9.4.0"
+policy_templates:
+  - name: sqlreceiver
+    title: SQL Receiver
+    description: Collect SQL metrics and logs using OTel.
+    input: otelcol
+    template_path: input.yml.hbs
+    dynamic_signal_types: true
+owner:
+  github: elastic/elastic-package
+  type: elastic

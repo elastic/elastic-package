@@ -35,6 +35,7 @@ processors:
             - context: spanevent
               statements:
                 - set(attributes["data_stream.type"], "logs")
+                - set(attributes["data_stream.dataset"], "zipkinreceiver")
                 - set(attributes["data_stream.namespace"], "ep")
 receivers:
     zipkin/componentid-0:

@@ -1,6 +1,3 @@
-skip:
-  reason: Broken after change in Kibana, to be fixed after https://github.com/elastic/kibana/pull/262000
-  link: https://github.com/elastic/elastic-package/pull/3433
 service: sql_server_input_otel
 vars:
   server: "{{Hostname}}"
