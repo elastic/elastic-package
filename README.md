@@ -238,6 +238,8 @@ Built packages are served up by the Elastic Package Registry running locally (se
 
 Built packages can also be published to the global package registry service.
 
+When the package declares required input packages ("requires.input" in manifest.yml), the build downloads those input packages from the configured package registry (see "package_registry.base_url" in ~/.elastic-package/config.yml). The build then incorporates their policy and data stream templates, merges variable definitions into the integration manifest, bundles data stream field definitions, and resolves package: references on inputs and streams to the effective input types expected by Fleet. For details on using a local or custom registry during development, see the [HOWTO guide](./docs/howto/local_package_registry.md).
+
 For details on how to enable dependency management, see the [HOWTO guide](https://github.com/elastic/elastic-package/blob/main/docs/howto/dependency_management.md).
 
 ### `elastic-package changelog`
@@ -820,6 +822,10 @@ There are available some environment variables that could be used to change some
 - Related to signing packages:
     - `ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE`: Path to the private key file to sign packages.
     - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
+
+- Related to verifying packages downloaded from the Package Registry (EPR):
+    - `ELASTIC_PACKAGE_VERIFY_PACKAGE_SIGNATURE`: If set to `true` (or `1`), `elastic-package` verifies detached OpenPGP signatures for package zips fetched from the registry (for example when resolving required input packages). The registry must serve a signature at the same path as the zip with a `.sig` suffix (for example `/epr/apache/apache-1.0.0.zip.sig`). Leave this unset or `false` for local or unsigned registries.
+    - `ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE`: Path to an armored **public** key matching the key that signed packages on that registry. Required when `ELASTIC_PACKAGE_VERIFY_PACKAGE_SIGNATURE` is enabled; the file must exist before the download runs.
 
 - Related to tests:
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
