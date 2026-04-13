@@ -1,0 +1,3 @@
+requires:
+  - package: test_input_pkg
+    source: "../../test_input_pkg"

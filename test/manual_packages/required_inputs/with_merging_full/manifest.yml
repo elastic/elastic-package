@@ -1,0 +1,40 @@
+format_version: 3.6.0
+name: with_merging_full
+title: Variable Merging - Full Mix
+description: >-
+  Composable package exercising all variable merging steps. The policy template
+  overrides "paths" and "encoding" (both promoted to input variables). The data
+  stream manifest overrides "timeout" (merged with the remaining data stream
+  variable) and adds "custom_tag" (new data stream variable).
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: var_merging_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: var_merging_logs
+    title: Var Merging Logs
+    description: Collect logs via var merging input package
+    data_streams:
+      - var_merging_logs
+    inputs:
+      - package: var_merging_input_pkg
+        title: Collect logs via var merging input package
+        description: Use the var merging input package to collect logs
+        vars:
+          - name: paths
+            default:
+              - /var/log/custom/*.log
+          - name: encoding
+            show_user: true
+owner:
+  github: elastic/integrations
+  type: elastic

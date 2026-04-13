@@ -1,0 +1,45 @@
+format_version: 3.6.0
+name: var_merging_input_pkg
+title: Var Merging Input Package
+description: Input package used as a test fixture for variable merging.
+version: 0.1.0
+type: input
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+policy_templates:
+  - name: var_merging
+    type: logs
+    title: Var Merging
+    description: Collect logs with multiple variables.
+    input: logfile
+    template_path: input.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/*.log
+      - name: encoding
+        type: text
+        title: Encoding
+        multi: false
+        required: false
+        show_user: false
+      - name: timeout
+        type: text
+        title: Timeout
+        multi: false
+        required: false
+        show_user: false
+        default: 30s
+owner:
+  github: elastic/integrations
+  type: elastic

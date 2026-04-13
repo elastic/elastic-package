@@ -1,0 +1,6 @@
+title: Field Logs
+type: logs
+streams:
+  - package: fields_input_pkg
+    title: Field Logs from Input Package
+    description: Collect field logs using the referenced input package.
