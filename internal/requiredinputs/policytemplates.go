@@ -6,13 +6,11 @@ package requiredinputs
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path"
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -37,7 +35,7 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 			if !ok || sourcePath == "" {
 				return fmt.Errorf("failed to find input package %q referenced by policy template %q", input.Package, pt.Name)
 			}
-			inputPaths, err := r.collectAndCopyInputPkgPolicyTemplates(sourcePath, input.Package, buildRoot)
+			inputPaths, err := collectAndCopyInputPkgPolicyTemplates(sourcePath, input.Package, buildRoot)
 			if err != nil {
 				return fmt.Errorf("failed to collect and copy input package policy templates: %w", err)
 			}
@@ -76,57 +74,8 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 
 // collectAndCopyInputPkgPolicyTemplates collects the templates from the input package and copies them to the agent/input directory of the build package
 // it returns the list of copied template names
-func (r *RequiredInputsResolver) collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
-	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
-	}
-	defer func() { _ = closeFn() }()
-
-	manifestBytes, err := fs.ReadFile(inputPkgFS, packages.PackageManifestFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read input package manifest: %w", err)
-	}
-	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse input package manifest: %w", err)
-	}
-
-	seen := make(map[string]bool)
-	copiedNames := make([]string, 0)
-	for _, pt := range manifest.PolicyTemplates {
-		var names []string
-		switch {
-		case len(pt.TemplatePaths) > 0:
-			names = pt.TemplatePaths
-		case pt.TemplatePath != "":
-			names = []string{pt.TemplatePath}
-		}
-		for _, name := range names {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			// copy the template from "agent/input" directory of the input package to the "agent/input" directory of the build package
-			content, err := fs.ReadFile(inputPkgFS, path.Join("agent", "input", name))
-			if err != nil {
-				return nil, fmt.Errorf("failed to read template %q from agent/input (declared in manifest): %w", name, err)
-			}
-			destName := inputPkgName + "-" + name
-			// create the agent/input directory if it doesn't exist
-			agentInputDir := path.Join("agent", "input")
-			if err := buildRoot.MkdirAll(agentInputDir, 0755); err != nil {
-				return nil, fmt.Errorf("failed to create agent/input directory: %w", err)
-			}
-			destPath := path.Join(agentInputDir, destName)
-			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
-				return nil, fmt.Errorf("failed to write template %q: %w", destName, err)
-			}
-			logger.Debugf("Copied input package template: %s -> %s", name, destName)
-			copiedNames = append(copiedNames, destName)
-		}
-	}
-	return copiedNames, nil
+func collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
+	return collectAndCopyPolicyTemplateFiles(inputPkgPath, inputPkgName, path.Join("agent", "input"), buildRoot)
 }
 
 // setInputPolicyTemplateTemplatePaths updates the manifest YAML document to set the template_paths for the specified policy template input to the provided paths
