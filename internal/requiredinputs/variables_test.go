@@ -41,6 +41,21 @@ func copyFixturePackage(t *testing.T, fixtureName string) string {
 	return destPath
 }
 
+// ciInputFixturePath returns the path to test/packages/composable/01_ci_input_pkg (repository-relative from this package).
+func ciInputFixturePath() string {
+	return filepath.Join("..", "..", "test", "packages", "composable", "01_ci_input_pkg")
+}
+
+// copyComposableIntegrationFixture copies test/packages/composable/02_ci_composable_integration for integration tests.
+func copyComposableIntegrationFixture(t *testing.T) string {
+	t.Helper()
+	srcPath := filepath.Join("..", "..", "test", "packages", "composable", "02_ci_composable_integration")
+	destPath := t.TempDir()
+	err := os.CopyFS(destPath, os.DirFS(srcPath))
+	require.NoError(t, err, "copying composable CI integration fixture")
+	return destPath
+}
+
 // Variable merge tests exercise mergeVariables (see variables.go): when an
 // integration declares requires.input and references that input package under
 // policy_templates[].inputs with optional vars, definitions from the input
@@ -252,7 +267,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 // the input package as the authoritative base (order and fields) for merging.
 func TestLoadInputPkgVarNodes(t *testing.T) {
 	t.Run("fixture with three vars", func(t *testing.T) {
-		pkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
+		pkgPath := ciInputFixturePath()
 		order, byName, err := loadInputPkgVarNodes(pkgPath)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"paths", "encoding", "timeout"}, order)
@@ -273,12 +288,11 @@ func TestLoadInputPkgVarNodes(t *testing.T) {
 
 // ---- integration tests -------------------------------------------------------
 
-// makeFakeEprForVarMerging supplies the var_merging_input_pkg fixture path as
-// if it were downloaded from the registry, so integration tests do not need a
-// running stack.
+// makeFakeEprForVarMerging supplies the ci_input_pkg fixture path as if it were
+// downloaded from the registry, so integration tests do not need a running stack.
 func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 	t.Helper()
-	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
+	inputPkgPath := ciInputFixturePath()
 	return &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
 			return inputPkgPath, nil
@@ -292,13 +306,13 @@ func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 // merged with a DS override and a novel DS-only var is appended—matching the
 // end state Fleet expects for a mixed promotion + DS customization scenario.
 func TestMergeVariables_Full(t *testing.T) {
-	buildPackageRoot := copyFixturePackage(t, "with_merging_full")
+	buildPackageRoot := copyComposableIntegrationFixture(t)
 	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
 	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	// Check package manifest: input should have 2 vars (paths, encoding).
+	// Check package manifest: first input (package ref) should have 2 vars (paths, encoding).
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
@@ -318,7 +332,7 @@ func TestMergeVariables_Full(t *testing.T) {
 	assert.Equal(t, "text", inputVars[1].Type)
 
 	// Check DS manifest: streams[0] should have 2 vars (timeout, custom_tag).
-	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
 	require.NoError(t, err)

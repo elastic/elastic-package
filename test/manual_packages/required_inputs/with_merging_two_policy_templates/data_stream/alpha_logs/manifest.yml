@@ -1,6 +1,6 @@
 title: Alpha logs
 type: logs
 streams:
-  - package: var_merging_input_pkg
+  - package: ci_input_pkg
     title: Alpha logs via input package
     description: Collect alpha logs using the var merging input package.

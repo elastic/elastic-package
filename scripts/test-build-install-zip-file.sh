@@ -2,6 +2,25 @@
 
 set -euxo pipefail
 
+ELASTIC_PACKAGE_CONFIG_FILE="${HOME}/.elastic-package/config.yml"
+PREV_REGISTRY_URL=""
+PACKAGE_REGISTRY_CI_OVERRIDE=0
+COMPOSABLE_INTEGRATION_DIR="test/packages/composable/02_ci_composable_integration/"
+
+restore_package_registry_config() {
+  if [[ "${PACKAGE_REGISTRY_CI_OVERRIDE}" -ne 1 ]]; then
+    return 0
+  fi
+  if [[ ! -f "${ELASTIC_PACKAGE_CONFIG_FILE}" ]]; then
+    return 0
+  fi
+  if [[ -n "${PREV_REGISTRY_URL}" ]]; then
+    yq eval --inplace ".package_registry.base_url = \"${PREV_REGISTRY_URL}\"" "${ELASTIC_PACKAGE_CONFIG_FILE}" || true
+  else
+    yq eval --inplace 'del(.package_registry.base_url)' "${ELASTIC_PACKAGE_CONFIG_FILE}" || true
+  fi
+}
+
 cleanup() {
   local r=$?
   if [ "${r}" -ne 0 ]; then
@@ -9,6 +28,8 @@ cleanup() {
     echo "^^^ +++"
   fi
   echo "~~~ elastic-package cleanup"
+
+  restore_package_registry_config
 
   local output_path="build/elastic-stack-dump/install-zip"
   if [ ${USE_SHELLINIT} -eq 1 ]; then
@@ -107,7 +128,7 @@ elastic-package stack up -d -v ${ARG_VERSION}
 ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
-# Build packages
+# Build packages (see test-build-install-zip.sh for composable phase-2 notes).
 for d in test/packages/*/*/; do
   # Added set +x in a sub-shell to avoid printing the testype command in the output
   # This helps to keep the CI output cleaner
@@ -116,16 +137,32 @@ for d in test/packages/*/*/; do
   if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
+  if [[ "${d}" == "${COMPOSABLE_INTEGRATION_DIR}" ]]; then
+    echo "--- Skipping composable integration (phase-2 build): ${d}"
+    continue
+  fi
   echo "--- Building zip package: ${d}"
   elastic-package build -C "$d"
 done
 
+eval "$(elastic-package stack shellinit)"
+
+if [[ -f "${ELASTIC_PACKAGE_CONFIG_FILE}" ]]; then
+  PREV_REGISTRY_URL=$(yq '.package_registry.base_url // ""' "${ELASTIC_PACKAGE_CONFIG_FILE}")
+  yq eval --inplace '.package_registry.base_url = "https://127.0.0.1:8080"' "${ELASTIC_PACKAGE_CONFIG_FILE}"
+else
+  mkdir -p "$(dirname "${ELASTIC_PACKAGE_CONFIG_FILE}")"
+  yq -n '.package_registry.base_url = "https://127.0.0.1:8080"' > "${ELASTIC_PACKAGE_CONFIG_FILE}"
+fi
+PACKAGE_REGISTRY_CI_OVERRIDE=1
+
+echo "--- Phase-2 build: composable integration"
+elastic-package build -C "${COMPOSABLE_INTEGRATION_DIR}"
+
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
 
-if [ ${USE_SHELLINIT} -eq 1 ]; then
-  eval "$(elastic-package stack shellinit)"
-else
+if [ ${USE_SHELLINIT} -eq 0 ]; then
   export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
   export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
   export ELASTIC_PACKAGE_KIBANA_HOST=https://127.0.0.1:5601

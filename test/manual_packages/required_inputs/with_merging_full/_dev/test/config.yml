@@ -1,3 +1,0 @@
-requires:
-  - package: var_merging_input_pkg
-    source: "../../var_merging_input_pkg"
