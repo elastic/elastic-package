@@ -444,7 +444,7 @@ func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	assert.Equal(t, "logs", m.PolicyTemplates[0].Inputs[1].Type)
 	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
 
-	// Check data stream manifest: package stream → input: logfile; plain logs stream stays logs.
+	// Check data stream manifest: package stream → input: logfile; native stream stays logfile.
 	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
@@ -453,6 +453,6 @@ func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	assert.Equal(t, "logfile", dsManifest.Streams[0].Input)
 	assert.Empty(t, dsManifest.Streams[0].Package)
 	assert.NotEmpty(t, dsManifest.Streams[0].Title)
-	assert.Equal(t, "logs", dsManifest.Streams[1].Input)
+	assert.Equal(t, "logfile", dsManifest.Streams[1].Input)
 	assert.Empty(t, dsManifest.Streams[1].Package)
 }

@@ -260,7 +260,7 @@ streams:
   - package: no_fields_pkg
     title: Logs via no-fields input package
     description: Collect field logs.
-  - input: logs
+  - input: logfile
     title: Plain logs stream
     description: Native logs stream without package reference.
     template_path: stream.yml.hbs
@@ -287,7 +287,7 @@ streams:
 // TestBundleDataStreamFields_StreamWithoutPackage verifies that data stream
 // streams with no package reference are skipped without error.
 func TestBundleDataStreamFields_StreamWithoutPackage(t *testing.T) {
-	// Second stream uses input: logs (no package); Bundle should succeed and only
+	// Second stream uses input: logfile (no package); Bundle should succeed and only
 	// bundle fields for the package-backed stream.
 	epr := &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {

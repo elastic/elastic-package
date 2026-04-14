@@ -30,10 +30,21 @@ policy_templates:
         description: Required input package for composable build
         vars:
           - name: paths
+            type: text
+            title: Paths
+            multi: true
+            required: true
+            show_user: true
+            secret: false
             default:
               - /var/log/custom/*.log
           - name: encoding
+            type: text
+            title: Encoding
+            multi: false
+            required: false
             show_user: true
+            secret: false
       - type: logs
         title: Native logs input
         description: Plain logs input alongside the package stream

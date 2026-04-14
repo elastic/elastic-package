@@ -6,12 +6,21 @@ streams:
     description: Stream referencing the required input package.
     vars:
       - name: timeout
+        type: text
+        title: Timeout
+        multi: false
+        required: false
+        show_user: false
+        secret: false
         description: Timeout for log collection.
       - name: custom_tag
         type: text
         title: Custom Tag
+        multi: false
+        required: false
         show_user: true
-  - input: logs
+        secret: false
+  - input: logfile
     title: Plain logs stream
     description: Native logs stream without package reference.
     template_path: stream.yml.hbs
@@ -22,5 +31,6 @@ streams:
         multi: true
         required: true
         show_user: true
+        secret: false
         default:
           - /var/log/ci/*.log
