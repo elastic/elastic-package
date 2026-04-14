@@ -76,7 +76,9 @@ func NewForPackage(options Options) (Installer, error) {
 			return nil, errors.New(reason)
 		}
 
-		if !options.SkipValidation {
+		if options.SkipValidation {
+			logger.Debug("Skip validation of the built .zip package")
+		} else {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
 			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
 			if skipped != nil {
@@ -86,7 +88,6 @@ func NewForPackage(options Options) (Installer, error) {
 				return nil, fmt.Errorf("invalid content found in built zip package: %w", errs)
 			}
 		}
-		logger.Debug("Skip validation of the built .zip package")
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
