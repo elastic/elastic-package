@@ -126,3 +126,20 @@ package dependencies are fetched from the configured package registry URL
 
 For details on using a local or custom registry when the required input packages are still
 under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
+
+### Linked files (`*.link`) and `template_path`
+
+Some repositories share agent templates using **link files** (files ending in `.link` that
+point at shared content). During `elastic-package build`, linked content is copied into the
+build output under the **target** path (the link filename without the `.link` suffix).
+
+Composable bundling (`requires.input`) runs **after** linked files are materialized in the
+build directory. In `manifest.yml`, always set `template_path` / `template_paths` to those
+**materialized** names (for example `owned.hbs`), **not** the stub name (`owned.hbs.link`).
+Fleet and the builder resolve templates by the names declared in the manifest; the `.link`
+file exists only in the source tree.
+
+A small manual fixture that combines `requires.input` with a linked policy input template
+lives under `test/manual_packages/required_inputs/with_linked_template_path/`. Automated
+coverage is in `TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath` in
+`internal/requiredinputs/requiredinputs_test.go`.

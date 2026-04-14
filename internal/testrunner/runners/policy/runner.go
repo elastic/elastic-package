@@ -152,15 +152,14 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 		}
 		for _, test := range tests {
 			testers = append(testers, NewPolicyTester(PolicyTesterOptions{
-				PackageRoot:            r.packageRoot,
-				TestFolder:             folder,
-				KibanaClient:           r.kibanaClient,
-				GenerateTestResult:     r.generateTestResult,
-				TestPath:               test,
-				GlobalTestConfig:       r.globalTestConfig,
-				WithCoverage:           r.withCoverage,
-				CoverageType:           r.coverageType,
-				RequiredInputsResolver: r.requiredInputsResolver,
+				PackageRoot:        r.packageRoot,
+				TestFolder:         folder,
+				KibanaClient:       r.kibanaClient,
+				GenerateTestResult: r.generateTestResult,
+				TestPath:           test,
+				GlobalTestConfig:   r.globalTestConfig,
+				WithCoverage:       r.withCoverage,
+				CoverageType:       r.coverageType,
 			}))
 
 		}

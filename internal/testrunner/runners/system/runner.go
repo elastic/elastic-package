@@ -52,8 +52,6 @@ type runner struct {
 
 	resourcesManager     *resources.Manager
 	serviceStateFilePath string
-
-	requiredInputsResolver requiredinputs.Resolver
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -86,33 +84,30 @@ type SystemTestRunnerOptions struct {
 	DeferCleanup       time.Duration
 	WithCoverage       bool
 	CoverageType       string
-
-	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRoot:            options.PackageRoot,
-		kibanaClient:           options.KibanaClient,
-		esAPI:                  options.API,
-		esClient:               options.ESClient,
-		profile:                options.Profile,
-		schemaURLs:             options.SchemaURLs,
-		dataStreams:            options.DataStreams,
-		serviceVariant:         options.ServiceVariant,
-		configFilePath:         options.ConfigFilePath,
-		runSetup:               options.RunSetup,
-		runTestsOnly:           options.RunTestsOnly,
-		runTearDown:            options.RunTearDown,
-		failOnMissingTests:     options.FailOnMissingTests,
-		generateTestResult:     options.GenerateTestResult,
-		deferCleanup:           options.DeferCleanup,
-		globalTestConfig:       options.GlobalTestConfig,
-		withCoverage:           options.WithCoverage,
-		coverageType:           options.CoverageType,
-		repositoryRoot:         options.RepositoryRoot,
-		overrideAgentVersion:   options.OverrideAgentVersion,
-		requiredInputsResolver: options.RequiredInputsResolver,
+		packageRoot:          options.PackageRoot,
+		kibanaClient:         options.KibanaClient,
+		esAPI:                options.API,
+		esClient:             options.ESClient,
+		profile:              options.Profile,
+		schemaURLs:           options.SchemaURLs,
+		dataStreams:          options.DataStreams,
+		serviceVariant:       options.ServiceVariant,
+		configFilePath:       options.ConfigFilePath,
+		runSetup:             options.RunSetup,
+		runTestsOnly:         options.RunTestsOnly,
+		runTearDown:          options.RunTearDown,
+		failOnMissingTests:   options.FailOnMissingTests,
+		generateTestResult:   options.GenerateTestResult,
+		deferCleanup:         options.DeferCleanup,
+		globalTestConfig:     options.GlobalTestConfig,
+		withCoverage:         options.WithCoverage,
+		coverageType:         options.CoverageType,
+		repositoryRoot:       options.RepositoryRoot,
+		overrideAgentVersion: options.OverrideAgentVersion,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -262,25 +257,24 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 			for _, config := range cfgFiles {
 				logger.Debugf("System runner: data stream %q config file %q variant %q", t.DataStream, config, variant)
 				tester, err := NewSystemTester(SystemTesterOptions{
-					Profile:                r.profile,
-					PackageRoot:            r.packageRoot,
-					KibanaClient:           r.kibanaClient,
-					API:                    r.esAPI,
-					ESClient:               r.esClient,
-					SchemaURLs:             r.schemaURLs,
-					TestFolder:             t,
-					ServiceVariant:         variant,
-					GenerateTestResult:     r.generateTestResult,
-					DeferCleanup:           r.deferCleanup,
-					RunSetup:               r.runSetup,
-					RunTestsOnly:           r.runTestsOnly,
-					RunTearDown:            r.runTearDown,
-					ConfigFileName:         config,
-					GlobalTestConfig:       r.globalTestConfig,
-					WithCoverage:           r.withCoverage,
-					CoverageType:           r.coverageType,
-					OverrideAgentVersion:   r.overrideAgentVersion,
-					RequiredInputsResolver: r.requiredInputsResolver,
+					Profile:              r.profile,
+					PackageRoot:          r.packageRoot,
+					KibanaClient:         r.kibanaClient,
+					API:                  r.esAPI,
+					ESClient:             r.esClient,
+					SchemaURLs:           r.schemaURLs,
+					TestFolder:           t,
+					ServiceVariant:       variant,
+					GenerateTestResult:   r.generateTestResult,
+					DeferCleanup:         r.deferCleanup,
+					RunSetup:             r.runSetup,
+					RunTestsOnly:         r.runTestsOnly,
+					RunTearDown:          r.runTearDown,
+					ConfigFileName:       config,
+					GlobalTestConfig:     r.globalTestConfig,
+					WithCoverage:         r.withCoverage,
+					CoverageType:         r.coverageType,
+					OverrideAgentVersion: r.overrideAgentVersion,
 				})
 				if err != nil {
 					return nil, fmt.Errorf(
@@ -307,7 +301,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			Force:                  opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			RepositoryRoot:         r.repositoryRoot,
 			SchemaURLs:             r.schemaURLs,
-			RequiredInputsResolver: r.requiredInputsResolver,
+			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
 		},
 	}
 }

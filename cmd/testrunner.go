@@ -630,37 +630,29 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
-	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
-
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", info.Version.Number)
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:                profile,
-		PackageRoot:            packageRoot,
-		KibanaClient:           kibanaClient,
-		SchemaURLs:             appConfig.SchemaURLs(),
-		API:                    esClient.API,
-		ESClient:               esClient,
-		ConfigFilePath:         configFileFlag,
-		RunSetup:               runSetup,
-		RunTearDown:            runTearDown,
-		RunTestsOnly:           runTestsOnly,
-		DataStreams:            dataStreams,
-		ServiceVariant:         variantFlag,
-		FailOnMissingTests:     failOnMissing,
-		GenerateTestResult:     generateTestResult,
-		DeferCleanup:           deferCleanup,
-		GlobalTestConfig:       globalTestConfig.System,
-		WithCoverage:           testCoverage,
-		CoverageType:           testCoverageFormat,
-		RepositoryRoot:         repositoryRoot,
-		OverrideAgentVersion:   agentVersion,
-		RequiredInputsResolver: requiredInputsResolver,
+		Profile:              profile,
+		PackageRoot:          packageRoot,
+		KibanaClient:         kibanaClient,
+		SchemaURLs:           appConfig.SchemaURLs(),
+		API:                  esClient.API,
+		ESClient:             esClient,
+		ConfigFilePath:       configFileFlag,
+		RunSetup:             runSetup,
+		RunTearDown:          runTearDown,
+		RunTestsOnly:         runTestsOnly,
+		DataStreams:          dataStreams,
+		ServiceVariant:       variantFlag,
+		FailOnMissingTests:   failOnMissing,
+		GenerateTestResult:   generateTestResult,
+		DeferCleanup:         deferCleanup,
+		GlobalTestConfig:     globalTestConfig.System,
+		WithCoverage:         testCoverage,
+		CoverageType:         testCoverageFormat,
+		RepositoryRoot:       repositoryRoot,
+		OverrideAgentVersion: agentVersion,
 	})
 
 	logger.Debugf("Running suite...")
@@ -769,6 +761,12 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	opts.Package = manifest.Name
+
+	profile, err := cobraext.GetProfileFlag(cmd)
+	if err != nil {
+		return err
+	}
+	opts.Profile = profile
 
 	var results []testrunner.TestResult
 	err = script.Run(&results, cmd.OutOrStderr(), opts)
@@ -880,12 +878,9 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
 	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
-	requiredInputsResolver, err := requiredinputs.NewRequiredInputsResolver(eprClient)
-	if err != nil {
-		return fmt.Errorf("creating required inputs resolver failed: %w", err)
-	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", stackVersion.Version())

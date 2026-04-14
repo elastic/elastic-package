@@ -17,7 +17,7 @@ conditions:
     subscription: basic
 requires:
   input:
-    - package: var_merging_input_pkg
+    - package: ci_input_pkg
       version: "0.1.0"
 policy_templates:
   - name: pt_alpha
@@ -26,7 +26,7 @@ policy_templates:
     data_streams:
       - alpha_logs
     inputs:
-      - package: var_merging_input_pkg
+      - package: ci_input_pkg
         title: Collect via var merging input (alpha)
         description: Alpha stream promotes paths to input-level vars
         vars:
@@ -41,7 +41,7 @@ policy_templates:
     data_streams:
       - beta_logs
     inputs:
-      - package: var_merging_input_pkg
+      - package: ci_input_pkg
         title: Collect via var merging input (beta)
         description: Beta stream keeps all vars at data-stream level
       - type: logs

@@ -13,7 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -26,70 +25,81 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 
 	errorList := make([]error, 0)
 	for _, manifestPath := range dsManifestsPaths {
-		manifestBytes, err := buildRoot.ReadFile(manifestPath)
-		if err != nil {
-			return fmt.Errorf("failed to read data stream manifest %q: %w", manifestPath, err)
+		if err := r.processDataStreamManifest(manifestPath, inputPkgPaths, buildRoot); err != nil {
+			errorList = append(errorList, err)
 		}
-		// parse the manifest YAML document preserving formatting for targeted modifications
-		// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
-		var doc yaml.Node
-		if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
-			return fmt.Errorf("failed to parse data stream manifest YAML: %w", err)
-		}
-
-		manifest, err := packages.ReadDataStreamManifestBytes(manifestBytes)
-		if err != nil {
-			return fmt.Errorf("failed to parse data stream manifest %q: %w", manifestPath, err)
-		}
-		for idx, stream := range manifest.Streams {
-			if stream.Package == "" {
-				continue
-			}
-			pkgPath, ok := inputPkgPaths[stream.Package]
-			if !ok {
-				errorList = append(errorList, fmt.Errorf("failed to resolve input package %q for stream in manifest %q: not listed in requires.input", stream.Package, manifestPath))
-				continue
-			}
-			dsRootDir := path.Dir(manifestPath)
-			inputPaths, err := r.collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.Package, buildRoot)
-			if err != nil {
-				return fmt.Errorf("failed to collect and copy input package data stream templates for manifest %q: %w", manifestPath, err)
-			}
-			if len(inputPaths) == 0 {
-				continue
-			}
-
-			// current manifest template paths
-			paths := make([]string, 0)
-			// if composable package has included custom template path or paths, include them
-			// if no template paths are included at the manifest, only the imported templates are included
-			if stream.TemplatePath != "" {
-				paths = append(paths, stream.TemplatePath)
-			} else if len(stream.TemplatePaths) > 0 {
-				paths = append(paths, stream.TemplatePaths...)
-			}
-			paths = append(inputPaths, paths...)
-
-			if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
-				return fmt.Errorf("failed to set stream template paths in manifest %q: %w", manifestPath, err)
-			}
-
-		}
-
-		// Serialise the updated YAML document back to disk.
-		updated, err := formatYAMLNode(&doc)
-		if err != nil {
-			return fmt.Errorf("failed to format updated manifest: %w", err)
-		}
-		if err := buildRoot.WriteFile(manifestPath, updated, 0664); err != nil {
-			return fmt.Errorf("failed to write updated manifest: %w", err)
-		}
-
 	}
 	return errors.Join(errorList...)
 }
 
-// collectAndCopyInputPkgDataStreams collects the data streams from the input package and copies them to the agent/input directory of the build package
+func (r *RequiredInputsResolver) processDataStreamManifest(manifestPath string, inputPkgPaths map[string]string, buildRoot *os.Root) error {
+	manifestBytes, err := buildRoot.ReadFile(manifestPath)
+	if err != nil {
+		return fmt.Errorf("failed to read data stream manifest %q: %w", manifestPath, err)
+	}
+	// parse the manifest YAML document preserving formatting for targeted modifications
+	// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
+	var doc yaml.Node
+	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+		return fmt.Errorf("failed to parse data stream manifest YAML: %w", err)
+	}
+
+	manifest, err := packages.ReadDataStreamManifestBytes(manifestBytes)
+	if err != nil {
+		return fmt.Errorf("failed to parse data stream manifest %q: %w", manifestPath, err)
+	}
+
+	errorList := make([]error, 0)
+	for idx, stream := range manifest.Streams {
+		if stream.Package == "" {
+			continue
+		}
+		pkgPath, ok := inputPkgPaths[stream.Package]
+		if !ok {
+			errorList = append(errorList, fmt.Errorf("failed to resolve input package %q for stream in manifest %q: not listed in requires.input", stream.Package, manifestPath))
+			continue
+		}
+		dsRootDir := path.Dir(manifestPath)
+		inputPaths, err := collectAndCopyInputPkgDataStreams(dsRootDir, pkgPath, stream.Package, buildRoot)
+		if err != nil {
+			return fmt.Errorf("failed to collect and copy input package data stream templates for manifest %q: %w", manifestPath, err)
+		}
+		if len(inputPaths) == 0 {
+			continue
+		}
+
+		// current manifest template paths
+		paths := make([]string, 0)
+		// if composable package has included custom template path or paths, include them
+		// if no template paths are included at the manifest, only the imported templates are included
+		if stream.TemplatePath != "" {
+			paths = append(paths, stream.TemplatePath)
+		} else if len(stream.TemplatePaths) > 0 {
+			paths = append(paths, stream.TemplatePaths...)
+		}
+		paths = append(inputPaths, paths...)
+
+		if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
+			return fmt.Errorf("failed to set stream template paths in manifest %q: %w", manifestPath, err)
+		}
+	}
+	if err := errors.Join(errorList...); err != nil {
+		return err
+	}
+
+	// Serialise the updated YAML document back to disk.
+	updated, err := formatYAMLNode(&doc)
+	if err != nil {
+		return fmt.Errorf("failed to format updated manifest: %w", err)
+	}
+	if err := buildRoot.WriteFile(manifestPath, updated, 0664); err != nil {
+		return fmt.Errorf("failed to write updated manifest: %w", err)
+	}
+
+	return nil
+}
+
+// collectAndCopyInputPkgDataStreams collects the data streams from the input package and copies them to the agent/stream directory of the build package
 // it returns the list of copied data stream names
 //
 // Design note: input package templates are authored for input-level compilation, where available
@@ -103,57 +113,9 @@ func (r *RequiredInputsResolver) bundleDataStreamTemplates(inputPkgPaths map[str
 // template_paths (integration templates are appended last and take precedence).
 // See https://github.com/elastic/elastic-package/issues/3279 for the follow-up work on
 // merging variable definitions from input packages and composable packages at build time.
-func (r *RequiredInputsResolver) collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
-	inputPkgFS, closeFn, err := openPackageFS(inputPkgPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open input package %q: %w", inputPkgPath, err)
-	}
-	defer closeFn()
-
-	manifestBytes, err := fs.ReadFile(inputPkgFS, "manifest.yml")
-	if err != nil {
-		return nil, fmt.Errorf("failed to read input package manifest: %w", err)
-	}
-	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse input package manifest: %w", err)
-	}
-
-	seen := make(map[string]bool)
-	copiedNames := make([]string, 0)
-	for _, pt := range manifest.PolicyTemplates {
-		var names []string
-		switch {
-		case len(pt.TemplatePaths) > 0:
-			names = pt.TemplatePaths
-		case pt.TemplatePath != "":
-			names = []string{pt.TemplatePath}
-		}
-		for _, name := range names {
-			if seen[name] {
-				continue
-			}
-			seen[name] = true
-			// copy the template from "agent/input" directory of the input package to the "agent/stream" directory of the build package
-			content, err := fs.ReadFile(inputPkgFS, path.Join("agent", "input", name))
-			if err != nil {
-				return nil, fmt.Errorf("failed to read template %q from agent/input (declared in manifest): %w", name, err)
-			}
-			destName := inputPkgName + "-" + name
-			// create the agent/stream directory if it doesn't exist
-			agentStreamDir := path.Join(dsRootDir, "agent", "stream")
-			if err := buildRoot.MkdirAll(agentStreamDir, 0755); err != nil {
-				return nil, fmt.Errorf("failed to create agent/stream directory: %w", err)
-			}
-			destPath := path.Join(agentStreamDir, destName)
-			if err := buildRoot.WriteFile(destPath, content, 0644); err != nil {
-				return nil, fmt.Errorf("failed to write template %q: %w", destName, err)
-			}
-			logger.Debugf("Copied input package template: %s -> %s", name, destName)
-			copiedNames = append(copiedNames, destName)
-		}
-	}
-	return copiedNames, nil
+func collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName string, buildRoot *os.Root) ([]string, error) {
+	agentStreamDir := path.Join(dsRootDir, "agent", "stream")
+	return collectAndCopyPolicyTemplateFiles(inputPkgPath, inputPkgName, agentStreamDir, buildRoot)
 }
 
 func setStreamTemplatePaths(doc *yaml.Node, streamIdx int, paths []string) error {

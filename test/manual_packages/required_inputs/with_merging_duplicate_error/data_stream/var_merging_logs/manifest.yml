@@ -1,7 +1,7 @@
 title: Var Merging Logs
 type: logs
 streams:
-  - package: var_merging_input_pkg
+  - package: ci_input_pkg
     title: Var Merging Logs
     description: Collect logs using the var merging input package.
     vars:

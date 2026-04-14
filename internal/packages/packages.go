@@ -75,8 +75,13 @@ type VarValue struct {
 	list   []interface{}
 }
 
+// Compile-time assertion that VarValue implements go-ucfg's Unpacker interface,
+// which is required for go-ucfg to deserialize manifest fields into VarValue.
+var _ ucfg.Unpacker = (*VarValue)(nil)
+
 // Unpack knows how to parse a variable value from a package or data stream
-// manifest file into a VarValue.
+// manifest file into a VarValue. It implements go-ucfg's Unpacker interface
+// and always returns nil.
 func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
 	case []interface{}:
@@ -85,6 +90,15 @@ func (vv *VarValue) Unpack(value interface{}) error {
 		vv.scalar = u
 	}
 	return nil
+}
+
+// MustUnpack sets the VarValue from value. It panics if Unpack returns an error,
+// which cannot happen in the current implementation but would surface immediately
+// if Unpack ever gains a real error path.
+func (vv *VarValue) MustUnpack(value interface{}) {
+	if err := vv.Unpack(value); err != nil {
+		panic(fmt.Sprintf("unpacking VarValue: %v", err))
+	}
 }
 
 // MarshalJSON knows how to serialize a VarValue into the appropriate
@@ -236,11 +250,12 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input         string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type          string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
-	Vars          []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input              string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type               string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath       string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths      []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars               []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	DynamicSignalTypes bool       `config:"dynamic_signal_types,omitempty" json:"dynamic_signal_types,omitempty" yaml:"dynamic_signal_types,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -454,7 +469,7 @@ func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, err
 	if err != nil {
 		return nil, fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	contents, err := extractPackageManifestZipPackage(zipPackage, PackageManifestFile)
 	if err != nil {

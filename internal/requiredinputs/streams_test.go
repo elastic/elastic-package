@@ -106,6 +106,127 @@ streams:
 	assert.Equal(t, []string{"sql-input.yml.hbs", "existing.yml.hbs"}, input.TemplatePaths)
 }
 
+// TestProcessDataStreamManifest_ReadFailure verifies that a missing manifest file returns an error.
+func TestProcessDataStreamManifest_ReadFailure(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
+	require.NoError(t, err)
+	defer buildRoot.Close()
+
+	r := &RequiredInputsResolver{}
+	err = r.processDataStreamManifest("data_stream/nonexistent/manifest.yml", nil, buildRoot)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to read data stream manifest")
+}
+
+// TestProcessDataStreamManifest_InvalidYAML verifies that a manifest with invalid YAML returns an error.
+func TestProcessDataStreamManifest_InvalidYAML(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
+	require.NoError(t, err)
+	defer buildRoot.Close()
+
+	r := &RequiredInputsResolver{}
+
+	datastreamDir := filepath.Join("data_stream", "test_ds")
+	err = buildRoot.MkdirAll(datastreamDir, 0755)
+	require.NoError(t, err)
+	err = buildRoot.WriteFile(filepath.Join(datastreamDir, "manifest.yml"), []byte(":\tinvalid: yaml: {"), 0644)
+	require.NoError(t, err)
+
+	err = r.processDataStreamManifest(filepath.Join(datastreamDir, "manifest.yml"), nil, buildRoot)
+	require.Error(t, err)
+}
+
+// TestProcessDataStreamManifest_UnknownPackage verifies that a stream referencing a package not in
+// inputPkgPaths returns an error and does NOT write back the manifest.
+func TestProcessDataStreamManifest_UnknownPackage(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
+	require.NoError(t, err)
+	defer buildRoot.Close()
+
+	r := &RequiredInputsResolver{}
+
+	datastreamDir := filepath.Join("data_stream", "test_ds")
+	err = buildRoot.MkdirAll(datastreamDir, 0755)
+	require.NoError(t, err)
+
+	original := []byte("streams:\n  - package: sql\n")
+	manifestPath := filepath.Join(datastreamDir, "manifest.yml")
+	err = buildRoot.WriteFile(manifestPath, original, 0644)
+	require.NoError(t, err)
+
+	err = r.processDataStreamManifest(manifestPath, map[string]string{}, buildRoot)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not listed in requires.input")
+
+	// Manifest must not have been overwritten.
+	written, readErr := buildRoot.ReadFile(manifestPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, original, written)
+}
+
+// TestProcessDataStreamManifest_PartialStreamError verifies that when one stream succeeds and another
+// references an unknown package, the function returns an error and the manifest is not written back.
+func TestProcessDataStreamManifest_PartialStreamError(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
+	require.NoError(t, err)
+	defer buildRoot.Close()
+
+	r := &RequiredInputsResolver{}
+
+	datastreamDir := filepath.Join("data_stream", "test_ds")
+	err = buildRoot.MkdirAll(datastreamDir, 0755)
+	require.NoError(t, err)
+
+	original := []byte("streams:\n  - package: sql\n  - package: unknown\n")
+	manifestPath := filepath.Join(datastreamDir, "manifest.yml")
+	err = buildRoot.WriteFile(manifestPath, original, 0644)
+	require.NoError(t, err)
+
+	fakeInputDir := createFakeInputHelper(t)
+	err = r.processDataStreamManifest(manifestPath, map[string]string{"sql": fakeInputDir}, buildRoot)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown")
+
+	// Manifest must not have been written back despite the first stream succeeding.
+	written, readErr := buildRoot.ReadFile(manifestPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, original, written)
+}
+
+// TestProcessDataStreamManifest_NoPackageSkipped verifies that streams without a package field are
+// skipped and the manifest is written back unmodified (no template_paths added).
+func TestProcessDataStreamManifest_NoPackageSkipped(t *testing.T) {
+	buildRootPath := t.TempDir()
+	buildRoot, err := os.OpenRoot(buildRootPath)
+	require.NoError(t, err)
+	defer buildRoot.Close()
+
+	r := &RequiredInputsResolver{}
+
+	datastreamDir := filepath.Join("data_stream", "test_ds")
+	err = buildRoot.MkdirAll(datastreamDir, 0755)
+	require.NoError(t, err)
+
+	manifestPath := filepath.Join(datastreamDir, "manifest.yml")
+	err = buildRoot.WriteFile(manifestPath, []byte("streams:\n  - title: plain stream\n"), 0644)
+	require.NoError(t, err)
+
+	err = r.processDataStreamManifest(manifestPath, map[string]string{}, buildRoot)
+	require.NoError(t, err)
+
+	updated, readErr := buildRoot.ReadFile(manifestPath)
+	require.NoError(t, readErr)
+	manifest, parseErr := packages.ReadDataStreamManifestBytes(updated)
+	require.NoError(t, parseErr)
+	require.Len(t, manifest.Streams, 1)
+	assert.Empty(t, manifest.Streams[0].TemplatePaths)
+	assert.Empty(t, manifest.Streams[0].TemplatePath)
+}
+
 // TestBundleDataStreamTemplates_BundlesWithoutDataStreamsAssociation verifies that a data stream
 // stream entry with package: X IS bundled even when the root policy template has no data_streams
 // field. Bundling is driven solely by the data stream manifest's streams[].package reference.

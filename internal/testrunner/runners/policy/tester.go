@@ -15,21 +15,19 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
-	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 type tester struct {
-	testFolder             testrunner.TestFolder
-	packageRoot            string
-	kibanaClient           *kibana.Client
-	testPath               string
-	generateTestResult     bool
-	globalTestConfig       testrunner.GlobalRunnerTestConfig
-	withCoverage           bool
-	coverageType           string
-	requiredInputsResolver requiredinputs.Resolver
+	testFolder         testrunner.TestFolder
+	packageRoot        string
+	kibanaClient       *kibana.Client
+	testPath           string
+	generateTestResult bool
+	globalTestConfig   testrunner.GlobalRunnerTestConfig
+	withCoverage       bool
+	coverageType       string
 
 	resourcesManager *resources.Manager
 }
@@ -38,28 +36,26 @@ type tester struct {
 var _ testrunner.Tester = new(tester)
 
 type PolicyTesterOptions struct {
-	TestFolder             testrunner.TestFolder
-	TestPath               string
-	KibanaClient           *kibana.Client
-	PackageRoot            string
-	GenerateTestResult     bool
-	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
-	WithCoverage           bool
-	CoverageType           string
-	RequiredInputsResolver requiredinputs.Resolver
+	TestFolder         testrunner.TestFolder
+	TestPath           string
+	KibanaClient       *kibana.Client
+	PackageRoot        string
+	GenerateTestResult bool
+	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
+	WithCoverage       bool
+	CoverageType       string
 }
 
 func NewPolicyTester(options PolicyTesterOptions) *tester {
 	tester := tester{
-		kibanaClient:           options.KibanaClient,
-		testFolder:             options.TestFolder,
-		packageRoot:            options.PackageRoot,
-		generateTestResult:     options.GenerateTestResult,
-		testPath:               options.TestPath,
-		globalTestConfig:       options.GlobalTestConfig,
-		withCoverage:           options.WithCoverage,
-		coverageType:           options.CoverageType,
-		requiredInputsResolver: options.RequiredInputsResolver,
+		kibanaClient:       options.KibanaClient,
+		testFolder:         options.TestFolder,
+		packageRoot:        options.PackageRoot,
+		generateTestResult: options.GenerateTestResult,
+		testPath:           options.TestPath,
+		globalTestConfig:   options.GlobalTestConfig,
+		withCoverage:       options.WithCoverage,
+		coverageType:       options.CoverageType,
 	}
 	tester.resourcesManager = resources.NewManager()
 	tester.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: tester.kibanaClient})
@@ -120,14 +116,13 @@ func (r *tester) runTest(ctx context.Context, manager *resources.Manager, testPa
 		Namespace: "ep",
 		PackagePolicies: []resources.FleetPackagePolicy{
 			{
-				Name:                   fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
-				PackageRoot:            r.packageRoot,
-				DataStreamName:         r.testFolder.DataStream,
-				InputName:              testConfig.Input,
-				Vars:                   testConfig.Vars,
-				DataStreamVars:         testConfig.DataStream.Vars,
-				PolicyAPIFormat:        testConfig.PolicyAPIFormat,
-				RequiredInputsResolver: r.requiredInputsResolver,
+				Name:            fmt.Sprintf("%s-%s-%s", testName, r.testFolder.Package, policyTestSuffix),
+				PackageRoot:     r.packageRoot,
+				DataStreamName:  r.testFolder.DataStream,
+				InputName:       testConfig.Input,
+				Vars:            testConfig.Vars,
+				DataStreamVars:  testConfig.DataStream.Vars,
+				PolicyAPIFormat: testConfig.PolicyAPIFormat,
 			},
 		},
 	}

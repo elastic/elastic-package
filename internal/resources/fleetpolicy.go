@@ -13,7 +13,6 @@ import (
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/requiredinputs"
 )
 
 type FleetAgentPolicy struct {
@@ -77,10 +76,6 @@ type FleetPackagePolicy struct {
 
 	// Absent is set to true to indicate that the policy should not be present.
 	Absent bool
-
-	// RequiredInputsResolver resolves package: references on inputs and streams in the source
-	// manifest before building the Fleet package policy. Required for composable packages.
-	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func (f *FleetPackagePolicy) String() string {
@@ -182,31 +177,10 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	if packagePolicy.DataStreamName == "" {
 		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
 	}
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packagePolicy.PackageRoot)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRoot, packagePolicy.DataStreamName)
 	if err != nil {
-		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
+		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
 	}
-
-	// Resolve package: references on inputs and streams so that policy building sees concrete
-	// input type identifiers rather than input package names. This is necessary for composable
-	// packages whose source manifests use package: instead of type:/input:.
-	if resolver := packagePolicy.RequiredInputsResolver; resolver != nil {
-		if err := resolver.ResolveInputTypes(&manifest, allDatastreams); err != nil {
-			return nil, fmt.Errorf("resolving input types from required input packages: %w", err)
-		}
-	}
-
-	// Find the target data stream from the already-resolved allDatastreams slice so we work
-	// with the same in-memory state that ResolveInputTypes modified above.
-	dsManifest, err := findDataStreamByName(allDatastreams, packagePolicy.DataStreamName)
-	if err != nil {
-		// Fall back to reading from disk if not found in allDatastreams (shouldn't happen).
-		dsManifest, err = packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRoot, packagePolicy.DataStreamName)
-		if err != nil {
-			return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
-		}
-	}
-
 	policyTemplateName := packagePolicy.TemplateName
 	if policyTemplateName == "" {
 		name, err := packages.FindPolicyTemplateForInput(&manifest, dsManifest, packagePolicy.InputName)
@@ -218,6 +192,10 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
+	}
+	allDatastreams, err := packages.ReadAllDataStreamManifests(packagePolicy.PackageRoot)
+	if err != nil {
+		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
 	}
 	pp, err := kibana.BuildIntegrationPackagePolicy(
 		policy.ID, policy.Namespace, packagePolicy.Name,
@@ -278,17 +256,6 @@ func (f *FleetAgentPolicy) Update(ctx resource.Context) error {
 	}
 
 	return errors.New("update not implemented")
-}
-
-// findDataStreamByName returns a pointer to the first element in dataStreams whose Name
-// matches name, or an error if none is found.
-func findDataStreamByName(dataStreams []packages.DataStreamManifest, name string) (*packages.DataStreamManifest, error) {
-	for i := range dataStreams {
-		if dataStreams[i].Name == name {
-			return &dataStreams[i], nil
-		}
-	}
-	return nil, fmt.Errorf("data stream %q not found", name)
 }
 
 type FleetAgentPolicyState struct {

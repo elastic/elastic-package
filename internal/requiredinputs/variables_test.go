@@ -41,6 +41,21 @@ func copyFixturePackage(t *testing.T, fixtureName string) string {
 	return destPath
 }
 
+// ciInputFixturePath returns the path to test/packages/composable/01_ci_input_pkg (repository-relative from this package).
+func ciInputFixturePath() string {
+	return filepath.Join("..", "..", "test", "packages", "composable", "01_ci_input_pkg")
+}
+
+// copyComposableIntegrationFixture copies test/packages/composable/02_ci_composable_integration for integration tests.
+func copyComposableIntegrationFixture(t *testing.T) string {
+	t.Helper()
+	srcPath := filepath.Join("..", "..", "test", "packages", "composable", "02_ci_composable_integration")
+	destPath := t.TempDir()
+	err := os.CopyFS(destPath, os.DirFS(srcPath))
+	require.NoError(t, err, "copying composable CI integration fixture")
+	return destPath
+}
+
 // Variable merge tests exercise mergeVariables (see variables.go): when an
 // integration declares requires.input and references that input package under
 // policy_templates[].inputs with optional vars, definitions from the input
@@ -73,8 +88,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("full override", func(t *testing.T) {
 		override := varNode("paths", "type", "keyword", "title", "Custom Paths", "multi", "false")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "keyword", mappingValue(merged, "type").Value)
 		assert.Equal(t, "Custom Paths", mappingValue(merged, "title").Value)
@@ -83,8 +97,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("partial override", func(t *testing.T) {
 		override := varNode("paths", "title", "My Paths")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "text", mappingValue(merged, "type").Value) // from base
 		assert.Equal(t, "My Paths", mappingValue(merged, "title").Value)
@@ -93,8 +106,7 @@ func TestMergeVarNode(t *testing.T) {
 
 	t.Run("empty override", func(t *testing.T) {
 		override := varNode("paths")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 		assert.Equal(t, "text", mappingValue(merged, "type").Value)   // from base
 		assert.Equal(t, "Paths", mappingValue(merged, "title").Value) // from base
@@ -105,15 +117,13 @@ func TestMergeVarNode(t *testing.T) {
 		override := &yaml.Node{Kind: yaml.MappingNode}
 		upsertKey(override, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: "should-be-ignored"})
 		upsertKey(override, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 	})
 
 	t.Run("adds new field from override", func(t *testing.T) {
 		override := varNode("paths", "description", "My description")
-		merged, err := mergeVarNode(base, override)
-		require.NoError(t, err)
+		merged := mergeVarNode(base, override)
 		assert.Equal(t, "My description", mappingValue(merged, "description").Value)
 		assert.Equal(t, "text", mappingValue(merged, "type").Value) // base preserved
 	})
@@ -157,8 +167,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 	}
 
 	t.Run("empty promoted → empty sequence", func(t *testing.T) {
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
 		assert.Empty(t, seq.Content)
 	})
 
@@ -166,8 +175,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 		promotedOverrides := map[string]*yaml.Node{
 			"paths": varNode("paths", "default", "/var/log/custom/*.log"),
 		}
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
 		require.Len(t, seq.Content, 1)
 		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
 		assert.Equal(t, "/var/log/custom/*.log", mappingValue(seq.Content[0], "default").Value)
@@ -179,8 +187,7 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 			"timeout":  varNode("timeout", "default", "60s"),
 			"encoding": varNode("encoding", "show_user", "true"),
 		}
-		seq, err := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.NoError(t, err)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
 		require.Len(t, seq.Content, 2)
 		// Order must follow baseOrder: encoding before timeout.
 		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
@@ -207,8 +214,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 	}
 
 	t.Run("no promoted, no overrides → all base vars", func(t *testing.T) {
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
 		require.Len(t, seq.Content, 3)
 		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
 		assert.Equal(t, "encoding", varNodeName(seq.Content[1]))
@@ -217,16 +223,14 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 
 	t.Run("some promoted → promoted excluded", func(t *testing.T) {
 		promoted := map[string]bool{"paths": true, "encoding": true}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
 		require.Len(t, seq.Content, 1)
 		assert.Equal(t, "timeout", varNodeName(seq.Content[0]))
 	})
 
 	t.Run("DS override on existing base var", func(t *testing.T) {
 		dsOverrides := []*yaml.Node{varNode("encoding", "show_user", "true")}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
 		require.Len(t, seq.Content, 3)
 		// encoding is merged
 		encodingMerged := seq.Content[1]
@@ -237,8 +241,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 
 	t.Run("novel DS var appended", func(t *testing.T) {
 		dsOverrides := []*yaml.Node{varNode("custom_tag", "type", "text")}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
 		require.Len(t, seq.Content, 4) // 3 base + 1 novel
 		assert.Equal(t, "custom_tag", varNodeName(seq.Content[3]))
 	})
@@ -249,8 +252,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 			varNode("encoding", "show_user", "true"),
 			varNode("custom_tag", "type", "text"),
 		}
-		seq, err := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
-		require.NoError(t, err)
+		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
 		// paths excluded (promoted); encoding merged; timeout base; custom_tag novel
 		require.Len(t, seq.Content, 3)
 		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
@@ -265,7 +267,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 // the input package as the authoritative base (order and fields) for merging.
 func TestLoadInputPkgVarNodes(t *testing.T) {
 	t.Run("fixture with three vars", func(t *testing.T) {
-		pkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
+		pkgPath := ciInputFixturePath()
 		order, byName, err := loadInputPkgVarNodes(pkgPath)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"paths", "encoding", "timeout"}, order)
@@ -286,12 +288,11 @@ func TestLoadInputPkgVarNodes(t *testing.T) {
 
 // ---- integration tests -------------------------------------------------------
 
-// makeFakeEprForVarMerging supplies the var_merging_input_pkg fixture path as
-// if it were downloaded from the registry, so integration tests do not need a
-// running stack.
+// makeFakeEprForVarMerging supplies the ci_input_pkg fixture path as if it were
+// downloaded from the registry, so integration tests do not need a running stack.
 func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 	t.Helper()
-	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "var_merging_input_pkg")
+	inputPkgPath := ciInputFixturePath()
 	return &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
 			return inputPkgPath, nil
@@ -305,14 +306,13 @@ func makeFakeEprForVarMerging(t *testing.T) *fakeEprClient {
 // merged with a DS override and a novel DS-only var is appended—matching the
 // end state Fleet expects for a mixed promotion + DS customization scenario.
 func TestMergeVariables_Full(t *testing.T) {
-	buildPackageRoot := copyFixturePackage(t, "with_merging_full")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+	buildPackageRoot := copyComposableIntegrationFixture(t)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
+
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	err = resolver.Bundle(buildPackageRoot)
-	require.NoError(t, err)
-
-	// Check package manifest: input should have 2 vars (paths, encoding).
+	// Check package manifest: first input (package ref) should have 2 vars (paths, encoding).
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
 	manifest, err := packages.ReadPackageManifestBytes(manifestBytes)
@@ -332,7 +332,7 @@ func TestMergeVariables_Full(t *testing.T) {
 	assert.Equal(t, "text", inputVars[1].Type)
 
 	// Check DS manifest: streams[0] should have 2 vars (timeout, custom_tag).
-	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "var_merging_logs", "manifest.yml"))
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
 	require.NoError(t, err)
@@ -353,10 +353,9 @@ func TestMergeVariables_Full(t *testing.T) {
 // overrides.
 func TestMergeVariables_PromotesToInput(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_promotes_to_input")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -388,10 +387,9 @@ func TestMergeVariables_PromotesToInput(t *testing.T) {
 // and extra stream-only vars are kept in declaration order after base vars.
 func TestMergeVariables_DsMerges(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_ds_merges")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -426,10 +424,9 @@ func TestMergeVariables_DsMerges(t *testing.T) {
 // correct for packages that only declare requires.input without local var edits.
 func TestMergeVariables_NoOverride(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_no_override")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
@@ -463,10 +460,9 @@ func TestMergeVariables_NoOverride(t *testing.T) {
 // clear duplicate-variable error instead of silent corruption.
 func TestMergeVariables_DuplicateError(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_duplicate_error")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "paths")
 }
@@ -479,10 +475,9 @@ func TestMergeVariables_DuplicateError(t *testing.T) {
 // stream that uses the same input package.
 func TestMergeVariables_TwoPolicyTemplatesScopedPromotion(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_two_policy_templates")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))

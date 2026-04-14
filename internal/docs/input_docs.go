@@ -83,7 +83,7 @@ func findDataStreamInputs(packagePath string) ([]string, error) {
 		yamlFile, err := os.ReadFile(path)
 		if err != nil {
 			logger.Warnf("could not read %s", path)
-			return nil // Continue walking even if one file fails.
+			return nil //nolint:nilerr // walk continues on individual file errors; failures are logged
 		}
 
 		var manifest DataStreamManifest

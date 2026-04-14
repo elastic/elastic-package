@@ -1,0 +1,49 @@
+format_version: 3.6.0
+name: ci_input_pkg
+title: CI Composable Input Package
+description: >-
+  Input package for CI and tests: variable definitions, package-level fields,
+  and multiple agent templates for composable integration builds.
+version: 0.1.0
+type: input
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+policy_templates:
+  - name: ci_input
+    type: logs
+    title: CI Input
+    description: Collect logs for composable CI and unit tests.
+    input: logfile
+    template_paths:
+      - input.yml.hbs
+      - extra.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/*.log
+      - name: encoding
+        type: text
+        title: Encoding
+        multi: false
+        required: false
+        show_user: false
+      - name: timeout
+        type: text
+        title: Timeout
+        multi: false
+        required: false
+        show_user: false
+        default: 30s
+owner:
+  github: elastic/integrations
+  type: elastic

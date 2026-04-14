@@ -244,7 +244,7 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 		}
 	}
 	var value packages.VarValue
-	value.Unpack(dataset)
+	value.MustUnpack(dataset)
 	setVarFromUser(vars, "data_stream.dataset", "text", value)
 }
 
@@ -259,13 +259,13 @@ func ensureUseAPMVar(vars Vars, varValues common.MapStr) {
 	var val packages.VarValue
 	switch v := raw.(type) {
 	case bool:
-		val.Unpack(v)
+		val.MustUnpack(v)
 	case string:
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return
 		}
-		val.Unpack(b)
+		val.MustUnpack(b)
 	default:
 		return
 	}

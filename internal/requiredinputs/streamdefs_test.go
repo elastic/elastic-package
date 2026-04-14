@@ -111,8 +111,7 @@ policy_templates:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
@@ -167,8 +166,7 @@ policy_templates:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
@@ -220,8 +218,7 @@ policy_templates:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
@@ -274,8 +271,7 @@ policy_templates:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
 
 	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
@@ -344,10 +340,8 @@ streams:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
-
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
@@ -415,8 +409,7 @@ streams:
 			return inputPkgDir, nil
 		},
 	}
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 	require.NoError(t, resolver.Bundle(buildRoot))
 
 	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
@@ -432,31 +425,34 @@ streams:
 }
 
 // TestResolveStreamInputTypes_FieldBundlingFixture runs the full
-// Bundle pipeline on the with_field_bundling fixture and
+// Bundle pipeline on the composable CI integration fixture and
 // verifies that package: references are replaced in both the main manifest and
 // the data stream manifest.
 func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
-	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
-	require.NoError(t, err)
+	buildPackageRoot := copyComposableIntegrationFixture(t)
+	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 	require.NoError(t, resolver.Bundle(buildPackageRoot))
 
-	// Check main manifest: package: fields_input_pkg → type: logfile
+	// Check main manifest: package-backed input → type: logfile; native logs input unchanged.
 	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
 	m, err := packages.ReadPackageManifestBytes(manifestBytes)
 	require.NoError(t, err)
-	require.Len(t, m.PolicyTemplates[0].Inputs, 1)
+	require.Len(t, m.PolicyTemplates[0].Inputs, 2)
 	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[0].Type)
 	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+	assert.Equal(t, "logs", m.PolicyTemplates[0].Inputs[1].Type)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
 
-	// Check data stream manifest: package: fields_input_pkg → input: logfile
-	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "field_logs", "manifest.yml"))
+	// Check data stream manifest: package stream → input: logfile; native stream stays logfile.
+	dsManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "manifest.yml"))
 	require.NoError(t, err)
 	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
 	require.NoError(t, err)
-	require.Len(t, dsManifest.Streams, 1)
+	require.Len(t, dsManifest.Streams, 2)
 	assert.Equal(t, "logfile", dsManifest.Streams[0].Input)
 	assert.Empty(t, dsManifest.Streams[0].Package)
 	assert.NotEmpty(t, dsManifest.Streams[0].Title)
+	assert.Equal(t, "logfile", dsManifest.Streams[1].Input)
+	assert.Empty(t, dsManifest.Streams[1].Package)
 }

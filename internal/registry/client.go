@@ -10,8 +10,11 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 
 	"github.com/elastic/elastic-package/internal/certs"
+	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
 )
 
@@ -109,4 +112,70 @@ func (c *Client) get(resourcePath string) (int, []byte, error) {
 	}
 
 	return resp.StatusCode, body, nil
+}
+
+// DownloadPackage downloads a package zip from the registry and writes it to destDir.
+// It returns the path to the downloaded zip file.
+//
+// When ELASTIC_PACKAGE_VERIFY_PACKAGE_SIGNATURE is true and ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE
+// is set, the registry must also serve a detached signature at {zip}.sig and the zip is verified
+// before returning; on failure the zip file is removed.
+func (c *Client) DownloadPackage(name, version, destDir string) (string, error) {
+	verify, pubKeyPath, err := files.PackageSignatureVerificationFromEnv()
+	if err != nil {
+		return "", err
+	}
+
+	resourcePath := fmt.Sprintf("/epr/%s/%s-%s.zip", name, name, version)
+	statusCode, body, err := c.get(resourcePath)
+	if err != nil {
+		return "", fmt.Errorf("downloading package %s-%s: %w", name, version, err)
+	}
+	if statusCode != http.StatusOK {
+		return "", fmt.Errorf("downloading package %s-%s: unexpected status code %d", name, version, statusCode)
+	}
+
+	zipPath := filepath.Join(destDir, fmt.Sprintf("%s-%s.zip", name, version))
+	if err := os.WriteFile(zipPath, body, 0o644); err != nil {
+		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
+	}
+
+	if !verify {
+		return zipPath, nil
+	}
+
+	logger.Debugf("Verifying detached signature for package %s-%s", name, version)
+	pubKey, err := os.ReadFile(pubKeyPath)
+	if err != nil {
+		_ = os.Remove(zipPath)
+		return "", fmt.Errorf("reading verifier public keyfile (path: %s): %w", pubKeyPath, err)
+	}
+
+	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
+	sigCode, sigBody, err := c.get(sigPath)
+	if err != nil {
+		_ = os.Remove(zipPath)
+		return "", fmt.Errorf("downloading package signature %s-%s: %w", name, version, err)
+	}
+	if sigCode != http.StatusOK {
+		_ = os.Remove(zipPath)
+		return "", fmt.Errorf("downloading package signature %s-%s: unexpected status code %d", name, version, sigCode)
+	}
+
+	zipFile, err := os.Open(zipPath)
+	if err != nil {
+		_ = os.Remove(zipPath)
+		return "", fmt.Errorf("opening downloaded package zip %s: %w", zipPath, err)
+	}
+	verifyErr := files.VerifyDetachedPGP(zipFile, sigBody, pubKey)
+	closeErr := zipFile.Close()
+	if verifyErr != nil {
+		_ = os.Remove(zipPath)
+		return "", fmt.Errorf("verifying package %s-%s: %w", name, version, verifyErr)
+	}
+	if closeErr != nil {
+		return "", fmt.Errorf("closing downloaded package zip %s: %w", zipPath, closeErr)
+	}
+
+	return zipPath, nil
 }

@@ -72,7 +72,7 @@ func renderILMPolicyMap(output *strings.Builder, policyMap map[string]string) {
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		output.WriteString(fmt.Sprintf("| %s | %s |\n", escaper.Replace(key), escaper.Replace(policyMap[key])))
+		fmt.Fprintf(output, "| %s | %s |\n", escaper.Replace(key), escaper.Replace(policyMap[key]))
 	}
 }
 
@@ -124,7 +124,7 @@ func renderILMPaths(packageRoot string, args []string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("getting ILM policy map for path %s failed: %w", ilmPath, err)
 		}
-		renderedDocs.WriteString(fmt.Sprintf("\n#### %s Policy\n", dataStreamName))
+		fmt.Fprintf(&renderedDocs, "\n#### %s Policy\n", dataStreamName)
 
 		// render the policy map as a markdown table
 		renderedDocs.WriteString("| Key | Value |\n")

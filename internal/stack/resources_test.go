@@ -5,11 +5,16 @@
 package stack
 
 import (
+	"bytes"
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/elastic/go-resource"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -280,4 +285,80 @@ vvG/LwXVsGCXgSJahuOLkBPOaX2N+oDdYt267A==
 	s = indent("\n", "        ")
 	exp = "\n        "
 	assert.Equal(t, exp, s)
+}
+
+func TestFileContentAppender(t *testing.T) {
+	fcString := func(s string) resource.FileContent {
+		return func(_ resource.Context, w io.Writer) error {
+			_, err := io.WriteString(w, s)
+			return err
+		}
+	}
+	fcError := func(msg string) resource.FileContent {
+		return func(_ resource.Context, w io.Writer) error {
+			return errors.New(msg)
+		}
+	}
+
+	cases := []struct {
+		name       string
+		sources    []resource.FileContent
+		facters    resource.StaticFacter
+		wantOutput string
+		wantErr    string
+	}{
+		{
+			name:       "no sources",
+			wantOutput: "",
+		},
+		{
+			name:       "single source",
+			sources:    []resource.FileContent{fcString("hello")},
+			wantOutput: "hello",
+		},
+		{
+			name:       "multiple sources concatenated in order",
+			sources:    []resource.FileContent{fcString("foo"), fcString("bar"), fcString("baz")},
+			wantOutput: "foobarbaz",
+		},
+		{
+			name:       "stops on first error",
+			sources:    []resource.FileContent{fcString("first"), fcError("boom"), fcString("never reached")},
+			wantOutput: "first",
+			wantErr:    "boom",
+		},
+		{
+			name:    "context passed through to each source",
+			facters: resource.StaticFacter{"key": "value"},
+			sources: []resource.FileContent{
+				func(c resource.Context, w io.Writer) error {
+					v, _ := c.Fact("key")
+					_, err := io.WriteString(w, v)
+					return err
+				},
+			},
+			wantOutput: "value",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			manager := resource.NewManager()
+			if tc.facters != nil {
+				manager.AddFacter(tc.facters)
+			}
+			ctx := manager.Context(context.Background())
+
+			var buf bytes.Buffer
+			err := fileContentAppender(tc.sources...)(ctx, &buf)
+
+			if tc.wantErr != "" {
+				require.Error(t, err)
+				assert.Equal(t, tc.wantErr, err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.wantOutput, buf.String())
+		})
+	}
 }

@@ -159,7 +159,7 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 	if err != nil {
 		return inputPkgInfo{}, fmt.Errorf("opening package: %w", err)
 	}
-	defer closeFn()
+	defer func() { _ = closeFn() }()
 
 	manifestBytes, err := fs.ReadFile(pkgFS, packages.PackageManifestFile)
 	if err != nil {

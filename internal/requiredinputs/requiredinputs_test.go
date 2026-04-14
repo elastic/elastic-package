@@ -51,8 +51,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
@@ -84,10 +83,9 @@ func TestBundle_NoManifest(t *testing.T) {
 	}
 	buildPackageRoot := t.TempDir()
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
-	err = resolver.Bundle(buildPackageRoot)
+	err := resolver.Bundle(buildPackageRoot)
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "failed to read package manifest")
 }
@@ -108,8 +106,7 @@ type: input
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
@@ -133,8 +130,7 @@ policy_templates:
 	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
 	require.NoError(t, err)
 
-	resolver, err := NewRequiredInputsResolver(fakeEprClient)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(fakeEprClient)
 
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
@@ -144,4 +140,57 @@ policy_templates:
 	updatedManifest, err := packages.ReadPackageManifestBytes(updatedManifestBytes)
 	require.NoError(t, err)
 	require.Nil(t, updatedManifest.Requires)
+}
+
+// TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath checks that after
+// IncludeLinkedFiles has materialized a policy-template input template (regular file
+// at the path named in manifest, not a *.link stub), bundling still prepends input-package
+// templates and keeps the integration-owned template_path entry last in template_paths.
+func TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath(t *testing.T) {
+	fakeInputPath := createFakeInputHelper(t)
+	fakeEprClient := &fakeEprClient{
+		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
+			return fakeInputPath, nil
+		},
+	}
+	buildPackageRoot := t.TempDir()
+
+	const ownedName = "integration_owned.hbs"
+	ownedContent := []byte("# from linked target\n")
+	err := os.MkdirAll(path.Join(buildPackageRoot, "agent", "input"), 0755)
+	require.NoError(t, err)
+	err = os.WriteFile(path.Join(buildPackageRoot, "agent", "input", ownedName), ownedContent, 0644)
+	require.NoError(t, err)
+
+	manifest := []byte(`name: test-package
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: sql
+      version: 0.1.0
+policy_templates:
+  - inputs:
+      - package: sql
+        template_path: ` + ownedName + `
+      - type: logs
+`)
+	err = os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
+	require.NoError(t, err)
+
+	resolver := NewRequiredInputsResolver(fakeEprClient)
+	err = resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(path.Join(buildPackageRoot, "agent", "input", ownedName))
+	require.NoError(t, err)
+	require.Equal(t, ownedContent, got)
+
+	updatedManifestBytes, err := os.ReadFile(path.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	updatedManifest, err := packages.ReadPackageManifestBytes(updatedManifestBytes)
+	require.NoError(t, err)
+
+	paths := updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths
+	require.Equal(t, []string{"sql-input.yml.hbs", ownedName}, paths)
 }

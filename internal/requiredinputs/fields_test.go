@@ -117,12 +117,11 @@ func TestCollectExistingFieldNames(t *testing.T) {
 
 // ---- integration tests -------------------------------------------------------
 
-// makeFakeEprForFieldBundling supplies the fields_input_pkg fixture path as if
-// it were downloaded from the registry, so integration tests do not need a
-// running stack.
+// makeFakeEprForFieldBundling supplies the ci_input_pkg fixture path as if it
+// were downloaded from the registry, so integration tests do not need a stack.
 func makeFakeEprForFieldBundling(t *testing.T) *fakeEprClient {
 	t.Helper()
-	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "fields_input_pkg")
+	inputPkgPath := ciInputFixturePath()
 	return &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
 			return inputPkgPath, nil
@@ -135,18 +134,16 @@ func makeFakeEprForFieldBundling(t *testing.T) *fakeEprClient {
 // (integration wins), and only fields unique to the input package are written
 // to <datastream>/fields/<inputPkgName>-fields.yml.
 func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
-	// with_field_bundling has data_stream/field_logs/fields/base-fields.yml with
-	// 4 common fields. fields_input_pkg has those same 4 plus "message" and
+	// 02_ci_composable_integration has data_stream/ci_composable_logs/fields/base-fields.yml with
+	// 4 common fields. ci_input_pkg has those same 4 plus "message" and
 	// "log.level". After bundling, only "message" and "log.level" should appear
 	// in the generated file.
-	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
-	resolver, err := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
-	require.NoError(t, err)
+	buildPackageRoot := copyComposableIntegrationFixture(t)
+	resolver := NewRequiredInputsResolver(makeFakeEprForFieldBundling(t))
 
-	err = resolver.Bundle(buildPackageRoot)
-	require.NoError(t, err)
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
 
-	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "field_logs", "fields", "fields_input_pkg-fields.yml")
+	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "ci_input_pkg-fields.yml")
 	data, err := os.ReadFile(bundledPath)
 	require.NoError(t, err, "bundled fields file should exist")
 
@@ -161,7 +158,7 @@ func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 	assert.ElementsMatch(t, []string{"message", "log.level"}, names)
 
 	// Original base-fields.yml must be untouched.
-	originalData, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "field_logs", "fields", "base-fields.yml"))
+	originalData, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "base-fields.yml"))
 	require.NoError(t, err)
 	originalNodes, err := loadFieldNodesFromBytes(originalData)
 	require.NoError(t, err)
@@ -172,23 +169,25 @@ func TestBundleDataStreamFields_PartialOverlap(t *testing.T) {
 // the input package are already present in the integration data stream, no
 // bundled file is created (nothing to add).
 func TestBundleDataStreamFields_AllFieldsOverlap(t *testing.T) {
-	// with_input_package_requires has data_stream/test_logs/fields/base-fields.yml
-	// with the same 4 fields as test_input_pkg. No new fields → no output file.
-	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "test_input_pkg")
+	// Copy the composable integration and replace the data stream base fields with
+	// the full set from ci_input_pkg so every input field is already declared — no bundled file.
+	buildPackageRoot := copyComposableIntegrationFixture(t)
+	inputFields, err := os.ReadFile(filepath.Join(ciInputFixturePath(), "fields", "base-fields.yml"))
+	require.NoError(t, err)
+	dsFieldsPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "base-fields.yml")
+	require.NoError(t, os.WriteFile(dsFieldsPath, inputFields, 0644))
+
 	epr := &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
-			return inputPkgPath, nil
+			return ciInputFixturePath(), nil
 		},
 	}
-
-	buildPackageRoot := copyFixturePackage(t, "with_input_package_requires")
-	resolver, err := NewRequiredInputsResolver(epr)
-	require.NoError(t, err)
+	resolver := NewRequiredInputsResolver(epr)
 
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "test_logs", "fields", "test_input_pkg-fields.yml")
+	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "ci_input_pkg-fields.yml")
 	_, statErr := os.Stat(bundledPath)
 	assert.True(t, os.IsNotExist(statErr), "bundled fields file should not be created when all fields already exist")
 }
@@ -216,14 +215,12 @@ policy_templates:
 		},
 	}
 
-	buildPackageRoot := copyFixturePackage(t, "with_field_bundling")
+	buildPackageRoot := copyComposableIntegrationFixture(t)
 	// Patch manifest to reference no_fields_pkg instead.
 	manifestPath := filepath.Join(buildPackageRoot, "manifest.yml")
-	manifestData, err := os.ReadFile(manifestPath)
-	require.NoError(t, err)
 	patched := []byte(`format_version: 3.6.0
-name: with_field_bundling
-title: Integration With Field Bundling
+name: ci_composable_integration
+title: CI Composable Integration
 version: 0.1.0
 type: integration
 categories:
@@ -238,40 +235,51 @@ requires:
     - package: no_fields_pkg
       version: "0.1.0"
 policy_templates:
-  - name: field_logs
-    title: Field Logs
+  - name: ci_composable_logs
+    title: CI composable logs
     description: Collect logs
     data_streams:
-      - field_logs
+      - ci_composable_logs
     inputs:
       - package: no_fields_pkg
         title: Collect logs
         description: Use the no fields input package
+      - type: logs
+        title: Native logs input
+        description: Plain logs input
 owner:
   github: elastic/integrations
   type: elastic
 `)
-	_ = manifestData // not used further
 	require.NoError(t, os.WriteFile(manifestPath, patched, 0644))
 
-	// Also patch the data stream manifest to reference no_fields_pkg.
-	dsManifestPath := filepath.Join(buildPackageRoot, "data_stream", "field_logs", "manifest.yml")
-	require.NoError(t, os.WriteFile(dsManifestPath, []byte(`title: Field Logs
+	dsManifestPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "manifest.yml")
+	require.NoError(t, os.WriteFile(dsManifestPath, []byte(`title: CI composable logs
 type: logs
 streams:
   - package: no_fields_pkg
-    title: Field Logs
+    title: Logs via no-fields input package
     description: Collect field logs.
+  - input: logfile
+    title: Plain logs stream
+    description: Native logs stream without package reference.
+    template_path: stream.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/ci/*.log
 `), 0644))
 
-	resolver, err := NewRequiredInputsResolver(epr)
+	resolver := NewRequiredInputsResolver(epr)
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	err = resolver.Bundle(buildPackageRoot)
-	require.NoError(t, err)
-
-	// No bundled fields file should be created.
-	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "field_logs", "fields", "no_fields_pkg-fields.yml")
+	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "no_fields_pkg-fields.yml")
 	_, statErr := os.Stat(bundledPath)
 	assert.True(t, os.IsNotExist(statErr), "no fields file should be created when input package has no fields")
 }
@@ -279,23 +287,28 @@ streams:
 // TestBundleDataStreamFields_StreamWithoutPackage verifies that data stream
 // streams with no package reference are skipped without error.
 func TestBundleDataStreamFields_StreamWithoutPackage(t *testing.T) {
-	// with_input_package_requires has a second stream with input: logs (no package).
-	// The test confirms this is processed without error and no unexpected files appear.
-	inputPkgPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", "test_input_pkg")
+	// Second stream uses input: logfile (no package); Bundle should succeed and only
+	// bundle fields for the package-backed stream.
 	epr := &fakeEprClient{
 		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
-			return inputPkgPath, nil
+			return ciInputFixturePath(), nil
 		},
 	}
 
-	buildPackageRoot := copyFixturePackage(t, "with_input_package_requires")
-	resolver, err := NewRequiredInputsResolver(epr)
+	buildPackageRoot := copyComposableIntegrationFixture(t)
+	resolver := NewRequiredInputsResolver(epr)
+
+	err := resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	err = resolver.Bundle(buildPackageRoot)
+	fieldsDir := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields")
+	entries, err := os.ReadDir(fieldsDir)
 	require.NoError(t, err)
-
-	// The non-package stream (logs input) should not produce a bundled fields file.
-	_, statErr := os.Stat(filepath.Join(buildPackageRoot, "data_stream", "test_logs", "fields", "-fields.yml"))
-	assert.True(t, os.IsNotExist(statErr))
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	assert.Contains(t, names, "base-fields.yml")
+	assert.Contains(t, names, "ci_input_pkg-fields.yml")
+	assert.Len(t, names, 2)
 }
