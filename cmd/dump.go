@@ -41,7 +41,7 @@ func setupDumpCommand() *cobraext.Command {
 	}
 	dumpInstalledObjectsCmd.Flags().Bool(cobraext.TLSSkipVerifyFlagName, false, cobraext.TLSSkipVerifyFlagDescription)
 	dumpInstalledObjectsCmd.Flags().StringP(cobraext.PackageFlagName, cobraext.PackageFlagShorthand, "", cobraext.PackageFlagDescription)
-	dumpInstalledObjectsCmd.MarkFlagRequired(cobraext.PackageFlagName)
+	cobraext.MustMarkFlagRequired(dumpInstalledObjectsCmd, cobraext.PackageFlagName)
 
 	dumpAgentPoliciesCmd := &cobra.Command{
 		Use:   "agent-policies",

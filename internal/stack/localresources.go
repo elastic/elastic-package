@@ -73,7 +73,7 @@ func applyLocalResources(profile *profile.Profile, stackVersion, overrideAgentVe
 		"fleet_service_token":  config.FleetServiceToken,
 	})
 
-	os.MkdirAll(stackDir, 0755)
+	os.MkdirAll(stackDir, 0755) //nolint:errcheck // subsequent resource writes will fail with a clear error if this fails
 	resourceManager.RegisterProvider("file", &resource.FileProvider{
 		Prefix: stackDir,
 	})

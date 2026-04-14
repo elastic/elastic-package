@@ -13,7 +13,7 @@ import (
 	"github.com/elastic/go-resource"
 )
 
-func (p *Profile) migrate(version uint) error {
+func (p *Profile) migrate() error {
 	resourceManager := resource.NewManager()
 	resourceManager.AddFacter(resource.StaticFacter{
 		"creation_date": p.metadata.DateCreated.Format(dateFormat),

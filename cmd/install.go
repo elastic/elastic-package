@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -81,11 +82,14 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("locating repository root failed: %w", err)
+	var repositoryRoot *os.Root
+	if zipPathFile == "" {
+		repositoryRoot, err = files.FindRepositoryRoot()
+		if err != nil {
+			return fmt.Errorf("locating repository root failed: %w", err)
+		}
+		defer repositoryRoot.Close()
 	}
-	defer repositoryRoot.Close()
 
 	appConfig, err := install.Configuration()
 	if err != nil {

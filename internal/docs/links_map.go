@@ -101,7 +101,7 @@ func linksDefinitionsFilePath(repositoryRoot *os.Root) (string, error) {
 
 	if _, err := repositoryRoot.Stat(linksMapFileNameDefault); err != nil {
 		logger.Debugf("links definitions default file doesn't exist: %s", linksFilePath)
-		return "", nil
+		return "", nil //nolint:nilerr // err means file absent, which is expected; nil error signals "no file"
 	}
 
 	return filepath.Join(repositoryRoot.Name(), linksMapFileNameDefault), nil

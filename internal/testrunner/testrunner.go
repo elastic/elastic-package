@@ -144,7 +144,7 @@ func NewResultComposer(tr TestResult) *ResultComposer {
 // WithCoverage appends the coverage report to the result composer. Results built with the composer
 // will include this coverage report.
 func (rc *ResultComposer) WithCoverage(coverage CoverageReport) *ResultComposer {
-	rc.TestResult.Coverage = coverage
+	rc.Coverage = coverage
 	return rc
 }
 
@@ -188,7 +188,7 @@ func (rc *ResultComposer) WithSuccess() ([]TestResult, error) {
 
 // WithSkip marks the test result wrapped by ResultComposer as skipped.
 func (rc *ResultComposer) WithSkip(s *SkipConfig) ([]TestResult, error) {
-	rc.TestResult.Skipped = s
+	rc.Skipped = s
 	return rc.WithError(nil)
 }
 
