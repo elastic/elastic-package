@@ -339,7 +339,10 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
-	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	withOpts := []rally.OptionFunc{
@@ -524,7 +527,10 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 	}
 
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
-	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	withOpts := []stream.OptionFunc{

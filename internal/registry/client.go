@@ -34,13 +34,17 @@ type Client struct {
 }
 
 // NewClient creates a new instance of the client.
-func NewClient(baseURL string, opts ...ClientOption) *Client {
+func NewClient(baseURL string, opts ...ClientOption) (*Client, error) {
 	c := &Client{baseURL: baseURL}
 	for _, opt := range opts {
 		opt(c)
 	}
-	c.httpClient, _ = c.newHTTPClient()
-	return c
+	httpClient, err := c.newHTTPClient()
+	if err != nil {
+		return nil, fmt.Errorf("creating registry HTTP client: %w", err)
+	}
+	c.httpClient = httpClient
+	return c, nil
 }
 
 // CertificateAuthority sets the certificate authority to use for TLS verification.
@@ -136,46 +140,75 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 	}
 
 	zipPath := filepath.Join(destDir, fmt.Sprintf("%s-%s.zip", name, version))
+	shouldRemove := false
+	defer func() {
+		if shouldRemove {
+			_ = os.Remove(zipPath)
+		}
+	}()
+
+	shouldRemove = true
 	if err := os.WriteFile(zipPath, body, 0o644); err != nil {
 		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
 	}
 
 	if !verify {
+		shouldRemove = false
 		return zipPath, nil
 	}
 
+	discard, err := c.verifyPackage(name, version, zipPath, pubKeyPath)
+	if err != nil {
+		if !discard {
+			shouldRemove = false
+		}
+		return "", err
+	}
+
+	shouldRemove = false
+	return zipPath, nil
+}
+
+// verifyPackage verifies the detached PGP signature for a package zip already on disk.
+// If it returns a non-nil error, discard is true when the zip file should be removed
+// (verification or I/O failure before a successful read of the artifact). When discard
+// is false, the zip should be kept (e.g. failure closing the file after verification).
+func (c *Client) verifyPackage(name, version, zipPath, pubKeyPath string) (discard bool, err error) {
+	discard = true
 	logger.Debugf("Verifying detached signature for package %s-%s", name, version)
 	pubKey, err := os.ReadFile(pubKeyPath)
 	if err != nil {
-		_ = os.Remove(zipPath)
-		return "", fmt.Errorf("reading verifier public keyfile (path: %s): %w", pubKeyPath, err)
+		return true, fmt.Errorf("reading verifier public keyfile (path: %s): %w", pubKeyPath, err)
 	}
 
 	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
 	sigCode, sigBody, err := c.get(sigPath)
 	if err != nil {
-		_ = os.Remove(zipPath)
-		return "", fmt.Errorf("downloading package signature %s-%s: %w", name, version, err)
+		return true, fmt.Errorf("downloading package signature %s-%s: %w", name, version, err)
 	}
 	if sigCode != http.StatusOK {
-		_ = os.Remove(zipPath)
-		return "", fmt.Errorf("downloading package signature %s-%s: unexpected status code %d", name, version, sigCode)
+		return true, fmt.Errorf("downloading package signature %s-%s: unexpected status code %d", name, version, sigCode)
 	}
 
 	zipFile, err := os.Open(zipPath)
 	if err != nil {
-		_ = os.Remove(zipPath)
-		return "", fmt.Errorf("opening downloaded package zip %s: %w", zipPath, err)
+		return true, fmt.Errorf("opening downloaded package zip %s: %w", zipPath, err)
 	}
-	verifyErr := files.VerifyDetachedPGP(zipFile, sigBody, pubKey)
-	closeErr := zipFile.Close()
-	if verifyErr != nil {
-		_ = os.Remove(zipPath)
-		return "", fmt.Errorf("verifying package %s-%s: %w", name, version, verifyErr)
-	}
-	if closeErr != nil {
-		return "", fmt.Errorf("closing downloaded package zip %s: %w", zipPath, closeErr)
-	}
+	defer func() {
+		closeErr := zipFile.Close()
+		if closeErr == nil {
+			return
+		}
+		if err != nil {
+			return
+		}
+		discard = false
+		err = fmt.Errorf("closing downloaded package zip %s: %w", zipPath, closeErr)
+	}()
 
-	return zipPath, nil
+	if verifyErr := files.VerifyDetachedPGP(zipFile, sigBody, pubKey); verifyErr != nil {
+		err = fmt.Errorf("verifying package %s-%s: %w", name, version, verifyErr)
+		return
+	}
+	return false, nil
 }

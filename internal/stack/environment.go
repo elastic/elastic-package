@@ -154,7 +154,11 @@ func (p *environmentProvider) initClients(appConfig *install.ApplicationConfigur
 	}
 	p.elasticsearch = elasticsearch
 
-	p.registry = registry.NewClient(PackageRegistryBaseURL(p.profile, appConfig))
+	regClient, err := registry.NewClient(PackageRegistryBaseURL(p.profile, appConfig))
+	if err != nil {
+		return fmt.Errorf("cannot create package registry client: %w", err)
+	}
+	p.registry = regClient
 	return nil
 }
 

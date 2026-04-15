@@ -188,7 +188,8 @@ func installPackageFromRegistry(ts *testscript.TestScript, neg bool, args []stri
 	regPkgs[*profName] = append(regPkgs[*profName], registryPackage{name: name, version: version})
 
 	workDir := ts.MkAbs(".")
-	client := registry.NewClient(registryBaseURL, stack.RegistryClientOptions(registryBaseURL, stk.profile)...)
+	client, err := registry.NewClient(registryBaseURL, stack.RegistryClientOptions(registryBaseURL, stk.profile)...)
+	ts.Check(decoratedWith("creating package registry client", err))
 	zipPath, err := client.DownloadPackage(name, version, workDir)
 	ts.Check(decoratedWith("downloading package from registry", err))
 

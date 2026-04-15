@@ -74,6 +74,14 @@ func profileAndPackageRegistryBaseURL(opt Options, appConfig *install.Applicatio
 	return prof, stack.PackageRegistryBaseURL(prof, appConfig), nil
 }
 
+func revisionsFromRegistry(eprBaseURL string, prof *profile.Profile, pkgName string) ([]packages.PackageManifest, error) {
+	c, err := registry.NewClient(eprBaseURL, stack.RegistryClientOptions(eprBaseURL, prof)...)
+	if err != nil {
+		return nil, fmt.Errorf("creating package registry client: %w", err)
+	}
+	return c.Revisions(pkgName, registry.SearchOptions{})
+}
+
 func scriptTestWorkdirRoot(workRoot string, opt Options) (workdirRoot string, err error) {
 	if opt.TestWork {
 		return os.MkdirTemp(workRoot, "*")
@@ -221,8 +229,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		if err != nil {
 			return err
 		}
-		eprClient := registry.NewClient(eprBaseURL, stack.RegistryClientOptions(eprBaseURL, prof)...)
-		revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
+		revisions, err := revisionsFromRegistry(eprBaseURL, prof, manifest.Name)
 		if err != nil {
 			return err
 		}

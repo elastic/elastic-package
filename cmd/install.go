@@ -99,7 +99,10 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 	}
 
 	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
-	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
 
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 

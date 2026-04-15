@@ -7,11 +7,14 @@ package registry
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
@@ -19,6 +22,88 @@ import (
 
 	"github.com/elastic/elastic-package/internal/environment"
 )
+
+func TestNewClient_invalidCertificateAuthorityPath(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing-ca.pem")
+	client, err := NewClient("https://example.test", CertificateAuthority(missing))
+	require.Error(t, err)
+	require.Nil(t, client)
+	require.ErrorContains(t, err, "creating registry HTTP client")
+	require.ErrorContains(t, err, "reading CA certificate")
+}
+
+func TestNewClient_invalidCertificateAuthorityPEM(t *testing.T) {
+	badPath := filepath.Join(t.TempDir(), "not-a-cert.pem")
+	require.NoError(t, os.WriteFile(badPath, []byte("this is not a PEM certificate block"), 0o600))
+
+	client, err := NewClient("https://example.test", CertificateAuthority(badPath))
+	require.Error(t, err)
+	require.Nil(t, client)
+	require.ErrorContains(t, err, "creating registry HTTP client")
+	require.ErrorContains(t, err, "no certificate found")
+}
+
+func TestNewClient_tlsskipVerifyOption(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	t.Cleanup(srv.Close)
+
+	client, err := NewClient(srv.URL, TLSSkipVerify())
+	require.NoError(t, err)
+	require.NotNil(t, client)
+}
+
+func TestDownloadPackage_unexpectedStatusDoesNotWriteZip(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "gone", http.StatusGone)
+	}))
+	t.Cleanup(srv.Close)
+
+	t.Setenv(environment.WithElasticPackagePrefix("VERIFY_PACKAGE_SIGNATURE"), "")
+	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), "")
+
+	dest := t.TempDir()
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "unexpected status code")
+
+	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+	require.True(t, errors.Is(statErr, fs.ErrNotExist), "no zip should be written when the registry returns a non-OK status")
+}
+
+func TestDownloadPackage_writeFailureCleansUp(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("read-only directory cleanup test relies on Unix directory permissions")
+	}
+	zipBytes := testAcmePackageZip(t)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+			http.NotFound(w, r)
+			return
+		}
+		_, err := w.Write(zipBytes)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(srv.Close)
+
+	t.Setenv(environment.WithElasticPackagePrefix("VERIFY_PACKAGE_SIGNATURE"), "")
+	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), "")
+
+	root := t.TempDir()
+	readOnlyDir := filepath.Join(root, "readonly")
+	require.NoError(t, os.Mkdir(readOnlyDir, 0o555))
+	t.Cleanup(func() { _ = os.Chmod(readOnlyDir, 0o700) })
+
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
+	_, err = client.DownloadPackage("acme", "1.0.0", readOnlyDir)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "writing package zip")
+
+	_, statErr := os.Stat(filepath.Join(readOnlyDir, "acme-1.0.0.zip"))
+	require.True(t, errors.Is(statErr, fs.ErrNotExist), "partial zip should not remain after a write error")
+}
 
 func TestDownloadPackage_withoutVerification(t *testing.T) {
 	zipBytes := testAcmePackageZip(t)
@@ -36,7 +121,8 @@ func TestDownloadPackage_withoutVerification(t *testing.T) {
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), "")
 
 	dest := t.TempDir()
-	client := NewClient(srv.URL)
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
 	require.NoError(t, err)
 	require.FileExists(t, zipPath)
@@ -84,7 +170,8 @@ func TestDownloadPackage_withVerification_success(t *testing.T) {
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), pubPath)
 
 	dest := t.TempDir()
-	client := NewClient(srv.URL)
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
 	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
 	require.NoError(t, err)
 	require.FileExists(t, zipPath)
@@ -109,8 +196,9 @@ func TestDownloadPackage_withVerification_missingSignature(t *testing.T) {
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), pubPath)
 
 	dest := t.TempDir()
-	client := NewClient(srv.URL)
-	_, err := client.DownloadPackage("acme", "1.0.0", dest)
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
 	require.Error(t, err)
 
 	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
@@ -166,7 +254,8 @@ func TestDownloadPackage_withVerification_badSignature(t *testing.T) {
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), pubPath)
 
 	dest := t.TempDir()
-	client := NewClient(srv.URL)
+	client, err := NewClient(srv.URL)
+	require.NoError(t, err)
 	_, err = client.DownloadPackage("acme", "1.0.0", dest)
 	require.Error(t, err)
 

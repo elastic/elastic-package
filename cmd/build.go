@@ -95,7 +95,10 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("could not load profile: %w", err)
 	}
-	eprClient := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
 
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
