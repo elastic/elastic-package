@@ -162,6 +162,8 @@ var policyEntryFilters = []policyEntryFilter{
 			regexp:  regexp.MustCompile(`^https?://.*$`),
 			replace: "https://elasticsearch:9200",
 		}},
+		// auth is injected by Fleet since 9.4.0 and may appear in any exporter, not just
+		// elasticsearch. Removed for backwards compatibility with older stacks.
 		{name: "auth"},
 	}},
 
