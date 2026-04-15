@@ -90,11 +90,11 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
-	baseURL := appConfig.PackageRegistryBaseURL()
 	prof, err := profile.LoadProfile(appConfig.CurrentProfile())
 	if err != nil {
 		return fmt.Errorf("could not load profile: %w", err)
 	}
+	baseURL := stack.PackageRegistryBaseURL(prof, appConfig)
 	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, prof)...)
 	if err != nil {
 		return fmt.Errorf("failed to create package registry client: %w", err)
