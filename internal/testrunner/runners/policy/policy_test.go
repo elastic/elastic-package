@@ -118,10 +118,36 @@ service:
     extensions:
         - beatsauth/default
         - health_check/default
+    pipelines:
+        logs/default:
+            receivers:
+                - otlp/default
 `,
 			expected: `service:
     extensions:
         - health_check/default
+    pipelines:
+        logs/componentid-0:
+            receivers:
+                - otlp/default
+`,
+		},
+		{
+			title: "remove service.extensions entirely when only beatsauth entries remain",
+			policy: `
+service:
+    extensions:
+        - beatsauth/default
+    pipelines:
+        logs/default:
+            receivers:
+                - otlp/default
+`,
+			expected: `service:
+    pipelines:
+        logs/componentid-0:
+            receivers:
+                - otlp/default
 `,
 		},
 		{

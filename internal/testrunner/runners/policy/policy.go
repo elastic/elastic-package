@@ -166,6 +166,7 @@ var policyEntryFilters = []policyEntryFilter{
 	{name: "extensions", deletePattern: regexp.MustCompile(`^beatsauth/`)},
 	{name: "extensions", onlyIfEmpty: true},
 	{name: "service.extensions", deletePattern: regexp.MustCompile(`^beatsauth/`)},
+	{name: "service.extensions", onlyIfEmpty: true},
 
 	// Signatures that change from installation to installation.
 	{name: "agent.protection.uninstall_token_hash"},
