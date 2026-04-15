@@ -10,8 +10,6 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/yaml.v3"
-
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -74,8 +72,8 @@ func applyInputTypesToComposableManifest(
 	if err != nil {
 		return fmt.Errorf("reading manifest: %w", err)
 	}
-	var doc yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+	root, err := parseDocumentRootMapping(manifestBytes)
+	if err != nil {
 		return fmt.Errorf("parsing manifest YAML: %w", err)
 	}
 
@@ -89,25 +87,25 @@ func applyInputTypesToComposableManifest(
 				return fmt.Errorf("input package %q referenced in policy_templates[%d].inputs[%d] not found in required inputs", input.Package, ptIdx, inputIdx)
 			}
 
-			inputNode, err := getInputMappingNode(&doc, ptIdx, inputIdx)
+			inputNode, err := getInputMappingNode(root, ptIdx, inputIdx)
 			if err != nil {
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
-			upsertKey(inputNode, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: info.identifier})
+			upsertKey(inputNode, "type", strVal(info.identifier))
 
 			if mappingValue(inputNode, "title") == nil && info.pkgTitle != "" {
-				upsertKey(inputNode, "title", &yaml.Node{Kind: yaml.ScalarNode, Value: info.pkgTitle})
+				upsertKey(inputNode, "title", strVal(info.pkgTitle))
 			}
 			if mappingValue(inputNode, "description") == nil && info.pkgDescription != "" {
-				upsertKey(inputNode, "description", &yaml.Node{Kind: yaml.ScalarNode, Value: info.pkgDescription})
+				upsertKey(inputNode, "description", strVal(info.pkgDescription))
 			}
 
 			removeKey(inputNode, "package")
 		}
 	}
 
-	updated, err := formatYAMLNode(&doc)
+	updated, err := formatYAMLNode(root)
 	if err != nil {
 		return fmt.Errorf("formatting updated manifest: %w", err)
 	}
@@ -131,8 +129,8 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[stri
 			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
 		}
 
-		var dsDoc yaml.Node
-		if err := yaml.Unmarshal(dsManifestBytes, &dsDoc); err != nil {
+		dsRoot, err := parseDocumentRootMapping(dsManifestBytes)
+		if err != nil {
 			return fmt.Errorf("parsing data stream manifest YAML %q: %w", manifestPath, err)
 		}
 
@@ -150,24 +148,24 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[stri
 				return fmt.Errorf("input package %q referenced in %q streams[%d] not found in required inputs", stream.Package, path.Dir(manifestPath), streamIdx)
 			}
 
-			streamNode, err := getStreamMappingNode(&dsDoc, streamIdx)
+			streamNode, err := getStreamMappingNode(dsRoot, streamIdx)
 			if err != nil {
 				return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
 			}
 
-			upsertKey(streamNode, "input", &yaml.Node{Kind: yaml.ScalarNode, Value: info.identifier})
+			upsertKey(streamNode, "input", strVal(info.identifier))
 
 			if stream.Title == "" && info.pkgTitle != "" {
-				upsertKey(streamNode, "title", &yaml.Node{Kind: yaml.ScalarNode, Value: info.pkgTitle})
+				upsertKey(streamNode, "title", strVal(info.pkgTitle))
 			}
 			if stream.Description == "" && info.pkgDescription != "" {
-				upsertKey(streamNode, "description", &yaml.Node{Kind: yaml.ScalarNode, Value: info.pkgDescription})
+				upsertKey(streamNode, "description", strVal(info.pkgDescription))
 			}
 
 			removeKey(streamNode, "package")
 		}
 
-		dsUpdated, err := formatYAMLNode(&dsDoc)
+		dsUpdated, err := formatYAMLNode(dsRoot)
 		if err != nil {
 			return fmt.Errorf("formatting updated data stream manifest %q: %w", manifestPath, err)
 		}
@@ -218,3 +216,4 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 		pkgDescription: m.Description,
 	}, nil
 }
+

@@ -11,7 +11,8 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/parser"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -41,51 +42,52 @@ func (r *RequiredInputsResolver) mergeVariables(
 	inputPkgPaths map[string]string,
 	buildRoot *os.Root,
 ) error {
-	doc, err := readYAMLDocFromBuildRoot(buildRoot, "manifest.yml")
+	root, err := readYAMLDocFromBuildRoot(buildRoot, "manifest.yml")
 	if err != nil {
 		return err
 	}
 
-	promotedVarOverridesByScope, err := buildPromotedVarOverrideMap(manifest, &doc)
+	promotedVarOverridesByScope, err := buildPromotedVarOverrideMap(manifest, root)
 	if err != nil {
 		return err
 	}
 
-	if err := mergePolicyTemplateInputLevelVars(manifest, &doc, inputPkgPaths, promotedVarOverridesByScope); err != nil {
+	if err := mergePolicyTemplateInputLevelVars(manifest, root, inputPkgPaths, promotedVarOverridesByScope); err != nil {
 		return err
 	}
 
-	if err := writeFormattedYAMLDoc(buildRoot, "manifest.yml", &doc); err != nil {
+	if err := writeFormattedYAMLDoc(buildRoot, "manifest.yml", root); err != nil {
 		return err
 	}
 
 	return mergeDataStreamStreamLevelVars(buildRoot, inputPkgPaths, promotedVarOverridesByScope)
 }
 
-// readYAMLDocFromBuildRoot reads relPath from buildRoot and parses it as a YAML document node.
-func readYAMLDocFromBuildRoot(buildRoot *os.Root, relPath string) (yaml.Node, error) {
+// readYAMLDocFromBuildRoot reads relPath from buildRoot, parses it via yamledit,
+// and returns the document root as a *ast.MappingNode.
+func readYAMLDocFromBuildRoot(buildRoot *os.Root, relPath string) (*ast.MappingNode, error) {
 	b, err := buildRoot.ReadFile(relPath)
 	if err != nil {
-		return yaml.Node{}, fmt.Errorf("reading %q: %w", relPath, err)
+		return nil, fmt.Errorf("reading %q: %w", relPath, err)
 	}
-	var doc yaml.Node
-	if err := yaml.Unmarshal(b, &doc); err != nil {
-		return yaml.Node{}, fmt.Errorf("parsing YAML %q: %w", relPath, err)
+	root, err := parseDocumentRootMapping(b)
+	if err != nil {
+		return nil, fmt.Errorf("parsing YAML %q: %w", relPath, err)
 	}
-	return doc, nil
+	return root, nil
 }
 
 // buildPromotedVarOverrideMap indexes composable policy_templates[].inputs[].vars
 // by input package name and data stream scope for use when merging promotions.
-func buildPromotedVarOverrideMap(manifest *packages.PackageManifest, doc *yaml.Node) (map[promotedVarScopeKey]map[string]*yaml.Node, error) {
-	out := make(map[promotedVarScopeKey]map[string]*yaml.Node)
+func buildPromotedVarOverrideMap(manifest *packages.PackageManifest, root *ast.MappingNode) (map[promotedVarScopeKey]map[string]*ast.MappingNode, error) {
+	out := make(map[promotedVarScopeKey]map[string]*ast.MappingNode)
 	for ptIdx, pt := range manifest.PolicyTemplates {
 		for inputIdx, input := range pt.Inputs {
 			if input.Package == "" || len(input.Vars) == 0 {
 				continue
 			}
 
-			inputNode, err := getInputMappingNode(doc, ptIdx, inputIdx)
+			inputNode, err := getInputMappingNode(root, ptIdx, inputIdx)
 			if err != nil {
 				return nil, fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
@@ -95,7 +97,7 @@ func buildPromotedVarOverrideMap(manifest *packages.PackageManifest, doc *yaml.N
 				return nil, fmt.Errorf("reading override var nodes at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
-			overrideByName := make(map[string]*yaml.Node, len(overrideNodes))
+			overrideByName := make(map[string]*ast.MappingNode, len(overrideNodes))
 			for _, n := range overrideNodes {
 				overrideByName[varNodeName(n)] = n
 			}
@@ -113,12 +115,12 @@ func buildPromotedVarOverrideMap(manifest *packages.PackageManifest, doc *yaml.N
 }
 
 // mergePolicyTemplateInputLevelVars writes merged promoted vars onto each
-// package-backed input in the composable manifest YAML (in-memory doc).
+// package-backed input in the composable manifest YAML (in-memory root mapping).
 func mergePolicyTemplateInputLevelVars(
 	manifest *packages.PackageManifest,
-	doc *yaml.Node,
+	root *ast.MappingNode,
 	inputPkgPaths map[string]string,
-	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*ast.MappingNode,
 ) error {
 	for ptIdx, pt := range manifest.PolicyTemplates {
 		for inputIdx, input := range pt.Inputs {
@@ -140,14 +142,14 @@ func mergePolicyTemplateInputLevelVars(
 
 			promotedOverrides := unionPromotedOverridesForInput(pt, input.Package, promotedVarOverridesByScope)
 
-			inputNode, err := getInputMappingNode(doc, ptIdx, inputIdx)
+			inputNode, err := getInputMappingNode(root, ptIdx, inputIdx)
 			if err != nil {
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
 			mergedSeq := mergeInputLevelVarNodes(baseVarOrder, baseVarByName, promotedOverrides)
 
-			if len(mergedSeq.Content) > 0 {
+			if len(mergedSeq.Values) > 0 {
 				upsertKey(inputNode, "vars", mergedSeq)
 			} else {
 				removeKey(inputNode, "vars")
@@ -162,9 +164,9 @@ func mergePolicyTemplateInputLevelVars(
 func unionPromotedOverridesForInput(
 	pt packages.PolicyTemplate,
 	refInputPackage string,
-	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
-) map[string]*yaml.Node {
-	promotedOverrides := make(map[string]*yaml.Node)
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*ast.MappingNode,
+) map[string]*ast.MappingNode {
+	promotedOverrides := make(map[string]*ast.MappingNode)
 	dsNames := pt.DataStreams
 	if len(dsNames) == 0 {
 		dsNames = []string{""}
@@ -178,9 +180,9 @@ func unionPromotedOverridesForInput(
 	return promotedOverrides
 }
 
-// writeFormattedYAMLDoc serializes doc with package YAML formatting and writes it to relPath.
-func writeFormattedYAMLDoc(buildRoot *os.Root, relPath string, doc *yaml.Node) error {
-	updated, err := formatYAMLNode(doc)
+// writeFormattedYAMLDoc serializes root with package YAML formatting and writes it to relPath.
+func writeFormattedYAMLDoc(buildRoot *os.Root, relPath string, root *ast.MappingNode) error {
+	updated, err := formatYAMLNode(root)
 	if err != nil {
 		return fmt.Errorf("formatting updated %q: %w", relPath, err)
 	}
@@ -194,7 +196,7 @@ func writeFormattedYAMLDoc(buildRoot *os.Root, relPath string, doc *yaml.Node) e
 func mergeDataStreamStreamLevelVars(
 	buildRoot *os.Root,
 	inputPkgPaths map[string]string,
-	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*ast.MappingNode,
 ) error {
 	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
@@ -209,8 +211,8 @@ func mergeDataStreamStreamLevelVars(
 			return fmt.Errorf("reading data stream manifest %q: %w", manifestPath, err)
 		}
 
-		var dsDoc yaml.Node
-		if err := yaml.Unmarshal(dsManifestBytes, &dsDoc); err != nil {
+		dsRoot, err := parseDocumentRootMapping(dsManifestBytes)
+		if err != nil {
 			return fmt.Errorf("parsing data stream manifest YAML %q: %w", manifestPath, err)
 		}
 
@@ -219,11 +221,11 @@ func mergeDataStreamStreamLevelVars(
 			return fmt.Errorf("parsing data stream manifest %q: %w", manifestPath, err)
 		}
 
-		if err := mergeStreamsInDSManifest(&dsDoc, dsManifest, dsName, inputPkgPaths, promotedVarOverridesByScope, manifestPath); err != nil {
+		if err := mergeStreamsInDSManifest(dsRoot, dsManifest, dsName, inputPkgPaths, promotedVarOverridesByScope, manifestPath); err != nil {
 			return err
 		}
 
-		if err := writeFormattedYAMLDoc(buildRoot, manifestPath, &dsDoc); err != nil {
+		if err := writeFormattedYAMLDoc(buildRoot, manifestPath, dsRoot); err != nil {
 			return fmt.Errorf("data stream manifest %q: %w", manifestPath, err)
 		}
 	}
@@ -233,11 +235,11 @@ func mergeDataStreamStreamLevelVars(
 
 // mergeStreamsInDSManifest merges non-promoted input vars into package-backed streams in one DS manifest.
 func mergeStreamsInDSManifest(
-	dsDoc *yaml.Node,
+	dsRoot *ast.MappingNode,
 	dsManifest *packages.DataStreamManifest,
 	dsName string,
 	inputPkgPaths map[string]string,
-	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*ast.MappingNode,
 	manifestPath string,
 ) error {
 	for streamIdx, stream := range dsManifest.Streams {
@@ -259,7 +261,7 @@ func mergeStreamsInDSManifest(
 
 		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
 
-		streamNode, err := getStreamMappingNode(dsDoc, streamIdx)
+		streamNode, err := getStreamMappingNode(dsRoot, streamIdx)
 		if err != nil {
 			return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
 		}
@@ -275,7 +277,7 @@ func mergeStreamsInDSManifest(
 
 		mergedSeq := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
 
-		if len(mergedSeq.Content) > 0 {
+		if len(mergedSeq.Values) > 0 {
 			upsertKey(streamNode, "vars", mergedSeq)
 		} else {
 			removeKey(streamNode, "vars")
@@ -288,7 +290,7 @@ func mergeStreamsInDSManifest(
 // overrides for (refInputPackage, composableDataStream) plus template-wide (refInputPackage, "").
 func promotedVarNamesForStream(
 	refInputPackage, composableDataStream string,
-	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*ast.MappingNode,
 ) map[string]bool {
 	promotedNames := make(map[string]bool)
 	for _, key := range []promotedVarScopeKey{
@@ -305,7 +307,7 @@ func promotedVarNamesForStream(
 // loadInputPkgVarNodes opens the input package at pkgPath, reads all vars from
 // all policy templates (dedup by name, first wins) and returns them as an
 // ordered slice and a name→node lookup map.
-func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*yaml.Node, error) {
+func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*ast.MappingNode, error) {
 	pkgFS, closeFn, err := openPackageFS(pkgPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("opening package: %w", err)
@@ -317,48 +319,46 @@ func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*yaml.Node, erro
 		return nil, nil, fmt.Errorf("reading manifest: %w", err)
 	}
 
-	var doc yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+	f, err := parser.ParseBytes(manifestBytes, 0)
+	if err != nil {
 		return nil, nil, fmt.Errorf("parsing manifest YAML: %w", err)
 	}
-
-	root := &doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return nil, nil, nil
-		}
-		root = root.Content[0]
+	if len(f.Docs) == 0 || f.Docs[0] == nil {
+		return nil, nil, nil
 	}
-	if root.Kind != yaml.MappingNode {
+	root, ok := f.Docs[0].Body.(*ast.MappingNode)
+	if !ok {
 		return nil, nil, fmt.Errorf("expected mapping node at document root")
 	}
 
-	policyTemplatesNode := mappingValue(root, "policy_templates")
-	if policyTemplatesNode == nil || policyTemplatesNode.Kind != yaml.SequenceNode {
+	policyTemplatesNode, ok := mappingValue(root, "policy_templates").(*ast.SequenceNode)
+	if !ok {
 		return nil, nil, nil
 	}
 
 	order := make([]string, 0)
-	byName := make(map[string]*yaml.Node)
+	byName := make(map[string]*ast.MappingNode)
 
-	for _, ptNode := range policyTemplatesNode.Content {
-		if ptNode.Kind != yaml.MappingNode {
+	for _, ptNode := range policyTemplatesNode.Values {
+		ptMapping, ok := ptNode.(*ast.MappingNode)
+		if !ok {
 			continue
 		}
-		varsNode := mappingValue(ptNode, "vars")
-		if varsNode == nil || varsNode.Kind != yaml.SequenceNode {
+		varsNode, ok := mappingValue(ptMapping, "vars").(*ast.SequenceNode)
+		if !ok {
 			continue
 		}
-		for _, varNode := range varsNode.Content {
-			if varNode.Kind != yaml.MappingNode {
+		for _, varNode := range varsNode.Values {
+			varMapping, ok := varNode.(*ast.MappingNode)
+			if !ok {
 				continue
 			}
-			name := varNodeName(varNode)
+			name := varNodeName(varMapping)
 			if name == "" || byName[name] != nil {
 				continue // skip empty names and duplicates (first wins)
 			}
 			order = append(order, name)
-			byName[name] = varNode
+			byName[name] = varMapping
 		}
 	}
 
@@ -370,17 +370,17 @@ func loadInputPkgVarNodes(pkgPath string) ([]string, map[string]*yaml.Node, erro
 // Order follows baseVarOrder (input package declaration order).
 func mergeInputLevelVarNodes(
 	baseVarOrder []string,
-	baseVarByName map[string]*yaml.Node,
-	promotedOverrides map[string]*yaml.Node,
-) *yaml.Node {
-	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+	baseVarByName map[string]*ast.MappingNode,
+	promotedOverrides map[string]*ast.MappingNode,
+) *ast.SequenceNode {
+	seqNode := newSeqNode()
 	for _, varName := range baseVarOrder {
 		overrideNode, promoted := promotedOverrides[varName]
 		if !promoted {
 			continue
 		}
 		merged := mergeVarNode(baseVarByName[varName], overrideNode)
-		seqNode.Content = append(seqNode.Content, merged)
+		seqNode.Values = append(seqNode.Values, merged)
 	}
 	return seqNode
 }
@@ -392,16 +392,16 @@ func mergeInputLevelVarNodes(
 //     order.
 func mergeStreamLevelVarNodes(
 	baseVarOrder []string,
-	baseVarByName map[string]*yaml.Node,
+	baseVarByName map[string]*ast.MappingNode,
 	promotedNames map[string]bool,
-	dsOverrides []*yaml.Node,
-) *yaml.Node {
-	dsOverrideByName := make(map[string]*yaml.Node, len(dsOverrides))
+	dsOverrides []*ast.MappingNode,
+) *ast.SequenceNode {
+	dsOverrideByName := make(map[string]*ast.MappingNode, len(dsOverrides))
 	for _, v := range dsOverrides {
 		dsOverrideByName[varNodeName(v)] = v
 	}
 
-	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+	seqNode := newSeqNode()
 
 	// Non-promoted base vars first (in input pkg order).
 	for _, varName := range baseVarOrder {
@@ -410,19 +410,19 @@ func mergeStreamLevelVarNodes(
 		}
 		baseNode := baseVarByName[varName]
 		overrideNode, hasOverride := dsOverrideByName[varName]
-		var merged *yaml.Node
+		var merged *ast.MappingNode
 		if hasOverride {
 			merged = mergeVarNode(baseNode, overrideNode)
 		} else {
-			merged = cloneNode(baseNode)
+			merged = cloneNode(baseNode).(*ast.MappingNode)
 		}
-		seqNode.Content = append(seqNode.Content, merged)
+		seqNode.Values = append(seqNode.Values, merged)
 	}
 
 	// Novel DS vars (not present in base) appended in declaration order.
 	for _, v := range dsOverrides {
 		if _, inBase := baseVarByName[varNodeName(v)]; !inBase {
-			seqNode.Content = append(seqNode.Content, cloneNode(v))
+			seqNode.Values = append(seqNode.Values, cloneNode(v).(*ast.MappingNode))
 		}
 	}
 
@@ -432,22 +432,20 @@ func mergeStreamLevelVarNodes(
 // mergeVarNode merges fields from overrideNode into a clone of baseNode.
 // All keys in override win; absent keys in override are inherited from base.
 // The "name" key is always preserved from base.
-func mergeVarNode(base, override *yaml.Node) *yaml.Node {
-	result := cloneNode(base)
-	for i := 0; i+1 < len(override.Content); i += 2 {
-		keyNode := override.Content[i]
-		valNode := override.Content[i+1]
-		if keyNode.Value == "name" {
+func mergeVarNode(base, override *ast.MappingNode) *ast.MappingNode {
+	result := cloneNode(base).(*ast.MappingNode)
+	for _, kv := range override.Values {
+		if kv.Key.String() == "name" {
 			continue // always preserve name from base
 		}
-		upsertKey(result, keyNode.Value, cloneNode(valNode))
+		upsertKey(result, kv.Key.String(), cloneNode(kv.Value))
 	}
 	return result
 }
 
 // checkDuplicateVarNodes returns an error if any var name appears more than
 // once in the provided nodes.
-func checkDuplicateVarNodes(varNodes []*yaml.Node) error {
+func checkDuplicateVarNodes(varNodes []*ast.MappingNode) error {
 	seen := make(map[string]bool, len(varNodes))
 	for _, v := range varNodes {
 		name := varNodeName(v)
@@ -460,71 +458,58 @@ func checkDuplicateVarNodes(varNodes []*yaml.Node) error {
 }
 
 // varNodeName extracts the value of the "name" key from a var mapping node.
-func varNodeName(v *yaml.Node) string {
-	nameVal := mappingValue(v, "name")
-	if nameVal == nil {
-		return ""
-	}
-	return nameVal.Value
+func varNodeName(v *ast.MappingNode) string {
+	return nodeStringValue(mappingValue(v, "name"))
 }
 
 // readVarNodes extracts the individual var mapping nodes from the "vars"
 // sequence of the given mapping node. Returns nil if no "vars" key is present.
-func readVarNodes(mappingNode *yaml.Node) ([]*yaml.Node, error) {
-	varsNode := mappingValue(mappingNode, "vars")
-	if varsNode == nil {
-		return nil, nil
-	}
-	if varsNode.Kind != yaml.SequenceNode {
+func readVarNodes(mappingNode *ast.MappingNode) ([]*ast.MappingNode, error) {
+	varsSeq, ok := mappingValue(mappingNode, "vars").(*ast.SequenceNode)
+	if !ok {
+		v := mappingValue(mappingNode, "vars")
+		if v == nil {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("'vars' is not a sequence node")
 	}
-	result := make([]*yaml.Node, 0, len(varsNode.Content))
-	for _, item := range varsNode.Content {
-		if item.Kind != yaml.MappingNode {
+	result := make([]*ast.MappingNode, 0, len(varsSeq.Values))
+	for _, item := range varsSeq.Values {
+		mn, ok := item.(*ast.MappingNode)
+		if !ok {
 			return nil, fmt.Errorf("var entry is not a mapping node")
 		}
-		result = append(result, item)
+		result = append(result, mn)
 	}
 	return result, nil
 }
 
 // getInputMappingNode navigates to policy_templates[ptIdx].inputs[inputIdx] in
-// the given YAML document and returns the input mapping node.
-func getInputMappingNode(doc *yaml.Node, ptIdx, inputIdx int) (*yaml.Node, error) {
-	root := doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return nil, fmt.Errorf("empty YAML document")
-		}
-		root = root.Content[0]
-	}
-	if root.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("expected mapping node at document root")
-	}
-
-	ptsNode := mappingValue(root, "policy_templates")
-	if ptsNode == nil || ptsNode.Kind != yaml.SequenceNode {
+// the given YAML root mapping and returns the input mapping node.
+func getInputMappingNode(root *ast.MappingNode, ptIdx, inputIdx int) (*ast.MappingNode, error) {
+	ptsNode, ok := mappingValue(root, "policy_templates").(*ast.SequenceNode)
+	if !ok {
 		return nil, fmt.Errorf("'policy_templates' not found or not a sequence")
 	}
-	if ptIdx < 0 || ptIdx >= len(ptsNode.Content) {
-		return nil, fmt.Errorf("policy template index %d out of range (len=%d)", ptIdx, len(ptsNode.Content))
+	if ptIdx < 0 || ptIdx >= len(ptsNode.Values) {
+		return nil, fmt.Errorf("policy template index %d out of range (len=%d)", ptIdx, len(ptsNode.Values))
 	}
 
-	ptNode := ptsNode.Content[ptIdx]
-	if ptNode.Kind != yaml.MappingNode {
+	ptNode, ok := ptsNode.Values[ptIdx].(*ast.MappingNode)
+	if !ok {
 		return nil, fmt.Errorf("policy template %d is not a mapping", ptIdx)
 	}
 
-	inputsNode := mappingValue(ptNode, "inputs")
-	if inputsNode == nil || inputsNode.Kind != yaml.SequenceNode {
+	inputsNode, ok := mappingValue(ptNode, "inputs").(*ast.SequenceNode)
+	if !ok {
 		return nil, fmt.Errorf("'inputs' not found or not a sequence in policy template %d", ptIdx)
 	}
-	if inputIdx < 0 || inputIdx >= len(inputsNode.Content) {
-		return nil, fmt.Errorf("input index %d out of range (len=%d)", inputIdx, len(inputsNode.Content))
+	if inputIdx < 0 || inputIdx >= len(inputsNode.Values) {
+		return nil, fmt.Errorf("input index %d out of range (len=%d)", inputIdx, len(inputsNode.Values))
 	}
 
-	inputNode := inputsNode.Content[inputIdx]
-	if inputNode.Kind != yaml.MappingNode {
+	inputNode, ok := inputsNode.Values[inputIdx].(*ast.MappingNode)
+	if !ok {
 		return nil, fmt.Errorf("input %d is not a mapping", inputIdx)
 	}
 
@@ -532,29 +517,18 @@ func getInputMappingNode(doc *yaml.Node, ptIdx, inputIdx int) (*yaml.Node, error
 }
 
 // getStreamMappingNode navigates to streams[streamIdx] in the given YAML
-// document and returns the stream mapping node.
-func getStreamMappingNode(doc *yaml.Node, streamIdx int) (*yaml.Node, error) {
-	root := doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return nil, fmt.Errorf("empty YAML document")
-		}
-		root = root.Content[0]
-	}
-	if root.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("expected mapping node at document root")
-	}
-
-	streamsNode := mappingValue(root, "streams")
-	if streamsNode == nil || streamsNode.Kind != yaml.SequenceNode {
+// root mapping and returns the stream mapping node.
+func getStreamMappingNode(root *ast.MappingNode, streamIdx int) (*ast.MappingNode, error) {
+	streamsNode, ok := mappingValue(root, "streams").(*ast.SequenceNode)
+	if !ok {
 		return nil, fmt.Errorf("'streams' not found or not a sequence")
 	}
-	if streamIdx < 0 || streamIdx >= len(streamsNode.Content) {
-		return nil, fmt.Errorf("stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Content))
+	if streamIdx < 0 || streamIdx >= len(streamsNode.Values) {
+		return nil, fmt.Errorf("stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Values))
 	}
 
-	streamNode := streamsNode.Content[streamIdx]
-	if streamNode.Kind != yaml.MappingNode {
+	streamNode, ok := streamsNode.Values[streamIdx].(*ast.MappingNode)
+	if !ok {
 		return nil, fmt.Errorf("stream %d is not a mapping", streamIdx)
 	}
 

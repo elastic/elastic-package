@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/goccy/go-yaml/ast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
 // ---- unit tests --------------------------------------------------------------
@@ -58,13 +58,13 @@ func TestLoadFieldNodesFromBytes(t *testing.T) {
 // mapping node representing a field definition.
 func TestFieldNodeName(t *testing.T) {
 	t.Run("node with name", func(t *testing.T) {
-		n := &yaml.Node{Kind: yaml.MappingNode}
-		upsertKey(n, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: "message"})
+		n := &ast.MappingNode{BaseNode: &ast.BaseNode{}}
+		upsertKey(n, "name", strVal("message"))
 		assert.Equal(t, "message", fieldNodeName(n))
 	})
 
 	t.Run("node without name", func(t *testing.T) {
-		n := &yaml.Node{Kind: yaml.MappingNode}
+		n := &ast.MappingNode{BaseNode: &ast.BaseNode{}}
 		assert.Equal(t, "", fieldNodeName(n))
 	})
 

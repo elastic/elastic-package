@@ -11,7 +11,8 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/parser"
 
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -83,7 +84,7 @@ func (r *RequiredInputsResolver) mergeInputPkgFields(dsRootDir, inputPkgPath, in
 
 	// Collect field nodes from input package that are not already defined in the integration.
 	seenNames := make(map[string]bool)
-	newNodes := make([]*yaml.Node, 0)
+	newNodes := make([]ast.Node, 0)
 	for _, filePath := range inputFieldFiles {
 		nodes, err := loadFieldNodesFromFile(inputPkgFS, filePath)
 		if err != nil {
@@ -104,12 +105,10 @@ func (r *RequiredInputsResolver) mergeInputPkgFields(dsRootDir, inputPkgPath, in
 		return nil
 	}
 
-	// Build a YAML document containing the new field nodes as a sequence.
-	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
-	seqNode.Content = newNodes
-	docNode := &yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{seqNode}}
+	// Build a YAML sequence containing the new field nodes.
+	seqNode := newSeqNode(newNodes...)
 
-	output, err := formatYAMLNode(docNode)
+	output, err := formatYAMLNode(seqNode)
 	if err != nil {
 		return fmt.Errorf("formatting bundled fields YAML: %w", err)
 	}
@@ -156,8 +155,8 @@ func collectExistingFieldNames(dsRootDir string, buildRoot *os.Root) (map[string
 }
 
 // loadFieldNodesFromFile reads a fields YAML file from an fs.FS and returns
-// its top-level sequence items as individual yaml.Node pointers.
-func loadFieldNodesFromFile(fsys fs.FS, filePath string) ([]*yaml.Node, error) {
+// its top-level sequence items as individual ast.Node values.
+func loadFieldNodesFromFile(fsys fs.FS, filePath string) ([]ast.Node, error) {
 	data, err := fs.ReadFile(fsys, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("reading file %q: %w", filePath, err)
@@ -167,37 +166,31 @@ func loadFieldNodesFromFile(fsys fs.FS, filePath string) ([]*yaml.Node, error) {
 
 // loadFieldNodesFromBytes parses a fields YAML document (expected to be a
 // sequence at the document root) and returns the individual item nodes.
-func loadFieldNodesFromBytes(data []byte) ([]*yaml.Node, error) {
-	var doc yaml.Node
-	if err := yaml.Unmarshal(data, &doc); err != nil {
-		return nil, fmt.Errorf("unmarshalling fields YAML: %w", err)
+func loadFieldNodesFromBytes(data []byte) ([]ast.Node, error) {
+	f, err := parser.ParseBytes(data, 0)
+	if err != nil {
+		return nil, fmt.Errorf("parsing fields YAML: %w", err)
 	}
-	if doc.Kind == 0 {
-		// Empty document.
+	if len(f.Docs) == 0 || f.Docs[0] == nil {
 		return nil, nil
 	}
-	root := &doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return nil, nil
-		}
-		root = root.Content[0]
+	body := f.Docs[0].Body
+	if body == nil {
+		return nil, nil
 	}
-	if root.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("expected sequence at fields document root, got kind %v", root.Kind)
+	seqNode, ok := body.(*ast.SequenceNode)
+	if !ok {
+		return nil, fmt.Errorf("expected sequence at fields document root, got %T", body)
 	}
-	return root.Content, nil
+	return seqNode.Values, nil
 }
 
 // fieldNodeName returns the value of the "name" key in a field mapping node,
-// or an empty string if the key is absent or the node is nil.
-func fieldNodeName(n *yaml.Node) string {
-	if n == nil {
+// or an empty string if the key is absent or the node is not a mapping.
+func fieldNodeName(n ast.Node) string {
+	mn, ok := n.(*ast.MappingNode)
+	if !ok || mn == nil {
 		return ""
 	}
-	v := mappingValue(n, "name")
-	if v == nil {
-		return ""
-	}
-	return v.Value
+	return nodeStringValue(mappingValue(mn, "name"))
 }

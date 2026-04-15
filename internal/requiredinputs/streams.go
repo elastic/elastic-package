@@ -11,7 +11,7 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml/ast"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -39,8 +39,8 @@ func (r *RequiredInputsResolver) processDataStreamManifest(manifestPath string, 
 	}
 	// parse the manifest YAML document preserving formatting for targeted modifications
 	// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
-	var doc yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+	root, err := parseDocumentRootMapping(manifestBytes)
+	if err != nil {
 		return fmt.Errorf("failed to parse data stream manifest YAML: %w", err)
 	}
 
@@ -79,7 +79,7 @@ func (r *RequiredInputsResolver) processDataStreamManifest(manifestPath string, 
 		}
 		paths = append(inputPaths, paths...)
 
-		if err := setStreamTemplatePaths(&doc, idx, paths); err != nil {
+		if err := setStreamTemplatePaths(root, idx, paths); err != nil {
 			return fmt.Errorf("failed to set stream template paths in manifest %q: %w", manifestPath, err)
 		}
 	}
@@ -88,7 +88,7 @@ func (r *RequiredInputsResolver) processDataStreamManifest(manifestPath string, 
 	}
 
 	// Serialise the updated YAML document back to disk.
-	updated, err := formatYAMLNode(&doc)
+	updated, err := formatYAMLNode(root)
 	if err != nil {
 		return fmt.Errorf("failed to format updated manifest: %w", err)
 	}
@@ -118,32 +118,18 @@ func collectAndCopyInputPkgDataStreams(dsRootDir, inputPkgPath, inputPkgName str
 	return collectAndCopyPolicyTemplateFiles(inputPkgPath, inputPkgName, agentStreamDir, buildRoot)
 }
 
-func setStreamTemplatePaths(doc *yaml.Node, streamIdx int, paths []string) error {
-	// Navigate: document -> mapping -> "streams" key -> sequence -> item [streamIdx]
-	root := doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return fmt.Errorf("failed to set stream template paths: empty YAML document")
-		}
-		root = root.Content[0]
-	}
-	if root.Kind != yaml.MappingNode {
-		return fmt.Errorf("failed to set stream template paths: expected mapping node at document root")
-	}
-
-	streamsNode := mappingValue(root, "streams")
-	if streamsNode == nil {
+func setStreamTemplatePaths(root *ast.MappingNode, streamIdx int, paths []string) error {
+	// Navigate: root mapping -> "streams" key -> sequence -> item [streamIdx]
+	streamsNode, ok := mappingValue(root, "streams").(*ast.SequenceNode)
+	if !ok {
 		return fmt.Errorf("failed to set stream template paths: 'streams' key not found in manifest")
 	}
-	if streamsNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("failed to set stream template paths: 'streams' is not a sequence")
-	}
-	if streamIdx >= len(streamsNode.Content) {
-		return fmt.Errorf("failed to set stream template paths: stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Content))
+	if streamIdx >= len(streamsNode.Values) {
+		return fmt.Errorf("failed to set stream template paths: stream index %d out of range (len=%d)", streamIdx, len(streamsNode.Values))
 	}
 
-	streamNode := streamsNode.Content[streamIdx]
-	if streamNode.Kind != yaml.MappingNode {
+	streamNode, ok := streamsNode.Values[streamIdx].(*ast.MappingNode)
+	if !ok {
 		return fmt.Errorf("failed to set stream template paths: stream entry %d is not a mapping", streamIdx)
 	}
 
@@ -151,9 +137,9 @@ func setStreamTemplatePaths(doc *yaml.Node, streamIdx int, paths []string) error
 	removeKey(streamNode, "template_path")
 
 	// Build the template_paths sequence node.
-	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+	seqNode := newSeqNode()
 	for _, p := range paths {
-		seqNode.Content = append(seqNode.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: p})
+		seqNode.Values = append(seqNode.Values, strVal(p))
 	}
 
 	// Upsert template_paths.

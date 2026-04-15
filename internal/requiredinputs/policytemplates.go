@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml/ast"
 
 	"github.com/elastic/elastic-package/internal/packages"
 )
@@ -18,8 +18,8 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 
 	// parse the manifest YAML document preserving formatting for targeted modifications
 	// using manifestBytes allows us to preserve comments and formatting in the manifest when we update it with template paths from input packages
-	var doc yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
+	root, err := parseDocumentRootMapping(manifestBytes)
+	if err != nil {
 		return fmt.Errorf("failed to parse manifest YAML: %w", err)
 	}
 
@@ -54,14 +54,14 @@ func (r *RequiredInputsResolver) bundlePolicyTemplatesInputPackageTemplates(mani
 			}
 			paths = append(inputPaths, paths...)
 
-			if err := setInputPolicyTemplateTemplatePaths(&doc, ptIdx, inputIdx, paths); err != nil {
+			if err := setInputPolicyTemplateTemplatePaths(root, ptIdx, inputIdx, paths); err != nil {
 				return fmt.Errorf("failed to update policy template manifest with input package templates: %w", err)
 			}
 		}
 	}
 
 	// Serialise the updated YAML document back to disk.
-	updated, err := formatYAMLNode(&doc)
+	updated, err := formatYAMLNode(root)
 	if err != nil {
 		return fmt.Errorf("failed to format updated manifest: %w", err)
 	}
@@ -78,52 +78,33 @@ func collectAndCopyInputPkgPolicyTemplates(inputPkgPath, inputPkgName string, bu
 	return collectAndCopyPolicyTemplateFiles(inputPkgPath, inputPkgName, path.Join("agent", "input"), buildRoot)
 }
 
-// setInputPolicyTemplateTemplatePaths updates the manifest YAML document to set the template_paths for the specified policy template input to the provided paths
-func setInputPolicyTemplateTemplatePaths(doc *yaml.Node, policyTemplatesIdx int, inputIdx int, paths []string) error {
-	// Navigate: document -> root mapping -> "policy_templates" -> sequence -> item [policyTemplatesIdx] -> mapping -> "inputs" -> sequence -> item [inputIdx] -> input mapping.
-	root := doc
-	if root.Kind == yaml.DocumentNode {
-		if len(root.Content) == 0 {
-			return fmt.Errorf("failed to set policy template input paths: empty YAML document")
-		}
-		root = root.Content[0]
-	}
-	if root.Kind != yaml.MappingNode {
-		return fmt.Errorf("failed to set policy template input paths: expected mapping node at document root")
-	}
-
-	// policy_templates:
-	// - inputs:
-	//   - template_path: foo
-	policyTemplatesNode := mappingValue(root, "policy_templates")
-	if policyTemplatesNode == nil {
+// setInputPolicyTemplateTemplatePaths updates the manifest YAML root mapping to
+// set template_paths for the specified policy template input.
+func setInputPolicyTemplateTemplatePaths(root *ast.MappingNode, policyTemplatesIdx int, inputIdx int, paths []string) error {
+	// Navigate: root mapping -> "policy_templates" -> sequence -> item [policyTemplatesIdx] -> mapping -> "inputs" -> sequence -> item [inputIdx] -> input mapping.
+	policyTemplatesNode, ok := mappingValue(root, "policy_templates").(*ast.SequenceNode)
+	if !ok {
 		return fmt.Errorf("failed to set policy template input paths: 'policy_templates' key not found in manifest")
 	}
-	if policyTemplatesNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("failed to set policy template input paths: 'policy_templates' is not a sequence")
-	}
-	if policyTemplatesIdx < 0 || policyTemplatesIdx >= len(policyTemplatesNode.Content) {
-		return fmt.Errorf("failed to set policy template input paths: policy template index %d out of range (len=%d)", policyTemplatesIdx, len(policyTemplatesNode.Content))
+	if policyTemplatesIdx < 0 || policyTemplatesIdx >= len(policyTemplatesNode.Values) {
+		return fmt.Errorf("failed to set policy template input paths: policy template index %d out of range (len=%d)", policyTemplatesIdx, len(policyTemplatesNode.Values))
 	}
 
-	policyTemplateNode := policyTemplatesNode.Content[policyTemplatesIdx]
-	if policyTemplateNode.Kind != yaml.MappingNode {
+	policyTemplateNode, ok := policyTemplatesNode.Values[policyTemplatesIdx].(*ast.MappingNode)
+	if !ok {
 		return fmt.Errorf("failed to set policy template input paths: policy template entry %d is not a mapping", policyTemplatesIdx)
 	}
 
-	inputsNode := mappingValue(policyTemplateNode, "inputs")
-	if inputsNode == nil {
+	inputsNode, ok := mappingValue(policyTemplateNode, "inputs").(*ast.SequenceNode)
+	if !ok {
 		return fmt.Errorf("failed to set policy template input paths: 'inputs' key not found in policy template %d", policyTemplatesIdx)
 	}
-	if inputsNode.Kind != yaml.SequenceNode {
-		return fmt.Errorf("failed to set policy template input paths: 'inputs' is not a sequence")
-	}
-	if inputIdx < 0 || inputIdx >= len(inputsNode.Content) {
-		return fmt.Errorf("failed to set policy template input paths: input index %d out of range (len=%d)", inputIdx, len(inputsNode.Content))
+	if inputIdx < 0 || inputIdx >= len(inputsNode.Values) {
+		return fmt.Errorf("failed to set policy template input paths: input index %d out of range (len=%d)", inputIdx, len(inputsNode.Values))
 	}
 
-	inputNode := inputsNode.Content[inputIdx]
-	if inputNode.Kind != yaml.MappingNode {
+	inputNode, ok := inputsNode.Values[inputIdx].(*ast.MappingNode)
+	if !ok {
 		return fmt.Errorf("failed to set policy template input paths: input entry %d is not a mapping", inputIdx)
 	}
 
@@ -131,9 +112,9 @@ func setInputPolicyTemplateTemplatePaths(doc *yaml.Node, policyTemplatesIdx int,
 	removeKey(inputNode, "template_path")
 
 	// Build the template_paths sequence node.
-	seqNode := &yaml.Node{Kind: yaml.SequenceNode}
+	seqNode := newSeqNode()
 	for _, p := range paths {
-		seqNode.Content = append(seqNode.Content, &yaml.Node{Kind: yaml.ScalarNode, Value: p})
+		seqNode.Values = append(seqNode.Values, strVal(p))
 	}
 
 	// Upsert template_paths on the input node.

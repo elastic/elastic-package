@@ -9,23 +9,24 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/goccy/go-yaml/ast"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/yamledit"
 )
 
 // ---- helpers -----------------------------------------------------------------
 
-// varNode builds a minimal YAML mapping node representing a variable with the
+// varNode builds a minimal *ast.MappingNode representing a variable with the
 // given name and extra key=value pairs (passed as alternating key, value
 // strings for simple scalar values).
-func varNode(name string, extras ...string) *yaml.Node {
-	n := &yaml.Node{Kind: yaml.MappingNode}
-	upsertKey(n, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: name})
+func varNode(name string, extras ...string) *ast.MappingNode {
+	n := &ast.MappingNode{BaseNode: &ast.BaseNode{}}
+	upsertKey(n, "name", strVal(name))
 	for i := 0; i+1 < len(extras); i += 2 {
-		upsertKey(n, extras[i], &yaml.Node{Kind: yaml.ScalarNode, Value: extras[i+1]})
+		upsertKey(n, extras[i], strVal(extras[i+1]))
 	}
 	return n
 }
@@ -71,11 +72,11 @@ func copyComposableIntegrationFixture(t *testing.T) string {
 // isolation, the resolver could corrupt cached or shared input-package nodes.
 func TestCloneNode(t *testing.T) {
 	original := varNode("paths", "type", "text", "multi", "true")
-	cloned := cloneNode(original)
+	cloned := cloneNode(original).(*ast.MappingNode)
 
 	// Mutating the clone must not affect the original.
-	upsertKey(cloned, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
-	assert.Equal(t, "text", mappingValue(original, "type").Value)
+	upsertKey(cloned, "type", strVal("keyword"))
+	assert.Equal(t, "text", nodeStringValue(mappingValue(original, "type")))
 }
 
 // TestMergeVarNode verifies mergeVarNode: per-variable field merge where the
@@ -90,33 +91,33 @@ func TestMergeVarNode(t *testing.T) {
 		override := varNode("paths", "type", "keyword", "title", "Custom Paths", "multi", "false")
 		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
-		assert.Equal(t, "keyword", mappingValue(merged, "type").Value)
-		assert.Equal(t, "Custom Paths", mappingValue(merged, "title").Value)
-		assert.Equal(t, "false", mappingValue(merged, "multi").Value)
+		assert.Equal(t, "keyword", nodeStringValue(mappingValue(merged, "type")))
+		assert.Equal(t, "Custom Paths", nodeStringValue(mappingValue(merged, "title")))
+		assert.Equal(t, "false", nodeStringValue(mappingValue(merged, "multi")))
 	})
 
 	t.Run("partial override", func(t *testing.T) {
 		override := varNode("paths", "title", "My Paths")
 		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
-		assert.Equal(t, "text", mappingValue(merged, "type").Value) // from base
-		assert.Equal(t, "My Paths", mappingValue(merged, "title").Value)
-		assert.Equal(t, "true", mappingValue(merged, "multi").Value) // from base
+		assert.Equal(t, "text", nodeStringValue(mappingValue(merged, "type"))) // from base
+		assert.Equal(t, "My Paths", nodeStringValue(mappingValue(merged, "title")))
+		assert.Equal(t, "true", nodeStringValue(mappingValue(merged, "multi"))) // from base
 	})
 
 	t.Run("empty override", func(t *testing.T) {
 		override := varNode("paths")
 		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
-		assert.Equal(t, "text", mappingValue(merged, "type").Value)   // from base
-		assert.Equal(t, "Paths", mappingValue(merged, "title").Value) // from base
+		assert.Equal(t, "text", nodeStringValue(mappingValue(merged, "type")))   // from base
+		assert.Equal(t, "Paths", nodeStringValue(mappingValue(merged, "title"))) // from base
 	})
 
 	t.Run("name not renamed", func(t *testing.T) {
 		// Even if the override specifies a different name value, base name wins.
-		override := &yaml.Node{Kind: yaml.MappingNode}
-		upsertKey(override, "name", &yaml.Node{Kind: yaml.ScalarNode, Value: "should-be-ignored"})
-		upsertKey(override, "type", &yaml.Node{Kind: yaml.ScalarNode, Value: "keyword"})
+		override := &ast.MappingNode{}
+		upsertKey(override, "name", strVal("should-be-ignored"))
+		upsertKey(override, "type", strVal("keyword"))
 		merged := mergeVarNode(base, override)
 		assert.Equal(t, "paths", varNodeName(merged))
 	})
@@ -124,8 +125,8 @@ func TestMergeVarNode(t *testing.T) {
 	t.Run("adds new field from override", func(t *testing.T) {
 		override := varNode("paths", "description", "My description")
 		merged := mergeVarNode(base, override)
-		assert.Equal(t, "My description", mappingValue(merged, "description").Value)
-		assert.Equal(t, "text", mappingValue(merged, "type").Value) // base preserved
+		assert.Equal(t, "My description", nodeStringValue(mappingValue(merged, "description")))
+		assert.Equal(t, "text", nodeStringValue(mappingValue(merged, "type"))) // base preserved
 	})
 }
 
@@ -134,12 +135,12 @@ func TestMergeVarNode(t *testing.T) {
 // instead of producing ambiguous merged output for Fleet.
 func TestCheckDuplicateVarNodes(t *testing.T) {
 	t.Run("no duplicates", func(t *testing.T) {
-		nodes := []*yaml.Node{varNode("paths"), varNode("encoding"), varNode("timeout")}
+		nodes := []*ast.MappingNode{varNode("paths"), varNode("encoding"), varNode("timeout")}
 		assert.NoError(t, checkDuplicateVarNodes(nodes))
 	})
 
 	t.Run("one duplicate", func(t *testing.T) {
-		nodes := []*yaml.Node{varNode("paths"), varNode("encoding"), varNode("paths")}
+		nodes := []*ast.MappingNode{varNode("paths"), varNode("encoding"), varNode("paths")}
 		err := checkDuplicateVarNodes(nodes)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "paths")
@@ -160,40 +161,43 @@ func TestMergeInputLevelVarNodes(t *testing.T) {
 	timeoutBase := varNode("timeout", "type", "text", "default", "30s")
 
 	baseOrder := []string{"paths", "encoding", "timeout"}
-	baseByName := map[string]*yaml.Node{
+	baseByName := map[string]*ast.MappingNode{
 		"paths":    pathsBase,
 		"encoding": encodingBase,
 		"timeout":  timeoutBase,
 	}
 
 	t.Run("empty promoted → empty sequence", func(t *testing.T) {
-		seq := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*yaml.Node{})
-		assert.Empty(t, seq.Content)
+		seq := mergeInputLevelVarNodes(baseOrder, baseByName, map[string]*ast.MappingNode{})
+		assert.Empty(t, seq.Values)
 	})
 
 	t.Run("one promoted partial override", func(t *testing.T) {
-		promotedOverrides := map[string]*yaml.Node{
+		promotedOverrides := map[string]*ast.MappingNode{
 			"paths": varNode("paths", "default", "/var/log/custom/*.log"),
 		}
 		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.Len(t, seq.Content, 1)
-		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
-		assert.Equal(t, "/var/log/custom/*.log", mappingValue(seq.Content[0], "default").Value)
-		assert.Equal(t, "text", mappingValue(seq.Content[0], "type").Value) // from base
+		require.Len(t, seq.Values, 1)
+		item := seq.Values[0].(*ast.MappingNode)
+		assert.Equal(t, "paths", varNodeName(item))
+		assert.Equal(t, "/var/log/custom/*.log", nodeStringValue(mappingValue(item, "default")))
+		assert.Equal(t, "text", nodeStringValue(mappingValue(item, "type"))) // from base
 	})
 
 	t.Run("multiple promoted in base order", func(t *testing.T) {
-		promotedOverrides := map[string]*yaml.Node{
+		promotedOverrides := map[string]*ast.MappingNode{
 			"timeout":  varNode("timeout", "default", "60s"),
 			"encoding": varNode("encoding", "show_user", "true"),
 		}
 		seq := mergeInputLevelVarNodes(baseOrder, baseByName, promotedOverrides)
-		require.Len(t, seq.Content, 2)
+		require.Len(t, seq.Values, 2)
 		// Order must follow baseOrder: encoding before timeout.
-		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
-		assert.Equal(t, "timeout", varNodeName(seq.Content[1]))
-		assert.Equal(t, "true", mappingValue(seq.Content[0], "show_user").Value)
-		assert.Equal(t, "60s", mappingValue(seq.Content[1], "default").Value)
+		item0 := seq.Values[0].(*ast.MappingNode)
+		item1 := seq.Values[1].(*ast.MappingNode)
+		assert.Equal(t, "encoding", varNodeName(item0))
+		assert.Equal(t, "timeout", varNodeName(item1))
+		assert.Equal(t, "true", nodeStringValue(mappingValue(item0, "show_user")))
+		assert.Equal(t, "60s", nodeStringValue(mappingValue(item1, "default")))
 	})
 }
 
@@ -207,7 +211,7 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 	timeoutBase := varNode("timeout", "type", "text", "default", "30s")
 
 	baseOrder := []string{"paths", "encoding", "timeout"}
-	baseByName := map[string]*yaml.Node{
+	baseByName := map[string]*ast.MappingNode{
 		"paths":    pathsBase,
 		"encoding": encodingBase,
 		"timeout":  timeoutBase,
@@ -215,50 +219,53 @@ func TestMergeStreamLevelVarNodes(t *testing.T) {
 
 	t.Run("no promoted, no overrides → all base vars", func(t *testing.T) {
 		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, nil)
-		require.Len(t, seq.Content, 3)
-		assert.Equal(t, "paths", varNodeName(seq.Content[0]))
-		assert.Equal(t, "encoding", varNodeName(seq.Content[1]))
-		assert.Equal(t, "timeout", varNodeName(seq.Content[2]))
+		require.Len(t, seq.Values, 3)
+		assert.Equal(t, "paths", varNodeName(seq.Values[0].(*ast.MappingNode)))
+		assert.Equal(t, "encoding", varNodeName(seq.Values[1].(*ast.MappingNode)))
+		assert.Equal(t, "timeout", varNodeName(seq.Values[2].(*ast.MappingNode)))
 	})
 
 	t.Run("some promoted → promoted excluded", func(t *testing.T) {
 		promoted := map[string]bool{"paths": true, "encoding": true}
 		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, nil)
-		require.Len(t, seq.Content, 1)
-		assert.Equal(t, "timeout", varNodeName(seq.Content[0]))
+		require.Len(t, seq.Values, 1)
+		assert.Equal(t, "timeout", varNodeName(seq.Values[0].(*ast.MappingNode)))
 	})
 
 	t.Run("DS override on existing base var", func(t *testing.T) {
-		dsOverrides := []*yaml.Node{varNode("encoding", "show_user", "true")}
+		dsOverrides := []*ast.MappingNode{varNode("encoding", "show_user", "true")}
 		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.Len(t, seq.Content, 3)
+		require.Len(t, seq.Values, 3)
 		// encoding is merged
-		encodingMerged := seq.Content[1]
+		encodingMerged := seq.Values[1].(*ast.MappingNode)
 		assert.Equal(t, "encoding", varNodeName(encodingMerged))
-		assert.Equal(t, "true", mappingValue(encodingMerged, "show_user").Value)
-		assert.Equal(t, "text", mappingValue(encodingMerged, "type").Value) // from base
+		assert.Equal(t, "true", nodeStringValue(mappingValue(encodingMerged, "show_user")))
+		assert.Equal(t, "text", nodeStringValue(mappingValue(encodingMerged, "type"))) // from base
 	})
 
 	t.Run("novel DS var appended", func(t *testing.T) {
-		dsOverrides := []*yaml.Node{varNode("custom_tag", "type", "text")}
+		dsOverrides := []*ast.MappingNode{varNode("custom_tag", "type", "text")}
 		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, nil, dsOverrides)
-		require.Len(t, seq.Content, 4) // 3 base + 1 novel
-		assert.Equal(t, "custom_tag", varNodeName(seq.Content[3]))
+		require.Len(t, seq.Values, 4) // 3 base + 1 novel
+		assert.Equal(t, "custom_tag", varNodeName(seq.Values[3].(*ast.MappingNode)))
 	})
 
 	t.Run("mixed: promoted + DS merge + novel", func(t *testing.T) {
 		promoted := map[string]bool{"paths": true}
-		dsOverrides := []*yaml.Node{
+		dsOverrides := []*ast.MappingNode{
 			varNode("encoding", "show_user", "true"),
 			varNode("custom_tag", "type", "text"),
 		}
 		seq := mergeStreamLevelVarNodes(baseOrder, baseByName, promoted, dsOverrides)
 		// paths excluded (promoted); encoding merged; timeout base; custom_tag novel
-		require.Len(t, seq.Content, 3)
-		assert.Equal(t, "encoding", varNodeName(seq.Content[0]))
-		assert.Equal(t, "true", mappingValue(seq.Content[0], "show_user").Value)
-		assert.Equal(t, "timeout", varNodeName(seq.Content[1]))
-		assert.Equal(t, "custom_tag", varNodeName(seq.Content[2]))
+		require.Len(t, seq.Values, 3)
+		item0 := seq.Values[0].(*ast.MappingNode)
+		item1 := seq.Values[1].(*ast.MappingNode)
+		item2 := seq.Values[2].(*ast.MappingNode)
+		assert.Equal(t, "encoding", varNodeName(item0))
+		assert.Equal(t, "true", nodeStringValue(mappingValue(item0, "show_user")))
+		assert.Equal(t, "timeout", varNodeName(item1))
+		assert.Equal(t, "custom_tag", varNodeName(item2))
 	})
 }
 
@@ -271,9 +278,9 @@ func TestLoadInputPkgVarNodes(t *testing.T) {
 		order, byName, err := loadInputPkgVarNodes(pkgPath)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"paths", "encoding", "timeout"}, order)
-		assert.Equal(t, "text", mappingValue(byName["paths"], "type").Value)
-		assert.Equal(t, "text", mappingValue(byName["encoding"], "type").Value)
-		assert.Equal(t, "text", mappingValue(byName["timeout"], "type").Value)
+		assert.Equal(t, "text", nodeStringValue(mappingValue(byName["paths"], "type")))
+		assert.Equal(t, "text", nodeStringValue(mappingValue(byName["encoding"], "type")))
+		assert.Equal(t, "text", nodeStringValue(mappingValue(byName["timeout"], "type")))
 	})
 
 	t.Run("package with no vars", func(t *testing.T) {
@@ -295,7 +302,7 @@ func TestPromotedVarNamesForStream_UnionsScopedAndTemplateWide(t *testing.T) {
 	dsScoped := varNode("paths", "type", "text")
 	templateWide := varNode("encoding", "type", "text")
 
-	byScope := map[promotedVarScopeKey]map[string]*yaml.Node{
+	byScope := map[promotedVarScopeKey]map[string]*ast.MappingNode{
 		{refInputPackage: refPkg, composableDataStream: "my_logs"}: {
 			"paths": dsScoped,
 		},
@@ -320,7 +327,7 @@ func TestUnionPromotedOverridesForInput_MergesOverridesAcrossDataStreams(t *test
 	paths := varNode("paths", "title", "P")
 	encoding := varNode("encoding", "title", "E")
 
-	byScope := map[promotedVarScopeKey]map[string]*yaml.Node{
+	byScope := map[promotedVarScopeKey]map[string]*ast.MappingNode{
 		{refInputPackage: refPkg, composableDataStream: "ds_a"}: {"paths": paths},
 		{refInputPackage: refPkg, composableDataStream: "ds_b"}: {"encoding": encoding},
 	}
@@ -360,12 +367,13 @@ policy_templates:
             title: Promoted paths
 `)
 
-	var doc yaml.Node
-	require.NoError(t, yaml.Unmarshal(manifestYAML, &doc))
+	doc, err := yamledit.NewDocumentBytes(manifestYAML)
+	require.NoError(t, err)
+	root := doc.AST().Docs[0].Body.(*ast.MappingNode)
 	m, err := packages.ReadPackageManifestBytes(manifestYAML)
 	require.NoError(t, err)
 
-	idx, err := buildPromotedVarOverrideMap(m, &doc)
+	idx, err := buildPromotedVarOverrideMap(m, root)
 	require.NoError(t, err)
 
 	keyAlpha := promotedVarScopeKey{refInputPackage: "ref_pkg", composableDataStream: "ds_alpha"}
@@ -374,7 +382,7 @@ policy_templates:
 	require.Contains(t, idx, keyBeta)
 	assert.Contains(t, idx[keyAlpha], "paths")
 	assert.Contains(t, idx[keyBeta], "paths")
-	assert.Equal(t, "Promoted paths", mappingValue(idx[keyAlpha]["paths"], "title").Value)
+	assert.Equal(t, "Promoted paths", nodeStringValue(mappingValue(idx[keyAlpha]["paths"], "title")))
 }
 
 // TestBuildPromotedVarOverrideMap_NoDataStreamsUsesEmptyScope verifies that a
@@ -397,12 +405,13 @@ policy_templates:
             type: text
 `)
 
-	var doc yaml.Node
-	require.NoError(t, yaml.Unmarshal(manifestYAML, &doc))
+	doc, err := yamledit.NewDocumentBytes(manifestYAML)
+	require.NoError(t, err)
+	root := doc.AST().Docs[0].Body.(*ast.MappingNode)
 	m, err := packages.ReadPackageManifestBytes(manifestYAML)
 	require.NoError(t, err)
 
-	idx, err := buildPromotedVarOverrideMap(m, &doc)
+	idx, err := buildPromotedVarOverrideMap(m, root)
 	require.NoError(t, err)
 
 	key := promotedVarScopeKey{refInputPackage: "ref_pkg", composableDataStream: ""}
@@ -593,9 +602,9 @@ func TestMergeVariables_DuplicateError(t *testing.T) {
 
 // TestMergeVariables_TwoPolicyTemplatesScopedPromotion verifies that promotion
 // is scoped per policy template data stream: composable vars under one template
-// promote only for that template’s streams; another template referencing the
+// promote only for that template's streams; another template referencing the
 // same input package without composable vars keeps all base vars on its streams.
-// This guards against incorrectly applying one template’s promotions to every
+// This guards against incorrectly applying one template's promotions to every
 // stream that uses the same input package.
 func TestMergeVariables_TwoPolicyTemplatesScopedPromotion(t *testing.T) {
 	buildPackageRoot := copyFixturePackage(t, "with_merging_two_policy_templates")
