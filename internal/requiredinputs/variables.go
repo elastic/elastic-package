@@ -16,15 +16,16 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// pkgDsKey uniquely identifies the (input-package, data-stream) pair used to
-// index promoted variable overrides.
-type pkgDsKey struct {
-	pkg    string
-	dsName string
+// promotedVarScopeKey is the lookup key for composable-side var overrides: required
+// input package name plus composable data stream name ("" if the template has no data_streams).
+type promotedVarScopeKey struct {
+	refInputPackage      string
+	composableDataStream string
 }
 
 // mergeVariables merges variable definitions from input packages into the
-// composable package's manifests (package-level and data-stream-level).
+// composable package's manifests (package-level and data-stream-level) under
+// buildRoot (manifest.yml and data_stream/*/manifest.yml).
 //
 // Merging rule: input package vars are the base; composable package override
 // fields win when explicitly specified.
@@ -35,42 +36,63 @@ type pkgDsKey struct {
 // Data-stream-level vars: all remaining (non-promoted) base vars are placed at
 // the data-stream level, merged with any stream-level overrides the composable
 // package declares.
-//
-//nolint:gocognit // multi-step merge pipeline (promotion, DS manifests, policy templates)
 func (r *RequiredInputsResolver) mergeVariables(
 	manifest *packages.PackageManifest,
 	inputPkgPaths map[string]string,
 	buildRoot *os.Root,
 ) error {
-	// Step A — Re-read manifest.yml from disk as a YAML node so edits from the
-	// earlier template-bundling step are included.
-	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
+	doc, err := readYAMLDocFromBuildRoot(buildRoot, "manifest.yml")
 	if err != nil {
-		return fmt.Errorf("reading manifest: %w", err)
-	}
-	var doc yaml.Node
-	if err := yaml.Unmarshal(manifestBytes, &doc); err != nil {
-		return fmt.Errorf("parsing manifest YAML: %w", err)
+		return err
 	}
 
-	// Step B — Build a promotedIndex: (pkg, dsName) → map[varName]overrideNode.
-	// The override nodes come from policy_templates[ptIdx].inputs[inputIdx].vars
-	// in the composable package manifest.
-	promotedIndex := make(map[pkgDsKey]map[string]*yaml.Node)
+	promotedVarOverridesByScope, err := buildPromotedVarOverrideMap(manifest, &doc)
+	if err != nil {
+		return err
+	}
+
+	if err := mergePolicyTemplateInputLevelVars(manifest, &doc, inputPkgPaths, promotedVarOverridesByScope); err != nil {
+		return err
+	}
+
+	if err := writeFormattedYAMLDoc(buildRoot, "manifest.yml", &doc); err != nil {
+		return err
+	}
+
+	return mergeDataStreamStreamLevelVars(buildRoot, inputPkgPaths, promotedVarOverridesByScope)
+}
+
+// readYAMLDocFromBuildRoot reads relPath from buildRoot and parses it as a YAML document node.
+func readYAMLDocFromBuildRoot(buildRoot *os.Root, relPath string) (yaml.Node, error) {
+	b, err := buildRoot.ReadFile(relPath)
+	if err != nil {
+		return yaml.Node{}, fmt.Errorf("reading %q: %w", relPath, err)
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(b, &doc); err != nil {
+		return yaml.Node{}, fmt.Errorf("parsing YAML %q: %w", relPath, err)
+	}
+	return doc, nil
+}
+
+// buildPromotedVarOverrideMap indexes composable policy_templates[].inputs[].vars
+// by input package name and data stream scope for use when merging promotions.
+func buildPromotedVarOverrideMap(manifest *packages.PackageManifest, doc *yaml.Node) (map[promotedVarScopeKey]map[string]*yaml.Node, error) {
+	out := make(map[promotedVarScopeKey]map[string]*yaml.Node)
 	for ptIdx, pt := range manifest.PolicyTemplates {
 		for inputIdx, input := range pt.Inputs {
 			if input.Package == "" || len(input.Vars) == 0 {
 				continue
 			}
 
-			inputNode, err := getInputMappingNode(&doc, ptIdx, inputIdx)
+			inputNode, err := getInputMappingNode(doc, ptIdx, inputIdx)
 			if err != nil {
-				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+				return nil, fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
 			overrideNodes, err := readVarNodes(inputNode)
 			if err != nil {
-				return fmt.Errorf("reading override var nodes at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
+				return nil, fmt.Errorf("reading override var nodes at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
 			overrideByName := make(map[string]*yaml.Node, len(overrideNodes))
@@ -83,12 +105,21 @@ func (r *RequiredInputsResolver) mergeVariables(
 				dsNames = []string{""}
 			}
 			for _, dsName := range dsNames {
-				promotedIndex[pkgDsKey{pkg: input.Package, dsName: dsName}] = overrideByName
+				out[promotedVarScopeKey{refInputPackage: input.Package, composableDataStream: dsName}] = overrideByName
 			}
 		}
 	}
+	return out, nil
+}
 
-	// Step C — Merge and write input-level vars in manifest.yml.
+// mergePolicyTemplateInputLevelVars writes merged promoted vars onto each
+// package-backed input in the composable manifest YAML (in-memory doc).
+func mergePolicyTemplateInputLevelVars(
+	manifest *packages.PackageManifest,
+	doc *yaml.Node,
+	inputPkgPaths map[string]string,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+) error {
 	for ptIdx, pt := range manifest.PolicyTemplates {
 		for inputIdx, input := range pt.Inputs {
 			if input.Package == "" {
@@ -107,17 +138,9 @@ func (r *RequiredInputsResolver) mergeVariables(
 				continue
 			}
 
-			// Union of promoted overrides across all data streams for this input.
-			promotedOverrides := make(map[string]*yaml.Node)
-			dsNames := pt.DataStreams
-			if len(dsNames) == 0 {
-				dsNames = []string{""}
-			}
-			for _, dsName := range dsNames {
-				maps.Copy(promotedOverrides, promotedIndex[pkgDsKey{pkg: input.Package, dsName: dsName}])
-			}
+			promotedOverrides := unionPromotedOverridesForInput(pt, input.Package, promotedVarOverridesByScope)
 
-			inputNode, err := getInputMappingNode(&doc, ptIdx, inputIdx)
+			inputNode, err := getInputMappingNode(doc, ptIdx, inputIdx)
 			if err != nil {
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
@@ -131,24 +154,54 @@ func (r *RequiredInputsResolver) mergeVariables(
 			}
 		}
 	}
+	return nil
+}
 
-	// Step D — Write the updated manifest.yml back to disk.
-	updated, err := formatYAMLNode(&doc)
+// unionPromotedOverridesForInput merges override nodes for refInputPackage across
+// every data stream listed on the policy template (or "" if none listed).
+func unionPromotedOverridesForInput(
+	pt packages.PolicyTemplate,
+	refInputPackage string,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+) map[string]*yaml.Node {
+	promotedOverrides := make(map[string]*yaml.Node)
+	dsNames := pt.DataStreams
+	if len(dsNames) == 0 {
+		dsNames = []string{""}
+	}
+	for _, dsName := range dsNames {
+		maps.Copy(promotedOverrides, promotedVarOverridesByScope[promotedVarScopeKey{
+			refInputPackage:      refInputPackage,
+			composableDataStream: dsName,
+		}])
+	}
+	return promotedOverrides
+}
+
+// writeFormattedYAMLDoc serializes doc with package YAML formatting and writes it to relPath.
+func writeFormattedYAMLDoc(buildRoot *os.Root, relPath string, doc *yaml.Node) error {
+	updated, err := formatYAMLNode(doc)
 	if err != nil {
-		return fmt.Errorf("formatting updated manifest: %w", err)
+		return fmt.Errorf("formatting updated %q: %w", relPath, err)
 	}
-	if err := buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
-		return fmt.Errorf("writing updated manifest: %w", err)
+	if err := buildRoot.WriteFile(relPath, updated, 0664); err != nil {
+		return fmt.Errorf("writing updated %q: %w", relPath, err)
 	}
+	return nil
+}
 
-	// Step E — Process each data_stream/*/manifest.yml.
+// mergeDataStreamStreamLevelVars updates stream vars in every data_stream/*/manifest.yml under buildRoot.
+func mergeDataStreamStreamLevelVars(
+	buildRoot *os.Root,
+	inputPkgPaths map[string]string,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+) error {
 	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
 		return fmt.Errorf("globbing data stream manifests: %w", err)
 	}
 
 	for _, manifestPath := range dsManifestPaths {
-		// data_stream/var_merging_logs/manifest.yml → var_merging_logs
 		dsName := path.Base(path.Dir(manifestPath))
 
 		dsManifestBytes, err := buildRoot.ReadFile(manifestPath)
@@ -166,65 +219,87 @@ func (r *RequiredInputsResolver) mergeVariables(
 			return fmt.Errorf("parsing data stream manifest %q: %w", manifestPath, err)
 		}
 
-		for streamIdx, stream := range dsManifest.Streams {
-			if stream.Package == "" {
-				continue
-			}
-			pkgPath, ok := inputPkgPaths[stream.Package]
-			if !ok {
-				continue
-			}
-
-			baseVarOrder, baseVarByName, err := loadInputPkgVarNodes(pkgPath)
-			if err != nil {
-				return fmt.Errorf("loading input pkg var nodes for %q: %w", stream.Package, err)
-			}
-			if len(baseVarOrder) == 0 {
-				continue
-			}
-
-			// Promoted names for this (pkg, dsName) combination.
-			promotedNames := make(map[string]bool)
-			for _, key := range []pkgDsKey{{stream.Package, dsName}, {stream.Package, ""}} {
-				for varName := range promotedIndex[key] {
-					promotedNames[varName] = true
-				}
-			}
-
-			streamNode, err := getStreamMappingNode(&dsDoc, streamIdx)
-			if err != nil {
-				return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
-			}
-
-			dsOverrideNodes, err := readVarNodes(streamNode)
-			if err != nil {
-				return fmt.Errorf("reading DS override var nodes in %q: %w", manifestPath, err)
-			}
-
-			if err := checkDuplicateVarNodes(dsOverrideNodes); err != nil {
-				return fmt.Errorf("duplicate vars in data stream manifest %q: %w", manifestPath, err)
-			}
-
-			mergedSeq := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
-
-			if len(mergedSeq.Content) > 0 {
-				upsertKey(streamNode, "vars", mergedSeq)
-			} else {
-				removeKey(streamNode, "vars")
-			}
+		if err := mergeStreamsInDSManifest(&dsDoc, dsManifest, dsName, inputPkgPaths, promotedVarOverridesByScope, manifestPath); err != nil {
+			return err
 		}
 
-		// Step F — Write each updated DS manifest.
-		dsUpdated, err := formatYAMLNode(&dsDoc)
-		if err != nil {
-			return fmt.Errorf("formatting updated data stream manifest %q: %w", manifestPath, err)
-		}
-		if err := buildRoot.WriteFile(manifestPath, dsUpdated, 0664); err != nil {
-			return fmt.Errorf("writing updated data stream manifest %q: %w", manifestPath, err)
+		if err := writeFormattedYAMLDoc(buildRoot, manifestPath, &dsDoc); err != nil {
+			return fmt.Errorf("data stream manifest %q: %w", manifestPath, err)
 		}
 	}
 
 	return nil
+}
+
+// mergeStreamsInDSManifest merges non-promoted input vars into package-backed streams in one DS manifest.
+func mergeStreamsInDSManifest(
+	dsDoc *yaml.Node,
+	dsManifest *packages.DataStreamManifest,
+	dsName string,
+	inputPkgPaths map[string]string,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+	manifestPath string,
+) error {
+	for streamIdx, stream := range dsManifest.Streams {
+		if stream.Package == "" {
+			continue
+		}
+		pkgPath, ok := inputPkgPaths[stream.Package]
+		if !ok {
+			continue
+		}
+
+		baseVarOrder, baseVarByName, err := loadInputPkgVarNodes(pkgPath)
+		if err != nil {
+			return fmt.Errorf("loading input pkg var nodes for %q: %w", stream.Package, err)
+		}
+		if len(baseVarOrder) == 0 {
+			continue
+		}
+
+		promotedNames := promotedVarNamesForStream(stream.Package, dsName, promotedVarOverridesByScope)
+
+		streamNode, err := getStreamMappingNode(dsDoc, streamIdx)
+		if err != nil {
+			return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
+		}
+
+		dsOverrideNodes, err := readVarNodes(streamNode)
+		if err != nil {
+			return fmt.Errorf("reading DS override var nodes in %q: %w", manifestPath, err)
+		}
+
+		if err := checkDuplicateVarNodes(dsOverrideNodes); err != nil {
+			return fmt.Errorf("duplicate vars in data stream manifest %q: %w", manifestPath, err)
+		}
+
+		mergedSeq := mergeStreamLevelVarNodes(baseVarOrder, baseVarByName, promotedNames, dsOverrideNodes)
+
+		if len(mergedSeq.Content) > 0 {
+			upsertKey(streamNode, "vars", mergedSeq)
+		} else {
+			removeKey(streamNode, "vars")
+		}
+	}
+	return nil
+}
+
+// promotedVarNamesForStream returns the set of var names promoted for this stream:
+// overrides for (refInputPackage, composableDataStream) plus template-wide (refInputPackage, "").
+func promotedVarNamesForStream(
+	refInputPackage, composableDataStream string,
+	promotedVarOverridesByScope map[promotedVarScopeKey]map[string]*yaml.Node,
+) map[string]bool {
+	promotedNames := make(map[string]bool)
+	for _, key := range []promotedVarScopeKey{
+		{refInputPackage: refInputPackage, composableDataStream: composableDataStream},
+		{refInputPackage: refInputPackage, composableDataStream: ""},
+	} {
+		for varName := range promotedVarOverridesByScope[key] {
+			promotedNames[varName] = true
+		}
+	}
+	return promotedNames
 }
 
 // loadInputPkgVarNodes opens the input package at pkgPath, reads all vars from

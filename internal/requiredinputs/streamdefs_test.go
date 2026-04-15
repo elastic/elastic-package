@@ -67,6 +67,19 @@ policy_templates:
 	assert.ErrorContains(t, err, "no input identifier")
 }
 
+// TestLoadInputPkgInfo_MultiplePolicyTemplatesUsesFirstInput verifies that when
+// an input package declares more than one policy template, loadInputPkgInfo
+// keeps the input identifier from the first template (see streamdefs.go). This
+// matches resolveStreamInputTypes behavior and the warning logged for the
+// ambiguous multi-template case.
+func TestLoadInputPkgInfo_MultiplePolicyTemplatesUsesFirstInput(t *testing.T) {
+	dir := createFakeInputWithMultiplePolicyTemplates(t)
+	info, err := loadInputPkgInfo(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "sql", info.identifier)
+	assert.NotEqual(t, "sql/metrics", info.identifier)
+}
+
 // ---- integration tests -------------------------------------------------------
 
 // TestResolveStreamInputTypes_ReplacesPackageWithType verifies that a
@@ -104,6 +117,65 @@ policy_templates:
       - package: test_input
         title: Collect logs via test input
         description: Use the test input to collect logs
+`), 0644))
+
+	epr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return inputPkgDir, nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(epr)
+	require.NoError(t, resolver.Bundle(buildRoot))
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
+	require.NoError(t, err)
+	m, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	require.Len(t, m.PolicyTemplates[0].Inputs, 1)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[0].Type)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+}
+
+// TestResolveStreamInputTypes_InputPkgWithMultiplePolicyTemplatesUsesFirst
+// exercises Bundle when the required input package has several policy
+// templates with different input identifiers: resolution must use the first
+// template only so composable manifests stay consistent with loadInputPkgInfo.
+func TestResolveStreamInputTypes_InputPkgWithMultiplePolicyTemplatesUsesFirst(t *testing.T) {
+	inputPkgDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(inputPkgDir, "manifest.yml"), []byte(`
+name: dual_template_input
+title: Dual Template Input
+description: Input with two policy templates.
+version: 0.1.0
+type: input
+policy_templates:
+  - name: first
+    input: logfile
+    type: logs
+  - name: second
+    input: winlog
+    type: logs
+`), 0644))
+
+	buildRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(buildRoot, "manifest.yml"), []byte(`
+format_version: 3.0.0
+name: my_integration
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: dual_template_input
+      version: 0.1.0
+policy_templates:
+  - name: logs
+    title: Logs
+    description: Collect logs
+    inputs:
+      - package: dual_template_input
+        title: Collect logs via dual-template input
+        description: Use the input package
 `), 0644))
 
 	epr := &fakeEprClient{

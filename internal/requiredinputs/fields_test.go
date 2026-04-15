@@ -5,6 +5,7 @@
 package requiredinputs
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -189,7 +190,7 @@ func TestBundleDataStreamFields_AllFieldsOverlap(t *testing.T) {
 
 	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "ci_input_pkg-fields.yml")
 	_, statErr := os.Stat(bundledPath)
-	assert.True(t, os.IsNotExist(statErr), "bundled fields file should not be created when all fields already exist")
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "bundled fields file should not be created when all fields already exist")
 }
 
 // TestBundleDataStreamFields_NoFieldsInInputPkg verifies that when the input
@@ -281,7 +282,7 @@ streams:
 
 	bundledPath := filepath.Join(buildPackageRoot, "data_stream", "ci_composable_logs", "fields", "no_fields_pkg-fields.yml")
 	_, statErr := os.Stat(bundledPath)
-	assert.True(t, os.IsNotExist(statErr), "no fields file should be created when input package has no fields")
+	assert.True(t, errors.Is(statErr, os.ErrNotExist), "no fields file should be created when input package has no fields")
 }
 
 // TestBundleDataStreamFields_StreamWithoutPackage verifies that data stream

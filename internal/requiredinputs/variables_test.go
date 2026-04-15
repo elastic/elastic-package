@@ -286,6 +286,130 @@ func TestLoadInputPkgVarNodes(t *testing.T) {
 	})
 }
 
+// TestPromotedVarNamesForStream_UnionsScopedAndTemplateWide verifies that when
+// resolving which base vars are promoted off a data stream, overrides keyed by
+// (input package, composable data stream) are unioned with overrides keyed by
+// (input package, "") so template-wide promotions still apply to named streams.
+func TestPromotedVarNamesForStream_UnionsScopedAndTemplateWide(t *testing.T) {
+	const refPkg = "ci_input_pkg"
+	dsScoped := varNode("paths", "type", "text")
+	templateWide := varNode("encoding", "type", "text")
+
+	byScope := map[promotedVarScopeKey]map[string]*yaml.Node{
+		{refInputPackage: refPkg, composableDataStream: "my_logs"}: {
+			"paths": dsScoped,
+		},
+		{refInputPackage: refPkg, composableDataStream: ""}: {
+			"encoding": templateWide,
+		},
+	}
+
+	names := promotedVarNamesForStream(refPkg, "my_logs", byScope)
+	assert.True(t, names["paths"])
+	assert.True(t, names["encoding"])
+	assert.False(t, names["timeout"])
+}
+
+// TestUnionPromotedOverridesForInput_MergesOverridesAcrossDataStreams checks
+// unionPromotedOverridesForInput: a policy template listing several data streams
+// must merge composable-side override nodes from every listed stream so
+// input-level promotion sees the full set of vars declared anywhere on that
+// template for the referenced input package.
+func TestUnionPromotedOverridesForInput_MergesOverridesAcrossDataStreams(t *testing.T) {
+	const refPkg = "ci_input_pkg"
+	paths := varNode("paths", "title", "P")
+	encoding := varNode("encoding", "title", "E")
+
+	byScope := map[promotedVarScopeKey]map[string]*yaml.Node{
+		{refInputPackage: refPkg, composableDataStream: "ds_a"}: {"paths": paths},
+		{refInputPackage: refPkg, composableDataStream: "ds_b"}: {"encoding": encoding},
+	}
+
+	pt := packages.PolicyTemplate{
+		Name:        "pt",
+		DataStreams: []string{"ds_a", "ds_b"},
+	}
+
+	got := unionPromotedOverridesForInput(pt, refPkg, byScope)
+	require.Len(t, got, 2)
+	assert.Same(t, paths, got["paths"])
+	assert.Same(t, encoding, got["encoding"])
+}
+
+// TestBuildPromotedVarOverrideMap_PerDataStreamScopes builds the promoted
+// override index from aligned manifest + YAML: each composable data stream
+// listed under a policy template gets its own scope entry so downstream merge
+// can distinguish stream-specific composable vars.
+func TestBuildPromotedVarOverrideMap_PerDataStreamScopes(t *testing.T) {
+	manifestYAML := []byte(`format_version: 3.0.0
+name: scope_test
+title: Scope test
+version: 0.1.0
+type: integration
+policy_templates:
+  - name: logs
+    title: Logs
+    data_streams:
+      - ds_alpha
+      - ds_beta
+    inputs:
+      - package: ref_pkg
+        vars:
+          - name: paths
+            type: text
+            title: Promoted paths
+`)
+
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal(manifestYAML, &doc))
+	m, err := packages.ReadPackageManifestBytes(manifestYAML)
+	require.NoError(t, err)
+
+	idx, err := buildPromotedVarOverrideMap(m, &doc)
+	require.NoError(t, err)
+
+	keyAlpha := promotedVarScopeKey{refInputPackage: "ref_pkg", composableDataStream: "ds_alpha"}
+	keyBeta := promotedVarScopeKey{refInputPackage: "ref_pkg", composableDataStream: "ds_beta"}
+	require.Contains(t, idx, keyAlpha)
+	require.Contains(t, idx, keyBeta)
+	assert.Contains(t, idx[keyAlpha], "paths")
+	assert.Contains(t, idx[keyBeta], "paths")
+	assert.Equal(t, "Promoted paths", mappingValue(idx[keyAlpha]["paths"], "title").Value)
+}
+
+// TestBuildPromotedVarOverrideMap_NoDataStreamsUsesEmptyScope verifies that a
+// policy template without data_streams still records promoted overrides under
+// composableDataStream "", matching how streams are matched when the template is
+// not scoped to named data streams.
+func TestBuildPromotedVarOverrideMap_NoDataStreamsUsesEmptyScope(t *testing.T) {
+	manifestYAML := []byte(`format_version: 3.0.0
+name: scope_test2
+title: Scope test 2
+version: 0.1.0
+type: integration
+policy_templates:
+  - name: logs
+    title: Logs
+    inputs:
+      - package: ref_pkg
+        vars:
+          - name: paths
+            type: text
+`)
+
+	var doc yaml.Node
+	require.NoError(t, yaml.Unmarshal(manifestYAML, &doc))
+	m, err := packages.ReadPackageManifestBytes(manifestYAML)
+	require.NoError(t, err)
+
+	idx, err := buildPromotedVarOverrideMap(m, &doc)
+	require.NoError(t, err)
+
+	key := promotedVarScopeKey{refInputPackage: "ref_pkg", composableDataStream: ""}
+	require.Contains(t, idx, key)
+	assert.Contains(t, idx[key], "paths")
+}
+
 // ---- integration tests -------------------------------------------------------
 
 // makeFakeEprForVarMerging supplies the ci_input_pkg fixture path as if it were

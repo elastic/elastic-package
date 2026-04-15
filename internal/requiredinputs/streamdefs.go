@@ -19,7 +19,7 @@ import (
 // inputPkgInfo holds the resolved metadata from an input package needed to
 // replace package: references in composable package manifests.
 type inputPkgInfo struct {
-	identifier     string // policy_templates[0].input (e.g. "logfile")
+	identifier     string // policy_templates[0].input; if several templates exist, only the first is used
 	pkgTitle       string // manifest.title (fallback title)
 	pkgDescription string // manifest.description (fallback description)
 }
@@ -31,22 +31,45 @@ type inputPkgInfo struct {
 //
 // This step must run last, after mergeVariables, because that step uses
 // stream.Package and input.Package to identify which entries to process.
+// It resolves metadata per required input via buildInputPkgInfoByName, then
+// rewrites the root manifest and each data stream manifest.
 func (r *RequiredInputsResolver) resolveStreamInputTypes(
 	manifest *packages.PackageManifest,
 	inputPkgPaths map[string]string,
 	buildRoot *os.Root,
 ) error {
-	// Step 1 — Build a cache of inputPkgInfo per package name.
+	infoByPkg, err := buildInputPkgInfoByName(inputPkgPaths)
+	if err != nil {
+		return err
+	}
+
+	if err := applyInputTypesToComposableManifest(manifest, buildRoot, infoByPkg); err != nil {
+		return err
+	}
+
+	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg)
+}
+
+// buildInputPkgInfoByName loads inputPkgInfo for each downloaded required input package path.
+func buildInputPkgInfoByName(inputPkgPaths map[string]string) (map[string]inputPkgInfo, error) {
 	infoByPkg := make(map[string]inputPkgInfo, len(inputPkgPaths))
 	for pkgName, pkgPath := range inputPkgPaths {
 		info, err := loadInputPkgInfo(pkgPath)
 		if err != nil {
-			return fmt.Errorf("loading input package info for %q: %w", pkgName, err)
+			return nil, fmt.Errorf("loading input package info for %q: %w", pkgName, err)
 		}
 		infoByPkg[pkgName] = info
 	}
+	return infoByPkg, nil
+}
 
-	// Step 2 — Update policy_templates[].inputs[] in manifest.yml.
+// applyInputTypesToComposableManifest sets type (and optional title/description) on
+// package-backed policy template inputs in manifest.yml and drops package:.
+func applyInputTypesToComposableManifest(
+	manifest *packages.PackageManifest,
+	buildRoot *os.Root,
+	infoByPkg map[string]inputPkgInfo,
+) error {
 	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
 	if err != nil {
 		return fmt.Errorf("reading manifest: %w", err)
@@ -91,8 +114,12 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 	if err := buildRoot.WriteFile("manifest.yml", updated, 0664); err != nil {
 		return fmt.Errorf("writing updated manifest: %w", err)
 	}
+	return nil
+}
 
-	// Step 3 — Update streams[] in each data_stream/*/manifest.yml.
+// applyInputTypesToDataStreamManifests sets input on package-backed streams in each
+// data_stream/*/manifest.yml and drops package:.
+func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[string]inputPkgInfo) error {
 	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
 		return fmt.Errorf("globbing data stream manifests: %w", err)
@@ -153,7 +180,9 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 }
 
 // loadInputPkgInfo reads an input package's manifest and extracts the metadata
-// needed to replace package: references in composable packages.
+// needed to replace package: references in composable packages. When the input
+// package has several policy templates, only the first template's input id is
+// used and a warning is logged.
 func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 	pkgFS, closeFn, err := openPackageFS(pkgPath)
 	if err != nil {
@@ -175,7 +204,7 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 		return inputPkgInfo{}, fmt.Errorf("input package %q has no policy templates", m.Name)
 	}
 	if len(m.PolicyTemplates) > 1 {
-		logger.Debugf("Input package %q has multiple policy templates; using input identifier %q from first", m.Name, m.PolicyTemplates[0].Input)
+		logger.Warnf("Input package %q has multiple policy templates; using input identifier %q from first policy template only", m.Name, m.PolicyTemplates[0].Input)
 	}
 
 	pt := m.PolicyTemplates[0]
