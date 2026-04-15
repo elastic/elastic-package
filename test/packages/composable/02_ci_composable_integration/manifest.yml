@@ -1,0 +1,53 @@
+format_version: 3.6.0
+name: ci_composable_integration
+title: CI Composable Integration
+description: >-
+  Integration package for CI and tests: requires ci_input_pkg, exercises
+  variable promotion and data stream merge, field bundling, template bundling,
+  and package-to-type resolution on inputs and streams.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: ci_composable_logs
+    title: CI composable logs
+    description: Collect logs via required input package and native logs stream
+    data_streams:
+      - ci_composable_logs
+    inputs:
+      - package: ci_input_pkg
+        title: Collect via CI input package
+        description: Required input package for composable build
+        vars:
+          - name: paths
+            type: text
+            title: Paths
+            multi: true
+            required: true
+            show_user: true
+            secret: false
+            default:
+              - /var/log/custom/*.log
+          - name: encoding
+            type: text
+            title: Encoding
+            multi: false
+            required: false
+            show_user: true
+            secret: false
+      - type: logs
+        title: Native logs input
+        description: Plain logs input alongside the package stream
+owner:
+  github: elastic/integrations
+  type: elastic
