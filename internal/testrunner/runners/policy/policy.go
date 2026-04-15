@@ -118,6 +118,9 @@ type policyEntryReplace struct {
 	replace string
 }
 
+// beatsauthPattern matches OTel component IDs for the beatsauth extension injected by Fleet.
+var beatsauthPattern = regexp.MustCompile(`^beatsauth/`)
+
 // policyEntryFilter includes a list of filters to do to the policy. These filters
 // are used to remove or control fields whose content is not relevant for the package
 // test.
@@ -163,9 +166,9 @@ var policyEntryFilters = []policyEntryFilter{
 	}},
 
 	// Fields injected by Fleet into OTel policies since 9.4.0 (beatsauth extension).
-	{name: "extensions", deletePattern: regexp.MustCompile(`^beatsauth/`)},
+	{name: "extensions", deletePattern: beatsauthPattern},
 	{name: "extensions", onlyIfEmpty: true},
-	{name: "service.extensions", deletePattern: regexp.MustCompile(`^beatsauth/`)},
+	{name: "service.extensions", deletePattern: beatsauthPattern},
 	{name: "service.extensions", onlyIfEmpty: true},
 
 	// Signatures that change from installation to installation.
