@@ -216,4 +216,3 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 		pkgDescription: m.Description,
 	}, nil
 }
-
