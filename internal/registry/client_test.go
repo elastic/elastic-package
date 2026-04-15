@@ -14,7 +14,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
@@ -73,9 +72,6 @@ func TestDownloadPackage_unexpectedStatusDoesNotWriteZip(t *testing.T) {
 }
 
 func TestDownloadPackage_writeFailureCleansUp(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("read-only directory cleanup test relies on Unix directory permissions")
-	}
 	zipBytes := testAcmePackageZip(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
@@ -90,18 +86,17 @@ func TestDownloadPackage_writeFailureCleansUp(t *testing.T) {
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFY_PACKAGE_SIGNATURE"), "")
 	t.Setenv(environment.WithElasticPackagePrefix("VERIFIER_PUBLIC_KEYFILE"), "")
 
-	root := t.TempDir()
-	readOnlyDir := filepath.Join(root, "readonly")
-	require.NoError(t, os.Mkdir(readOnlyDir, 0o555))
-	t.Cleanup(func() { _ = os.Chmod(readOnlyDir, 0o700) })
+	dest := t.TempDir()
+	zipPath := filepath.Join(dest, "acme-1.0.0.zip")
+	require.NoError(t, os.Mkdir(zipPath, 0o700))
 
 	client, err := NewClient(srv.URL)
 	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", readOnlyDir)
+	_, err = client.DownloadPackage("acme", "1.0.0", dest)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "writing package zip")
 
-	_, statErr := os.Stat(filepath.Join(readOnlyDir, "acme-1.0.0.zip"))
+	_, statErr := os.Stat(zipPath)
 	require.True(t, errors.Is(statErr, fs.ErrNotExist), "partial zip should not remain after a write error")
 }
 
