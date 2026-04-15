@@ -145,8 +145,6 @@ for d in test/packages/*/*/; do
   elastic-package build -C "$d"
 done
 
-eval "$(elastic-package stack shellinit)"
-
 if [[ -f "${ELASTIC_PACKAGE_CONFIG_FILE}" ]]; then
   PREV_REGISTRY_URL=$(yq '.package_registry.base_url // ""' "${ELASTIC_PACKAGE_CONFIG_FILE}")
   yq eval --inplace '.package_registry.base_url = "https://127.0.0.1:8080"' "${ELASTIC_PACKAGE_CONFIG_FILE}"
@@ -162,7 +160,10 @@ elastic-package build -C "${COMPOSABLE_INTEGRATION_DIR}"
 # Remove unzipped built packages, leave .zip files
 rm -r build/packages/*/
 
-if [ ${USE_SHELLINIT} -eq 0 ]; then
+# Apply stack env only for the mode under test (shellinit vs manual exports).
+if [ ${USE_SHELLINIT} -eq 1 ]; then
+  eval "$(elastic-package stack shellinit)"
+else
   export ELASTIC_PACKAGE_ELASTICSEARCH_USERNAME=elastic
   export ELASTIC_PACKAGE_ELASTICSEARCH_PASSWORD=changeme
   export ELASTIC_PACKAGE_KIBANA_HOST=https://127.0.0.1:5601
