@@ -206,9 +206,8 @@ func (c *Client) verifyPackage(name, version, zipPath, pubKeyPath string) (disca
 		err = fmt.Errorf("closing downloaded package zip %s: %w", zipPath, closeErr)
 	}()
 
-	if verifyErr := files.VerifyDetachedPGP(zipFile, sigBody, pubKey); verifyErr != nil {
-		err = fmt.Errorf("verifying package %s-%s: %w", name, version, verifyErr)
-		return
+	if err := files.VerifyDetachedPGP(zipFile, sigBody, pubKey); err != nil {
+		return true, fmt.Errorf("verifying package %s-%s: %w", name, version, err)
 	}
 	return false, nil
 }

@@ -202,7 +202,7 @@ func TestDownloadPackage_withVerification_missingSignature(t *testing.T) {
 	require.Error(t, err)
 
 	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, os.IsNotExist(statErr), "zip should be removed after failed verification")
+	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed after failed verification")
 }
 
 func TestDownloadPackage_withVerification_badSignature(t *testing.T) {
@@ -260,7 +260,7 @@ func TestDownloadPackage_withVerification_badSignature(t *testing.T) {
 	require.Error(t, err)
 
 	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, os.IsNotExist(statErr), "zip should be removed after failed verification")
+	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed after failed verification")
 }
 
 func testAcmePackageZip(t *testing.T) []byte {
