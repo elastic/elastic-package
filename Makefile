@@ -139,12 +139,6 @@ test-build-install-zip-file:
 test-build-install-zip-file-shellinit:
 	./scripts/test-build-install-zip-file.sh -s
 
-test-build-install-zip-file-composable:
-	./scripts/test-build-install-zip-file.sh -c
-
-test-build-install-zip-file-composable-shellinit:
-	./scripts/test-build-install-zip-file.sh -c -s
-
 test-system-test-flags:
 	./scripts/test-system-test-flags.sh
 
