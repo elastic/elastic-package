@@ -23,6 +23,8 @@ TEST_BUILD_ZIP_TARGET="test-build-zip"
 TEST_BUILD_INSTALL_ZIP_TARGET="test-build-install-zip"
 TEST_BUILD_INSTALL_ZIP_FILE_TARGET="test-build-install-zip-file"
 TEST_BUILD_INSTALL_ZIP_FILE_SHELLINIT_TARGET="test-build-install-zip-file-shellinit"
+TEST_BUILD_INSTALL_ZIP_FILE_COMPOSABLE_TARGET="test-build-install-zip-file-composable"
+TEST_BUILD_INSTALL_ZIP_FILE_COMPOSABLE_SHELLINIT_TARGET="test-build-install-zip-file-composable-shellinit"
 
 REPO_NAME=$(repo_name "${BUILDKITE_REPO}")
 REPO_BUILD_TAG="${REPO_NAME}/$(buildkite_pr_branch_build_id)"
@@ -142,7 +144,7 @@ install_required_tools() {
             echo "--- Install kind"
             with_kubernetes
             ;;
-        "${FALSE_POSITIVES_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_SHELLINIT_TARGET}")
+        "${FALSE_POSITIVES_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_SHELLINIT_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_COMPOSABLE_TARGET}" | "${TEST_BUILD_INSTALL_ZIP_FILE_COMPOSABLE_SHELLINIT_TARGET}")
             echo "--- Install yq"
             with_yq
             ;;
