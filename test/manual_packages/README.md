@@ -2,12 +2,12 @@
 
 Packages under `test/manual_packages/` are **not** picked up by CI’s main package glob beyond what each script includes. They are for **manual** workflows and **targeted** `go test` cases.
 
-## CI composable coverage
+## Composable coverage
 
 End-to-end composable integration coverage (`requires.input`, local registry, build + install) lives under:
 
-- [`test/packages/composable/01_ci_input_pkg/`](../packages/composable/01_ci_input_pkg/) — `type: input` dependency
-- [`test/packages/composable/02_ci_composable_integration/`](../packages/composable/02_ci_composable_integration/) — `type: integration` built in **phase 2** by [`scripts/test-build-install-zip.sh`](../../scripts/test-build-install-zip.sh) after `stack up`, with `package_registry.base_url` set to `https://127.0.0.1:8080`
+- [`composable/01_ci_input_pkg/`](composable/01_ci_input_pkg/) — `type: input` dependency
+- [`composable/02_ci_composable_integration/`](composable/02_ci_composable_integration/) — `type: integration` that requires the input package above; must be built after `stack up` with `package_registry.base_url` set to `https://127.0.0.1:8080`
 
 `internal/requiredinputs` integration tests copy those same directories (see `ciInputFixturePath`, `copyComposableIntegrationFixture` in [`variables_test.go`](../../internal/requiredinputs/variables_test.go)).
 
@@ -24,7 +24,7 @@ Remaining trees under [`required_inputs/`](required_inputs/) exercise **narrow**
 | `required_inputs/with_merging_duplicate_error` | Invalid duplicate `paths` on DS — **build must fail** (not in CI zip loop). |
 | `required_inputs/with_linked_template_path` | Composable + policy `template_path` via `.link` (see [`dependency_management.md`](../../docs/howto/dependency_management.md)). |
 
-All of these depend on **`ci_input_pkg`** from [`test/packages/composable/01_ci_input_pkg/`](../packages/composable/01_ci_input_pkg/) (see each package’s `_dev/test/config.yml` `requires` stub).
+All of these depend on **`ci_input_pkg`** from [`composable/01_ci_input_pkg/`](composable/01_ci_input_pkg/) (see each package’s `_dev/test/config.yml` `requires` stub).
 
 ### Manual workflow
 
