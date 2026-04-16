@@ -1,0 +1,24 @@
+{
+  "name": "otel-dynamic-test",
+  "description": "",
+  "namespace": "test",
+  "policy_id": "test-policy-id",
+  "package": {
+    "name": "otel_dynamic_input",
+    "version": "0.1.0"
+  },
+  "inputs": {
+    "sqlreceiver-otelcol": {
+      "enabled": true,
+      "streams": {
+        "otel_dynamic_input.sqlreceiver": {
+          "enabled": true,
+          "vars": {
+            "data_stream.dataset": "sqlreceiver"
+          }
+        }
+      }
+    }
+  },
+  "force": false
+}

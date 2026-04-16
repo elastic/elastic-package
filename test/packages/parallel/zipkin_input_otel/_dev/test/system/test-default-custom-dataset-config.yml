@@ -1,0 +1,11 @@
+service: backend
+vars:
+  endpoint: "0.0.0.0:9411"
+  parse_string_tags: false
+  use_apm: true
+  # Base dataset only; Elastic Agent appends ".otel" at ingest.
+  data_stream.dataset: "zipkin.custom"
+assert:
+  min_count: 20
+# required to increase waiting time to detect all data streams (specially logs and traces)
+wait_for_dynamic_streams_stable: 90s

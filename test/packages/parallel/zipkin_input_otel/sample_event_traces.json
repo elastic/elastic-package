@@ -1,17 +1,19 @@
 {
-    "@timestamp": "2026-04-16T09:52:22.084Z",
+    "@timestamp": "2026-04-08T13:39:36.343Z",
     "agent": {
         "name": "otlp",
         "version": "unknown"
     },
     "attributes": {
+        "error": "404",
         "event": {
-            "outcome": "success",
-            "success_count": 1
+            "outcome": "failure",
+            "success_count": 0
         },
         "http": {
             "method": "GET",
-            "path": "/api"
+            "path": "/",
+            "status_code": "404"
         },
         "net": {
             "host": {
@@ -19,23 +21,23 @@
             },
             "peer": {
                 "ip": "172.30.0.3",
-                "port": 54920
+                "port": 49798
             }
         },
         "processor": {
             "event": "transaction"
         },
         "timestamp": {
-            "us": 1776333142084949
+            "us": 1775655576343934
         },
         "transaction": {
             "duration": {
-                "us": 855
+                "us": 1128
             },
-            "id": "1446bb067c058040",
-            "name": "GET /api",
+            "id": "ffa0fe740327e8db",
+            "name": "GET /*",
             "representative_count": 1,
-            "result": "Success",
+            "result": "Error",
             "root": true,
             "sampled": true,
             "type": "request"
@@ -43,30 +45,32 @@
     },
     "data_stream": {
         "dataset": "zipkinreceiver.otel",
-        "namespace": "33971",
+        "namespace": "73913",
         "type": "traces"
     },
-    "duration": 855000,
+    "duration": 1128000,
+    "error": "404",
     "event": {
         "agent_id_status": "missing",
         "dataset": "zipkinreceiver.otel",
-        "ingested": "2026-04-16T09:52:32Z",
-        "outcome": "success",
-        "success_count": 1
+        "ingested": "2026-04-08T13:39:46Z",
+        "outcome": "failure",
+        "success_count": 0
     },
     "http": {
         "method": "GET",
-        "path": "/api"
+        "path": "/",
+        "status_code": "404"
     },
     "kind": "Server",
-    "name": "GET /api",
+    "name": "GET /*",
     "net": {
         "host": {
             "ip": "172.30.0.2"
         },
         "peer": {
             "ip": "172.30.0.3",
-            "port": 54920
+            "port": 49798
         }
     },
     "processor": {
@@ -87,25 +91,28 @@
         "name": "backend"
     },
     "span": {
-        "id": "1446bb067c058040",
-        "name": "GET /api"
+        "id": "ffa0fe740327e8db",
+        "name": "GET /*"
     },
-    "span_id": "1446bb067c058040",
+    "span_id": "ffa0fe740327e8db",
+    "status": {
+        "code": "Error"
+    },
     "timestamp": {
-        "us": 1776333142084949
+        "us": 1775655576343934
     },
     "trace": {
-        "id": "00000000000000001446bb067c058040"
+        "id": "0000000000000000ffa0fe740327e8db"
     },
-    "trace_id": "00000000000000001446bb067c058040",
+    "trace_id": "0000000000000000ffa0fe740327e8db",
     "transaction": {
         "duration": {
-            "us": 855
+            "us": 1128
         },
-        "id": "1446bb067c058040",
-        "name": "GET /api",
+        "id": "ffa0fe740327e8db",
+        "name": "GET /*",
         "representative_count": 1,
-        "result": "Success",
+        "result": "Error",
         "root": true,
         "sampled": true,
         "type": "request"
