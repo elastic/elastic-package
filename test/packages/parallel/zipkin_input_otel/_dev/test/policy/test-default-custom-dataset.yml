@@ -1,5 +1,4 @@
 vars:
   endpoint: "0.0.0.0:9411"
   parse_string_tags: true
-  # Base dataset only; Elastic Agent appends ".otel" at ingest.
-  data_stream.dataset: "generic"
+  data_stream.dataset: "zipkin.custom"

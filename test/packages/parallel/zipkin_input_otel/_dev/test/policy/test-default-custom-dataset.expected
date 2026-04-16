@@ -42,7 +42,7 @@ processors:
             - context: span
               statements:
                 - set(attributes["data_stream.type"], "traces")
-                - set(attributes["data_stream.dataset"], "generic")
+                - set(attributes["data_stream.dataset"], "zipkin.custom")
                 - set(attributes["data_stream.namespace"], "ep")
             - context: spanevent
               statements:
