@@ -1510,17 +1510,24 @@ func filterOtelAPMRollupDataStreams(streams []discoveredDataStream) []discovered
 	})
 }
 
-// BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
-// when the package data stream is added to the policy.
+// appendOtelcolAgentDatasetSuffix returns baseDataset + ".otel". Elastic Agent appends this
+// routing suffix to the Fleet data_stream.dataset value for input packages that use the
+// otelcol input; Fleet and elastic-package policy builders do not add it. System tests model
+// the agent here when building Elasticsearch data stream names and expected document datasets.
+// Configure data_stream.dataset as the base name only (without ".otel"); if the policy value
+// already ends in ".otel", Elasticsearch will see a double suffix (...otel.otel).
+func appendOtelcolAgentDatasetSuffix(baseDataset string) string {
+	return baseDataset + "." + otelSuffixDataset
+}
 
+// BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
+// when the package data stream is added to the policy. For input packages with the otelcol
+// input, the name includes the ".otel" suffix that Elastic Agent adds (see appendOtelcolAgentDatasetSuffix).
 func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
 	dataset := dsDataset
-
-	// Input packages using the otel collector input require to add a specific dataset suffix
 	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
-		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
+		dataset = appendOtelcolAgentDatasetSuffix(dataset)
 	}
-
 	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
 }
 
@@ -2005,15 +2012,11 @@ func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
-		if scenario.policyTemplate.Input == otelCollectorInputName {
-			// Input packages whose input is `otelcol` must add the `.otel` suffix
-			// Example: httpcheck.metrics.otel
-			expectedDataset += "." + otelSuffixDataset
-			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).
-			expectedDatasets = []string{expectedDataset, "generic." + otelSuffixDataset}
-		} else {
-			expectedDatasets = []string{expectedDataset}
+		if scenario.policyTemplate.Input == otelCollectorInputName &&
+			r.pkgManifest != nil && r.pkgManifest.Type == "input" {
+			expectedDataset = appendOtelcolAgentDatasetSuffix(expectedDataset)
 		}
+		expectedDatasets = []string{expectedDataset}
 	}
 
 	return expectedDatasets, nil

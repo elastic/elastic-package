@@ -68,6 +68,120 @@ exporters:
             - https://elasticsearch:9200
 `,
 		},
+		// beatsauth fields injected by Fleet in OTel policies since 9.4.0.
+		{
+			title: "strip auth from exporter, keep endpoints",
+			policy: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://abc123def.elastic.cloud:443
+        auth:
+            authenticator: beatsauth/default
+`,
+			expected: `exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+`,
+		},
+		{
+			title: "strip beatsauth entries from extensions, keep non-beatsauth",
+			policy: `
+extensions:
+    beatsauth/default:
+        ssl:
+            ca_trusted_fingerprint: abc123
+    health_check/default:
+        endpoint: 0.0.0.0:13133
+`,
+			expected: `extensions:
+    health_check/componentid-0:
+        endpoint: 0.0.0.0:13133
+`,
+		},
+		{
+			title: "remove extensions entirely when only beatsauth entries remain",
+			policy: `
+extensions:
+    beatsauth/default:
+        ssl:
+            ca_trusted_fingerprint: abc123
+`,
+			expected: `{}
+`,
+		},
+		{
+			title: "strip beatsauth entries from service.extensions, keep others",
+			policy: `
+service:
+    extensions:
+        - beatsauth/default
+        - health_check/default
+    pipelines:
+        logs/default:
+            receivers:
+                - otlp/default
+`,
+			expected: `service:
+    extensions:
+        - health_check/default
+    pipelines:
+        logs/componentid-0:
+            receivers:
+                - otlp/default
+`,
+		},
+		{
+			title: "remove service.extensions entirely when only beatsauth entries remain",
+			policy: `
+service:
+    extensions:
+        - beatsauth/default
+    pipelines:
+        logs/default:
+            receivers:
+                - otlp/default
+`,
+			expected: `service:
+    pipelines:
+        logs/componentid-0:
+            receivers:
+                - otlp/default
+`,
+		},
+		{
+			title: "strip all beatsauth fields injected by Fleet on 9.4.0+",
+			policy: `
+exporters:
+    elasticsearch/default:
+        endpoints:
+            - https://abc123def.elastic.cloud:443
+        auth:
+            authenticator: beatsauth/default
+extensions:
+    beatsauth/default:
+        ssl:
+            ca_trusted_fingerprint: abc123
+    health_check/default:
+        endpoint: 0.0.0.0:13133
+service:
+    extensions:
+        - beatsauth/default
+        - health_check/default
+`,
+			expected: `exporters:
+    elasticsearch/componentid-0:
+        endpoints:
+            - https://elasticsearch:9200
+extensions:
+    health_check/componentid-0:
+        endpoint: 0.0.0.0:13133
+service:
+    extensions:
+        - health_check/componentid-0
+`,
+		},
 	}
 
 	for _, c := range cases {
