@@ -121,8 +121,8 @@ policy creation time.
 
 Unlike field-level dependencies (which are resolved from Git references and cached locally),
 package dependencies are fetched from the configured package registry URL
-(`package_registry.base_url` in `~/.elastic-package/config.yml`, defaulting to
-`https://epr.elastic.co`).
+(`stack.epr.base_url` in the active profile, or `package_registry.base_url` in
+`~/.elastic-package/config.yml`, defaulting to `https://epr.elastic.co`).
 
 For details on using a local or custom registry when the required input packages are still
 under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).

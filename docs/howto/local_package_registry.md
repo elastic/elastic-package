@@ -111,8 +111,8 @@ stack.epr.proxy_to: http://host.docker.internal:8082
 stack.epr.base_url: http://localhost:8082
 ```
 
-To also cover `elastic-package build`, `elastic-package test`, `elastic-package benchmark`,
-and `elastic-package status` (which do not read profile settings), add the global setting:
+To also cover `elastic-package test`, `elastic-package benchmark`, and `elastic-package status`
+(which do not read profile settings), add the global setting:
 
 ```yaml
 # ~/.elastic-package/config.yml
@@ -122,7 +122,15 @@ package_registry:
 
 ### URL resolution reference
 
-**For `elastic-package build`, `test`, `benchmark`, `status`** (global config only):
+**For `elastic-package build`** (profile, then global config):
+
+| Priority | Setting |
+| -------- | ------- |
+| 1 | `stack.epr.base_url` in the active profile `config.yml` |
+| 2 | `package_registry.base_url` in `~/.elastic-package/config.yml` |
+| 3 | `https://epr.elastic.co` (production fallback) |
+
+**For `elastic-package test`, `benchmark`, `status`** (global config only):
 
 | Priority | Setting |
 | -------- | ------- |
@@ -153,6 +161,7 @@ For more details on profiles, see the
 
 | Goal | Configuration |
 | ---- | ------------- |
-| Override registry for `build` / `test` / `benchmark` / `status` | `package_registry.base_url` in `~/.elastic-package/config.yml` |
+| Override registry for `build` | `stack.epr.base_url` in the active profile `config.yml` (or `package_registry.base_url` in `~/.elastic-package/config.yml`) |
+| Override registry for `test` / `benchmark` / `status` | `package_registry.base_url` in `~/.elastic-package/config.yml` |
 | Override registry for `install` and stack commands | `stack.epr.base_url` in the active profile `config.yml` |
 | Override proxy target for the stack's registry container | `stack.epr.proxy_to` in the active profile `config.yml` |
