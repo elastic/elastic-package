@@ -13,7 +13,7 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/creack/pty v1.1.19
 	github.com/dustin/go-humanize v1.0.1
-	github.com/elastic/elastic-integration-corpus-generator-tool v0.12.1
+	github.com/elastic/elastic-integration-corpus-generator-tool v0.12.3
 	github.com/elastic/go-elasticsearch/v7 v7.17.10
 	github.com/elastic/go-licenser v0.4.2
 	github.com/elastic/go-resource v0.2.0
@@ -40,11 +40,11 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.yaml.in/yaml/v2 v2.4.4
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/tools v0.43.0
+	golang.org/x/tools v0.44.0
 	gopkg.in/dnaeon/go-vcr.v3 v3.2.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/gotestsum v1.13.0
-	helm.sh/helm/v3 v3.20.1
+	helm.sh/helm/v3 v3.20.2
 	k8s.io/apimachinery v0.35.3
 	k8s.io/cli-runtime v0.35.3
 	k8s.io/client-go v0.35.3
@@ -156,15 +156,15 @@ require (
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	go.mongodb.org/mongo-driver v1.11.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.49.0 // indirect
-	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
+	golang.org/x/crypto v0.50.0 // indirect
+	golang.org/x/mod v0.35.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/telemetry v0.0.0-20260311193753-579e4da9a98c // indirect
-	golang.org/x/term v0.41.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
+	golang.org/x/telemetry v0.0.0-20260409153401-be6f6cb8b1fa // indirect
+	golang.org/x/term v0.42.0 // indirect
+	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
