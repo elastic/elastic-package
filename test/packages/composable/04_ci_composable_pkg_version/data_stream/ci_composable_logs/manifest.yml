@@ -1,0 +1,36 @@
+title: CI composable logs
+type: logs
+streams:
+  - package: ci_input_pkg
+    title: Logs via CI input package
+    description: Stream referencing the required input package.
+    vars:
+      - name: timeout
+        type: text
+        title: Timeout
+        multi: false
+        required: false
+        show_user: false
+        secret: false
+        description: Timeout for log collection.
+      - name: custom_tag
+        type: text
+        title: Custom Tag
+        multi: false
+        required: false
+        show_user: true
+        secret: false
+  - input: logfile
+    title: Plain logs stream
+    description: Native logs stream without package reference.
+    template_path: stream.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        secret: false
+        default:
+          - /var/log/ci/*.log
