@@ -124,7 +124,10 @@ func statusCommandAction(cmd *cobra.Command, args []string) error {
 
 	// Create registry client with configured URL
 	// Currently, this command does not use profile, so we take the URL from the application configuration
-	registryClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
+	registryClient, err := registry.NewClient(appConfig.PackageRegistryBaseURL())
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
 
 	options := registry.SearchOptions{
 		All:           showAll,

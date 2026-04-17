@@ -1,0 +1,5 @@
+- version: 0.1.0
+  changes:
+    - description: Manual fixture for composable build with linked policy template path.
+      type: enhancement
+      link: https://github.com/elastic/elastic-package/issues/3278

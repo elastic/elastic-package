@@ -11,10 +11,22 @@ which field definition was correct, maintenance and typo correction process was 
 The described situation brought us to a point in time when a simple dependency management was a requirement to maintain
 all used fields, especially ones imported from external sources.
 
+Elastic Packages support two kinds of build-time dependency:
+
+- **Field dependencies** — import field definitions from external schemas (e.g. ECS) using
+  `_dev/build/build.yml`. Resolved from Git references and cached locally.
+- **Package dependencies** — composable (integration) packages can depend on input and content packages
+  declared under `requires` in `manifest.yml`. **Input package** dependencies are resolved
+  at build time by downloading from the package registry. **Content package** dependencies are
+  resolved at runtime by Fleet.
+
+Both are described in the sections below.
+
 ## Principles of operation
 
-Currently Elastic Packages support build-time dependencies that can be used as external field sources. They use a flat
-dependency model represented with an additional build manifest, stored in an optional YAML file - `_dev/build/build.yml`:
+Currently Elastic Packages support build-time field dependencies that can be used as external
+field sources. They use a flat dependency model represented with an additional build manifest,
+stored in an optional YAML file - `_dev/build/build.yml`:
 
 ```yaml
 dependencies:
@@ -84,3 +96,50 @@ and use a following field definition:
 - name: event.category
   external: ecs
 ```
+
+## Composable packages and the package registry
+
+Composable (integration) packages can also depend on input or content packages by declaring them under
+`requires` in `manifest.yml`. Depending on the package type, dependencies are resolved
+differently: **input package** dependencies are fetched at build time; **content package**
+dependencies are resolved at runtime by Fleet.
+
+```yaml
+requires:
+  input:
+    - package: sql_input
+      version: "0.2.0"
+```
+
+This type of dependency is resolved at **build time** by downloading the required input package
+from the **package registry**. During `elastic-package build`, elastic-package fetches those
+packages and updates the built integration: it bundles agent templates (policy and data stream),
+merges variable definitions from the input packages into the composable manifest, adds data
+stream field definitions where configured, and rewrites `package:` references on inputs and
+streams to the concrete input types Fleet needs. Fleet still merges policy-specific values at
+policy creation time.
+
+Unlike field-level dependencies (which are resolved from Git references and cached locally),
+package dependencies are fetched from the configured package registry URL
+(`stack.epr.base_url` in the active profile, or `package_registry.base_url` in
+`~/.elastic-package/config.yml`, defaulting to `https://epr.elastic.co`).
+
+For details on using a local or custom registry when the required input packages are still
+under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
+
+### Linked files (`*.link`) and `template_path`
+
+Some repositories share agent templates using **link files** (files ending in `.link` that
+point at shared content). During `elastic-package build`, linked content is copied into the
+build output under the **target** path (the link filename without the `.link` suffix).
+
+Composable bundling (`requires.input`) runs **after** linked files are materialized in the
+build directory. In `manifest.yml`, always set `template_path` / `template_paths` to those
+**materialized** names (for example `owned.hbs`), **not** the stub name (`owned.hbs.link`).
+Fleet and the builder resolve templates by the names declared in the manifest; the `.link`
+file exists only in the source tree.
+
+A small manual fixture that combines `requires.input` with a linked policy input template
+lives under `test/manual_packages/required_inputs/with_linked_template_path/`. Automated
+coverage is in `TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath` in
+`internal/requiredinputs/requiredinputs_test.go`.

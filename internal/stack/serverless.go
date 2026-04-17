@@ -232,7 +232,11 @@ func (sp *serverlessProvider) createClients(project *serverless.Project, appConf
 		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
 
-	sp.registryClient = registry.NewClient(packageRegistryBaseURL(sp.profile, appConfig))
+	regClient, err := registry.NewClient(PackageRegistryBaseURL(sp.profile, appConfig))
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	sp.registryClient = regClient
 
 	return nil
 }
