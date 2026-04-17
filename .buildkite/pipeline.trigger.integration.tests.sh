@@ -64,6 +64,17 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     fi
 done
 
+echo "      - label: \":go: Integration test: composable\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-composable"
+echo "        agents:"
+echo "          provider: \"gcp\""
+echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
+echo "        artifact_paths:"
+echo "          - build/test-results/*.xml"
+echo "          - build/elastic-stack-dump/composable/logs/*.log"
+echo "          - build/elastic-stack-dump/composable/logs/fleet-server-internal/**/*"
+echo "          - build/test-coverage/coverage-*.xml"
+
 # Testing with logstash with different versions needed because of failures in 9.x, see https://github.com/elastic/elastic-package/pull/2763.
 pushd test/packages/with-logstash > /dev/null
 while IFS= read -r -d '' package ; do

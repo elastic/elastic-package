@@ -4,10 +4,12 @@ Packages under `test/manual_packages/` are **not** picked up by CI’s main pack
 
 ## Composable coverage
 
-End-to-end composable integration coverage (`requires.input`, local registry, build + install) lives under:
+End-to-end composable integration coverage (`requires.input`, local registry, build + install) lives under [`test/packages/composable/`](../packages/composable/):
 
-- [`composable/01_ci_input_pkg/`](composable/01_ci_input_pkg/) — `type: input` dependency
-- [`composable/02_ci_composable_integration/`](composable/02_ci_composable_integration/) — `type: integration` that requires the input package above; must be built after `stack up` with `package_registry.base_url` set to `https://127.0.0.1:8080`
+- [`test/packages/composable/01_ci_input_pkg/`](../packages/composable/01_ci_input_pkg/) — `type: input` dependency
+- [`test/packages/composable/02_ci_composable_integration/`](../packages/composable/02_ci_composable_integration/) — `type: integration` that requires the input package above
+
+These packages are picked up by CI via `scripts/test-composable-packages.sh` (`make test-check-packages-composable`). The build step requires the local registry to serve `ci_input_pkg`; the test step exercises the source-override mechanism declared in `_dev/test/config.yml`.
 
 `internal/requiredinputs` integration tests copy those same directories (see `ciInputFixturePath`, `copyComposableIntegrationFixture` in [`variables_test.go`](../../internal/requiredinputs/variables_test.go)).
 
@@ -24,13 +26,13 @@ Remaining trees under [`required_inputs/`](required_inputs/) exercise **narrow**
 | `required_inputs/with_merging_duplicate_error` | Invalid duplicate `paths` on DS — **build must fail** (not in CI zip loop). |
 | `required_inputs/with_linked_template_path` | Composable + policy `template_path` via `.link` (see [`dependency_management.md`](../../docs/howto/dependency_management.md)). |
 
-All of these depend on **`ci_input_pkg`** from [`composable/01_ci_input_pkg/`](composable/01_ci_input_pkg/) (see each package’s `_dev/test/config.yml` `requires` stub).
+All of these depend on **`ci_input_pkg`** from [`test/packages/composable/01_ci_input_pkg/`](../packages/composable/01_ci_input_pkg/) (see each package’s `_dev/test/config.yml` `requires` stub).
 
 ### Manual workflow
 
 1. `elastic-package stack up -d`
 2. Set `package_registry.base_url` in `~/.elastic-package/config.yml` to `https://127.0.0.1:8080` (see [local package registry how-to](../../docs/howto/local_package_registry.md)).
-3. Build and install `01_ci_input_pkg` before any integration that lists `requires.input` for it, then build the integration.
+3. Build and install `test/packages/composable/01_ci_input_pkg` before any integration that lists `requires.input` for it, then build the integration.
 
 ### Expected errors
 

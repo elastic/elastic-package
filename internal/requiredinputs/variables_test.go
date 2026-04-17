@@ -42,15 +42,15 @@ func copyFixturePackage(t *testing.T, fixtureName string) string {
 	return destPath
 }
 
-// ciInputFixturePath returns the path to test/manual_packages/composable/01_ci_input_pkg (repository-relative from this package).
+// ciInputFixturePath returns the path to test/packages/composable/01_ci_input_pkg (repository-relative from this package).
 func ciInputFixturePath() string {
-	return filepath.Join("..", "..", "test", "manual_packages", "composable", "01_ci_input_pkg")
+	return filepath.Join("..", "..", "test", "packages", "composable", "01_ci_input_pkg")
 }
 
-// copyComposableIntegrationFixture copies test/manual_packages/composable/02_ci_composable_integration for integration tests.
+// copyComposableIntegrationFixture copies test/packages/composable/02_ci_composable_integration for integration tests.
 func copyComposableIntegrationFixture(t *testing.T) string {
 	t.Helper()
-	srcPath := filepath.Join("..", "..", "test", "manual_packages", "composable", "02_ci_composable_integration")
+	srcPath := filepath.Join("..", "..", "test", "packages", "composable", "02_ci_composable_integration")
 	destPath := t.TempDir()
 	err := os.CopyFS(destPath, os.DirFS(srcPath))
 	require.NoError(t, err, "copying composable CI integration fixture")

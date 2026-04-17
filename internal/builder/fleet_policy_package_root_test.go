@@ -63,7 +63,7 @@ requires:
 	})
 
 	t.Run("composable_with_built_tree_returns_build_dir", func(t *testing.T) {
-		src := filepath.Join(repo, "test", "manual_packages", "composable", "02_ci_composable_integration")
+		src := filepath.Join(repo, "test", "packages", "composable", "02_ci_composable_integration")
 		built := filepath.Join(repo, "build", "packages", "ci_composable_integration", "0.1.0")
 		if _, err := os.Stat(filepath.Join(built, "manifest.yml")); err != nil {
 			t.Skip("built composable fixture not present; run elastic-package build on the package first")
