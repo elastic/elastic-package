@@ -664,7 +664,7 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		RunSetup:               runSetup,
 		RunTearDown:            runTearDown,
 		RunTestsOnly:           runTestsOnly,
-		DataStreams:             dataStreams,
+		DataStreams:            dataStreams,
 		ServiceVariant:         variantFlag,
 		FailOnMissingTests:     failOnMissing,
 		GenerateTestResult:     generateTestResult,

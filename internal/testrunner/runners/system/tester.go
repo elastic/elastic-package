@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -2176,25 +2177,52 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+	// Match Fleet's view of the package: composable integrations use the built tree (requires.input).
+	root, err := builder.FleetPolicyPackageRoot(packageRoot)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", err
+	}
+	usePkg := pkg
+	useDs := ds
+	useTempl := policyTemplate
+	if root != packageRoot {
+		// Composable integrations: input types are resolved on the built tree (requiredinputs.Bundle);
+		// reload manifests so Fleet policy keys match the package installed in setup (see FleetPackage).
+		pm, err := packages.ReadPackageManifestFromPackageRoot(root)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", err
+		}
+		usePkg = pm
+		useTempl, err = packages.SelectPolicyTemplateByName(usePkg.PolicyTemplates, policyTemplate.Name)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", err
+		}
+		dsm, err := packages.ReadDataStreamManifestFromPackageRoot(root, ds.Name)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", err
+		}
+		useDs = dsm
+	}
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(root)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
 	p, err := kibana.BuildIntegrationPackagePolicy(
 		kibanaPolicy.ID, kibanaPolicy.Namespace,
-		fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
-		*pkg, policyTemplate, *ds, cfgName, cfgVars, cfgDSVars, true, allDatastreams,
+		fmt.Sprintf("%s-%s-%s", usePkg.Name, useDs.Name, suffix),
+		*usePkg, useTempl, *useDs, cfgName, cfgVars, cfgDSVars, true, allDatastreams,
 	)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
-	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-	if ds.Dataset != "" {
-		dataset = ds.Dataset
+	dataset := fmt.Sprintf("%s.%s", usePkg.Name, useDs.Name)
+	if useDs.Dataset != "" {
+		dataset = useDs.Dataset
 	}
-	return p, ds.Type, dataset, nil
+	return p, useDs.Type, dataset, nil
 }
 
 func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
