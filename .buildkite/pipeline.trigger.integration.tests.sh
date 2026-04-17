@@ -65,7 +65,7 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
 done
 
 echo "      - label: \":go: Integration test: composable\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-check-packages-composable"
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-install-packages-composable"
 echo "        agents:"
 echo "          provider: \"gcp\""
 echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""

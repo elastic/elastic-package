@@ -46,14 +46,11 @@ cleanup() {
 
 trap cleanup EXIT
 
-echo "--- Create composable profile with local package registry URL"
+echo "--- Create composable profile"
 elastic-package profiles create composable -v
 elastic-package profiles use composable
 mv ~/.elastic-package/profiles/composable/config.yml.example \
    ~/.elastic-package/profiles/composable/config.yml
-# Point elastic-package commands to the local registry started by the stack.
-echo "stack.epr.base_url: https://127.0.0.1:8080" \
-  >> ~/.elastic-package/profiles/composable/config.yml
 
 echo "--- Building input package: ${COMPOSABLE_PACKAGES_PATH}/${COMPOSABLE_INPUT_PKG}"
 # The input package has no requires.input so no registry is needed at this stage.
@@ -68,6 +65,10 @@ elastic-package stack update -v ${stack_args}
 # newly built input package.
 elastic-package stack up -d -v ${stack_args}
 elastic-package stack status
+
+# Point elastic-package commands to the local registry started by the stack.
+echo "stack.epr.base_url: https://127.0.0.1:8080" \
+  >> ~/.elastic-package/profiles/composable/config.yml
 
 eval "$(elastic-package stack shellinit)"
 
