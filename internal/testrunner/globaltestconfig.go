@@ -20,6 +20,33 @@ type globalTestConfig struct {
 	Policy   GlobalRunnerTestConfig `config:"policy"`
 	Static   GlobalRunnerTestConfig `config:"static"`
 	System   GlobalRunnerTestConfig `config:"system"`
+	Requires []RequiresTestOverride `config:"requires"`
+}
+
+// RequiresTestOverride maps a required input package name to a local source path.
+// The source path may be relative (resolved against the package root) or absolute.
+// It may point to a directory or a zip file.
+type RequiresTestOverride struct {
+	Package string `config:"package"`
+	Source  string `config:"source"`
+}
+
+// RequiresSourceOverrides returns a map of package name to absolute local source path
+// for each entry in the Requires section. Relative source paths are resolved against
+// packageRoot. Returns nil if no overrides are configured.
+func (c *globalTestConfig) RequiresSourceOverrides(packageRoot string) map[string]string {
+	if len(c.Requires) == 0 {
+		return nil
+	}
+	overrides := make(map[string]string, len(c.Requires))
+	for _, r := range c.Requires {
+		sourcePath := r.Source
+		if !filepath.IsAbs(sourcePath) {
+			sourcePath = filepath.Join(packageRoot, sourcePath)
+		}
+		overrides[r.Package] = sourcePath
+	}
+	return overrides
 }
 
 type GlobalRunnerTestConfig struct {

@@ -28,26 +28,39 @@ type Resolver interface {
 	Bundle(buildPackageRoot string) error
 }
 
-// NoopRequiredInputsResolver is a no-op implementation of Resolver.
-// TODO: Replace with a resolver that supports test overrides (e.g. local package paths)
-// when implementing local input package resolution for development and testing workflows.
-type NoopRequiredInputsResolver struct{}
+// ResolverOption is a functional option for RequiredInputsResolver.
+type ResolverOption func(*RequiredInputsResolver)
 
-func (r *NoopRequiredInputsResolver) Bundle(_ string) error {
-	return nil
+// WithSourceOverrides returns a ResolverOption that configures local path overrides for
+// specific input packages. When set, the resolver uses the local path instead of
+// downloading from the EPR. The map key is the package name; the value is the local
+// path to the package (zip file or directory with a manifest.yml at the root).
+func WithSourceOverrides(overrides map[string]string) ResolverOption {
+	return func(r *RequiredInputsResolver) {
+		r.sourceOverrides = overrides
+	}
 }
 
 // RequiredInputsResolver implements Resolver by downloading required input packages via an EPR client
 // and applying Bundle to the built package tree.
 type RequiredInputsResolver struct {
 	eprClient eprClient
+	// sourceOverrides maps package name to a local path (zip or directory).
+	// A nil map is safe: lookups return ("", false), so all packages fall back to EPR download.
+	sourceOverrides map[string]string
 }
 
 // NewRequiredInputsResolver returns a Resolver that downloads required input packages from the registry.
-func NewRequiredInputsResolver(eprClient eprClient) *RequiredInputsResolver {
-	return &RequiredInputsResolver{
+// Optional ResolverOption values can be provided to configure additional behaviour such as
+// local source overrides (see WithSourceOverrides).
+func NewRequiredInputsResolver(eprClient eprClient, opts ...ResolverOption) *RequiredInputsResolver {
+	r := &RequiredInputsResolver{
 		eprClient: eprClient,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 // Bundle updates buildPackageRoot (a built package directory) for integrations that declare
@@ -115,16 +128,25 @@ func (r *RequiredInputsResolver) Bundle(buildPackageRoot string) error {
 	return nil
 }
 
-// downloadInputsToTmp downloads required input packages to the temporary directory.
-// It returns a map of package name to zip path.
+// mapRequiredInputPackagesPaths resolves required input packages to local paths.
+// For each dependency it first checks for a source override; if found the local path is used
+// directly (zip or directory). Otherwise it downloads the package from the EPR.
+// It returns a map of package name to path.
 func (r *RequiredInputsResolver) mapRequiredInputPackagesPaths(manifestInputRequires []packages.PackageDependency, tmpDir string) (map[string]string, error) {
 	inputPkgPaths := make(map[string]string, len(manifestInputRequires))
 	errs := make([]error, 0, len(manifestInputRequires))
 	for _, inputDependency := range manifestInputRequires {
 		if _, ok := inputPkgPaths[inputDependency.Package]; ok {
-			// skip if already downloaded
+			// skip if already resolved
 			continue
 		}
+
+		if sourcePath, ok := r.sourceOverrides[inputDependency.Package]; ok {
+			inputPkgPaths[inputDependency.Package] = sourcePath
+			logger.Debugf("Using local source override for input package %q at %s", inputDependency.Package, sourcePath)
+			continue
+		}
+
 		path, err := r.eprClient.DownloadPackage(inputDependency.Package, inputDependency.Version, tmpDir)
 		if err != nil {
 			// all required input packages must be downloaded successfully

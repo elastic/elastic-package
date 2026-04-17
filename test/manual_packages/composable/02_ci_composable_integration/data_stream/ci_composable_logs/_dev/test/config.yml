@@ -1,0 +1,5 @@
+system:
+  parallel: true
+requires:
+  - package: ci_input_pkg
+    source: "../01_ci_input_pkg"

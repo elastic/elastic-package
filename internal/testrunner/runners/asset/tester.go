@@ -21,38 +21,41 @@ import (
 )
 
 type tester struct {
-	testFolder       testrunner.TestFolder
-	packageRoot      string
-	kibanaClient     *kibana.Client
-	resourcesManager *resources.Manager
-	globalTestConfig testrunner.GlobalRunnerTestConfig
-	withCoverage     bool
-	coverageType     string
-	repositoryRoot   *os.Root
-	schemaURLs       fields.SchemaURLs
+	testFolder             testrunner.TestFolder
+	packageRoot            string
+	kibanaClient           *kibana.Client
+	resourcesManager       *resources.Manager
+	globalTestConfig       testrunner.GlobalRunnerTestConfig
+	withCoverage           bool
+	coverageType           string
+	repositoryRoot         *os.Root
+	schemaURLs             fields.SchemaURLs
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 type AssetTesterOptions struct {
-	TestFolder       testrunner.TestFolder
-	PackageRoot      string
-	KibanaClient     *kibana.Client
-	GlobalTestConfig testrunner.GlobalRunnerTestConfig
-	WithCoverage     bool
-	CoverageType     string
-	RepositoryRoot   *os.Root
-	SchemaURLs       fields.SchemaURLs
+	TestFolder             testrunner.TestFolder
+	PackageRoot            string
+	KibanaClient           *kibana.Client
+	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	WithCoverage           bool
+	CoverageType           string
+	RepositoryRoot         *os.Root
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
-		testFolder:       options.TestFolder,
-		packageRoot:      options.PackageRoot,
-		kibanaClient:     options.KibanaClient,
-		globalTestConfig: options.GlobalTestConfig,
-		withCoverage:     options.WithCoverage,
-		coverageType:     options.CoverageType,
-		repositoryRoot:   options.RepositoryRoot,
-		schemaURLs:       options.SchemaURLs,
+		testFolder:             options.TestFolder,
+		packageRoot:            options.PackageRoot,
+		kibanaClient:           options.KibanaClient,
+		globalTestConfig:       options.GlobalTestConfig,
+		withCoverage:           options.WithCoverage,
+		coverageType:           options.CoverageType,
+		repositoryRoot:         options.RepositoryRoot,
+		schemaURLs:             options.SchemaURLs,
+		requiredInputsResolver: options.RequiredInputsResolver,
 	}
 
 	manager := resources.NewManager()
@@ -94,7 +97,7 @@ func (r *tester) resources(installedPackage bool) resources.Resources {
 			Force:                  installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			RepositoryRoot:         r.repositoryRoot,
 			SchemaURLs:             r.schemaURLs,
-			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
+			RequiredInputsResolver: r.requiredInputsResolver,
 		},
 	}
 }

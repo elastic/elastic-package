@@ -194,3 +194,44 @@ policy_templates:
 	paths := updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths
 	require.Equal(t, []string{"sql-input.yml.hbs", ownedName}, paths)
 }
+
+// TestBundle_WithSourceOverrides verifies that when a source override is configured the
+// resolver uses the local path and never calls the EPR client.
+func TestBundle_WithSourceOverrides(t *testing.T) {
+	fakeInputPath := createFakeInputHelper(t)
+
+	eprCalled := false
+	fakeEprClient := &fakeEprClient{
+		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
+			eprCalled = true
+			return "", fmt.Errorf("should not be called: EPR download was expected to be skipped")
+		},
+	}
+
+	buildPackageRoot := t.TempDir()
+	manifest := []byte(`name: test-package
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: sql
+      version: 0.1.0
+policy_templates:
+  - inputs:
+      - package: sql
+      - type: logs
+`)
+	err := os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
+	require.NoError(t, err)
+
+	resolver := NewRequiredInputsResolver(
+		fakeEprClient,
+		WithSourceOverrides(map[string]string{"sql": fakeInputPath}),
+	)
+	err = resolver.Bundle(buildPackageRoot)
+	require.NoError(t, err)
+	assert.False(t, eprCalled, "EPR client should not be called when a source override is provided")
+
+	_, err = os.ReadFile(path.Join(buildPackageRoot, "agent", "input", "sql-input.yml.hbs"))
+	require.NoError(t, err, "bundled template from local source override should exist")
+}
