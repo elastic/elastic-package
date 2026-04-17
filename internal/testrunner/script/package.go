@@ -78,9 +78,12 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 	eprClient, err := registry.NewClient(registryBaseURL, stack.RegistryClientOptions(registryBaseURL, stk.profile)...)
 	ts.Check(decoratedWith("creating package registry client", err))
 
+	mergedOverrides, err := globalTestConfig.MergedRequiresSourceOverrides(pkgRoot)
+	ts.Check(err)
+
 	resolver := requiredinputs.NewRequiredInputsResolver(
 		eprClient,
-		requiredinputs.WithSourceOverrides(globalTestConfig.RequiresSourceOverrides(pkgRoot)),
+		requiredinputs.WithSourceOverrides(mergedOverrides),
 	)
 
 	m := resources.NewManager()

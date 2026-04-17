@@ -202,9 +202,13 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create package registry client: %w", err)
 	}
+	assetOverrides, err := globalTestConfig.Asset.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
 		eprClient,
-		requiredinputs.WithSourceOverrides(globalTestConfig.RequiresSourceOverrides(packageRoot)),
+		requiredinputs.WithSourceOverrides(assetOverrides),
 	)
 
 	logger.Info(version.Version())
@@ -646,9 +650,13 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create package registry client: %w", err)
 	}
+	systemOverrides, err := globalTestConfig.System.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
 		eprClient,
-		requiredinputs.WithSourceOverrides(globalTestConfig.RequiresSourceOverrides(packageRoot)),
+		requiredinputs.WithSourceOverrides(systemOverrides),
 	)
 
 	logger.Info(version.Version())
@@ -905,9 +913,13 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create package registry client: %w", err)
 	}
+	policyOverrides, err := globalTestConfig.Policy.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
 		eprClient,
-		requiredinputs.WithSourceOverrides(globalTestConfig.RequiresSourceOverrides(packageRoot)),
+		requiredinputs.WithSourceOverrides(policyOverrides),
 	)
 
 	logger.Info(version.Version())
