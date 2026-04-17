@@ -1,3 +1,0 @@
-system:
-  requires:
-    - source: "../../../packages/composable/01_ci_input_pkg"

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -147,52 +148,29 @@ policy_templates:
 // at the path named in manifest, not a *.link stub), bundling still prepends input-package
 // templates and keeps the integration-owned template_path entry last in template_paths.
 func TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath(t *testing.T) {
-	fakeInputPath := createFakeInputHelper(t)
-	fakeEprClient := &fakeEprClient{
-		downloadPackageFunc: func(packageName string, packageVersion string, tmpDir string) (string, error) {
-			return fakeInputPath, nil
-		},
-	}
-	buildPackageRoot := t.TempDir()
+	buildPackageRoot := copyFixturePackage(t, "with_linked_template_path")
 
-	const ownedName = "integration_owned.hbs"
-	ownedContent := []byte("# from linked target\n")
-	err := os.MkdirAll(path.Join(buildPackageRoot, "agent", "input"), 0755)
+	// Simulate IncludeLinkedFiles: materialize owned.hbs.link → owned.hbs.
+	ownedContent, err := os.ReadFile(filepath.Join(buildPackageRoot, "agent", "input", "_included", "owned.hbs"))
 	require.NoError(t, err)
-	err = os.WriteFile(path.Join(buildPackageRoot, "agent", "input", ownedName), ownedContent, 0644)
+	err = os.WriteFile(filepath.Join(buildPackageRoot, "agent", "input", "owned.hbs"), ownedContent, 0644)
 	require.NoError(t, err)
 
-	manifest := []byte(`name: test-package
-version: 0.1.0
-type: integration
-requires:
-  input:
-    - package: sql
-      version: 0.1.0
-policy_templates:
-  - inputs:
-      - package: sql
-        template_path: ` + ownedName + `
-      - type: logs
-`)
-	err = os.WriteFile(path.Join(buildPackageRoot, "manifest.yml"), manifest, 0644)
-	require.NoError(t, err)
-
-	resolver := NewRequiredInputsResolver(fakeEprClient)
+	resolver := NewRequiredInputsResolver(makeFakeEprForVarMerging(t))
 	err = resolver.Bundle(buildPackageRoot)
 	require.NoError(t, err)
 
-	got, err := os.ReadFile(path.Join(buildPackageRoot, "agent", "input", ownedName))
+	got, err := os.ReadFile(filepath.Join(buildPackageRoot, "agent", "input", "owned.hbs"))
 	require.NoError(t, err)
 	require.Equal(t, ownedContent, got)
 
-	updatedManifestBytes, err := os.ReadFile(path.Join(buildPackageRoot, "manifest.yml"))
+	updatedManifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
 	require.NoError(t, err)
 	updatedManifest, err := packages.ReadPackageManifestBytes(updatedManifestBytes)
 	require.NoError(t, err)
 
 	paths := updatedManifest.PolicyTemplates[0].Inputs[0].TemplatePaths
-	require.Equal(t, []string{"sql-input.yml.hbs", ownedName}, paths)
+	require.Equal(t, []string{"ci_input_pkg-input.yml.hbs", "ci_input_pkg-extra.yml.hbs", "owned.hbs"}, paths)
 }
 
 // TestBundle_WithSourceOverrides verifies that when a source override is configured the
