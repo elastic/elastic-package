@@ -159,20 +159,20 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	root, err := builder.FleetPolicyPackageRoot(packagePolicy.PackageRoot)
+	builtRoot, err := builder.BuildPackagesDirectory(packagePolicy.PackageRoot, "")
 	if err != nil {
-		return nil, fmt.Errorf("resolve fleet policy package root: %w", err)
+		return nil, fmt.Errorf("error locating built package directory: %w", err)
 	}
 	// Composable integrations (requires.input) use the built tree so manifest input types
 	// match the package Fleet installed; source alone can omit types and break input keys.
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(root)
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
 	if err != nil {
-		return nil, fmt.Errorf("could not read package manifest at %s: %w", root, err)
+		return nil, fmt.Errorf("could not read package manifest at %s: %w", builtRoot, err)
 	}
 
 	switch manifest.Type {
 	case "integration":
-		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy, root)
+		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy, builtRoot)
 	case "input":
 		return createInputPackagePolicy(policy, *manifest, packagePolicy)
 	default:
