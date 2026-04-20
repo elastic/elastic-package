@@ -50,6 +50,9 @@ require (
 	k8s.io/client-go v0.35.4
 )
 
+// TODO: remove this once the package-spec v3.6.1 is released
+replace github.com/elastic/package-spec/v3 => github.com/elastic/package-spec/v3 v3.6.1-0.20260417144220-46c3cc7af72b
+
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect

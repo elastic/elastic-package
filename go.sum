@@ -97,8 +97,8 @@ github.com/elastic/gojsonschema v1.2.2 h1:d1/NJKMr8vr9sEuxRTVOj+QFJi5Utd8PnvRqJJ
 github.com/elastic/gojsonschema v1.2.2/go.mod h1:TauCTd1z3UuJAMOWitMEYPgxFAH7f+1smAcr82AVmgY=
 github.com/elastic/kbncontent v0.1.4 h1:GoUkJkqkn2H6iJTnOHcxEqYVVYyjvcebLQVaSR1aSvU=
 github.com/elastic/kbncontent v0.1.4/go.mod h1:kOPREITK9gSJsiw/WKe7QWSO+PRiZMyEFQCw+CMLAHI=
-github.com/elastic/package-spec/v3 v3.6.0 h1:+983IDRi0RGJi0Gm0cBgYGEiwpcIRjQOxMyrjo0EWq4=
-github.com/elastic/package-spec/v3 v3.6.0/go.mod h1:4NbJh4ViiFh2Mo+MUiVChAeUl67CXjJYQ/e3tYx3slk=
+github.com/elastic/package-spec/v3 v3.6.1-0.20260417144220-46c3cc7af72b h1:Qi6/HQPMX8bTfzZwoyCXK4cd/jEcbvB3vjFUctPy2hQ=
+github.com/elastic/package-spec/v3 v3.6.1-0.20260417144220-46c3cc7af72b/go.mod h1:BD491bRXXyPboe4YSpcxc6gVQrLPqOAP022xjd3Q7TQ=
 github.com/emicklei/go-restful/v3 v3.12.2 h1:DhwDP0vY3k8ZzE0RunuJy8GhNpPL6zqLkDf9B/a0/xU=
 github.com/emicklei/go-restful/v3 v3.12.2/go.mod h1:6n3XBCmQQb25CM2LCACGz8ukIrRry+4bhvbpWn3mrbc=
 github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f h1:Y/CXytFA4m6baUTXGLOoWe4PQhGxaX0KpnayAqC48p4=
