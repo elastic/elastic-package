@@ -21,7 +21,7 @@ output_permissions:
                     - auto_configure
                     - create_doc
                 - names:
-                    - logs-zipkin.custom-*
+                    - logs-*-*
                   privileges:
                     - auto_configure
                     - create_doc
