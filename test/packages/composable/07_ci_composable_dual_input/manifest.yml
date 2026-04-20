@@ -1,0 +1,61 @@
+format_version: 3.6.0
+name: ci_composable_dual_input
+title: CI Composable Dual Input
+description: >-
+  Integration package for CI dual-type fixture tests: requires ci_input_pkg_a and
+  ci_input_pkg_b, which both declare input type logfile. After elastic-package build
+  each policy template input receives a unique name qualifier (ci_input_pkg_a /
+  ci_input_pkg_b) and the data stream manifests reference inputs by that name,
+  satisfying package-spec SVR00010.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg_a
+      version: "0.1.0"
+    - package: ci_input_pkg_b
+      version: "0.1.0"
+policy_templates:
+  - name: ci_dual_logs
+    title: CI dual logs
+    description: Collect logs via two input packages sharing the same type
+    data_streams:
+      - ci_dual_logs_a
+      - ci_dual_logs_b
+    inputs:
+      - package: ci_input_pkg_a
+        title: Collect via CI input package A
+        description: First logfile input package for the dual-type composable fixture
+        vars:
+          - name: paths
+            type: text
+            title: Paths
+            multi: true
+            required: true
+            show_user: true
+            secret: false
+            default:
+              - /var/log/a/*.log
+      - package: ci_input_pkg_b
+        title: Collect via CI input package B
+        description: Second logfile input package for the dual-type composable fixture
+        vars:
+          - name: paths
+            type: text
+            title: Paths
+            multi: true
+            required: true
+            show_user: true
+            secret: false
+            default:
+              - /var/log/b/*.log
+owner:
+  github: elastic/integrations
+  type: elastic

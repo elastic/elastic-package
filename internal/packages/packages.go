@@ -852,6 +852,20 @@ func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
 	return nil
 }
 
+// FindInput returns the first input matching identifier, checked against the
+// input's Name qualifier first (when set) and then its Type. Use this when the
+// identifier may be a name qualifier (set on inputs that share a type) rather
+// than a bare type string.
+func (pt *PolicyTemplate) FindInput(identifier string) *Input {
+	for i := range pt.Inputs {
+		input := &pt.Inputs[i]
+		if (input.Name != "" && input.Name == identifier) || input.Type == identifier {
+			return input
+		}
+	}
+	return nil
+}
+
 func isPackageManifest(path string) (bool, error) {
 	m, err := ReadPackageManifest(path)
 	if err != nil {
@@ -907,8 +921,8 @@ func findPolicyTemplateForDataStream(pkg PackageManifest, ds DataStreamManifest,
 
 	var matchedPolicyTemplates []string
 	for _, policyTemplate := range pkg.PolicyTemplates {
-		// Does this policy_template include this input type?
-		if policyTemplate.FindInputByType(inputName) == nil {
+		// Does this policy_template include an input for this identifier (name or type)?
+		if policyTemplate.FindInput(inputName) == nil {
 			continue
 		}
 

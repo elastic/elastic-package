@@ -5,6 +5,7 @@
 package requiredinputs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -54,6 +55,45 @@ func copyComposableIntegrationFixture(t *testing.T) string {
 	err := os.CopyFS(destPath, os.DirFS(srcPath))
 	require.NoError(t, err, "copying composable CI integration fixture")
 	return destPath
+}
+
+// ciInputPkgAFixturePath returns the path to test/packages/composable/05_ci_input_pkg_a.
+func ciInputPkgAFixturePath() string {
+	return filepath.Join("..", "..", "test", "packages", "composable", "05_ci_input_pkg_a")
+}
+
+// ciInputPkgBFixturePath returns the path to test/packages/composable/06_ci_input_pkg_b.
+func ciInputPkgBFixturePath() string {
+	return filepath.Join("..", "..", "test", "packages", "composable", "06_ci_input_pkg_b")
+}
+
+// copyDualInputComposableFixture copies test/packages/composable/07_ci_composable_dual_input for integration tests.
+func copyDualInputComposableFixture(t *testing.T) string {
+	t.Helper()
+	srcPath := filepath.Join("..", "..", "test", "packages", "composable", "07_ci_composable_dual_input")
+	destPath := t.TempDir()
+	err := os.CopyFS(destPath, os.DirFS(srcPath))
+	require.NoError(t, err, "copying dual-input composable CI fixture")
+	return destPath
+}
+
+// makeFakeEprForDualInput supplies both ci_input_pkg_a and ci_input_pkg_b fixture
+// paths as if they were downloaded from the registry.
+func makeFakeEprForDualInput(t *testing.T) *fakeEprClient {
+	t.Helper()
+	pkgPaths := map[string]string{
+		"ci_input_pkg_a": ciInputPkgAFixturePath(),
+		"ci_input_pkg_b": ciInputPkgBFixturePath(),
+	}
+	return &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			p, ok := pkgPaths[packageName]
+			if !ok {
+				return "", fmt.Errorf("unknown package %q", packageName)
+			}
+			return p, nil
+		},
+	}
 }
 
 // Variable merge tests exercise mergeVariables (see variables.go): when an

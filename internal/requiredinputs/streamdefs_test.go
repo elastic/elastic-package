@@ -797,3 +797,42 @@ func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	assert.Equal(t, "logfile", dsManifest.Streams[1].Input)
 	assert.Empty(t, dsManifest.Streams[1].Package)
 }
+
+// TestResolveStreamInputTypes_DualInputFixture runs the full Bundle pipeline on
+// the 07_ci_composable_dual_input fixture: both required input packages declare
+// input type logfile, so each built policy template input must receive a unique
+// name qualifier and each data stream manifest must reference its input by that name.
+func TestResolveStreamInputTypes_DualInputFixture(t *testing.T) {
+	buildPackageRoot := copyDualInputComposableFixture(t)
+	resolver := NewRequiredInputsResolver(makeFakeEprForDualInput(t))
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	m, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	require.Len(t, m.PolicyTemplates[0].Inputs, 2)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[0].Type)
+	assert.Equal(t, "ci_input_pkg_a", m.PolicyTemplates[0].Inputs[0].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[1].Type)
+	assert.Equal(t, "ci_input_pkg_b", m.PolicyTemplates[0].Inputs[1].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
+
+	dsABytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_dual_logs_a", "manifest.yml"))
+	require.NoError(t, err)
+	dsA, err := packages.ReadDataStreamManifestBytes(dsABytes)
+	require.NoError(t, err)
+	require.Len(t, dsA.Streams, 1)
+	assert.Equal(t, "ci_input_pkg_a", dsA.Streams[0].Input)
+	assert.Empty(t, dsA.Streams[0].Package)
+
+	dsBBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_dual_logs_b", "manifest.yml"))
+	require.NoError(t, err)
+	dsB, err := packages.ReadDataStreamManifestBytes(dsBBytes)
+	require.NoError(t, err)
+	require.Len(t, dsB.Streams, 1)
+	assert.Equal(t, "ci_input_pkg_b", dsB.Streams[0].Input)
+	assert.Empty(t, dsB.Streams[0].Package)
+}
