@@ -64,17 +64,6 @@ for test in "${CHECK_PACKAGES_TESTS[@]}"; do
     fi
 done
 
-echo "      - label: \":go: Integration test: composable\""
-echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-install-packages-composable"
-echo "        agents:"
-echo "          provider: \"gcp\""
-echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
-echo "        artifact_paths:"
-echo "          - build/test-results/*.xml"
-echo "          - build/elastic-stack-dump/composable/logs/*.log"
-echo "          - build/elastic-stack-dump/composable/logs/fleet-server-internal/**/*"
-echo "          - build/test-coverage/coverage-*.xml"
-
 # Testing with logstash with different versions needed because of failures in 9.x, see https://github.com/elastic/elastic-package/pull/2763.
 pushd test/packages/with-logstash > /dev/null
 while IFS= read -r -d '' package ; do
@@ -209,6 +198,17 @@ echo "          provider: \"gcp\""
 echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
 echo "        artifact_paths:"
 echo "          - build/elastic-stack-dump/install-zip-shellinit/logs/*.log"
+
+echo "      - label: \":go: Integration test: build-install-composable\""
+echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-build-install-packages-composable"
+echo "        agents:"
+echo "          provider: \"gcp\""
+echo "          image: \"${UBUNTU_X86_64_AGENT_IMAGE}\""
+echo "        artifact_paths:"
+echo "          - build/test-results/*.xml"
+echo "          - build/elastic-stack-dump/composable/logs/*.log"
+echo "          - build/elastic-stack-dump/composable/logs/fleet-server-internal/**/*"
+echo "          - build/test-coverage/coverage-*.xml"
 
 echo "      - label: \":go: Integration test: system-flags\""
 echo "        command: ./.buildkite/scripts/integration_tests.sh -t test-system-test-flags"

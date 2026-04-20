@@ -70,7 +70,7 @@ elastic-package stack status
 echo "stack.epr.base_url: https://127.0.0.1:8080" \
   >> ~/.elastic-package/profiles/composable/config.yml
 
-eval "$(elastic-package stack shellinit)"
+# Kibana/registry clients use the active profile after stack up; shellinit is not required.
 
 echo "--- Installing input package: ${COMPOSABLE_PACKAGES_PATH}/${COMPOSABLE_INPUT_PKG}"
 elastic-package install -C "${COMPOSABLE_PACKAGES_PATH}/${COMPOSABLE_INPUT_PKG}" -v
