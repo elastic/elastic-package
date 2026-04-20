@@ -1,0 +1,46 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      exclude_files:
+        - .gz$
+      meta:
+        package:
+            name: ci_composable_no_override
+      name: test-default-03_ci_composable_no_override
+      paths:
+        - /var/log/custom/*.log
+      streams:
+        - data_stream:
+            dataset: ci_composable_no_override.ci_composable_logs
+          exclude_files:
+            - .gz$
+          paths:
+            - /var/log/custom/*.log
+        - data_stream:
+            dataset: ci_composable_no_override.ci_composable_logs
+          exclude_files:
+            - .gz$
+          paths:
+            - /var/log/ci/*.log
+      type: logfile
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-ci_composable_no_override.ci_composable_logs-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+                - names:
+                    - logs-ci_composable_no_override.ci_composable_logs-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

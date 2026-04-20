@@ -1,0 +1,6 @@
+system:
+  parallel: true
+policy:
+  requires:
+    - package: ci_input_pkg
+      version: "0.1.0"

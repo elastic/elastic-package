@@ -1,3 +1,0 @@
-requires:
-  - package: ci_input_pkg
-    source: "../../../../composable/01_ci_input_pkg"

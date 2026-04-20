@@ -50,8 +50,9 @@ type runner struct {
 	runTearDown    bool
 	runTestsOnly   bool
 
-	resourcesManager     *resources.Manager
-	serviceStateFilePath string
+	resourcesManager       *resources.Manager
+	serviceStateFilePath   string
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
@@ -79,35 +80,37 @@ type SystemTestRunnerOptions struct {
 
 	GlobalTestConfig testrunner.GlobalRunnerTestConfig
 
-	FailOnMissingTests bool
-	GenerateTestResult bool
-	DeferCleanup       time.Duration
-	WithCoverage       bool
-	CoverageType       string
+	FailOnMissingTests     bool
+	GenerateTestResult     bool
+	DeferCleanup           time.Duration
+	WithCoverage           bool
+	CoverageType           string
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewSystemTestRunner(options SystemTestRunnerOptions) *runner {
 	r := runner{
-		packageRoot:          options.PackageRoot,
-		kibanaClient:         options.KibanaClient,
-		esAPI:                options.API,
-		esClient:             options.ESClient,
-		profile:              options.Profile,
-		schemaURLs:           options.SchemaURLs,
-		dataStreams:          options.DataStreams,
-		serviceVariant:       options.ServiceVariant,
-		configFilePath:       options.ConfigFilePath,
-		runSetup:             options.RunSetup,
-		runTestsOnly:         options.RunTestsOnly,
-		runTearDown:          options.RunTearDown,
-		failOnMissingTests:   options.FailOnMissingTests,
-		generateTestResult:   options.GenerateTestResult,
-		deferCleanup:         options.DeferCleanup,
-		globalTestConfig:     options.GlobalTestConfig,
-		withCoverage:         options.WithCoverage,
-		coverageType:         options.CoverageType,
-		repositoryRoot:       options.RepositoryRoot,
-		overrideAgentVersion: options.OverrideAgentVersion,
+		packageRoot:            options.PackageRoot,
+		kibanaClient:           options.KibanaClient,
+		esAPI:                  options.API,
+		esClient:               options.ESClient,
+		profile:                options.Profile,
+		schemaURLs:             options.SchemaURLs,
+		dataStreams:            options.DataStreams,
+		serviceVariant:         options.ServiceVariant,
+		configFilePath:         options.ConfigFilePath,
+		runSetup:               options.RunSetup,
+		runTestsOnly:           options.RunTestsOnly,
+		runTearDown:            options.RunTearDown,
+		failOnMissingTests:     options.FailOnMissingTests,
+		generateTestResult:     options.GenerateTestResult,
+		deferCleanup:           options.DeferCleanup,
+		globalTestConfig:       options.GlobalTestConfig,
+		withCoverage:           options.WithCoverage,
+		coverageType:           options.CoverageType,
+		repositoryRoot:         options.RepositoryRoot,
+		overrideAgentVersion:   options.OverrideAgentVersion,
+		requiredInputsResolver: options.RequiredInputsResolver,
 	}
 
 	r.resourcesManager = resources.NewManager()
@@ -301,7 +304,7 @@ func (r *runner) resources(opts resourcesOptions) resources.Resources {
 			Force:                  opts.installedPackage, // Force re-installation, in case there are code changes in the same package version.
 			RepositoryRoot:         r.repositoryRoot,
 			SchemaURLs:             r.schemaURLs,
-			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
+			RequiredInputsResolver: r.requiredInputsResolver,
 		},
 	}
 }

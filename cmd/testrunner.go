@@ -197,16 +197,31 @@ func testRunnerAssetCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	assetOverrides, err := globalTestConfig.Asset.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
+		eprClient,
+		requiredinputs.WithSourceOverrides(assetOverrides),
+	)
+
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s\n", stackVersion.Version())
 	runner := asset.NewAssetTestRunner(asset.AssetTestRunnerOptions{
-		PackageRoot:      packageRoot,
-		KibanaClient:     kibanaClient,
-		GlobalTestConfig: globalTestConfig.Asset,
-		WithCoverage:     testCoverage,
-		CoverageType:     testCoverageFormat,
-		RepositoryRoot:   repositoryRoot,
-		SchemaURLs:       appConfig.SchemaURLs(),
+		PackageRoot:            packageRoot,
+		KibanaClient:           kibanaClient,
+		GlobalTestConfig:       globalTestConfig.Asset,
+		WithCoverage:           testCoverage,
+		CoverageType:           testCoverageFormat,
+		RepositoryRoot:         repositoryRoot,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 
 	results, err := testrunner.RunSuite(ctx, runner)
@@ -630,29 +645,44 @@ func testRunnerSystemCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	systemOverrides, err := globalTestConfig.System.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
+		eprClient,
+		requiredinputs.WithSourceOverrides(systemOverrides),
+	)
+
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", info.Version.Number)
 	runner := system.NewSystemTestRunner(system.SystemTestRunnerOptions{
-		Profile:              profile,
-		PackageRoot:          packageRoot,
-		KibanaClient:         kibanaClient,
-		SchemaURLs:           appConfig.SchemaURLs(),
-		API:                  esClient.API,
-		ESClient:             esClient,
-		ConfigFilePath:       configFileFlag,
-		RunSetup:             runSetup,
-		RunTearDown:          runTearDown,
-		RunTestsOnly:         runTestsOnly,
-		DataStreams:          dataStreams,
-		ServiceVariant:       variantFlag,
-		FailOnMissingTests:   failOnMissing,
-		GenerateTestResult:   generateTestResult,
-		DeferCleanup:         deferCleanup,
-		GlobalTestConfig:     globalTestConfig.System,
-		WithCoverage:         testCoverage,
-		CoverageType:         testCoverageFormat,
-		RepositoryRoot:       repositoryRoot,
-		OverrideAgentVersion: agentVersion,
+		Profile:                profile,
+		PackageRoot:            packageRoot,
+		KibanaClient:           kibanaClient,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		API:                    esClient.API,
+		ESClient:               esClient,
+		ConfigFilePath:         configFileFlag,
+		RunSetup:               runSetup,
+		RunTearDown:            runTearDown,
+		RunTestsOnly:           runTestsOnly,
+		DataStreams:            dataStreams,
+		ServiceVariant:         variantFlag,
+		FailOnMissingTests:     failOnMissing,
+		GenerateTestResult:     generateTestResult,
+		DeferCleanup:           deferCleanup,
+		GlobalTestConfig:       globalTestConfig.System,
+		WithCoverage:           testCoverage,
+		CoverageType:           testCoverageFormat,
+		RepositoryRoot:         repositoryRoot,
+		OverrideAgentVersion:   agentVersion,
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 
 	logger.Debugf("Running suite...")
@@ -883,7 +913,14 @@ func testRunnerPolicyCommandAction(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create package registry client: %w", err)
 	}
-	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
+	policyOverrides, err := globalTestConfig.Policy.RequiresSourceOverrides(packageRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve requires source overrides: %w", err)
+	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(
+		eprClient,
+		requiredinputs.WithSourceOverrides(policyOverrides),
+	)
 
 	logger.Info(version.Version())
 	logger.Infof("elastic-stack: %s", stackVersion.Version())

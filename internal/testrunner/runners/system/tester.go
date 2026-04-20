@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -2176,7 +2177,13 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+	// Match Fleet's view of the package: composable integrations use the built tree (requires.input).
+	root, err := builder.BuildPackagesDirectory(packageRoot, "")
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("error locating built package directory: %w", err)
+	}
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(root)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}

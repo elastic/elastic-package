@@ -85,10 +85,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.14-794fd882-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.15-f7fdc546-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.4.0-624008de-SNAPSHOT
+	./scripts/test-stack-command.sh 9.5.0-f28b6d49-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -101,7 +101,7 @@ test-stack-command-with-basic-subscription:
 
 test-stack-command: test-stack-command-default test-stack-command-agent-version-flag test-stack-command-7x test-stack-command-800 test-stack-command-8x test-stack-command-9x test-stack-command-with-apm-server
 
-test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash
+test-check-packages: test-check-packages-with-kind test-check-packages-other test-check-packages-parallel test-check-packages-with-custom-agent test-check-packages-benchmarks test-check-packages-false-positives test-check-packages-with-logstash test-build-install-packages-composable
 
 test-check-packages-with-kind:
 	PACKAGE_TEST_TYPE=with-kind ./scripts/test-check-packages.sh
@@ -126,6 +126,9 @@ test-check-packages-parallel:
 
 test-check-packages-with-custom-agent:
 	PACKAGE_TEST_TYPE=with-custom-agent ./scripts/test-check-packages.sh
+
+test-build-install-packages-composable:
+	./scripts/test-composable-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh
