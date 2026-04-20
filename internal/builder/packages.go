@@ -234,13 +234,11 @@ func BuildPackage(options BuildOptions) (string, error) {
 		return "", fmt.Errorf("resolving transform manifests failed: %w", err)
 	}
 
-	resolver := options.RequiredInputsResolver
-	if resolver == nil {
-		resolver = &requiredinputs.NoopRequiredInputsResolver{}
-	}
-	err = resolver.Bundle(buildPackageRoot)
-	if err != nil {
-		return "", fmt.Errorf("bundling input package templates failed: %w", err)
+	if options.RequiredInputsResolver != nil {
+		err = options.RequiredInputsResolver.Bundle(buildPackageRoot)
+		if err != nil {
+			return "", fmt.Errorf("bundling input package templates failed: %w", err)
+		}
 	}
 
 	if options.UpdateReadmes {

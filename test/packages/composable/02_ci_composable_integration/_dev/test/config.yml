@@ -1,0 +1,5 @@
+system:
+  parallel: true
+policy:
+  requires:
+    - source: "../01_ci_input_pkg"

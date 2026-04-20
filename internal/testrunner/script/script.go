@@ -35,7 +35,6 @@ import (
 	"github.com/elastic/elastic-package/internal/packages/changelog"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
-	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
 	"github.com/elastic/elastic-package/internal/stack"
@@ -435,10 +434,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m := resources.NewManager()
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-			PackageRoot:            pkgRoot,
-			Absent:                 true,
-			Force:                  true,
-			RequiredInputsResolver: &requiredinputs.NoopRequiredInputsResolver{},
+			PackageRoot: pkgRoot,
+			Absent:      true, // uninstall only — no bundling takes place, so no resolver is needed
+			Force:       true,
 		}})
 		if err != nil && !strings.Contains(err.Error(), "is not installed") {
 			errs = append(errs, err)

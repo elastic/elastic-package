@@ -127,6 +127,49 @@ package dependencies are fetched from the configured package registry URL
 For details on using a local or custom registry when the required input packages are still
 under development, see [HOWTO: Use a local or custom package registry](./local_package_registry.md).
 
+### Testing composable packages with source overrides
+
+When running `elastic-package test` on a composable integration whose required input packages
+are not yet published to the registry, you can point each test runner at a local copy of the
+input package using the `requires` key in `_dev/test/config.yml`.
+
+Each entry in the `requires` list uses one of two forms:
+
+- **`source`** — a path to a local package directory or `.zip` file. Relative paths are
+  resolved relative to the composable package root. The package name is read from the
+  `manifest.yml` at that path.
+- **`package` + `version`** — forces a specific version to be fetched from the registry
+  (useful in CI where the package is already published and you want to pin a version).
+
+`source` and `package`/`version` are mutually exclusive in the same entry.
+
+The `requires` key is supported under any test runner block: `policy`, `system`, `asset`,
+`pipeline`, and `static`. You may define it in multiple blocks; if the same package appears
+in more than one block, the resolved absolute paths must be identical.
+
+```yaml
+# _dev/test/config.yml — composable integration package
+policy:
+  requires:
+    - source: "../my_input_pkg"       # local directory, relative to this package root
+system:
+  requires:
+    - source: "../my_input_pkg"       # same override reused for system tests
+asset:
+  requires:
+    - package: my_input_pkg           # registry-based override for asset tests
+      version: "0.2.0"
+```
+
+> **Note:** Source overrides only affect the test runners (`elastic-package test`).
+> `elastic-package build` always fetches required input packages from the configured
+> package registry. To use a local registry during builds, see
+> [HOWTO: Use a local or custom package registry](./local_package_registry.md).
+
+A working example lives at
+`test/packages/composable/02_ci_composable_integration/_dev/test/config.yml` (uses
+`source: "../01_ci_input_pkg"`).
+
 ### Linked files (`*.link`) and `template_path`
 
 Some repositories share agent templates using **link files** (files ending in `.link` that
@@ -139,7 +182,7 @@ build directory. In `manifest.yml`, always set `template_path` / `template_paths
 Fleet and the builder resolve templates by the names declared in the manifest; the `.link`
 file exists only in the source tree.
 
-A small manual fixture that combines `requires.input` with a linked policy input template
-lives under `test/manual_packages/required_inputs/with_linked_template_path/`. Automated
+A test fixture that combines `requires.input` with a linked policy input template
+lives under `internal/requiredinputs/testdata/with_linked_template_path/`. Automated
 coverage is in `TestBundleInputPackageTemplates_PreservesLinkedTemplateTargetPath` in
 `internal/requiredinputs/requiredinputs_test.go`.

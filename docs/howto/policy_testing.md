@@ -43,14 +43,34 @@ or data stream.
 
 ## Global test configuration
 
-Each package could define a configuration file in `_dev/test/config.yml` to skip all the policy tests.
+Each package can define a configuration file in `_dev/test/config.yml` to control how policy
+tests are run. The full shape of the `policy` block is:
 
 ```yaml
 policy:
   skip:
     reason: <reason>
     link: <link_to_issue>
+  requires:
+    - source: "../path/to/input_pkg"   # local directory or .zip (relative to package root)
+    - package: sql_input               # registry-based; requires version
+      version: "0.2.0"
 ```
+
+The `skip` key skips all policy tests with a mandatory reason and optional issue link.
+
+The `requires` key is used for **composable integration packages** that declare
+`requires.input` in their `manifest.yml`. It tells the policy test runner which local source
+path (or registry version) to use for each required input package when bundling the
+integration before running the tests. Without this, the runner fetches dependencies from the
+configured package registry.
+
+- Use `source` when the input package is not yet published to the registry (local development).
+- Use `package` + `version` to pin a specific registry version.
+- `source` and `package`/`version` are mutually exclusive in the same entry.
+
+For full details on composable packages and source overrides, see
+[HOWTO: Enable dependency management](./dependency_management.md#testing-composable-packages-with-source-overrides).
 
 ### Defining the configuration of the policy
 

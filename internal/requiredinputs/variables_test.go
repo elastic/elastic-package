@@ -31,26 +31,25 @@ func varNode(name string, extras ...string) *ast.MappingNode {
 	return n
 }
 
-// copyFixturePackage copies the named package from test/manual_packages/required_inputs
-// to a fresh temp dir and returns that dir path.
+// copyFixturePackage copies the named package from testdata to a fresh temp dir and returns that dir path.
 func copyFixturePackage(t *testing.T, fixtureName string) string {
 	t.Helper()
-	srcPath := filepath.Join("..", "..", "test", "manual_packages", "required_inputs", fixtureName)
+	srcPath := filepath.Join("testdata", fixtureName)
 	destPath := t.TempDir()
 	err := os.CopyFS(destPath, os.DirFS(srcPath))
 	require.NoError(t, err, "copying fixture package %q", fixtureName)
 	return destPath
 }
 
-// ciInputFixturePath returns the path to test/manual_packages/composable/01_ci_input_pkg (repository-relative from this package).
+// ciInputFixturePath returns the path to test/packages/composable/01_ci_input_pkg (repository-relative from this package).
 func ciInputFixturePath() string {
-	return filepath.Join("..", "..", "test", "manual_packages", "composable", "01_ci_input_pkg")
+	return filepath.Join("..", "..", "test", "packages", "composable", "01_ci_input_pkg")
 }
 
-// copyComposableIntegrationFixture copies test/manual_packages/composable/02_ci_composable_integration for integration tests.
+// copyComposableIntegrationFixture copies test/packages/composable/02_ci_composable_integration for integration tests.
 func copyComposableIntegrationFixture(t *testing.T) string {
 	t.Helper()
-	srcPath := filepath.Join("..", "..", "test", "manual_packages", "composable", "02_ci_composable_integration")
+	srcPath := filepath.Join("..", "..", "test", "packages", "composable", "02_ci_composable_integration")
 	destPath := t.TempDir()
 	err := os.CopyFS(destPath, os.DirFS(srcPath))
 	require.NoError(t, err, "copying composable CI integration fixture")
