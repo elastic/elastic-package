@@ -193,6 +193,7 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
+	Name          string     `config:"name,omitempty" json:"name,omitempty" yaml:"name,omitempty"`
 	Type          string     `config:"type" json:"type" yaml:"type"`
 	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
 	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`

@@ -17,6 +17,7 @@ import (
 // inputPkgInfo holds the resolved metadata from an input package needed to
 // replace package: references in composable package manifests.
 type inputPkgInfo struct {
+	pkgName        string // manifest.name; used as the input name qualifier when disambiguation is needed
 	identifier     string // policy_templates[0].input; if several templates exist, only the first is used
 	pkgTitle       string // manifest.title (fallback title)
 	pkgDescription string // manifest.description (fallback description)
@@ -26,6 +27,12 @@ type inputPkgInfo struct {
 // composable package's manifest.yml (policy_templates[].inputs) and in each
 // data_stream/*/manifest.yml (streams[]) with the actual input type identifier
 // from the referenced input package, then removes the package: key.
+//
+// When multiple inputs in the same policy template share the same type (e.g., two
+// otelcol inputs from different required packages), it also sets a unique name on
+// each such input (derived from the package name) so Fleet can distinguish them.
+// In that case, data stream manifests use the name as their input reference instead
+// of the type.
 //
 // This step must run last, after mergeVariables, because that step uses
 // stream.Package and input.Package to identify which entries to process.
@@ -41,11 +48,44 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 		return err
 	}
 
-	if err := applyInputTypesToComposableManifest(manifest, buildRoot, infoByPkg); err != nil {
+	streamInputRefs := buildStreamInputRefs(manifest, infoByPkg)
+
+	if err := applyInputTypesToComposableManifest(manifest, buildRoot, infoByPkg, streamInputRefs); err != nil {
 		return err
 	}
 
-	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg)
+	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg, streamInputRefs)
+}
+
+// buildStreamInputRefs computes what value to write to streams[].input per required package name.
+// When two or more inputs of the same type coexist in any single policy template, each conflicting
+// package is given its own package name as the qualifier (used as both the input name and the
+// stream input reference). Packages with a unique type within every policy template get their type
+// identifier. Once a package is marked as needing a qualifier it keeps that assignment even if it
+// appears in other policy templates without a type conflict.
+func buildStreamInputRefs(manifest *packages.PackageManifest, infoByPkg map[string]inputPkgInfo) map[string]string {
+	refs := make(map[string]string, len(infoByPkg))
+	for _, pt := range manifest.PolicyTemplates {
+		typeCounts := make(map[string]int)
+		for _, input := range pt.Inputs {
+			if input.Package == "" {
+				continue
+			}
+			typeCounts[infoByPkg[input.Package].identifier]++
+		}
+		for _, input := range pt.Inputs {
+			if input.Package == "" {
+				continue
+			}
+			info := infoByPkg[input.Package]
+			if typeCounts[info.identifier] > 1 {
+				refs[input.Package] = input.Package // package name as stable unique qualifier
+			} else if _, exists := refs[input.Package]; !exists {
+				refs[input.Package] = info.identifier
+			}
+		}
+	}
+	return refs
 }
 
 // buildInputPkgInfoByName loads inputPkgInfo for each downloaded required input package path.
@@ -61,12 +101,15 @@ func buildInputPkgInfoByName(inputPkgPaths map[string]string) (map[string]inputP
 	return infoByPkg, nil
 }
 
-// applyInputTypesToComposableManifest sets type (and optional title/description) on
+// applyInputTypesToComposableManifest sets type (and optional title/description/name) on
 // package-backed policy template inputs in manifest.yml and drops package:.
+// When streamInputRefs maps a package to its own name (indicating a type conflict), it also
+// sets name on that input so Fleet can distinguish multiple inputs of the same type.
 func applyInputTypesToComposableManifest(
 	manifest *packages.PackageManifest,
 	buildRoot *os.Root,
 	infoByPkg map[string]inputPkgInfo,
+	streamInputRefs map[string]string,
 ) error {
 	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
 	if err != nil {
@@ -93,6 +136,9 @@ func applyInputTypesToComposableManifest(
 			}
 
 			upsertKey(inputNode, "type", strVal(info.identifier))
+			if streamInputRefs[input.Package] == input.Package {
+				upsertKey(inputNode, "name", strVal(input.Package))
+			}
 
 			if mappingValue(inputNode, "title") == nil && info.pkgTitle != "" {
 				upsertKey(inputNode, "title", strVal(info.pkgTitle))
@@ -116,8 +162,11 @@ func applyInputTypesToComposableManifest(
 }
 
 // applyInputTypesToDataStreamManifests sets input on package-backed streams in each
-// data_stream/*/manifest.yml and drops package:.
-func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[string]inputPkgInfo) error {
+// data_stream/*/manifest.yml and drops package:. The value written to streams[].input
+// is taken from streamInputRefs: the package name when disambiguation is required
+// (i.e. the corresponding policy template input carries a name qualifier), otherwise
+// the type identifier.
+func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[string]inputPkgInfo, streamInputRefs map[string]string) error {
 	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
 		return fmt.Errorf("globbing data stream manifests: %w", err)
@@ -153,7 +202,7 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[stri
 				return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
 			}
 
-			upsertKey(streamNode, "input", strVal(info.identifier))
+			upsertKey(streamNode, "input", strVal(streamInputRefs[stream.Package]))
 
 			if stream.Title == "" && info.pkgTitle != "" {
 				upsertKey(streamNode, "title", strVal(info.pkgTitle))
@@ -211,6 +260,7 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 	}
 
 	return inputPkgInfo{
+		pkgName:        m.Name,
 		identifier:     pt.Input,
 		pkgTitle:       m.Title,
 		pkgDescription: m.Description,
