@@ -10,14 +10,9 @@
 # Build order for bootstrap inputs is 01 → 05 → 06 before stack up. Integrations
 # then build in directory order, downloading inputs from the registry (stack.epr.base_url).
 #
-# Stack version and provider settings reuse scripts/stack_parameters.sh:
-# PACKAGE_TEST_TYPE must be composable so stack_version_args / stack_provider_args
-# resolve test/packages/composable/<PACKAGE_UNDER_TEST>.stack_version (and optional
-# .stack_provider_settings). The Makefile target test-build-install-packages-composable
-# sets PACKAGE_TEST_TYPE=composable; if you run this script directly, use the same
-# prefix (e.g. PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh).
-# By default PACKAGE_UNDER_TEST is 01_ci_input_pkg; override with Makefile/CI
-# PACKAGE_UNDER_TEST or COMPOSABLE_STACK_PIN_PACKAGE when PACKAGE_UNDER_TEST is empty.
+# The Makefile target test-build-install-packages-composable sets PACKAGE_TEST_TYPE=composable
+# if you run this script directly, use the same prefix
+# (e.g. PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh).
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -35,8 +30,6 @@ set -euxo pipefail
 COMPOSABLE_PACKAGES_PATH="test/packages/composable"
 # Ordered bootstrap inputs: built pre-stack, installed post-stack, skipped in main loop.
 COMPOSABLE_BOOTSTRAP_PKGS=("01_ci_input_pkg" "05_ci_input_pkg_a" "06_ci_input_pkg_b")
-# Default stack pin (PACKAGE_UNDER_TEST) when unset; first bootstrap package.
-COMPOSABLE_INPUT_PKG="${COMPOSABLE_BOOTSTRAP_PKGS[0]}"
 
 is_composable_bootstrap_pkg() {
   local name="$1"
@@ -87,10 +80,9 @@ for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
 done
 
 echo "--- Prepare Elastic stack"
-if [[ -z "${PACKAGE_UNDER_TEST:-}" ]]; then
-  export PACKAGE_UNDER_TEST="${COMPOSABLE_STACK_PIN_PACKAGE:-${COMPOSABLE_INPUT_PKG}}"
-fi
-stack_args=$(set +x; stack_version_args)
+# TODO: Remove --version below when composable tests pass on elastic-package's default stack
+# (Fleet/Kibana no longer require this snapshot).
+stack_args="--version 9.5.0-SNAPSHOT"
 stack_args="${stack_args} $(set +x; stack_provider_args)"
 elastic-package stack update -v ${stack_args}
 # The local registry container serves packages from build/packages/, including the
