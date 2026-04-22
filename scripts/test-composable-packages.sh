@@ -11,12 +11,13 @@
 # then build in directory order, downloading inputs from the registry (stack.epr.base_url).
 #
 # Stack version and provider settings reuse scripts/stack_parameters.sh:
-# export PACKAGE_TEST_TYPE=composable and a non-empty PACKAGE_UNDER_TEST so
-# stack_version_args / stack_provider_args read
-# test/packages/composable/<PACKAGE_UNDER_TEST>.stack_version (and optional
-# .stack_provider_settings). By default PACKAGE_UNDER_TEST is 01_ci_input_pkg;
-# override with Makefile/CI PACKAGE_UNDER_TEST or COMPOSABLE_STACK_PIN_PACKAGE when
-# PACKAGE_UNDER_TEST is empty.
+# PACKAGE_TEST_TYPE must be composable so stack_version_args / stack_provider_args
+# resolve test/packages/composable/<PACKAGE_UNDER_TEST>.stack_version (and optional
+# .stack_provider_settings). The Makefile target test-build-install-packages-composable
+# sets PACKAGE_TEST_TYPE=composable; if you run this script directly, use the same
+# prefix (e.g. PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh).
+# By default PACKAGE_UNDER_TEST is 01_ci_input_pkg; override with Makefile/CI
+# PACKAGE_UNDER_TEST or COMPOSABLE_STACK_PIN_PACKAGE when PACKAGE_UNDER_TEST is empty.
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -86,7 +87,6 @@ for bootstrap_name in "${COMPOSABLE_BOOTSTRAP_PKGS[@]}"; do
 done
 
 echo "--- Prepare Elastic stack"
-export PACKAGE_TEST_TYPE=composable
 if [[ -z "${PACKAGE_UNDER_TEST:-}" ]]; then
   export PACKAGE_UNDER_TEST="${COMPOSABLE_STACK_PIN_PACKAGE:-${COMPOSABLE_INPUT_PKG}}"
 fi
