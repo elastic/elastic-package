@@ -58,7 +58,7 @@ func BuildIntegrationPackagePolicy(
 				inputEntry := PackagePolicyInput{
 					Enabled:        enabled,
 					Streams:        streams,
-					inputType:      input.Type, // always the real agent type, not the name qualifier
+					inputType:      input.Type, // Fleet agent input type (e.g. logfile, otelcol), not name qualifier or data_stream type (logs/metrics/traces).
 					policyTemplate: pt.Name,
 				}
 				if foundInput := policyTemplate.FindInput(streamInput); foundInput != nil {
