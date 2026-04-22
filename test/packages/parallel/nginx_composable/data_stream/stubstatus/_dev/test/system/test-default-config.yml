@@ -1,3 +1,4 @@
 service: nginx
-vars:
-  endpoint: "http://{{Hostname}}:{{Port}}/server-status"
+data_stream:
+  vars:
+    endpoint: "http://{{Hostname}}:{{Port}}/server-status"

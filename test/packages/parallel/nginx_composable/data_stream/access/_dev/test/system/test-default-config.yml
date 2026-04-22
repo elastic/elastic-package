@@ -1,7 +1,8 @@
 service: nginx
-vars:
-  include:
-    - "{{SERVICE_LOGS_DIR}}/access.log*"
-  start_at: beginning
+data_stream:
+  vars:
+    include:
+      - "{{SERVICE_LOGS_DIR}}/access.log*"
+    start_at: beginning
 assert:
   hit_count: 1
