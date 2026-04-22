@@ -842,16 +842,6 @@ func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 	return ""
 }
 
-// FindInputByType returns the input for the provided type.
-func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
-	for _, input := range pt.Inputs {
-		if input.Type == inputType {
-			return &input
-		}
-	}
-	return nil
-}
-
 // FindInput returns the first input matching identifier, checked against the
 // input's Name qualifier first (when set) and then its Type. Use this when the
 // identifier may be a name qualifier (set on inputs that share a type) rather
