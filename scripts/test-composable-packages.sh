@@ -10,6 +10,14 @@
 # step downloads ci_input_pkg from the local registry (stack.epr.base_url).
 # The local registry is started by "elastic-package stack up" and serves
 # packages from build/packages/.
+#
+# Stack version and provider settings reuse scripts/stack_parameters.sh:
+# export PACKAGE_TEST_TYPE=composable and a non-empty PACKAGE_UNDER_TEST so
+# stack_version_args / stack_provider_args read
+# test/packages/composable/<PACKAGE_UNDER_TEST>.stack_version (and optional
+# .stack_provider_settings). By default PACKAGE_UNDER_TEST is the bootstrap input
+# package; override with Makefile/CI PACKAGE_UNDER_TEST or, when it is unset,
+# COMPOSABLE_STACK_PIN_PACKAGE.
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
@@ -58,6 +66,10 @@ echo "--- Building input package: ${COMPOSABLE_PACKAGES_PATH}/${COMPOSABLE_INPUT
 elastic-package build -C "${COMPOSABLE_PACKAGES_PATH}/${COMPOSABLE_INPUT_PKG}" -v
 
 echo "--- Prepare Elastic stack"
+export PACKAGE_TEST_TYPE=composable
+if [[ -z "${PACKAGE_UNDER_TEST:-}" ]]; then
+  export PACKAGE_UNDER_TEST="${COMPOSABLE_STACK_PIN_PACKAGE:-${COMPOSABLE_INPUT_PKG}}"
+fi
 stack_args=$(set +x; stack_version_args)
 stack_args="${stack_args} $(set +x; stack_provider_args)"
 elastic-package stack update -v ${stack_args}
