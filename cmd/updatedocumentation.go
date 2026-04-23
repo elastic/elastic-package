@@ -9,13 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
+	llmconfig "github.com/elastic/elastic-package/internal/llmagent/config"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
 	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -32,19 +32,8 @@ For packages with multiple documentation files, use the --doc-file flag to speci
 If no LLM provider is configured, this command will print instructions for updating the documentation manually.
 
 Configuration options for LLM providers (environment variables or profile config):
-- LLM_PROVIDER / llm.provider: Provider name (only Gemini provider currently supported).
+- ELASTIC_PACKAGE_LLM_PROVIDER / llm.provider: Provider name (only Gemini provider currently supported).
 - Gemini: GOOGLE_API_KEY / llm.gemini.api_key, GEMINI_MODEL / llm.gemini.model, GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget`
-
-// getConfigValue retrieves a configuration value with fallback from environment variable to profile config
-func getConfigValue(profile *profile.Profile, envVar, configKey, defaultValue string) string {
-	if envValue := os.Getenv(envVar); envValue != "" {
-		return envValue
-	}
-	if profile != nil {
-		return profile.Config(configKey, defaultValue)
-	}
-	return defaultValue
-}
 
 // discoverDocumentationTemplates finds all .md files in _dev/build/docs/
 func discoverDocumentationTemplates(packageRoot string) ([]string, error) {
@@ -124,96 +113,36 @@ func printNoProviderInstructions(cmd *cobra.Command) {
 	cmd.Println(tui.Info("  2. Run `elastic-package build`"))
 	cmd.Println()
 	cmd.Println(tui.Info("For AI-powered documentation updates, configure an LLM provider (Gemini only provider currently supported):"))
-	cmd.Println(tui.Info("  - Set llm.provider in your profile or LLM_PROVIDER env var"))
+	cmd.Println(tui.Info("  - Set llm.provider in your profile or ELASTIC_PACKAGE_LLM_PROVIDER env var"))
 	cmd.Println(tui.Info("  - For Gemini: set GOOGLE_API_KEY or llm.gemini.api_key in your elastic-package profile config"))
 }
 
-const (
-	defaultModelID              = "gemini-3-flash-preview"
-	defaultThinkingBudget int32 = 128
-	defaultProvider             = "gemini"
-)
-
-// getProvider returns the LLM provider name from environment or profile.
-func getProvider(profile *profile.Profile) string {
-	p := getConfigValue(profile, "LLM_PROVIDER", "llm.provider", defaultProvider)
-	if p == "" {
-		return defaultProvider
-	}
-	return strings.ToLower(p)
-}
-
-// getLLMConfig returns provider, api key, model ID, and optional thinking budget.
-func getLLMConfig(profile *profile.Profile) (provider, apiKey, modelID string, thinkingBudget *int32) {
-	provider = getProvider(profile)
-	if provider == "" {
-		provider = defaultProvider
-	}
-	if provider != defaultProvider {
-		apiKey = getConfigValue(profile, "", "llm."+provider+".api_key", "")
-		modelID = getConfigValue(profile, "", "llm."+provider+".model", "")
-		return provider, apiKey, modelID, nil
-	}
-	apiKey = getConfigValue(profile, "GOOGLE_API_KEY", "llm.gemini.api_key", "")
-	modelID = getConfigValue(profile, "GEMINI_MODEL", "llm.gemini.model", defaultModelID)
-	b := defaultThinkingBudget
-	if budgetStr := getConfigValue(profile, "GEMINI_THINKING_BUDGET", "llm.gemini.thinking_budget", ""); budgetStr != "" {
-		if budget, err := strconv.ParseInt(budgetStr, 10, 32); err == nil {
-			b = int32(budget)
-		}
-	}
-	thinkingBudget = &b
-	return provider, apiKey, modelID, thinkingBudget
-}
-
-// getTracingConfig gets tracing configuration from profile config (llm.tracing.*) only.
-func getTracingConfig(profile *profile.Profile) tracing.Config {
-	cfg := tracing.Config{
-		Enabled:     false,
-		Endpoint:    tracing.DefaultEndpoint,
-		ProjectName: tracing.DefaultProjectName,
-	}
-	if profile == nil {
-		return cfg
-	}
-	enabledStr := profile.Config("llm.tracing.enabled", "false")
-	cfg.Enabled = enabledStr == "true" || enabledStr == "1"
-	if endpoint := profile.Config("llm.tracing.endpoint", ""); endpoint != "" {
-		cfg.Endpoint = endpoint
-	}
-	cfg.APIKey = profile.Config("llm.tracing.api_key", "")
-	if projectName := profile.Config("llm.tracing.project_name", ""); projectName != "" {
-		cfg.ProjectName = projectName
-	}
-	return cfg
-}
-
 func updateDocumentationCommandAction(cmd *cobra.Command, _ []string) error {
-	profile, err := cobraext.GetProfileFlag(cmd)
+	p, err := cobraext.GetProfileFlag(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to get profile: %w", err)
 	}
 
-	provider, apiKey, modelID, thinkingBudget := getLLMConfig(profile)
-	return handleStandardMode(cmd, profile, provider, apiKey, modelID, thinkingBudget)
+	cfg := llmconfig.Load(p)
+	return handleStandardMode(cmd, p, cfg)
 }
 
 // handleStandardMode handles the standard documentation update workflow
-func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, provider, apiKey, modelID string, thinkingBudget *int32) error {
+func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LLMConfig) error {
 	packageRoot, err := packages.FindPackageRoot()
 	if err != nil {
 		return fmt.Errorf("locating package root failed: %w", err)
 	}
 
-	if apiKey == "" {
+	if cfg.APIKey == "" {
 		printNoProviderInstructions(cmd)
 		return nil
 	}
 
-	if thinkingBudget != nil {
-		cmd.Printf("Using LLM model \"%s\" (thinking budget: %d)\n", modelID, *thinkingBudget)
+	if cfg.ThinkingBudget != nil {
+		cmd.Printf("Using LLM model \"%s\" (thinking budget: %d)\n", cfg.ModelID, *cfg.ThinkingBudget)
 	} else {
-		cmd.Printf("Using LLM model \"%s\"\n", modelID)
+		cmd.Printf("Using LLM model \"%s\"\n", cfg.ModelID)
 	}
 
 	targetDocFile, err := selectDocumentationFile(cmd, packageRoot)
@@ -227,17 +156,17 @@ func handleStandardMode(cmd *cobra.Command, profile *profile.Profile, provider, 
 	}
 	defer repositoryRoot.Close()
 
-	tracingConfig := getTracingConfig(profile)
+	tracingConfig := llmconfig.TracingConfig(p)
 
 	docAgent, err := docagent.NewDocumentationAgent(cmd.Context(), docagent.AgentConfig{
-		Provider:       provider,
-		APIKey:         apiKey,
-		ModelID:        modelID,
+		Provider:       cfg.Provider,
+		APIKey:         cfg.APIKey,
+		ModelID:        cfg.ModelID,
 		PackageRoot:    packageRoot,
 		RepositoryRoot: repositoryRoot,
 		DocFile:        targetDocFile,
-		Profile:        profile,
-		ThinkingBudget: thinkingBudget,
+		Profile:        p,
+		ThinkingBudget: cfg.ThinkingBudget,
 		TracingConfig:  tracingConfig,
 	})
 	if err != nil {
