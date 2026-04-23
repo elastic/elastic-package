@@ -23,18 +23,23 @@ func ValidateFromZip(packagePath string) error {
 	return validator.ValidateFromZip(packagePath)
 }
 
+func ValidateAndFilterFromFS(packageRoot string, fsys fs.FS) (error, error) {
+	allErrors := validator.ValidateFromFS(packageRoot, fsys)
+	if allErrors == nil {
+		return nil, nil
+	}
+
+	return filterValidationErrors(allErrors, fsys)
+}
+
 func ValidateAndFilterFromPath(packageRoot string) (error, error) {
+	fsys := os.DirFS(packageRoot)
 	allErrors := validator.ValidateFromPath(packageRoot)
 	if allErrors == nil {
 		return nil, nil
 	}
 
-	fsys := os.DirFS(packageRoot)
-	result, err := filterErrors(allErrors, fsys)
-	if err != nil {
-		return err, nil
-	}
-	return result.Processed, result.Removed
+	return filterValidationErrors(allErrors, fsys)
 }
 
 func ValidateAndFilterFromZip(zipPackagePath string) (error, error) {
@@ -75,6 +80,14 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 		return nil, err
 	}
 	return subDir, nil
+}
+
+func filterValidationErrors(allErrors error, fsys fs.FS) (error, error) {
+	result, err := filterErrors(allErrors, fsys)
+	if err != nil {
+		return err, nil
+	}
+	return result.Processed, result.Removed
 }
 
 func filterErrors(allErrors error, fsys fs.FS) (specerrors.FilterResult, error) {
