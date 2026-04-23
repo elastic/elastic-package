@@ -5,6 +5,7 @@
 package docs
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/elastic/elastic-package/internal/packages"
 )
 
 func TestRenderAlertRuleTemplates(t *testing.T) {
@@ -26,6 +29,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "no templates directory",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				return tmpDir
 			},
 			expectError: false,
@@ -35,6 +39,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "empty templates directory",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 				return tmpDir
@@ -46,6 +51,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "single valid template",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -74,6 +80,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "multiple valid templates",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -107,6 +114,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "skip non-json files",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -133,6 +141,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "skip subdirectories",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -161,6 +170,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "table structure is correct",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -193,9 +203,47 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			},
 		},
 		{
+			name: "list structure is correct",
+			setupFunc: func(t *testing.T) string {
+				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.5.0")
+				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
+				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
+
+				template1 := `{
+					"attributes": {
+						"name": "First Rule Name",
+						"description": "First Rule Description"
+					}
+				}`
+				template2 := `{
+					"attributes": {
+						"name": "Second Rule Name",
+						"description": "Second Rule Description"
+					}
+				}`
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule1.json"), []byte(template1), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(templatesDir, "rule2.json"), []byte(template2), 0o644))
+				return tmpDir
+			},
+			expectError: false,
+			expectEmpty: false,
+			validateFunc: func(t *testing.T, result string) {
+				assert.NotContains(t, result, "<details>")
+				assert.NotContains(t, result, "<summary>View the alert rule templates</summary>")
+				assert.NotContains(t, result, "</details>")
+				assert.Contains(t, result, "The following alert rule templates are available:")
+				assert.Contains(t, result, "**First Rule Name**")
+				assert.Contains(t, result, "First Rule Description")
+				assert.Contains(t, result, "**Second Rule Name**")
+				assert.Contains(t, result, "Second Rule Description")
+			},
+		},
+		{
 			name: "special characters are escaped",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -226,6 +274,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "unreadable file",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -240,6 +289,7 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			name: "invalid json file",
 			setupFunc: func(t *testing.T) string {
 				tmpDir := t.TempDir()
+				createPackageManifestFile(t, tmpDir, "3.6.0")
 				templatesDir := filepath.Join(tmpDir, "kibana", "alerting_rule_template")
 				require.NoError(t, os.MkdirAll(templatesDir, 0o755))
 
@@ -275,4 +325,14 @@ func TestRenderAlertRuleTemplates(t *testing.T) {
 			}
 		})
 	}
+}
+
+func createPackageManifestFile(t *testing.T, packageRoot, specVersion string) {
+	t.Helper()
+	manifest := fmt.Sprintf(`format_version: %s
+type: integration
+version: 1.0.0
+`, specVersion)
+	manifestFile := filepath.Join(packageRoot, packages.PackageManifestFile)
+	require.NoError(t, os.WriteFile(manifestFile, []byte(manifest), 0o644))
 }
