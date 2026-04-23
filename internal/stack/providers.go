@@ -58,7 +58,7 @@ func BuildProvider(name string, profile *profile.Profile) (Provider, error) {
 	case ProviderCompose:
 		return &composeProvider{}, nil
 	case ProviderEnvironment:
-		return newEnvironmentProvider(profile)
+		return newEnvironmentProvider(profile), nil
 	case ProviderServerless:
 		return newServerlessProvider(profile)
 	}

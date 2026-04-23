@@ -15,6 +15,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
@@ -39,37 +40,40 @@ type runner struct {
 
 	repositoryRoot *os.Root
 
-	schemaURLs fields.SchemaURLs
+	schemaURLs             fields.SchemaURLs
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 // Ensures that runner implements testrunner.TestRunner interface
 var _ testrunner.TestRunner = new(runner)
 
 type PolicyTestRunnerOptions struct {
-	KibanaClient       *kibana.Client
-	PackageRoot        string
-	DataStreams        []string
-	FailOnMissingTests bool
-	GenerateTestResult bool
-	GlobalTestConfig   testrunner.GlobalRunnerTestConfig
-	WithCoverage       bool
-	CoverageType       string
-	RepositoryRoot     *os.Root
-	SchemaURLs         fields.SchemaURLs
+	KibanaClient           *kibana.Client
+	PackageRoot            string
+	DataStreams            []string
+	FailOnMissingTests     bool
+	GenerateTestResult     bool
+	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	WithCoverage           bool
+	CoverageType           string
+	RepositoryRoot         *os.Root
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewPolicyTestRunner(options PolicyTestRunnerOptions) *runner {
 	runner := runner{
-		packageRoot:        options.PackageRoot,
-		kibanaClient:       options.KibanaClient,
-		dataStreams:        options.DataStreams,
-		failOnMissingTests: options.FailOnMissingTests,
-		generateTestResult: options.GenerateTestResult,
-		globalTestConfig:   options.GlobalTestConfig,
-		withCoverage:       options.WithCoverage,
-		coverageType:       options.CoverageType,
-		repositoryRoot:     options.RepositoryRoot,
-		schemaURLs:         options.SchemaURLs,
+		packageRoot:            options.PackageRoot,
+		kibanaClient:           options.KibanaClient,
+		dataStreams:            options.DataStreams,
+		failOnMissingTests:     options.FailOnMissingTests,
+		generateTestResult:     options.GenerateTestResult,
+		globalTestConfig:       options.GlobalTestConfig,
+		withCoverage:           options.WithCoverage,
+		coverageType:           options.CoverageType,
+		repositoryRoot:         options.RepositoryRoot,
+		schemaURLs:             options.SchemaURLs,
+		requiredInputsResolver: options.RequiredInputsResolver,
 	}
 	runner.resourcesManager = resources.NewManager()
 	runner.resourcesManager.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: runner.kibanaClient})
@@ -169,9 +173,10 @@ func (r *runner) Type() testrunner.TestType {
 
 func (r *runner) setupSuite(ctx context.Context, manager *resources.Manager) (cleanup func(ctx context.Context) error, err error) {
 	packageResource := resources.FleetPackage{
-		PackageRoot:    r.packageRoot,
-		RepositoryRoot: r.repositoryRoot,
-		SchemaURLs:     r.schemaURLs,
+		PackageRoot:            r.packageRoot,
+		RepositoryRoot:         r.repositoryRoot,
+		SchemaURLs:             r.schemaURLs,
+		RequiredInputsResolver: r.requiredInputsResolver,
 	}
 	setupResources := resources.Resources{
 		&packageResource,

@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/installer"
+	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
@@ -81,24 +84,36 @@ func installCommandAction(cmd *cobra.Command, _ []string) error {
 		}
 	}
 
-	repositoryRoot, err := files.FindRepositoryRoot()
-	if err != nil {
-		return fmt.Errorf("locating repository root failed: %w", err)
+	var repositoryRoot *os.Root
+	if zipPathFile == "" {
+		repositoryRoot, err = files.FindRepositoryRoot()
+		if err != nil {
+			return fmt.Errorf("locating repository root failed: %w", err)
+		}
+		defer repositoryRoot.Close()
 	}
-	defer repositoryRoot.Close()
 
 	appConfig, err := install.Configuration()
 	if err != nil {
 		return fmt.Errorf("can't load configuration: %w", err)
 	}
 
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
+
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         kibanaClient,
-		PackageRoot:    packageRoot,
-		SkipValidation: skipValidation,
-		ZipPath:        zipPathFile,
-		RepositoryRoot: repositoryRoot,
-		SchemaURLs:     appConfig.SchemaURLs(),
+		Kibana:                 kibanaClient,
+		PackageRoot:            packageRoot,
+		SkipValidation:         skipValidation,
+		ZipPath:                zipPathFile,
+		RepositoryRoot:         repositoryRoot,
+		SchemaURLs:             appConfig.SchemaURLs(),
+		RequiredInputsResolver: requiredInputsResolver,
 	})
 	if err != nil {
 		return fmt.Errorf("package installation failed: %w", err)

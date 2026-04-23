@@ -78,6 +78,7 @@ services:
       - "EPR_METRICS_ADDRESS=0.0.0.0:9000"
       - "EPR_TLS_KEY=/etc/ssl/package-registry/key.pem"
       - "EPR_TLS_CERT=/etc/ssl/package-registry/cert.pem"
+      - "EPR_REQUIRE_PACKAGE_SIGNATURES=false"
     {{ if eq $apm_enabled "true" }}
       - "ELASTIC_APM_SERVER_URL=http://fleet-server:8200"
       - "ELASTIC_APM_ENVIRONMENT=dev"

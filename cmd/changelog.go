@@ -43,11 +43,11 @@ func setupChangelogCommand() *cobraext.Command {
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddNextFlagName, "", cobraext.ChangelogAddNextFlagDescription)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddVersionFlagName, "", cobraext.ChangelogAddVersionFlagDescription)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddDescriptionFlagName, "", cobraext.ChangelogAddDescriptionFlagDescription)
-	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddDescriptionFlagName)
+	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddDescriptionFlagName)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddTypeFlagName, "", cobraext.ChangelogAddTypeFlagDescription)
-	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddTypeFlagName)
+	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddTypeFlagName)
 	addChangelogCmd.Flags().String(cobraext.ChangelogAddLinkFlagName, "", cobraext.ChangelogAddLinkFlagDescription)
-	addChangelogCmd.MarkFlagRequired(cobraext.ChangelogAddLinkFlagName)
+	cobraext.MustMarkFlagRequired(addChangelogCmd, cobraext.ChangelogAddLinkFlagName)
 
 	cmd := &cobra.Command{
 		Use:   "changelog",

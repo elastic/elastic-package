@@ -503,6 +503,217 @@ func TestDiscoverDataStreams(t *testing.T) {
 	})
 }
 
+func TestBuildDataStreamName(t *testing.T) {
+	cases := []struct {
+		title          string
+		dsType         string
+		dsDataset      string
+		namespace      string
+		policyTemplate packages.PolicyTemplate
+		packageType    string
+		expected       string
+	}{
+		{
+			title:          "non-otelcol input: no suffix added",
+			dsType:         "logs",
+			dsDataset:      "nginx.access",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: "logfile"},
+			packageType:    "integration",
+			expected:       "logs-nginx.access-default",
+		},
+		{
+			title:          "otelcol input: .otel suffix appended",
+			dsType:         "logs",
+			dsDataset:      "httpcheck",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "input",
+			expected:       "logs-httpcheck.otel-default",
+		},
+		{
+			title:          "otelcol input: policy dataset already ending in .otel yields ...otel.otel (agent still appends)",
+			dsType:         "logs",
+			dsDataset:      "custom.otel",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "input",
+			expected:       "logs-custom.otel.otel-default",
+		},
+		{
+			title:          "otelcol input on integration package type: no suffix added",
+			dsType:         "metrics",
+			dsDataset:      "myreceiver",
+			namespace:      "default",
+			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
+			packageType:    "integration",
+			expected:       "metrics-myreceiver-default",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate, c.packageType)
+			assert.Equal(t, c.expected, got)
+		})
+	}
+}
+
+func TestExpectedDatasets(t *testing.T) {
+	cases := []struct {
+		title       string
+		packageType string // tester.pkgManifest.Type; empty leaves pkgManifest nil (no otel append)
+		scenario    *scenarioTest
+		expected    []string
+	}{
+		{
+			title: "non-otelcol package: dataset returned as-is",
+			scenario: &scenarioTest{
+				dataStreamDataset: "nginx.access",
+				policyTemplate:    packages.PolicyTemplate{Input: "logfile"},
+			},
+			expected: []string{"nginx.access"},
+		},
+		{
+			title:       "otelcol input package: .otel suffix appended like Elastic Agent",
+			packageType: "input",
+			scenario: &scenarioTest{
+				dataStreamDataset: "httpcheck",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"httpcheck.otel"},
+		},
+		{
+			title:       "otelcol input package: policy value already ending in .otel still gets agent suffix",
+			packageType: "input",
+			scenario: &scenarioTest{
+				dataStreamDataset: "generic.otel",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"generic.otel.otel"},
+		},
+		{
+			title:       "otelcol dynamic_signal_types: uses stored dataset, not policyTemplate.Name",
+			packageType: "input",
+			scenario: &scenarioTest{
+				dataStreamDataset: "sqlserverreceiver",
+				policyTemplate: packages.PolicyTemplate{
+					Name:               "sqlserverreceiver",
+					Input:              otelCollectorInputName,
+					DynamicSignalTypes: true,
+				},
+			},
+			expected: []string{"sqlserverreceiver.otel"},
+		},
+		{
+			title:       "otelcol dynamic_signal_types: policy value ending in .otel gets agent suffix",
+			packageType: "input",
+			scenario: &scenarioTest{
+				dataStreamDataset: "generic.otel",
+				policyTemplate: packages.PolicyTemplate{
+					Name:               "sqlserverreceiver",
+					Input:              otelCollectorInputName,
+					DynamicSignalTypes: true,
+				},
+			},
+			expected: []string{"generic.otel.otel"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			r := &tester{}
+			if c.packageType != "" {
+				r.pkgManifest = &packages.PackageManifest{Type: c.packageType}
+			}
+			got, err := r.expectedDatasets(c.scenario)
+			require.NoError(t, err)
+			assert.Equal(t, c.expected, got)
+		})
+	}
+}
+
+func TestFilterOtelAPMRollupDataStreams(t *testing.T) {
+	cases := []struct {
+		name     string
+		input    []discoveredDataStream
+		expected []string
+	}{
+		{
+			name:     "empty input returns empty output",
+			input:    []discoveredDataStream{},
+			expected: []string{},
+		},
+		{
+			name: "APM rollup streams with 1m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_destination.1m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "APM rollup streams with 10m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_destination.10m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "APM rollup streams with 60m interval are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-service_summary.60m.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default"},
+		},
+		{
+			name: "all known APM rollup stream types are filtered",
+			input: []discoveredDataStream{
+				{name: "traces-zipkinreceiver.otel-default"},
+				{name: "metrics-service_destination.1m.otel-default"},
+				{name: "metrics-service_destination.10m.otel-default"},
+				{name: "metrics-service_summary.1m.otel-default"},
+				{name: "metrics-service_summary.10m.otel-default"},
+				{name: "metrics-service_transaction.1m.otel-default"},
+				{name: "metrics-service_transaction.10m.otel-default"},
+				{name: "metrics-transaction.1m.otel-default"},
+				{name: "metrics-transaction.10m.otel-default"},
+			},
+			expected: []string{"traces-zipkinreceiver.otel-default"},
+		},
+		{
+			name: "legitimate metrics stream without interval suffix is not filtered",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "metrics-myreceiver.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default", "metrics-myreceiver.otel-default"},
+		},
+		{
+			name: "no streams match the filter, all are returned",
+			input: []discoveredDataStream{
+				{name: "traces-myreceiver.otel-default"},
+				{name: "logs-myreceiver.otel-default"},
+				{name: "metrics-myreceiver.otel-default"},
+			},
+			expected: []string{"traces-myreceiver.otel-default", "logs-myreceiver.otel-default", "metrics-myreceiver.otel-default"},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := filterOtelAPMRollupDataStreams(c.input)
+			names := make([]string, len(got))
+			for i, s := range got {
+				names[i] = s.name
+			}
+			assert.Equal(t, c.expected, names)
+		})
+	}
+}
+
 func TestBuildDataStreamScenarios(t *testing.T) {
 	t.Run("standard single stream", func(t *testing.T) {
 		r := &tester{pkgManifest: &packages.PackageManifest{Type: "integration"}}
@@ -532,6 +743,27 @@ func TestBuildDataStreamScenarios(t *testing.T) {
 		assert.Equal(t, "logs-myreceiver", got[0].indexTemplateName)
 		assert.Equal(t, "metrics-myreceiver.otel-default", got[1].dataStream)
 		assert.Equal(t, "metrics-myreceiver", got[1].indexTemplateName)
+	})
+
+	t.Run("otelcol traces package filters APM rollup streams, keeps legitimate streams", func(t *testing.T) {
+		client := estest.NewClient(t, "testdata/elasticsearch-8-mock-build-datastream-scenarios-apm-rollup-filtered", nil)
+		r := &tester{pkgManifest: &packages.PackageManifest{Type: "input"}, esAPI: client.API}
+		pt := packages.PolicyTemplate{Name: "zipkinreceiver", Input: "otelcol", Type: "traces"}
+		cfg := &testConfig{
+			WaitForDynamicStreamsStable: 2 * time.Second,
+		}
+
+		got, err := r.buildDataStreamScenarios(t.Context(), "traces", "zipkinreceiver", "default", pt, cfg)
+		require.NoError(t, err)
+
+		// Only the two legitimate streams should remain; the four APM rollup streams must be filtered.
+		require.Len(t, got, 2)
+		names := make(map[string]bool)
+		for _, s := range got {
+			names[s.dataStream] = true
+		}
+		assert.True(t, names["traces-zipkinreceiver.otel-default"], "traces stream should be present")
+		assert.True(t, names["metrics-zipkinreceiver.otel-default"], "legitimate metrics stream should be present")
 	})
 }
 

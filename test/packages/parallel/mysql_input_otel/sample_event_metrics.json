@@ -1,0 +1,68 @@
+{
+    "@timestamp": "2026-04-10T13:54:38.937Z",
+    "_metric_names_hash": "9541e212302c9863",
+    "attributes": {
+        "kind": "sent"
+    },
+    "data_stream": {
+        "dataset": "custom.default.otel",
+        "namespace": "74861",
+        "type": "metrics"
+    },
+    "event": {
+        "agent_id_status": "missing",
+        "dataset": "custom.default.otel",
+        "ingested": "2026-04-10T13:54:49Z"
+    },
+    "host": {
+        "name": "elastic-agent-31189",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "kind": "sent",
+    "metrics": {
+        "mysql": {
+            "client": {
+                "network": {
+                    "io": 17901
+                }
+            }
+        }
+    },
+    "mysql": {
+        "client": {
+            "network": {
+                "io": 17901
+            }
+        },
+        "instance": {
+            "endpoint": "svc-mysql_input_otel:3306"
+        }
+    },
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-31189"
+            },
+            "mysql": {
+                "instance": {
+                    "endpoint": "svc-mysql_input_otel:3306"
+                }
+            },
+            "os": {
+                "type": "linux"
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
+        "version": "9.4.0"
+    },
+    "start_timestamp": "2026-04-10T13:54:37.923Z",
+    "unit": "By"
+}

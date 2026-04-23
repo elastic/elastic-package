@@ -72,7 +72,7 @@ type projectSettings struct {
 	SelfMonitor     bool
 }
 
-func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options, conf Config) (Config, error) {
+func (sp *serverlessProvider) createProject(ctx context.Context, settings projectSettings, options Options) (Config, error) {
 	project, err := sp.client.CreateProject(ctx, settings.Name, settings.Region, settings.Type)
 	if err != nil {
 		return Config{}, fmt.Errorf("failed to create %s project %s in %s: %w", settings.Type, settings.Name, settings.Region, err)
@@ -160,7 +160,7 @@ func (sp *serverlessProvider) createProject(ctx context.Context, settings projec
 	return config, nil
 }
 
-func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project, options Options) error {
+func (sp *serverlessProvider) deleteProject(ctx context.Context, project *serverless.Project) error {
 	return sp.client.DeleteProject(ctx, project)
 }
 
@@ -232,13 +232,17 @@ func (sp *serverlessProvider) createClients(project *serverless.Project, appConf
 		return fmt.Errorf("failed to create kibana client: %w", err)
 	}
 
-	sp.registryClient = registry.NewClient(packageRegistryBaseURL(sp.profile, appConfig))
+	regClient, err := registry.NewClient(PackageRegistryBaseURL(sp.profile, appConfig))
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	sp.registryClient = regClient
 
 	return nil
 }
 
-func getProjectSettings(options Options) (projectSettings, error) {
-	s := projectSettings{
+func getProjectSettings(options Options) projectSettings {
+	return projectSettings{
 		Name:            createProjectName(options),
 		Type:            options.Profile.Config(configProjectType, defaultProjectType),
 		Region:          options.Profile.Config(configRegion, defaultRegion),
@@ -246,8 +250,6 @@ func getProjectSettings(options Options) (projectSettings, error) {
 		LogstashEnabled: options.Profile.Config(configLogstashEnabled, "false") == "true",
 		SelfMonitor:     options.Profile.Config(configSelfMonitorEnabled, "false") == "true",
 	}
-
-	return s, nil
 }
 
 func createProjectName(options Options) string {
@@ -304,10 +306,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	settings, err := getProjectSettings(options)
-	if err != nil {
-		return err
-	}
+	settings := getProjectSettings(options)
 
 	if !slices.Contains(allowedProjectTypes, settings.Type) {
 		return fmt.Errorf("serverless project type not supported: %s", settings.Type)
@@ -322,7 +321,7 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 		return err
 	case serverless.ErrProjectNotExist:
 		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
-		config, err = sp.createProject(ctx, settings, options, config)
+		config, err = sp.createProject(ctx, settings, options)
 		if err != nil {
 			return fmt.Errorf("failed to create deployment: %w", err)
 		}
@@ -434,7 +433,7 @@ func (sp *serverlessProvider) TearDown(ctx context.Context, options Options) err
 
 	logger.Debugf("Deleting project %q (%s)", project.Name, project.ID)
 
-	err = sp.deleteProject(ctx, project, options)
+	err = sp.deleteProject(ctx, project)
 	if err != nil {
 		logger.Errorf("failed to delete project: %v", err)
 		errs = errors.Join(errs, fmt.Errorf("failed to delete project: %w", err))
@@ -522,10 +521,7 @@ func (sp *serverlessProvider) Status(ctx context.Context, options Options) ([]Se
 func (sp *serverlessProvider) localAgentStatus() ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	serviceStatusFunc := func(description docker.ContainerDescription) error {
-		service, err := newServiceStatus(&description)
-		if err != nil {
-			return err
-		}
+		service := newServiceStatus(&description)
 		services = append(services, *service)
 		return nil
 	}

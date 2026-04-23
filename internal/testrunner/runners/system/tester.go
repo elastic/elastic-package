@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -127,9 +128,9 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout           = 10 * time.Minute
-	waitForDynamicStreamsStableDuration = 10 * time.Second
-	dataStreamDiscoveryPollInterval     = 1 * time.Second
+	waitForDataDefaultTimeout                  = 10 * time.Minute
+	waitForDynamicStreamsStableDefaultDuration = 60 * time.Second
+	dataStreamDiscoveryPollInterval            = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -613,12 +614,14 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	var merr multierror.Error
+
 	// This handler should be run before shutting down Elastic Agents (agent deployer)
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
@@ -628,47 +631,50 @@ func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error 
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
 		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
-	if r.cleanTestScenarioHandler != nil {
-		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.cleanTestScenarioHandler = nil
-	}
-
 	if r.resetAgentLogLevelHandler != nil {
 		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.removeAgentHandler != nil {
 		if err := r.removeAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.removeAgentHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.deleteTestPolicyHandler = nil
 	}
 
-	return nil
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			merr = append(merr, err)
+		}
+		r.cleanTestScenarioHandler = nil
+	}
+
+	if len(merr) == 0 {
+		return nil
+	}
+	return merr
 }
 
 func (r *tester) newResult(name string) *testrunner.ResultComposer {
@@ -702,7 +708,7 @@ func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []t
 	if err != nil {
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -1024,6 +1030,9 @@ type scenarioTest struct {
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to ensure they are deleted too.
+		r.esAPI.Indices.DeleteDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
@@ -1061,6 +1070,9 @@ func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]di
 	resp, err := r.esAPI.Indices.GetDataStream(
 		r.esAPI.Indices.GetDataStream.WithContext(ctx),
 		r.esAPI.Indices.GetDataStream.WithName(pattern),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to find them too.
+		r.esAPI.Indices.GetDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %w", pattern, err)
@@ -1102,7 +1114,7 @@ func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, pa
 		waitForDataTimeout = config.WaitForDataTimeout
 	}
 
-	waitForStableDuration := waitForDynamicStreamsStableDuration
+	waitForStableDuration := waitForDynamicStreamsStableDefaultDuration
 	if config.WaitForDynamicStreamsStable > 0 {
 		waitForStableDuration = config.WaitForDynamicStreamsStable
 	}
@@ -1458,6 +1470,7 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 		if err != nil {
 			return nil, err
 		}
+		discovered = filterOtelAPMRollupDataStreams(discovered)
 		scenarios := make([]scenarioDataStream, len(discovered))
 		for i, dsd := range discovered {
 			scenarios[i] = scenarioDataStream{
@@ -1478,17 +1491,44 @@ func buildIndexTemplateName(dsType, dsDataset string) string {
 	return fmt.Sprintf("%s-%s", dsType, dsDataset)
 }
 
-// BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
-// when the package data stream is added to the policy.
+// apmRollupDataStreamPattern matches data streams generated by the APM connector as
+// time-rollup aggregations (e.g. metrics-service_destination.1m.otel-<namespace>).
+// These are not produced directly by the OTel receiver and should not be validated
+// as part of the package's system tests.
+// Other signal types (logs-*, traces-*) may need adding here if future APM connector
+// versions generate rollup streams of those types.
+var apmRollupDataStreamPattern = regexp.MustCompile(`^metrics-.*\.(1m|10m|60m)\.otel-`)
 
+// filterOtelAPMRollupDataStreams removes APM connector-generated rollup data streams
+// from the discovered list. It logs an info message for each filtered stream.
+func filterOtelAPMRollupDataStreams(streams []discoveredDataStream) []discoveredDataStream {
+	return slices.DeleteFunc(streams, func(s discoveredDataStream) bool {
+		if apmRollupDataStreamPattern.MatchString(s.name) {
+			logger.Infof("Skipping APM connector-generated data stream %q", s.name)
+			return true
+		}
+		return false
+	})
+}
+
+// appendOtelcolAgentDatasetSuffix returns baseDataset + ".otel". Elastic Agent appends this
+// routing suffix to the Fleet data_stream.dataset value for input packages that use the
+// otelcol input; Fleet and elastic-package policy builders do not add it. System tests model
+// the agent here when building Elasticsearch data stream names and expected document datasets.
+// Configure data_stream.dataset as the base name only (without ".otel"); if the policy value
+// already ends in ".otel", Elasticsearch will see a double suffix (...otel.otel).
+func appendOtelcolAgentDatasetSuffix(baseDataset string) string {
+	return baseDataset + "." + otelSuffixDataset
+}
+
+// BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
+// when the package data stream is added to the policy. For input packages with the otelcol
+// input, the name includes the ".otel" suffix that Elastic Agent adds (see appendOtelcolAgentDatasetSuffix).
 func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
 	dataset := dsDataset
-
-	// Input packages using the otel collector input require to add a specific dataset suffix
 	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
-		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
+		dataset = appendOtelcolAgentDatasetSuffix(dataset)
 	}
-
 	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
 }
 
@@ -1813,7 +1853,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	logger.Info("Validating test case...")
-	expectedDatasets, err := r.expectedDatasets(scenario, config)
+	expectedDatasets, err := r.expectedDatasets(scenario)
 	if err != nil {
 		return nil, err
 	}
@@ -1947,7 +1987,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([]string, error) {
+func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
@@ -1973,15 +2013,11 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
-		if scenario.policyTemplate.Input == otelCollectorInputName {
-			// Input packages whose input is `otelcol` must add the `.otel` suffix
-			// Example: httpcheck.metrics.otel
-			expectedDataset += "." + otelSuffixDataset
-			// Traces can also emit to a shared logs data stream (e.g. logs-generic.otel-*).
-			expectedDatasets = []string{expectedDataset, "generic." + otelSuffixDataset}
-		} else {
-			expectedDatasets = []string{expectedDataset}
+		if scenario.policyTemplate.Input == otelCollectorInputName &&
+			r.pkgManifest != nil && r.pkgManifest.Type == "input" {
+			expectedDataset = appendOtelcolAgentDatasetSuffix(expectedDataset)
 		}
+		expectedDatasets = []string{expectedDataset}
 	}
 
 	return expectedDatasets, nil
@@ -2141,7 +2177,13 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+	// Match Fleet's view of the package: composable integrations use the built tree (requires.input).
+	root, err := builder.BuildPackagesDirectory(packageRoot, "")
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("error locating built package directory: %w", err)
+	}
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(root)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
@@ -2560,7 +2602,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for logs: %w", err)
 	}
-	defer os.Remove(f.Name())
+	defer os.Remove(f.Name()) //nolint:errcheck // best-effort cleanup of temp file
 
 	for _, patternsContainer := range errorPatterns {
 		if patternsContainer.containerName != "elastic-agent" {

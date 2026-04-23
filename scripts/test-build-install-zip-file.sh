@@ -116,6 +116,11 @@ for d in test/packages/*/*/; do
   if [ "${packageTestType}" == "false_positives" ]; then
     continue
   fi
+  # Composable packages require the local registry to be running during build;
+  # they are tested separately via test-composable-packages.sh.
+  if [ "${packageTestType}" == "composable" ]; then
+    continue
+  fi
   echo "--- Building zip package: ${d}"
   elastic-package build -C "$d"
 done

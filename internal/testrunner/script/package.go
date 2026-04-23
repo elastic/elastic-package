@@ -22,7 +22,10 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
+	"github.com/elastic/elastic-package/internal/stack"
+	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 func addPackage(ts *testscript.TestScript, neg bool, args []string) {
@@ -68,14 +71,30 @@ func addPackage(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
+	globalTestConfig, err := testrunner.ReadGlobalTestConfig(pkgRoot)
+	ts.Check(err)
+
+	registryBaseURL := ts.Getenv("PACKAGE_REGISTRY_BASE_URL")
+	eprClient, err := registry.NewClient(registryBaseURL, stack.RegistryClientOptions(registryBaseURL, stk.profile)...)
+	ts.Check(decoratedWith("creating package registry client", err))
+
+	mergedOverrides, err := globalTestConfig.MergedRequiresSourceOverrides(pkgRoot)
+	ts.Check(err)
+
+	resolver := requiredinputs.NewRequiredInputsResolver(
+		eprClient,
+		requiredinputs.WithSourceOverrides(mergedOverrides),
+	)
+
 	m := resources.NewManager()
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
-		PackageRoot:    pkgRoot,
-		Absent:         false,
-		Force:          true,
-		RepositoryRoot: root,
-		SchemaURLs:     fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		PackageRoot:            pkgRoot,
+		Absent:                 false,
+		Force:                  true,
+		RepositoryRoot:         root,
+		SchemaURLs:             fields.NewSchemaURLs(fields.WithECSBaseURL(ecsBaseSchemaURL)),
+		RequiredInputsResolver: resolver,
 	}})
 	ts.Check(decoratedWith("installing package resources", err))
 
@@ -125,7 +144,7 @@ func removePackage(ts *testscript.TestScript, neg bool, args []string) {
 	m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 	_, err = m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 		PackageRoot:    pkgRoot,
-		Absent:         true,
+		Absent:         true, // uninstall only — no bundling takes place, so no resolver is needed
 		Force:          true,
 		RepositoryRoot: root, // Apparently not required, but adding for safety.
 	}})
@@ -184,7 +203,8 @@ func installPackageFromRegistry(ts *testscript.TestScript, neg bool, args []stri
 	regPkgs[*profName] = append(regPkgs[*profName], registryPackage{name: name, version: version})
 
 	workDir := ts.MkAbs(".")
-	client := registry.NewClient(registryBaseURL)
+	client, err := registry.NewClient(registryBaseURL, stack.RegistryClientOptions(registryBaseURL, stk.profile)...)
+	ts.Check(decoratedWith("creating package registry client", err))
 	zipPath, err := client.DownloadPackage(name, version, workDir)
 	ts.Check(decoratedWith("downloading package from registry", err))
 

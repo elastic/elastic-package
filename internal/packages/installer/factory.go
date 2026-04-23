@@ -17,6 +17,7 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/validation"
 )
 
@@ -35,12 +36,13 @@ type Installer interface {
 
 // Options are the parameters used to build an installer.
 type Options struct {
-	Kibana         *kibana.Client
-	PackageRoot    string // Root path of the package to be installed.
-	ZipPath        string
-	SkipValidation bool
-	RepositoryRoot *os.Root // Root of the repository where package source code is located.
-	SchemaURLs     fields.SchemaURLs
+	Kibana                 *kibana.Client
+	PackageRoot            string // Root path of the package to be installed.
+	ZipPath                string
+	SkipValidation         bool
+	RepositoryRoot         *os.Root // Root of the repository where package source code is located.
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredinputs.Resolver // Input dependency resolver for downloading input packages.
 }
 
 // NewForPackage creates a new installer for a package, given its root path, or its prebuilt zip.
@@ -55,7 +57,8 @@ func NewForPackage(options Options) (Installer, error) {
 	if options.PackageRoot == "" && options.ZipPath == "" {
 		return nil, errors.New("missing package root path or pre-built zip package")
 	}
-	if options.RepositoryRoot == nil {
+	// Zip-only installs validate and upload the archive; they do not use the repository tree.
+	if options.RepositoryRoot == nil && options.ZipPath == "" {
 		return nil, errors.New("missing repository root")
 	}
 
@@ -73,7 +76,9 @@ func NewForPackage(options Options) (Installer, error) {
 			return nil, errors.New(reason)
 		}
 
-		if !options.SkipValidation {
+		if options.SkipValidation {
+			logger.Debug("Skip validation of the built .zip package")
+		} else {
 			logger.Debugf("Validating built .zip package (path: %s)", options.ZipPath)
 			errs, skipped := validation.ValidateAndFilterFromZip(options.ZipPath)
 			if skipped != nil {
@@ -83,18 +88,18 @@ func NewForPackage(options Options) (Installer, error) {
 				return nil, fmt.Errorf("invalid content found in built zip package: %w", errs)
 			}
 		}
-		logger.Debug("Skip validation of the built .zip package")
 		return CreateForZip(options.Kibana, options.ZipPath)
 	}
 
 	target, err := builder.BuildPackage(builder.BuildOptions{
-		PackageRoot:    options.PackageRoot,
-		CreateZip:      supportsUploadZip,
-		SignPackage:    false,
-		SkipValidation: options.SkipValidation,
-		RepositoryRoot: options.RepositoryRoot,
-		UpdateReadmes:  false,
-		SchemaURLs:     options.SchemaURLs,
+		PackageRoot:            options.PackageRoot,
+		CreateZip:              supportsUploadZip,
+		SignPackage:            false,
+		SkipValidation:         options.SkipValidation,
+		RepositoryRoot:         options.RepositoryRoot,
+		UpdateReadmes:          false,
+		SchemaURLs:             options.SchemaURLs,
+		RequiredInputsResolver: options.RequiredInputsResolver,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build package: %v", err)

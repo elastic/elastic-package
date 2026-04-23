@@ -122,28 +122,29 @@ func withPackageResources(agentPolicy *FleetAgentPolicy, repostoryRoot *os.Root)
 	var resources resource.Resources
 	for _, policy := range agentPolicy.PackagePolicies {
 		resources = append(resources, &FleetPackage{
-			PackageRoot:    policy.PackageRoot,
-			Absent:         agentPolicy.Absent,
-			RepositoryRoot: repostoryRoot,
-			SchemaURLs:     fields.NewSchemaURLs(),
+			PackageRoot:            policy.PackageRoot,
+			Absent:                 agentPolicy.Absent,
+			RepositoryRoot:         repostoryRoot,
+			SchemaURLs:             fields.NewSchemaURLs(),
+			RequiredInputsResolver: &requiredInputsResolverMock{},
 		})
 	}
 	return append(resources, agentPolicy)
 }
 
-func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, policyID string) bool {
+func assertPolicyPresent(t *testing.T, client *kibana.Client, expected bool, policyID string) {
 	t.Helper()
 
 	_, err := client.GetPolicy(t.Context(), policyID)
 	if expected {
-		return assert.NoError(t, err)
+		assert.NoError(t, err)
+		return
 	}
 	var notFoundError *kibana.ErrPolicyNotFound
 	if errors.As(err, &notFoundError) {
-		return true
+		return
 	}
 	assert.NoError(t, err)
-	return false
 }
 
 func deletePolicy(t *testing.T, manager *resource.Manager, agentPolicy FleetAgentPolicy, repositoryRoot *os.Root) {

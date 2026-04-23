@@ -33,6 +33,7 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/packages/changelog"
+	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/servicedeployer"
@@ -53,8 +54,46 @@ type Options struct {
 	UpdateScripts   bool   // testscript.Params.UpdateScripts
 	ContinueOnError bool   // testscript.Params.ContinueOnError
 	TestWork        bool   // testscript.Params.TestWork
+
+	// Profile selects the package registry URL from profile config (with app
+	// config as fallback). When nil, the current profile name from application
+	// configuration is loaded.
+	Profile *profile.Profile
 }
 
+func profileAndPackageRegistryBaseURL(opt Options, appConfig *install.ApplicationConfiguration) (*profile.Profile, string, error) {
+	prof := opt.Profile
+	if prof == nil {
+		var err error
+		prof, err = profile.LoadProfile(appConfig.CurrentProfile())
+		if err != nil {
+			return nil, "", fmt.Errorf("loading profile %q: %w", appConfig.CurrentProfile(), err)
+		}
+	}
+	return prof, stack.PackageRegistryBaseURL(prof, appConfig), nil
+}
+
+func revisionsFromRegistry(eprBaseURL string, prof *profile.Profile, pkgName string) ([]packages.PackageManifest, error) {
+	c, err := registry.NewClient(eprBaseURL, stack.RegistryClientOptions(eprBaseURL, prof)...)
+	if err != nil {
+		return nil, fmt.Errorf("creating package registry client: %w", err)
+	}
+	return c.Revisions(pkgName, registry.SearchOptions{})
+}
+
+func scriptTestWorkdirRoot(workRoot string, opt Options) (workdirRoot string, err error) {
+	if opt.TestWork {
+		return os.MkdirTemp(workRoot, "*")
+	}
+	if err := os.Setenv("GOTMPDIR", workRoot); err != nil {
+		return "", fmt.Errorf("could not set temp dir var: %w", err)
+	}
+	return "", nil
+}
+
+// TODO: refactor Run to reduce cognitive complexity (currently 89).
+//
+//nolint:gocognit
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if opt.Dir != "" && len(opt.Streams) != 0 {
 		// We should never reach here.
@@ -69,6 +108,10 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return fmt.Errorf("could read configuration: %w", err)
 	}
+	prof, eprBaseURL, err := profileAndPackageRegistryBaseURL(opt, appConfig)
+	if err != nil {
+		return err
+	}
 	loc, err := locations.NewLocationManager()
 	if err != nil {
 		return err
@@ -78,27 +121,14 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return fmt.Errorf("could not make work space root: %w", err)
 	}
-	var workdirRoot string
-	if opt.TestWork {
-		// Only create a work root and pass it in if --work has been requested.
-		// The behaviour of testscript is to set TestWork to true if the work
-		// root is non-zero, so just let testscript put it where it wants in the
-		// case that we have not requested work to be retained. This will be in
-		// os.MkdirTemp(os.Getenv("GOTMPDIR"), "go-test-script") which on most
-		// systems will be /tmp/go-test-script. However, due to… decisions, we
-		// cannot operate in that directory…
-		workdirRoot, err = os.MkdirTemp(workRoot, "*")
-		if err != nil {
+	// Only pass a non-zero work root when --work is set; otherwise set $GOTMPDIR
+	// so testscript uses a directory we can operate in (see scriptTestWorkdirRoot).
+	workdirRoot, err := scriptTestWorkdirRoot(workRoot, opt)
+	if err != nil {
+		if opt.TestWork {
 			return fmt.Errorf("could not make work space: %w", err)
 		}
-	} else {
-		// … so set $GOTMPDIR to a location that we can work in.
-		//
-		// This is all obviously awful.
-		err = os.Setenv("GOTMPDIR", workRoot)
-		if err != nil {
-			return fmt.Errorf("could not set temp dir var: %w", err)
-		}
+		return err
 	}
 
 	dirs, err := scripts(opt.Dir)
@@ -198,8 +228,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		if err != nil {
 			return err
 		}
-		eprClient := registry.NewClient(appConfig.PackageRegistryBaseURL())
-		revisions, err := eprClient.Revisions(manifest.Name, registry.SearchOptions{})
+		revisions, err := revisionsFromRegistry(eprBaseURL, prof, manifest.Name)
 		if err != nil {
 			return err
 		}
@@ -234,7 +263,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			"CONFIG_PROFILES":           loc.ProfileDir(),
 			"HOME":                      home,
 			"ECS_BASE_SCHEMA_URL":       appConfig.SchemaURLs().ECSBase(),
-			"PACKAGE_REGISTRY_BASE_URL": appConfig.PackageRegistryBaseURL(),
+			"PACKAGE_REGISTRY_BASE_URL": eprBaseURL,
 		}
 		if pkgRoot != "" {
 			scriptEnv["PACKAGE_NAME"] = manifest.Name
@@ -363,23 +392,36 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 	var errs []error
 	for prof, stk := range stacks {
 		for _, pipe := range pipes {
-			ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes)
+			if err := ingest.UninstallPipelines(ctx, stk.es.API, pipe.pipes); err != nil {
+				errs = append(errs, fmt.Errorf("uninstalling pipelines: %w", err))
+			}
 		}
 
 		for _, srv := range srvs {
-			srv.TearDown(ctx)
+			if err := srv.TearDown(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("tearing down service: %w", err))
+			}
 		}
 
 		for ds := range streams {
-			stk.es.Indices.DeleteDataStream([]string{ds},
+			_, err := stk.es.Indices.DeleteDataStream([]string{ds},
 				stk.es.Indices.DeleteDataStream.WithContext(ctx),
 			)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("deleting data stream %s: %w", ds, err))
+			}
 		}
 
 		for _, installed := range agents {
-			stk.kibana.RemoveAgent(ctx, installed.enrolled)
-			installed.deployed.TearDown(ctx)
-			deletePolicies(ctx, stk.kibana, installed)
+			if err := stk.kibana.RemoveAgent(ctx, installed.enrolled); err != nil {
+				errs = append(errs, fmt.Errorf("removing agent: %w", err))
+			}
+			if err := installed.deployed.TearDown(ctx); err != nil {
+				errs = append(errs, fmt.Errorf("tearing down agent deployer: %w", err))
+			}
+			if err := deletePolicies(ctx, stk.kibana, installed); err != nil {
+				errs = append(errs, fmt.Errorf("deleting policies: %w", err))
+			}
 		}
 
 		for _, pkg := range regPkgs[prof] {
@@ -393,7 +435,7 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		m.RegisterProvider(resources.DefaultKibanaProviderName, &resources.KibanaProvider{Client: stk.kibana})
 		_, err := m.ApplyCtx(ctx, resources.Resources{&resources.FleetPackage{
 			PackageRoot: pkgRoot,
-			Absent:      true,
+			Absent:      true, // uninstall only — no bundling takes place, so no resolver is needed
 			Force:       true,
 		}})
 		if err != nil && !strings.Contains(err.Error(), "is not installed") {
@@ -403,7 +445,9 @@ func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeploye
 		if stk.external {
 			continue
 		}
-		stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile})
+		if err := stk.provider.TearDown(ctx, stack.Options{Profile: stk.profile}); err != nil {
+			errs = append(errs, fmt.Errorf("tearing down stack provider: %w", err))
+		}
 	}
 	return errors.Join(errs...)
 }
@@ -505,10 +549,8 @@ func runTests(t *T, p testscript.Params) (err error) {
 }
 
 var (
-	//lint:ignore ST1012 This naming is conventional for testscript.
-	failedRun = errors.New("failed run")
-	//lint:ignore ST1012 This naming is conventional for testscript.
-	skipRun = errors.New("skip")
+	failedRun = errors.New("failed run") //nolint:staticcheck // testscript convention: these sentinel errors are accessed by name, not via errors.Is
+	skipRun   = errors.New("skip")       //nolint:staticcheck // testscript convention
 )
 
 // T implements testscript.T and is used in the call to testscript.Run
@@ -744,7 +786,7 @@ func get(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}
@@ -794,7 +836,7 @@ func post(ts *testscript.TestScript, neg bool, args []string) {
 		}
 		buf = dst
 	}
-	ts.Stdout().Write(buf.Bytes())
+	ts.Stdout().Write(buf.Bytes()) //nolint:errcheck // testscript stdout is an in-memory buffer; write errors are not actionable
 	if !bytes.HasSuffix(buf.Bytes(), []byte{'\n'}) {
 		fmt.Fprintln(ts.Stdout())
 	}

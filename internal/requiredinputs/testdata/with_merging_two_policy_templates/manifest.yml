@@ -1,0 +1,52 @@
+format_version: 3.6.0
+name: with_merging_two_policy_templates
+title: Variable Merging - Two Policy Templates Scoped Promotion
+description: >-
+  Two policy templates share the same required input package: one promotes
+  "paths" to input-level vars for its data stream only; the other does not
+  promote any vars, so "paths" stays on the data stream. Exercises per-DS
+  promotion scoping when multiple templates reference the same input package.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: pt_alpha
+    title: Alpha logs (paths promoted)
+    description: Policy template that promotes paths to the composable input
+    data_streams:
+      - alpha_logs
+    inputs:
+      - package: ci_input_pkg
+        title: Collect via var merging input (alpha)
+        description: Alpha stream promotes paths to input-level vars
+        vars:
+          - name: paths
+            title: Alpha-only promoted paths title
+      - type: logs
+        title: Native logs input (alpha)
+        description: Fallback logs input for alpha
+  - name: pt_beta
+    title: Beta logs (no promotion)
+    description: Policy template with no composable var overrides
+    data_streams:
+      - beta_logs
+    inputs:
+      - package: ci_input_pkg
+        title: Collect via var merging input (beta)
+        description: Beta stream keeps all vars at data-stream level
+      - type: logs
+        title: Native logs input (beta)
+        description: Fallback logs input for beta
+owner:
+  github: elastic/integrations
+  type: elastic

@@ -54,18 +54,13 @@ func (o *OutputOptions) ApplyTo(pkgs []packages.PackageDirNameAndManifest) (stri
 		return "", nil
 	}
 
-	values, err := o.extractInfo(pkgs)
-	if err != nil {
-		return "", fmt.Errorf("extracting info failed: %w", err)
-	}
+	values := o.extractInfo(pkgs)
 
 	// Format output
 	return o.formatOutput(values)
 }
 
-func (o *OutputOptions) extractInfo(pkgs []packages.PackageDirNameAndManifest) ([]string, error) {
-
-	// Extract information
+func (o *OutputOptions) extractInfo(pkgs []packages.PackageDirNameAndManifest) []string {
 	values := make([]string, 0, len(pkgs))
 	for _, pkg := range pkgs {
 		var val string
@@ -83,7 +78,7 @@ func (o *OutputOptions) extractInfo(pkgs []packages.PackageDirNameAndManifest) (
 	// Sort for consistent output
 	slices.Sort(values)
 
-	return values, nil
+	return values
 }
 
 func (o *OutputOptions) formatOutput(values []string) (string, error) {
