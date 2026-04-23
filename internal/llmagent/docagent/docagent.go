@@ -182,7 +182,6 @@ func NewDocumentationAgent(ctx context.Context, cfg AgentConfig) (*Documentation
 // ConfirmInstructionsUnderstood asks the LLM to confirm it understood the system instructions.
 // This should be called before any documentation workflow to ensure proper adherence.
 func (d *DocumentationAgent) ConfirmInstructionsUnderstood(ctx context.Context) error {
-	return nil
 	fmt.Println("🔍 Verifying LLM understands documentation guidelines...")
 
 	confirmPrompt := `Please confirm that you understand and will follow all instructions provided in the system prompt for authoring Elastic documentation.
@@ -232,7 +231,9 @@ func (d *DocumentationAgent) UpdateDocumentation(ctx context.Context, nonInterac
 	}
 
 	// Backup original README content before making any changes
-	d.backupOriginalReadme()
+	if err := d.backupOriginalReadme(); err != nil {
+		return fmt.Errorf("failed to backup original readme: %w", err)
+	}
 
 	// Load package context for validation
 	pkgCtx, err := validators.LoadPackageContextForDoc(d.packageRoot, d.targetDocFile)

@@ -93,7 +93,7 @@ func getExampleHandler() functiontool.Func[GetExampleArgs, GetExampleResult] {
 	return func(ctx tool.Context, args GetExampleArgs) (GetExampleResult, error) {
 		content, err := GetExampleContent(args.Name, args.Section)
 		if err != nil {
-			return GetExampleResult{Error: err.Error()}, nil
+			return GetExampleResult{Error: err.Error()}, nil //nolint:nilerr // returning structured error in result for LLM tool protocol
 		}
 		return GetExampleResult{Content: content}, nil
 	}

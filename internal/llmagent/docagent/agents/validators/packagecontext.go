@@ -667,9 +667,9 @@ func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
 	if len(securitySettings) > 0 {
 		sb.WriteString("### Security Warnings (CRITICAL - must include warnings)\n")
 		for _, s := range securitySettings {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+			fmt.Fprintf(&sb, "- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description)
 			if s.Warning != "" {
-				sb.WriteString(fmt.Sprintf("  ⚠️ WARNING: %s\n", s.Warning))
+				fmt.Fprintf(&sb, "  ⚠️ WARNING: %s\n", s.Warning)
 			}
 		}
 		sb.WriteString("\n")
@@ -678,7 +678,7 @@ func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
 	if len(debugSettings) > 0 {
 		sb.WriteString("### Debug/Development Settings (warn about production use)\n")
 		for _, s := range debugSettings {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+			fmt.Fprintf(&sb, "- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description)
 		}
 		sb.WriteString("\n")
 	}
@@ -686,7 +686,7 @@ func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
 	if len(sslSettings) > 0 {
 		sb.WriteString("### SSL/TLS Configuration (document certificate setup)\n")
 		for _, s := range sslSettings {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description))
+			fmt.Fprintf(&sb, "- **%s** (`%s`): %s\n", s.Title, s.Name, s.Description)
 		}
 		sb.WriteString("\n")
 	}
@@ -694,7 +694,7 @@ func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
 	if len(sensitiveSettings) > 0 {
 		sb.WriteString("### Sensitive Fields (mention secure handling)\n")
 		for _, s := range sensitiveSettings {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): Type=%s, Secret=%v\n", s.Title, s.Name, s.Type, s.IsSecret))
+			fmt.Fprintf(&sb, "- **%s** (`%s`): Type=%s, Secret=%v\n", s.Title, s.Name, s.Type, s.IsSecret)
 		}
 		sb.WriteString("\n")
 	}
@@ -702,7 +702,7 @@ func (ctx *PackageContext) FormatAdvancedSettingsForGenerator() string {
 	if len(complexSettings) > 0 {
 		sb.WriteString("### Complex Configuration (include examples)\n")
 		for _, s := range complexSettings {
-			sb.WriteString(fmt.Sprintf("- **%s** (`%s`): YAML/JSON configuration - provide example\n", s.Title, s.Name))
+			fmt.Fprintf(&sb, "- **%s** (`%s`): YAML/JSON configuration - provide example\n", s.Title, s.Name)
 		}
 		sb.WriteString("\n")
 	}

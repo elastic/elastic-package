@@ -310,8 +310,7 @@ type LLMValidationResult struct {
 func ParseLLMValidationResult(output string, stage ValidatorStage) (*StagedValidationResult, error) {
 	var llmResult LLMValidationResult
 	if err := json.Unmarshal([]byte(output), &llmResult); err != nil {
-		// If parsing fails, assume valid with warning
-		return &StagedValidationResult{
+		return &StagedValidationResult{ //nolint:nilerr // graceful fallback: parsing failure is not fatal, reported as warning
 			Stage:    stage,
 			Valid:    true,
 			Warnings: []string{"Failed to parse LLM validation output: " + err.Error()},

@@ -89,7 +89,7 @@ func (v *CompletenessValidator) StaticValidate(ctx context.Context, content stri
 	result.Issues = append(result.Issues, v.checkAgentDeploymentCompleteness(content, pkgCtx)...)
 
 	// Check 6: Troubleshooting section completeness (input-specific guidance)
-	result.Issues = append(result.Issues, v.checkTroubleshootingCompleteness(content, pkgCtx)...)
+	result.Issues = append(result.Issues, v.checkTroubleshootingCompleteness(content)...)
 
 	// Determine validity based on issues
 	for _, issue := range result.Issues {
@@ -576,7 +576,7 @@ func (v *CompletenessValidator) checkAgentDeploymentCompleteness(content string,
 }
 
 // checkTroubleshootingCompleteness validates troubleshooting section has input-specific content
-func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string, pkgCtx *PackageContext) []ValidationIssue {
+func (v *CompletenessValidator) checkTroubleshootingCompleteness(content string) []ValidationIssue {
 	var issues []ValidationIssue
 
 	contentLower := strings.ToLower(content)

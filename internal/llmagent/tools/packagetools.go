@@ -202,7 +202,7 @@ func listDirectoryHandler(packageRoot string) functiontool.Func[ListDirectoryArg
 		}
 
 		var result strings.Builder
-		result.WriteString(fmt.Sprintf("Contents of %s:\n", args.Path))
+		fmt.Fprintf(&result, "Contents of %s:\n", args.Path)
 
 		for _, entry := range entries {
 			// Hide docs/ directory from LLM - it contains generated artifacts
@@ -211,13 +211,13 @@ func listDirectoryHandler(packageRoot string) functiontool.Func[ListDirectoryArg
 			}
 
 			if entry.IsDir() {
-				result.WriteString(fmt.Sprintf("  %s/ (directory)\n", entry.Name()))
+				fmt.Fprintf(&result, "  %s/ (directory)\n", entry.Name())
 			} else {
 				info, err := entry.Info()
 				if err == nil {
-					result.WriteString(fmt.Sprintf("  %s (file, %d bytes)\n", entry.Name(), info.Size()))
+					fmt.Fprintf(&result, "  %s (file, %d bytes)\n", entry.Name(), info.Size())
 				} else {
-					result.WriteString(fmt.Sprintf("  %s (file)\n", entry.Name()))
+					fmt.Fprintf(&result, "  %s (file)\n", entry.Name())
 				}
 			}
 		}
@@ -276,7 +276,10 @@ func writeFileHandler(packageRoot string) functiontool.Func[WriteFileArgs, Write
 		cleanPath := filepath.Clean(fullPath)
 		cleanAllowed := filepath.Clean(resolvedAllowed)
 		relPath, err := filepath.Rel(cleanAllowed, cleanPath)
-		if err != nil || strings.HasPrefix(relPath, "..") {
+		if err != nil {
+			return WriteFileResult{Error: fmt.Sprintf("access denied: path '%s' is outside allowed directory (_dev/build/docs/): %v", args.Path, err)}, nil //nolint:nilerr // returning structured error in result, not as Go error
+		}
+		if strings.HasPrefix(relPath, "..") {
 			return WriteFileResult{Error: fmt.Sprintf("access denied: path '%s' is outside allowed directory (_dev/build/docs/)", args.Path)}, nil
 		}
 

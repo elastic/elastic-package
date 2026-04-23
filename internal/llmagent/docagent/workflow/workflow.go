@@ -300,10 +300,10 @@ func buildGeneratorPrompt(sectionCtx validators.SectionContext, stateStore *agen
 	prompt.WriteString("\n")
 	prompt.WriteString("Generate documentation for the following section.\n\n")
 	prompt.WriteString("## Section Context\n")
-	prompt.WriteString(fmt.Sprintf("- **SectionTitle**: %s\n", sectionCtx.SectionTitle))
-	prompt.WriteString(fmt.Sprintf("- **SectionLevel**: %d (use %s for heading)\n", sectionCtx.SectionLevel, strings.Repeat("#", sectionCtx.SectionLevel)))
-	prompt.WriteString(fmt.Sprintf("- **PackageName**: %s\n", sectionCtx.PackageName))
-	prompt.WriteString(fmt.Sprintf("- **PackageTitle**: %s\n", sectionCtx.PackageTitle))
+	fmt.Fprintf(&prompt, "- **SectionTitle**: %s\n", sectionCtx.SectionTitle)
+	fmt.Fprintf(&prompt, "- **SectionLevel**: %d (use %s for heading)\n", sectionCtx.SectionLevel, strings.Repeat("#", sectionCtx.SectionLevel))
+	fmt.Fprintf(&prompt, "- **PackageName**: %s\n", sectionCtx.PackageName)
+	fmt.Fprintf(&prompt, "- **PackageTitle**: %s\n", sectionCtx.PackageTitle)
 
 	if sectionCtx.TemplateContent != "" {
 		prompt.WriteString("\n## Template Structure\n")
@@ -492,13 +492,13 @@ func (b *Builder) buildValidatorPrompt(validator validators.StagedValidator, con
 	// Add context about the package
 	if pkgCtx != nil {
 		prompt.WriteString("=== PACKAGE CONTEXT ===\n")
-		prompt.WriteString(fmt.Sprintf("Package: %s (%s)\n", pkgCtx.Manifest.Name, pkgCtx.Manifest.Title))
+		fmt.Fprintf(&prompt, "Package: %s (%s)\n", pkgCtx.Manifest.Name, pkgCtx.Manifest.Title)
 
 		// Add vendor links if available
 		if pkgCtx.HasServiceInfoLinks() {
 			prompt.WriteString("\n=== VENDOR DOCUMENTATION LINKS ===\n")
 			for _, link := range pkgCtx.GetServiceInfoLinks() {
-				prompt.WriteString(fmt.Sprintf("- [%s](%s)\n", link.Text, link.URL))
+				fmt.Fprintf(&prompt, "- [%s](%s)\n", link.Text, link.URL)
 			}
 		}
 
@@ -523,30 +523,30 @@ func buildPackageContext(pkgCtx *validators.PackageContext, sectionTitle string)
 
 	// Package information
 	sb.WriteString("=== PACKAGE INFORMATION ===\n")
-	sb.WriteString(fmt.Sprintf("Package Name: %s\n", pkgCtx.Manifest.Name))
-	sb.WriteString(fmt.Sprintf("Package Title: %s\n", pkgCtx.Manifest.Title))
+	fmt.Fprintf(&sb, "Package Name: %s\n", pkgCtx.Manifest.Name)
+	fmt.Fprintf(&sb, "Package Title: %s\n", pkgCtx.Manifest.Title)
 	if pkgCtx.Manifest.Description != "" {
-		sb.WriteString(fmt.Sprintf("Description: %s\n", pkgCtx.Manifest.Description))
+		fmt.Fprintf(&sb, "Description: %s\n", pkgCtx.Manifest.Description)
 	}
 
 	// Data streams
 	if len(pkgCtx.DataStreams) > 0 {
 		sb.WriteString("Data streams in this package:\n")
 		for _, ds := range pkgCtx.DataStreams {
-			sb.WriteString(fmt.Sprintf("- %s", ds.Name))
+			fmt.Fprintf(&sb, "- %s", ds.Name)
 			if ds.Title != "" && ds.Title != ds.Name {
-				sb.WriteString(fmt.Sprintf(" (%s)", ds.Title))
+				fmt.Fprintf(&sb, " (%s)", ds.Title)
 			}
 			if ds.HasExampleEvent {
 				sb.WriteString(" [has example]")
 			}
 			if ds.Description != "" {
-				sb.WriteString(fmt.Sprintf(": %s", ds.Description))
+				fmt.Fprintf(&sb, ": %s", ds.Description)
 			}
 			sb.WriteString("\n")
-			sb.WriteString(fmt.Sprintf("  → Use: {{fields \"%s\"}}", ds.Name))
+			fmt.Fprintf(&sb, "  → Use: {{fields \"%s\"}}", ds.Name)
 			if ds.HasExampleEvent {
-				sb.WriteString(fmt.Sprintf(" and {{event \"%s\"}}", ds.Name))
+				fmt.Fprintf(&sb, " and {{event \"%s\"}}", ds.Name)
 			}
 			sb.WriteString("\n")
 		}

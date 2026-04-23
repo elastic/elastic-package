@@ -114,7 +114,7 @@ func formatExpectedStructureBlock(sections []RequiredSection) string {
 		if i > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(fmt.Sprintf("%d. **## %s**", i+1, s.Name))
+		fmt.Fprintf(&b, "%d. **## %s**", i+1, s.Name)
 		if len(s.Subsections) > 0 || strings.EqualFold(s.Name, "Reference") {
 			subs := make([]string, 0, len(s.Subsections)+1)
 			for _, sub := range s.Subsections {
