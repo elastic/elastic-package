@@ -56,10 +56,11 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	flg := flag.NewFlagSet("add", flag.ContinueOnError)
 	profName := flg.String("profile", "default", "profile name")
 	polName := flg.String("policy", "", "policy name")
+	version := flg.String("version", "", "package version (reads manifests from EPR package extracted by install_package_from_registry)")
 	timeout := flg.Duration("timeout", 0, "timeout (zero or lower indicates no timeout)")
 	ts.Check(flg.Parse(args))
 	if flg.NArg() != 2 {
-		ts.Fatalf("usage: add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>")
+		ts.Fatalf("usage: add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] [-version <version>] <config.yaml> <name_var_label>")
 	}
 
 	cfgPath := ts.MkAbs(flg.Arg(0))
@@ -94,9 +95,23 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
-	pkgMan, err := packages.ReadPackageManifestFromPackageRoot(pkgRoot)
+	manifestRoot := pkgRoot
+	if *version != "" {
+		regRoots, ok := ts.Value(registryPackageRootsTag{}).(map[string]string)
+		if !ok {
+			ts.Fatalf("no registry package roots registry")
+		}
+		key := fmt.Sprintf("%s-%s", pkg, *version)
+		root, ok := regRoots[key]
+		if !ok {
+			ts.Fatalf("no extracted EPR package for %s (call install_package_from_registry first)", key)
+		}
+		manifestRoot = root
+	}
+
+	pkgMan, err := packages.ReadPackageManifestFromPackageRoot(manifestRoot)
 	ts.Check(decoratedWith("reading package manifest", err))
-	dsMan, err := packages.ReadDataStreamManifestFromPackageRoot(pkgRoot, ds)
+	dsMan, err := packages.ReadDataStreamManifestFromPackageRoot(manifestRoot, ds)
 	ts.Check(decoratedWith("reading data stream manifest", err))
 
 	if *polName == "" {
@@ -106,7 +121,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	templ, err := packages.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
-	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, pkgRoot)
+	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, pkgMan, templ, dsMan, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, manifestRoot)
 	ts.Check(decoratedWith("creating package policy", err))
 	_, err = stk.kibana.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormatAuto)
 	ts.Check(decoratedWith("adding package policy", err))
@@ -175,7 +190,9 @@ func removePackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("requesting data stream removal for "+dsName, err))
 	defer resp.Body.Close()
 	var body bytes.Buffer
-	io.Copy(&body, resp.Body)
+	if _, err := io.Copy(&body, resp.Body); err != nil {
+		ts.Fatalf("reading response body: %v", err)
+	}
 	if resp.StatusCode == http.StatusNotFound {
 		// Data stream doesn't exist, there was nothing to do.
 		fmt.Fprintf(ts.Stderr(), "%s data stream policy templates do not exist for %s/%s\n", dsName, pkg, ds)

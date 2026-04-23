@@ -28,10 +28,10 @@ type environmentProvider struct {
 	elasticsearch *elasticsearch.Client
 }
 
-func newEnvironmentProvider(profile *profile.Profile) (*environmentProvider, error) {
+func newEnvironmentProvider(profile *profile.Profile) *environmentProvider {
 	return &environmentProvider{
 		profile: profile,
-	}, nil
+	}
 }
 
 // BootUp configures the profile to use as stack the one indicated using environment variables.
@@ -154,7 +154,11 @@ func (p *environmentProvider) initClients(appConfig *install.ApplicationConfigur
 	}
 	p.elasticsearch = elasticsearch
 
-	p.registry = registry.NewClient(packageRegistryBaseURL(p.profile, appConfig))
+	regClient, err := registry.NewClient(PackageRegistryBaseURL(p.profile, appConfig))
+	if err != nil {
+		return fmt.Errorf("cannot create package registry client: %w", err)
+	}
+	p.registry = regClient
 	return nil
 }
 
@@ -184,7 +188,7 @@ func (p *environmentProvider) setupFleet(ctx context.Context, config Config, opt
 			return config, fmt.Errorf("failed to add Fleet Server host: %w", err)
 		}
 
-		_, err = createFleetServerPolicy(ctx, p.kibana, p.registry, options.StackVersion, options.Profile.ProfileName)
+		_, err = createFleetServerPolicy(ctx, p.kibana, p.registry, options.StackVersion)
 		if err != nil {
 			return config, fmt.Errorf("failed to create agent policy for Fleet Server: %w", err)
 		}
@@ -296,7 +300,7 @@ func (p *environmentProvider) Status(ctx context.Context, options Options) ([]Se
 	fleetManaged := true
 	if managed, ok := config.Parameters[paramFleetServerManaged]; !ok || managed != "true" {
 		fleetManaged = false
-		status = append(status, p.fleetStatus(ctx, options, config))
+		status = append(status, p.fleetStatus(ctx, config))
 	}
 
 	localServices := &localServicesManager{
@@ -385,7 +389,7 @@ func (p *environmentProvider) kibanaStatus(ctx context.Context, options Options)
 	return status
 }
 
-func (p *environmentProvider) fleetStatus(ctx context.Context, options Options, config Config) ServiceStatus {
+func (p *environmentProvider) fleetStatus(ctx context.Context, config Config) ServiceStatus {
 	status := ServiceStatus{
 		Name:    "fleet-server",
 		Version: "unknown",

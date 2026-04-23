@@ -9,6 +9,21 @@ import (
 	"time"
 )
 
+// PollBudget returns how many polls spaced by period are needed to cover window, rounded up
+// (ceil(window/period)).
+// If window or period is zero or negative, PollBudget returns 1 so callers always get a positive
+// budget without dividing by zero. Otherwise the result is at least 1.
+func PollBudget(window, period time.Duration) int {
+	if period <= 0 || window <= 0 {
+		return 1
+	}
+	n := int((window + period - 1) / period)
+	if n < 1 {
+		return 1
+	}
+	return n
+}
+
 // UntilTrue waits till the context is cancelled or the given function returns an error or true.
 func UntilTrue(ctx context.Context, fn func(ctx context.Context) (bool, error), period, timeout time.Duration) (bool, error) {
 	timeoutTimer := time.NewTimer(timeout)

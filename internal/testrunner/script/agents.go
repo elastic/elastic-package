@@ -110,7 +110,7 @@ func installAgent(ts *testscript.TestScript, neg bool, args []string) {
 	info := agentdeployer.AgentInfo{Name: pkg}
 	info.Policy.Name = installed.enrolledPolicy.Name
 	info.Policy.ID = installed.enrolledPolicy.ID
-	info.Agent.AgentSettings.Runtime = "docker"
+	info.Agent.Runtime = "docker"
 	info.Logs.Folder.Agent = system.ServiceLogsAgentDir
 	info.Test.RunID = common.CreateTestRunID()
 	info.Logs.Folder.Local, err = agentdeployer.CreateServiceLogsDir(stk.profile, pkgRoot, ds, info.Test.RunID)

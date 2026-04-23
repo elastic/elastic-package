@@ -283,6 +283,15 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/otel_traces_use_apm_legacy.json",
 		},
 		{
+			name:               "otel_dynamic_signal_types_default_dataset",
+			packageRoot:        "testdata/packages/otel_dynamic_input",
+			policyTemplateName: "sqlreceiver",
+			policyName:         "otel-dynamic-test",
+			varValues:          common.MapStr{},
+			goldenSimplified:   "testdata/otel_input_dynamic_signals.json",
+			goldenLegacy:       "testdata/otel_input_dynamic_signals_legacy.json",
+		},
+		{
 			// Package-level variable: the user overrides the default package-level
 			// var (custom_tag). BuildInputPackagePolicy must forward manifest.Vars
 			// into the top-level policy vars just like BuildIntegrationPackagePolicy.
@@ -514,6 +523,13 @@ func TestEnsureDatasetVar(t *testing.T) {
 			policyTemplate: packages.PolicyTemplate{Name: "sql_query"},
 			varValues:      common.MapStr{},
 			wantDataset:    "sql_query",
+		},
+		{
+			name:           "dynamic_signal_types falls back to policy template name",
+			vars:           Vars{},
+			policyTemplate: packages.PolicyTemplate{Name: "sqlreceiver", DynamicSignalTypes: true},
+			varValues:      common.MapStr{},
+			wantDataset:    "sqlreceiver",
 		},
 	}
 

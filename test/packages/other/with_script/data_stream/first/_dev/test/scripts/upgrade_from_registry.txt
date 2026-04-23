@@ -1,0 +1,9 @@
+# The with_script package has no EPR release, so this test validates the
+# skip path and documents the intended upgrade test pattern.
+[!env:LATEST_EPR_VERSION] skip 'no EPR release to upgrade from'
+
+# If the skip condition is not met (unexpected), fail explicitly.
+cmp stdout note
+
+-- note --
+This should fail if it does not skip.

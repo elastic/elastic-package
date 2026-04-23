@@ -108,6 +108,7 @@ type policyEntryFilter struct {
 	mapValues          []policyEntryFilter
 	memberReplace      *policyEntryReplace
 	stringValueReplace *policyEntryReplace
+	deletePattern      *regexp.Regexp
 	onlyIfEmpty        bool
 	ignoreValues       []any
 }
@@ -116,6 +117,9 @@ type policyEntryReplace struct {
 	regexp  *regexp.Regexp
 	replace string
 }
+
+// beatsauthPattern matches OTel component IDs for the beatsauth extension injected by Fleet.
+var beatsauthPattern = regexp.MustCompile(`^beatsauth/`)
 
 // policyEntryFilter includes a list of filters to do to the policy. These filters
 // are used to remove or control fields whose content is not relevant for the package
@@ -158,7 +162,16 @@ var policyEntryFilters = []policyEntryFilter{
 			regexp:  regexp.MustCompile(`^https?://.*$`),
 			replace: "https://elasticsearch:9200",
 		}},
+		// auth is injected by Fleet since 9.4.0 and may appear in any exporter, not just
+		// elasticsearch. Removed for backwards compatibility with older stacks.
+		{name: "auth"},
 	}},
+
+	// Fields injected by Fleet into OTel policies since 9.4.0 (beatsauth extension).
+	{name: "extensions", deletePattern: beatsauthPattern},
+	{name: "extensions", onlyIfEmpty: true},
+	{name: "service.extensions", deletePattern: beatsauthPattern},
+	{name: "service.extensions", onlyIfEmpty: true},
 
 	// Signatures that change from installation to installation.
 	{name: "agent.protection.uninstall_token_hash"},
@@ -360,6 +373,9 @@ func applyNormalization(node any, idMapping map[string]string) {
 	}
 }
 
+// TODO: refactor cleanPolicyMap to reduce cognitive complexity (currently 103).
+//
+//nolint:gocognit
 func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (common.MapStr, error) {
 	for _, entry := range entries {
 		v, err := policyMap.GetValue(entry.name)
@@ -427,10 +443,9 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			case common.MapStr:
 				// Replace map keys
 				for k, e := range val {
-					key := k
 					if regexp.MatchString(k) {
 						delete(val, k)
-						key = regexp.ReplaceAllString(k, replacement)
+						key := regexp.ReplaceAllString(k, replacement)
 						val[key] = e
 					}
 				}
@@ -466,6 +481,33 @@ func cleanPolicyMap(policyMap common.MapStr, entries []policyEntryFilter) (commo
 			if regexp.MatchString(vStr) {
 				value := regexp.ReplaceAllString(vStr, replacement)
 				policyMap.Put(entry.name, value)
+			}
+		case entry.deletePattern != nil:
+			switch val := v.(type) {
+			case common.MapStr:
+				for k := range val {
+					if entry.deletePattern.MatchString(k) {
+						delete(val, k)
+					}
+				}
+			case []any:
+				filtered := val[:0]
+				for _, elem := range val {
+					elemStr, ok := elem.(string)
+					if !ok {
+						return nil, fmt.Errorf("expected string array element, found %T", elem)
+					}
+					if !entry.deletePattern.MatchString(elemStr) {
+						filtered = append(filtered, elemStr)
+					}
+				}
+				policyMap.Delete(entry.name)
+				_, err := policyMap.Put(entry.name, filtered)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				return nil, fmt.Errorf("expected map or array for deletePattern, found %T", v)
 			}
 		default:
 			if entry.onlyIfEmpty && !isEmpty(v, entry.ignoreValues) {

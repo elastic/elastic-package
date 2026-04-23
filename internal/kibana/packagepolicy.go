@@ -165,6 +165,8 @@ func BuildInputPackagePolicy(
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
 	ensureDatasetVar(vars, policyTemplate, varValues)
+	// For otelcol, data_stream.dataset is the base name only (do not include a ".otel" suffix).
+	// Elastic Agent appends ".otel" at ingest; Fleet and this builder do not.
 	if policyTemplate.Input == "otelcol" {
 		ensureUseAPMVar(vars, varValues)
 	}
@@ -221,6 +223,9 @@ func datasetKey(pkgName string, ds packages.DataStreamManifest) string {
 //  2. manifest default already parsed into vars — promoted to fromUser=true
 //  3. explicit default in the policy-template var definitions
 //  4. policy template name as a final fallback
+//
+// For policy templates whose input is otelcol, callers should treat the stored value as the
+// base dataset (see BuildInputPackagePolicy); the ".otel" routing suffix is applied by Elastic Agent.
 func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValues common.MapStr) {
 	if raw, err := varValues.GetValue("data_stream.dataset"); err == nil {
 		var val packages.VarValue
@@ -244,7 +249,7 @@ func ensureDatasetVar(vars Vars, policyTemplate packages.PolicyTemplate, varValu
 		}
 	}
 	var value packages.VarValue
-	value.Unpack(dataset)
+	value.MustUnpack(dataset)
 	setVarFromUser(vars, "data_stream.dataset", "text", value)
 }
 
@@ -259,13 +264,13 @@ func ensureUseAPMVar(vars Vars, varValues common.MapStr) {
 	var val packages.VarValue
 	switch v := raw.(type) {
 	case bool:
-		val.Unpack(v)
+		val.MustUnpack(v)
 	case string:
 		b, err := strconv.ParseBool(v)
 		if err != nil {
 			return
 		}
-		val.Unpack(b)
+		val.MustUnpack(b)
 	default:
 		return
 	}

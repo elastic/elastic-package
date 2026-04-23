@@ -1,0 +1,150 @@
+{
+    "@timestamp": "2026-04-10T13:47:44.483Z",
+    "attributes": {
+        "client": {
+            "address": "elastic-agent-15653",
+            "port": 49412
+        },
+        "db": {
+            "namespace": "master",
+            "system": {
+                "name": "microsoft.sql_server"
+            }
+        },
+        "network": {
+            "peer": {
+                "address": "172.29.0.2",
+                "port": 49412
+            }
+        },
+        "sqlserver": {
+            "blocking_session_id": 0,
+            "command": "SELECT",
+            "context_info": "",
+            "cpu_time": 0.061,
+            "deadlock_priority": 0,
+            "estimated_completion_time": 0,
+            "lock_timeout": -0.001,
+            "logical_reads": 669,
+            "open_transaction_count": 0,
+            "percent_complete": 0,
+            "procedure_id": "0",
+            "procedure_name": "",
+            "query_hash": "30447d7d5ef3066a",
+            "query_plan_hash": "0c97dc34ff850504",
+            "query_start": "2026-04-10T13:47:44.407+00:00",
+            "reads": 104,
+            "request_status": "running",
+            "row_count": 0,
+            "session_id": 51,
+            "session_status": "running",
+            "total_elapsed_time": 0.063,
+            "transaction_id": 1881,
+            "transaction_isolation_level": 2,
+            "wait_resource": "",
+            "wait_time": 0,
+            "wait_type": "",
+            "writes": 0
+        },
+        "user": {
+            "name": "sa"
+        }
+    },
+    "client": {
+        "address": "elastic-agent-15653",
+        "port": 49412
+    },
+    "data_stream": {
+        "dataset": "sqlserverreceiver.otel",
+        "namespace": "44690",
+        "type": "logs"
+    },
+    "db": {
+        "namespace": "master",
+        "system": {
+            "name": "microsoft.sql_server"
+        }
+    },
+    "event": {
+        "agent_id_status": "missing",
+        "dataset": "sqlserverreceiver.otel",
+        "ingested": "2026-04-10T13:47:54Z"
+    },
+    "event_name": "db.server.query_sample",
+    "host": {
+        "name": "elastic-agent-15653",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "network": {
+        "peer": {
+            "address": "172.29.0.2",
+            "port": 49412
+        }
+    },
+    "observed_timestamp": "1970-01-01T00:00:00.000Z",
+    "os": {
+        "type": "linux"
+    },
+    "resource": {
+        "attributes": {
+            "host": {
+                "name": "elastic-agent-15653"
+            },
+            "os": {
+                "type": "linux"
+            },
+            "service": {
+                "instance": {
+                    "id": "svc-sql_server_input_otel:1433"
+                }
+            }
+        },
+        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
+    },
+    "scope": {
+        "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
+        "version": "9.4.0"
+    },
+    "service": {
+        "instance": {
+            "id": "svc-sql_server_input_otel:1433"
+        },
+        "node": {
+            "name": "svc-sql_server_input_otel:1433"
+        }
+    },
+    "sqlserver": {
+        "blocking_session_id": 0,
+        "command": "SELECT",
+        "context_info": "",
+        "cpu_time": 0.061,
+        "deadlock_priority": 0,
+        "estimated_completion_time": 0,
+        "lock_timeout": -0.001,
+        "logical_reads": 669,
+        "open_transaction_count": 0,
+        "percent_complete": 0,
+        "procedure_id": "0",
+        "procedure_name": "",
+        "query_hash": "30447d7d5ef3066a",
+        "query_plan_hash": "0c97dc34ff850504",
+        "query_start": "2026-04-10T13:47:44.407+00:00",
+        "reads": 104,
+        "request_status": "running",
+        "row_count": 0,
+        "session_id": 51,
+        "session_status": "running",
+        "total_elapsed_time": 0.063,
+        "transaction_id": 1881,
+        "transaction_isolation_level": 2,
+        "wait_resource": "",
+        "wait_time": 0,
+        "wait_type": "",
+        "writes": 0
+    },
+    "user": {
+        "name": "sa"
+    }
+}

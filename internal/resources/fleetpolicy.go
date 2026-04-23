@@ -10,6 +10,7 @@ import (
 
 	"github.com/elastic/go-resource"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -158,14 +159,20 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(packagePolicy.PackageRoot)
+	builtRoot, err := builder.BuildPackagesDirectory(packagePolicy.PackageRoot, "")
 	if err != nil {
-		return nil, fmt.Errorf("could not read package manifest at %s: %w", packagePolicy.PackageRoot, err)
+		return nil, fmt.Errorf("error locating built package directory: %w", err)
+	}
+	// Composable integrations (requires.input) use the built tree so manifest input types
+	// match the package Fleet installed; source alone can omit types and break input keys.
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		return nil, fmt.Errorf("could not read package manifest at %s: %w", builtRoot, err)
 	}
 
 	switch manifest.Type {
 	case "integration":
-		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy)
+		return createIntegrationPackagePolicy(policy, *manifest, packagePolicy, builtRoot)
 	case "input":
 		return createInputPackagePolicy(policy, *manifest, packagePolicy)
 	default:
@@ -173,13 +180,13 @@ func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePoli
 	}
 }
 
-func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
+func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.PackageManifest, packagePolicy FleetPackagePolicy, materializationRoot string) (*kibana.PackagePolicy, error) {
 	if packagePolicy.DataStreamName == "" {
 		return nil, fmt.Errorf("expected data stream for integration package policy %q", packagePolicy.Name)
 	}
-	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(packagePolicy.PackageRoot, packagePolicy.DataStreamName)
+	dsManifest, err := packages.ReadDataStreamManifestFromPackageRoot(materializationRoot, packagePolicy.DataStreamName)
 	if err != nil {
-		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, packagePolicy.PackageRoot, err)
+		return nil, fmt.Errorf("could not read %q data stream manifest for package at %s: %w", packagePolicy.DataStreamName, materializationRoot, err)
 	}
 	policyTemplateName := packagePolicy.TemplateName
 	if policyTemplateName == "" {
@@ -193,7 +200,7 @@ func createIntegrationPackagePolicy(policy FleetAgentPolicy, manifest packages.P
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packagePolicy.PackageRoot)
+	allDatastreams, err := packages.ReadAllDataStreamManifests(materializationRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not read data stream manifests: %w", err)
 	}

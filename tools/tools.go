@@ -12,7 +12,6 @@ import (
 	_ "github.com/boumenot/gocover-cobertura"
 	_ "golang.org/x/tools/cmd/goimports"
 	_ "gotest.tools/gotestsum"
-	_ "honnef.co/go/tools/cmd/staticcheck"
 
 	_ "github.com/elastic/go-licenser"
 )

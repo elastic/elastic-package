@@ -253,10 +253,11 @@ func (r *runner) installPackage(ctx context.Context) error {
 func (r *runner) installPackageFromPackageRoot(ctx context.Context) error {
 	logger.Debug("Installing package...")
 	installer, err := installer.NewForPackage(installer.Options{
-		Kibana:         r.options.KibanaClient,
-		PackageRoot:    r.options.PackageRoot,
-		SkipValidation: true,
-		RepositoryRoot: r.options.RepositoryRoot,
+		Kibana:                 r.options.KibanaClient,
+		PackageRoot:            r.options.PackageRoot,
+		SkipValidation:         true,
+		RepositoryRoot:         r.options.RepositoryRoot,
+		RequiredInputsResolver: r.options.RequiredInputsResolver,
 	})
 
 	if err != nil {
@@ -478,8 +479,8 @@ func (r *runner) collectBulkRequestBody(indexName, scenarioName string, buf *byt
 		return bulkBodyBuilder, err
 	}
 
-	bulkBodyBuilder.WriteString(fmt.Sprintf("{\"create\":{\"_index\":\"%s\"}}\n", indexName))
-	bulkBodyBuilder.WriteString(fmt.Sprintf("%s\n", string(src)))
+	fmt.Fprintf(&bulkBodyBuilder, "{\"create\":{\"_index\":\"%s\"}}\n", indexName)
+	fmt.Fprintf(&bulkBodyBuilder, "%s\n", string(src))
 
 	buf.Reset()
 

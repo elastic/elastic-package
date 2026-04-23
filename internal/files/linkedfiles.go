@@ -21,8 +21,9 @@ import (
 )
 
 var (
-	errEmptyWorkDir         = fmt.Errorf("working directory is empty")
-	errInvalidWorkDir       = fmt.Errorf("working directory must be an absolute path or a path relative to the repository root")
+	errRootNotAbs           = fmt.Errorf("repository root must have an absolute path")
+	errWorkDirNotAbs        = fmt.Errorf("working directory must be an absolute path")
+	errInvalidWorkDir       = fmt.Errorf("working directory invalid")
 	errInvalidWorkDirNotDir = fmt.Errorf("working directory is not a directory")
 	errFileNotUpToDate      = fmt.Errorf("linked file is not up to date")
 )
@@ -36,10 +37,14 @@ type PackageLinks struct {
 }
 
 // CreateLinksFSFromPath creates a LinksFS for the given directory within the repository.
-// workDir must be a path to a directory, relative to the repository root.
+// repositoryRoot must have an absolute path name.
+// workDir must be an absolute path inside the repository root.
 func CreateLinksFSFromPath(repositoryRoot *os.Root, workDir string) (*LinksFS, error) {
-	if workDir == "" {
-		return nil, errEmptyWorkDir
+	if !filepath.IsAbs(repositoryRoot.Name()) {
+		return nil, errRootNotAbs
+	}
+	if !filepath.IsAbs(workDir) {
+		return nil, errWorkDirNotAbs
 	}
 
 	relWorkDir, err := filepath.Rel(repositoryRoot.Name(), workDir)
@@ -270,7 +275,7 @@ func (l *Link) updateChecksum() (bool, error) {
 	if l.IncludedFileContentsChecksum == "" {
 		return false, fmt.Errorf("checksum is empty for included file %s", l.IncludedFilePath)
 	}
-	newContent := fmt.Sprintf("%v %v", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
+	newContent := fmt.Sprintf("%v %v\n", filepath.ToSlash(l.IncludedFilePath), l.IncludedFileContentsChecksum)
 	if err := writeFile(l.LinkFilePath, []byte(newContent)); err != nil {
 		return false, fmt.Errorf("could not update checksum for link file %s: %w", l.LinkFilePath, err)
 	}
@@ -510,11 +515,7 @@ func getLinkedFileChecksumFromRoot(repositoryRoot *os.Root, relativePath string)
 	if err != nil {
 		return "", err
 	}
-	cs, err := checksum(b)
-	if err != nil {
-		return "", err
-	}
-	return cs, nil
+	return checksum(b), nil
 }
 
 // readFirstLine reads and returns the first line of a file.
@@ -538,7 +539,7 @@ func readFirstLine(filePath string) (string, error) {
 }
 
 // checksum calculates the SHA256 checksum of a byte slice.
-func checksum(b []byte) (string, error) {
+func checksum(b []byte) string {
 	hash := sha256.Sum256(b)
-	return hex.EncodeToString(hash[:]), nil
+	return hex.EncodeToString(hash[:])
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/kibana"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
@@ -20,34 +21,37 @@ const (
 )
 
 type runner struct {
-	packageRoot      string
-	kibanaClient     *kibana.Client
-	globalTestConfig testrunner.GlobalRunnerTestConfig
-	withCoverage     bool
-	coverageType     string
-	repositoryRoot   *os.Root
-	schemaURLs       fields.SchemaURLs
+	packageRoot            string
+	kibanaClient           *kibana.Client
+	globalTestConfig       testrunner.GlobalRunnerTestConfig
+	withCoverage           bool
+	coverageType           string
+	repositoryRoot         *os.Root
+	schemaURLs             fields.SchemaURLs
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 type AssetTestRunnerOptions struct {
-	PackageRoot      string
-	KibanaClient     *kibana.Client
-	GlobalTestConfig testrunner.GlobalRunnerTestConfig
-	WithCoverage     bool
-	CoverageType     string
-	RepositoryRoot   *os.Root
-	SchemaURLs       fields.SchemaURLs
+	PackageRoot            string
+	KibanaClient           *kibana.Client
+	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	WithCoverage           bool
+	CoverageType           string
+	RepositoryRoot         *os.Root
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewAssetTestRunner(options AssetTestRunnerOptions) *runner {
 	runner := runner{
-		packageRoot:      options.PackageRoot,
-		kibanaClient:     options.KibanaClient,
-		globalTestConfig: options.GlobalTestConfig,
-		withCoverage:     options.WithCoverage,
-		coverageType:     options.CoverageType,
-		repositoryRoot:   options.RepositoryRoot,
-		schemaURLs:       options.SchemaURLs,
+		packageRoot:            options.PackageRoot,
+		kibanaClient:           options.KibanaClient,
+		globalTestConfig:       options.GlobalTestConfig,
+		withCoverage:           options.WithCoverage,
+		coverageType:           options.CoverageType,
+		repositoryRoot:         options.RepositoryRoot,
+		schemaURLs:             options.SchemaURLs,
+		requiredInputsResolver: options.RequiredInputsResolver,
 	}
 	return &runner
 }
@@ -72,14 +76,15 @@ func (r *runner) GetTests(ctx context.Context) ([]testrunner.Tester, error) {
 	_, pkg := filepath.Split(r.packageRoot)
 	testers := []testrunner.Tester{
 		NewAssetTester(AssetTesterOptions{
-			PackageRoot:      r.packageRoot,
-			KibanaClient:     r.kibanaClient,
-			TestFolder:       testrunner.TestFolder{Package: pkg},
-			GlobalTestConfig: r.globalTestConfig,
-			WithCoverage:     r.withCoverage,
-			CoverageType:     r.coverageType,
-			RepositoryRoot:   r.repositoryRoot,
-			SchemaURLs:       r.schemaURLs,
+			PackageRoot:            r.packageRoot,
+			KibanaClient:           r.kibanaClient,
+			TestFolder:             testrunner.TestFolder{Package: pkg},
+			GlobalTestConfig:       r.globalTestConfig,
+			WithCoverage:           r.withCoverage,
+			CoverageType:           r.coverageType,
+			RepositoryRoot:         r.repositoryRoot,
+			SchemaURLs:             r.schemaURLs,
+			RequiredInputsResolver: r.requiredInputsResolver,
 		}),
 	}
 	return testers, nil

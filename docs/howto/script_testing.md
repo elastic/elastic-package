@@ -54,22 +54,23 @@ a stack, starting agents and services and validating results.
 - package commands:
   - `add_package [-profile <profile>] [-timeout <duration>]`: add the current package's assets
   - `remove_package [-profile <profile>] [-timeout <duration>]`: remove assets for the current package
+  - `install_package_from_registry [-profile <profile>] [-timeout <duration>] <name> <version>`: install a published package version from the EPR via Fleet, download and extract its zip so manifests are available locally; registers the package for cleanup
   - `add_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: add assets from a Zip-packaged integration package
   - `remove_package_zip [-profile <profile>] [-timeout <duration>] <path_to_zip>`: remove assets for Zip-packaged integration package
   - `upgrade_package_latest [-profile <profile>] [-timeout <duration>] [<package_name>]`: upgrade the current package or another named package to the latest version
-  - `add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] <config.yaml> <name_var_label>`: add a package policy, setting the environment variable named in the positional argument
+  - `add_package_policy [-profile <profile>] [-timeout <duration>] [-policy <policy_name>] [-version <version>] <config.yaml> <name_var_label>`: add a package policy, setting the environment variable named in the positional argument; when `-version` is set, reads manifests from the EPR package extracted by a prior `install_package_from_registry` call for that version instead of from `PACKAGE_ROOT`
   - `remove_package_policy [-profile <profile>] [-timeout <duration>] <data_stream_name>`: remove a package policy
-  - `get_docs [-profile <profile>] [-timeout <duration>] [<data_stream>]`: get documents from a data stream
+  - `get_docs [-profile <profile>] [-want <n>] [-size <n>] [-confirm <duration>] [-timeout <duration>] [<data_stream>]`: get documents from a data stream; `-want` sets expected count (-1 means any positive number), `-size` sets query size, `-confirm` sets a duration to hold steady at the expected count
 
 - docker commands:
-  - `docker_up [-profile <profile>] [-timeout <duration>] <dir>`: start a docker service defined in the provided directory
+  - `docker_up [-profile <profile>] [-network <name>] [-timeout <duration>] <dir>`: start a docker service defined in the provided directory
   - `docker_down [-timeout <duration>] <name>`: stop a started docker service and print the docker logs to stdout
   - `docker_signal [-timeout <duration>] <name> <signal>`: send a signal to a running docker service
   - `docker_wait_exit [-timeout <duration>] <name>`: wait for a docker service to exit 
 
 - pipeline commands:
   - `install_pipelines [-profile <profile>] [-timeout <duration>] <path_to_data_stream>`: install ingest pipelines from a path
-  - `simulate [-profile <profile>] [-timeout <duration>] <path_to_data_stream> <pipeline> <path_to_data>`: run a pipeline test, printing the result as pretty-printed JSON to standard output
+  - `simulate [-profile <profile>] [-index <name>] [-timeout <duration>] <path_to_data_stream> <pipeline> <path_to_data>`: run a pipeline test, printing the result as pretty-printed JSON to standard output; `-index` sets the simulate index name (default `index-default`)
   - `uninstall_pipelines [-profile <profile>] [-timeout <duration>] <path_to_data_stream>`: remove installed ingest pipelines
 
 
@@ -87,6 +88,8 @@ a stack, starting agents and services and validating results.
 - `PREVIOUS_VERSION`: the previous version of the package
 - `DATA_STREAM`: the name of the data stream
 - `DATA_STREAM_ROOT`: the path to the root of the data stream
+- `ECS_BASE_SCHEMA_URL`: the ECS base schema URL
+- `PACKAGE_REGISTRY_BASE_URL`: the base URL for the Elastic Package Registry
 - `WORK`: the path to the directory that the script is run in
 
 
@@ -108,6 +111,10 @@ test for changes that are back-ports.
 
 The `has_previous_release` condition indicates whether there is a previous version
 in the changelog file.
+
+The `env:<VAR>` condition is true when the named environment variable is set and
+non-empty. For example, `[!env:LATEST_EPR_VERSION] skip` skips when there is no
+EPR release for the package.
 
 
 ## Example

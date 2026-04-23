@@ -15,43 +15,47 @@ import (
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/resources"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
 
 type tester struct {
-	testFolder       testrunner.TestFolder
-	packageRoot      string
-	kibanaClient     *kibana.Client
-	resourcesManager *resources.Manager
-	globalTestConfig testrunner.GlobalRunnerTestConfig
-	withCoverage     bool
-	coverageType     string
-	repositoryRoot   *os.Root
-	schemaURLs       fields.SchemaURLs
+	testFolder             testrunner.TestFolder
+	packageRoot            string
+	kibanaClient           *kibana.Client
+	resourcesManager       *resources.Manager
+	globalTestConfig       testrunner.GlobalRunnerTestConfig
+	withCoverage           bool
+	coverageType           string
+	repositoryRoot         *os.Root
+	schemaURLs             fields.SchemaURLs
+	requiredInputsResolver requiredinputs.Resolver
 }
 
 type AssetTesterOptions struct {
-	TestFolder       testrunner.TestFolder
-	PackageRoot      string
-	KibanaClient     *kibana.Client
-	GlobalTestConfig testrunner.GlobalRunnerTestConfig
-	WithCoverage     bool
-	CoverageType     string
-	RepositoryRoot   *os.Root
-	SchemaURLs       fields.SchemaURLs
+	TestFolder             testrunner.TestFolder
+	PackageRoot            string
+	KibanaClient           *kibana.Client
+	GlobalTestConfig       testrunner.GlobalRunnerTestConfig
+	WithCoverage           bool
+	CoverageType           string
+	RepositoryRoot         *os.Root
+	SchemaURLs             fields.SchemaURLs
+	RequiredInputsResolver requiredinputs.Resolver
 }
 
 func NewAssetTester(options AssetTesterOptions) *tester {
 	tester := tester{
-		testFolder:       options.TestFolder,
-		packageRoot:      options.PackageRoot,
-		kibanaClient:     options.KibanaClient,
-		globalTestConfig: options.GlobalTestConfig,
-		withCoverage:     options.WithCoverage,
-		coverageType:     options.CoverageType,
-		repositoryRoot:   options.RepositoryRoot,
-		schemaURLs:       options.SchemaURLs,
+		testFolder:             options.TestFolder,
+		packageRoot:            options.PackageRoot,
+		kibanaClient:           options.KibanaClient,
+		globalTestConfig:       options.GlobalTestConfig,
+		withCoverage:           options.WithCoverage,
+		coverageType:           options.CoverageType,
+		repositoryRoot:         options.RepositoryRoot,
+		schemaURLs:             options.SchemaURLs,
+		requiredInputsResolver: options.RequiredInputsResolver,
 	}
 
 	manager := resources.NewManager()
@@ -88,11 +92,12 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 func (r *tester) resources(installedPackage bool) resources.Resources {
 	return resources.Resources{
 		&resources.FleetPackage{
-			PackageRoot:    r.packageRoot,
-			Absent:         !installedPackage,
-			Force:          installedPackage, // Force re-installation, in case there are code changes in the same package version.
-			RepositoryRoot: r.repositoryRoot,
-			SchemaURLs:     r.schemaURLs,
+			PackageRoot:            r.packageRoot,
+			Absent:                 !installedPackage,
+			Force:                  installedPackage, // Force re-installation, in case there are code changes in the same package version.
+			RepositoryRoot:         r.repositoryRoot,
+			SchemaURLs:             r.schemaURLs,
+			RequiredInputsResolver: r.requiredInputsResolver,
 		},
 	}
 }
@@ -214,7 +219,7 @@ func findActualAsset(actualAssets []packages.Asset, expectedAsset packages.Asset
 func formatAssetsAsString(assets []packages.Asset) string {
 	var sb strings.Builder
 	for _, asset := range assets {
-		sb.WriteString(fmt.Sprintf("- %s\n", asset.String()))
+		fmt.Fprintf(&sb, "- %s\n", asset.String())
 	}
 	return sb.String()
 }

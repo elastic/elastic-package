@@ -1,5 +1,5 @@
 connectors:
-    elasticapm: {}
+    elasticapm/componentid-0: {}
     forward: {}
 exporters:
     elasticsearch/componentid-0:
@@ -21,7 +21,7 @@ output_permissions:
                     - auto_configure
                     - create_doc
                 - names:
-                    - logs-generic.otel-*
+                    - logs-*-*
                   privileges:
                     - auto_configure
                     - create_doc
@@ -31,8 +31,13 @@ output_permissions:
                     - auto_configure
                     - create_doc
 processors:
-    elasticapm: {}
+    elasticapm/componentid-0: {}
     transform/componentid-0:
+        metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["data_stream.namespace"], "ep")
+    transform/componentid-1:
         trace_statements:
             - context: span
               statements:
@@ -42,6 +47,7 @@ processors:
             - context: spanevent
               statements:
                 - set(attributes["data_stream.type"], "logs")
+                - set(attributes["data_stream.dataset"], "zipkin.custom")
                 - set(attributes["data_stream.namespace"], "ep")
 receivers:
     zipkin/componentid-0:
@@ -58,8 +64,10 @@ service:
         metrics/componentid-1:
             exporters:
                 - forward
+            processors:
+                - transform/componentid-0
             receivers:
-                - elasticapm
+                - elasticapm/componentid-0
         traces:
             exporters:
                 - elasticsearch/componentid-0
@@ -67,10 +75,10 @@ service:
                 - forward
         traces/componentid-0:
             exporters:
-                - elasticapm
+                - elasticapm/componentid-0
                 - forward
             processors:
-                - elasticapm
-                - transform/componentid-0
+                - elasticapm/componentid-0
+                - transform/componentid-1
             receivers:
                 - zipkin/componentid-0

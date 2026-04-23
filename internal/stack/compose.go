@@ -202,7 +202,7 @@ func withIsReadyServices(services []string) []string {
 	return allServices
 }
 
-func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus, error) {
+func dockerComposeStatus(options Options) ([]ServiceStatus, error) {
 	var services []ServiceStatus
 	// query directly to docker to avoid load environment variables (e.g. STACK_VERSION_VARIANT) and profiles
 	containerIDs, err := docker.ContainerIDsWithLabel(projectLabelDockerCompose, DockerComposeProjectName(options.Profile))
@@ -220,17 +220,14 @@ func dockerComposeStatus(ctx context.Context, options Options) ([]ServiceStatus,
 	}
 
 	for _, containerDescription := range containerDescriptions {
-		service, err := newServiceStatus(&containerDescription)
-		if err != nil {
-			return nil, err
-		}
+		service := newServiceStatus(&containerDescription)
 		services = append(services, *service)
 	}
 
 	return services, nil
 }
 
-func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus, error) {
+func newServiceStatus(description *docker.ContainerDescription) *ServiceStatus {
 	service := ServiceStatus{
 		Name:    description.Config.Labels.ComposeService,
 		Status:  description.State.Status,
@@ -248,7 +245,7 @@ func newServiceStatus(description *docker.ContainerDescription) (*ServiceStatus,
 		service.Status = fmt.Sprintf("%v (%v)", service.Status, description.State.ExitCode)
 	}
 
-	return &service, nil
+	return &service
 }
 
 func getVersionFromDockerImage(dockerImage string) string {

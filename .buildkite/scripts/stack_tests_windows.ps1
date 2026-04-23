@@ -1,24 +1,6 @@
 $ErrorActionPreference = "Stop" # set -e
 
-# Forcing to checkout again all the files with a correct autocrlf.
-# Doing this here because we cannot set git clone options before.
-function fixCRLF {
-    Write-Host "-- Fixing CRLF in git checkout --"
-    git config core.autocrlf input
-    git rm --quiet --cached -r .
-    git reset --quiet --hard
-}
-
-function withGolang($version) {
-    # Avoid conflicts with previous installations.
-    Remove-Item env:GOROOT
-
-    Write-Host "-- Install golang $version --"
-    choco install -y golang --version $version
-    setupChocolateyPath
-    go version
-    go env
-}
+. "$PSScriptRoot\common_windows.ps1"
 
 function withDocker($version) {
     Write-Host "-- Install Docker $version --"
@@ -43,9 +25,12 @@ function setupChocolateyPath() {
 
 fixCRLF
 
-withGolang $env:GO_VERSION
+# Chocolatey's refreshenv (called by withDocker/withDockerCompose) reloads PATH from the
+# registry, which wipes session-only changes made by GVM. Install Go after Chocolatey
+# packages so GVM's PATH entries are not lost.
 withDocker $env:DOCKER_VERSION
 withDockerCompose $env:DOCKER_COMPOSE_VERSION.Substring(1)
+withGolang $env:GO_VERSION
 
 Write-Host "--- Docker Info"
 docker info

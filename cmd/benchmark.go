@@ -29,6 +29,8 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
+	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiredinputs"
 	"github.com/elastic/elastic-package/internal/signal"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -247,7 +249,7 @@ func getRallyCommand() *cobra.Command {
 	cmd.Flags().BoolP(cobraext.BenchCorpusRallyDryRunFlagName, "", false, cobraext.BenchCorpusRallyDryRunFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchCorpusRallyUseCorpusAtPathFlagName, "", "", cobraext.BenchCorpusRallyUseCorpusAtPathFlagDescription)
 	cmd.Flags().StringP(cobraext.BenchCorpusRallyPackageFromRegistryFlagName, "", "", cobraext.BenchCorpusRallyPackageFromRegistryFlagDescription)
-	cmd.MarkFlagRequired(cobraext.BenchNameFlagName)
+	cobraext.MustMarkFlagRequired(cmd, cobraext.BenchNameFlagName)
 
 	return cmd
 }
@@ -331,6 +333,18 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
+
 	withOpts := []rally.OptionFunc{
 		rally.WithVariant(variant),
 		rally.WithBenchmarkName(benchName),
@@ -344,6 +358,7 @@ func rallyCommandAction(cmd *cobra.Command, args []string) error {
 		rally.WithRallyPackageFromRegistry(packageName, packageVersion),
 		rally.WithRallyCorpusAtPath(corpusAtPath),
 		rally.WithRepositoryRoot(repositoryRoot),
+		rally.WithRequiredInputsResolver(requiredInputsResolver),
 	}
 
 	esMetricsClient, err := initializeESMetricsClient(ctx)
@@ -506,6 +521,18 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("can't create Kibana client: %w", err)
 	}
 
+	appConfig, err := install.Configuration()
+	if err != nil {
+		return fmt.Errorf("can't load configuration: %w", err)
+	}
+
+	baseURL := stack.PackageRegistryBaseURL(profile, appConfig)
+	eprClient, err := registry.NewClient(baseURL, stack.RegistryClientOptions(baseURL, profile)...)
+	if err != nil {
+		return fmt.Errorf("failed to create package registry client: %w", err)
+	}
+	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
+
 	withOpts := []stream.OptionFunc{
 		stream.WithVariant(variant),
 		stream.WithBenchmarkName(benchName),
@@ -519,6 +546,7 @@ func streamCommandAction(cmd *cobra.Command, args []string) error {
 		stream.WithKibanaClient(kc),
 		stream.WithProfile(profile),
 		stream.WithRepositoryRoot(repositoryRoot),
+		stream.WithRequiredInputsResolver(requiredInputsResolver),
 	}
 
 	runner := stream.NewStreamBenchmark(stream.NewOptions(withOpts...))
@@ -546,7 +574,7 @@ func getSystemCommand() *cobra.Command {
 	cmd.Flags().DurationP(cobraext.BenchMetricsIntervalFlagName, "", time.Second, cobraext.BenchMetricsIntervalFlagDescription)
 	cmd.Flags().DurationP(cobraext.DeferCleanupFlagName, "", 0, cobraext.DeferCleanupFlagDescription)
 	cmd.Flags().String(cobraext.VariantFlagName, "", cobraext.VariantFlagDescription)
-	cmd.MarkFlagRequired(cobraext.BenchNameFlagName)
+	cobraext.MustMarkFlagRequired(cmd, cobraext.BenchNameFlagName)
 
 	return cmd
 }

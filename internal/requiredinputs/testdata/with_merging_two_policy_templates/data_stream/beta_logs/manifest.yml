@@ -1,0 +1,6 @@
+title: Beta logs
+type: logs
+streams:
+  - package: ci_input_pkg
+    title: Beta logs via input package
+    description: Collect beta logs using the var merging input package.

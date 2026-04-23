@@ -1,0 +1,37 @@
+format_version: 3.6.0
+name: with_linked_template_path
+title: Integration With Linked Policy Template Path
+description: >-
+  Like with_input_package_requires, but the integration-owned policy input template
+  is provided via a .link file (agent/input/owned.hbs). The manifest must list
+  template_path: owned.hbs (materialized name), not owned.hbs.link.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: test_logs
+    title: Test logs
+    description: Collect test logs
+    data_streams:
+      - test_logs
+    inputs:
+      - package: ci_input_pkg
+        title: Collect test logs via input package
+        description: Use the test input package to collect logs
+        template_path: owned.hbs
+      - type: logs
+        title: Collect test logs via logs input
+        description: Use the logs input to collect logs
+owner:
+  github: elastic/integrations
+  type: elastic

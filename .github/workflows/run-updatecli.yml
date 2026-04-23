@@ -1,0 +1,44 @@
+---
+name: Run updatecli
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * 1-5'
+  pull_request:
+    paths:
+      - .github/workflows/updatecli/**
+      - .github/workflows/run-updatecli.yml
+
+permissions:
+  contents: read
+
+jobs:
+  updatecli:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Select diff action
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "UPDATECLI_ACTION=diff" >> $GITHUB_ENV
+
+      - name: Select apply action
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          echo "UPDATECLI_ACTION=apply" >> $GITHUB_ENV
+
+      - name: Install Updatecli in the runner
+        uses: updatecli/updatecli-action@2c3221bc5f4499a99fec2c87d9de4a83cb30e990 #v3.1.3
+
+      - name: Run updatecli
+        # --experimental needed for commitusingapi option.
+        run: updatecli --experimental ${{ env.UPDATECLI_ACTION }} --config .github/workflows/updatecli --values .github/workflows/updatecli/values.d/scm.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

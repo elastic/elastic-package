@@ -1,0 +1,32 @@
+format_version: 3.6.0
+name: with_merging_no_override
+title: Variable Merging - No Override
+description: >-
+  Composable package with no variable overrides at the policy template or data
+  stream level. All input package vars remain as data stream variables.
+version: 0.1.0
+type: integration
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^8.0.0"
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: var_merging_logs
+    title: Var Merging Logs
+    description: Collect logs via var merging input package
+    data_streams:
+      - var_merging_logs
+    inputs:
+      - package: ci_input_pkg
+        title: Collect logs via var merging input package
+        description: Use the var merging input package to collect logs
+owner:
+  github: elastic/integrations
+  type: elastic

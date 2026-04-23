@@ -22,6 +22,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/elastic/elastic-package/internal/agentdeployer"
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/configuration/locations"
 	"github.com/elastic/elastic-package/internal/elasticsearch"
@@ -78,6 +79,10 @@ const FieldsQuery = `{
   }
 }`
 
+// doNotSkipDeferCleanup is the value for tearDownTest's skipDeferCleanup parameter
+// when the caller wants to keep the defer-cleanup wait (e.g. setup/teardown-only paths).
+const doNotSkipDeferCleanup = false
+
 type FieldsQueryResult struct {
 	Hits struct {
 		Total struct {
@@ -123,7 +128,9 @@ const (
 	// are stored on the Agent container's filesystem.
 	ServiceLogsAgentDir = "/tmp/service_logs"
 
-	waitForDataDefaultTimeout = 10 * time.Minute
+	waitForDataDefaultTimeout                  = 10 * time.Minute
+	waitForDynamicStreamsStableDefaultDuration = 60 * time.Second
+	dataStreamDiscoveryPollInterval            = 1 * time.Second
 
 	otelCollectorInputName = "otelcol"
 	otelSuffixDataset      = "otel"
@@ -429,7 +436,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 
 	scenario, err := r.prepareScenario(ctx, testConfig, stackConfig, svcInfo)
 	if r.runSetup && err != nil {
-		tdErr := r.tearDownTest(ctx)
+		tdErr := r.tearDownTest(ctx, doNotSkipDeferCleanup)
 		if tdErr != nil {
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
@@ -446,7 +453,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 			return result.WithError(fmt.Errorf("failed to prepare scenario: %w", err))
 		}
 		results, err := r.validateTestScenario(ctx, result, scenario, testConfig)
-		tdErr := r.tearDownTest(ctx)
+		tdErr := r.tearDownTest(ctx, doNotSkipDeferCleanup)
 		if tdErr != nil {
 			logger.Errorf("failed to tear down runner: %s", tdErr.Error())
 		}
@@ -459,7 +466,7 @@ func (r *tester) Run(ctx context.Context) ([]testrunner.TestResult, error) {
 			logger.Errorf("failed to prepare scenario: %s", err.Error())
 			logger.Errorf("continue with the tear down process")
 		}
-		if err := r.tearDownTest(ctx); err != nil {
+		if err := r.tearDownTest(ctx, doNotSkipDeferCleanup); err != nil {
 			return result.WithError(err)
 		}
 
@@ -595,8 +602,8 @@ func (r *tester) TearDown(ctx context.Context) error {
 	return nil
 }
 
-func (r *tester) tearDownTest(ctx context.Context) error {
-	if r.deferCleanup > 0 {
+func (r *tester) tearDownTest(ctx context.Context, skipDeferCleanup bool) error {
+	if !skipDeferCleanup && r.deferCleanup > 0 {
 		logger.Debugf("waiting for %s before tearing down...", r.deferCleanup)
 		select {
 		case <-time.After(r.deferCleanup):
@@ -607,12 +614,14 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 	// Avoid cancellations during cleanup.
 	cleanupCtx := context.WithoutCancel(ctx)
 
+	var merr multierror.Error
+
 	// This handler should be run before shutting down Elastic Agents (agent deployer)
 	// or services that could run agents like Custom Agents (service deployer)
 	// or Kind deployer.
 	if r.resetAgentPolicyHandler != nil {
 		if err := r.resetAgentPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentPolicyHandler = nil
 	}
@@ -622,47 +631,50 @@ func (r *tester) tearDownTest(ctx context.Context) error {
 	// errors fail.
 	if r.shutdownServiceHandler != nil {
 		if err := r.shutdownServiceHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownServiceHandler = nil
 	}
 
-	if r.cleanTestScenarioHandler != nil {
-		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
-			return err
-		}
-		r.cleanTestScenarioHandler = nil
-	}
-
 	if r.resetAgentLogLevelHandler != nil {
 		if err := r.resetAgentLogLevelHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.resetAgentLogLevelHandler = nil
 	}
 
 	if r.removeAgentHandler != nil {
 		if err := r.removeAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.removeAgentHandler = nil
 	}
 
 	if r.shutdownAgentHandler != nil {
 		if err := r.shutdownAgentHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.shutdownAgentHandler = nil
 	}
 
 	if r.deleteTestPolicyHandler != nil {
 		if err := r.deleteTestPolicyHandler(cleanupCtx); err != nil {
-			return err
+			merr = append(merr, err)
 		}
 		r.deleteTestPolicyHandler = nil
 	}
 
-	return nil
+	if r.cleanTestScenarioHandler != nil {
+		if err := r.cleanTestScenarioHandler(cleanupCtx); err != nil {
+			merr = append(merr, err)
+		}
+		r.cleanTestScenarioHandler = nil
+	}
+
+	if len(merr) == 0 {
+		return nil
+	}
+	return merr
 }
 
 func (r *tester) newResult(name string) *testrunner.ResultComposer {
@@ -696,7 +708,7 @@ func (r *tester) run(ctx context.Context, stackConfig stack.Config) (results []t
 	if err != nil {
 		return nil, fmt.Errorf("can't create temporal directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	provider, err := stack.BuildProvider(stackConfig.Provider, r.profile)
 	if err != nil {
@@ -736,7 +748,8 @@ func (r *tester) runTestPerVariant(ctx context.Context, stackConfig stack.Config
 
 	partial, err := r.runTest(ctx, testConfig, stackConfig, svcInfo)
 
-	tdErr := r.tearDownTest(ctx)
+	skipDeferCleanup := len(partial) > 0 && partial[0].Skipped != nil
+	tdErr := r.tearDownTest(ctx, skipDeferCleanup)
 	if err != nil {
 		return partial, err
 	}
@@ -992,25 +1005,34 @@ func ignoredDeprecationWarning(stackVersion *semver.Version, warning deprecation
 	return false
 }
 
-type scenarioTest struct {
-	// dataStream is the name of the target data stream where documents are indexed
+// scenarioDataStream holds per-stream data for one data stream within a test scenario.
+// A scenario always has at least one entry; dynamic_signal_types scenarios may have more.
+type scenarioDataStream struct {
 	dataStream          string
 	indexTemplateName   string
-	policyTemplate      packages.PolicyTemplate
-	kibanaPolicy        kibana.PackagePolicy
-	dataStreamDataset   string
-	syntheticEnabled    bool
 	docs                []common.MapStr
-	deprecationWarnings []deprecationWarning
 	ignoredFields       []string
 	degradedDocs        []common.MapStr
-	agent               agentdeployer.DeployedAgent
-	startTestTime       time.Time
+	syntheticEnabled    bool
+	deprecationWarnings []deprecationWarning
+}
+
+type scenarioTest struct {
+	policyTemplate    packages.PolicyTemplate
+	kibanaPolicy      kibana.PackagePolicy
+	dataStreamDataset string
+	agent             agentdeployer.DeployedAgent
+	startTestTime     time.Time
+	// dataStreams holds one entry for standard scenarios and one-or-more for dynamic_signal_types.
+	dataStreams []scenarioDataStream
 }
 
 func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error {
 	resp, err := r.esAPI.Indices.DeleteDataStream([]string{dataStream},
 		r.esAPI.Indices.DeleteDataStream.WithContext(ctx),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to ensure they are deleted too.
+		r.esAPI.Indices.DeleteDataStream.WithExpandWildcards("all"),
 	)
 	if err != nil {
 		return fmt.Errorf("delete request failed for data stream %s: %w", dataStream, err)
@@ -1023,6 +1045,167 @@ func (r *tester) deleteDataStream(ctx context.Context, dataStream string) error 
 	if resp.IsError() {
 		return fmt.Errorf("delete request failed for data stream %s: %s", dataStream, resp.String())
 	}
+	return nil
+}
+
+// discoveredDataStream contains the information retrieved from ES for a single
+// data stream during dynamic_signal_types discovery.
+type discoveredDataStream struct {
+	name          string
+	indexTemplate string
+}
+
+// dataStreamDataType returns the data type prefix of a data stream name —
+// the segment before the first "-" (e.g. "logs" from "logs-sqlserverreceiver.otel-default").
+func dataStreamDataType(name string) string {
+	dataType, _, _ := strings.Cut(name, "-")
+	return dataType
+}
+
+// searchDataStreams queries ES for all data streams matching the given wildcard patterns.
+// Multiple patterns are joined with "," to use ES native multi-pattern syntax.
+// The caller is responsible for constructing the patterns, e.g. "*-{dataset}-{namespace}".
+func (r *tester) searchDataStreams(ctx context.Context, patterns []string) ([]discoveredDataStream, error) {
+	pattern := strings.Join(patterns, ",")
+	resp, err := r.esAPI.Indices.GetDataStream(
+		r.esAPI.Indices.GetDataStream.WithContext(ctx),
+		r.esAPI.Indices.GetDataStream.WithName(pattern),
+		// APM connector rollup streams are hidden in ES; the default expand_wildcards=open
+		// silently excludes them, so use "all" to find them too.
+		r.esAPI.Indices.GetDataStream.WithExpandWildcards("all"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %w", pattern, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.IsError() {
+		return nil, fmt.Errorf("data stream discovery request failed (pattern: %s): %s", pattern, resp.String())
+	}
+
+	var body struct {
+		DataStreams []struct {
+			Name     string `json:"name"`
+			Template string `json:"template"`
+		} `json:"data_streams"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode data stream discovery response: %w", err)
+	}
+
+	result := make([]discoveredDataStream, 0, len(body.DataStreams))
+	for _, ds := range body.DataStreams {
+		result = append(result, discoveredDataStream{
+			name:          ds.Name,
+			indexTemplate: ds.Template,
+		})
+	}
+	return result, nil
+}
+
+// discoverDataStreams polls Elasticsearch for data streams matching patterns until there is at least
+// one match and the stream count has stayed the same for waitForDynamicStreamsStable.
+func (r *tester) discoverDataStreams(ctx context.Context, config *testConfig, patterns []string) ([]discoveredDataStream, error) {
+	waitForDataTimeout := waitForDataDefaultTimeout
+	if config.WaitForDataTimeout > 0 {
+		waitForDataTimeout = config.WaitForDataTimeout
+	}
+
+	waitForStableDuration := waitForDynamicStreamsStableDefaultDuration
+	if config.WaitForDynamicStreamsStable > 0 {
+		waitForStableDuration = config.WaitForDynamicStreamsStable
+	}
+	period := dataStreamDiscoveryPollInterval
+	initialPollCount := wait.PollBudget(waitForStableDuration, period)
+
+	var currentStreams []discoveredDataStream
+	pollCount := initialPollCount
+
+	streamNames := func() []string {
+		names := make([]string, len(currentStreams))
+		for i, s := range currentStreams {
+			names[i] = s.name
+		}
+		return names
+	}
+
+	patternDisplay := strings.Join(patterns, ",")
+
+	logger.Debugf("Waiting for data streams matching %s (timeout: %s, or results are stable for: %s)...",
+		patternDisplay, waitForDataTimeout, waitForStableDuration)
+
+	passed, err := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
+		streams, err := r.searchDataStreams(ctx, patterns)
+		if err != nil {
+			return false, err
+		}
+		if len(streams) == 0 {
+			return false, nil
+		}
+		if len(streams) != len(currentStreams) {
+			pollCount = initialPollCount
+		} else {
+			pollCount--
+		}
+		currentStreams = streams
+		return pollCount == 0, nil
+	}, period, waitForDataTimeout)
+
+	if err != nil {
+		return nil, err
+	}
+	if !passed && len(currentStreams) == 0 {
+		return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s appeared within %s", patternDisplay, waitForDataTimeout)}
+	}
+	if passed {
+		logger.Debugf("Discovery finished; found %d data stream(s) matching %s: %s", len(currentStreams), patternDisplay, strings.Join(streamNames(), ", "))
+	}
+	return currentStreams, nil
+}
+
+// verifyDataStream waits for documents to arrive in a single data stream, checks the service
+// exit code, fetches deprecation warnings, and checks synthetic source mode. All results are
+// written directly into the sds struct.
+func (r *tester) verifyDataStream(ctx context.Context, config *testConfig, service servicedeployer.DeployedService, sds *scenarioDataStream) error {
+	hits, waitErr := r.waitForDocs(ctx, config, sds.dataStream)
+
+	// before checking "waitErr" error, it is necessary to check if the service has finished
+	// with an error, to report it as a test case failed
+	if service != nil && config.Service != "" && !config.IgnoreServiceError {
+		exited, code, err := service.ExitCode(ctx, config.Service)
+		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+			return err
+		}
+		if exited && code > 0 {
+			return testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
+		}
+	}
+
+	if waitErr != nil {
+		return waitErr
+	}
+
+	warnings, err := r.getDeprecationWarnings(ctx, sds.dataStream)
+	if err != nil {
+		return fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", sds.dataStream, err)
+	}
+	logger.Debugf("Found %d deprecation warnings for data stream %s", len(warnings), sds.dataStream)
+	sds.deprecationWarnings = append(sds.deprecationWarnings, warnings...)
+
+	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", sds.dataStream)
+	syntheticEnabled, err := isSyntheticSourceModeEnabled(ctx, r.esAPI, sds.dataStream)
+	if err != nil {
+		return fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", sds.dataStream, err)
+	}
+	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", sds.dataStream, syntheticEnabled)
+
+	sds.syntheticEnabled = syntheticEnabled
+	sds.docs = hits.getDocs(syntheticEnabled)
+	sds.ignoredFields = hits.IgnoredFields
+	sds.degradedDocs = hits.DegradedDocs
 	return nil
 }
 
@@ -1117,17 +1300,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 			return nil, fmt.Errorf("could not add data stream config to policy: %w", err)
 		}
 	}
+
 	scenario.kibanaPolicy = policy
 	scenario.dataStreamDataset = dsDataset
 
-	scenario.indexTemplateName = buildIndexTemplateName(dsType, dsDataset)
-	scenario.dataStream = BuildDataStreamName(dsType, dsDataset, policy.Namespace, policyTemplate, r.pkgManifest.Type)
-
 	r.cleanTestScenarioHandler = func(ctx context.Context) error {
-		logger.Debugf("Deleting data stream for testing %s", scenario.dataStream)
-		err := r.deleteDataStream(ctx, scenario.dataStream)
-		if err != nil {
-			return fmt.Errorf("failed to delete data stream %s: %w", scenario.dataStream, err)
+		logger.Debugf("Deleting data streams for test %s in namespace %s", r.configFileName, policy.Namespace)
+		pattern := fmt.Sprintf("*-*-%s", policy.Namespace)
+		if err := r.deleteDataStream(ctx, pattern); err != nil {
+			return fmt.Errorf("failed to delete data streams for test %s in namespace %s: %w", r.configFileName, policy.Namespace, err)
 		}
 		return nil
 	}
@@ -1232,42 +1413,22 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	hits, waitErr := r.waitForDocs(ctx, config, scenario.dataStream)
+	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
+	if err != nil {
+		return nil, err
+	}
 
-	// before checking "waitErr" error , it is necessary to check if the service has finished with error
-	// to report it as a test case failed
-	if service != nil && config.Service != "" && !config.IgnoreServiceError {
-		exited, code, err := service.ExitCode(ctx, config.Service)
-		if err != nil && !errors.Is(err, servicedeployer.ErrNotSupported) {
+	dataStreamNames := make([]string, len(scenario.dataStreams))
+	for i, sds := range scenario.dataStreams {
+		dataStreamNames[i] = sds.dataStream
+	}
+	logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "))
+
+	for i := range scenario.dataStreams {
+		if err := r.verifyDataStream(ctx, config, service, &scenario.dataStreams[i]); err != nil {
 			return nil, err
 		}
-		if exited && code > 0 {
-			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("the test service %s unexpectedly exited with code %d", config.Service, code)}
-		}
 	}
-
-	if waitErr != nil {
-		return nil, waitErr
-	}
-
-	// Get deprecation warnings after ensuring that there are ingested docs and thus the
-	// data stream exists.
-	scenario.deprecationWarnings, err = r.getDeprecationWarnings(ctx, scenario.dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deprecation warnings for data stream %s: %w", scenario.dataStream, err)
-	}
-	logger.Debugf("Found %d deprecation warnings for data stream %s", len(scenario.deprecationWarnings), scenario.dataStream)
-
-	logger.Debugf("Check whether or not synthetic source mode is enabled (data stream %s)...", scenario.dataStream)
-	scenario.syntheticEnabled, err = isSyntheticSourceModeEnabled(ctx, r.esAPI, scenario.dataStream)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check if synthetic source mode is enabled for data stream %s: %w", scenario.dataStream, err)
-	}
-	logger.Debugf("Data stream %s has synthetic source mode enabled: %t", scenario.dataStream, scenario.syntheticEnabled)
-
-	scenario.docs = hits.getDocs(scenario.syntheticEnabled)
-	scenario.ignoredFields = hits.IgnoredFields
-	scenario.degradedDocs = hits.DegradedDocs
 
 	if r.runSetup {
 		opts := scenarioStateOpts{
@@ -1288,22 +1449,86 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	return &scenario, nil
 }
 
+// buildDataStreamScenarios determines the set of data streams to test for a given scenario.
+// When policyTemplate.DynamicSignalTypes is true or is an otelcol input with type "traces", data streams are discovered dynamically
+// via ES polling. If SignalTypes is empty, a full wildcard pattern is used; otherwise one
+// pattern per signal type is built and all are sent to ES in a single request.
+// When DynamicSignalTypes is false, a single stream is built from dsType, dsDataset, and namespace.
+func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, config *testConfig) ([]scenarioDataStream, error) {
+	canHaveMultipleDataStreams := policyTemplate.DynamicSignalTypes || (policyTemplate.Input == otelCollectorInputName && policyTemplate.Type == "traces")
+
+	if canHaveMultipleDataStreams {
+		var patterns []string
+		if len(config.SignalTypes) == 0 {
+			patterns = []string{fmt.Sprintf("*-*-%s", namespace)}
+		} else {
+			for _, st := range config.SignalTypes {
+				patterns = append(patterns, fmt.Sprintf("%s-*-%s", st, namespace))
+			}
+		}
+		discovered, err := r.discoverDataStreams(ctx, config, patterns)
+		if err != nil {
+			return nil, err
+		}
+		discovered = filterOtelAPMRollupDataStreams(discovered)
+		scenarios := make([]scenarioDataStream, len(discovered))
+		for i, dsd := range discovered {
+			scenarios[i] = scenarioDataStream{
+				dataStream:        dsd.name,
+				indexTemplateName: dsd.indexTemplate,
+			}
+		}
+		return scenarios, nil
+	}
+	return []scenarioDataStream{{
+		dataStream:        BuildDataStreamName(dsType, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
+		indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
+	}}, nil
+}
+
 // buildIndexTemplateName builds the expected index template name that is installed in Elasticsearch
-// when the package data stream is added to the policy.
 func buildIndexTemplateName(dsType, dsDataset string) string {
 	return fmt.Sprintf("%s-%s", dsType, dsDataset)
 }
 
+// apmRollupDataStreamPattern matches data streams generated by the APM connector as
+// time-rollup aggregations (e.g. metrics-service_destination.1m.otel-<namespace>).
+// These are not produced directly by the OTel receiver and should not be validated
+// as part of the package's system tests.
+// Other signal types (logs-*, traces-*) may need adding here if future APM connector
+// versions generate rollup streams of those types.
+var apmRollupDataStreamPattern = regexp.MustCompile(`^metrics-.*\.(1m|10m|60m)\.otel-`)
+
+// filterOtelAPMRollupDataStreams removes APM connector-generated rollup data streams
+// from the discovered list. It logs an info message for each filtered stream.
+func filterOtelAPMRollupDataStreams(streams []discoveredDataStream) []discoveredDataStream {
+	return slices.DeleteFunc(streams, func(s discoveredDataStream) bool {
+		if apmRollupDataStreamPattern.MatchString(s.name) {
+			logger.Infof("Skipping APM connector-generated data stream %q", s.name)
+			return true
+		}
+		return false
+	})
+}
+
+// appendOtelcolAgentDatasetSuffix returns baseDataset + ".otel". Elastic Agent appends this
+// routing suffix to the Fleet data_stream.dataset value for input packages that use the
+// otelcol input; Fleet and elastic-package policy builders do not add it. System tests model
+// the agent here when building Elasticsearch data stream names and expected document datasets.
+// Configure data_stream.dataset as the base name only (without ".otel"); if the policy value
+// already ends in ".otel", Elasticsearch will see a double suffix (...otel.otel).
+func appendOtelcolAgentDatasetSuffix(baseDataset string) string {
+	return baseDataset + "." + otelSuffixDataset
+}
+
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
-// when the package data stream is added to the policy.
+// when the package data stream is added to the policy. For input packages with the otelcol
+// input, the name includes the ".otel" suffix that Elastic Agent adds (see appendOtelcolAgentDatasetSuffix).
 func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
 	dataset := dsDataset
-
-	// Input packages using the otel collector input require to add a specific dataset suffix
 	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
-		dataset = fmt.Sprintf("%s.%s", dataset, otelSuffixDataset)
+		dataset = appendOtelcolAgentDatasetSuffix(dataset)
 	}
-
 	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
 }
 
@@ -1628,7 +1853,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 
 func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.ResultComposer, scenario *scenarioTest, config *testConfig) ([]testrunner.TestResult, error) {
 	logger.Info("Validating test case...")
-	expectedDatasets, err := r.expectedDatasets(scenario, config)
+	expectedDatasets, err := r.expectedDatasets(scenario)
 	if err != nil {
 		return nil, err
 	}
@@ -1646,67 +1871,10 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	if r.dataStream != "" {
 		fieldsDir = filepath.Join(r.dataStream, "fields")
 	}
-	fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
-		fields.WithSchemaURLs(r.schemaURLs),
-		fields.WithSpecVersion(r.pkgManifest.SpecVersion),
-		fields.WithNumericKeywordFields(config.NumericKeywordFields),
-		fields.WithStringNumberFields(config.StringNumberFields),
-		fields.WithExpectedDatasets(expectedDatasets),
-		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithDisableNormalization(scenario.syntheticEnabled),
-		// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
-		fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
-	)
-	if err != nil {
-		return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
-	}
-
-	if errs := validateFields(scenario.docs, fieldsValidator); len(errs) > 0 {
-		return result.WithError(testrunner.ErrTestCaseFailed{
-			Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", scenario.dataStream),
-			Details: errs.Error(),
-		})
-	}
-
-	if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
-		logger.Debug("Performing validation based on mappings")
-		exceptionFields := listExceptionFields(scenario.docs, fieldsValidator)
-
-		mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
-			fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
-			fields.WithMappingValidatorIndexTemplate(scenario.indexTemplateName),
-			fields.WithMappingValidatorDataStream(scenario.dataStream),
-			fields.WithMappingValidatorExceptionFields(exceptionFields),
-		)
-		if err != nil {
-			return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", scenario.dataStream, err)
-		}
-
-		if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
-			return result.WithError(testrunner.ErrTestCaseFailed{
-				Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", scenario.indexTemplateName),
-				Details: errs.Error(),
-			})
-		}
-	}
 
 	stackVersion, err := semver.NewVersion(r.stackVersion.Number)
 	if err != nil {
 		return result.WithErrorf("failed to parse stack version: %w", err)
-	}
-
-	err = validateIgnoredFields(stackVersion, scenario, config)
-	if err != nil {
-		return result.WithError(err)
-	}
-
-	docs := scenario.docs
-	if scenario.syntheticEnabled {
-		docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(scenario.docs)
-		if err != nil {
-			results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
-			return results, nil
-		}
 	}
 
 	specVersion, err := semver.NewVersion(r.pkgManifest.SpecVersion)
@@ -1714,20 +1882,80 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		return result.WithErrorf("failed to parse format version %q: %w", r.pkgManifest.SpecVersion, err)
 	}
 
-	// Write sample events file from first doc, if requested
-	if err := r.generateTestResultFile(docs, *specVersion); err != nil {
-		return result.WithError(err)
-	}
+	for _, sds := range scenario.dataStreams {
+		logger.Debugf("Validating data stream %s (index template %s)", sds.dataStream, sds.indexTemplateName)
+		fieldsValidator, err := fields.CreateValidator(repositoryRoot, r.packageRoot, fieldsDir,
+			fields.WithSchemaURLs(r.schemaURLs),
+			fields.WithSpecVersion(r.pkgManifest.SpecVersion),
+			fields.WithNumericKeywordFields(config.NumericKeywordFields),
+			fields.WithStringNumberFields(config.StringNumberFields),
+			fields.WithExpectedDatasets(expectedDatasets),
+			fields.WithEnabledImportAllECSSChema(true),
+			fields.WithDisableNormalization(sds.syntheticEnabled),
+			// When using the OTel collector input, just a subset of validations are performed (e.g. check expected datasets)
+			fields.WithOTelValidation(r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input)),
+		)
+		if err != nil {
+			return result.WithErrorf("creating fields validator for data stream failed (path: %s): %w", fieldsDir, err)
+		}
 
-	// Check Hit Count within docs, if 0 then it has not been specified
-	if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
-		result.FailureMsg = message
-	}
+		if errs := validateFields(sds.docs, fieldsValidator); len(errs) > 0 {
+			return result.WithError(testrunner.ErrTestCaseFailed{
+				Reason:  fmt.Sprintf("one or more errors found in documents stored in %s data stream", sds.dataStream),
+				Details: errs.Error(),
+			})
+		}
 
-	// Check transforms if present
-	if err := r.checkTransforms(ctx, config, r.pkgManifest, scenario.dataStream, scenario.policyTemplate.Input, scenario.syntheticEnabled); err != nil {
-		results, _ := result.WithError(err)
-		return results, nil
+		if !r.isTestUsingOTelCollectorInput(scenario.policyTemplate.Input) && r.fieldValidationMethod == mappingsMethod {
+			logger.Debug("Performing validation based on mappings")
+			exceptionFields := listExceptionFields(sds.docs, fieldsValidator)
+
+			mappingsValidator, err := fields.CreateValidatorForMappings(r.esClient,
+				fields.WithMappingValidatorFallbackSchema(fieldsValidator.Schema),
+				fields.WithMappingValidatorIndexTemplate(sds.indexTemplateName),
+				fields.WithMappingValidatorDataStream(sds.dataStream),
+				fields.WithMappingValidatorExceptionFields(exceptionFields),
+			)
+			if err != nil {
+				return result.WithErrorf("creating mappings validator for data stream failed (data stream: %s): %w", sds.dataStream, err)
+			}
+
+			if errs := validateMappings(ctx, mappingsValidator); len(errs) > 0 {
+				return result.WithError(testrunner.ErrTestCaseFailed{
+					Reason:  fmt.Sprintf("one or more errors found in mappings in %s index template", sds.indexTemplateName),
+					Details: errs.Error(),
+				})
+			}
+		}
+
+		if err := validateIgnoredFields(stackVersion, sds, config); err != nil {
+			return result.WithError(err)
+		}
+
+		docs := sds.docs
+		if sds.syntheticEnabled {
+			docs, err = fieldsValidator.SanitizeSyntheticSourceDocs(sds.docs)
+			if err != nil {
+				results, _ := result.WithErrorf("failed to sanitize synthetic source docs: %w", err)
+				return results, nil
+			}
+		}
+
+		// Write sample events file from first doc, if requested
+		if err := r.generateTestResultFile(docs, *specVersion, sds, len(scenario.dataStreams) > 1); err != nil {
+			return result.WithError(err)
+		}
+
+		// Check Hit Count within docs, if 0 then it has not been specified
+		if assertionPass, message := assertHitCount(config.Assert.HitCount, docs); !assertionPass {
+			result.FailureMsg = message
+		}
+
+		// Check transforms if present
+		if err := r.checkTransforms(ctx, config, r.pkgManifest, sds.dataStream, scenario.policyTemplate.Input, sds.syntheticEnabled); err != nil {
+			results, _ := result.WithError(err)
+			return results, nil
+		}
 	}
 
 	if scenario.agent != nil {
@@ -1740,7 +1968,11 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 		}
 	}
 
-	if results := r.checkDeprecationWarnings(stackVersion, scenario.deprecationWarnings, config.Name()); len(results) > 0 {
+	var allDeprecationWarnings []deprecationWarning
+	for _, sds := range scenario.dataStreams {
+		allDeprecationWarnings = append(allDeprecationWarnings, sds.deprecationWarnings...)
+	}
+	if results := r.checkDeprecationWarnings(stackVersion, allDeprecationWarnings, config.Name()); len(results) > 0 {
 		return results, nil
 	}
 
@@ -1755,7 +1987,7 @@ func (r *tester) validateTestScenario(ctx context.Context, result *testrunner.Re
 	return result.WithSuccess()
 }
 
-func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([]string, error) {
+func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 	// when reroute processors are used, expectedDatasets should be set depends on the processor config
 	var expectedDatasets []string
 	for _, pipeline := range r.pipelines {
@@ -1781,10 +2013,9 @@ func (r *tester) expectedDatasets(scenario *scenarioTest, config *testConfig) ([
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
-		if scenario.policyTemplate.Input == otelCollectorInputName {
-			// Input packages whose input is `otelcol` must add the `.otel` suffix
-			// Example: httpcheck.metrics.otel
-			expectedDataset += "." + otelSuffixDataset
+		if scenario.policyTemplate.Input == otelCollectorInputName &&
+			r.pkgManifest != nil && r.pkgManifest.Type == "input" {
+			expectedDataset = appendOtelcolAgentDatasetSuffix(expectedDataset)
 		}
 		expectedDatasets = []string{expectedDataset}
 	}
@@ -1796,8 +2027,8 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	result := r.newResult(config.Name())
 
 	if skip := testrunner.AnySkipConfig(config.Skip, r.globalTestConfig.Skip); skip != nil {
-		logger.Warnf("skipping %s test for %s/%s: %s (details: %s)",
-			TestType, r.testFolder.Package, r.testFolder.DataStream,
+		logger.Warnf("skipping %s %s test for %s/%s: %s (details: %s)",
+			config.Name(), TestType, r.testFolder.Package, r.testFolder.DataStream,
 			skip.Reason, skip.Link)
 		return result.WithSkip(skip)
 	}
@@ -1822,7 +2053,7 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 	}
 
 	if dump, ok := os.LookupEnv(dumpScenarioDocsEnv); ok && dump != "" {
-		err := dumpScenarioDocs(scenario.docs)
+		err := dumpScenarioDocs(scenario.dataStreams)
 		if err != nil {
 			return nil, fmt.Errorf("failed to dump scenario docs: %w", err)
 		}
@@ -1844,7 +2075,12 @@ func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool 
 	return true
 }
 
-func dumpScenarioDocs(docs any) error {
+func dumpScenarioDocs(dataStreams []scenarioDataStream) error {
+	allDocs := make(map[string][]common.MapStr, len(dataStreams))
+	for _, sds := range dataStreams {
+		allDocs[sds.dataStream] = sds.docs
+	}
+
 	timestamp := time.Now().Format("20060102150405")
 	path := filepath.Join(os.TempDir(), fmt.Sprintf("elastic-package-test-docs-dump-%s.json", timestamp))
 	f, err := os.Create(path)
@@ -1858,7 +2094,7 @@ func dumpScenarioDocs(docs any) error {
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
-	if err := enc.Encode(docs); err != nil {
+	if err := enc.Encode(allDocs); err != nil {
 		return fmt.Errorf("failed to encode docs: %w", err)
 	}
 	return nil
@@ -1941,7 +2177,13 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
 	}
 
-	allDatastreams, err := packages.ReadAllDataStreamManifests(packageRoot)
+	// Match Fleet's view of the package: composable integrations use the built tree (requires.input).
+	root, err := builder.BuildPackagesDirectory(packageRoot, "")
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("error locating built package directory: %w", err)
+	}
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(root)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
@@ -2164,14 +2406,14 @@ func filterIndependentAgents(allAgents []kibana.Agent, agentInfo agentdeployer.A
 	return filtered
 }
 
-func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version) error {
+func writeSampleEvent(path string, doc common.MapStr, specVersion semver.Version, filename string) error {
 	jsonFormatter := formatter.JSONFormatterBuilder(specVersion)
 	body, err := jsonFormatter.Encode(doc)
 	if err != nil {
 		return fmt.Errorf("marshalling sample event failed: %w", err)
 	}
 
-	err = os.WriteFile(filepath.Join(path, "sample_event.json"), append(body, '\n'), 0644)
+	err = os.WriteFile(filepath.Join(path, filename), append(body, '\n'), 0644)
 	if err != nil {
 		return fmt.Errorf("writing sample event failed: %w", err)
 	}
@@ -2264,16 +2506,16 @@ func listExceptionFields(docs []common.MapStr, fieldsValidator *fields.Validator
 	return allFields
 }
 
-func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest, config *testConfig) error {
+func validateIgnoredFields(stackVersion *semver.Version, ds scenarioDataStream, config *testConfig) error {
 	skipIgnoredFields := append([]string(nil), config.SkipIgnoredFields...)
 	if stackVersion.LessThan(semver.MustParse("8.14.0")) {
 		// Pre 8.14 Elasticsearch commonly has event.original not mapped correctly, exclude from check: https://github.com/elastic/elasticsearch/pull/106714
 		skipIgnoredFields = append(skipIgnoredFields, "event.original")
 	}
 
-	ignoredFields := make([]string, 0, len(scenario.ignoredFields))
+	ignoredFields := make([]string, 0, len(ds.ignoredFields))
 
-	for _, field := range scenario.ignoredFields {
+	for _, field := range ds.ignoredFields {
 		if !slices.Contains(skipIgnoredFields, field) {
 			ignoredFields = append(ignoredFields, field)
 		}
@@ -2284,8 +2526,8 @@ func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest,
 			ID            any `json:"_id"`
 			Timestamp     any `json:"@timestamp,omitempty"`
 			IgnoredFields any `json:"ignored_field_values"`
-		}, len(scenario.degradedDocs))
-		for i, d := range scenario.degradedDocs {
+		}, len(ds.degradedDocs))
+		for i, d := range ds.degradedDocs {
 			issues[i].ID = d["_id"]
 			if source, ok := d["_source"].(map[string]any); ok {
 				if ts, ok := source["@timestamp"]; ok {
@@ -2301,7 +2543,7 @@ func validateIgnoredFields(stackVersion *semver.Version, scenario *scenarioTest,
 
 		return testrunner.ErrTestCaseFailed{
 			Reason:  "found ignored fields in data stream",
-			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", scenario.dataStream, ignoredFields, degradedDocsJSON),
+			Details: fmt.Sprintf("found ignored fields in data stream %s: %v. Affected documents: %s", ds.dataStream, ignoredFields, degradedDocsJSON),
 		}
 	}
 
@@ -2327,7 +2569,7 @@ func assertHitCount(expected int, docs []common.MapStr) (pass bool, message stri
 	return true, ""
 }
 
-func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version) error {
+func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver.Version, sds scenarioDataStream, qualifyByType bool) error {
 	if !r.generateTestResult {
 		return nil
 	}
@@ -2337,7 +2579,14 @@ func (r *tester) generateTestResultFile(docs []common.MapStr, specVersion semver
 		rootPath = filepath.Join(rootPath, "data_stream", ds)
 	}
 
-	if err := writeSampleEvent(rootPath, docs[0], specVersion); err != nil {
+	filename := "sample_event.json"
+	if qualifyByType {
+		// For dynamic_signal_types packages, qualify the filename by signal type
+		// (e.g. "logs-sqlserverreceiver.otel-default" → "sample_event_logs.json").
+		filename = fmt.Sprintf("sample_event_%s.json", dataStreamDataType(sds.dataStream))
+	}
+
+	if err := writeSampleEvent(rootPath, docs[0], specVersion, filename); err != nil {
 		return fmt.Errorf("failed to write sample event file: %w", err)
 	}
 
@@ -2353,7 +2602,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file for logs: %w", err)
 	}
-	defer os.Remove(f.Name())
+	defer os.Remove(f.Name()) //nolint:errcheck // best-effort cleanup of temp file
 
 	for _, patternsContainer := range errorPatterns {
 		if patternsContainer.containerName != "elastic-agent" {

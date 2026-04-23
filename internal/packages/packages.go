@@ -40,6 +40,34 @@ const (
 	dataStreamTypeTraces     = "traces"
 )
 
+// AllowedPackageTypes lists the valid package types accepted by the create wizard.
+var AllowedPackageTypes = []string{"input", "integration", "content"}
+
+// AllowedDataStreamTypes lists the data stream types accepted by the create wizard.
+var AllowedDataStreamTypes = []string{"logs", "metrics"}
+
+// AllowedLogsInputTypes maps valid input type identifiers to their human-readable
+// labels. Both the TUI wizard and CLI validation derive their lists from this map.
+var AllowedLogsInputTypes = map[string]string{
+	"aws-cloudwatch":     "AWS Cloudwatch",
+	"aws-s3":             "AWS S3",
+	"azure-blob-storage": "Azure Blob Storage",
+	"azure-eventhub":     "Azure Eventhub",
+	"cel":                "Common Expression Language (CEL)",
+	"entity-analytics":   "Entity Analytics",
+	"etw":                "Event Tracing for Windows (ETW)",
+	"filestream":         "Filestream",
+	"gcp-pubsub":         "GCP PubSub",
+	"gcs":                "Google Cloud Storage (GCS)",
+	"http_endpoint":      "HTTP Endpoint",
+	"journald":           "Journald",
+	"netflow":            "Netflow",
+	"redis":              "Redis",
+	"tcp":                "TCP",
+	"udp":                "UDP",
+	"winlog":             "WinLogBeat",
+}
+
 // VarValue represents a variable value as defined in a package or data stream
 // manifest file.
 type VarValue struct {
@@ -47,8 +75,13 @@ type VarValue struct {
 	list   []interface{}
 }
 
+// Compile-time assertion that VarValue implements go-ucfg's Unpacker interface,
+// which is required for go-ucfg to deserialize manifest fields into VarValue.
+var _ ucfg.Unpacker = (*VarValue)(nil)
+
 // Unpack knows how to parse a variable value from a package or data stream
-// manifest file into a VarValue.
+// manifest file into a VarValue. It implements go-ucfg's Unpacker interface
+// and always returns nil.
 func (vv *VarValue) Unpack(value interface{}) error {
 	switch u := value.(type) {
 	case []interface{}:
@@ -57,6 +90,15 @@ func (vv *VarValue) Unpack(value interface{}) error {
 		vv.scalar = u
 	}
 	return nil
+}
+
+// MustUnpack sets the VarValue from value. It panics if Unpack returns an error,
+// which cannot happen in the current implementation but would surface immediately
+// if Unpack ever gains a real error path.
+func (vv *VarValue) MustUnpack(value interface{}) {
+	if err := vv.Unpack(value); err != nil {
+		panic(fmt.Sprintf("unpacking VarValue: %v", err))
+	}
 }
 
 // MarshalJSON knows how to serialize a VarValue into the appropriate
@@ -83,8 +125,12 @@ func (vv VarValue) Value() any {
 
 // VarValueYamlString will return a YAML style string representation of vv,
 // in the given YAML field, and with numSpaces indentation if it's a list.
+//
+// The caller's template injects the result inline, so only the first line
+// inherits the template's base indentation. Continuation lines produced by
+// the yaml encoder (e.g. block-scalar content) must be shifted by numSpaces
+// so the relative indentation stays valid once the first line is prefixed.
 func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
-	// Default indentation is 4 spaces
 	n := 4
 	if len(numSpaces) == 1 {
 		n = numSpaces[0]
@@ -99,20 +145,33 @@ func VarValueYamlString(vv VarValue, field string, numSpaces ...int) string {
 		return ""
 	}
 
-	// Use yaml.v3 encoder to ensure correct yaml string formatting
 	data := map[string]interface{}{
 		field: valueToMarshal,
 	}
 
 	var b strings.Builder
 	encoder := yamlv3.NewEncoder(&b)
-	encoder.SetIndent(n) // Apply the custom indentation.
+	encoder.SetIndent(n)
 
 	if err := encoder.Encode(&data); err != nil {
 		return ""
 	}
 
-	return strings.TrimSpace(b.String())
+	raw := strings.TrimSpace(b.String())
+	lines := strings.Split(raw, "\n")
+	if len(lines) <= 1 {
+		return raw
+	}
+
+	pad := strings.Repeat(" ", n)
+	var out strings.Builder
+	out.WriteString(lines[0])
+	for _, line := range lines[1:] {
+		out.WriteByte('\n')
+		out.WriteString(pad)
+		out.WriteString(line)
+	}
+	return out.String()
 }
 
 // Variable is an instance of configuration variable (named, typed).
@@ -134,8 +193,23 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
-	Type string     `config:"type" json:"type" yaml:"type"`
-	Vars []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Type          string     `config:"type" json:"type" yaml:"type"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+}
+
+// PackageDependency describes a dependency on another package.
+type PackageDependency struct {
+	Package string `config:"package" json:"package" yaml:"package"`
+	Version string `config:"version" json:"version" yaml:"version"`
+}
+
+// Requires lists the packages that an integration package depends on.
+type Requires struct {
+	Input   []PackageDependency `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Content []PackageDependency `config:"content,omitempty" json:"content,omitempty" yaml:"content,omitempty"`
 }
 
 // Source contains metadata about the source code of the package.
@@ -176,10 +250,12 @@ type PolicyTemplate struct {
 	Inputs      []Input  `config:"inputs,omitempty" json:"inputs,omitempty" yaml:"inputs,omitempty"`
 
 	// For purposes of "input packages"
-	Input        string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
-	Type         string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
-	TemplatePath string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
-	Vars         []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	Input              string     `config:"input,omitempty" json:"input,omitempty" yaml:"input,omitempty"`
+	Type               string     `config:"type,omitempty" json:"type,omitempty" yaml:"type,omitempty"`
+	TemplatePath       string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths      []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars               []Variable `config:"vars,omitempty" json:"vars,omitempty" yaml:"vars,omitempty"`
+	DynamicSignalTypes bool       `config:"dynamic_signal_types,omitempty" json:"dynamic_signal_types,omitempty" yaml:"dynamic_signal_types,omitempty"`
 }
 
 // Owner defines package owners, either a single person or a team.
@@ -212,6 +288,7 @@ type PackageManifest struct {
 	Categories      []string         `config:"categories" json:"categories" yaml:"categories"`
 	Agent           Agent            `config:"agent" json:"agent" yaml:"agent"`
 	Elasticsearch   *Elasticsearch   `config:"elasticsearch" json:"elasticsearch" yaml:"elasticsearch"`
+	Requires        *Requires        `config:"requires,omitempty" json:"requires,omitempty" yaml:"requires,omitempty"`
 }
 
 type PackageDirNameAndManifest struct {
@@ -274,11 +351,13 @@ type TransformDefinition struct {
 
 // Stream contains information about an input stream.
 type Stream struct {
-	Input        string     `config:"input" json:"input" yaml:"input"`
-	Title        string     `config:"title" json:"title" yaml:"title"`
-	Description  string     `config:"description" json:"description" yaml:"description"`
-	TemplatePath string     `config:"template_path" json:"template_path" yaml:"template_path"`
-	Vars         []Variable `config:"vars" json:"vars" yaml:"vars"`
+	Input         string     `config:"input" json:"input" yaml:"input"`
+	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
+	Title         string     `config:"title" json:"title" yaml:"title"`
+	Description   string     `config:"description" json:"description" yaml:"description"`
+	TemplatePath  string     `config:"template_path,omitempty" json:"template_path,omitempty" yaml:"template_path,omitempty"`
+	TemplatePaths []string   `config:"template_paths,omitempty" json:"template_paths,omitempty" yaml:"template_paths,omitempty"`
+	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
 }
 
 // HasSource checks if a given index or data stream name maches the transform sources
@@ -390,7 +469,7 @@ func ReadPackageManifestFromZipPackage(zipPackage string) (*PackageManifest, err
 	if err != nil {
 		return nil, fmt.Errorf("can't prepare a temporary directory: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(tempDir) //nolint:errcheck // best-effort cleanup of temp dir
 
 	contents, err := extractPackageManifestZipPackage(zipPackage, PackageManifestFile)
 	if err != nil {
@@ -657,6 +736,20 @@ func ReadPackageManifestBytes(contents []byte) (*PackageManifest, error) {
 	return &m, nil
 }
 
+func ReadDataStreamManifestBytes(contents []byte) (*DataStreamManifest, error) {
+	cfg, err := yaml.NewConfig(contents, ucfg.PathSep("."))
+	if err != nil {
+		return nil, fmt.Errorf("reading manifest file failed: %w", err)
+	}
+
+	var m DataStreamManifest
+	err = cfg.Unpack(&m)
+	if err != nil {
+		return nil, fmt.Errorf("unpacking data stream manifest failed: %w", err)
+	}
+	return &m, nil
+}
+
 // ReadDataStreamManifest reads and parses the given data stream manifest file.
 func ReadDataStreamManifest(path string) (*DataStreamManifest, error) {
 	cfg, err := yaml.NewConfigWithFile(path, ucfg.PathSep("."))
@@ -763,12 +856,7 @@ func isPackageManifest(path string) (bool, error) {
 	if err != nil {
 		return false, fmt.Errorf("reading package manifest failed (path: %s): %w", path, err)
 	}
-	supportedTypes := []string{
-		"content",
-		"input",
-		"integration",
-	}
-	return slices.Contains(supportedTypes, m.Type) && m.Version != "", nil
+	return slices.Contains(AllowedPackageTypes, m.Type) && m.Version != "", nil
 }
 
 func isDataStreamManifest(path string) (bool, error) {

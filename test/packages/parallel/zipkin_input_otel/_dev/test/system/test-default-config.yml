@@ -5,3 +5,5 @@ vars:
   use_apm: true
 assert:
   min_count: 20
+# required to increase waiting time to detect all data streams (specially logs and traces)
+wait_for_dynamic_streams_stable: 90s
