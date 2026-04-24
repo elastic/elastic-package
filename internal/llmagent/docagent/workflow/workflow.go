@@ -490,7 +490,7 @@ func (b *Builder) buildValidatorPrompt(validator validators.StagedValidator, con
 	prompt.WriteString("\n\n")
 
 	// Add context about the package
-	if pkgCtx != nil {
+	if pkgCtx != nil && pkgCtx.Manifest != nil {
 		prompt.WriteString("=== PACKAGE CONTEXT ===\n")
 		fmt.Fprintf(&prompt, "Package: %s (%s)\n", pkgCtx.Manifest.Name, pkgCtx.Manifest.Title)
 
