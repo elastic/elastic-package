@@ -25,6 +25,9 @@ const (
 	cacheDir              = "cache"
 	FieldsCacheName       = "fields"
 	KibanaConfigCacheName = "kibana_config"
+
+	llmDir      = "llm"
+	mcpJsonName = "mcp.json"
 )
 
 var (
@@ -49,7 +52,6 @@ func NewLocationManager() (*LocationManager, error) {
 	}
 
 	return &LocationManager{stackPath: cfg}, nil
-
 }
 
 // RootDir returns the root elastic-package dir
@@ -95,6 +97,11 @@ func (loc LocationManager) ServiceOutputDir() string {
 // CacheDir returns the directory with cached fields
 func (loc LocationManager) CacheDir(name string) string {
 	return filepath.Join(loc.stackPath, cacheDir, name)
+}
+
+// LLMDir returns the directory with the LLM configuration
+func (loc LocationManager) LLMDir() string {
+	return filepath.Join(loc.stackPath, llmDir)
 }
 
 // configurationDir returns the configuration directory location

@@ -37,3 +37,7 @@ new_package
 
 # default output directory for dump commands
 package-dump
+
+.cursor/
+
+batch_results/

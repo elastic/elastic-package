@@ -391,7 +391,7 @@ This command combines query capabilities with command execution, allowing you to
 The command uses the same query flags as the 'find' command to select packages, then executes the specified subcommand for each matched package.
 
 Allowed subcommands:
-build, check, changelog, clean, format, install, lint, test, uninstall
+build, check, changelog, clean, format, install, lint, test, uninstall, update
 
 ### `elastic-package format`
 
@@ -704,6 +704,30 @@ Use this command to uninstall the package in Kibana.
 
 The command uses Kibana API to uninstall the package in Kibana. The package must be exposed via the Package Registry.
 
+### `elastic-package update`
+
+_Context: package_
+
+Use this command to update package resources.
+
+The command can help update existing resources in a package. Currently only documentation is supported.
+
+### `elastic-package update documentation`
+
+_Context: package_
+
+Use this command to update package documentation using an AI agent or to get manual instructions for update.
+
+The AI agent analyzes your package structure, data streams, and configuration, and generates a new documentation file based on the template and the package context.
+
+For packages with multiple documentation files, use the --doc-file flag to specify the file to update (defaults to README.md).
+
+If no LLM provider is configured, this command will print instructions for updating the documentation manually.
+
+Configuration options for LLM providers (environment variables or profile config):
+- ELASTIC_PACKAGE_LLM_PROVIDER / llm.provider: Provider name (only Gemini provider currently supported).
+- Gemini: GOOGLE_API_KEY / llm.gemini.api_key, GEMINI_MODEL / llm.gemini.model, GEMINI_THINKING_BUDGET / llm.gemini.thinking_budget.
+
 ### `elastic-package version`
 
 _Context: global_
@@ -798,6 +822,12 @@ The following settings are available per profile:
 * `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
   Supported in Kibana 9.2 and later. Defaults to "10m".
 
+### AI-powered Documentation Configuration
+
+The `elastic-package update documentation` command can generate or update package documentation using an LLM.
+
+For full details on configuration, LLM provider setup, and the optional service knowledge base, see [docs/howto/ai_documentation.md](docs/howto/ai_documentation.md).
+
 ## Useful environment variables
 
 There are available some environment variables that could be used to change some of the
@@ -854,6 +884,10 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
     - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+- To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
+    - `ELASTIC_PACKAGE_LLM_PROVIDER` / **llm.provider**: Provider name. Gemini is the default provider.
+    - Gemini: `GOOGLE_API_KEY` / **llm.gemini.api_key**, `GEMINI_MODEL` / **llm.gemini.model**, `GEMINI_THINKING_BUDGET` / **llm.gemini.thinking_budget**.
 
 
 ## Release process
