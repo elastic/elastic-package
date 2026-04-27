@@ -1471,6 +1471,9 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 			return nil, err
 		}
 		discovered = filterOtelAPMRollupDataStreams(discovered)
+		if len(discovered) == 0 {
+			return nil, testrunner.ErrTestCaseFailed{Reason: fmt.Sprintf("no data streams matching %s remained after filtering", strings.Join(patterns, ","))}
+		}
 		scenarios := make([]scenarioDataStream, len(discovered))
 		for i, dsd := range discovered {
 			scenarios[i] = scenarioDataStream{
