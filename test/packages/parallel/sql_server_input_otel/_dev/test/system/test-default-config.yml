@@ -8,8 +8,6 @@ vars:
   initial_delay: 1s
 assert:
   min_count: 10
-  # It could wait just for the fields of one of the data streams
-  # Related tohttps://github.com/elastic/elastic-package/issues/3420
   fields_present:
     - metrics.sqlserver.batch.request.rate
     - metrics.sqlserver.batch.sql_compilation.rate
