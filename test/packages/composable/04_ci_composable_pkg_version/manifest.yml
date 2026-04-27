@@ -12,7 +12,7 @@ categories:
   - custom
 conditions:
   kibana:
-    version: "^8.0.0"
+    version: "^9.4.0"
   elastic:
     subscription: basic
 requires:

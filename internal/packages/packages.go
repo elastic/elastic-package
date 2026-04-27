@@ -193,6 +193,7 @@ type Variable struct {
 
 // Input is a single input configuration.
 type Input struct {
+	Name          string     `config:"name,omitempty" json:"name,omitempty" yaml:"name,omitempty"`
 	Type          string     `config:"type" json:"type" yaml:"type"`
 	Package       string     `config:"package,omitempty" json:"package,omitempty" yaml:"package,omitempty"`
 	Vars          []Variable `config:"vars" json:"vars" yaml:"vars"`
@@ -841,11 +842,15 @@ func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 	return ""
 }
 
-// FindInputByType returns the input for the provided type.
-func (pt *PolicyTemplate) FindInputByType(inputType string) *Input {
-	for _, input := range pt.Inputs {
-		if input.Type == inputType {
-			return &input
+// FindInput returns the first input matching identifier, checked against the
+// input's Name qualifier first (when set) and then its Type. Use this when the
+// identifier may be a name qualifier (set on inputs that share a type) rather
+// than a bare type string.
+func (pt *PolicyTemplate) FindInput(identifier string) *Input {
+	for i := range pt.Inputs {
+		input := &pt.Inputs[i]
+		if (input.Name != "" && input.Name == identifier) || input.Type == identifier {
+			return input
 		}
 	}
 	return nil
@@ -906,8 +911,8 @@ func findPolicyTemplateForDataStream(pkg PackageManifest, ds DataStreamManifest,
 
 	var matchedPolicyTemplates []string
 	for _, policyTemplate := range pkg.PolicyTemplates {
-		// Does this policy_template include this input type?
-		if policyTemplate.FindInputByType(inputName) == nil {
+		// Does this policy_template include an input for this identifier (name or type)?
+		if policyTemplate.FindInput(inputName) == nil {
 			continue
 		}
 

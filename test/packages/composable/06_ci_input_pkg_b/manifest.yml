@@ -1,0 +1,36 @@
+format_version: 3.6.0
+name: ci_input_pkg_b
+title: CI Input Package B
+description: >-
+  Input package B for CI dual-type fixture tests. Shares input type logfile
+  with ci_input_pkg_a to exercise the input name-qualifier disambiguation path
+  (package-spec SVR00010).
+version: 0.1.0
+type: input
+categories:
+  - custom
+conditions:
+  kibana:
+    version: "^9.4.0"
+  elastic:
+    subscription: basic
+policy_templates:
+  - name: ci_input_b
+    type: logs
+    title: CI Input B
+    description: Collect logs for the dual-type composable CI fixture (second package).
+    input: logfile
+    template_paths:
+      - input.yml.hbs
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/b/*.log
+owner:
+  github: elastic/integrations
+  type: elastic

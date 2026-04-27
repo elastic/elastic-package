@@ -128,7 +128,7 @@ test-check-packages-with-custom-agent:
 	PACKAGE_TEST_TYPE=with-custom-agent ./scripts/test-check-packages.sh
 
 test-build-install-packages-composable:
-	./scripts/test-composable-packages.sh
+	PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh

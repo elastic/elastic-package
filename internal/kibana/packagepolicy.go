@@ -48,17 +48,20 @@ func BuildIntegrationPackagePolicy(
 	inputs := make(map[string]PackagePolicyInput)
 	for _, pt := range manifest.PolicyTemplates {
 		for _, input := range pt.Inputs {
-			inputKey := fmt.Sprintf("%s-%s", pt.Name, input.Type)
-			if input.Type == streamInput && pt.Name == policyTemplate.Name {
+			// ref is the identifier used in data stream manifests: the Name qualifier
+			// when set (disambiguated same-type inputs), otherwise the Type.
+			ref := inputRef(input)
+			inputKey := fmt.Sprintf("%s-%s", pt.Name, ref)
+			if ref == streamInput && pt.Name == policyTemplate.Name {
 				// The target input: enabled with user-provided vars.
 				streams := buildStreamsForInput(streamInput, manifest, dsManifest, enabled, dsVars, datastreams)
 				inputEntry := PackagePolicyInput{
 					Enabled:        enabled,
 					Streams:        streams,
-					inputType:      streamInput,
+					inputType:      input.Type, // Fleet agent input type (e.g. logfile, otelcol), not name qualifier or data_stream type (logs/metrics/traces).
 					policyTemplate: pt.Name,
 				}
-				if foundInput := policyTemplate.FindInputByType(streamInput); foundInput != nil {
+				if foundInput := policyTemplate.FindInput(streamInput); foundInput != nil {
 					iv := SetKibanaVariables(foundInput.Vars, allInputVars)
 					inputEntry.Vars = iv.ToMapStr()
 					inputEntry.legacyVars = iv
@@ -69,7 +72,7 @@ func BuildIntegrationPackagePolicy(
 				// so that sibling stream keys are correct even when multiple policy
 				// templates declare different data_streams lists.
 				ptDatastreams := packages.FilterDatastreamsForPolicyTemplate(allDatastreams, pt)
-				streams := buildStreamsForInput(input.Type, manifest, packages.DataStreamManifest{}, false, common.MapStr{}, ptDatastreams)
+				streams := buildStreamsForInput(ref, manifest, packages.DataStreamManifest{}, false, common.MapStr{}, ptDatastreams)
 				entry := PackagePolicyInput{
 					Enabled:        false,
 					inputType:      input.Type,
@@ -287,4 +290,14 @@ func setVarFromUser(vars Vars, name, varType string, val packages.VarValue) {
 		return
 	}
 	vars[name] = Var{Type: varType, Value: val, fromUser: true}
+}
+
+// inputRef returns the identifier used to reference an input from data stream
+// manifests: the Name qualifier when set (for inputs disambiguated by name), or
+// the Type when no qualifier is present.
+func inputRef(input packages.Input) string {
+	if input.Name != "" {
+		return input.Name
+	}
+	return input.Type
 }

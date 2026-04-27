@@ -496,6 +496,275 @@ streams:
 	assert.Empty(t, dsManifest.Streams[1].Package)
 }
 
+// TestBuildStreamInputRefs_NoDuplicate verifies that when all required packages have unique
+// input types within every policy template, the refs map contains the type identifier (no
+// disambiguation needed, so no name will be set on the input).
+func TestBuildStreamInputRefs_NoDuplicate(t *testing.T) {
+	manifest := &packages.PackageManifest{
+		PolicyTemplates: []packages.PolicyTemplate{
+			{
+				Inputs: []packages.Input{
+					{Package: "pkg_a"},
+					{Package: "pkg_b"},
+				},
+			},
+		},
+	}
+	infoByPkg := map[string]inputPkgInfo{
+		"pkg_a": {pkgName: "pkg_a", identifier: "logfile"},
+		"pkg_b": {pkgName: "pkg_b", identifier: "winlog"},
+	}
+
+	refs := buildStreamInputRefs(manifest, infoByPkg)
+
+	assert.Equal(t, "logfile", refs["pkg_a"])
+	assert.Equal(t, "winlog", refs["pkg_b"])
+}
+
+// TestBuildStreamInputRefs_DuplicateType verifies that when two required packages in the same
+// policy template resolve to the same type, both are assigned their package name as the qualifier.
+func TestBuildStreamInputRefs_DuplicateType(t *testing.T) {
+	manifest := &packages.PackageManifest{
+		PolicyTemplates: []packages.PolicyTemplate{
+			{
+				Inputs: []packages.Input{
+					{Package: "pkg_a"},
+					{Package: "pkg_b"},
+				},
+			},
+		},
+	}
+	infoByPkg := map[string]inputPkgInfo{
+		"pkg_a": {pkgName: "pkg_a", identifier: "otelcol"},
+		"pkg_b": {pkgName: "pkg_b", identifier: "otelcol"},
+	}
+
+	refs := buildStreamInputRefs(manifest, infoByPkg)
+
+	assert.Equal(t, "pkg_a", refs["pkg_a"])
+	assert.Equal(t, "pkg_b", refs["pkg_b"])
+}
+
+// TestResolveStreamInputTypes_DuplicateTypeInputs verifies that when two required input packages
+// share the same type within a policy template, Bundle sets a unique name on each input and
+// uses that name as the stream.input in data stream manifests.
+func TestResolveStreamInputTypes_DuplicateTypeInputs(t *testing.T) {
+	pkgADir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(pkgADir, "manifest.yml"), []byte(`
+name: otelcol_logs_pkg
+title: OTel Logs
+description: Logs via otelcol.
+version: 0.1.0
+type: input
+policy_templates:
+  - name: logs
+    input: otelcol
+    type: logs
+`), 0644))
+
+	pkgBDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(pkgBDir, "manifest.yml"), []byte(`
+name: otelcol_metrics_pkg
+title: OTel Metrics
+description: Metrics via otelcol.
+version: 0.1.0
+type: input
+policy_templates:
+  - name: metrics
+    input: otelcol
+    type: metrics
+`), 0644))
+
+	buildRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(buildRoot, "manifest.yml"), []byte(`
+format_version: 3.6.0
+name: my_integration
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: otelcol_logs_pkg
+      version: 0.1.0
+    - package: otelcol_metrics_pkg
+      version: 0.1.0
+policy_templates:
+  - name: otel
+    title: OTel
+    description: Collect via OTel
+    data_streams:
+      - otel_logs
+      - otel_metrics
+    inputs:
+      - package: otelcol_logs_pkg
+        title: OTel logs
+        description: Collect logs via otelcol.
+      - package: otelcol_metrics_pkg
+        title: OTel metrics
+        description: Collect metrics via otelcol.
+`), 0644))
+
+	logsDir := filepath.Join(buildRoot, "data_stream", "otel_logs")
+	require.NoError(t, os.MkdirAll(logsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(logsDir, "manifest.yml"), []byte(`
+title: OTel Logs
+type: logs
+streams:
+  - package: otelcol_logs_pkg
+    title: OTel log stream
+`), 0644))
+
+	metricsDir := filepath.Join(buildRoot, "data_stream", "otel_metrics")
+	require.NoError(t, os.MkdirAll(metricsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(metricsDir, "manifest.yml"), []byte(`
+title: OTel Metrics
+type: metrics
+streams:
+  - package: otelcol_metrics_pkg
+    title: OTel metrics stream
+`), 0644))
+
+	downloadCalls := map[string]string{
+		"otelcol_logs_pkg":    pkgADir,
+		"otelcol_metrics_pkg": pkgBDir,
+	}
+	epr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return downloadCalls[packageName], nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(epr)
+	require.NoError(t, resolver.Bundle(buildRoot))
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
+	require.NoError(t, err)
+	m, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	require.Len(t, m.PolicyTemplates[0].Inputs, 2)
+	assert.Equal(t, "otelcol", m.PolicyTemplates[0].Inputs[0].Type)
+	assert.Equal(t, "otelcol_logs_pkg", m.PolicyTemplates[0].Inputs[0].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+	assert.Equal(t, "otelcol", m.PolicyTemplates[0].Inputs[1].Type)
+	assert.Equal(t, "otelcol_metrics_pkg", m.PolicyTemplates[0].Inputs[1].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
+
+	logsManifestBytes, err := os.ReadFile(filepath.Join(logsDir, "manifest.yml"))
+	require.NoError(t, err)
+	logsManifest, err := packages.ReadDataStreamManifestBytes(logsManifestBytes)
+	require.NoError(t, err)
+	require.Len(t, logsManifest.Streams, 1)
+	assert.Equal(t, "otelcol_logs_pkg", logsManifest.Streams[0].Input)
+	assert.Empty(t, logsManifest.Streams[0].Package)
+
+	metricsManifestBytes, err := os.ReadFile(filepath.Join(metricsDir, "manifest.yml"))
+	require.NoError(t, err)
+	metricsManifest, err := packages.ReadDataStreamManifestBytes(metricsManifestBytes)
+	require.NoError(t, err)
+	require.Len(t, metricsManifest.Streams, 1)
+	assert.Equal(t, "otelcol_metrics_pkg", metricsManifest.Streams[0].Input)
+	assert.Empty(t, metricsManifest.Streams[0].Package)
+}
+
+// TestResolveStreamInputTypes_UniqueTypesNoName verifies that when all required input packages
+// have distinct types, no name field is set on any input and stream.input uses the type identifier.
+func TestResolveStreamInputTypes_UniqueTypesNoName(t *testing.T) {
+	pkgADir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(pkgADir, "manifest.yml"), []byte(`
+name: logs_pkg
+title: Logs Pkg
+description: Logs input.
+version: 0.1.0
+type: input
+policy_templates:
+  - name: logs
+    input: logfile
+    type: logs
+`), 0644))
+
+	pkgBDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(pkgBDir, "manifest.yml"), []byte(`
+name: winlog_pkg
+title: Winlog Pkg
+description: Windows event logs input.
+version: 0.1.0
+type: input
+policy_templates:
+  - name: winlog
+    input: winlog
+    type: logs
+`), 0644))
+
+	buildRoot := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(buildRoot, "manifest.yml"), []byte(`
+format_version: 3.6.0
+name: my_integration
+version: 0.1.0
+type: integration
+requires:
+  input:
+    - package: logs_pkg
+      version: 0.1.0
+    - package: winlog_pkg
+      version: 0.1.0
+policy_templates:
+  - name: combined
+    title: Combined
+    description: Collect via two distinct input types
+    data_streams:
+      - combined_logs
+    inputs:
+      - package: logs_pkg
+        title: Log files
+      - package: winlog_pkg
+        title: Windows Event Logs
+`), 0644))
+
+	dsDir := filepath.Join(buildRoot, "data_stream", "combined_logs")
+	require.NoError(t, os.MkdirAll(dsDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(dsDir, "manifest.yml"), []byte(`
+title: Combined Logs
+type: logs
+streams:
+  - package: logs_pkg
+    title: Log files stream
+  - package: winlog_pkg
+    title: Windows event logs stream
+`), 0644))
+
+	downloadCalls := map[string]string{
+		"logs_pkg":   pkgADir,
+		"winlog_pkg": pkgBDir,
+	}
+	epr := &fakeEprClient{
+		downloadPackageFunc: func(packageName, packageVersion, tmpDir string) (string, error) {
+			return downloadCalls[packageName], nil
+		},
+	}
+	resolver := NewRequiredInputsResolver(epr)
+	require.NoError(t, resolver.Bundle(buildRoot))
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildRoot, "manifest.yml"))
+	require.NoError(t, err)
+	m, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	require.Len(t, m.PolicyTemplates[0].Inputs, 2)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[0].Type)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Name, "no name when types are unique")
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+	assert.Equal(t, "winlog", m.PolicyTemplates[0].Inputs[1].Type)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Name, "no name when types are unique")
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
+
+	dsManifestBytes, err := os.ReadFile(filepath.Join(dsDir, "manifest.yml"))
+	require.NoError(t, err)
+	dsManifest, err := packages.ReadDataStreamManifestBytes(dsManifestBytes)
+	require.NoError(t, err)
+	require.Len(t, dsManifest.Streams, 2)
+	assert.Equal(t, "logfile", dsManifest.Streams[0].Input)
+	assert.Equal(t, "winlog", dsManifest.Streams[1].Input)
+}
+
 // TestResolveStreamInputTypes_FieldBundlingFixture runs the full
 // Bundle pipeline on the composable CI integration fixture and
 // verifies that package: references are replaced in both the main manifest and
@@ -527,4 +796,43 @@ func TestResolveStreamInputTypes_FieldBundlingFixture(t *testing.T) {
 	assert.NotEmpty(t, dsManifest.Streams[0].Title)
 	assert.Equal(t, "logfile", dsManifest.Streams[1].Input)
 	assert.Empty(t, dsManifest.Streams[1].Package)
+}
+
+// TestResolveStreamInputTypes_DualInputFixture runs the full Bundle pipeline on
+// the 07_ci_composable_dual_input fixture: both required input packages declare
+// input type logfile, so each built policy template input must receive a unique
+// name qualifier and each data stream manifest must reference its input by that name.
+func TestResolveStreamInputTypes_DualInputFixture(t *testing.T) {
+	buildPackageRoot := copyDualInputComposableFixture(t)
+	resolver := NewRequiredInputsResolver(makeFakeEprForDualInput(t))
+	require.NoError(t, resolver.Bundle(buildPackageRoot))
+
+	manifestBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "manifest.yml"))
+	require.NoError(t, err)
+	m, err := packages.ReadPackageManifestBytes(manifestBytes)
+	require.NoError(t, err)
+
+	require.Len(t, m.PolicyTemplates[0].Inputs, 2)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[0].Type)
+	assert.Equal(t, "ci_input_pkg_a", m.PolicyTemplates[0].Inputs[0].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[0].Package)
+	assert.Equal(t, "logfile", m.PolicyTemplates[0].Inputs[1].Type)
+	assert.Equal(t, "ci_input_pkg_b", m.PolicyTemplates[0].Inputs[1].Name)
+	assert.Empty(t, m.PolicyTemplates[0].Inputs[1].Package)
+
+	dsABytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_dual_logs_a", "manifest.yml"))
+	require.NoError(t, err)
+	dsA, err := packages.ReadDataStreamManifestBytes(dsABytes)
+	require.NoError(t, err)
+	require.Len(t, dsA.Streams, 1)
+	assert.Equal(t, "ci_input_pkg_a", dsA.Streams[0].Input)
+	assert.Empty(t, dsA.Streams[0].Package)
+
+	dsBBytes, err := os.ReadFile(filepath.Join(buildPackageRoot, "data_stream", "ci_dual_logs_b", "manifest.yml"))
+	require.NoError(t, err)
+	dsB, err := packages.ReadDataStreamManifestBytes(dsBBytes)
+	require.NoError(t, err)
+	require.Len(t, dsB.Streams, 1)
+	assert.Equal(t, "ci_input_pkg_b", dsB.Streams[0].Input)
+	assert.Empty(t, dsB.Streams[0].Package)
 }
