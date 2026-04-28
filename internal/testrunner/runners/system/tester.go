@@ -1328,18 +1328,18 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	if err := r.finalizeScenario(ctx, &scenario, finalizeScenarioOpts{
-		config:                 config,
-		service:                service,
-		agent:                  agent,
-		policyToTest:           policyToTest,
+		config:                  config,
+		service:                 service,
+		agent:                   agent,
+		policyToTest:            policyToTest,
 		policyToEnrollOrCurrent: policyToEnrollOrCurrent,
-		dsType:                 dsType,
-		dsDataset:              dsDataset,
-		policy:                 policy,
-		origPolicy:             origPolicy,
-		origAgent:              origAgent,
-		agentInfo:              agentInfo,
-		svcInfo:                svcInfo,
+		dsType:                  dsType,
+		dsDataset:               dsDataset,
+		policy:                  policy,
+		origPolicy:              origPolicy,
+		origAgent:               origAgent,
+		agentInfo:               agentInfo,
+		svcInfo:                 svcInfo,
 	}); err != nil {
 		return nil, err
 	}
