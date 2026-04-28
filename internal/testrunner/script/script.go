@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"os"
 	"os/signal"
@@ -91,9 +92,6 @@ func scriptTestWorkdirRoot(workRoot string, opt Options) (workdirRoot string, er
 	return "", nil
 }
 
-// TODO: refactor Run to reduce cognitive complexity (currently 89).
-//
-//nolint:gocognit
 func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if opt.Dir != "" && len(opt.Streams) != 0 {
 		// We should never reach here.
@@ -135,68 +133,19 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	if err != nil {
 		return err
 	}
-	var (
-		pkgRoot string
 
-		latestEPRVersion string
-		currVersion      string
-		prevVersion      string
-		currSemver       *semver.Version
-		breakingChange   bool
-	)
+	dirs, pkgRoot, currVersion, prevVersion, currSemver, breakingChange, err := resolveDirsAndVersionInfo(opt, dirs)
+	if err != nil {
+		return err
+	}
 	if len(dirs) == 0 {
-		pkgRoot, err = packages.FindPackageRoot()
-		if err != nil {
-			if err == packages.ErrPackageRootNotFound {
-				return errors.New("package root not found")
-			}
-			return fmt.Errorf("locating package root failed: %w", err)
-		}
-		dirs, err = datastreams(slices.Clone(opt.Streams), pkgRoot)
-		if err != nil {
-			return err
-		}
-		if len(dirs) == 0 {
-			return nil
-		}
-		revs, err := changelog.ReadChangelogFromPackageRoot(pkgRoot)
-		if err != nil {
-			return err
-		}
-		if len(revs) > 0 {
-			currVersion = revs[0].Version
-			for _, c := range revs[0].Changes {
-				if c.Type == "breaking-change" {
-					// Mark as breaking if explicitly noted.
-					breakingChange = true
-					break
-				}
-			}
-			currSemver, err = semver.NewVersion(currVersion)
-			if err != nil {
-				return fmt.Errorf("failed to parse current version: %w", err)
-			}
-		}
-		if len(revs) > 1 {
-			prevVersion = revs[1].Version
-			if !breakingChange {
-				// If not explicitly noted as breaking, check that the
-				// the major versions match.
-				prevSemver, err := semver.NewVersion(prevVersion)
-				if err != nil {
-					return fmt.Errorf("failed to parse previous version: %w", err)
-				}
-				breakingChange = currSemver.Major() != prevSemver.Major()
-			}
-		}
+		return nil
 	}
 
-	var stdinTempFile string
 	t := &T{
 		pkg: opt.Package,
 
-		verbose:       opt.Verbose,
-		stdinTempFile: stdinTempFile,
+		verbose: opt.Verbose,
 
 		passthrough: w, out: w,
 
@@ -221,6 +170,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 	defer cancel()
 
 	isLatestVersion := true
+	latestEPRVersion := ""
 	var manifest *packages.PackageManifest
 	if pkgRoot != "" {
 		t.Log("PKG ", filepath.Base(pkgRoot))
@@ -243,6 +193,11 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			}
 		}
 	}
+
+	scriptCmds := scriptTestCommands()
+
+	baseEnv := buildBaseScriptEnv(appConfig, loc, home, eprBaseURL, pkgRoot, manifest, latestEPRVersion, currVersion, prevVersion)
+
 	var n int
 	for _, d := range dirs {
 		t.dataStream = d
@@ -257,28 +212,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			continue
 		}
 		n++
-		scriptEnv := map[string]string{
-			"PROFILE":                   appConfig.CurrentProfile(),
-			"CONFIG_ROOT":               loc.RootDir(),
-			"CONFIG_PROFILES":           loc.ProfileDir(),
-			"HOME":                      home,
-			"ECS_BASE_SCHEMA_URL":       appConfig.SchemaURLs().ECSBase(),
-			"PACKAGE_REGISTRY_BASE_URL": eprBaseURL,
-		}
-		if pkgRoot != "" {
-			scriptEnv["PACKAGE_NAME"] = manifest.Name
-			scriptEnv["PACKAGE_BASE"] = filepath.Base(pkgRoot)
-			scriptEnv["PACKAGE_ROOT"] = pkgRoot
-		}
-		if latestEPRVersion != "" {
-			scriptEnv["LATEST_EPR_VERSION"] = latestEPRVersion
-		}
-		if currVersion != "" {
-			scriptEnv["CURRENT_VERSION"] = currVersion
-		}
-		if prevVersion != "" {
-			scriptEnv["PREVIOUS_VERSION"] = prevVersion
-		}
+		scriptEnv := maps.Clone(baseEnv)
 		if dsRoot != "" {
 			scriptEnv["DATA_STREAM"] = d
 			scriptEnv["DATA_STREAM_ROOT"] = dsRoot
@@ -289,37 +223,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 			UpdateScripts:   opt.UpdateScripts,
 			ContinueOnError: opt.ContinueOnError,
 			TestWork:        opt.TestWork,
-			Cmds: map[string]func(ts *testscript.TestScript, neg bool, args []string){
-				"sleep":                         sleep,
-				"date":                          date,
-				"GET":                           get,
-				"POST":                          post,
-				"stack_up":                      stackUp,
-				"use_stack":                     useStack,
-				"stack_down":                    stackDown,
-				"docker_up":                     dockerUp,
-				"docker_down":                   dockerDown,
-				"docker_signal":                 dockerSignal,
-				"docker_wait_exit":              dockerWaitExit,
-				"install_pipelines":             installPipelines,
-				"simulate":                      simulate,
-				"uninstall_pipelines":           uninstallPipelines,
-				"install_agent":                 installAgent,
-				"add_package":                   addPackage,
-				"remove_package":                removePackage,
-				"upgrade_package_latest":        upgradePackageLatest,
-				"add_package_zip":               addPackageZip,
-				"install_package_from_registry": installPackageFromRegistry,
-				"remove_package_zip":            removePackageZip,
-				"add_package_policy":            addPackagePolicy,
-				"remove_package_policy":         removePackagePolicy,
-				"uninstall_agent":               uninstallAgent,
-				"get_docs":                      getDocs,
-				"dump_logs":                     dumpLogs,
-				"match_file":                    match,
-				"get_policy":                    getPolicyCommand,
-				"compile_registry_state":        compileRegistryState,
-			},
+			Cmds:            scriptCmds,
 			Setup: func(e *testscript.Env) error {
 				for k, v := range scriptEnv {
 					e.Setenv(k, v)
@@ -333,23 +237,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 				e.Values[registryPackageRootsTag{}] = t.registryPackageRoots
 				return nil
 			},
-			Condition: func(cond string) (bool, error) {
-				switch {
-				case cond == "external_stack":
-					return opt.ExternalStack, nil
-				case cond == "breaking_change":
-					return breakingChange, nil
-				case cond == "is_latest_version":
-					return isLatestVersion, nil
-				case cond == "has_previous_release":
-					return prevVersion != "", nil
-				case strings.HasPrefix(cond, "env:"):
-					_, ok := scriptEnv[cond[len("env:"):]]
-					return ok, nil
-				default:
-					return false, fmt.Errorf("unknown condition: %s", cond)
-				}
-			},
+			Condition: buildScriptCondition(opt, scriptEnv, breakingChange, isLatestVersion, prevVersion),
 		}
 		// This is not the ideal approach. What I would like would
 		// be to pass this into the testscript, but that is a bunch
@@ -382,6 +270,150 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 		t.Log("[no test files]")
 	}
 	return nil
+}
+
+// resolveDirsAndVersionInfo resolves which data stream directories to run tests for,
+// and extracts version/changelog metadata when running from a package root.
+// When dirs is already non-empty (explicit --dir path), it returns them unchanged.
+func resolveDirsAndVersionInfo(opt Options, dirs []string) (
+	dirsOut []string,
+	pkgRoot string,
+	currVersion string,
+	prevVersion string,
+	currSemver *semver.Version,
+	breakingChange bool,
+	err error,
+) {
+	if len(dirs) != 0 {
+		return dirs, "", "", "", nil, false, nil
+	}
+	pkgRoot, err = packages.FindPackageRoot()
+	if err != nil {
+		if err == packages.ErrPackageRootNotFound {
+			return nil, "", "", "", nil, false, errors.New("package root not found")
+		}
+		return nil, "", "", "", nil, false, fmt.Errorf("locating package root failed: %w", err)
+	}
+	dirs, err = datastreams(slices.Clone(opt.Streams), pkgRoot)
+	if err != nil {
+		return nil, "", "", "", nil, false, err
+	}
+	if len(dirs) == 0 {
+		return nil, pkgRoot, "", "", nil, false, nil
+	}
+	revs, err := changelog.ReadChangelogFromPackageRoot(pkgRoot)
+	if err != nil {
+		return nil, "", "", "", nil, false, err
+	}
+	if len(revs) > 0 {
+		currVersion = revs[0].Version
+		for _, c := range revs[0].Changes {
+			if c.Type == "breaking-change" {
+				breakingChange = true
+				break
+			}
+		}
+		currSemver, err = semver.NewVersion(currVersion)
+		if err != nil {
+			return nil, "", "", "", nil, false, fmt.Errorf("failed to parse current version: %w", err)
+		}
+	}
+	if len(revs) > 1 {
+		prevVersion = revs[1].Version
+		if !breakingChange {
+			prevSemver, err := semver.NewVersion(prevVersion)
+			if err != nil {
+				return nil, "", "", "", nil, false, fmt.Errorf("failed to parse previous version: %w", err)
+			}
+			breakingChange = currSemver.Major() != prevSemver.Major()
+		}
+	}
+	return dirs, pkgRoot, currVersion, prevVersion, currSemver, breakingChange, nil
+}
+
+// buildBaseScriptEnv constructs the environment variables shared across all data stream
+// iterations. Per-stream keys (DATA_STREAM, DATA_STREAM_ROOT) are added by the caller.
+func buildBaseScriptEnv(appConfig *install.ApplicationConfiguration, loc *locations.LocationManager, home, eprBaseURL, pkgRoot string, manifest *packages.PackageManifest, latestEPRVersion, currVersion, prevVersion string) map[string]string {
+	env := map[string]string{
+		"PROFILE":                   appConfig.CurrentProfile(),
+		"CONFIG_ROOT":               loc.RootDir(),
+		"CONFIG_PROFILES":           loc.ProfileDir(),
+		"HOME":                      home,
+		"ECS_BASE_SCHEMA_URL":       appConfig.SchemaURLs().ECSBase(),
+		"PACKAGE_REGISTRY_BASE_URL": eprBaseURL,
+	}
+	if pkgRoot != "" {
+		env["PACKAGE_NAME"] = manifest.Name
+		env["PACKAGE_BASE"] = filepath.Base(pkgRoot)
+		env["PACKAGE_ROOT"] = pkgRoot
+	}
+	if latestEPRVersion != "" {
+		env["LATEST_EPR_VERSION"] = latestEPRVersion
+	}
+	if currVersion != "" {
+		env["CURRENT_VERSION"] = currVersion
+	}
+	if prevVersion != "" {
+		env["PREVIOUS_VERSION"] = prevVersion
+	}
+	return env
+}
+
+// buildScriptCondition returns the testscript condition evaluator for the given run context.
+func buildScriptCondition(opt Options, scriptEnv map[string]string, breakingChange, isLatestVersion bool, prevVersion string) func(string) (bool, error) {
+	return func(cond string) (bool, error) {
+		switch {
+		case cond == "external_stack":
+			return opt.ExternalStack, nil
+		case cond == "breaking_change":
+			return breakingChange, nil
+		case cond == "is_latest_version":
+			return isLatestVersion, nil
+		case cond == "has_previous_release":
+			return prevVersion != "", nil
+		case strings.HasPrefix(cond, "env:"):
+			_, ok := scriptEnv[cond[len("env:"):]]
+			return ok, nil
+		default:
+			return false, fmt.Errorf("unknown condition: %s", cond)
+		}
+	}
+}
+
+// scriptTestCommands returns the map of custom testscript commands.
+// Built once and shared across all data stream test runs.
+func scriptTestCommands() map[string]func(ts *testscript.TestScript, neg bool, args []string) {
+	return map[string]func(ts *testscript.TestScript, neg bool, args []string){
+		"sleep":                         sleep,
+		"date":                          date,
+		"GET":                           get,
+		"POST":                          post,
+		"stack_up":                      stackUp,
+		"use_stack":                     useStack,
+		"stack_down":                    stackDown,
+		"docker_up":                     dockerUp,
+		"docker_down":                   dockerDown,
+		"docker_signal":                 dockerSignal,
+		"docker_wait_exit":              dockerWaitExit,
+		"install_pipelines":             installPipelines,
+		"simulate":                      simulate,
+		"uninstall_pipelines":           uninstallPipelines,
+		"install_agent":                 installAgent,
+		"add_package":                   addPackage,
+		"remove_package":                removePackage,
+		"upgrade_package_latest":        upgradePackageLatest,
+		"add_package_zip":               addPackageZip,
+		"install_package_from_registry": installPackageFromRegistry,
+		"remove_package_zip":            removePackageZip,
+		"add_package_policy":            addPackagePolicy,
+		"remove_package_policy":         removePackagePolicy,
+		"uninstall_agent":               uninstallAgent,
+		"get_docs":                      getDocs,
+		"dump_logs":                     dumpLogs,
+		"match_file":                    match,
+		"get_policy":                    getPolicyCommand,
+		"compile_registry_state":        compileRegistryState,
+	}
 }
 
 func cleanUp(ctx context.Context, pkgRoot string, srvs map[string]servicedeployer.DeployedService, streams map[string]struct{}, agents map[string]*installedAgent, pipes map[string]installedPipelines, regPkgs map[string][]registryPackage, stacks map[string]*runningStack) error {
