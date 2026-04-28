@@ -13,8 +13,8 @@ linters:
 
   settings:
     gocyclo:
-      # TODO: lower to 25 as complex functions are refactored (current worst: prepareScenario/Run=50).
-      min-complexity: 43
+      # TODO: lower to 25 as complex functions are refactored.
+      min-complexity: 42
     gocognit:
       # TODO: lower to 40 as complex functions are refactored.
       min-complexity: 62
