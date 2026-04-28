@@ -82,6 +82,7 @@ In these configuration files it is possible to define:
 - Values for the variables of the data stream manifests (only used for
   integration packages).
 - Input to use, for packages supporting multiple input types.
+- Overrides for the data stream routing (only used for input packages). See [Overriding data stream type and dataset for input packages](./system_testing.md#overriding-data-stream-type-and-dataset-for-input-packages) in the system testing documentation.
 
 For example, the following configuration tells Fleet to create a policy using an
 specific input, and some variables at the package level:
