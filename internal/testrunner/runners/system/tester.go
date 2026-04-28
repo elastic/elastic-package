@@ -1289,7 +1289,11 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	scenario.startTestTime = time.Now()
 
 	logger.Debug("adding package data stream to test policy...")
-	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, r.pkgManifest, policyTemplate, r.dataStreamManifest, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
+	dsName := ""
+	if r.dataStreamManifest != nil {
+		dsName = r.dataStreamManifest.Name
+	}
+	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
 	}
@@ -2154,57 +2158,101 @@ func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeploye
 
 // CreatePackagePolicy builds a PackagePolicy for the given package configuration, returning
 // the policy along with the data stream type and dataset for building index/data stream names.
+// It always reads manifests from the built package tree (via packageRoot) so that composable
+// integrations — where source streams carry unresolved package: references — produce the same
+// resolved input keys that Fleet sees. Both input-type and integration packages go through the
+// built bundle; pass dataStreamName as "" for input-type packages.
 func CreatePackagePolicy(
 	kibanaPolicy *kibana.Policy,
-	pkg *packages.PackageManifest,
-	policyTemplate packages.PolicyTemplate,
-	ds *packages.DataStreamManifest,
+	policyTemplateName string,
+	dataStreamName string,
 	cfgName string,
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 	packageRoot string,
 ) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
-	if pkg.Type == "input" {
-		p := kibana.BuildInputPackagePolicy(
-			kibanaPolicy.ID, kibanaPolicy.Namespace,
-			fmt.Sprintf("%s-%s-%s", pkg.Name, policyTemplate.Name, suffix),
-			*pkg, policyTemplate, cfgVars, true,
-		)
-		fallbackDataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
-		return p, policyTemplate.Type, datasetFromPolicy(p, fallbackDataset), nil
-	}
-	if ds == nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
-	}
 	if packageRoot == "" {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required for integration packages")
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required")
 	}
 
-	// Match Fleet's view of the package: composable integrations use the built tree (requires.input).
+	// Always resolve against the built tree so that RequiredInputsResolver has already
+	// materialized package: references into concrete input types.
 	root, err := builder.BuildPackagesDirectory(packageRoot, "")
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("error locating built package directory: %w", err)
 	}
 
-	allDatastreams, err := packages.ReadAllDataStreamManifests(root)
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(root)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest at %s: %w", root, err)
+	}
+
+	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("finding policy template %q in built manifest: %w", policyTemplateName, err)
+	}
+
+	if builtPkg.Type == "input" {
+		p := kibana.BuildInputPackagePolicy(
+			kibanaPolicy.ID, kibanaPolicy.Namespace,
+			fmt.Sprintf("%s-%s-%s", builtPkg.Name, builtPolicyTemplate.Name, suffix),
+			*builtPkg, builtPolicyTemplate, cfgVars, true,
+		)
+		fallbackDataset := fmt.Sprintf("%s.%s", builtPkg.Name, builtPolicyTemplate.Name)
+		return p, builtPolicyTemplate.Type, datasetFromPolicy(p, fallbackDataset), nil
+	}
+
+	if dataStreamName == "" {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
+	}
+
+	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, root, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix)
+}
+
+// buildIntegrationPackagePolicyFromBuilt builds a Fleet package policy from manifests
+// under builtRoot (the materialized package tree Fleet installs). Caller must ensure
+// builtRoot matches the package the test installed.
+func buildIntegrationPackagePolicyFromBuilt(
+	kibanaPolicy *kibana.Policy,
+	builtRoot string,
+	policyTemplateName string,
+	dataStreamName string,
+	cfgName string,
+	cfgVars, cfgDSVars common.MapStr,
+	suffix string,
+) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest at %s: %w", builtRoot, err)
+	}
+	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dataStreamName)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream %q manifest at %s: %w", dataStreamName, builtRoot, err)
+	}
+	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("finding policy template %q in built manifest: %w", policyTemplateName, err)
+	}
+
+	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
 	p, err := kibana.BuildIntegrationPackagePolicy(
 		kibanaPolicy.ID, kibanaPolicy.Namespace,
-		fmt.Sprintf("%s-%s-%s", pkg.Name, ds.Name, suffix),
-		*pkg, policyTemplate, *ds, cfgName, cfgVars, cfgDSVars, true, allDatastreams,
+		fmt.Sprintf("%s-%s-%s", builtPkg.Name, builtDS.Name, suffix),
+		*builtPkg, builtPolicyTemplate, *builtDS, cfgName, cfgVars, cfgDSVars, true, allDatastreams,
 	)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", err
 	}
 
-	dataset := fmt.Sprintf("%s.%s", pkg.Name, ds.Name)
-	if ds.Dataset != "" {
-		dataset = ds.Dataset
+	dataset := fmt.Sprintf("%s.%s", builtPkg.Name, builtDS.Name)
+	if builtDS.Dataset != "" {
+		dataset = builtDS.Dataset
 	}
-	return p, ds.Type, dataset, nil
+	return p, builtDS.Type, dataset, nil
 }
 
 func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {

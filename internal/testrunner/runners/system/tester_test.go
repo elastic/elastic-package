@@ -18,6 +18,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -902,4 +903,57 @@ func TestPipelineErrorMessage(t *testing.T) {
 			assert.Equal(t, tc.expected, got)
 		})
 	}
+}
+
+// TestBuildIntegrationPackagePolicyFromBuilt_InputKeys verifies that policy inputs
+// use non-empty Fleet keys (policyTemplate-inputRef). Composable source manifests
+// leave type empty until RequiredInputsResolver runs on the built tree; building
+// from built manifests must yield keys like "nginx-logfile", never "nginx-".
+func TestBuildIntegrationPackagePolicyFromBuilt_InputKeys(t *testing.T) {
+	builtRoot := t.TempDir()
+	pkgManifest := `format_version: 3.0.0
+name: composable_fixture
+title: Composable fixture
+version: 1.0.0
+type: integration
+description: Fixture for built-manifest policy keys.
+categories: []
+conditions:
+  kibana:
+    version: "^8.0.0"
+policy_templates:
+  - name: nginx
+    title: Nginx
+    data_streams:
+      - access
+    inputs:
+      - type: logfile
+        title: Access logs
+`
+	dsManifest := `title: Access logs
+type: logs
+streams:
+  - input: logfile
+    title: Nginx access
+`
+	require.NoError(t, os.WriteFile(filepath.Join(builtRoot, "manifest.yml"), []byte(pkgManifest), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(builtRoot, "data_stream", "access"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(builtRoot, "data_stream", "access", "manifest.yml"), []byte(dsManifest), 0644))
+
+	kp := &kibana.Policy{ID: "policy-id", Namespace: "default"}
+	pp, _, _, err := buildIntegrationPackagePolicyFromBuilt(kp, builtRoot, "nginx", "access", "", nil, nil, "ep")
+	require.NoError(t, err)
+
+	_, bad := pp.Inputs["nginx-"]
+	assert.False(t, bad, "Fleet rejects bare policyTemplate- key when input ref is empty; got keys: %v", keysOf(pp.Inputs))
+	_, hasLogfile := pp.Inputs["nginx-logfile"]
+	assert.True(t, hasLogfile, "expected input key nginx-logfile, got keys: %v", keysOf(pp.Inputs))
+}
+
+func keysOf(m map[string]kibana.PackagePolicyInput) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
 }
