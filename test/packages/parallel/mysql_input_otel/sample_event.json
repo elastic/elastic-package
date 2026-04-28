@@ -1,34 +1,137 @@
 {
-    "@timestamp": 1771409742224,
-    "_metric_names_hash": "d042d37ec60d106f",
+    "@timestamp": "2026-04-28T14:26:31.342Z",
     "attributes": {
-        "operation": "write_requests"
+        "client": {
+            "address": "",
+            "port": 0
+        },
+        "db": {
+            "namespace": "",
+            "query": {
+                "text": "SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE ( TABLE_ROWS, ? ), COALESCE ( AVG_ROW_LENGTH, ? ), COALESCE ( DATA_LENGTH, ? ), COALESCE ( INDEX_LENGTH, ? ) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT in ( ? )"
+            },
+            "system": {
+                "name": "mysql"
+            }
+        },
+        "mysql": {
+            "event_id": 5,
+            "events_statements_current": {
+                "digest": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+            },
+            "events_waits_current": {
+                "timer_wait": 0
+            },
+            "query_plan": {
+                "hash": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+            },
+            "session": {
+                "id": 11,
+                "status": "running"
+            },
+            "threads": {
+                "processlist_command": "Query",
+                "processlist_state": "waiting for handler commit",
+                "thread_id": 52
+            },
+            "wait_type": "other"
+        },
+        "network": {
+            "peer": {
+                "address": "",
+                "port": 0
+            }
+        },
+        "user": {
+            "name": "root"
+        }
+    },
+    "client": {
+        "address": "",
+        "port": 0
     },
     "data_stream": {
         "dataset": "mysqlreceiver.otel",
-        "namespace": "16283",
-        "type": "metrics"
+        "namespace": "30950",
+        "type": "logs"
+    },
+    "db": {
+        "namespace": "",
+        "query": {
+            "text": "SELECT TABLE_SCHEMA, TABLE_NAME, COALESCE ( TABLE_ROWS, ? ), COALESCE ( AVG_ROW_LENGTH, ? ), COALESCE ( DATA_LENGTH, ? ), COALESCE ( INDEX_LENGTH, ? ) FROM information_schema.TABLES WHERE TABLE_SCHEMA NOT in ( ? )"
+        },
+        "system": {
+            "name": "mysql"
+        }
     },
     "event": {
         "agent_id_status": "missing",
-        "ingested": "2026-02-18T10:15:52Z"
+        "dataset": "mysqlreceiver.otel",
+        "ingested": "2026-04-28T14:26:41Z"
     },
-    "metrics": {
-        "mysql.buffer_pool.operations": 2174,
-        "mysql.log_operations": 989
+    "event_name": "db.server.query_sample",
+    "host": {
+        "name": "elastic-agent-47514",
+        "os": {
+            "platform": "linux"
+        }
+    },
+    "mysql": {
+        "event_id": 5,
+        "events_statements_current": {
+            "digest": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+        },
+        "events_waits_current": {
+            "timer_wait": 0
+        },
+        "instance": {
+            "endpoint": "svc-mysql_input_otel:3306"
+        },
+        "query_plan": {
+            "hash": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
+        },
+        "session": {
+            "id": 11,
+            "status": "running"
+        },
+        "threads": {
+            "processlist_command": "Query",
+            "processlist_state": "waiting for handler commit",
+            "thread_id": 52
+        },
+        "wait_type": "other"
+    },
+    "network": {
+        "peer": {
+            "address": "",
+            "port": 0
+        }
+    },
+    "observed_timestamp": "1970-01-01T00:00:00.000Z",
+    "os": {
+        "type": "linux"
     },
     "resource": {
         "attributes": {
-            "host.name": "elastic-agent-61441",
-            "mysql.instance.endpoint": "svc-mysql_input_otel:3306",
-            "os.type": "linux"
+            "host": {
+                "name": "elastic-agent-47514"
+            },
+            "mysql": {
+                "instance": {
+                    "endpoint": "svc-mysql_input_otel:3306"
+                }
+            },
+            "os": {
+                "type": "linux"
+            }
         },
-        "schema_url": "https://opentelemetry.io/schemas/1.6.1"
+        "schema_url": "https://opentelemetry.io/schemas/1.40.0"
     },
     "scope": {
         "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/mysqlreceiver",
-        "version": "9.3.0"
+        "version": "9.4.0"
     },
-    "start_timestamp": 1771409741214,
-    "unit": "1"
+    "user": {
+        "name": "root"
+    }
 }
