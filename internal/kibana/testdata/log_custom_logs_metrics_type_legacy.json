@@ -23,6 +23,10 @@
           "value": "log.custom",
           "type": "text"
         },
+        "data_stream.type": {
+          "value": "metrics",
+          "type": "text"
+        },
         "exclude_files": {
           "value": [],
           "type": "text"
@@ -46,7 +50,7 @@
         {
           "enabled": true,
           "data_stream": {
-            "type": "logs",
+            "type": "metrics",
             "dataset": "log.logs"
           },
           "vars": {
@@ -56,6 +60,10 @@
             },
             "data_stream.dataset": {
               "value": "log.custom",
+              "type": "text"
+            },
+            "data_stream.type": {
+              "value": "metrics",
               "type": "text"
             },
             "exclude_files": {

@@ -1,0 +1,9 @@
+vars:
+  hosts:
+    - root:test@tcp({{Hostname}}:{{Port}})/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+
+  # This test overrides data_stream.type from the default "metrics" to "logs".
+  # Requires Kibana >= 8.18.3 / 8.19.0 / 9.1.0.
+  data_stream.type: logs
+  data_stream.dataset: sql_input.test

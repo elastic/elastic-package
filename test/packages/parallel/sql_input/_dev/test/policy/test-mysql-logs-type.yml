@@ -1,0 +1,5 @@
+vars:
+  hosts:
+    - root:test@tcp(localhost:3306)/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_%';"
+  data_stream.type: logs
