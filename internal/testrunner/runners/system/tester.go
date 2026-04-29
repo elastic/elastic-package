@@ -2279,7 +2279,7 @@ func CreatePackagePolicy(
 			*builtPkg, builtPolicyTemplate, cfgVars, true,
 		)
 		fallbackDataset := fmt.Sprintf("%s.%s", builtPkg.Name, builtPolicyTemplate.Name)
-		return p, builtPolicyTemplate.Type, datasetFromPolicy(p, fallbackDataset), nil
+		return p, dataStreamTypeFromPolicy(p, builtPolicyTemplate.Type), datasetFromPolicy(p, fallbackDataset), nil
 	}
 
 	if dataStreamName == "" {
@@ -2352,6 +2352,32 @@ func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
 			}
 
 			return ds
+		}
+	}
+
+	return fallback
+}
+
+// dataStreamTypeFromPolicy returns the data stream type stored in the enabled stream's
+// data_stream.type var (set when the user overrides it via the test config). Falls back
+// to the supplied fallback (normally policyTemplate.Type) when not explicitly set.
+func dataStreamTypeFromPolicy(policy kibana.PackagePolicy, fallback string) string {
+	for _, input := range policy.Inputs {
+		if !input.Enabled {
+			continue
+		}
+		for _, stream := range input.Streams {
+			if !stream.Enabled {
+				continue
+			}
+
+			v, _ := common.MapStr(stream.Vars).GetValue("data_stream.type")
+			t, _ := v.(string)
+			if t == "" {
+				continue
+			}
+
+			return t
 		}
 	}
 
