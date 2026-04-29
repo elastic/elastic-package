@@ -1,4 +1,4 @@
-format_version: 3.6.0
+format_version: 3.6.2
 name: nginx_composable
 title: "Nginx (composable)"
 version: 0.1.0
@@ -16,7 +16,7 @@ categories:
   - opentelemetry
 conditions:
   kibana:
-    version: "^9.2.0"
+    version: "^9.4.0"
   elastic:
     subscription: basic
 requires:

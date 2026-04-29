@@ -6,5 +6,12 @@ streams:
     description: Collect Nginx access log files using the filelog receiver from the filelog_otel input package.
     vars:
       - name: include
+        type: text
+        title: Include paths
+        multi: true
+        required: false
+        show_user: true
+        secret: false
+        description: Glob patterns for Nginx access log files.
         default:
           - /var/log/nginx/access.log*
