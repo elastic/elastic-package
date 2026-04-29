@@ -1,5 +1,5 @@
 {
-    "@timestamp": "2026-04-28T14:23:42.266Z",
+    "@timestamp": "2026-04-28T14:26:31.342Z",
     "attributes": {
         "client": {
             "address": "",
@@ -26,13 +26,13 @@
                 "hash": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
             },
             "session": {
-                "id": 13,
+                "id": 11,
                 "status": "running"
             },
             "threads": {
                 "processlist_command": "Query",
-                "processlist_state": "checking permissions",
-                "thread_id": 54
+                "processlist_state": "waiting for handler commit",
+                "thread_id": 52
             },
             "wait_type": "other"
         },
@@ -52,7 +52,7 @@
     },
     "data_stream": {
         "dataset": "mysqlreceiver.otel",
-        "namespace": "87562",
+        "namespace": "30950",
         "type": "logs"
     },
     "db": {
@@ -67,11 +67,11 @@
     "event": {
         "agent_id_status": "missing",
         "dataset": "mysqlreceiver.otel",
-        "ingested": "2026-04-28T14:23:52Z"
+        "ingested": "2026-04-28T14:26:41Z"
     },
     "event_name": "db.server.query_sample",
     "host": {
-        "name": "elastic-agent-16988",
+        "name": "elastic-agent-47514",
         "os": {
             "platform": "linux"
         }
@@ -91,13 +91,13 @@
             "hash": "d08f3a4d7e1be08b1fe479a1f9c7f56fc480b7b60c365cb330c65acd35ab1c42"
         },
         "session": {
-            "id": 13,
+            "id": 11,
             "status": "running"
         },
         "threads": {
             "processlist_command": "Query",
-            "processlist_state": "checking permissions",
-            "thread_id": 54
+            "processlist_state": "waiting for handler commit",
+            "thread_id": 52
         },
         "wait_type": "other"
     },
@@ -114,7 +114,7 @@
     "resource": {
         "attributes": {
             "host": {
-                "name": "elastic-agent-16988"
+                "name": "elastic-agent-47514"
             },
             "mysql": {
                 "instance": {

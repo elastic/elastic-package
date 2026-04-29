@@ -543,6 +543,34 @@ for system tests.
 | wait_for_data_timeout | duration |  | Amount of time to wait for data to be present in Elasticsearch. Defaults to 10m. |
 | wait_for_dynamic_streams_stable | duration |  | For packages with dynamic data streams (e.g. `dynamic_signal_types`), minimum time the discovered data stream count must stay unchanged after the first stream appears before discovery completes. Defaults to 10s. |
 
+#### Overriding data stream type and dataset for input packages
+
+For **input packages**, the top-level `vars` field also accepts two special variables that
+override the data stream routing set by Fleet:
+
+- `data_stream.dataset` — overrides the dataset portion of the data stream name
+  (e.g. `sql_input.test` instead of the default `sql_input.sql_query`).
+- `data_stream.type` — overrides the signal type (`logs`, `metrics`, or `traces`).
+  Requires Kibana 8.18.3 / 8.19.0 / 9.1.0 or later (Fleet PR [#214216](https://github.com/elastic/kibana/pull/214216)).
+  Because the Kibana simplified Fleet API does not yet accept `data_stream.type` as a
+  stream-level variable (it rejects unknown vars), tests that use this override must also
+  set `policy_api_format: legacy` until a Kibana fix is available ([#266321](https://github.com/elastic/kibana/issues/266321)).
+
+```yaml
+policy_api_format: legacy
+vars:
+  hosts:
+    - root:test@tcp({{Hostname}}:{{Port}})/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+  data_stream.type: logs
+  data_stream.dataset: sql_input.test
+```
+
+When `data_stream.type` is set, `elastic-package` passes it to Fleet as a stream-level variable
+and uses it when computing the expected Elasticsearch data stream name
+(`<type>-<dataset>-<namespace>`). Without this override, the type defaults to the `type` field
+of the policy template in the package manifest.
+
 For example, the `apache/access` data stream's `test-access-log-config.yml` is
 shown below.
 

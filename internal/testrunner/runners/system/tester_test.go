@@ -18,6 +18,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/common"
 	estest "github.com/elastic/elastic-package/internal/elasticsearch/test"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
@@ -900,6 +901,86 @@ func TestPipelineErrorMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := pipelineErrorMessage(tc.doc)
 			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestDataStreamTypeFromPolicy(t *testing.T) {
+	cases := []struct {
+		title    string
+		policy   kibana.PackagePolicy
+		fallback string
+		expected string
+	}{
+		{
+			title:    "no enabled input: returns fallback",
+			policy:   kibana.PackagePolicy{},
+			fallback: "logs",
+			expected: "logs",
+		},
+		{
+			title: "enabled stream without data_stream.type var: returns fallback",
+			policy: kibana.PackagePolicy{
+				Inputs: map[string]kibana.PackagePolicyInput{
+					"logs-logfile": {
+						Enabled: true,
+						Streams: map[string]kibana.PackagePolicyStream{
+							"log.logs": {
+								Enabled: true,
+								Vars:    map[string]any{"data_stream.dataset": "log.custom"},
+							},
+						},
+					},
+				},
+			},
+			fallback: "logs",
+			expected: "logs",
+		},
+		{
+			title: "enabled stream with data_stream.type var overrides fallback",
+			policy: kibana.PackagePolicy{
+				Inputs: map[string]kibana.PackagePolicyInput{
+					"logs-logfile": {
+						Enabled: true,
+						Streams: map[string]kibana.PackagePolicyStream{
+							"log.logs": {
+								Enabled: true,
+								Vars: map[string]any{
+									"data_stream.dataset": "log.custom",
+									"data_stream.type":    "metrics",
+								},
+							},
+						},
+					},
+				},
+			},
+			fallback: "logs",
+			expected: "metrics",
+		},
+		{
+			title: "disabled input is skipped: returns fallback",
+			policy: kibana.PackagePolicy{
+				Inputs: map[string]kibana.PackagePolicyInput{
+					"logs-logfile": {
+						Enabled: false,
+						Streams: map[string]kibana.PackagePolicyStream{
+							"log.logs": {
+								Enabled: true,
+								Vars:    map[string]any{"data_stream.type": "metrics"},
+							},
+						},
+					},
+				},
+			},
+			fallback: "logs",
+			expected: "logs",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.title, func(t *testing.T) {
+			got := dataStreamTypeFromPolicy(c.policy, c.fallback)
+			assert.Equal(t, c.expected, got)
 		})
 	}
 }
