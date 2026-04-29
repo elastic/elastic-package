@@ -552,8 +552,12 @@ override the data stream routing set by Fleet:
   (e.g. `sql_input.test` instead of the default `sql_input.sql_query`).
 - `data_stream.type` — overrides the signal type (`logs`, `metrics`, or `traces`).
   Requires Kibana 8.18.3 / 8.19.0 / 9.1.0 or later (Fleet PR [#214216](https://github.com/elastic/kibana/pull/214216)).
+  Because the Kibana simplified Fleet API does not yet accept `data_stream.type` as a
+  stream-level variable (it rejects unknown vars), tests that use this override must also
+  set `policy_api_format: legacy` until a Kibana fix is available.
 
 ```yaml
+policy_api_format: legacy
 vars:
   hosts:
     - root:test@tcp({{Hostname}}:{{Port}})/

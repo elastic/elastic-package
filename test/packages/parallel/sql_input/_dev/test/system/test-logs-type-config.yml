@@ -1,3 +1,7 @@
+# The simplified Fleet API rejects data_stream.type because it is not declared
+# as a variable in the package manifest. Use the legacy API until Kibana's
+# simplified_package_policy_helper handles data_stream.type like data_stream.dataset.
+policy_api_format: legacy
 vars:
   hosts:
     - root:test@tcp({{Hostname}}:{{Port}})/
