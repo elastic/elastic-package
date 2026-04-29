@@ -554,7 +554,7 @@ override the data stream routing set by Fleet:
   Requires Kibana 8.18.3 / 8.19.0 / 9.1.0 or later (Fleet PR [#214216](https://github.com/elastic/kibana/pull/214216)).
   Because the Kibana simplified Fleet API does not yet accept `data_stream.type` as a
   stream-level variable (it rejects unknown vars), tests that use this override must also
-  set `policy_api_format: legacy` until a Kibana fix is available.
+  set `policy_api_format: legacy` until a Kibana fix is available ([#266321](https://github.com/elastic/kibana/issues/266321)).
 
 ```yaml
 policy_api_format: legacy
