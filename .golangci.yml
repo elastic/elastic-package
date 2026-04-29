@@ -28,7 +28,7 @@ linters:
         - ruleguard
       settings:
         ruleguard:
-          rules: '${base-path}/scripts/ruleguard/rules.go'
+          rules: '${base-path}/scripts/ruleguard/rules/rules.go'
           failOn: all
     revive:
       rules:
