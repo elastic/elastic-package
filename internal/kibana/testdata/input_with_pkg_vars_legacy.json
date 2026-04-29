@@ -30,7 +30,7 @@
         {
           "enabled": true,
           "data_stream": {
-            "type": "",
+            "type": "logs",
             "dataset": "input_with_pkg_vars.logs"
           },
           "vars": {
