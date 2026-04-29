@@ -32,7 +32,7 @@
         {
           "enabled": true,
           "data_stream": {
-            "type": "",
+            "type": "traces",
             "dataset": "otel_traces_input.receiver"
           },
           "vars": {

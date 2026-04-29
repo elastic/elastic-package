@@ -33,24 +33,19 @@ processors:
             - context: log
               statements:
                 - set(attributes["data_stream.type"], "logs")
-                - set(attributes["data_stream.dataset"], "custom.default")
+                - set(attributes["data_stream.dataset"], "mysqlreceiver")
                 - set(attributes["data_stream.namespace"], "ep")
         metric_statements:
             - context: datapoint
               statements:
                 - set(attributes["data_stream.type"], "metrics")
-                - set(attributes["data_stream.dataset"], "custom.default")
+                - set(attributes["data_stream.dataset"], "mysqlreceiver")
                 - set(attributes["data_stream.namespace"], "ep")
 receivers:
     mysql/componentid-0:
         allow_native_passwords: true
         collection_interval: 10s
         endpoint: localhost:3306
-        events:
-            db.server.query_sample:
-                enabled: true
-            db.server.top_query:
-                enabled: false
         initial_delay: 1s
         metrics:
             mysql.client.network.io:
@@ -71,6 +66,11 @@ receivers:
                 enabled: true
             mysql.table_open_cache:
                 enabled: true
+        events:
+            db.server.query_sample:
+                enabled: true
+            db.server.top_query:
+                enabled: false
         query_sample_collection:
             max_rows_per_query: 100
         statement_events:

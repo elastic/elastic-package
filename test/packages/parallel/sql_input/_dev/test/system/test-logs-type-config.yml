@@ -1,0 +1,14 @@
+# The simplified Fleet API rejects data_stream.type because it is not declared
+# as a variable in the package manifest. Use the legacy API until Kibana's
+# simplified_package_policy_helper handles data_stream.type like data_stream.dataset.
+# https://github.com/elastic/kibana/issues/266321
+policy_api_format: legacy
+vars:
+  hosts:
+    - root:test@tcp({{Hostname}}:{{Port}})/
+  sql_query: "SHOW GLOBAL STATUS LIKE 'Innodb_data%';"
+
+  # This test overrides data_stream.type from the default "metrics" to "logs".
+  # Requires Kibana >= 8.18.3 / 8.19.0 / 9.1.0.
+  data_stream.type: logs
+  data_stream.dataset: sql_input.test

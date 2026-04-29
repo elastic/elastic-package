@@ -1322,6 +1322,34 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	}
 
 	// FIXME: running per stages does not work when multiple agents are created
+	origAgent, origPolicy, err := r.setupAgentHandlers(ctx, agent, scenario, serviceStateData)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := r.finalizeScenario(ctx, &scenario, finalizeScenarioOpts{
+		config:                  config,
+		service:                 service,
+		agent:                   agent,
+		policyToTest:            policyToTest,
+		policyToEnrollOrCurrent: policyToEnrollOrCurrent,
+		dsType:                  dsType,
+		dsDataset:               dsDataset,
+		policy:                  policy,
+		origPolicy:              origPolicy,
+		origAgent:               origAgent,
+		agentInfo:               agentInfo,
+		svcInfo:                 svcInfo,
+	}); err != nil {
+		return nil, err
+	}
+
+	return &scenario, nil
+}
+
+// setupAgentHandlers resolves the original policy and log level for the agent,
+// registers the reset handlers, and returns the stored agent pointer and original policy.
+func (r *tester) setupAgentHandlers(ctx context.Context, agent *kibana.Agent, scenario scenarioTest, serviceStateData ServiceState) (*kibana.Agent, kibana.Policy, error) {
 	var origPolicy kibana.Policy
 	if r.runTearDown {
 		origPolicy = serviceStateData.OrigPolicy
@@ -1337,13 +1365,13 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	r.resetAgentPolicyHandler = func(ctx context.Context) error {
 		if r.runSetup {
 			// it should be kept the same policy just when system tests are
-			// triggered with the flags for running spolicyToAssignDatastreamTestsetup stage (--setup)
+			// triggered with the flags for running setup stage (--setup)
 			return nil
 		}
 
 		// RunTestOnly step (--no-provision) should also reassign back the previous (original) policy
-		// even with with independent Elastic Agents, since this step creates a new test policy each execution
-		// Moreover, ensure there is no agent service deployer (deprecated) being used
+		// even with independent Elastic Agents, since this step creates a new test policy each execution.
+		// Moreover, ensure there is no agent service deployer (deprecated) being used.
 		if scenario.agent != nil && r.runIndependentElasticAgent && !r.runTestsOnly {
 			return nil
 		}
@@ -1355,17 +1383,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil
 	}
 
-	origAgent := agent
 	origLogLevel := ""
 	if r.runTearDown {
-		logger.Debug("Skip assiging log level debug to agent")
+		logger.Debug("Skip assigning log level debug to agent")
 		origLogLevel = serviceStateData.Agent.LocalMetadata.Elastic.Agent.LogLevel
 	} else {
 		logger.Debug("Set Debug log level to agent")
 		origLogLevel = agent.LocalMetadata.Elastic.Agent.LogLevel
-		err = r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug")
-		if err != nil {
-			return nil, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
+		if err := r.kibanaClient.SetAgentLogLevel(ctx, agent.ID, "debug"); err != nil {
+			return nil, kibana.Policy{}, fmt.Errorf("error setting log level debug for agent %s: %w", agent.ID, err)
 		}
 	}
 	r.resetAgentLogLevelHandler = func(ctx context.Context) error {
@@ -1374,8 +1400,8 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		}
 
 		// No need to reset agent log level when running independent Elastic Agents
-		// since the Elastic Agent is going to be removed/uninstalled
-		// Morevoer, ensure there is no agent service deployer (deprecated) being used
+		// since the Elastic Agent is going to be removed/uninstalled.
+		// Moreover, ensure there is no agent service deployer (deprecated) being used.
 		if scenario.agent != nil && r.runIndependentElasticAgent {
 			return nil
 		}
@@ -1388,34 +1414,58 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil
 	}
 
+	return agent, origPolicy, nil
+}
+
+type finalizeScenarioOpts struct {
+	config                  *testConfig
+	service                 servicedeployer.DeployedService
+	agent                   *kibana.Agent
+	policyToTest            *kibana.Policy
+	policyToEnrollOrCurrent *kibana.Policy
+	dsType                  string
+	dsDataset               string
+	policy                  kibana.PackagePolicy
+	origPolicy              kibana.Policy
+	origAgent               *kibana.Agent
+	agentInfo               agentdeployer.AgentInfo
+	svcInfo                 servicedeployer.ServiceInfo
+}
+
+// finalizeScenario assigns the policy to the agent, signals the service if needed,
+// discovers and verifies data streams, and persists setup state when running in setup mode.
+// When r.runTearDown is true only the agent-assignment skip and service signal are evaluated,
+// then it returns early without modifying the scenario's data streams.
+func (r *tester) finalizeScenario(ctx context.Context, scenario *scenarioTest, opts finalizeScenarioOpts) error {
 	if r.runTearDown {
 		logger.Debug("Skip assigning package data stream to agent")
 	} else {
-		policyWithDataStream, err := r.kibanaClient.GetPolicy(ctx, policyToTest.ID)
+		policyWithDataStream, err := r.kibanaClient.GetPolicy(ctx, opts.policyToTest.ID)
 		if err != nil {
-			return nil, fmt.Errorf("could not read the policy with data stream: %w", err)
+			return fmt.Errorf("could not read the policy with data stream: %w", err)
 		}
 
 		logger.Debug("assigning package data stream to agent...")
-		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *agent, *policyWithDataStream); err != nil {
-			return nil, fmt.Errorf("could not assign policy to agent: %w", err)
+		if err := r.kibanaClient.AssignPolicyToAgent(ctx, *opts.agent, *policyWithDataStream); err != nil {
+			return fmt.Errorf("could not assign policy to agent: %w", err)
 		}
 	}
 
 	// Signal to the service that the agent is ready (policy is assigned).
-	if service != nil && config.ServiceNotifySignal != "" {
-		if err = service.Signal(ctx, config.ServiceNotifySignal); err != nil {
-			return nil, fmt.Errorf("failed to notify test service: %w", err)
+	if opts.service != nil && opts.config.ServiceNotifySignal != "" {
+		if err := opts.service.Signal(ctx, opts.config.ServiceNotifySignal); err != nil {
+			return fmt.Errorf("failed to notify test service: %w", err)
 		}
 	}
 
 	if r.runTearDown {
-		return &scenario, nil
+		return nil
 	}
 
-	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
+	var err error
+	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, opts.dsType, opts.dsDataset, opts.policy.Namespace, scenario.policyTemplate, opts.config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	dataStreamNames := make([]string, len(scenario.dataStreams))
@@ -1425,28 +1475,27 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	logger.Debugf("Testing %d data stream(s): %s", len(scenario.dataStreams), strings.Join(dataStreamNames, ", "))
 
 	for i := range scenario.dataStreams {
-		if err := r.verifyDataStream(ctx, config, service, &scenario.dataStreams[i]); err != nil {
-			return nil, err
+		if err := r.verifyDataStream(ctx, opts.config, opts.service, &scenario.dataStreams[i]); err != nil {
+			return err
 		}
 	}
 
 	if r.runSetup {
-		opts := scenarioStateOpts{
-			origPolicy:    &origPolicy,
-			enrollPolicy:  policyToEnrollOrCurrent,
-			currentPolicy: policyToTest,
-			config:        config,
-			agent:         *origAgent,
-			agentInfo:     agentInfo,
-			svcInfo:       svcInfo,
+		stateOpts := scenarioStateOpts{
+			origPolicy:    &opts.origPolicy,
+			enrollPolicy:  opts.policyToEnrollOrCurrent,
+			currentPolicy: opts.policyToTest,
+			config:        opts.config,
+			agent:         *opts.origAgent,
+			agentInfo:     opts.agentInfo,
+			svcInfo:       opts.svcInfo,
 		}
-		err = writeScenarioState(opts, r.serviceStateFilePath)
-		if err != nil {
-			return nil, err
+		if err := writeScenarioState(stateOpts, r.serviceStateFilePath); err != nil {
+			return err
 		}
 	}
 
-	return &scenario, nil
+	return nil
 }
 
 // buildDataStreamScenarios determines the set of data streams to test for a given scenario.
@@ -2178,7 +2227,7 @@ func CreatePackagePolicy(
 			*pkg, policyTemplate, cfgVars, true,
 		)
 		fallbackDataset := fmt.Sprintf("%s.%s", pkg.Name, policyTemplate.Name)
-		return p, policyTemplate.Type, datasetFromPolicy(p, fallbackDataset), nil
+		return p, dataStreamTypeFromPolicy(p, policyTemplate.Type), datasetFromPolicy(p, fallbackDataset), nil
 	}
 	if ds == nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
@@ -2231,6 +2280,32 @@ func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
 			}
 
 			return ds
+		}
+	}
+
+	return fallback
+}
+
+// dataStreamTypeFromPolicy returns the data stream type stored in the enabled stream's
+// data_stream.type var (set when the user overrides it via the test config). Falls back
+// to the supplied fallback (normally policyTemplate.Type) when not explicitly set.
+func dataStreamTypeFromPolicy(policy kibana.PackagePolicy, fallback string) string {
+	for _, input := range policy.Inputs {
+		if !input.Enabled {
+			continue
+		}
+		for _, stream := range input.Streams {
+			if !stream.Enabled {
+				continue
+			}
+
+			v, _ := common.MapStr(stream.Vars).GetValue("data_stream.type")
+			t, _ := v.(string)
+			if t == "" {
+				continue
+			}
+
+			return t
 		}
 	}
 
