@@ -612,10 +612,9 @@ var (
 type T struct {
 	pkg, dataStream string
 
-	run           *regexp.Regexp
-	verbose       bool
-	stdinTempFile string
-	failed        atomic.Bool
+	run     *regexp.Regexp
+	verbose bool
+	failed  atomic.Bool
 
 	passthrough, out io.Writer
 
@@ -662,9 +661,6 @@ func (t *T) Parallel() {
 
 func (t *T) Log(is ...any) {
 	msg := fmt.Sprint(is...)
-	if t.stdinTempFile != "" {
-		msg = strings.ReplaceAll(msg, t.stdinTempFile, "<stdin>")
-	}
 	if !strings.HasSuffix(msg, "\n") {
 		msg += "\n"
 	}
