@@ -15,7 +15,7 @@ output_permissions:
         uuid-for-permissions-on-related-indices:
             indices:
                 - names:
-                    - logs-nginx_composable.access-ep
+                    - logs-nginx_composable.access.otel-ep
                   privileges:
                     - auto_configure
                     - create_doc

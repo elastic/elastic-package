@@ -15,7 +15,7 @@ output_permissions:
         uuid-for-permissions-on-related-indices:
             indices:
                 - names:
-                    - metrics-nginx_composable.stubstatus-ep
+                    - metrics-nginx_composable.stubstatus.otel-ep
                   privileges:
                     - auto_configure
                     - create_doc

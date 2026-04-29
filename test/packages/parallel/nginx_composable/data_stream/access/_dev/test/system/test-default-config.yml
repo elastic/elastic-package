@@ -5,4 +5,4 @@ data_stream:
       - "{{SERVICE_LOGS_DIR}}/access.log*"
     start_at: beginning
 assert:
-  hit_count: 1
+  min_count: 30
