@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/go-ucfg"
 	"github.com/elastic/go-ucfg/yaml"
 
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/packages"
@@ -121,6 +122,24 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	templ, err := packages.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
+	// For composable integration packages the source manifest has unresolved "package:" references,
+	// so templ.Input is empty. Resolve the effective input type from the built tree.
+	if templ.Input == "" {
+		if builtRoot, builtPkg, berr := builder.ReadBuiltPackageManifest(manifestRoot); berr == nil {
+			if builtPT, berr := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, *polName); berr == nil {
+				inputName := config.Input
+				if inputName == "" {
+					if builtDS, berr := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dsMan.Name); berr == nil && len(builtDS.Streams) > 0 {
+						inputName = builtDS.Streams[0].Input
+					}
+				}
+				if input := builtPT.FindInput(inputName); input != nil {
+					templ.Input = input.Type
+				}
+			}
+		}
+	}
+
 	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, *polName, dsMan.Name, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, manifestRoot)
 	ts.Check(decoratedWith("creating package policy", err))
 	_, err = stk.kibana.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormatAuto)
@@ -130,7 +149,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Check(decoratedWith("reading policy", err))
 	ts.Check(decoratedWith("assigning policy", stk.kibana.AssignPolicyToAgent(ctx, installed.enrolled, *pol)))
 
-	dsName := system.BuildDataStreamName(dsType, dsDataset, installed.testingPolicy.Namespace, templ, pkgMan.Type)
+	dsName := system.BuildDataStreamName(dsType, dsDataset, installed.testingPolicy.Namespace, templ)
 	ts.Setenv(dsNameLabel, dsName)
 	dataStreams[dsName] = struct{}{}
 

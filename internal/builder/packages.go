@@ -110,6 +110,20 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 	return filepath.Join(buildDir, m.Name, m.Version), nil
 }
 
+// ReadBuiltPackageManifest locates the built package directory for packageRoot
+// and reads its manifest. Returns the built root path and parsed manifest.
+func ReadBuiltPackageManifest(packageRoot string) (string, *packages.PackageManifest, error) {
+	builtRoot, err := BuildPackagesDirectory(packageRoot, "")
+	if err != nil {
+		return "", nil, err
+	}
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		return "", nil, err
+	}
+	return builtRoot, builtPkg, nil
+}
+
 // buildPackagesZipPath function returns the path to zipped built package.
 func buildPackagesZipPath(packageRoot string) (string, error) {
 	buildPackagesDir, err := buildPackagesRootDirectory()

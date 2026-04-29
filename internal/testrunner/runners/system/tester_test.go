@@ -511,7 +511,6 @@ func TestBuildDataStreamName(t *testing.T) {
 		dsDataset      string
 		namespace      string
 		policyTemplate packages.PolicyTemplate
-		packageType    string
 		expected       string
 	}{
 		{
@@ -520,16 +519,14 @@ func TestBuildDataStreamName(t *testing.T) {
 			dsDataset:      "nginx.access",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: "logfile"},
-			packageType:    "integration",
 			expected:       "logs-nginx.access-default",
 		},
 		{
-			title:          "otelcol input: .otel suffix appended",
+			title:          "otelcol input package: .otel suffix appended",
 			dsType:         "logs",
 			dsDataset:      "httpcheck",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "input",
 			expected:       "logs-httpcheck.otel-default",
 		},
 		{
@@ -538,23 +535,21 @@ func TestBuildDataStreamName(t *testing.T) {
 			dsDataset:      "custom.otel",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "input",
 			expected:       "logs-custom.otel.otel-default",
 		},
 		{
-			title:          "otelcol input on integration package type: no suffix added",
+			title:          "otelcol input on integration (composable) package type: .otel suffix added",
 			dsType:         "metrics",
 			dsDataset:      "myreceiver",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "integration",
-			expected:       "metrics-myreceiver-default",
+			expected:       "metrics-myreceiver.otel-default",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate, c.packageType)
+			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate)
 			assert.Equal(t, c.expected, got)
 		})
 	}
@@ -618,6 +613,15 @@ func TestExpectedDatasets(t *testing.T) {
 				},
 			},
 			expected: []string{"generic.otel.otel"},
+		},
+		{
+			title:       "otelcol integration (composable) package: .otel suffix appended like Elastic Agent",
+			packageType: "integration",
+			scenario: &scenarioTest{
+				dataStreamDataset: "nginx_composable.access",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"nginx_composable.access.otel"},
 		},
 	}
 

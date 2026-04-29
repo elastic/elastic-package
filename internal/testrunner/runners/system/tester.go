@@ -1243,6 +1243,15 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return nil, fmt.Errorf("failed to find the selected policy_template: %w", err)
 	}
 	scenario.policyTemplate = policyTemplate
+	// For integration packages with composable inputs the source manifest carries unresolved
+	// "package:" references, so policyTemplate.Input is empty even when the effective input
+	// type is "otelcol". Resolve it from the built tree so otelcol-specific behaviour
+	// (e.g. the .otel dataset suffix) works correctly for composable integrations.
+	if scenario.policyTemplate.Input == "" {
+		if resolved := r.resolveEffectiveInputType(policyTemplateName, config.Input); resolved != "" {
+			scenario.policyTemplate.Input = resolved
+		}
+	}
 
 	policyToEnrollOrCurrent, policyToTest, err := r.createOrGetKibanaPolicies(ctx, serviceStateData, stackConfig)
 	if err != nil {
@@ -1417,7 +1426,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 		return &scenario, nil
 	}
 
-	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, policyTemplate, config)
+	scenario.dataStreams, err = r.buildDataStreamScenarios(ctx, dsType, dsDataset, policy.Namespace, scenario.policyTemplate, config)
 	if err != nil {
 		return nil, err
 	}
@@ -1488,7 +1497,7 @@ func (r *tester) buildDataStreamScenarios(ctx context.Context, dsType, dsDataset
 		return scenarios, nil
 	}
 	return []scenarioDataStream{{
-		dataStream:        BuildDataStreamName(dsType, dsDataset, namespace, policyTemplate, r.pkgManifest.Type),
+		dataStream:        BuildDataStreamName(dsType, dsDataset, namespace, policyTemplate),
 		indexTemplateName: buildIndexTemplateName(dsType, dsDataset),
 	}}, nil
 }
@@ -1529,11 +1538,11 @@ func appendOtelcolAgentDatasetSuffix(baseDataset string) string {
 }
 
 // BuildDataStreamName builds the expected data stream name that is installed in Elasticsearch
-// when the package data stream is added to the policy. For input packages with the otelcol
-// input, the name includes the ".otel" suffix that Elastic Agent adds (see appendOtelcolAgentDatasetSuffix).
-func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate, packageType string) string {
+// when the package data stream is added to the policy. For otelcol inputs (regardless of
+// package type), the name includes the ".otel" suffix that Elastic Agent adds (see appendOtelcolAgentDatasetSuffix).
+func BuildDataStreamName(dsType, dsDataset, namespace string, policyTemplate packages.PolicyTemplate) string {
 	dataset := dsDataset
-	if packageType == "input" && policyTemplate.Input == otelCollectorInputName {
+	if policyTemplate.Input == otelCollectorInputName {
 		dataset = appendOtelcolAgentDatasetSuffix(dataset)
 	}
 	return fmt.Sprintf("%s-%s-%s", dsType, dataset, namespace)
@@ -2020,8 +2029,7 @@ func (r *tester) expectedDatasets(scenario *scenarioTest) ([]string, error) {
 	if len(expectedDatasets) == 0 {
 		// get dataset directly from package policy added when preparing the scenario
 		expectedDataset := scenario.dataStreamDataset
-		if scenario.policyTemplate.Input == otelCollectorInputName &&
-			r.pkgManifest != nil && r.pkgManifest.Type == "input" {
+		if scenario.policyTemplate.Input == otelCollectorInputName {
 			expectedDataset = appendOtelcolAgentDatasetSuffix(expectedDataset)
 		}
 		expectedDatasets = []string{expectedDataset}
@@ -2070,16 +2078,44 @@ func (r *tester) runTest(ctx context.Context, config *testConfig, stackConfig st
 }
 
 func (r *tester) isTestUsingOTelCollectorInput(policyTemplateInput string) bool {
-	// Just supported for input packages currently
-	if r.pkgManifest.Type != "input" {
-		return false
-	}
+	return policyTemplateInput == otelCollectorInputName
+}
 
-	if policyTemplateInput != otelCollectorInputName {
-		return false
+// resolveEffectiveInputType returns the resolved input type for the current data stream by
+// reading the built package tree, where composable "package:" references are materialised
+// into concrete input types. It is used to populate scenario.policyTemplate.Input for
+// integration packages whose source manifest carries unresolved references.
+func (r *tester) resolveEffectiveInputType(policyTemplateName, configInput string) string {
+	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(r.packageRoot)
+	if err != nil {
+		logger.Debugf("failed to read built manifest for input type resolution: %v", err)
+		return ""
 	}
-
-	return true
+	builtPT, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		logger.Debugf("failed to find policy template %q in built manifest: %v", policyTemplateName, err)
+		return ""
+	}
+	// For non-composable integration packages the Input field is set directly.
+	if builtPT.Input != "" {
+		return builtPT.Input
+	}
+	// For composable integration packages, resolve which input the current data stream uses.
+	inputName := configInput
+	if inputName == "" && r.testFolder.DataStream != "" {
+		builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, r.testFolder.DataStream)
+		if err == nil && len(builtDS.Streams) > 0 {
+			inputName = builtDS.Streams[0].Input
+		}
+	}
+	if inputName == "" {
+		return ""
+	}
+	input := builtPT.FindInput(inputName)
+	if input == nil {
+		return ""
+	}
+	return input.Type
 }
 
 func dumpScenarioDocs(dataStreams []scenarioDataStream) error {
@@ -2177,14 +2213,9 @@ func CreatePackagePolicy(
 
 	// Always resolve against the built tree so that RequiredInputsResolver has already
 	// materialized package: references into concrete input types.
-	root, err := builder.BuildPackagesDirectory(packageRoot, "")
+	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(packageRoot)
 	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("error locating built package directory: %w", err)
-	}
-
-	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(root)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest at %s: %w", root, err)
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest: %w", err)
 	}
 
 	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
@@ -2206,7 +2237,7 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
 	}
 
-	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, root, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix)
+	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, builtRoot, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix)
 }
 
 // buildIntegrationPackagePolicyFromBuilt builds a Fleet package policy from manifests
