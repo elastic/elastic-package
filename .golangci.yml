@@ -3,8 +3,11 @@ version: "2"
 linters:
   enable:
     - contextcheck
+    # TODO: enable errorlint to detect issues with error comparisons, wrapping and so on.
+    #- errorlint
     - exhaustive
     - gocognit
+    - gocritic
     - gocyclo
     - nilerr
     - revive
@@ -13,11 +16,20 @@ linters:
 
   settings:
     gocyclo:
-      # TODO: lower to 25 as complex functions are refactored (current worst: prepareScenario/Run=50).
-      min-complexity: 50
+      # TODO: lower to 25 as complex functions are refactored.
+      min-complexity: 42
     gocognit:
       # TODO: lower to 40 as complex functions are refactored.
-      min-complexity: 70
+      min-complexity: 62
+    gocritic:
+      # TODO: Enable more checks, it is detecting actual potential issues.
+      disable-all: true
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: '${base-path}/scripts/ruleguard/rules/rules.go'
+          failOn: all
     revive:
       rules:
         # TODO: lower to default 8 once BuildIntegrationPackagePolicy, CreatePackagePolicy,
