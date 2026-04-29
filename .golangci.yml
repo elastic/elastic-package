@@ -5,6 +5,7 @@ linters:
     - contextcheck
     - exhaustive
     - gocognit
+    - gocritic
     - gocyclo
     - nilerr
     - revive
@@ -18,6 +19,15 @@ linters:
     gocognit:
       # TODO: lower to 40 as complex functions are refactored.
       min-complexity: 62
+    gocritic:
+      # TODO: Enable more checks, it is detecting actual potential issues.
+      disable-all: true
+      enabled-checks:
+        - ruleguard
+      settings:
+        ruleguard:
+          rules: '${base-path}/scripts/ruleguard/rules.go'
+          failOn: all
     revive:
       rules:
         # TODO: lower to default 8 once BuildIntegrationPackagePolicy, CreatePackagePolicy,

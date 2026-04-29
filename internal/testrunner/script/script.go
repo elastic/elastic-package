@@ -139,7 +139,7 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 
 	t, err := newT(opt, dst, w)
 	if err != nil {
-		return nil
+		return err
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -181,7 +181,11 @@ func Run(dst *[]testrunner.TestResult, w io.Writer, opt Options) error {
 
 	var n int
 	for _, d := range pkgInfo.dirs {
-		if runScriptTestsForDir(ctx, t, d, pkgInfo, workdirRoot, baseEnv, scriptCmds, isLatestVersion, opt) {
+		ran, err := runScriptTestsForDir(ctx, t, d, pkgInfo, workdirRoot, baseEnv, scriptCmds, isLatestVersion, opt)
+		if err != nil {
+			return err
+		}
+		if ran {
 			n++
 		}
 	}
@@ -319,7 +323,7 @@ func scriptTestCommands() map[string]func(ts *testscript.TestScript, neg bool, a
 
 // runScriptTestsForDir runs the script tests for a single data stream directory d.
 // It returns true when test files were found and executed.
-func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageInfo, workdirRoot string, baseEnv map[string]string, scriptCmds map[string]func(*testscript.TestScript, bool, []string), isLatestVersion bool, opt Options) bool {
+func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageInfo, workdirRoot string, baseEnv map[string]string, scriptCmds map[string]func(*testscript.TestScript, bool, []string), isLatestVersion bool, opt Options) (bool, error) {
 	t.dataStream = d
 	scripts := d
 	var dsRoot string
@@ -327,8 +331,11 @@ func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageIn
 		dsRoot = filepath.Join(pkgInfo.root, "data_stream", d)
 		scripts = filepath.Join(dsRoot, filepath.FromSlash("_dev/test/scripts"))
 	}
-	if _, err := os.Stat(scripts); errors.Is(err, fs.ErrNotExist) {
-		return false
+	if _, err := os.Stat(scripts); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return false, nil
+		}
+		return false, fmt.Errorf("checking scripts directory %q: %w", scripts, err)
 	}
 
 	scriptEnv := maps.Clone(baseEnv)
@@ -369,12 +376,12 @@ func runScriptTestsForDir(ctx context.Context, t *T, d string, pkgInfo packageIn
 	t.Log("DATA_STREAM ", d)
 	runTests(t, p) //nolint:errcheck // elastic-package detects errors by the results slice.
 	if opt.TestWork {
-		return true
+		return true, nil
 	}
 	if err := cleanUp(context.WithoutCancel(ctx), pkgInfo, t); err != nil {
 		t.Log("cleanup: ", err)
 	}
-	return true
+	return true, nil
 }
 
 // resolveLatestVersion loads the package manifest and queries the registry to determine
