@@ -250,12 +250,6 @@ policy_templates:
             enabled: true
           mysql.max_used_connections:
             enabled: true
-      - name: data_stream.dataset
-        type: text
-        title: Dataset name
-        default: custom.default
-        required: true
-        show_user: true
 owner:
   github: elastic/ecosystem
   type: elastic

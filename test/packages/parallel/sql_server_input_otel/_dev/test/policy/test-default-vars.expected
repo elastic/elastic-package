@@ -33,52 +33,27 @@ processors:
             - context: log
               statements:
                 - set(attributes["data_stream.type"], "logs")
-                - set(attributes["data_stream.dataset"], "mysqlreceiver")
+                - set(attributes["data_stream.dataset"], "sqlserverreceiver")
                 - set(attributes["data_stream.namespace"], "ep")
         metric_statements:
             - context: datapoint
               statements:
                 - set(attributes["data_stream.type"], "metrics")
-                - set(attributes["data_stream.dataset"], "mysqlreceiver")
+                - set(attributes["data_stream.dataset"], "sqlserverreceiver")
                 - set(attributes["data_stream.namespace"], "ep")
 receivers:
-    mysql/componentid-0:
-        allow_native_passwords: true
-        collection_interval: 10s
-        endpoint: localhost:3306
-        initial_delay: 1s
-        metrics:
-            mysql.client.network.io:
-                enabled: true
-            mysql.commands:
-                enabled: true
-            mysql.connection.count:
-                enabled: true
-            mysql.connection.errors:
-                enabled: true
-            mysql.max_used_connections:
-                enabled: true
-            mysql.query.client.count:
-                enabled: true
-            mysql.replica.sql_delay:
-                enabled: true
-            mysql.replica.time_behind_source:
-                enabled: true
-            mysql.table_open_cache:
-                enabled: true
+    sqlserver/componentid-0:
+        collection_interval: 30s
         events:
             db.server.query_sample:
-                enabled: true
+                enabled: false
             db.server.top_query:
                 enabled: false
-        query_sample_collection:
-            max_rows_per_query: 100
-        statement_events:
-            digest_text_limit: 120
-            limit: 250
-            time_limit: 24h
-        transport: tcp
-        username: root
+        initial_delay: 5s
+        password: secretpassword
+        port: 1434
+        server: sqlserver.example.com
+        username: sa
 secret_references: []
 service:
     pipelines:
@@ -94,7 +69,7 @@ service:
                 - resourcedetection/componentid-0
                 - transform/componentid-1
             receivers:
-                - mysql/componentid-0
+                - sqlserver/componentid-0
         metrics:
             exporters:
                 - elasticsearch/componentid-0
@@ -107,4 +82,4 @@ service:
                 - resourcedetection/componentid-0
                 - transform/componentid-1
             receivers:
-                - mysql/componentid-0
+                - sqlserver/componentid-0
