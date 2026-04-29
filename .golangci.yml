@@ -3,6 +3,8 @@ version: "2"
 linters:
   enable:
     - contextcheck
+    # TODO: enable errorlint to detect issues with error comparisons, wrapping and so on.
+    #- errorlint
     - exhaustive
     - gocognit
     - gocritic

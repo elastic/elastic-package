@@ -220,10 +220,10 @@ func resolvePackageInfo(opt Options) (packageInfo, error) {
 	}
 
 	pkgRoot, err := packages.FindPackageRoot()
+	if errors.Is(err, packages.ErrPackageRootNotFound) {
+		return packageInfo{}, errors.New("package root not found")
+	}
 	if err != nil {
-		if err == packages.ErrPackageRootNotFound {
-			return packageInfo{}, errors.New("package root not found")
-		}
 		return packageInfo{}, fmt.Errorf("locating package root failed: %w", err)
 	}
 	dirs, err := datastreams(slices.Clone(opt.Streams), pkgRoot)
@@ -404,7 +404,7 @@ func resolveLatestVersion(pkgInfo packageInfo, eprBaseURL string, prof *profile.
 		latestEPRVersion = revisions[len(revisions)-1].Version
 		latestSemver, err := semver.NewVersion(latestEPRVersion)
 		if err != nil {
-			return nil, "", false, fmt.Errorf("failed to parse latest epr version: %w", err)
+			return nil, "", false, fmt.Errorf("failed to parse latest epr version %q: %w", latestEPRVersion, err)
 		}
 		if latestSemver.GreaterThanEqual(pkgInfo.currSemver) {
 			isLatestVersion = false
