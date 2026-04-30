@@ -1824,6 +1824,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 	var hits *hits
 	oldHits := 0
 	foundFields := map[string]any{}
+	var missingFields []string
 	passed, waitErr := wait.UntilTrue(ctx, func(ctx context.Context) (bool, error) {
 		var err error
 		hits, err = r.getDocs(ctx, dataStream)
@@ -1861,6 +1862,7 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 				// At least there should be one document ingested
 				return false
 			}
+			missingFields = missingFields[:0]
 			for _, f := range config.Assert.FieldsPresent {
 				if _, found := foundFields[f]; found {
 					continue
@@ -1872,13 +1874,14 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 						break
 					}
 				}
-				if !found {
-					return false
+				if found {
+					logger.Debugf("Found field %q in hits", f)
+					foundFields[f] = struct{}{}
+				} else {
+					missingFields = append(missingFields, f)
 				}
-				logger.Debugf("Found field %q in hits", f)
-				foundFields[f] = struct{}{}
 			}
-			return true
+			return len(missingFields) == 0
 		}()
 
 		assertMinCount := func() bool {
@@ -1894,6 +1897,10 @@ func (r *tester) waitForDocs(ctx context.Context, config *testConfig, dataStream
 
 	if waitErr != nil {
 		return nil, waitErr
+	}
+
+	if len(missingFields) > 0 {
+		logger.Warnf("Fields not found in hits: %v", missingFields)
 	}
 
 	if !passed {
