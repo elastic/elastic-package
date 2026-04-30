@@ -70,13 +70,20 @@ receivers:
             db.server.query_sample:
                 enabled: true
             db.server.top_query:
-                enabled: false
+                enabled: true
         query_sample_collection:
-            max_rows_per_query: 100
+            max_rows_per_query: 200
         statement_events:
             digest_text_limit: 120
             limit: 250
             time_limit: 24h
+        top_query_collection:
+            collection_interval: 30s
+            lookback_time: 120
+            max_query_sample_count: 500
+            query_plan_cache_size: 2000
+            query_plan_cache_ttl: 2h
+            top_query_count: 100
         transport: tcp
         username: root
 secret_references: []

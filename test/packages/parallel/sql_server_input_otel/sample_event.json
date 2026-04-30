@@ -1,73 +1,32 @@
 {
-    "@timestamp": "2026-04-10T13:49:55.739Z",
-    "_metric_names_hash": "7ee276998c966647",
-    "attributes": {
-        "performance_counter": {
-            "object_name": "SQLServer:Buffer Node"
-        }
-    },
+    "@timestamp": 1771937728521,
+    "_metric_names_hash": "8986448896debcf6",
+    "attributes": {},
     "data_stream": {
         "dataset": "sqlserverreceiver.otel",
-        "namespace": "40722",
+        "namespace": "58123",
         "type": "metrics"
     },
     "event": {
         "agent_id_status": "missing",
-        "dataset": "sqlserverreceiver.otel",
-        "ingested": "2026-04-10T13:50:05Z"
-    },
-    "host": {
-        "name": "elastic-agent-70881",
-        "os": {
-            "platform": "linux"
-        }
+        "ingested": "2026-02-24T12:55:38Z"
     },
     "metrics": {
-        "sqlserver": {
-            "page": {
-                "life_expectancy": 21
-            }
-        }
-    },
-    "os": {
-        "type": "linux"
-    },
-    "performance_counter": {
-        "object_name": "SQLServer:Buffer Node"
+        "sqlserver.batch.request.rate": 64,
+        "sqlserver.lock.wait.rate": 5
     },
     "resource": {
         "attributes": {
-            "host": {
-                "name": "elastic-agent-70881"
-            },
-            "os": {
-                "type": "linux"
-            },
-            "service": {
-                "instance": {
-                    "id": "svc-sql_server_input_otel:1433"
-                }
-            }
+            "host.name": "elastic-agent-37707",
+            "os.type": "linux",
+            "service.instance.id": "svc-sql_server_input_otel:1433"
         },
-        "schema_url": "https://opentelemetry.io/schemas/1.39.0"
+        "schema_url": "https://opentelemetry.io/schemas/1.38.0"
     },
     "scope": {
         "name": "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/sqlserverreceiver",
         "version": "9.4.0"
     },
-    "service": {
-        "instance": {
-            "id": "svc-sql_server_input_otel:1433"
-        },
-        "node": {
-            "name": "svc-sql_server_input_otel:1433"
-        }
-    },
-    "sqlserver": {
-        "page": {
-            "life_expectancy": 21
-        }
-    },
-    "start_timestamp": "2026-04-10T13:49:54.565Z",
-    "unit": "s"
+    "start_timestamp": 1771937727340,
+    "unit": "{requests}/s"
 }

@@ -3,5 +3,9 @@ service_notify_signal: SIGHUP
 vars:
   endpoint: "{{Hostname}}:{{Port}}"
   username: "root"
+  collection_interval: 10s
+  initial_delay: 1s
+# Increase waiting time to find logs data streams
+wait_for_dynamic_streams_stable: 90s
 assert:
   min_count: 10
