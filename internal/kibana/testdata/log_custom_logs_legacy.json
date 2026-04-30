@@ -46,7 +46,7 @@
         {
           "enabled": true,
           "data_stream": {
-            "type": "",
+            "type": "logs",
             "dataset": "log.logs"
           },
           "vars": {

@@ -230,6 +230,21 @@ func TestBuildInputPackagePolicy(t *testing.T) {
 			goldenLegacy:     "testdata/log_custom_logs_legacy.json",
 		},
 		{
+			// Override data_stream.type from the default "logs" to "metrics".
+			// Mirrors the Kibana Fleet feature (PR #214216) for input packages.
+			name:               "log_custom_logs_metrics_type",
+			packageRoot:        "testdata/packages/log_input",
+			policyTemplateName: "logs",
+			policyName:         "log-logs-test",
+			varValues: common.MapStr{
+				"paths":               []string{"/tmp/test.log"},
+				"data_stream.dataset": "log.custom",
+				"data_stream.type":    "metrics",
+			},
+			goldenSimplified: "testdata/log_custom_logs_metrics_type.json",
+			goldenLegacy:     "testdata/log_custom_logs_metrics_type_legacy.json",
+		},
+		{
 			name:               "sql_input_custom_dataset",
 			packageRoot:        "../../test/packages/parallel/sql_input",
 			policyTemplateName: "sql_query",

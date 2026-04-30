@@ -165,10 +165,17 @@ func BuildInputPackagePolicy(
 
 	vars := SetKibanaVariables(policyTemplate.Vars, varValues)
 	ensureDatasetVar(vars, policyTemplate, varValues)
+	ensureDataStreamTypeVar(vars, varValues)
 	// For otelcol, data_stream.dataset is the base name only (do not include a ".otel" suffix).
 	// Elastic Agent appends ".otel" at ingest; Fleet and this builder do not.
 	if policyTemplate.Input == "otelcol" {
 		ensureUseAPMVar(vars, varValues)
+	}
+	dsType := policyTemplate.Type
+	if v, found := vars["data_stream.type"]; found && v.fromUser {
+		if s, ok := v.Value.Value().(string); ok && s != "" {
+			dsType = s
+		}
 	}
 	inputEntry := PackagePolicyInput{
 		Enabled: enabled,
@@ -178,9 +185,7 @@ func BuildInputPackagePolicy(
 				Vars:              vars.ToMapStr(),
 				legacyVars:        vars,
 				dataStreamDataset: streamDataset,
-				// dataStreamType is intentionally empty: input packages
-				// require Kibana >= 7.16 (simplified API), so legacy
-				// conversion is not needed.
+				dataStreamType:    dsType,
 			},
 		},
 		inputType:      streamInput,
@@ -277,6 +282,23 @@ func ensureUseAPMVar(vars Vars, varValues common.MapStr) {
 	if val.Value() != nil {
 		setVarFromUser(vars, "use_apm", "boolean", val)
 	}
+}
+
+// ensureDataStreamTypeVar injects data_stream.type into vars with fromUser=true so
+// that the simplified API includes it, overriding the default from policy_template.type.
+// Only applies when the user explicitly provides a value in varValues; when absent,
+// Fleet uses policy_template.type as the default (no injection needed).
+// This mirrors the override introduced in Kibana PR #214216 for input packages.
+func ensureDataStreamTypeVar(vars Vars, varValues common.MapStr) {
+	raw, err := varValues.GetValue("data_stream.type")
+	if err != nil {
+		return
+	}
+	var val packages.VarValue
+	if err := val.Unpack(raw); err != nil {
+		return
+	}
+	setVarFromUser(vars, "data_stream.type", "text", val)
 }
 
 // setVarFromUser sets vars[name] with fromUser=true so that the variable is included
