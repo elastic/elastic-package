@@ -291,7 +291,7 @@ func AskOne(prompt Prompt, answer interface{}, validators ...ValidatorFunc) erro
 // mapAnswersToStruct maps the answers map to a struct using reflection
 func mapAnswersToStruct(answers map[string]interface{}, target interface{}) error {
 	v := reflect.ValueOf(target)
-	if v.Kind() != reflect.Ptr {
+	if v.Kind() != reflect.Pointer {
 		return fmt.Errorf("target must be a pointer to struct")
 	}
 
@@ -349,7 +349,7 @@ func mapAnswersToStruct(answers map[string]interface{}, target interface{}) erro
 // assignValue assigns a value to a pointer target
 func assignValue(target interface{}, value interface{}) error {
 	targetValue := reflect.ValueOf(target)
-	if targetValue.Kind() != reflect.Ptr {
+	if targetValue.Kind() != reflect.Pointer {
 		return fmt.Errorf("target must be a pointer")
 	}
 
