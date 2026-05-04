@@ -15,12 +15,6 @@
 # (e.g. PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh).
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# Prefer the elastic-package binary built in this repo (see Makefile `build`) so
-# composable install uses the same code as the checkout, not an older global install.
-if [[ -x "${REPO_ROOT}/elastic-package" ]]; then
-  PATH="${REPO_ROOT}:${PATH}"
-fi
 
 source "${SCRIPT_DIR}/stack_parameters.sh"
 source "${SCRIPT_DIR}/stack_helpers.sh"
@@ -82,7 +76,7 @@ done
 echo "--- Prepare Elastic stack"
 # TODO: Remove --version below when composable tests pass on elastic-package's default stack
 # (Fleet/Kibana no longer require this snapshot).
-stack_args="--version 9.5.0-SNAPSHOT"
+stack_args="--version 9.4.0-SNAPSHOT"
 stack_args="${stack_args} $(set +x; stack_provider_args)"
 elastic-package stack update -v ${stack_args}
 # The local registry container serves packages from build/packages/, including the
