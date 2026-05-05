@@ -511,8 +511,8 @@ func TestBuildStreamInputRefs_NoDuplicate(t *testing.T) {
 		},
 	}
 	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {pkgName: "pkg_a", identifier: "logfile"},
-		"pkg_b": {pkgName: "pkg_b", identifier: "winlog"},
+		"pkg_a": {identifier: "logfile"},
+		"pkg_b": {identifier: "winlog"},
 	}
 
 	refs := buildStreamInputRefs(manifest, infoByPkg)
@@ -535,8 +535,8 @@ func TestBuildStreamInputRefs_DuplicateType(t *testing.T) {
 		},
 	}
 	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {pkgName: "pkg_a", identifier: "otelcol"},
-		"pkg_b": {pkgName: "pkg_b", identifier: "otelcol"},
+		"pkg_a": {identifier: "otelcol"},
+		"pkg_b": {identifier: "otelcol"},
 	}
 
 	refs := buildStreamInputRefs(manifest, infoByPkg)

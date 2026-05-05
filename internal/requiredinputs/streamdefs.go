@@ -17,7 +17,6 @@ import (
 // inputPkgInfo holds the resolved metadata from an input package needed to
 // replace package: references in composable package manifests.
 type inputPkgInfo struct {
-	pkgName        string // manifest.name; used as the input name qualifier when disambiguation is needed
 	identifier     string // policy_templates[0].input; if several templates exist, only the first is used
 	pkgTitle       string // manifest.title (fallback title)
 	pkgDescription string // manifest.description (fallback description)
@@ -260,7 +259,6 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 	}
 
 	return inputPkgInfo{
-		pkgName:        m.Name,
 		identifier:     pt.Input,
 		pkgTitle:       m.Title,
 		pkgDescription: m.Description,
