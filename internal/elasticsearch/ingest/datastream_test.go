@@ -5,10 +5,28 @@
 package ingest
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestAddRerouteProcessorsJSONPipeline(t *testing.T) {
+	pipeline := []byte(`{"description":"test pipeline","processors":[{"set":{"field":"ecs.version","value":"8.0.0"}}]}`)
+	dataStreamRoot := "../testdata/routing_rules/good/single_rule"
+
+	result, err := addRerouteProcessors(pipeline, dataStreamRoot, defaultPipelineJSON, "json")
+	assert.NoError(t, err)
+
+	var parsed map[string]any
+	err = json.Unmarshal(result, &parsed)
+	assert.NoError(t, err, "output should be valid JSON")
+
+	// Original processor + 3 reroute processors from single_rule routing_rules.yml
+	processors, ok := parsed["processors"].([]any)
+	assert.True(t, ok)
+	assert.Len(t, processors, 4)
+}
 
 func TestLoadRoutingRuleFileGoodSingleRule(t *testing.T) {
 	mockDataStreamPath := "../testdata/routing_rules/good/single_rule"

@@ -7,6 +7,7 @@ package ingest
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/elastic/elastic-package/internal/elasticsearch"
 	"github.com/elastic/elastic-package/internal/files"
+	"github.com/elastic/elastic-package/internal/formatter"
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
@@ -43,10 +45,10 @@ type RoutingRule struct {
 }
 
 type RerouteProcessor struct {
-	Tag       string   `yaml:"tag"`
-	If        string   `yaml:"if"`
-	Dataset   []string `yaml:"dataset"`
-	Namespace []string `yaml:"namespace"`
+	Tag       string   `yaml:"tag" json:"tag"`
+	If        string   `yaml:"if" json:"if"`
+	Dataset   []string `yaml:"dataset" json:"dataset"`
+	Namespace []string `yaml:"namespace" json:"namespace"`
 }
 
 func InstallDataStreamPipelines(ctx context.Context, api *elasticsearch.API, dataStreamRoot string, repositoryRoot *os.Root) (string, []Pipeline, error) {
@@ -109,7 +111,8 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 			return nil, err
 		}
 
-		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamRoot, path)
+		format := filepath.Ext(strings.TrimSuffix(path, ".link"))[1:]
+		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamRoot, path, format)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +121,7 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 		pipelines = append(pipelines, Pipeline{
 			Path:            path,
 			Name:            GetPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
-			Format:          filepath.Ext(strings.TrimSuffix(path, ".link"))[1:],
+			Format:          format,
 			Content:         cWithRerouteProcessors,
 			ContentOriginal: c,
 		})
@@ -126,7 +129,7 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 	return pipelines, nil
 }
 
-func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) ([]byte, error) {
+func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath, format string) ([]byte, error) {
 	// Only attach routing_rules.yml reroute processors after the default pipeline
 	filename := filepath.Base(pipelinePath)
 	if filename != defaultPipelineJSON && filename != defaultPipelineYML &&
@@ -137,20 +140,26 @@ func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) 
 	// Read routing_rules.yml and convert it into reroute processors in ingest pipeline
 	rerouteProcessors, err := loadRoutingRuleFile(dataStreamRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed loading routing rules: %v", err)
+		return nil, fmt.Errorf("failed loading routing rules: %w", err)
 	}
 	if len(rerouteProcessors) == 0 {
 		return pipeline, nil
 	}
 
-	var yamlPipeline map[string]any
-	err = yaml.Unmarshal(pipeline, &yamlPipeline)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal ingest pipeline YAML data (path: %s): %w", pipelinePath, err)
+	var pipelineMap map[string]any
+	switch format {
+	case "json":
+		if err = formatter.JSONUnmarshalUsingNumber(pipeline, &pipelineMap); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ingest pipeline JSON data (path: %s): %w", pipelinePath, err)
+		}
+	default:
+		if err = yaml.Unmarshal(pipeline, &pipelineMap); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal ingest pipeline YAML data (path: %s): %w", pipelinePath, err)
+		}
 	}
 
 	var processors []any
-	v, found := yamlPipeline["processors"]
+	v, found := pipelineMap["processors"]
 	if found {
 		list, ok := v.([]any)
 		if !ok {
@@ -161,11 +170,19 @@ func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) 
 	for _, p := range rerouteProcessors {
 		processors = append(processors, p)
 	}
-	yamlPipeline["processors"] = processors
+	pipelineMap["processors"] = processors
 
-	pipeline, err = yaml.Marshal(yamlPipeline)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal modified ingest pipeline YAML data: %v", err)
+	switch format {
+	case "json":
+		pipeline, err = json.Marshal(pipelineMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal modified ingest pipeline JSON data: %w", err)
+		}
+	default:
+		pipeline, err = yaml.Marshal(pipelineMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal modified ingest pipeline YAML data: %w", err)
+		}
 	}
 
 	return pipeline, nil
