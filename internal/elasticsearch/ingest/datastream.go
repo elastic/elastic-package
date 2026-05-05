@@ -115,9 +115,10 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 		}
 
 		name := filepath.Base(path)
+		baseName, _, _ := strings.Cut(name, ".")
 		pipelines = append(pipelines, Pipeline{
 			Path:            path,
-			Name:            GetPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
+			Name:            GetPipelineNameWithNonce(baseName, nonce),
 			Format:          filepath.Ext(strings.TrimSuffix(path, ".link"))[1:],
 			Content:         cWithRerouteProcessors,
 			ContentOriginal: c,
@@ -137,7 +138,7 @@ func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) 
 	// Read routing_rules.yml and convert it into reroute processors in ingest pipeline
 	rerouteProcessors, err := loadRoutingRuleFile(dataStreamRoot)
 	if err != nil {
-		return nil, fmt.Errorf("failed loading routing rules: %v", err)
+		return nil, fmt.Errorf("failed loading routing rules: %w", err)
 	}
 	if len(rerouteProcessors) == 0 {
 		return pipeline, nil
@@ -165,7 +166,7 @@ func addRerouteProcessors(pipeline []byte, dataStreamRoot, pipelinePath string) 
 
 	pipeline, err = yaml.Marshal(yamlPipeline)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal modified ingest pipeline YAML data: %v", err)
+		return nil, fmt.Errorf("failed to marshal modified ingest pipeline YAML data: %w", err)
 	}
 
 	return pipeline, nil

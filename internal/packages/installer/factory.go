@@ -102,7 +102,7 @@ func NewForPackage(options Options) (Installer, error) {
 		RequiredInputsResolver: options.RequiredInputsResolver,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to build package: %v", err)
+		return nil, fmt.Errorf("failed to build package: %w", err)
 	}
 
 	if supportsUploadZip {

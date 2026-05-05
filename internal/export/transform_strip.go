@@ -5,6 +5,7 @@
 package export
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -12,22 +13,22 @@ import (
 
 func stripObjectProperties(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	err := object.Delete("namespaces")
-	if err != nil && err != common.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 		return nil, fmt.Errorf("removing field \"namespaces\" failed: %w", err)
 	}
 
 	err = object.Delete("updated_at")
-	if err != nil && err != common.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 		return nil, fmt.Errorf("removing field \"updated_at\" failed: %w", err)
 	}
 
 	err = object.Delete("version")
-	if err != nil && err != common.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 		return nil, fmt.Errorf("removing field \"version\" failed: %w", err)
 	}
 
 	err = object.Delete("managed")
-	if err != nil && err != common.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 		return nil, fmt.Errorf("removing field \"managed\" failed: %w", err)
 	}
 

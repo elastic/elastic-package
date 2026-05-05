@@ -5,6 +5,7 @@
 package export
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -27,7 +28,7 @@ func removeFleetTags(ctx *transformationContext, object common.MapStr) (common.M
 
 func removeTagReferences(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	references, err := object.GetValue("references")
-	if err == common.ErrKeyNotFound {
+	if errors.Is(err, common.ErrKeyNotFound) {
 		return object, nil
 	}
 
@@ -55,7 +56,7 @@ func removeTagReferences(ctx *transformationContext, object common.MapStr) (comm
 
 func removeTagObjects(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	aId, err := object.GetValue("id")
-	if err == common.ErrKeyNotFound {
+	if errors.Is(err, common.ErrKeyNotFound) {
 		return object, nil
 	}
 

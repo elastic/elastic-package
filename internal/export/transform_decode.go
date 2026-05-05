@@ -6,6 +6,7 @@ package export
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -31,7 +32,7 @@ var encodedFields = []string{
 func decodeObject(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	for _, fieldToDecode := range encodedFields {
 		v, err := object.GetValue(fieldToDecode)
-		if err == common.ErrKeyNotFound {
+		if errors.Is(err, common.ErrKeyNotFound) {
 			continue
 		} else if err != nil {
 			return nil, fmt.Errorf("retrieving value failed (key: %s): %w", fieldToDecode, err)
@@ -66,7 +67,7 @@ func decodeObject(ctx *transformationContext, object common.MapStr) (common.MapS
 
 func decodeEmbeddedPanels(ctx *transformationContext, object common.MapStr) (common.MapStr, error) {
 	embeddedPanelsValue, err := object.GetValue(panelsAttribute)
-	if err == common.ErrKeyNotFound {
+	if errors.Is(err, common.ErrKeyNotFound) {
 		return object, nil
 	}
 	if err != nil {

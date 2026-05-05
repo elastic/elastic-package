@@ -238,7 +238,7 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 	}
 	err = deleteAgentPolicy(ctx, kibanaClient)
 	if err != nil {
-		return fmt.Errorf("failed to delete agent policy: %v", err)
+		return fmt.Errorf("failed to delete agent policy: %w", err)
 	}
 
 	config, err := LoadConfig(options.Profile)
@@ -260,7 +260,7 @@ func (p *environmentProvider) TearDown(ctx context.Context, options Options) err
 	if config.OutputID != "" {
 		err := kibanaClient.RemoveFleetOutput(ctx, config.OutputID)
 		if err != nil {
-			return fmt.Errorf("failed to delete %s output: %s", config.OutputID, err)
+			return fmt.Errorf("failed to delete %s output: %w", config.OutputID, err)
 		}
 	}
 

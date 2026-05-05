@@ -98,7 +98,7 @@ func dumpStackLogs(ctx context.Context, options DumpOptions) ([]DumpResult, erro
 
 		content, err := dockerComposeLogsSince(ctx, serviceName, options.Profile, options.Since)
 		if err != nil {
-			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't fetch service logs (service: %s): %v", serviceName, err))
+			containerErrors = errors.Join(containerErrors, fmt.Errorf("can't fetch service logs (service: %s): %w", serviceName, err))
 			continue
 		}
 		if options.Output == "" {
@@ -144,7 +144,7 @@ func writeLogFiles(logsPath, serviceName string, content []byte) (string, error)
 	logPath := filepath.Join(logsPath, serviceName+".log")
 	err := os.WriteFile(logPath, content, 0644)
 	if err != nil {
-		return "", fmt.Errorf("can't write service logs (service: %s): %v", serviceName, err)
+		return "", fmt.Errorf("can't write service logs (service: %s): %w", serviceName, err)
 	}
 
 	return logPath, nil
