@@ -17,7 +17,7 @@ import (
 // inputPkgInfo holds the resolved metadata from an input package needed to
 // replace package: references in composable package manifests.
 type inputPkgInfo struct {
-	identifier     string // policy_templates[0].input; if several templates exist, only the first is used
+	effectiveName  string // the effective name of the input, which is the input identifier of the first policy template
 	pkgTitle       string // manifest.title (fallback title)
 	pkgDescription string // manifest.description (fallback description)
 }
@@ -70,17 +70,17 @@ func buildStreamInputRefs(manifest *packages.PackageManifest, infoByPkg map[stri
 			if input.Package == "" {
 				continue
 			}
-			typeCounts[infoByPkg[input.Package].identifier]++
+			typeCounts[infoByPkg[input.Package].effectiveName]++
 		}
 		for _, input := range pt.Inputs {
 			if input.Package == "" {
 				continue
 			}
 			info := infoByPkg[input.Package]
-			if typeCounts[info.identifier] > 1 {
+			if typeCounts[info.effectiveName] > 1 {
 				refs[input.Package] = input.Package // package name as stable unique qualifier
 			} else if _, exists := refs[input.Package]; !exists {
-				refs[input.Package] = info.identifier
+				refs[input.Package] = info.effectiveName
 			}
 		}
 	}
@@ -134,7 +134,7 @@ func applyInputTypesToComposableManifest(
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
-			upsertKey(inputNode, "type", strVal(info.identifier))
+			upsertKey(inputNode, "type", strVal(info.effectiveName))
 			if streamInputRefs[input.Package] == input.Package {
 				upsertKey(inputNode, "name", strVal(input.Package))
 			}
@@ -259,7 +259,7 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 	}
 
 	return inputPkgInfo{
-		identifier:     pt.Input,
+		effectiveName:  pt.Input,
 		pkgTitle:       m.Title,
 		pkgDescription: m.Description,
 	}, nil

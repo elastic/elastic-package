@@ -35,7 +35,7 @@ policy_templates:
 
 	info, err := loadInputPkgInfo(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "logfile", info.identifier)
+	assert.Equal(t, "logfile", info.effectiveName)
 	assert.Equal(t, "My Input Package", info.pkgTitle)
 	assert.Equal(t, "A test input package.", info.pkgDescription)
 }
@@ -76,8 +76,8 @@ func TestLoadInputPkgInfo_MultiplePolicyTemplatesUsesFirstInput(t *testing.T) {
 	dir := createFakeInputWithMultiplePolicyTemplates(t)
 	info, err := loadInputPkgInfo(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "sql", info.identifier)
-	assert.NotEqual(t, "sql/metrics", info.identifier)
+	assert.Equal(t, "sql", info.effectiveName)
+	assert.NotEqual(t, "sql/metrics", info.effectiveName)
 }
 
 // ---- integration tests -------------------------------------------------------
@@ -511,8 +511,8 @@ func TestBuildStreamInputRefs_NoDuplicate(t *testing.T) {
 		},
 	}
 	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {identifier: "logfile"},
-		"pkg_b": {identifier: "winlog"},
+		"pkg_a": {effectiveName: "logfile"},
+		"pkg_b": {effectiveName: "winlog"},
 	}
 
 	refs := buildStreamInputRefs(manifest, infoByPkg)
@@ -535,8 +535,8 @@ func TestBuildStreamInputRefs_DuplicateType(t *testing.T) {
 		},
 	}
 	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {identifier: "otelcol"},
-		"pkg_b": {identifier: "otelcol"},
+		"pkg_a": {effectiveName: "otelcol"},
+		"pkg_b": {effectiveName: "otelcol"},
 	}
 
 	refs := buildStreamInputRefs(manifest, infoByPkg)
