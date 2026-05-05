@@ -39,5 +39,3 @@ new_package
 package-dump
 
 .cursor/
-
-batch_results/
