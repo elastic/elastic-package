@@ -842,14 +842,14 @@ func (dsm *DataStreamManifest) indexTemplateNamePrefix() string {
 	return ""
 }
 
-// FindInput returns the first input matching identifier, checked against the
+// FindInput returns the first input matching effectiveName, checked against the
 // input's Name qualifier first (when set) and then its Type. Use this when the
-// identifier may be a name qualifier (set on inputs that share a type) rather
+// effectiveName may be a name qualifier (set on inputs that share a type) rather
 // than a bare type string.
-func (pt *PolicyTemplate) FindInput(identifier string) *Input {
+func (pt *PolicyTemplate) FindInput(effectiveName string) *Input {
 	for i := range pt.Inputs {
 		input := &pt.Inputs[i]
-		if (input.Name != "" && input.Name == identifier) || input.Type == identifier {
+		if (input.Name != "" && input.Name == effectiveName) || input.Type == effectiveName {
 			return input
 		}
 	}

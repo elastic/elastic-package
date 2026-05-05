@@ -6,9 +6,11 @@ package system
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -910,7 +912,7 @@ func TestPipelineErrorMessage(t *testing.T) {
 }
 
 // TestBuildIntegrationPackagePolicyFromBuilt_InputKeys verifies that policy inputs
-// use non-empty Fleet keys (policyTemplate-inputRef). Composable source manifests
+// use non-empty Fleet keys (policyTemplate-effectiveInputName). Composable source manifests
 // leave type empty until RequiredInputsResolver runs on the built tree; building
 // from built manifests must yield keys like "nginx-logfile", never "nginx-".
 func TestBuildIntegrationPackagePolicyFromBuilt_InputKeys(t *testing.T) {
@@ -955,11 +957,7 @@ streams:
 }
 
 func keysOf(m map[string]kibana.PackagePolicyInput) []string {
-	out := make([]string, 0, len(m))
-	for k := range m {
-		out = append(out, k)
-	}
-	return out
+	return slices.Sorted(maps.Keys(m))
 }
 func TestDataStreamTypeFromPolicy(t *testing.T) {
 	cases := []struct {

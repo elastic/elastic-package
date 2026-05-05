@@ -48,13 +48,13 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 		return err
 	}
 
-	streamInputRefs := buildStreamInputRefs(manifest, infoByPkg)
+	streamInputEffectveNames := buildStreamInputRefs(manifest, infoByPkg)
 
-	if err := applyInputTypesToComposableManifest(manifest, buildRoot, infoByPkg, streamInputRefs); err != nil {
+	if err := applyInputTypesToComposableManifest(manifest, buildRoot, infoByPkg, streamInputEffectveNames); err != nil {
 		return err
 	}
 
-	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg, streamInputRefs)
+	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg, streamInputEffectveNames)
 }
 
 // buildStreamInputRefs computes what value to write to streams[].input per required package name.
