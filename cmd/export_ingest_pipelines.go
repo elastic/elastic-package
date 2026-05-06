@@ -86,7 +86,8 @@ func exportIngestPipelinesCmd(cmd *cobra.Command, args []string) error {
 		ParentPath: packageRoot,
 	}
 
-	pipelineWriteLocations := append(dataStreamDirs, rootWriteLocation)
+	pipelineWriteLocations := append([]export.PipelineWriteLocation{}, dataStreamDirs...)
+	pipelineWriteLocations = append(pipelineWriteLocations, rootWriteLocation)
 
 	pipelineWriteAssignments, err := promptWriteLocations(pipelineIDs, pipelineWriteLocations)
 	if err != nil {

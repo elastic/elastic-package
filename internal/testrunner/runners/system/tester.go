@@ -2698,23 +2698,24 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 
 		outputBytes, err := agent.Logs(ctx, startTesting)
 		if err != nil {
-			return nil, fmt.Errorf("check log messages failed: %s", err)
+			return nil, fmt.Errorf("check log messages failed: %w", err)
 		}
 		_, err = f.Write(outputBytes)
 		if err != nil {
-			return nil, fmt.Errorf("write log messages failed: %s", err)
+			return nil, fmt.Errorf("write log messages failed: %w", err)
 		}
 
 		err = r.anyErrorMessages(f.Name(), startTesting, patternsContainer.patterns)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		var testErrLogs testrunner.ErrTestCaseFailed
+		if errors.As(err, &testErrLogs) {
 			tr := testrunner.TestResult{
 				TestType:   TestType,
 				Name:       fmt.Sprintf("(%s logs - %s)", patternsContainer.containerName, configName),
 				Package:    r.testFolder.Package,
 				DataStream: r.testFolder.DataStream,
 			}
-			tr.FailureMsg = e.Error()
-			tr.FailureDetails = e.Details
+			tr.FailureMsg = testErrLogs.Error()
+			tr.FailureDetails = testErrLogs.Details
 			tr.TimeElapsed = time.Since(startTime)
 			results = append(results, tr)
 			// Just check elastic-agent
@@ -2722,7 +2723,7 @@ func (r *tester) checkNewAgentLogs(ctx context.Context, agent agentdeployer.Depl
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("check log messages failed: %s", err)
+			return nil, fmt.Errorf("check log messages failed: %w", err)
 		}
 		// Just check elastic-agent
 		break
@@ -2743,22 +2744,23 @@ func (r *tester) checkAgentLogs(dump []stack.DumpResult, startTesting time.Time,
 		serviceLogsFile := dump[serviceDumpIndex].LogsFile
 
 		err = r.anyErrorMessages(serviceLogsFile, startTesting, patternsContainer.patterns)
-		if e, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		var testErrSvcLogs testrunner.ErrTestCaseFailed
+		if errors.As(err, &testErrSvcLogs) {
 			tr := testrunner.TestResult{
 				TestType:   TestType,
 				Name:       fmt.Sprintf("(%s logs)", patternsContainer.containerName),
 				Package:    r.testFolder.Package,
 				DataStream: r.testFolder.DataStream,
 			}
-			tr.FailureMsg = e.Error()
-			tr.FailureDetails = e.Details
+			tr.FailureMsg = testErrSvcLogs.Error()
+			tr.FailureDetails = testErrSvcLogs.Details
 			tr.TimeElapsed = time.Since(startTime)
 			results = append(results, tr)
 			continue
 		}
 
 		if err != nil {
-			return nil, fmt.Errorf("check log messages failed: %s", err)
+			return nil, fmt.Errorf("check log messages failed: %w", err)
 		}
 	}
 	return results, nil

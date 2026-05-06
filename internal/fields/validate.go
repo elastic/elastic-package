@@ -174,7 +174,7 @@ func WithSpecVersion(version string) ValidatorOption {
 	return func(v *Validator) error {
 		sv, err := semver.NewVersion(version)
 		if err != nil {
-			return fmt.Errorf("invalid version %q: %v", version, err)
+			return fmt.Errorf("invalid version %q: %w", version, err)
 		}
 		v.specVersion = *sv
 		return nil

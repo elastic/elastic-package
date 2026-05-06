@@ -94,7 +94,7 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 			return "", fmt.Errorf("can't check build directory: %w", err)
 		}
 		if !info.IsDir() {
-			return "", fmt.Errorf("build path (%s) expected to be a directory", err)
+			return "", fmt.Errorf("build path (%s) expected to be a directory", buildDir)
 		}
 		d := filepath.Join(buildDir, builtPackagesDir)
 		err = os.MkdirAll(d, 0755)

@@ -118,9 +118,10 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 		}
 
 		name := filepath.Base(path)
+		baseName, _, _ := strings.Cut(name, ".")
 		pipelines = append(pipelines, Pipeline{
 			Path:            path,
-			Name:            GetPipelineNameWithNonce(name[:strings.Index(name, ".")], nonce),
+			Name:            GetPipelineNameWithNonce(baseName, nonce),
 			Format:          format,
 			Content:         cWithRerouteProcessors,
 			ContentOriginal: c,
