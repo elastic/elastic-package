@@ -14,10 +14,10 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-// inputPkgInfo holds the resolved metadata from an input package needed to
-// replace package: references in composable package manifests.
-type inputPkgInfo struct {
-	effectiveName  string // the effective name of the input, which is the input identifier of the first policy template
+// inputPolicyTemplateInfo holds the resolved metadata from an input package needed to
+// replace package: references in composable (integrations) package manifests.
+type inputPolicyTemplateInfo struct {
+	input          string // policy_templates[0].input; if several templates exist, only the first is used
 	pkgTitle       string // manifest.title (fallback title)
 	pkgDescription string // manifest.description (fallback description)
 }
@@ -62,52 +62,55 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 // stream input reference). Packages with a unique type within every policy template get their type
 // identifier. Once a package is marked as needing a qualifier it keeps that assignment even if it
 // appears in other policy templates without a type conflict.
-func buildStreamInputRefs(manifest *packages.PackageManifest, infoByPkg map[string]inputPkgInfo) map[string]string {
-	refs := make(map[string]string, len(infoByPkg))
+func buildStreamInputRefs(manifest *packages.PackageManifest, infoByInputPkg map[string]inputPolicyTemplateInfo) map[string]string {
+	refs := make(map[string]string, len(infoByInputPkg))
+	// iterate over all policy templates from composable package manifest
 	for _, pt := range manifest.PolicyTemplates {
+		// first count the number of inputs of each type
 		typeCounts := make(map[string]int)
 		for _, input := range pt.Inputs {
 			if input.Package == "" {
 				continue
 			}
-			typeCounts[infoByPkg[input.Package].effectiveName]++
+			// integration input type is equivalent to the policy template input identifier in the required input package
+			typeCounts[infoByInputPkg[input.Package].input]++
 		}
 		for _, input := range pt.Inputs {
 			if input.Package == "" {
 				continue
 			}
-			info := infoByPkg[input.Package]
-			if typeCounts[info.effectiveName] > 1 {
+			importedInput := infoByInputPkg[input.Package]
+			if typeCounts[importedInput.input] > 1 {
 				refs[input.Package] = input.Package // package name as stable unique qualifier
 			} else if _, exists := refs[input.Package]; !exists {
-				refs[input.Package] = info.effectiveName
+				refs[input.Package] = importedInput.input
 			}
 		}
 	}
 	return refs
 }
 
-// buildInputPkgInfoByName loads inputPkgInfo for each downloaded required input package path.
-func buildInputPkgInfoByName(inputPkgPaths map[string]string) (map[string]inputPkgInfo, error) {
-	infoByPkg := make(map[string]inputPkgInfo, len(inputPkgPaths))
+// buildInputPkgInfoByName loads inputPolicyTemplateInfo for each downloaded required input package path.
+func buildInputPkgInfoByName(inputPkgPaths map[string]string) (map[string]inputPolicyTemplateInfo, error) {
+	infoByInputPkg := make(map[string]inputPolicyTemplateInfo, len(inputPkgPaths))
 	for pkgName, pkgPath := range inputPkgPaths {
 		info, err := loadInputPkgInfo(pkgPath)
 		if err != nil {
 			return nil, fmt.Errorf("loading input package info for %q: %w", pkgName, err)
 		}
-		infoByPkg[pkgName] = info
+		infoByInputPkg[pkgName] = *info
 	}
-	return infoByPkg, nil
+	return infoByInputPkg, nil
 }
 
 // applyInputTypesToComposableManifest sets type (and optional title/description/name) on
-// package-backed policy template inputs in manifest.yml and drops package:.
+// package-backed policy template inputs in manifest.yml and drops package field.
 // When streamInputRefs maps a package to its own name (indicating a type conflict), it also
 // sets name on that input so Fleet can distinguish multiple inputs of the same type.
 func applyInputTypesToComposableManifest(
 	manifest *packages.PackageManifest,
 	buildRoot *os.Root,
-	infoByPkg map[string]inputPkgInfo,
+	infoByInputPkg map[string]inputPolicyTemplateInfo,
 	streamInputRefs map[string]string,
 ) error {
 	manifestBytes, err := buildRoot.ReadFile("manifest.yml")
@@ -124,7 +127,7 @@ func applyInputTypesToComposableManifest(
 			if input.Package == "" {
 				continue
 			}
-			info, ok := infoByPkg[input.Package]
+			info, ok := infoByInputPkg[input.Package]
 			if !ok {
 				return fmt.Errorf("input package %q referenced in policy_templates[%d].inputs[%d] not found in required inputs", input.Package, ptIdx, inputIdx)
 			}
@@ -134,7 +137,7 @@ func applyInputTypesToComposableManifest(
 				return fmt.Errorf("getting input node at pt[%d].inputs[%d]: %w", ptIdx, inputIdx, err)
 			}
 
-			upsertKey(inputNode, "type", strVal(info.effectiveName))
+			upsertKey(inputNode, "type", strVal(info.input))
 			if streamInputRefs[input.Package] == input.Package {
 				upsertKey(inputNode, "name", strVal(input.Package))
 			}
@@ -165,7 +168,7 @@ func applyInputTypesToComposableManifest(
 // is taken from streamInputRefs: the package name when disambiguation is required
 // (i.e. the corresponding policy template input carries a name qualifier), otherwise
 // the type identifier.
-func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[string]inputPkgInfo, streamInputRefs map[string]string) error {
+func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByInputPkg map[string]inputPolicyTemplateInfo, streamInputRefs map[string]string) error {
 	dsManifestPaths, err := fs.Glob(buildRoot.FS(), "data_stream/*/manifest.yml")
 	if err != nil {
 		return fmt.Errorf("globbing data stream manifests: %w", err)
@@ -191,7 +194,7 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[stri
 			if stream.Package == "" {
 				continue
 			}
-			info, ok := infoByPkg[stream.Package]
+			info, ok := infoByInputPkg[stream.Package]
 			if !ok {
 				return fmt.Errorf("input package %q referenced in %q streams[%d] not found in required inputs", stream.Package, path.Dir(manifestPath), streamIdx)
 			}
@@ -229,25 +232,25 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByPkg map[stri
 // needed to replace package: references in composable packages. When the input
 // package has several policy templates, only the first template's input id is
 // used and a warning is logged.
-func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
+func loadInputPkgInfo(pkgPath string) (*inputPolicyTemplateInfo, error) {
 	pkgFS, closeFn, err := openPackageFS(pkgPath)
 	if err != nil {
-		return inputPkgInfo{}, fmt.Errorf("opening package: %w", err)
+		return nil, fmt.Errorf("opening package: %w", err)
 	}
 	defer func() { _ = closeFn() }()
 
 	manifestBytes, err := fs.ReadFile(pkgFS, packages.PackageManifestFile)
 	if err != nil {
-		return inputPkgInfo{}, fmt.Errorf("reading manifest: %w", err)
+		return nil, fmt.Errorf("reading manifest: %w", err)
 	}
 
 	m, err := packages.ReadPackageManifestBytes(manifestBytes)
 	if err != nil {
-		return inputPkgInfo{}, fmt.Errorf("parsing manifest: %w", err)
+		return nil, fmt.Errorf("parsing manifest: %w", err)
 	}
 
 	if len(m.PolicyTemplates) == 0 {
-		return inputPkgInfo{}, fmt.Errorf("input package %q has no policy templates", m.Name)
+		return nil, fmt.Errorf("input package %q has no policy templates", m.Name)
 	}
 	if len(m.PolicyTemplates) > 1 {
 		logger.Warnf("Input package %q has multiple policy templates; using input identifier %q from first policy template only", m.Name, m.PolicyTemplates[0].Input)
@@ -255,11 +258,11 @@ func loadInputPkgInfo(pkgPath string) (inputPkgInfo, error) {
 
 	pt := m.PolicyTemplates[0]
 	if pt.Input == "" {
-		return inputPkgInfo{}, fmt.Errorf("input package %q policy template %q has no input identifier", m.Name, pt.Name)
+		return nil, fmt.Errorf("input package %q policy template %q has no input identifier", m.Name, pt.Name)
 	}
 
-	return inputPkgInfo{
-		effectiveName:  pt.Input,
+	return &inputPolicyTemplateInfo{
+		input:          pt.Input,
 		pkgTitle:       m.Title,
 		pkgDescription: m.Description,
 	}, nil

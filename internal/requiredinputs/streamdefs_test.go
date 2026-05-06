@@ -35,7 +35,7 @@ policy_templates:
 
 	info, err := loadInputPkgInfo(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "logfile", info.effectiveName)
+	assert.Equal(t, "logfile", info.input)
 	assert.Equal(t, "My Input Package", info.pkgTitle)
 	assert.Equal(t, "A test input package.", info.pkgDescription)
 }
@@ -76,8 +76,8 @@ func TestLoadInputPkgInfo_MultiplePolicyTemplatesUsesFirstInput(t *testing.T) {
 	dir := createFakeInputWithMultiplePolicyTemplates(t)
 	info, err := loadInputPkgInfo(dir)
 	require.NoError(t, err)
-	assert.Equal(t, "sql", info.effectiveName)
-	assert.NotEqual(t, "sql/metrics", info.effectiveName)
+	assert.Equal(t, "sql", info.input)
+	assert.NotEqual(t, "sql/metrics", info.input)
 }
 
 // ---- integration tests -------------------------------------------------------
@@ -510,9 +510,9 @@ func TestBuildStreamInputRefs_NoDuplicate(t *testing.T) {
 			},
 		},
 	}
-	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {effectiveName: "logfile"},
-		"pkg_b": {effectiveName: "winlog"},
+	infoByPkg := map[string]inputPolicyTemplateInfo{
+		"pkg_a": {input: "logfile"},
+		"pkg_b": {input: "winlog"},
 	}
 
 	refs := buildStreamInputRefs(manifest, infoByPkg)
@@ -527,22 +527,42 @@ func TestBuildStreamInputRefs_DuplicateType(t *testing.T) {
 	manifest := &packages.PackageManifest{
 		PolicyTemplates: []packages.PolicyTemplate{
 			{
+				Name: "policy_template_1",
 				Inputs: []packages.Input{
 					{Package: "pkg_a"},
 					{Package: "pkg_b"},
 				},
 			},
+			{
+				Name: "policy_template_2",
+				Inputs: []packages.Input{
+					{Package: "pkg_c"},
+					{Package: "pkg_d"},
+				},
+			},
+			{
+				Name: "policy_template_3",
+				Inputs: []packages.Input{
+					{Package: "pkg_e"},
+				},
+			},
 		},
 	}
-	infoByPkg := map[string]inputPkgInfo{
-		"pkg_a": {effectiveName: "otelcol"},
-		"pkg_b": {effectiveName: "otelcol"},
+	infoByInputPkg := map[string]inputPolicyTemplateInfo{
+		"pkg_a": {input: "otelcol"},
+		"pkg_b": {input: "otelcol"},
+		"pkg_c": {input: "logfile"},
+		"pkg_d": {input: "winlog"},
+		"pkg_e": {input: "otelcol"},
 	}
 
-	refs := buildStreamInputRefs(manifest, infoByPkg)
+	refs := buildStreamInputRefs(manifest, infoByInputPkg)
 
 	assert.Equal(t, "pkg_a", refs["pkg_a"])
 	assert.Equal(t, "pkg_b", refs["pkg_b"])
+	assert.Equal(t, "logfile", refs["pkg_c"])
+	assert.Equal(t, "winlog", refs["pkg_d"])
+	assert.Equal(t, "otelcol", refs["pkg_e"])
 }
 
 // TestResolveStreamInputTypes_DuplicateTypeInputs verifies that when two required input packages
