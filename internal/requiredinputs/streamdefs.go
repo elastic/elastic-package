@@ -213,7 +213,11 @@ func applyInputTypesToDataStreamManifests(buildRoot *os.Root, infoByInputPkg map
 				return fmt.Errorf("getting stream node at index %d in %q: %w", streamIdx, manifestPath, err)
 			}
 
-			upsertKey(streamNode, "input", strVal(streamInputRefs[stream.Package]))
+			streamInputRef, ok := streamInputRefs[stream.Package]
+			if !ok {
+				return fmt.Errorf("stream input ref for package %q not found in streamInputRefs", stream.Package)
+			}
+			upsertKey(streamNode, "input", strVal(streamInputRef))
 
 			if stream.Title == "" && info.pkgTitle != "" {
 				upsertKey(streamNode, "title", strVal(info.pkgTitle))
