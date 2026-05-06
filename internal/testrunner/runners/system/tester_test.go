@@ -947,7 +947,24 @@ streams:
 	require.NoError(t, os.WriteFile(filepath.Join(builtRoot, "data_stream", "access", "manifest.yml"), []byte(dsManifest), 0644))
 
 	kp := &kibana.Policy{ID: "policy-id", Namespace: "default"}
-	pp, _, _, err := buildIntegrationPackagePolicyFromBuilt(kp, builtRoot, "nginx", "access", "", nil, nil, "ep")
+
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		t.Fatalf("failed to read built package manifest: %v", err)
+	}
+	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, "access")
+	if err != nil {
+		t.Fatalf("failed to read built data stream manifest: %v", err)
+	}
+	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, "nginx")
+	if err != nil {
+		t.Fatalf("failed to select built policy template: %v", err)
+	}
+	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
+	if err != nil {
+		t.Fatalf("failed to read all built data stream manifests: %v", err)
+	}
+	pp, _, _, err := buildIntegrationPackagePolicyFromBuilt(kp, builtPkg, builtDS, builtPolicyTemplate, allDatastreams, "cfgName", nil, nil, "suffix")
 	require.NoError(t, err)
 
 	_, bad := pp.Inputs["nginx-"]

@@ -2293,7 +2293,15 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
 	}
 
-	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, builtRoot, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix)
+	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dataStreamName)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream %q manifest at %s: %w", dataStreamName, builtRoot, err)
+	}
+	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
+	if err != nil {
+		return kibana.PackagePolicy{}, "", "", err
+	}
+	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, builtPkg, builtDS, builtPolicyTemplate, allDatastreams, cfgName, cfgVars, cfgDSVars, suffix)
 }
 
 // buildIntegrationPackagePolicyFromBuilt builds a Fleet package policy from manifests
@@ -2301,31 +2309,14 @@ func CreatePackagePolicy(
 // builtRoot matches the package the test installed.
 func buildIntegrationPackagePolicyFromBuilt(
 	kibanaPolicy *kibana.Policy,
-	builtRoot string,
-	policyTemplateName string,
-	dataStreamName string,
+	builtPkg *packages.PackageManifest,
+	builtDS *packages.DataStreamManifest,
+	builtPolicyTemplate packages.PolicyTemplate,
+	allDatastreams []packages.DataStreamManifest,
 	cfgName string,
 	cfgVars, cfgDSVars common.MapStr,
 	suffix string,
 ) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
-	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest at %s: %w", builtRoot, err)
-	}
-	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dataStreamName)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream %q manifest at %s: %w", dataStreamName, builtRoot, err)
-	}
-	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("finding policy template %q in built manifest: %w", policyTemplateName, err)
-	}
-
-	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", err
-	}
-
 	p, err := kibana.BuildIntegrationPackagePolicy(
 		kibanaPolicy.ID, kibanaPolicy.Namespace,
 		fmt.Sprintf("%s-%s-%s", builtPkg.Name, builtDS.Name, suffix),
