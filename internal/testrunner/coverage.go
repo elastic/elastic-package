@@ -155,7 +155,7 @@ func generateBaseCoberturaFileCoverageReport(root *os.Root, packageName, path st
 
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
 
@@ -199,7 +199,7 @@ func generateBaseGenericFileCoverageReport(root *os.Root, _, path string, covere
 
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open file: %v", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
 

@@ -64,10 +64,10 @@ func getPolicyCommand(ts *testscript.TestScript, neg bool, args []string) {
 	if *timeout < 0 {
 		// Single check.
 		pol, err := getPolicy(ctx, stk.es.API, policyName)
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			fmt.Fprint(ts.Stdout(), pol)
-		case errPolicyNotFound:
+		case errors.Is(err, errPolicyNotFound):
 			fmt.Fprint(ts.Stdout(), "not found")
 		default:
 			fmt.Fprint(ts.Stdout(), err)
@@ -78,11 +78,11 @@ func getPolicyCommand(ts *testscript.TestScript, neg bool, args []string) {
 	for {
 		// Check until found or timeout.
 		pol, err := getPolicy(ctx, stk.es.API, policyName)
-		switch err {
-		case nil:
+		switch {
+		case err == nil:
 			fmt.Fprint(ts.Stdout(), pol)
 			return
-		case errPolicyNotFound:
+		case errors.Is(err, errPolicyNotFound):
 			time.Sleep(time.Second)
 			continue
 		default:

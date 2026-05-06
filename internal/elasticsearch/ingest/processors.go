@@ -102,7 +102,7 @@ func getProcessorLastLine(idx int, processors []yaml.Node, currentProcessor Proc
 func nextProcessorOrEndOfPipeline(content []byte) (int, error) {
 	var root yaml.Node
 	if err := yaml.Unmarshal(content, &root); err != nil {
-		return 0, fmt.Errorf("error unmarshaling YAML: %v", err)
+		return 0, fmt.Errorf("error unmarshaling YAML: %w", err)
 	}
 
 	var nodes []*yaml.Node

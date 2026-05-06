@@ -179,12 +179,11 @@ func createResourceInfo(r resource) (*kresource.Info, error) {
 	var group string
 	var version string
 
-	if !strings.Contains(r.APIVersion, "/") {
-		version = r.APIVersion
+	if g, v, ok := strings.Cut(r.APIVersion, "/"); ok {
+		group = g
+		version = v
 	} else {
-		i := strings.Index(r.APIVersion, "/")
-		group = r.APIVersion[:i]
-		version = r.APIVersion[i+1:]
+		version = r.APIVersion
 	}
 
 	resInfo := &kresource.Info{

@@ -652,7 +652,7 @@ func (r *runner) runGenerator(destDir string) error {
 	var corpusDocsCount uint64
 	for {
 		err := r.generator.Emit(buf)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 
@@ -957,7 +957,7 @@ func (r *runner) bulkMetrics(ctx context.Context, indexName string, sr searchRes
 		r.options.ESAPI.Scroll.WithScroll(time.Minute),
 	)
 	if err != nil {
-		return fmt.Errorf("error executing scroll: %s", err)
+		return fmt.Errorf("error executing scroll: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.IsError() {

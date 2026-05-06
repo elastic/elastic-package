@@ -688,7 +688,8 @@ func Test_parseElementValue(t *testing.T) {
 			specVersion: *semver3_0_1,
 			fail:        true,
 			assertError: func(t *testing.T, err error) {
-				errs := err.(multierror.Error)
+				var errs multierror.Error
+				require.ErrorAs(t, err, &errs)
 				if assert.Len(t, errs, 1) {
 					assert.Contains(t, errs[0].Error(), `"details.hostname" is undefined`)
 				}
@@ -716,7 +717,8 @@ func Test_parseElementValue(t *testing.T) {
 			specVersion: *semver3_0_1,
 			fail:        true,
 			assertError: func(t *testing.T, err error) {
-				errs := err.(multierror.Error)
+				var errs multierror.Error
+				require.ErrorAs(t, err, &errs)
 				if assert.Len(t, errs, 1) {
 					assert.Contains(t, errs[0].Error(), `"nested.hostname" is undefined`)
 				}

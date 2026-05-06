@@ -6,6 +6,7 @@ package builder
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -109,7 +110,7 @@ func encodeObjectMapStr(object common.MapStr) (common.MapStr, bool, error) {
 
 func encodeEmbeddedPanels(object common.MapStr) (common.MapStr, bool, error) {
 	embeddedPanelsValue, err := object.GetValue(panelsAttribute)
-	if err == common.ErrKeyNotFound {
+	if errors.Is(err, common.ErrKeyNotFound) {
 		return object, false, nil
 	}
 	if err != nil {
