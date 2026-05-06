@@ -56,12 +56,21 @@ func (r *RequiredInputsResolver) resolveStreamInputTypes(
 	return applyInputTypesToDataStreamManifests(buildRoot, infoByPkg, streamInputEffectveNames)
 }
 
-// buildStreamInputRefs computes what value to write to streams[].input per required package name.
-// When two or more inputs of the same type coexist in any single policy template, each conflicting
-// package is given its own package name as the qualifier (used as both the input name and the
-// stream input reference). Packages with a unique type within every policy template get their type
-// identifier. Once a package is marked as needing a qualifier it keeps that assignment even if it
-// appears in other policy templates without a type conflict.
+// buildStreamInputRefs computes the value to write to streams[].input for each
+// required input package referenced by the integration.
+//
+// By default the ref is the resolved input type (e.g. "logfile", "otelcol").
+// If a policy template contains multiple required input packages that resolve to
+// the same type, those packages use their package name as a stable qualifier;
+// streams[].input references that qualifier (and the corresponding input gets
+// name: <package>) so Fleet can distinguish same-type inputs.
+//
+// Duplicate detection is per policy template (not integration-wide) because only
+// inputs that coexist within a single policy template must be unique. When
+// building the Fleet package policy, inputs are keyed as
+// "{policyTemplate.Name}-{effectiveName}" where effectiveName is input Name when
+// set, otherwise Type.
+// Once a package is qualified, it keeps that ref across policy templates.
 func buildStreamInputRefs(manifest *packages.PackageManifest, infoByInputPkg map[string]inputPolicyTemplateInfo) map[string]string {
 	refs := make(map[string]string, len(infoByInputPkg))
 	// iterate over all policy templates from composable package manifest
