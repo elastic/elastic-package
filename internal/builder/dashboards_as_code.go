@@ -20,7 +20,7 @@ import (
 	"github.com/elastic/elastic-package/internal/packages"
 )
 
-const dashboardsAsCodeDir = "_dev/dashboards_as_code"
+const dashboardsAsCodeDir = "_dev/build/dashboards_as_code"
 
 // minDashboardsAsCodeKibanaVersion is the first Kibana version that supports
 // the dashboards-as-code import API (POST /api/dashboards).
