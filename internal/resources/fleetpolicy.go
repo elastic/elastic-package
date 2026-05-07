@@ -159,15 +159,11 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 func createPackagePolicy(policy FleetAgentPolicy, packagePolicy FleetPackagePolicy) (*kibana.PackagePolicy, error) {
-	builtRoot, err := builder.BuildPackagesDirectory(packagePolicy.PackageRoot, "")
-	if err != nil {
-		return nil, fmt.Errorf("error locating built package directory: %w", err)
-	}
 	// Composable integrations (requires.input) use the built tree so manifest input types
 	// match the package Fleet installed; source alone can omit types and break input keys.
-	manifest, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	builtRoot, manifest, err := builder.ReadBuiltPackageManifest(packagePolicy.PackageRoot)
 	if err != nil {
-		return nil, fmt.Errorf("could not read package manifest at %s: %w", builtRoot, err)
+		return nil, fmt.Errorf("reading built package manifest: %w", err)
 	}
 
 	switch manifest.Type {

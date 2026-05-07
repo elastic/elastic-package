@@ -6,9 +6,11 @@ package system
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -511,7 +513,6 @@ func TestBuildDataStreamName(t *testing.T) {
 		dsDataset      string
 		namespace      string
 		policyTemplate packages.PolicyTemplate
-		packageType    string
 		expected       string
 	}{
 		{
@@ -520,16 +521,14 @@ func TestBuildDataStreamName(t *testing.T) {
 			dsDataset:      "nginx.access",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: "logfile"},
-			packageType:    "integration",
 			expected:       "logs-nginx.access-default",
 		},
 		{
-			title:          "otelcol input: .otel suffix appended",
+			title:          "otelcol input package: .otel suffix appended",
 			dsType:         "logs",
 			dsDataset:      "httpcheck",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "input",
 			expected:       "logs-httpcheck.otel-default",
 		},
 		{
@@ -538,23 +537,21 @@ func TestBuildDataStreamName(t *testing.T) {
 			dsDataset:      "custom.otel",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "input",
 			expected:       "logs-custom.otel.otel-default",
 		},
 		{
-			title:          "otelcol input on integration package type: no suffix added",
+			title:          "otelcol input on integration (composable) package type: .otel suffix added",
 			dsType:         "metrics",
 			dsDataset:      "myreceiver",
 			namespace:      "default",
 			policyTemplate: packages.PolicyTemplate{Input: otelCollectorInputName},
-			packageType:    "integration",
-			expected:       "metrics-myreceiver-default",
+			expected:       "metrics-myreceiver.otel-default",
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate, c.packageType)
+			got := BuildDataStreamName(c.dsType, c.dsDataset, c.namespace, c.policyTemplate)
 			assert.Equal(t, c.expected, got)
 		})
 	}
@@ -618,6 +615,15 @@ func TestExpectedDatasets(t *testing.T) {
 				},
 			},
 			expected: []string{"generic.otel.otel"},
+		},
+		{
+			title:       "otelcol integration (composable) package: .otel suffix appended like Elastic Agent",
+			packageType: "integration",
+			scenario: &scenarioTest{
+				dataStreamDataset: "nginx_composable.access",
+				policyTemplate:    packages.PolicyTemplate{Input: otelCollectorInputName},
+			},
+			expected: []string{"nginx_composable.access.otel"},
 		},
 	}
 
@@ -905,6 +911,71 @@ func TestPipelineErrorMessage(t *testing.T) {
 	}
 }
 
+// TestBuildIntegrationPackagePolicyFromBuilt_InputKeys verifies that policy inputs
+// use non-empty Fleet keys (policyTemplate-effectiveInputName). Composable source manifests
+// leave type empty until RequiredInputsResolver runs on the built tree; building
+// from built manifests must yield keys like "nginx-logfile", never "nginx-".
+func TestBuildIntegrationPackagePolicyFromBuilt_InputKeys(t *testing.T) {
+	builtRoot := t.TempDir()
+	pkgManifest := `format_version: 3.0.0
+name: composable_fixture
+title: Composable fixture
+version: 1.0.0
+type: integration
+description: Fixture for built-manifest policy keys.
+categories: []
+conditions:
+  kibana:
+    version: "^8.0.0"
+policy_templates:
+  - name: nginx
+    title: Nginx
+    data_streams:
+      - access
+    inputs:
+      - type: logfile
+        title: Access logs
+`
+	dsManifest := `title: Access logs
+type: logs
+streams:
+  - input: logfile
+    title: Nginx access
+`
+	require.NoError(t, os.WriteFile(filepath.Join(builtRoot, "manifest.yml"), []byte(pkgManifest), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Join(builtRoot, "data_stream", "access"), 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(builtRoot, "data_stream", "access", "manifest.yml"), []byte(dsManifest), 0644))
+
+	kp := &kibana.Policy{ID: "policy-id", Namespace: "default"}
+
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		t.Fatalf("failed to read built package manifest: %v", err)
+	}
+	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, "access")
+	if err != nil {
+		t.Fatalf("failed to read built data stream manifest: %v", err)
+	}
+	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, "nginx")
+	if err != nil {
+		t.Fatalf("failed to select built policy template: %v", err)
+	}
+	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
+	if err != nil {
+		t.Fatalf("failed to read all built data stream manifests: %v", err)
+	}
+	pp, _, _, err := buildIntegrationPackagePolicyFromBuilt(kp, builtPkg, builtDS, builtPolicyTemplate, allDatastreams, "cfgName", nil, nil, "suffix")
+	require.NoError(t, err)
+
+	_, bad := pp.Inputs["nginx-"]
+	assert.False(t, bad, "Fleet rejects bare policyTemplate- key when input ref is empty; got keys: %v", keysOf(pp.Inputs))
+	_, hasLogfile := pp.Inputs["nginx-logfile"]
+	assert.True(t, hasLogfile, "expected input key nginx-logfile, got keys: %v", keysOf(pp.Inputs))
+}
+
+func keysOf(m map[string]kibana.PackagePolicyInput) []string {
+	return slices.Sorted(maps.Keys(m))
+}
 func TestDataStreamTypeFromPolicy(t *testing.T) {
 	cases := []struct {
 		title    string

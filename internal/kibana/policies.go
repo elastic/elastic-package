@@ -307,6 +307,9 @@ type PackagePolicyInput struct {
 	Streams map[string]PackagePolicyStream `json:"streams,omitempty"`
 
 	// Unexported fields carry metadata used only for legacy API conversion.
+	// inputType is the Elastic Agent / Fleet input type from the package manifest
+	// (e.g. logfile, httpjson, otelcol), not the policy-template or data_stream type
+	// (e.g. logs, metrics, traces).
 	inputType      string
 	policyTemplate string
 	legacyVars     Vars

@@ -1,0 +1,14 @@
+title: CI Dual Logs B
+type: logs
+streams:
+  - package: ci_input_pkg_b
+    title: Logs from input package B
+    description: Stream via the second logfile input package.
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        secret: false
