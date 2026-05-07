@@ -44,15 +44,16 @@ func (c *Client) ImportDashboardAsCode(ctx context.Context, body []byte) (string
 	return resp.ID, nil
 }
 
-// DeleteDashboard removes a dashboard saved object by id. This is used to clean
-// up dashboards that were imported during the dashboards-as-code build step.
+// DeleteDashboard removes a dashboard by id via the dashboards-as-code API.
+// This is used to clean up dashboards that were imported during the
+// dashboards-as-code build step.
 func (c *Client) DeleteDashboard(ctx context.Context, id string) error {
-	path := fmt.Sprintf("%s/dashboard/%s", SavedObjectsAPI, id)
+	path := fmt.Sprintf("%s/%s", DashboardsAPI, id)
 	statusCode, respBody, err := c.delete(ctx, path)
 	if err != nil {
 		return fmt.Errorf("could not delete dashboard %s; API status code = %d; response body = %s: %w", id, statusCode, string(respBody), err)
 	}
-	if statusCode != http.StatusOK && statusCode != http.StatusNotFound {
+	if statusCode != http.StatusOK && statusCode != http.StatusNoContent && statusCode != http.StatusNotFound {
 		return fmt.Errorf("could not delete dashboard %s; API status code = %d; response body = %s", id, statusCode, string(respBody))
 	}
 	return nil
