@@ -316,10 +316,8 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 
 	isNewProject := false
 	project, err = sp.currentProject(ctx, config)
-	switch err {
-	default:
-		return err
-	case serverless.ErrProjectNotExist:
+	switch {
+	case errors.Is(err, serverless.ErrProjectNotExist):
 		logger.Infof("Creating %s project: %q", settings.Type, settings.Name)
 		config, err = sp.createProject(ctx, settings, options)
 		if err != nil {
@@ -340,7 +338,9 @@ func (sp *serverlessProvider) BootUp(ctx context.Context, options Options) error
 
 		// TODO: Ensuring a specific GeoIP database would make tests reproducible
 		// Currently geo ip files would be ignored when running pipeline tests
-	case nil:
+	case err != nil:
+		return err
+	default:
 		logger.Debugf("%s project existed: %s", project.Type, project.Name)
 		printUserConfig(options.Printer, config)
 	}

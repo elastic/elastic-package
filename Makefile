@@ -13,7 +13,7 @@ JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit.xml
 else
 JUNIT_TEST_REPORT_FILE = $(JUNIT_TEST_REPORT_FOLDER)/TEST-unit-$(PLATFORM).xml
 endif
-GOLANGCI_LINT_VERSION ?= v2.11.4
+GOLANGCI_LINT_VERSION ?= v2.12.2
 GOLANGCI_LINT_BINARY = $(PWD)/build/tools/golangci-lint-$(GOLANGCI_LINT_VERSION)
 
 
@@ -85,10 +85,10 @@ test-stack-command-86:
 	./scripts/test-stack-command.sh 8.6.2
 
 test-stack-command-8x:
-	./scripts/test-stack-command.sh 8.19.15-d9dbaf4c-SNAPSHOT
+	./scripts/test-stack-command.sh 8.19.16-67dfadf4-SNAPSHOT
 
 test-stack-command-9x:
-	./scripts/test-stack-command.sh 9.5.0-1e4fa24b-SNAPSHOT
+	./scripts/test-stack-command.sh 9.5.0-a7e7c5c4-SNAPSHOT
 
 test-stack-command-with-apm-server:
 	APM_SERVER_ENABLED=true ./scripts/test-stack-command.sh
@@ -128,7 +128,7 @@ test-check-packages-with-custom-agent:
 	PACKAGE_TEST_TYPE=with-custom-agent ./scripts/test-check-packages.sh
 
 test-build-install-packages-composable:
-	./scripts/test-composable-packages.sh
+	PACKAGE_TEST_TYPE=composable ./scripts/test-composable-packages.sh
 
 test-build-zip:
 	./scripts/test-build-zip.sh

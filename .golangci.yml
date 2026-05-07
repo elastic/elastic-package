@@ -3,8 +3,7 @@ version: "2"
 linters:
   enable:
     - contextcheck
-    # TODO: enable errorlint to detect issues with error comparisons, wrapping and so on.
-    #- errorlint
+    - errorlint
     - exhaustive
     - gocognit
     - gocritic
@@ -25,6 +24,10 @@ linters:
       # TODO: Enable more checks, it is detecting actual potential issues.
       disable-all: true
       enabled-checks:
+        - appendAssign
+        - offBy1
+
+        # Enabled for the custom rules below.
         - ruleguard
       settings:
         ruleguard:

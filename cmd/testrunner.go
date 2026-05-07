@@ -763,7 +763,7 @@ func testRunnerScriptCommandAction(cmd *cobra.Command, args []string) error {
 
 	pkgRoot, err := packages.FindPackageRoot()
 	if err != nil {
-		if err == packages.ErrPackageRootNotFound {
+		if errors.Is(err, packages.ErrPackageRootNotFound) {
 			return errors.New("package root not found")
 		}
 		return fmt.Errorf("locating package root failed: %w", err)

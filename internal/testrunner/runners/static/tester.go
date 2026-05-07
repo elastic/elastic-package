@@ -12,6 +12,7 @@ import (
 	"slices"
 
 	"github.com/elastic/elastic-package/internal/benchrunner/runners/stream"
+	"github.com/elastic/elastic-package/internal/builder"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -194,7 +195,7 @@ func (r tester) verifySampleEvent(sampleEventPath string, pkgManifest *packages.
 		fields.WithDefaultNumericConversion(),
 		fields.WithExpectedDatasets(expectedDatasets),
 		fields.WithEnabledImportAllECSSChema(true),
-		fields.WithOTelValidation(isTestUsingOTelCollectorInput(pkgManifest)),
+		fields.WithOTelValidation(r.isDataStreamUsingOTelCollectorInput(pkgManifest)),
 		fields.WithSchemaURLs(r.schemaURLs),
 	)
 	if err != nil {
@@ -248,28 +249,51 @@ func (r tester) getExpectedDatasets(pkgManifest *packages.PackageManifest) ([]st
 	if err != nil {
 		return nil, fmt.Errorf("failed to read data stream manifest: %w", err)
 	}
+	dataset := pkgManifest.Name + "." + dsName
 	if ds := dataStreamManifest.Dataset; ds != "" {
-		return []string{ds}, nil
+		dataset = ds
 	}
-	return []string{pkgManifest.Name + "." + dsName}, nil
+	if r.isDataStreamUsingOTelCollectorInput(pkgManifest) {
+		dataset = dataset + ".otel"
+	}
+	return []string{dataset}, nil
 }
 
 func (r tester) TearDown(ctx context.Context) error {
 	return nil // it's a static test runner, no state is stored
 }
 
-func isTestUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
-	if manifest.Type != "input" {
-		return false
-	}
-
-	// We are not testing an specific policy template here, assume this is an OTel package
-	// if at least one policy template has an "otelcol" input.
-	if !slices.ContainsFunc(manifest.PolicyTemplates, func(t packages.PolicyTemplate) bool {
+// isDataStreamUsingOTelCollectorInput returns true if the data stream under test uses the
+// otelcol input type. For input packages the singular PolicyTemplate.Input field is checked
+// directly. For composable integration packages the built manifest is read to resolve the
+// input type materialised from the required input package.
+func (r tester) isDataStreamUsingOTelCollectorInput(manifest *packages.PackageManifest) bool {
+	// Input packages expose the input type directly in the singular Input field.
+	if slices.ContainsFunc(manifest.PolicyTemplates, func(t packages.PolicyTemplate) bool {
 		return t.Input == "otelcol"
 	}) {
-		return false
+		return true
 	}
 
-	return true
+	// For composable integration packages, check the built manifest where "package:" references
+	// are materialised into concrete input types.
+	if r.testFolder.DataStream == "" {
+		return false
+	}
+	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(r.packageRoot)
+	if err != nil {
+		logger.Debugf("failed to read built manifest for OTel detection: %v", err)
+		return false
+	}
+	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, r.testFolder.DataStream)
+	if err != nil || len(builtDS.Streams) == 0 {
+		return false
+	}
+	inputName := builtDS.Streams[0].Input
+	for _, pt := range builtPkg.PolicyTemplates {
+		if input := pt.FindInput(inputName); input != nil {
+			return input.Type == "otelcol"
+		}
+	}
+	return false
 }

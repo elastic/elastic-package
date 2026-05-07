@@ -446,7 +446,8 @@ func (r *tester) verifyResults(testCaseFile string, config *testConfig, result *
 	// TODO: temporary workaround until other approach for deterministic geoip in serverless can be implemented.
 	if r.runCompareResults {
 		err = compareResults(testCasePath, config, result, *specVersion)
-		if _, ok := err.(testrunner.ErrTestCaseFailed); ok {
+		var testErr testrunner.ErrTestCaseFailed
+		if errors.As(err, &testErr) {
 			return err
 		}
 		if err != nil {
@@ -496,7 +497,7 @@ func verifyDynamicFields(result *testResult, config *testConfig) error {
 
 		for key, pattern := range config.DynamicFields {
 			val, err := m.GetValue(key)
-			if err != nil && err != common.ErrKeyNotFound {
+			if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 				return fmt.Errorf("can't remove dynamic field: %w", err)
 			}
 

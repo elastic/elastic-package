@@ -1,0 +1,31 @@
+inputs:
+    - data_stream:
+        namespace: ep
+      meta:
+        package:
+            name: ci_composable_dual_input
+      name: test-default-07_ci_composable_dual_input
+      paths:
+        - /var/log/a/*.log
+      streams:
+        - data_stream:
+            dataset: ci_composable_dual_input.ci_dual_logs_a
+          paths:
+            - /var/log/a/*.log
+      type: logfile
+      use_output: default
+output_permissions:
+    default:
+        _elastic_agent_checks:
+            cluster:
+                - monitor
+        _elastic_agent_monitoring:
+            indices: []
+        uuid-for-permissions-on-related-indices:
+            indices:
+                - names:
+                    - logs-ci_composable_dual_input.ci_dual_logs_a-ep
+                  privileges:
+                    - auto_configure
+                    - create_doc
+secret_references: []

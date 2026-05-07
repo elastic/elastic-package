@@ -1,0 +1,6 @@
+# SVR00010 counts policy template inputs only by `type`; composable source uses
+# distinct `package:` refs without `type` until elastic-package build resolves them.
+# See package-spec ValidateIntegrationInputQualifier (composable gap).
+errors:
+  exclude_checks:
+    - SVR00010

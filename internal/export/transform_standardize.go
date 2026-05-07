@@ -5,6 +5,7 @@
 package export
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -24,7 +25,7 @@ func standardizeObjectID(ctx *transformationContext, object common.MapStr) (comm
 
 	// Adjust references
 	references, err := object.GetValue("references")
-	if err != nil && err != common.ErrKeyNotFound {
+	if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 		return nil, fmt.Errorf("retrieving object references failed: %w", err)
 	}
 
