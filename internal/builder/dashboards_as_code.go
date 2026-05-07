@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Masterminds/semver/v3"
+
 	"github.com/elastic/elastic-package/internal/export"
 	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
@@ -18,6 +20,10 @@ import (
 )
 
 const dashboardsAsCodeDir = "_dev/dashboards_as_code"
+
+// minDashboardsAsCodeKibanaVersion is the first Kibana version that supports
+// the dashboards-as-code import API (POST /api/dashboards).
+var minDashboardsAsCodeKibanaVersion = semver.MustParse("9.4.0")
 
 // compileDashboardsAsCode compiles each *.json file under
 // <sourcePackageRoot>/_dev/dashboards_as_code/ into a saved-object dashboard
@@ -48,8 +54,8 @@ func compileDashboardsAsCode(ctx context.Context, kibanaClient *kibana.Client, s
 	if err != nil {
 		return fmt.Errorf("getting Kibana version information: %w", err)
 	}
-	if err := export.CheckKibanaVersion(versionInfo); err != nil {
-		return fmt.Errorf("cannot compile dashboards-as-code on this Kibana version: %w", err)
+	if err := checkDashboardsAsCodeKibanaVersion(versionInfo); err != nil {
+		return err
 	}
 
 	manifest, err := packages.ReadPackageManifestFromPackageRoot(sourcePackageRoot)
@@ -61,6 +67,23 @@ func compileDashboardsAsCode(ctx context.Context, kibanaClient *kibana.Client, s
 		if err := compileDashboardAsCodeFile(ctx, kibanaClient, manifest.Name, sourcePackageRoot, file); err != nil {
 			return fmt.Errorf("compiling dashboards-as-code file %s: %w", file, err)
 		}
+	}
+	return nil
+}
+
+func checkDashboardsAsCodeKibanaVersion(info kibana.VersionInfo) error {
+	// Managed Kibana instances may not expose a version number; fall through
+	// and let the API surface any incompatibility at request time.
+	if info.Number == "" {
+		return nil
+	}
+	v, err := semver.NewVersion(info.Number)
+	if err != nil {
+		return fmt.Errorf("cannot parse Kibana version %s: %w", info.Number, err)
+	}
+	if v.LessThan(minDashboardsAsCodeKibanaVersion) {
+		return fmt.Errorf("dashboards-as-code requires Kibana %s or later (got %s); the import API at POST /api/dashboards is not available in this version",
+			minDashboardsAsCodeKibanaVersion, info.Number)
 	}
 	return nil
 }

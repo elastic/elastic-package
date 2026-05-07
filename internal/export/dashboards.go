@@ -68,12 +68,6 @@ func TransformAndWriteDashboards(packageRoot, packageName string, objects []comm
 	return nil
 }
 
-// CheckKibanaVersion verifies that the connected Kibana version is supported for
-// dashboards export and dashboards-as-code compilation.
-func CheckKibanaVersion(info kibana.VersionInfo) error {
-	return checkKibanaVersion(info)
-}
-
 func checkKibanaVersion(info kibana.VersionInfo) error {
 	version, err := semver.NewVersion(info.Number)
 	if err != nil {
