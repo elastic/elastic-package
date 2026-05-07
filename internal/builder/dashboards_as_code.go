@@ -72,11 +72,6 @@ func compileDashboardsAsCode(ctx context.Context, kibanaClient *kibana.Client, s
 }
 
 func checkDashboardsAsCodeKibanaVersion(info kibana.VersionInfo) error {
-	// Managed Kibana instances may not expose a version number; fall through
-	// and let the API surface any incompatibility at request time.
-	if info.Number == "" {
-		return nil
-	}
 	v, err := semver.NewVersion(info.Number)
 	if err != nil {
 		return fmt.Errorf("cannot parse Kibana version %s: %w", info.Number, err)
