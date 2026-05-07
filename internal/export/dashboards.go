@@ -46,20 +46,32 @@ func Dashboards(ctx context.Context, kibanaClient *kibana.Client, dashboardsIDs 
 		return fmt.Errorf("exporting dashboards using Kibana client failed: %w", err)
 	}
 
+	return TransformAndWriteDashboards(packageRoot, m.Name, objects)
+}
+
+// TransformAndWriteDashboards applies the standard dashboard transformation pipeline
+// to a list of Kibana saved objects and writes them under packageRoot/kibana/<type>/<id>.json.
+// It is shared by the dashboards export command and the dashboards-as-code build step.
+func TransformAndWriteDashboards(packageRoot, packageName string, objects []common.MapStr) error {
 	transformContext := &transformationContext{
-		packageName: m.Name,
+		packageName: packageName,
 	}
 
-	objects, err = applyTransformations(transformContext, objects)
+	objects, err := applyTransformations(transformContext, objects)
 	if err != nil {
 		return fmt.Errorf("can't transform Kibana objects: %w", err)
 	}
 
-	err = saveObjectsToFiles(packageRoot, objects)
-	if err != nil {
+	if err := saveObjectsToFiles(packageRoot, objects); err != nil {
 		return fmt.Errorf("can't save Kibana objects: %w", err)
 	}
 	return nil
+}
+
+// CheckKibanaVersion verifies that the connected Kibana version is supported for
+// dashboards export and dashboards-as-code compilation.
+func CheckKibanaVersion(info kibana.VersionInfo) error {
+	return checkKibanaVersion(info)
 }
 
 func checkKibanaVersion(info kibana.VersionInfo) error {

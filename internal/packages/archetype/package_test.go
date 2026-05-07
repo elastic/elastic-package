@@ -5,6 +5,7 @@
 package archetype
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -101,7 +102,7 @@ func buildPackage(t *testing.T, repositoryRoot *os.Root, packageRoot string) err
 	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
 
-	_, err = builder.BuildPackage(builder.BuildOptions{
+	_, err = builder.BuildPackage(context.Background(), builder.BuildOptions{
 		PackageRoot:    packageRoot,
 		BuildDir:       buildDir,
 		RepositoryRoot: repositoryRoot,

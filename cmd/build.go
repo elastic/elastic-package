@@ -7,6 +7,8 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/elastic/elastic-package/internal/cobraext"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/install"
+	"github.com/elastic/elastic-package/internal/kibana"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
@@ -102,7 +105,15 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
-	target, err := builder.BuildPackage(builder.BuildOptions{
+	var kibanaClient *kibana.Client
+	if hasDashboardsAsCode(packageRoot) {
+		kibanaClient, err = stack.NewKibanaClientFromProfile(prof)
+		if err != nil {
+			return fmt.Errorf("can't create Kibana client for dashboards-as-code compilation: %w", err)
+		}
+	}
+
+	target, err := builder.BuildPackage(cmd.Context(), builder.BuildOptions{
 		PackageRoot:            packageRoot,
 		BuildDir:               buildDir,
 		CreateZip:              createZip,
@@ -112,6 +123,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 		UpdateReadmes:          true,
 		SchemaURLs:             appConfig.SchemaURLs(),
 		RequiredInputsResolver: requiredInputsResolver,
+		KibanaClient:           kibanaClient,
 	})
 	if err != nil {
 		return fmt.Errorf("building package failed: %w", err)
@@ -121,4 +133,23 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Done")
 	return nil
+}
+
+// hasDashboardsAsCode reports whether the package source contains any
+// dashboards-as-code JSON files that would require Kibana to compile.
+func hasDashboardsAsCode(packageRoot string) bool {
+	matches, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "dashboards_as_code", "*.json"))
+	if err != nil {
+		return false
+	}
+	if len(matches) == 0 {
+		return false
+	}
+	for _, m := range matches {
+		info, err := os.Stat(m)
+		if err == nil && !info.IsDir() {
+			return true
+		}
+	}
+	return false
 }
