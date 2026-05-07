@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
 
@@ -91,7 +92,11 @@ func compileDashboardAsCodeFile(ctx context.Context, kibanaClient *kibana.Client
 		return fmt.Errorf("reading dashboards-as-code source failed: %w", err)
 	}
 
-	id, err := kibanaClient.ImportDashboardAsCode(ctx, body)
+	// Use the source filename (without extension) as the saved-object id so the
+	// compiled output is deterministic. standardizeObjectID will then prefix it
+	// with the package name during export.
+	id := strings.TrimSuffix(filepath.Base(file), filepath.Ext(file))
+	id, err = kibanaClient.ImportDashboardAsCode(ctx, id, body)
 	if err != nil {
 		return fmt.Errorf("importing dashboards-as-code failed: %w", err)
 	}

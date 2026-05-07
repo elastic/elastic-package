@@ -18,13 +18,18 @@ import (
 const DashboardsAPI = "/api/dashboards"
 
 // ImportDashboardAsCode imports a dashboards-as-code JSON document via the
-// /api/dashboards Kibana endpoint and returns the saved-object id of the
-// resulting dashboard. The same id is used to subsequently export and clean up
-// the imported dashboard.
-func (c *Client) ImportDashboardAsCode(ctx context.Context, body []byte) (string, error) {
-	logger.Debug("Import dashboards-as-code via Kibana dashboards API")
+// /api/dashboards Kibana endpoint, storing it under the supplied id (the PUT
+// form of the API guarantees the resulting saved object uses the id we choose,
+// rather than a freshly generated one). Returns the id reported by Kibana,
+// which should match the supplied id.
+func (c *Client) ImportDashboardAsCode(ctx context.Context, id string, body []byte) (string, error) {
+	if id == "" {
+		return "", errors.New("dashboards-as-code import requires a non-empty id")
+	}
+	logger.Debugf("Import dashboards-as-code via Kibana dashboards API (id: %s)", id)
 
-	statusCode, respBody, err := c.post(ctx, DashboardsAPI, body)
+	path := fmt.Sprintf("%s/%s", DashboardsAPI, id)
+	statusCode, respBody, err := c.put(ctx, path, body)
 	if err != nil {
 		return "", fmt.Errorf("could not import dashboards-as-code; API status code = %d; response body = %s: %w", statusCode, string(respBody), err)
 	}
