@@ -17,7 +17,6 @@ import (
 	"github.com/elastic/elastic-package/internal/files"
 	llmconfig "github.com/elastic/elastic-package/internal/llmagent/config"
 	"github.com/elastic/elastic-package/internal/llmagent/docagent"
-	"github.com/elastic/elastic-package/internal/llmagent/tracing"
 	"github.com/elastic/elastic-package/internal/packages"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/tui"
@@ -172,12 +171,6 @@ func handleStandardMode(cmd *cobra.Command, p *profile.Profile, cfg llmconfig.LL
 	if err != nil {
 		return fmt.Errorf("failed to create documentation agent: %w", err)
 	}
-
-	defer func() {
-		if err := tracing.Shutdown(cmd.Context()); err != nil {
-			cmd.PrintErrf("Warning: failed to shutdown tracing: %v\n", err)
-		}
-	}()
 
 	cmd.Println("Updating documentation using AI agent...")
 	if err := docAgent.UpdateDocumentation(cmd.Context(), true); err != nil {
