@@ -6,7 +6,6 @@ package builder
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -107,10 +106,7 @@ func compileDashboardAsCodeFile(ctx context.Context, kibanaClient *kibana.Client
 	// even if ctx has been cancelled by the time we reach this point.
 	defer func() {
 		if cleanupErr := kibanaClient.DeleteDashboard(context.Background(), id); cleanupErr != nil {
-			if errors.Is(cleanupErr, context.Canceled) {
-				return
-			}
-			logger.Debugf("Failed to delete imported dashboard %s during cleanup: %v", id, cleanupErr)
+			logger.Warnf("Failed to delete imported dashboard %s during cleanup: %v", id, cleanupErr)
 		}
 	}()
 
