@@ -138,7 +138,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 // hasDashboardsAsCode reports whether the package source contains any
 // dashboards-as-code JSON files that would require Kibana to compile.
 func hasDashboardsAsCode(packageRoot string) bool {
-	matches, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "build", "dashboards_as_code", "*.json"))
+	matches, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "shared", "*.json"))
 	if err != nil {
 		return false
 	}

@@ -80,7 +80,7 @@ for d in "${PACKAGES_PATH}"/*/; do
   elastic-package check -C "$d" -v
 
   # For every source, the build must have written the standardised SO.
-  for source in "${d}_dev/build/dashboards_as_code"/*.json; do
+  for source in "${d}_dev/shared"/*.json; do
     source_id=$(basename "${source}" .json)
     expected="${d}kibana/dashboard/${package_name}-${source_id}.json"
     if [ ! -f "${expected}" ]; then
