@@ -6,7 +6,9 @@
 #   1. Brings up the stack (the build step needs Kibana to compile dashboards).
 #   2. Asserts the fixture has no compiled saved object yet (the build must
 #      produce it, not just copy a pre-existing one).
-#   3. Runs `elastic-package check` (lint + build).
+#   3. Runs `elastic-package lint` then `elastic-package build
+#      --compile-dashboards-as-code` (the equivalent of `check` but with
+#      the opt-in flag wired to build).
 #   4. Asserts that for every <name>.json source under
 #      _dev/build/dashboards_as_code/ the build wrote
 #      kibana/dashboard/<package>-<name>.json.
@@ -77,7 +79,8 @@ for d in "${PACKAGES_PATH}"/*/; do
     exit 1
   fi
 
-  elastic-package check -C "$d" -v
+  elastic-package lint -C "$d" -v
+  elastic-package build -C "$d" -v --compile-dashboards-as-code
 
   # For every source, the build must have written the standardised SO.
   for source in "${d}_dev/shared"/*.json; do

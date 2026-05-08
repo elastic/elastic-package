@@ -7,8 +7,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -48,6 +46,7 @@ func setupBuildCommand() *cobraext.Command {
 	cmd.Flags().Bool(cobraext.BuildZipFlagName, true, cobraext.BuildZipFlagDescription)
 	cmd.Flags().Bool(cobraext.SignPackageFlagName, false, cobraext.SignPackageFlagDescription)
 	cmd.Flags().Bool(cobraext.BuildSkipValidationFlagName, false, cobraext.BuildSkipValidationFlagDescription)
+	cmd.Flags().Bool(cobraext.BuildCompileDashboardsAsCodeFlagName, false, cobraext.BuildCompileDashboardsAsCodeFlagDescription)
 	return cobraext.NewCommand(cmd, cobraext.ContextPackage)
 }
 
@@ -57,6 +56,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	createZip, _ := cmd.Flags().GetBool(cobraext.BuildZipFlagName)
 	signPackage, _ := cmd.Flags().GetBool(cobraext.SignPackageFlagName)
 	skipValidation, _ := cmd.Flags().GetBool(cobraext.BuildSkipValidationFlagName)
+	compileDashboardsAsCode, _ := cmd.Flags().GetBool(cobraext.BuildCompileDashboardsAsCodeFlagName)
 
 	if signPackage && !createZip {
 		return errors.New("can't sign the unzipped package, please use also the --zip switch")
@@ -106,7 +106,7 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 	requiredInputsResolver := requiredinputs.NewRequiredInputsResolver(eprClient)
 
 	var kibanaClient *kibana.Client
-	if hasDashboardsAsCode(packageRoot) {
+	if compileDashboardsAsCode {
 		kibanaClient, err = stack.NewKibanaClientFromProfile(prof)
 		if err != nil {
 			return fmt.Errorf("can't create Kibana client for dashboards-as-code compilation: %w", err)
@@ -133,23 +133,4 @@ func buildCommandAction(cmd *cobra.Command, args []string) error {
 
 	cmd.Println("Done")
 	return nil
-}
-
-// hasDashboardsAsCode reports whether the package source contains any
-// dashboards-as-code JSON files that would require Kibana to compile.
-func hasDashboardsAsCode(packageRoot string) bool {
-	matches, err := filepath.Glob(filepath.Join(packageRoot, "_dev", "shared", "*.json"))
-	if err != nil {
-		return false
-	}
-	if len(matches) == 0 {
-		return false
-	}
-	for _, m := range matches {
-		info, err := os.Stat(m)
-		if err == nil && !info.IsDir() {
-			return true
-		}
-	}
-	return false
 }

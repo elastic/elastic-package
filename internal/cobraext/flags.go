@@ -94,6 +94,9 @@ const (
 	BuildZipFlagName        = "zip"
 	BuildZipFlagDescription = "archive the built package"
 
+	BuildCompileDashboardsAsCodeFlagName        = "compile-dashboards-as-code"
+	BuildCompileDashboardsAsCodeFlagDescription = "compile dashboards-as-code sources under _dev/shared/*.json into kibana/dashboard/ saved objects (requires a running Kibana 9.4.0+ stack)"
+
 	ChangelogAddNextFlagName        = "next"
 	ChangelogAddNextFlagDescription = "changelog entry is added in the next `major`, `minor` or `patch` version"
 

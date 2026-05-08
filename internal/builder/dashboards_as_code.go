@@ -27,16 +27,22 @@ const dashboardsAsCodeDir = "_dev/shared"
 var minDashboardsAsCodeKibanaVersion = semver.MustParse("9.4.0")
 
 // compileDashboardsAsCode compiles each *.json file under
-// <sourcePackageRoot>/_dev/dashboards_as_code/ into a saved-object dashboard
-// under <sourcePackageRoot>/kibana/dashboard/. Each source file is imported
-// into the connected Kibana via POST /api/dashboards, the resulting dashboard
+// <sourcePackageRoot>/_dev/shared/ into a saved-object dashboard under
+// <sourcePackageRoot>/kibana/dashboard/. Each source file is imported into
+// the connected Kibana via PUT /api/dashboards/<id>, the resulting dashboard
 // is exported back through the standard dashboards export pipeline, and the
 // imported saved object is then deleted from Kibana.
 //
-// If the source directory does not exist or contains no JSON files, this
-// function is a no-op and no Kibana connection is attempted. When source
-// files are present and kibanaClient is nil, returns an error.
+// Compilation is opt-in: callers signal intent by passing a non-nil
+// kibanaClient. When kibanaClient is nil this function returns immediately,
+// even if source files are present, so packages that use _dev/shared/ for
+// unrelated content are unaffected by builds that did not request
+// dashboards-as-code compilation.
 func compileDashboardsAsCode(ctx context.Context, kibanaClient *kibana.Client, sourcePackageRoot string) error {
+	if kibanaClient == nil {
+		return nil
+	}
+
 	sourceDir := filepath.Join(sourcePackageRoot, dashboardsAsCodeDir)
 	files, err := filepath.Glob(filepath.Join(sourceDir, "*.json"))
 	if err != nil {
@@ -44,11 +50,6 @@ func compileDashboardsAsCode(ctx context.Context, kibanaClient *kibana.Client, s
 	}
 	if len(files) == 0 {
 		return nil
-	}
-
-	if kibanaClient == nil {
-		return fmt.Errorf("package contains %s but no Kibana client is configured; "+
-			"set ELASTIC_PACKAGE_KIBANA_HOST or run 'elastic-package stack up' first", dashboardsAsCodeDir)
 	}
 
 	versionInfo, err := kibanaClient.Version()
