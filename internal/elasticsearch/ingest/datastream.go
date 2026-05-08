@@ -111,7 +111,10 @@ func LoadIngestPipelineFiles(dataStreamRoot string, nonce int64, repositoryRoot 
 			return nil, err
 		}
 
-		format := filepath.Ext(strings.TrimSuffix(path, ".link"))[1:]
+		format := strings.TrimPrefix(filepath.Ext(strings.TrimSuffix(path, ".link")), ".")
+		if format == "" {
+			return nil, fmt.Errorf("invalid ingest pipeline extension (path: %s)", path)
+		}
 		cWithRerouteProcessors, err := addRerouteProcessors(c, dataStreamRoot, path, format)
 		if err != nil {
 			return nil, err
