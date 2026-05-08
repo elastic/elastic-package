@@ -102,10 +102,11 @@ func compileDashboardAsCodeFile(ctx context.Context, kibanaClient *kibana.Client
 	}
 
 	// Best-effort cleanup of the imported dashboard, regardless of how the
-	// rest of this function completes. Use a fresh context so cleanup runs
-	// even if ctx has been cancelled by the time we reach this point.
+	// rest of this function completes. Detach from ctx's cancellation so
+	// cleanup still runs if the parent context has been cancelled.
+	cleanupCtx := context.WithoutCancel(ctx)
 	defer func() {
-		if cleanupErr := kibanaClient.DeleteDashboard(context.Background(), id); cleanupErr != nil {
+		if cleanupErr := kibanaClient.DeleteDashboard(cleanupCtx, id); cleanupErr != nil {
 			logger.Warnf("Failed to delete imported dashboard %s during cleanup: %v", id, cleanupErr)
 		}
 	}()
