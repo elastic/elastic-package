@@ -1,0 +1,5 @@
+data_stream:
+  vars:
+    endpoint: "http://localhost/server-status"
+    collection_interval: 60s
+    initial_delay: 30s

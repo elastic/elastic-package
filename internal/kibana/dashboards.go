@@ -83,7 +83,7 @@ func (c *Client) exportWithDashboardsAPI(ctx context.Context, dashboardIDs []str
 			multiErr = append(multiErr, errors.New(errMsg.(string)))
 			continue
 		}
-		if err != nil && err != common.ErrKeyNotFound {
+		if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 			multiErr = append(multiErr, err)
 		}
 	}

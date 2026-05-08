@@ -1,0 +1,6 @@
+# newer versions go on top
+- version: "0.1.0"
+  changes:
+    - description: Initial package for testing composable integration with requires.input and requires.content.
+      type: enhancement
+      link: https://github.com/elastic/elastic-package/pull/3329

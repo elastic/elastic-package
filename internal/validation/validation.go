@@ -78,8 +78,8 @@ func fsFromPackageZip(fsys fs.FS) (fs.FS, error) {
 }
 
 func filterErrors(allErrors error, fsys fs.FS) (specerrors.FilterResult, error) {
-	errs, ok := allErrors.(specerrors.ValidationErrors)
-	if !ok {
+	var errs specerrors.ValidationErrors
+	if !errors.As(allErrors, &errs) {
 		return specerrors.FilterResult{Processed: allErrors, Removed: nil}, nil
 	}
 

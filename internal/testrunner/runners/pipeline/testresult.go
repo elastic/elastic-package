@@ -7,6 +7,7 @@ package pipeline
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -180,7 +181,7 @@ func adjustTestResult(result *testResult, config *testConfig) (*testResult, erro
 			// Strip dynamic fields from test result
 			for key := range config.DynamicFields {
 				err := m.Delete(key)
-				if err != nil && err != common.ErrKeyNotFound {
+				if err != nil && !errors.Is(err, common.ErrKeyNotFound) {
 					return nil, fmt.Errorf("can't remove dynamic field: %w", err)
 				}
 			}

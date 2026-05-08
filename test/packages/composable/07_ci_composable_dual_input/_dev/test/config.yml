@@ -1,0 +1,7 @@
+system:
+  parallel: true
+policy:
+  requires:
+    - source: "../05_ci_input_pkg_a"
+    - source: "../06_ci_input_pkg_b"
+vars: ~

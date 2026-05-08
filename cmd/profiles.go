@@ -158,7 +158,7 @@ User profiles can be configured with a "config.yml" file in the profile director
 
 			_, err := profile.LoadProfile(profileName)
 			if err != nil {
-				return fmt.Errorf("cannot use profile %q: %v", profileName, err)
+				return fmt.Errorf("cannot use profile %q: %w", profileName, err)
 			}
 
 			location, err := locations.NewLocationManager()

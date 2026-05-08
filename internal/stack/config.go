@@ -92,7 +92,7 @@ func storeConfig(profile *profile.Profile, config Config) error {
 
 	err = os.WriteFile(configPath(profile), d, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to write stack config: %s", err)
+		return fmt.Errorf("failed to write stack config: %w", err)
 	}
 
 	return nil
