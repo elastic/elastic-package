@@ -1,0 +1,412 @@
+// Copyright Elasticsearch B.V. and/or licensed to Elasticsearch B.V. under one
+// or more contributor license agreements. Licensed under the Elastic License;
+// you may not use this file except in compliance with the Elastic License.
+
+package validators
+
+import (
+	"context"
+	"regexp"
+	"strings"
+
+	"github.com/elastic/elastic-package/internal/llmagent/docagent/prompts"
+)
+
+const (
+	accessibilityValidatorName        = "accessibility_validator"
+	accessibilityValidatorDescription = "Validates documentation for accessibility and inclusive language"
+)
+
+var accessibilityValidatorInstruction = `You are a documentation accessibility validator for Elastic integration packages.
+Your task is to validate that the documentation is accessible and uses inclusive language.
+
+## Input
+The documentation content to validate is provided in the user message.
+
+## Accessibility Requirements (NON-NEGOTIABLE)
+
+### Alternative Text
+- ALL images must have descriptive alt text
+- Alt text must describe the image content, not just say "image"
+
+### Meaningful Links
+- Link text MUST be descriptive of the destination
+- NEVER use "click here", "read more", "here", or "this link"
+
+### Directional Language
+- NEVER use "above", "below", "left", "right"
+- Refer to content by name: "the following code", "the Save button"
+
+### Inclusive Language
+- Use gender-neutral pronouns (they/their, not he/she)
+- Address users as "you"
+
+### Ableist and Violent Terms
+- DO NOT use: kill, execute, abort, invalid, hack, sanity check, cripple, dumb, lame, handicapped
+- Use instead: stop, run, cancel, not valid, workaround, soundness check, impair, mute, weak, disabled
+` + prompts.ValidatorOutputSuffix("accessibility", "Accessibility issues are critical - set valid=false for any violation.")
+
+// AccessibilityValidator validates documentation accessibility and inclusive language
+type AccessibilityValidator struct {
+	BaseStagedValidator
+}
+
+// NewAccessibilityValidator creates a new accessibility validator
+func NewAccessibilityValidator() *AccessibilityValidator {
+	return &AccessibilityValidator{
+		BaseStagedValidator: BaseStagedValidator{
+			name:        accessibilityValidatorName,
+			description: accessibilityValidatorDescription,
+			stage:       StageQuality, // Accessibility is part of quality
+			scope:       ScopeBoth,    // Accessibility validation works on sections and full document
+			instruction: accessibilityValidatorInstruction,
+		},
+	}
+}
+
+// SupportsStaticValidation returns true - this validator has static checks
+func (v *AccessibilityValidator) SupportsStaticValidation() bool {
+	return true
+}
+
+// StaticValidate performs static accessibility validation
+func (v *AccessibilityValidator) StaticValidate(ctx context.Context, content string, pkgCtx *PackageContext) (*StagedValidationResult, error) {
+	result := &StagedValidationResult{
+		Stage: StageQuality,
+		Valid: true,
+	}
+
+	// Check 1: Image alt text
+	result.Issues = append(result.Issues, v.checkImageAltText(content)...)
+
+	// Check 2: Meaningful link text
+	result.Issues = append(result.Issues, v.checkLinkText(content)...)
+
+	// Check 3: Directional language
+	result.Issues = append(result.Issues, v.checkDirectionalLanguage(content)...)
+
+	// Check 4: Violent/ableist terms
+	result.Issues = append(result.Issues, v.checkInclusiveLanguage(content)...)
+
+	// Check 5: Gender-neutral language
+	result.Issues = append(result.Issues, v.checkGenderNeutralLanguage(content)...)
+
+	// Determine validity based on issues
+	for _, issue := range result.Issues {
+		if issue.Severity == SeverityCritical || issue.Severity == SeverityMajor {
+			result.Valid = false
+			break
+		}
+	}
+
+	return result, nil
+}
+
+// checkImageAltText validates that images have descriptive alt text
+func (v *AccessibilityValidator) checkImageAltText(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Match markdown images: ![alt](url)
+	imagePattern := regexp.MustCompile(`!\[([^\]]*)\]\([^)]+\)`)
+	matches := imagePattern.FindAllStringSubmatch(content, -1)
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			altText := strings.TrimSpace(match[1])
+
+			// Check for empty alt text
+			if altText == "" {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityCritical,
+					Category:    CategoryAccessibility,
+					Location:    "Images",
+					Message:     "Image missing alt text",
+					Suggestion:  "Add descriptive alt text: ![Description of image](url)",
+					SourceCheck: "static",
+				})
+			} else if isNonDescriptiveAlt(altText) {
+				// Check for non-descriptive alt text
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMajor,
+					Category:    CategoryAccessibility,
+					Location:    "Images",
+					Message:     "Image has non-descriptive alt text: '" + altText + "'",
+					Suggestion:  "Replace with description of what the image shows",
+					SourceCheck: "static",
+				})
+			}
+		}
+	}
+
+	// Check for HTML images: <img src="..." alt="...">
+	htmlImagePattern := regexp.MustCompile(`<img[^>]+>`)
+	htmlMatches := htmlImagePattern.FindAllString(content, -1)
+
+	for _, img := range htmlMatches {
+		altMatch := regexp.MustCompile(`alt=["']([^"']*)["']`).FindStringSubmatch(img)
+		if altMatch == nil || strings.TrimSpace(altMatch[1]) == "" {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityCritical,
+				Category:    CategoryAccessibility,
+				Location:    "Images",
+				Message:     "HTML image missing alt attribute",
+				Suggestion:  "Add alt attribute: <img src=\"...\" alt=\"Description\">",
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// checkLinkText validates that link text is meaningful
+func (v *AccessibilityValidator) checkLinkText(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Match markdown links: [text](url)
+	linkPattern := regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`)
+	matches := linkPattern.FindAllStringSubmatch(content, -1)
+
+	badLinkTexts := []string{
+		"click here", "here", "read more", "more", "this link",
+		"this page", "link", "this", "learn more",
+	}
+
+	for _, match := range matches {
+		if len(match) > 1 {
+			linkText := strings.TrimSpace(strings.ToLower(match[1]))
+
+			for _, bad := range badLinkTexts {
+				if linkText == bad {
+					issues = append(issues, ValidationIssue{
+						Severity:    SeverityCritical,
+						Category:    CategoryAccessibility,
+						Location:    "Links",
+						Message:     "Non-descriptive link text: '" + match[1] + "'",
+						Suggestion:  "Use descriptive text that indicates where the link goes",
+						SourceCheck: "static",
+					})
+					break
+				}
+			}
+		}
+	}
+
+	return issues
+}
+
+// checkDirectionalLanguage validates no directional references
+func (v *AccessibilityValidator) checkDirectionalLanguage(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Directional terms to flag
+	directionalPatterns := []struct {
+		pattern     string
+		term        string
+		replacement string
+	}{
+		{`(?i)\b(see|shown|displayed|found)\s+(above|below)\b`, "above/below", "the following/preceding"},
+		{`(?i)\bthe\s+(above|below)\s+(image|figure|table|code|example)\b`, "above/below", "the following/preceding"},
+		{`(?i)\bon\s+the\s+(left|right)\b`, "left/right", "specific element name"},
+		{`(?i)\b(left|right)[\s-]hand\s+side\b`, "left/right-hand side", "specific element name"},
+		{`(?i)\bto\s+the\s+(left|right)\s+of\b`, "to the left/right of", "next to [element name]"},
+		{`(?i)\babove\s+and\s+below\b`, "above and below", "preceding and following"},
+	}
+
+	for _, dp := range directionalPatterns {
+		re := regexp.MustCompile(dp.pattern)
+		if re.MatchString(content) {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryAccessibility,
+				Location:    "Content",
+				Message:     "Found directional language: '" + dp.term + "'",
+				Suggestion:  "Replace with content reference: " + dp.replacement,
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// checkInclusiveLanguage validates no violent or ableist terms
+func (v *AccessibilityValidator) checkInclusiveLanguage(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	problematicTerms := map[string]string{
+		// Violent/ableist terms
+		`\bkill\b`:           "stop or terminate",
+		`\bkills\b`:          "stops or terminates",
+		`\bkilled\b`:         "stopped or terminated",
+		`\bkilling\b`:        "stopping or terminating",
+		`\babort\b`:          "cancel or stop",
+		`\baborts\b`:         "cancels or stops",
+		`\baborted\b`:        "canceled or stopped",
+		`\baborting\b`:       "canceling or stopping",
+		`\bexecute\b`:        "run or start",
+		`\bexecutes\b`:       "runs or starts",
+		`\bexecuted\b`:       "ran or started",
+		`\bexecuting\b`:      "running or starting",
+		`\bhack\b`:           "workaround",
+		`\bhacks\b`:          "workarounds",
+		`\bhacking\b`:        "working around",
+		`\bsanity\s+check\b`: "soundness check",
+		`\bsanity\s+test\b`:  "soundness test",
+		`\bblacklist\b`:      "blocklist or denylist",
+		`\bwhitelist\b`:      "allowlist",
+		`\bcripple\b`:        "impair or disable",
+		`\bcrippled\b`:       "impaired or disabled",
+		// disability-defining language
+		`\bable-bodied\b`:          "non-disabled",
+		`\ba victim of\b`:          "a person who has / a person affected by",
+		`\bsuffers from\b`:         "has / lives with",
+		`\bstricken with\b`:        "has / lives with",
+		`\bbirth defect\b`:         "congenital condition",
+		`\bdifferently abled\b`:    "disabled",
+		`\bhandicapped\b`:          "disabled",
+		`\bhandicaps\b`:            "barriers",
+		`\bhearing-impaired\b`:     "deaf or hard of hearing",
+		`\bsight-impaired\b`:       "blind or low vision",
+		`\bvision-impaired\b`:      "blind or low vision",
+		`\bmentally handicapped\b`: "person with an intellectual disability",
+		`\bnormal person\b`:        "person without a disability",
+		`\bhealthy person\b`:       "person without a disability",
+		`\blame\b`:                 "weak or unconvincing",
+		`\bmaimed\b`:               "injured",
+		`\bdumb\b`:                 "mute / unable to speak",
+		// high-signal gendered job titles
+		`\bmanpower\b`:   "personnel or workforce",
+		`\bmanmade\b`:    "manufactured or synthetic",
+		`\bman-made\b`:   "manufactured or synthetic",
+		`\bauthoress\b`:  "author",
+		`\bwaitress\b`:   "waiter or server",
+		`\bmankind\b`:    "humanity or humankind",
+		`\bfireman\b`:    "firefighter",
+		`\bfiremen\b`:    "firefighters",
+		`\bpoliceman\b`:  "police officer",
+		`\bpolicemen\b`:  "police officers",
+		`\bchairman\b`:   "chairperson or chair",
+		`\bstewardess\b`: "flight attendant",
+	}
+
+	contextualTerms := map[string]struct {
+		replacement string
+		exceptions  []string
+	}{
+		`\bmaster\b`: {
+			replacement: "main or primary",
+			exceptions: []string{
+				"master node",
+				"master branch",
+			},
+		},
+		`\bslave\b`: {
+			replacement: "replica or secondary",
+			exceptions: []string{
+				"slave node",
+			},
+		},
+	}
+
+	contentLower := strings.ToLower(content)
+
+	// Check non-contextual problematic terms
+	for term, replacement := range problematicTerms {
+		re := regexp.MustCompile(`(?i)` + term)
+		matches := re.FindAllString(content, -1)
+		if len(matches) > 0 {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMajor,
+				Category:    CategoryAccessibility,
+				Location:    "Language",
+				Message:     "Found potentially problematic term: '" + matches[0] + "'",
+				Suggestion:  "Consider using: " + replacement,
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	// Check contextual terms - allow exceptions
+	for term, config := range contextualTerms {
+		re := regexp.MustCompile(`(?i)` + term)
+		matches := re.FindAllString(content, -1)
+		if len(matches) > 0 {
+			// Check if any exception context exists
+			hasException := false
+			for _, exception := range config.exceptions {
+				if strings.Contains(contentLower, strings.ToLower(exception)) {
+					hasException = true
+					break
+				}
+			}
+
+			// Only flag if no exception context found
+			if !hasException {
+				issues = append(issues, ValidationIssue{
+					Severity:    SeverityMinor, // Reduced severity for contextual terms
+					Category:    CategoryAccessibility,
+					Location:    "Language",
+					Message:     "Found potentially problematic term: '" + matches[0] + "'",
+					Suggestion:  "Consider using: " + config.replacement,
+					SourceCheck: "static",
+				})
+			}
+		}
+	}
+
+	return issues
+}
+
+// checkGenderNeutralLanguage validates gender-neutral language
+func (v *AccessibilityValidator) checkGenderNeutralLanguage(content string) []ValidationIssue {
+	var issues []ValidationIssue
+
+	// Gendered pronouns to flag
+	genderedPatterns := []struct {
+		pattern     string
+		replacement string
+	}{
+		{`\bhe\s+or\s+she\b`, "they"},
+		{`\bshe\s+or\s+he\b`, "they"},
+		{`\bhis\s+or\s+her\b`, "their"},
+		{`\bher\s+or\s+his\b`, "their"},
+		{`\bhis/her\b`, "their"},
+		{`\bhe/she\b`, "they"},
+		{`\bs/he\b`, "they"},
+		{`\bhimself\s+or\s+herself\b`, "themselves"},
+	}
+
+	for _, gp := range genderedPatterns {
+		re := regexp.MustCompile(`(?i)` + gp.pattern)
+		if re.MatchString(content) {
+			issues = append(issues, ValidationIssue{
+				Severity:    SeverityMinor,
+				Category:    CategoryAccessibility,
+				Location:    "Language",
+				Message:     "Found gendered language pattern",
+				Suggestion:  "Use gender-neutral pronoun: " + gp.replacement,
+				SourceCheck: "static",
+			})
+		}
+	}
+
+	return issues
+}
+
+// isNonDescriptiveAlt checks if alt text is non-descriptive
+func isNonDescriptiveAlt(alt string) bool {
+	nonDescriptive := []string{
+		"image", "img", "picture", "photo", "screenshot",
+		"figure", "diagram", "icon", "logo", "graphic",
+	}
+
+	altLower := strings.ToLower(alt)
+	for _, nd := range nonDescriptive {
+		if altLower == nd || altLower == nd+"s" {
+			return true
+		}
+	}
+
+	return false
+}

@@ -1,0 +1,9 @@
+## REJECT if you find ANY of these:
+- Lists without an introductory sentence before them
+- Title Case headings: '### Vendor-Specific Issues' should be '### Vendor-specific issues'
+- Anchor links like [Reference](#reference) - these break when published
+- Internal docs-content:// links - must use full https://www.elastic.co/... URLs
+- First person pronouns (I, me, my) - address the user as "you"
+- Exclamation points in body text
+- Ellipses (...)
+- Version terms: use "later"/"earlier" instead of "newer"/"older"/"higher"/"lower"

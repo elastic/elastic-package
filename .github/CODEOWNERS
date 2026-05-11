@@ -6,3 +6,6 @@
 Makefile @elastic/ecosystem
 internal/install/stack_version.go @elastic/ecosystem
 internal/stack/versions.go @elastic/ecosystem
+
+# LLM based functionality owned by integration-experience
+internal/llmagent/ @elastic/integration-experience
