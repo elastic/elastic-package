@@ -254,6 +254,12 @@ The following settings are available per profile:
 * `stack.fleet_auto_install_task_interval` sets the interval for the Fleet auto-install content packages task.
   Supported in Kibana 9.2 and later. Defaults to "10m".
 
+### AI-powered Documentation Configuration
+
+The `elastic-package update documentation` command can generate or update package documentation using an LLM.
+
+For full details on configuration, LLM provider setup, and the optional service knowledge base, see [docs/howto/ai_documentation.md](docs/howto/ai_documentation.md).
+
 ## Useful environment variables
 
 There are available some environment variables that could be used to change some of the
@@ -310,6 +316,10 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_ESMETRICSTORE_USERNAME`: Username to connect to elasticsearch (e.g. elastic)
     - `ELASTIC_PACKAGE_ESMETRICSTORE_PASSWORD`: Password for the user.
     - `ELASTIC_PACKAGE_ESMETRICSTORE_CA_CERT`: Path to the CA certificate to connect to the Elastic stack services.
+
+- To configure LLM providers for AI-powered documentation generation (`elastic-package update documentation`):
+    - `ELASTIC_PACKAGE_LLM_PROVIDER` / **llm.provider**: Provider name. Gemini is the default provider.
+    - Gemini: `GOOGLE_API_KEY` / **llm.gemini.api_key**, `GEMINI_MODEL` / **llm.gemini.model**, `GEMINI_THINKING_BUDGET` / **llm.gemini.thinking_budget**.
 
 
 ## Release process

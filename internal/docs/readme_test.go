@@ -78,7 +78,7 @@ Introduction to the package`,
 			require.NoError(t, err)
 			t.Cleanup(func() { root.Close() })
 
-			rendered, isTemplate, err := generateReadme(root, c.filename, "", dir, urls)
+			rendered, isTemplate, err := GenerateReadme(root, c.filename, "", dir, urls)
 			require.NoError(t, err)
 
 			if c.readmeTemplateContents != "" {
@@ -549,7 +549,7 @@ func createReadmeTemplateFile(t *testing.T, packageRoot, contents string) {
 	docsFolder := createDocsFolder(t, packageRoot)
 	if contents != "" {
 		readmeFile := filepath.Join(docsFolder, "README.md")
-		err := os.WriteFile(readmeFile, []byte(contents), 0644)
+		err := os.WriteFile(readmeFile, []byte(contents), 0o644)
 		require.NoError(t, err)
 	}
 }
@@ -557,7 +557,7 @@ func createReadmeTemplateFile(t *testing.T, packageRoot, contents string) {
 func createDocsFolder(t *testing.T, packageRoot string) string {
 	t.Helper()
 	docsFolder := filepath.Join(packageRoot, "_dev", "build", "docs")
-	err := os.MkdirAll(docsFolder, 0755)
+	err := os.MkdirAll(docsFolder, 0o755)
 	require.NoError(t, err)
 	return docsFolder
 }
@@ -595,7 +595,7 @@ type: integration
 version: 1.0.0
 `
 	manifestFile := filepath.Join(packageRoot, packages.PackageManifestFile)
-	err := os.WriteFile(manifestFile, []byte(manifest), 0644)
+	err := os.WriteFile(manifestFile, []byte(manifest), 0o644)
 	require.NoError(t, err)
 }
 
@@ -606,7 +606,7 @@ func createDataStreamFolder(t *testing.T, packageRoot, dataStreamName string) st
 	}
 
 	dataStreamFolder := filepath.Join(packageRoot, "data_stream", dataStreamName)
-	err := os.MkdirAll(dataStreamFolder, 0755)
+	err := os.MkdirAll(dataStreamFolder, 0o755)
 	require.NoError(t, err)
 
 	return dataStreamFolder
@@ -617,7 +617,7 @@ func createFieldsFile(t *testing.T, packageRoot, dataStreamName, contents string
 	fieldsFolder := createFieldsFolder(t, packageRoot, dataStreamName)
 	fieldsFile := filepath.Join(fieldsFolder, "fields.yml")
 
-	err := os.WriteFile(fieldsFile, []byte(contents), 0644)
+	err := os.WriteFile(fieldsFile, []byte(contents), 0o644)
 	require.NoError(t, err)
 }
 
@@ -629,7 +629,7 @@ func createFieldsFolder(t *testing.T, packageRoot, dataStreamName string) string
 	}
 	fieldsFolder = filepath.Join(fieldsFolder, "fields")
 
-	err := os.MkdirAll(fieldsFolder, 0755)
+	err := os.MkdirAll(fieldsFolder, 0o755)
 	require.NoError(t, err)
 
 	return fieldsFolder
@@ -638,7 +638,7 @@ func createFieldsFolder(t *testing.T, packageRoot, dataStreamName string) string
 func createBuildFile(t *testing.T, packageRoot string) {
 	t.Helper()
 	buildDir := filepath.Join(packageRoot, "_dev", "build")
-	err := os.MkdirAll(buildDir, 0755)
+	err := os.MkdirAll(buildDir, 0o755)
 	require.NoError(t, err)
 
 	content := `dependencies:
@@ -646,7 +646,7 @@ func createBuildFile(t *testing.T, packageRoot string) {
     reference: git@8.1
 `
 	buildFile := filepath.Join(buildDir, "build.yml")
-	err = os.WriteFile(buildFile, []byte(content), 0644)
+	err = os.WriteFile(buildFile, []byte(content), 0o644)
 	require.NoError(t, err)
 }
 
