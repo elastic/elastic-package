@@ -113,7 +113,9 @@ func (d *DocumentationAgent) handleUserAction(action string, readmeUpdated bool)
 		return d.handleAcceptAction(readmeUpdated)
 	case ActionCancel:
 		fmt.Println("❌ Documentation update cancelled.")
-		d.restoreOriginalReadme()
+		if err := d.restoreOriginalReadme(); err != nil {
+			return ActionResult{Err: fmt.Errorf("failed to restore original %s: %w", d.targetDocFile, err)}
+		}
 		return ActionResult{}
 	default:
 		return ActionResult{Err: fmt.Errorf("unknown action: %s", action)}
@@ -141,7 +143,9 @@ func (d *DocumentationAgent) handleAcceptAction(readmeUpdated bool) ActionResult
 
 	if continueChoice == ActionExit {
 		fmt.Printf("⚠️  Exiting without creating %s file.\n", d.targetDocFile)
-		d.restoreOriginalReadme()
+		if err := d.restoreOriginalReadme(); err != nil {
+			return ActionResult{Err: fmt.Errorf("failed to restore original %s: %w", d.targetDocFile, err)}
+		}
 		return ActionResult{}
 	}
 
