@@ -43,7 +43,7 @@ func CombineSections(sections []Section) string {
 // The title follows the template format: "# {PackageTitle} Integration for Elastic"
 func CombineSectionsWithTitle(sections []Section, packageTitle string) string {
 	// Build the title with AI-generated notice
-	title := fmt.Sprintf("# %s Integration for Elastic\n\n> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment.\n\n", packageTitle)
+	title := fmt.Sprintf("# %s Integration for Elastic\n\n", packageTitle)
 
 	// Combine sections
 	sectionsContent := CombineSections(sections)
@@ -88,18 +88,12 @@ func CountStructuralElements(content string) int {
 // Returns the content with the correct title.
 func EnsureDocumentTitle(content, packageTitle string) string {
 	expectedTitle := fmt.Sprintf("# %s Integration for Elastic", packageTitle)
-	aiNotice := "> **Note**: This AI-assisted guide was validated by our engineers. You may need to adjust the steps to match your environment."
-	header := expectedTitle + "\n\n" + aiNotice + "\n\n"
+	header := expectedTitle + "\n\n"
 
 	lines := strings.Split(content, "\n")
 
 	// Check if document starts with H1
 	if len(lines) > 0 && strings.HasPrefix(lines[0], "# ") {
-		// Check if already correct (title + notice)
-		if strings.TrimSpace(lines[0]) == expectedTitle &&
-			len(lines) > 2 && strings.TrimSpace(lines[2]) == aiNotice {
-			return content
-		}
 		// Replace existing title: skip title line and trailing empty lines
 		i := 1
 		for i < len(lines) && strings.TrimSpace(lines[i]) == "" {
