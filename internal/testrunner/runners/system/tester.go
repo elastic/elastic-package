@@ -2267,8 +2267,10 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required")
 	}
 
-	// Always resolve against the built tree so that RequiredInputsResolver has already
-	// materialized package: references into concrete input types.
+	// Prefer the built tree so RequiredInputsResolver has already materialized
+	// package: references into concrete input types. ReadBuiltPackageManifest
+	// falls back to packageRoot when no built tree is available (e.g. EPR
+	// packages or execution outside a Git repository).
 	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(packageRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest: %w", err)

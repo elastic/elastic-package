@@ -1055,3 +1055,129 @@ func TestDataStreamTypeFromPolicy(t *testing.T) {
 		})
 	}
 }
+
+// TestCreatePackagePolicyFallbackStreams verifies that CreatePackagePolicy
+// populates streams from the packageRoot (e.g. an EPR-extracted package) when
+// the built tree contains a different version. Before the fix, the built tree
+// would resolve to a non-existent directory, ReadAllDataStreamManifests would
+// silently return nil, and the resulting policy would have empty Streams —
+// causing Fleet to reject the request because required vars had no defaults.
+func TestCreatePackagePolicyFallbackStreams(t *testing.T) {
+	const pkgName = "testpkg"
+	const eprVersion = "1.0.0"
+	const devVersion = "2.0.0"
+	const dsName = "audit"
+	const policyTemplateName = "default"
+	const inputType = "cel"
+
+	root := t.TempDir()
+	t.Chdir(root)
+
+	// Simulate an EPR-extracted package at a path outside the built tree.
+	eprRoot := filepath.Join(root, "epr", pkgName, eprVersion)
+	writeManifest(t, eprRoot, "manifest.yml", fmt.Sprintf(`
+format_version: "3.0.0"
+name: %s
+title: Test Package
+version: %s
+type: integration
+policy_templates:
+  - name: %s
+    title: Default
+    inputs:
+      - type: %s
+        title: Collect audit logs
+`, pkgName, eprVersion, policyTemplateName, inputType))
+
+	dsDir := filepath.Join(eprRoot, "data_stream", dsName)
+	writeManifest(t, dsDir, "manifest.yml", fmt.Sprintf(`
+title: Audit logs
+type: logs
+streams:
+  - input: %s
+    title: Audit log stream
+    vars:
+      - name: tenant_id
+        type: text
+        title: Tenant ID
+        required: true
+      - name: client_id
+        type: text
+        title: Client ID
+        required: true
+`, inputType))
+
+	// Built tree has the dev version only — no eprVersion directory exists.
+	builtDev := filepath.Join(root, "build", "packages", pkgName, devVersion)
+	writeManifest(t, builtDev, "manifest.yml", fmt.Sprintf(`
+format_version: "3.0.0"
+name: %s
+title: Test Package
+version: %s
+type: integration
+policy_templates:
+  - name: %s
+    title: Default
+    inputs:
+      - type: %s
+        title: Collect audit logs
+`, pkgName, devVersion, policyTemplateName, inputType))
+
+	devDSDir := filepath.Join(builtDev, "data_stream", dsName)
+	writeManifest(t, devDSDir, "manifest.yml", fmt.Sprintf(`
+title: Audit logs
+type: logs
+streams:
+  - input: %s
+    title: Audit log stream
+    vars:
+      - name: tenant_id
+        type: text
+        title: Tenant ID
+        required: true
+      - name: client_id
+        type: text
+        title: Client ID
+        required: true
+`, inputType))
+
+	testPolicy := &kibana.Policy{ID: "test-policy-id", Namespace: "test"}
+	dsVars := common.MapStr{
+		"tenant_id": "my-tenant",
+		"client_id": "my-client",
+	}
+
+	policy, dsType, dsDataset, err := CreatePackagePolicy(
+		testPolicy, policyTemplateName, dsName,
+		inputType, common.MapStr{}, dsVars,
+		testPolicy.Namespace, eprRoot,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "logs", dsType)
+	assert.Equal(t, fmt.Sprintf("%s.%s", pkgName, dsName), dsDataset)
+
+	// The enabled input must have a non-empty Streams map — this is the
+	// exact symptom the bug produced: empty Streams causing Fleet to reject
+	// the policy because required vars (tenant_id, client_id) were missing.
+	inputKey := fmt.Sprintf("%s-%s", policyTemplateName, inputType)
+	require.Contains(t, policy.Inputs, inputKey, "policy must contain the target input")
+	input := policy.Inputs[inputKey]
+	assert.True(t, input.Enabled)
+	require.NotEmpty(t, input.Streams, "enabled input must have non-empty Streams (bug: Fleet rejects empty streams when required vars have no defaults)")
+
+	streamKey := fmt.Sprintf("%s.%s", pkgName, dsName)
+	require.Contains(t, input.Streams, streamKey, "streams must contain the data stream key")
+	stream := input.Streams[streamKey]
+	assert.True(t, stream.Enabled)
+
+	// Verify user-provided vars are present in the stream.
+	require.NotNil(t, stream.Vars, "stream vars must not be nil")
+	assert.Contains(t, stream.Vars, "tenant_id")
+	assert.Contains(t, stream.Vars, "client_id")
+}
+
+func writeManifest(t *testing.T, dir, filename, content string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, filename), []byte(content), 0o644))
+}
