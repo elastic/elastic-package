@@ -2268,12 +2268,21 @@ func CreatePackagePolicy(
 	}
 
 	// Prefer the built tree so RequiredInputsResolver has already materialized
-	// package: references into concrete input types. ReadBuiltPackageManifest
-	// falls back to packageRoot when no built tree is available (e.g. EPR
-	// packages or execution outside a Git repository).
+	// package: references into concrete input types.
+	//
+	// When the built tree is unavailable — for example an EPR-extracted package
+	// passed via add_package_policy -version, or execution outside a Git
+	// repository — fall back to reading manifests directly from packageRoot.
+	// An EPR package is already fully resolved (no package: references), so
+	// the source manifest is accurate enough to build a correct policy.
 	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(packageRoot)
 	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest: %w", err)
+		logger.Debugf("built tree unavailable for %s, falling back to packageRoot: %v", packageRoot, err)
+		builtRoot = packageRoot
+		builtPkg, err = packages.ReadPackageManifestFromPackageRoot(packageRoot)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading package manifest from %s: %w", packageRoot, err)
+		}
 	}
 
 	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)

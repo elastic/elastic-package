@@ -178,9 +178,7 @@ func writeTestManifest(t *testing.T, dir, version string) {
 
 func TestReadBuiltPackageManifest(t *testing.T) {
 
-	t.Run("PreferBuiltTree", func(t *testing.T) {
-		// Simulate a repo layout where both the source packageRoot and the
-		// built tree exist under a common ancestor with a build/ directory.
+	t.Run("ReturnsBuiltTree", func(t *testing.T) {
 		root := t.TempDir()
 		t.Chdir(root)
 
@@ -198,57 +196,30 @@ func TestReadBuiltPackageManifest(t *testing.T) {
 		assert.Equal(t, srcVersion, gotPkg.Version)
 	})
 
-	t.Run("FallbackWhenBuiltTreeMissing", func(t *testing.T) {
-		// No build/ directory exists, simulating an EPR-extracted package
-		// or execution outside a Git repository.
+	t.Run("ErrorWhenBuiltTreeMissing", func(t *testing.T) {
+		// No build/ directory and no .git — strict mode must fail.
 		root := t.TempDir()
 		t.Chdir(root)
 
-		eprVersion := "1.0.0"
-		packageRoot := filepath.Join(root, "epr", pkgName, eprVersion)
-		writeTestManifest(t, packageRoot, eprVersion)
-
-		gotRoot, gotPkg, err := ReadBuiltPackageManifest(packageRoot)
-		require.NoError(t, err)
-		assert.Equal(t, packageRoot, gotRoot)
-		assert.Equal(t, pkgName, gotPkg.Name)
-		assert.Equal(t, eprVersion, gotPkg.Version)
-	})
-
-	t.Run("FallbackWhenBuiltTreeHasDifferentVersion", func(t *testing.T) {
-		// The built tree exists but contains a different version (the dev
-		// version) than the EPR package being installed. The function must
-		// fall back to packageRoot.
-		root := t.TempDir()
-		t.Chdir(root)
-
-		devVersion := "1.2.3"
-		eprVersion := "1.1.0"
-		packageRoot := filepath.Join(root, "epr", pkgName, eprVersion)
-		writeTestManifest(t, packageRoot, eprVersion)
-
-		// Built tree has the dev version, not the EPR version.
-		builtDev := filepath.Join(root, "build", "packages", pkgName, devVersion)
-		writeTestManifest(t, builtDev, devVersion)
-
-		// BuildPackagesDirectory resolves to <build>/packages/<name>/<eprVersion>,
-		// which does not exist (only devVersion was built), triggering fallback.
-		gotRoot, gotPkg, err := ReadBuiltPackageManifest(packageRoot)
-		require.NoError(t, err)
-		assert.Equal(t, packageRoot, gotRoot)
-		assert.Equal(t, pkgName, gotPkg.Name)
-		assert.Equal(t, eprVersion, gotPkg.Version)
-	})
-
-	t.Run("ErrorWhenNoManifestAnywhere", func(t *testing.T) {
-		root := t.TempDir()
-		t.Chdir(root)
-
-		packageRoot := filepath.Join(root, "empty")
-		require.NoError(t, os.MkdirAll(packageRoot, 0o755))
+		packageRoot := filepath.Join(root, "epr", pkgName, "1.0.0")
+		writeTestManifest(t, packageRoot, "1.0.0")
 
 		_, _, err := ReadBuiltPackageManifest(packageRoot)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), packageRoot)
+	})
+
+	t.Run("ErrorWhenBuiltVersionDiffers", func(t *testing.T) {
+		// Built tree exists but for a different version — strict mode must fail.
+		root := t.TempDir()
+		t.Chdir(root)
+
+		packageRoot := filepath.Join(root, "epr", pkgName, "1.1.0")
+		writeTestManifest(t, packageRoot, "1.1.0")
+
+		builtDev := filepath.Join(root, "build", "packages", pkgName, "1.2.3")
+		writeTestManifest(t, builtDev, "1.2.3")
+
+		_, _, err := ReadBuiltPackageManifest(packageRoot)
+		require.Error(t, err)
 	})
 }

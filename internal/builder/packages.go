@@ -112,27 +112,16 @@ func BuildPackagesDirectory(packageRoot string, buildDir string) (string, error)
 
 // ReadBuiltPackageManifest locates the built package directory for packageRoot
 // and reads its manifest. Returns the built root path and parsed manifest.
-//
-// When the built directory does not exist or does not contain a valid manifest,
-// packageRoot is used directly. This handles two cases:
-//   - EPR-extracted packages passed via add_package_policy -version, where the
-//     built tree contains a different version than the one being installed.
-//   - Execution outside a Git repository (e.g. temp directories) where no
-//     build/ directory can be found.
 func ReadBuiltPackageManifest(packageRoot string) (string, *packages.PackageManifest, error) {
 	builtRoot, err := BuildPackagesDirectory(packageRoot, "")
-	if err == nil {
-		builtPkg, readErr := packages.ReadPackageManifestFromPackageRoot(builtRoot)
-		if readErr == nil {
-			return builtRoot, builtPkg, nil
-		}
-	}
-	// Built tree unavailable or incomplete; fall back to packageRoot.
-	pkg, err := packages.ReadPackageManifestFromPackageRoot(packageRoot)
 	if err != nil {
-		return "", nil, fmt.Errorf("reading package manifest from %s: %w", packageRoot, err)
+		return "", nil, err
 	}
-	return packageRoot, pkg, nil
+	builtPkg, err := packages.ReadPackageManifestFromPackageRoot(builtRoot)
+	if err != nil {
+		return "", nil, err
+	}
+	return builtRoot, builtPkg, nil
 }
 
 // buildPackagesZipPath function returns the path to zipped built package.
