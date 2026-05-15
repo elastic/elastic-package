@@ -5,6 +5,7 @@
 package system
 
 import (
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -25,6 +26,20 @@ import (
 	"github.com/elastic/elastic-package/internal/stack"
 	"github.com/elastic/elastic-package/internal/testrunner"
 )
+
+func TestFieldsQueryReadsIgnoredFromDocValues(t *testing.T) {
+	var query struct {
+		RuntimeMappings map[string]struct {
+			Script struct {
+				Source string `json:"source"`
+			} `json:"script"`
+		} `json:"runtime_mappings"`
+	}
+
+	require.NoError(t, json.Unmarshal([]byte(FieldsQuery), &query))
+	assert.Equal(t, "for (def v : doc['_ignored']) { emit(v); }", query.RuntimeMappings["my_ignored"].Script.Source)
+	assert.NotContains(t, FieldsQuery, "params['_fields']")
+}
 
 func TestFindPolicyTemplateForInput(t *testing.T) {
 	const policyTemplateName = "my_policy_template"
