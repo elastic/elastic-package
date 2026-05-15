@@ -1075,7 +1075,7 @@ func TestCreatePackagePolicyFallbackStreams(t *testing.T) {
 
 	// Simulate an EPR-extracted package at a path outside the built tree.
 	eprRoot := filepath.Join(root, "epr", pkgName, eprVersion)
-	writeManifest(t, eprRoot, "manifest.yml", fmt.Sprintf(`
+	writeManifest(t, eprRoot, fmt.Sprintf(`
 format_version: "3.0.0"
 name: %s
 title: Test Package
@@ -1090,7 +1090,7 @@ policy_templates:
 `, pkgName, eprVersion, policyTemplateName, inputType))
 
 	dsDir := filepath.Join(eprRoot, "data_stream", dsName)
-	writeManifest(t, dsDir, "manifest.yml", fmt.Sprintf(`
+	writeManifest(t, dsDir, fmt.Sprintf(`
 title: Audit logs
 type: logs
 streams:
@@ -1109,7 +1109,7 @@ streams:
 
 	// Built tree has the dev version only — no eprVersion directory exists.
 	builtDev := filepath.Join(root, "build", "packages", pkgName, devVersion)
-	writeManifest(t, builtDev, "manifest.yml", fmt.Sprintf(`
+	writeManifest(t, builtDev, fmt.Sprintf(`
 format_version: "3.0.0"
 name: %s
 title: Test Package
@@ -1124,7 +1124,7 @@ policy_templates:
 `, pkgName, devVersion, policyTemplateName, inputType))
 
 	devDSDir := filepath.Join(builtDev, "data_stream", dsName)
-	writeManifest(t, devDSDir, "manifest.yml", fmt.Sprintf(`
+	writeManifest(t, devDSDir, fmt.Sprintf(`
 title: Audit logs
 type: logs
 streams:
@@ -1176,8 +1176,8 @@ streams:
 	assert.Contains(t, stream.Vars, "client_id")
 }
 
-func writeManifest(t *testing.T, dir, filename, content string) {
+func writeManifest(t *testing.T, dir, content string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, filename), []byte(content), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), []byte(content), 0o644))
 }

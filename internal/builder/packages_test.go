@@ -164,25 +164,19 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 
 }
 
-const testManifestTemplate = `name: %s
-title: Test Package
-version: %s
-type: integration
-format_version: 3.0.0
-`
+const pkgName = "testpkg"
 
-func writeTestManifest(t *testing.T, dir, name, version string) {
+func writeTestManifest(t *testing.T, dir, version string) {
 	t.Helper()
 	require.NoError(t, os.MkdirAll(dir, 0o755))
 	require.NoError(t, os.WriteFile(
 		filepath.Join(dir, "manifest.yml"),
-		[]byte(fmt.Sprintf(testManifestTemplate, name, version)),
+		[]byte(fmt.Sprintf("name: %s\ntitle: Test Package\nversion: %s\ntype: integration\nformat_version: 3.0.0\n", pkgName, version)),
 		0o644,
 	))
 }
 
 func TestReadBuiltPackageManifest(t *testing.T) {
-	const pkgName = "testpkg"
 
 	t.Run("PreferBuiltTree", func(t *testing.T) {
 		// Simulate a repo layout where both the source packageRoot and the
@@ -192,10 +186,10 @@ func TestReadBuiltPackageManifest(t *testing.T) {
 
 		srcVersion := "1.2.3"
 		packageRoot := filepath.Join(root, "packages", pkgName)
-		writeTestManifest(t, packageRoot, pkgName, srcVersion)
+		writeTestManifest(t, packageRoot, srcVersion)
 
 		builtRoot := filepath.Join(root, "build", "packages", pkgName, srcVersion)
-		writeTestManifest(t, builtRoot, pkgName, srcVersion)
+		writeTestManifest(t, builtRoot, srcVersion)
 
 		gotRoot, gotPkg, err := ReadBuiltPackageManifest(packageRoot)
 		require.NoError(t, err)
@@ -212,7 +206,7 @@ func TestReadBuiltPackageManifest(t *testing.T) {
 
 		eprVersion := "1.0.0"
 		packageRoot := filepath.Join(root, "epr", pkgName, eprVersion)
-		writeTestManifest(t, packageRoot, pkgName, eprVersion)
+		writeTestManifest(t, packageRoot, eprVersion)
 
 		gotRoot, gotPkg, err := ReadBuiltPackageManifest(packageRoot)
 		require.NoError(t, err)
@@ -231,11 +225,11 @@ func TestReadBuiltPackageManifest(t *testing.T) {
 		devVersion := "1.2.3"
 		eprVersion := "1.1.0"
 		packageRoot := filepath.Join(root, "epr", pkgName, eprVersion)
-		writeTestManifest(t, packageRoot, pkgName, eprVersion)
+		writeTestManifest(t, packageRoot, eprVersion)
 
 		// Built tree has the dev version, not the EPR version.
 		builtDev := filepath.Join(root, "build", "packages", pkgName, devVersion)
-		writeTestManifest(t, builtDev, pkgName, devVersion)
+		writeTestManifest(t, builtDev, devVersion)
 
 		// BuildPackagesDirectory resolves to <build>/packages/<name>/<eprVersion>,
 		// which does not exist (only devVersion was built), triggering fallback.
