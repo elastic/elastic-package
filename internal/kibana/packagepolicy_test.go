@@ -625,13 +625,16 @@ func TestCreatePackagePolicy_Integration(t *testing.T) {
 	assert.Equal(t, manifest.Version, policy.Package.Version)
 }
 
-// TestCreatePackagePolicy_IntegrationBugScenarioEmptyDatastreams documents the
-// pre-fix behavior from #3552: when allDatastreams is nil (because
-// ReadAllDataStreamManifests returned nil for a non-existent built directory),
-// the enabled input has no streams and Fleet rejects the policy with "required
-// variable" errors. The test pins this behavior so that callers remain aware
-// they are responsible for supplying manifests from the correct root.
-func TestCreatePackagePolicy_IntegrationBugScenarioEmptyDatastreams(t *testing.T) {
+// TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams verifies that
+// CreatePackagePolicy refuses inputs that would silently produce a broken
+// policy. Two cases:
+//   - allDatastreams is nil/empty: this is the #3552 root cause — silently
+//     accepting it produced an empty Streams map that Fleet rejected with
+//     misleading "required variable" errors.
+//   - dsManifest is not present in allDatastreams: the caller loaded the two
+//     from different roots, so the policy would reference streams that do not
+//     exist in the installed package.
+func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) {
 	packageRoot := "testdata/packages/apache"
 	dsName := "access"
 
@@ -643,22 +646,36 @@ func TestCreatePackagePolicy_IntegrationBugScenarioEmptyDatastreams(t *testing.T
 
 	kp := &Policy{ID: "test-policy-id", Namespace: "test"}
 
-	// Passing empty allDatastreams simulates the bug: ReadAllDataStreamManifests
-	// returned nil because the built directory didn't exist.
-	policy, _, _, err := CreatePackagePolicy(
-		kp, "apache", dsName, "logfile",
-		common.MapStr{}, common.MapStr{}, "test-suffix",
-		*manifest, dsManifest, nil,
-	)
-	require.NoError(t, err)
+	t.Run("nil allDatastreams", func(t *testing.T) {
+		_, _, _, err := CreatePackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, nil,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "allDatastreams is empty")
+	})
 
-	// With empty datastreams the enabled input has no streams — Fleet would reject this.
-	for _, input := range policy.Inputs {
-		if input.Enabled {
-			assert.Empty(t, input.Streams,
-				"with nil allDatastreams, enabled input should have no streams (documenting the bug scenario)")
-		}
-	}
+	t.Run("empty allDatastreams", func(t *testing.T) {
+		_, _, _, err := CreatePackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, []packages.DataStreamManifest{},
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "allDatastreams is empty")
+	})
+
+	t.Run("dsManifest not in allDatastreams", func(t *testing.T) {
+		mismatched := []packages.DataStreamManifest{{Name: "different"}}
+		_, _, _, err := CreatePackagePolicy(
+			kp, "apache", dsName, "logfile",
+			common.MapStr{}, common.MapStr{}, "test-suffix",
+			*manifest, dsManifest, mismatched,
+		)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "not present in allDatastreams")
+	})
 }
 
 // TestCreatePackagePolicy_Input verifies CreatePackagePolicy for input packages

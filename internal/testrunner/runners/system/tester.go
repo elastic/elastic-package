@@ -2283,15 +2283,13 @@ func createPackagePolicy(
 		if err != nil {
 			return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream manifests at %s: %w", builtRoot, err)
 		}
-		for i := range allDatastreams {
-			if allDatastreams[i].Name == dataStreamName {
-				builtDS = &allDatastreams[i]
-				break
-			}
-		}
-		if builtDS == nil {
+		i := slices.IndexFunc(allDatastreams, func(ds packages.DataStreamManifest) bool {
+			return ds.Name == dataStreamName
+		})
+		if i < 0 {
 			return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream %q not found in built package at %s", dataStreamName, builtRoot)
 		}
+		builtDS = &allDatastreams[i]
 	}
 
 	return kibana.CreatePackagePolicy(kibanaPolicy, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix, *builtPkg, builtDS, allDatastreams)

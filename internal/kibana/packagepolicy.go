@@ -6,6 +6,7 @@ package kibana
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 
 	"github.com/elastic/elastic-package/internal/common"
@@ -220,9 +221,11 @@ func BuildInputPackagePolicy(
 // caller before invoking it.
 //
 // For input-type packages pass dsName="" and dsManifest=nil; allDatastreams is ignored.
-// For integration packages dsManifest must not be nil and allDatastreams should contain
+// For integration packages dsManifest must not be nil and allDatastreams must contain
 // the manifests for all data streams under the package root that was actually installed
-// (built tree for system tests, EPR-extracted directory for script tests).
+// (built tree for system tests, EPR-extracted directory for script tests). dsManifest's
+// Name must appear in allDatastreams; the function errors out otherwise to catch the
+// #3552 class of bug where allDatastreams is loaded from a different/non-existent root.
 func CreatePackagePolicy(
 	kibanaPolicy *Policy,
 	policyTemplateName string,
@@ -254,6 +257,14 @@ func CreatePackagePolicy(
 	}
 	if dsManifest == nil {
 		return PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
+	}
+	if len(allDatastreams) == 0 {
+		return PackagePolicy{}, "", "", fmt.Errorf("allDatastreams is empty: cannot build integration package policy for %q (regression of #3552: caller likely loaded manifests from a non-existent directory)", dsManifest.Name)
+	}
+	if !slices.ContainsFunc(allDatastreams, func(ds packages.DataStreamManifest) bool {
+		return ds.Name == dsManifest.Name
+	}) {
+		return PackagePolicy{}, "", "", fmt.Errorf("data stream %q not present in allDatastreams: dsManifest and allDatastreams must be loaded from the same package root", dsManifest.Name)
 	}
 
 	p, err := BuildIntegrationPackagePolicy(

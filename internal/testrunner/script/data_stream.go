@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 
 	"github.com/rogpeppe/go-internal/testscript"
 
@@ -100,16 +101,13 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 
 	allDatastreams, err := packages.ReadAllDataStreamManifests(builtPkgRoot)
 	ts.Check(decoratedWith("reading all data stream manifests", err))
-	var dsMan *packages.DataStreamManifest
-	for i := range allDatastreams {
-		if allDatastreams[i].Name == ds {
-			dsMan = &allDatastreams[i]
-			break
-		}
-	}
-	if dsMan == nil {
+	i := slices.IndexFunc(allDatastreams, func(m packages.DataStreamManifest) bool {
+		return m.Name == ds
+	})
+	if i < 0 {
 		ts.Fatalf("data stream %q not found in package %s", ds, pkgMan.Name)
 	}
+	dsMan := &allDatastreams[i]
 
 	if *polName == "" {
 		*polName, err = packages.FindPolicyTemplateForInput(pkgMan, dsMan, config.Input)
