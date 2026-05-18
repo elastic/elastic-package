@@ -1302,7 +1302,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if r.dataStreamManifest != nil {
 		dsName = r.dataStreamManifest.Name
 	}
-	policy, dsType, dsDataset, err := CreatePackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
+	policy, dsType, dsDataset, err := createPackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
 	}
@@ -2248,13 +2248,14 @@ func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeploye
 	return &agent, nil
 }
 
-// CreatePackagePolicy builds a PackagePolicy for the given package configuration, returning
+// createPackagePolicy builds a PackagePolicy for the given package configuration, returning
 // the policy along with the data stream type and dataset for building index/data stream names.
-// It always reads manifests from the built package tree (via packageRoot) so that composable
-// integrations — where source streams carry unresolved package: references — produce the same
-// resolved input keys that Fleet sees. Both input-type and integration packages go through the
-// built bundle; pass dataStreamName as "" for input-type packages.
-func CreatePackagePolicy(
+// It always reads manifests from the built package tree so that composable integrations —
+// where source streams carry unresolved "package:" references — produce the same resolved
+// input keys that Fleet sees. Use kibana.CreatePackagePolicy directly when the correct
+// manifest root is already known (e.g. script tests with -version, where the EPR-extracted
+// directory is the right source). Pass dataStreamName as "" for input-type packages.
+func createPackagePolicy(
 	kibanaPolicy *kibana.Policy,
 	policyTemplateName string,
 	dataStreamName string,
@@ -2267,119 +2268,33 @@ func CreatePackagePolicy(
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("package root is required")
 	}
 
-	// Always resolve against the built tree so that RequiredInputsResolver has already
-	// materialized package: references into concrete input types.
 	builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(packageRoot)
 	if err != nil {
 		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built package manifest: %w", err)
 	}
 
-	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, policyTemplateName)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("finding policy template %q in built manifest: %w", policyTemplateName, err)
-	}
-
-	if builtPkg.Type == "input" {
-		p := kibana.BuildInputPackagePolicy(
-			kibanaPolicy.ID, kibanaPolicy.Namespace,
-			fmt.Sprintf("%s-%s-%s", builtPkg.Name, builtPolicyTemplate.Name, suffix),
-			*builtPkg, builtPolicyTemplate, cfgVars, true,
-		)
-		fallbackDataset := fmt.Sprintf("%s.%s", builtPkg.Name, builtPolicyTemplate.Name)
-		return p, dataStreamTypeFromPolicy(p, builtPolicyTemplate.Type), datasetFromPolicy(p, fallbackDataset), nil
-	}
-
-	if dataStreamName == "" {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
-	}
-
-	builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dataStreamName)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream %q manifest at %s: %w", dataStreamName, builtRoot, err)
-	}
-	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", err
-	}
-	return buildIntegrationPackagePolicyFromBuilt(kibanaPolicy, builtPkg, builtDS, builtPolicyTemplate, allDatastreams, cfgName, cfgVars, cfgDSVars, suffix)
-}
-
-// buildIntegrationPackagePolicyFromBuilt builds a Fleet package policy from manifests
-// under builtRoot (the materialized package tree Fleet installs). Caller must ensure
-// builtRoot matches the package the test installed.
-func buildIntegrationPackagePolicyFromBuilt(
-	kibanaPolicy *kibana.Policy,
-	builtPkg *packages.PackageManifest,
-	builtDS *packages.DataStreamManifest,
-	builtPolicyTemplate packages.PolicyTemplate,
-	allDatastreams []packages.DataStreamManifest,
-	cfgName string,
-	cfgVars, cfgDSVars common.MapStr,
-	suffix string,
-) (policy kibana.PackagePolicy, dsType string, dsDataset string, err error) {
-	p, err := kibana.BuildIntegrationPackagePolicy(
-		kibanaPolicy.ID, kibanaPolicy.Namespace,
-		fmt.Sprintf("%s-%s-%s", builtPkg.Name, builtDS.Name, suffix),
-		*builtPkg, builtPolicyTemplate, *builtDS, cfgName, cfgVars, cfgDSVars, true, allDatastreams,
-	)
-	if err != nil {
-		return kibana.PackagePolicy{}, "", "", err
-	}
-
-	dataset := fmt.Sprintf("%s.%s", builtPkg.Name, builtDS.Name)
-	if builtDS.Dataset != "" {
-		dataset = builtDS.Dataset
-	}
-	return p, builtDS.Type, dataset, nil
-}
-
-func datasetFromPolicy(policy kibana.PackagePolicy, fallback string) string {
-	for _, input := range policy.Inputs {
-		if !input.Enabled {
-			continue
+	var builtDS *packages.DataStreamManifest
+	var allDatastreams []packages.DataStreamManifest
+	if builtPkg.Type != "input" {
+		if dataStreamName == "" {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
 		}
-		for _, stream := range input.Streams {
-			if !stream.Enabled {
-				continue
+		allDatastreams, err = packages.ReadAllDataStreamManifests(builtRoot)
+		if err != nil {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("reading built data stream manifests at %s: %w", builtRoot, err)
+		}
+		for i := range allDatastreams {
+			if allDatastreams[i].Name == dataStreamName {
+				builtDS = &allDatastreams[i]
+				break
 			}
-
-			v, _ := common.MapStr(stream.Vars).GetValue("data_stream.dataset")
-			ds, _ := v.(string)
-			if ds == "" {
-				continue
-			}
-
-			return ds
+		}
+		if builtDS == nil {
+			return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream %q not found in built package at %s", dataStreamName, builtRoot)
 		}
 	}
 
-	return fallback
-}
-
-// dataStreamTypeFromPolicy returns the data stream type stored in the enabled stream's
-// data_stream.type var (set when the user overrides it via the test config). Falls back
-// to the supplied fallback (normally policyTemplate.Type) when not explicitly set.
-func dataStreamTypeFromPolicy(policy kibana.PackagePolicy, fallback string) string {
-	for _, input := range policy.Inputs {
-		if !input.Enabled {
-			continue
-		}
-		for _, stream := range input.Streams {
-			if !stream.Enabled {
-				continue
-			}
-
-			v, _ := common.MapStr(stream.Vars).GetValue("data_stream.type")
-			t, _ := v.(string)
-			if t == "" {
-				continue
-			}
-
-			return t
-		}
-	}
-
-	return fallback
+	return kibana.CreatePackagePolicy(kibanaPolicy, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix, *builtPkg, builtDS, allDatastreams)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {

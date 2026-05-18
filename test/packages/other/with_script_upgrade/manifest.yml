@@ -1,0 +1,42 @@
+format_version: 3.6.0
+name: with_script_upgrade
+title: With script upgrade test
+version: 1.0.1
+description: >-
+  Package for testing upgrade script tests with add_package_policy -version.
+  Uses ci_input_pkg as a required input package to exercise the composable
+  package code path in script tests (both with and without -version).
+categories:
+  - custom
+type: integration
+conditions:
+  kibana:
+    version: '^8.0.0 || ^9.0.0'
+  elastic:
+    subscription: basic
+requires:
+  input:
+    - package: ci_input_pkg
+      version: "0.1.0"
+policy_templates:
+  - name: test
+    title: Test
+    description: Description
+    data_streams:
+      - first
+    inputs:
+      - package: ci_input_pkg
+        title: Collect log files.
+        description: Collect log files via the ci_input_pkg input package.
+        vars:
+          - name: paths
+            type: text
+            title: Paths
+            multi: true
+            required: true
+            show_user: true
+            default:
+              - /var/log/with_script_upgrade/*.log
+owner:
+  github: elastic/integrations
+  type: elastic

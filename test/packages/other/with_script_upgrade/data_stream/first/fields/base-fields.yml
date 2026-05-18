@@ -1,0 +1,22 @@
+- name: data_stream.type
+  type: constant_keyword
+  description: Data stream type.
+- name: data_stream.dataset
+  type: constant_keyword
+  description: Data stream dataset.
+- name: data_stream.namespace
+  type: constant_keyword
+  description: Data stream namespace.
+- name: '@timestamp'
+  type: date
+  description: Event timestamp.
+- name: input.type
+  type: keyword
+- name: log.file.path
+  type: keyword
+- name: log.offset
+  type: long
+- name: ecs.version
+  type: keyword
+- name: message
+  type: match_only_text

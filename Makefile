@@ -112,6 +112,9 @@ test-check-packages-other:
 test-check-packages-independent-script:
 	elastic-package test script -C test/packages/other/with_script --external-stack=false --defer-cleanup 1s
 
+test-script-upgrade:
+	./scripts/test-script-upgrade.sh
+
 test-check-packages-false-positives:
 	PACKAGE_TEST_TYPE=false_positives ./scripts/test-check-false-positives.sh
 

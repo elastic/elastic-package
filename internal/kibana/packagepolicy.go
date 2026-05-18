@@ -214,6 +214,103 @@ func BuildInputPackagePolicy(
 	return policy
 }
 
+// CreatePackagePolicy builds a PackagePolicy from pre-loaded manifests and returns
+// the policy together with the data stream type and dataset string used to construct
+// index/data-stream names. It is a pure function: all disk I/O must be done by the
+// caller before invoking it.
+//
+// For input-type packages pass dsName="" and dsManifest=nil; allDatastreams is ignored.
+// For integration packages dsManifest must not be nil and allDatastreams should contain
+// the manifests for all data streams under the package root that was actually installed
+// (built tree for system tests, EPR-extracted directory for script tests).
+func CreatePackagePolicy(
+	kibanaPolicy *Policy,
+	policyTemplateName string,
+	dsName string,
+	inputName string,
+	cfgVars, cfgDSVars common.MapStr,
+	suffix string,
+	manifest packages.PackageManifest,
+	dsManifest *packages.DataStreamManifest,
+	allDatastreams []packages.DataStreamManifest,
+) (policy PackagePolicy, dsType string, dsDataset string, err error) {
+	policyTemplate, err := packages.SelectPolicyTemplateByName(manifest.PolicyTemplates, policyTemplateName)
+	if err != nil {
+		return PackagePolicy{}, "", "", fmt.Errorf("finding policy template %q in manifest: %w", policyTemplateName, err)
+	}
+
+	if manifest.Type == "input" {
+		p := BuildInputPackagePolicy(
+			kibanaPolicy.ID, kibanaPolicy.Namespace,
+			fmt.Sprintf("%s-%s-%s", manifest.Name, policyTemplate.Name, suffix),
+			manifest, policyTemplate, cfgVars, true,
+		)
+		fallbackDataset := fmt.Sprintf("%s.%s", manifest.Name, policyTemplate.Name)
+		return p, DataStreamTypeFromPolicy(p, policyTemplate.Type), DatasetFromPolicy(p, fallbackDataset), nil
+	}
+
+	if dsName == "" {
+		return PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
+	}
+	if dsManifest == nil {
+		return PackagePolicy{}, "", "", fmt.Errorf("data stream manifest is required for integration packages")
+	}
+
+	p, err := BuildIntegrationPackagePolicy(
+		kibanaPolicy.ID, kibanaPolicy.Namespace,
+		fmt.Sprintf("%s-%s-%s", manifest.Name, dsManifest.Name, suffix),
+		manifest, policyTemplate, *dsManifest, inputName, cfgVars, cfgDSVars, true, allDatastreams,
+	)
+	if err != nil {
+		return PackagePolicy{}, "", "", fmt.Errorf("building integration package policy: %w", err)
+	}
+
+	return p, dsManifest.Type, datasetKey(manifest.Name, *dsManifest), nil
+}
+
+// DatasetFromPolicy returns the dataset from the first enabled stream in the policy.
+// Falls back to fallback when no enabled stream carries a data_stream.dataset var.
+func DatasetFromPolicy(policy PackagePolicy, fallback string) string {
+	if v := firstEnabledStreamVar(policy, "data_stream.dataset"); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// DataStreamTypeFromPolicy returns the data stream type from the enabled stream's
+// data_stream.type var. Falls back to fallback when not explicitly set.
+func DataStreamTypeFromPolicy(policy PackagePolicy, fallback string) string {
+	if v := firstEnabledStreamVar(policy, "data_stream.type"); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// firstEnabledStreamVar returns the value of key from the first enabled stream of
+// any enabled input that carries a non-empty string value. Map iteration over
+// policy.Inputs / input.Streams is unordered, so "first" is non-deterministic when
+// multiple enabled streams disagree.
+func firstEnabledStreamVar(policy PackagePolicy, key string) string {
+	for _, input := range policy.Inputs {
+		if !input.Enabled {
+			continue
+		}
+		for _, stream := range input.Streams {
+			if !stream.Enabled {
+				continue
+			}
+			v, err := common.MapStr(stream.Vars).GetValue(key)
+			if err != nil {
+				continue
+			}
+			if s, _ := v.(string); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 // datasetKey returns the Fleet stream key for a data stream. When the data
 // stream manifest declares an explicit dataset, that value is used directly;
 // otherwise the key is "<pkgName>.<dsName>".

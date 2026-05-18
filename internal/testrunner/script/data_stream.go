@@ -96,24 +96,20 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 		defer cancel()
 	}
 
-	manifestRoot := pkgRoot
-	if *version != "" {
-		regRoots, ok := ts.Value(registryPackageRootsTag{}).(map[string]string)
-		if !ok {
-			ts.Fatalf("no registry package roots registry")
-		}
-		key := fmt.Sprintf("%s-%s", pkg, *version)
-		root, ok := regRoots[key]
-		if !ok {
-			ts.Fatalf("no extracted EPR package for %s (call install_package_from_registry first)", key)
-		}
-		manifestRoot = root
-	}
+	builtPkgRoot, pkgMan := resolveBuiltPackageRoot(ts, pkg, pkgRoot, *version)
 
-	pkgMan, err := packages.ReadPackageManifestFromPackageRoot(manifestRoot)
-	ts.Check(decoratedWith("reading package manifest", err))
-	dsMan, err := packages.ReadDataStreamManifestFromPackageRoot(manifestRoot, ds)
-	ts.Check(decoratedWith("reading data stream manifest", err))
+	allDatastreams, err := packages.ReadAllDataStreamManifests(builtPkgRoot)
+	ts.Check(decoratedWith("reading all data stream manifests", err))
+	var dsMan *packages.DataStreamManifest
+	for i := range allDatastreams {
+		if allDatastreams[i].Name == ds {
+			dsMan = &allDatastreams[i]
+			break
+		}
+	}
+	if dsMan == nil {
+		ts.Fatalf("data stream %q not found in package %s", ds, pkgMan.Name)
+	}
 
 	if *polName == "" {
 		*polName, err = packages.FindPolicyTemplateForInput(pkgMan, dsMan, config.Input)
@@ -122,38 +118,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	templ, err := packages.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
-	// For composable integration packages the source manifest has unresolved "package:" references,
-	// so templ.Input is empty. Resolve the effective input type from the built tree (same bundle
-	// CreatePackagePolicy uses) so BuildDataStreamName can apply the otelcol ".otel" suffix.
-	if templ.Input == "" {
-		builtRoot, builtPkg, err := builder.ReadBuiltPackageManifest(manifestRoot)
-		ts.Check(decoratedWith("reading built package manifest for policy template input", err))
-		builtPT, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, *polName)
-		ts.Check(decoratedWith("finding policy template in built manifest", err))
-		if builtPT.Input != "" {
-			templ.Input = builtPT.Input
-		} else {
-			inputName := config.Input
-			if inputName == "" {
-				builtDS, err := packages.ReadDataStreamManifestFromPackageRoot(builtRoot, dsMan.Name)
-				ts.Check(decoratedWith("reading data stream manifest from built package", err))
-				if len(builtDS.Streams) == 0 {
-					ts.Fatalf("data stream %q has no streams in built manifest", dsMan.Name)
-				}
-				inputName = builtDS.Streams[0].Input
-			}
-			if inputName == "" {
-				ts.Fatalf("could not determine input for policy template %q (config input empty and could not infer from built data stream)", *polName)
-			}
-			input := builtPT.FindInput(inputName)
-			if input == nil {
-				ts.Fatalf("no input %q in policy template %q (built manifest)", inputName, *polName)
-			}
-			templ.Input = input.Type
-		}
-	}
-
-	policy, dsType, dsDataset, err := system.CreatePackagePolicy(installed.testingPolicy, *polName, dsMan.Name, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, manifestRoot)
+	policy, dsType, dsDataset, err := kibana.CreatePackagePolicy(installed.testingPolicy, *polName, dsMan.Name, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, *pkgMan, dsMan, allDatastreams)
 	ts.Check(decoratedWith("creating package policy", err))
 	_, err = stk.kibana.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormatAuto)
 	ts.Check(decoratedWith("adding package policy", err))
@@ -167,6 +132,37 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	dataStreams[dsName] = struct{}{}
 
 	fmt.Fprintf(ts.Stdout(), "added %s data stream policy templates for %s/%s\n", dsName, pkg, ds)
+}
+
+// resolveBuiltPackageRoot returns a package root that is guaranteed to be a built
+// package, together with its parsed manifest. There are two sources of a built
+// package, selected by version:
+//   - version == "": the locally built copy under build/packages/<name>/<version>/,
+//     located via builder.ReadBuiltPackageManifest from pkgSourceRoot.
+//   - version != "": the registry-extracted package populated by
+//     install_package_from_registry (the package registry only serves built
+//     packages, so the extract is already resolved).
+//
+// All subsequent manifest reads must come from a built package so that composable
+// "package:" references are resolved into concrete input types.
+func resolveBuiltPackageRoot(ts *testscript.TestScript, pkg, pkgSourceRoot, version string) (string, *packages.PackageManifest) {
+	if version == "" {
+		root, manifest, err := builder.ReadBuiltPackageManifest(pkgSourceRoot)
+		ts.Check(decoratedWith("reading built package manifest", err))
+		return root, manifest
+	}
+	regRoots, ok := ts.Value(registryPackageRootsTag{}).(map[string]string)
+	if !ok {
+		ts.Fatalf("no registry package roots registry")
+	}
+	key := fmt.Sprintf("%s-%s", pkg, version)
+	root, ok := regRoots[key]
+	if !ok {
+		ts.Fatalf("no extracted EPR package for %s (call install_package_from_registry first)", key)
+	}
+	manifest, err := packages.ReadPackageManifestFromPackageRoot(root)
+	ts.Check(decoratedWith("reading package manifest from registry extract", err))
+	return root, manifest
 }
 
 func removePackagePolicy(ts *testscript.TestScript, neg bool, args []string) {

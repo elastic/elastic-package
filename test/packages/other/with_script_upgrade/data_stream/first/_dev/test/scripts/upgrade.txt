@@ -1,0 +1,42 @@
+# Test that add_package_policy -version works when the EPR version differs
+# from the locally built version. Reproduces the regression in #3552 where
+# CreatePackagePolicy resolved to the built tree instead of using the
+# EPR-extracted package directory.
+
+[!external_stack] skip 'Skipping external stack test.'
+[!has_previous_release] skip 'no previous release in changelog'
+
+# Connect to the running stack.
+use_stack -profile ${CONFIG_PROFILES}/${PROFILE}
+
+# Install an agent.
+install_agent -profile ${CONFIG_PROFILES}/${PROFILE}
+
+# Install the previous version from the registry.
+install_package_from_registry -profile ${CONFIG_PROFILES}/${PROFILE} ${PACKAGE_NAME} ${PREVIOUS_VERSION}
+
+# Create a policy on the previous version.
+# This is the critical step: add_package_policy -version reads manifests from
+# the EPR-extracted directory, not from the built tree.
+add_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} -version ${PREVIOUS_VERSION} test_config.yaml DATA_STREAM_NAME
+! stderr .
+
+# Install the dev version from disk.
+add_package -profile ${CONFIG_PROFILES}/${PROFILE}
+
+# Upgrade the policy to the dev version.
+upgrade_package_latest -profile ${CONFIG_PROFILES}/${PROFILE}
+stdout 'upgraded package '${PACKAGE_NAME}
+
+# Cleanup.
+remove_package_policy -profile ${CONFIG_PROFILES}/${PROFILE} ${DATA_STREAM_NAME}
+uninstall_agent -profile ${CONFIG_PROFILES}/${PROFILE} -timeout 1m
+remove_package -profile ${CONFIG_PROFILES}/${PROFILE}
+
+-- test_config.yaml --
+input: logfile
+vars:
+  paths:
+    - /var/log/with_script_upgrade/*.log
+data_stream:
+  vars: ~
