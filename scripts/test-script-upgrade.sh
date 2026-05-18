@@ -27,7 +27,7 @@ source "${SCRIPT_DIR}/stack_helpers.sh"
 set -euxo pipefail
 
 INPUT_PKG_DIR="test/packages/composable/01_ci_input_pkg"
-PACKAGE_DIR="test/packages/other/with_script_upgrade"
+PACKAGE_DIR="test/packages/composable/08_with_script_upgrade"
 
 WORK_DIR="build/dev-$(basename "${PACKAGE_DIR}")"
 DEV_PACKAGE_DIR="${WORK_DIR}/$(basename "${PACKAGE_DIR}")"
