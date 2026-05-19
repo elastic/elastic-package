@@ -2273,7 +2273,7 @@ func createPackagePolicy(
 
 	var builtDS *packages.DataStreamManifest
 	var allDatastreams []packages.DataStreamManifest
-	if builtPkg.Type != "input" {
+	if builtPkg.Type == "integration" {
 		if dataStreamName == "" {
 			return kibana.PackagePolicy{}, "", "", fmt.Errorf("data stream name is required for integration packages")
 		}

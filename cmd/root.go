@@ -91,7 +91,7 @@ func processPersistentFlags(cmd *cobra.Command, args []string) error {
 		return cobraext.FlagParsingError(err, cobraext.ChangeDirectoryFlagName)
 	}
 	if changeDirectory != "" {
-		err := os.Chdir(changeDirectory)
+		err := os.Chdir(changeDirectory) //nolint:forbidigo // only allowed call site for os.Chdir (CLI -C flag)
 		if err != nil {
 			return fmt.Errorf("failed to change directory: %w", err)
 		}

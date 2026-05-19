@@ -100,8 +100,6 @@ elastic-package stack down -v
 elastic-package stack up -d -v
 elastic-package stack status
 
-eval "$(elastic-package stack shellinit)"
-
 echo "--- Install input package"
 elastic-package install -C "${INPUT_PKG_DIR}" -v
 

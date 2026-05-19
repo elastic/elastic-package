@@ -836,10 +836,7 @@ func TestCreateLinksFSFromPathAbsolutePathPreconditions(t *testing.T) {
 	require.NoError(t, os.MkdirAll(insideDirAbs, 0755))
 
 	t.Run("repository root name must be absolute", func(t *testing.T) {
-		wd, err := os.Getwd()
-		require.NoError(t, err)
-		require.NoError(t, os.Chdir(tempDir))
-		t.Cleanup(func() { _ = os.Chdir(wd) })
+		t.Chdir(tempDir)
 
 		// OpenRoot with a relative path keeps a relative root.Name().
 		root, err := os.OpenRoot(repoDirRel)
