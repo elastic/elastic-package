@@ -1302,7 +1302,7 @@ func (r *tester) prepareScenario(ctx context.Context, config *testConfig, stackC
 	if r.dataStreamManifest != nil {
 		dsName = r.dataStreamManifest.Name
 	}
-	policy, dsType, dsDataset, err := createPackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
+	policy, dsType, dsDataset, err := buildPackagePolicy(policyToTest, policyTemplate.Name, dsName, config.Input, config.Vars, config.DataStream.Vars, policyToTest.Namespace, r.packageRoot)
 	if err != nil {
 		return nil, fmt.Errorf("could not create package data stream: %w", err)
 	}
@@ -2248,12 +2248,12 @@ func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeploye
 	return &agent, nil
 }
 
-// createPackagePolicy builds a PackagePolicy for the given package configuration, returning
+// buildPackagePolicy builds a PackagePolicy for the given package configuration, returning
 // the policy along with the data stream type and dataset for building index/data stream names.
 // It always reads manifests from the built package tree so that it actually tests the deliverable
 // form of the package, that may have been modified during build.
 // Pass dataStreamName as "" for input-type packages.
-func createPackagePolicy(
+func buildPackagePolicy(
 	kibanaPolicy *kibana.Policy,
 	policyTemplateName string,
 	dataStreamName string,
