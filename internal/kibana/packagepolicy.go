@@ -224,8 +224,7 @@ func BuildInputPackagePolicy(
 // For integration packages dsManifest must not be nil and allDatastreams must contain
 // the manifests for all data streams under the package root that was actually installed
 // (built tree for system tests, EPR-extracted directory for script tests). dsManifest's
-// Name must appear in allDatastreams; the function errors out otherwise to catch the
-// #3552 class of bug where allDatastreams is loaded from a different/non-existent root.
+// Name must appear in allDatastreams.
 func CreatePackagePolicy(
 	kibanaPolicy *Policy,
 	policyTemplateName string,

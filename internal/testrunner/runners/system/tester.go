@@ -2250,11 +2250,9 @@ func (r *tester) checkEnrolledAgents(ctx context.Context, agentInfo agentdeploye
 
 // createPackagePolicy builds a PackagePolicy for the given package configuration, returning
 // the policy along with the data stream type and dataset for building index/data stream names.
-// It always reads manifests from the built package tree so that composable integrations —
-// where source streams carry unresolved "package:" references — produce the same resolved
-// input keys that Fleet sees. Use kibana.CreatePackagePolicy directly when the correct
-// manifest root is already known (e.g. script tests with -version, where the EPR-extracted
-// directory is the right source). Pass dataStreamName as "" for input-type packages.
+// It always reads manifests from the built package tree so that it actually tests the deliverable
+// form of the package, that may have been modified during build.
+// Pass dataStreamName as "" for input-type packages.
 func createPackagePolicy(
 	kibanaPolicy *kibana.Policy,
 	policyTemplateName string,
