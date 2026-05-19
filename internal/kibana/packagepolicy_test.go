@@ -570,12 +570,12 @@ func varValue(v any) packages.VarValue {
 	return vv
 }
 
-// TestCreatePackagePolicy_Integration verifies that CreatePackagePolicy produces
+// TestBuildPackagePolicy_Integration verifies that BuildPackagePolicy produces
 // a PackagePolicy with non-empty streams and correctly populated vars for an
 // integration package. This covers the add_package_policy -version scenario
 // where manifests are loaded from an EPR-extracted directory (not the built tree).
 // Regression test for https://github.com/elastic/elastic-package/issues/3552.
-func TestCreatePackagePolicy_Integration(t *testing.T) {
+func TestBuildPackagePolicy_Integration(t *testing.T) {
 	packageRoot := "testdata/packages/apache"
 	dsName := "access"
 
@@ -593,7 +593,7 @@ func TestCreatePackagePolicy_Integration(t *testing.T) {
 		"paths": []string{"/tmp/service_logs/access.log*"},
 	}
 
-	policy, dsType, dsDataset, err := CreatePackagePolicy(
+	policy, dsType, dsDataset, err := BuildPackagePolicy(
 		kp, "apache", dsName, "logfile",
 		common.MapStr{}, dsVars, "test-suffix",
 		*manifest, dsManifest, allDatastreams,
@@ -625,8 +625,8 @@ func TestCreatePackagePolicy_Integration(t *testing.T) {
 	assert.Equal(t, manifest.Version, policy.Package.Version)
 }
 
-// TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams verifies that
-// CreatePackagePolicy refuses inputs that would silently produce a broken
+// TestBuildPackagePolicy_IntegrationRejectsInvalidDatastreams verifies that
+// BuildPackagePolicy refuses inputs that would silently produce a broken
 // policy. Two cases:
 //   - allDatastreams is nil/empty: this is the #3552 root cause — silently
 //     accepting it produced an empty Streams map that Fleet rejected with
@@ -634,7 +634,7 @@ func TestCreatePackagePolicy_Integration(t *testing.T) {
 //   - dsManifest is not present in allDatastreams: the caller loaded the two
 //     from different roots, so the policy would reference streams that do not
 //     exist in the installed package.
-func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) {
+func TestBuildPackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) {
 	packageRoot := "testdata/packages/apache"
 	dsName := "access"
 
@@ -647,7 +647,7 @@ func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) 
 	kp := &Policy{ID: "test-policy-id", Namespace: "test"}
 
 	t.Run("nil allDatastreams", func(t *testing.T) {
-		_, _, _, err := CreatePackagePolicy(
+		_, _, _, err := BuildPackagePolicy(
 			kp, "apache", dsName, "logfile",
 			common.MapStr{}, common.MapStr{}, "test-suffix",
 			*manifest, dsManifest, nil,
@@ -657,7 +657,7 @@ func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) 
 	})
 
 	t.Run("empty allDatastreams", func(t *testing.T) {
-		_, _, _, err := CreatePackagePolicy(
+		_, _, _, err := BuildPackagePolicy(
 			kp, "apache", dsName, "logfile",
 			common.MapStr{}, common.MapStr{}, "test-suffix",
 			*manifest, dsManifest, []packages.DataStreamManifest{},
@@ -668,7 +668,7 @@ func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) 
 
 	t.Run("dsManifest not in allDatastreams", func(t *testing.T) {
 		mismatched := []packages.DataStreamManifest{{Name: "different"}}
-		_, _, _, err := CreatePackagePolicy(
+		_, _, _, err := BuildPackagePolicy(
 			kp, "apache", dsName, "logfile",
 			common.MapStr{}, common.MapStr{}, "test-suffix",
 			*manifest, dsManifest, mismatched,
@@ -678,9 +678,9 @@ func TestCreatePackagePolicy_IntegrationRejectsInvalidDatastreams(t *testing.T) 
 	})
 }
 
-// TestCreatePackagePolicy_Input verifies CreatePackagePolicy for input packages
+// TestBuildPackagePolicy_Input verifies BuildPackagePolicy for input packages
 // where dsManifest is nil.
-func TestCreatePackagePolicy_Input(t *testing.T) {
+func TestBuildPackagePolicy_Input(t *testing.T) {
 	packageRoot := "testdata/packages/log_input"
 
 	manifest, err := packages.ReadPackageManifest(filepath.Join(packageRoot, "manifest.yml"))
@@ -692,7 +692,7 @@ func TestCreatePackagePolicy_Input(t *testing.T) {
 		"data_stream.dataset": "log.custom",
 	}
 
-	policy, dsType, dsDataset, err := CreatePackagePolicy(
+	policy, dsType, dsDataset, err := BuildPackagePolicy(
 		kp, "logs", "", "",
 		vars, common.MapStr{}, "test-suffix",
 		*manifest, nil, nil,

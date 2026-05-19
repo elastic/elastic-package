@@ -2290,7 +2290,7 @@ func createPackagePolicy(
 		builtDS = &allDatastreams[i]
 	}
 
-	return kibana.CreatePackagePolicy(kibanaPolicy, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix, *builtPkg, builtDS, allDatastreams)
+	return kibana.BuildPackagePolicy(kibanaPolicy, policyTemplateName, dataStreamName, cfgName, cfgVars, cfgDSVars, suffix, *builtPkg, builtDS, allDatastreams)
 }
 
 func (r *tester) checkTransforms(ctx context.Context, config *testConfig, pkgManifest *packages.PackageManifest, dataStream, policyTemplateInput string, syntheticEnabled bool) error {

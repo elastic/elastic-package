@@ -116,7 +116,7 @@ func addPackagePolicy(ts *testscript.TestScript, neg bool, args []string) {
 	templ, err := packages.SelectPolicyTemplateByName(pkgMan.PolicyTemplates, *polName)
 	ts.Check(decoratedWith("finding policy template", err))
 
-	policy, dsType, dsDataset, err := kibana.CreatePackagePolicy(installed.testingPolicy, *polName, dsMan.Name, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, *pkgMan, dsMan, allDatastreams)
+	policy, dsType, dsDataset, err := kibana.BuildPackagePolicy(installed.testingPolicy, *polName, dsMan.Name, config.Input, config.Vars, config.DataStream.Vars, installed.testingPolicy.Namespace, *pkgMan, dsMan, allDatastreams)
 	ts.Check(decoratedWith("creating package policy", err))
 	_, err = stk.kibana.CreatePackagePolicy(ctx, policy, kibana.PolicyAPIFormatAuto)
 	ts.Check(decoratedWith("adding package policy", err))

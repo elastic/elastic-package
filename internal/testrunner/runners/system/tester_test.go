@@ -960,7 +960,7 @@ streams:
 	if err != nil {
 		t.Fatalf("failed to read all built data stream manifests: %v", err)
 	}
-	pp, _, _, err := kibana.CreatePackagePolicy(kp, "nginx", "access", "cfgName", nil, nil, "suffix", *builtPkg, builtDS, allDatastreams)
+	pp, _, _, err := kibana.BuildPackagePolicy(kp, "nginx", "access", "cfgName", nil, nil, "suffix", *builtPkg, builtDS, allDatastreams)
 	require.NoError(t, err)
 
 	_, bad := pp.Inputs["nginx-"]

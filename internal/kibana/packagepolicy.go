@@ -215,7 +215,7 @@ func BuildInputPackagePolicy(
 	return policy
 }
 
-// CreatePackagePolicy builds a PackagePolicy from pre-loaded manifests and returns
+// BuildPackagePolicy builds a PackagePolicy from pre-loaded manifests and returns
 // the policy together with the data stream type and dataset string used to construct
 // index/data-stream names. It is a pure function: all disk I/O must be done by the
 // caller before invoking it.
@@ -225,7 +225,7 @@ func BuildInputPackagePolicy(
 // the manifests for all data streams under the package root that was actually installed
 // (built tree for system tests, EPR-extracted directory for script tests). dsManifest's
 // Name must appear in allDatastreams.
-func CreatePackagePolicy(
+func BuildPackagePolicy(
 	kibanaPolicy *Policy,
 	policyTemplateName string,
 	dsName string,

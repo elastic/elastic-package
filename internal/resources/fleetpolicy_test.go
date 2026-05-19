@@ -265,7 +265,7 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			result, _, _, err := kibana.CreatePackagePolicy(
+			result, _, _, err := kibana.BuildPackagePolicy(
 				kibanaPolicy, policyTemplateName, "", c.packagePolicy.InputName,
 				common.MapStr(c.packagePolicy.Vars), nil,
 				"", c.manifest, nil, nil,

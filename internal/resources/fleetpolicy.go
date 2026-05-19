@@ -161,7 +161,7 @@ func (f *FleetAgentPolicy) Create(ctx resource.Context) error {
 }
 
 // buildFleetPackagePolicy loads manifests from the built package tree and delegates
-// to kibana.CreatePackagePolicy, then applies fleet-specific overrides (name, output).
+// to kibana.BuildPackagePolicy, then applies fleet-specific overrides (name, output).
 // Composable integrations require the built tree so that RequiredInputsResolver has
 // already materialized package: references into concrete input types.
 func buildFleetPackagePolicy(kibanaPolicy *kibana.Policy, outputID string, fp FleetPackagePolicy) (kibana.PackagePolicy, error) {
@@ -201,7 +201,7 @@ func buildFleetPackagePolicy(kibanaPolicy *kibana.Policy, outputID string, fp Fl
 		}
 	}
 
-	pp, _, _, err := kibana.CreatePackagePolicy(
+	pp, _, _, err := kibana.BuildPackagePolicy(
 		kibanaPolicy, policyTemplateName, fp.DataStreamName, fp.InputName,
 		common.MapStr(fp.Vars), common.MapStr(fp.DataStreamVars),
 		"", *manifest, dsManifest, allDatastreams,
