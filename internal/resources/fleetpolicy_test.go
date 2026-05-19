@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/elastic/elastic-package/internal/common"
 	"github.com/elastic/elastic-package/internal/fields"
 	"github.com/elastic/elastic-package/internal/files"
 	"github.com/elastic/elastic-package/internal/kibana"
@@ -162,16 +163,10 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 		return vv
 	}
 
-	policy := FleetAgentPolicy{
-		ID:        "test-policy-id",
-		Namespace: "eptest",
-	}
-
 	cases := []struct {
 		name            string
 		manifest        packages.PackageManifest
 		packagePolicy   FleetPackagePolicy
-		wantErr         bool
 		expectedDataset string
 	}{
 		{
@@ -254,39 +249,28 @@ func TestCreateInputPackagePolicy_DatasetVariable(t *testing.T) {
 			},
 			expectedDataset: "user.custom",
 		},
-		{
-			name: "error when DataStreamName is set for input package",
-			manifest: packages.PackageManifest{
-				Type:    "input",
-				Name:    "sql_input",
-				Title:   "SQL Input",
-				Version: "0.2.0",
-				PolicyTemplates: []packages.PolicyTemplate{
-					{
-						Name:  "sql_query",
-						Input: "sql/metrics",
-						Type:  "metrics",
-					},
-				},
-			},
-			packagePolicy: FleetPackagePolicy{
-				Name:           "input-4",
-				TemplateName:   "sql_query",
-				DataStreamName: "some_stream",
-			},
-			wantErr: true,
-		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			result, err := createInputPackagePolicy(policy, c.manifest, c.packagePolicy)
-			if c.wantErr {
-				require.Error(t, err)
-				return
+			kibanaPolicy := &kibana.Policy{
+				ID:        "test-policy-id",
+				Namespace: "eptest",
 			}
+
+			policyTemplateName := c.packagePolicy.TemplateName
+			if policyTemplateName == "" {
+				var err error
+				policyTemplateName, err = packages.FindPolicyTemplateForInput(&c.manifest, nil, c.packagePolicy.InputName)
+				require.NoError(t, err)
+			}
+
+			result, _, _, err := kibana.CreatePackagePolicy(
+				kibanaPolicy, policyTemplateName, "", c.packagePolicy.InputName,
+				common.MapStr(c.packagePolicy.Vars), nil,
+				"", c.manifest, nil, nil,
+			)
 			require.NoError(t, err)
-			require.NotNil(t, result)
 
 			// Find the enabled input by its key.
 			pt := c.manifest.PolicyTemplates[0]
