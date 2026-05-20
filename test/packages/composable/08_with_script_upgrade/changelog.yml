@@ -1,0 +1,10 @@
+- version: "1.0.1"
+  changes:
+    - description: Second release, used as the "previous" version in the upgrade script test.
+      type: enhancement
+      link: https://github.com/elastic/elastic-package/pull/9001
+- version: "1.0.0"
+  changes:
+    - description: Initial release.
+      type: enhancement
+      link: https://github.com/elastic/elastic-package/pull/9001

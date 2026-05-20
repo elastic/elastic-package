@@ -1,0 +1,15 @@
+title: Test
+type: logs
+streams:
+  - package: ci_input_pkg
+    title: Collect log files
+    description: Collect log files via the ci_input_pkg input package.
+    vars:
+      - name: paths
+        type: text
+        title: Paths
+        multi: true
+        required: true
+        show_user: true
+        default:
+          - /var/log/with_script_upgrade/*.log

@@ -5,6 +5,7 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -161,4 +162,71 @@ func TestCopyLicenseTextFile_UsesExistingLicenseFile(t *testing.T) {
 		assert.ErrorIs(t, err, os.ErrNotExist)
 	})
 
+}
+
+const builtPackageManifestTestPkgName = "testpkg"
+
+func writeBuiltPackageTestManifest(t *testing.T, dir, version string) {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	require.NoError(t, os.WriteFile(
+		filepath.Join(dir, "manifest.yml"),
+		[]byte(fmt.Sprintf("name: %s\ntitle: Test Package\nversion: %s\ntype: integration\nformat_version: 3.0.0\n", builtPackageManifestTestPkgName, version)),
+		0o644,
+	))
+}
+
+// TestReadBuiltPackageManifest pins the strict behavior of ReadBuiltPackageManifest:
+// it must locate the built tree at build/packages/<name>/<version>/ matching the
+// version in the source manifest, and fail otherwise. The script tester relies on
+// this strictness — when -version is set, it deliberately bypasses
+// ReadBuiltPackageManifest because it would resolve to a non-existent path
+// (the EPR version is not built locally).
+func TestReadBuiltPackageManifest(t *testing.T) {
+	t.Run("ReturnsBuiltTree", func(t *testing.T) {
+		root := t.TempDir()
+		t.Chdir(root)
+
+		srcVersion := "1.2.3"
+		packageRoot := filepath.Join(root, "packages", builtPackageManifestTestPkgName)
+		writeBuiltPackageTestManifest(t, packageRoot, srcVersion)
+
+		builtRoot := filepath.Join(root, "build", "packages", builtPackageManifestTestPkgName, srcVersion)
+		writeBuiltPackageTestManifest(t, builtRoot, srcVersion)
+
+		gotRoot, gotPkg, err := ReadBuiltPackageManifest(packageRoot)
+		require.NoError(t, err)
+		assert.Equal(t, builtRoot, gotRoot)
+		assert.Equal(t, builtPackageManifestTestPkgName, gotPkg.Name)
+		assert.Equal(t, srcVersion, gotPkg.Version)
+	})
+
+	t.Run("ErrorWhenBuiltTreeMissing", func(t *testing.T) {
+		// No build/ directory and no .git — strict mode must fail.
+		root := t.TempDir()
+		t.Chdir(root)
+
+		packageRoot := filepath.Join(root, "epr", builtPackageManifestTestPkgName, "1.0.0")
+		writeBuiltPackageTestManifest(t, packageRoot, "1.0.0")
+
+		_, _, err := ReadBuiltPackageManifest(packageRoot)
+		require.Error(t, err)
+	})
+
+	t.Run("ErrorWhenBuiltVersionDiffers", func(t *testing.T) {
+		// Built tree exists but for a different version — strict mode must fail.
+		// This is the exact on-disk shape that triggered #3552: the EPR-extracted
+		// package is at one version and the local build/ is at another.
+		root := t.TempDir()
+		t.Chdir(root)
+
+		packageRoot := filepath.Join(root, "epr", builtPackageManifestTestPkgName, "1.1.0")
+		writeBuiltPackageTestManifest(t, packageRoot, "1.1.0")
+
+		builtDev := filepath.Join(root, "build", "packages", builtPackageManifestTestPkgName, "1.2.3")
+		writeBuiltPackageTestManifest(t, builtDev, "1.2.3")
+
+		_, _, err := ReadBuiltPackageManifest(packageRoot)
+		require.Error(t, err)
+	})
 }

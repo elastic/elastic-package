@@ -956,15 +956,11 @@ streams:
 	if err != nil {
 		t.Fatalf("failed to read built data stream manifest: %v", err)
 	}
-	builtPolicyTemplate, err := packages.SelectPolicyTemplateByName(builtPkg.PolicyTemplates, "nginx")
-	if err != nil {
-		t.Fatalf("failed to select built policy template: %v", err)
-	}
 	allDatastreams, err := packages.ReadAllDataStreamManifests(builtRoot)
 	if err != nil {
 		t.Fatalf("failed to read all built data stream manifests: %v", err)
 	}
-	pp, _, _, err := buildIntegrationPackagePolicyFromBuilt(kp, builtPkg, builtDS, builtPolicyTemplate, allDatastreams, "cfgName", nil, nil, "suffix")
+	pp, _, _, err := kibana.BuildPackagePolicy(kp, "nginx", "access", "cfgName", nil, nil, "suffix", *builtPkg, builtDS, allDatastreams)
 	require.NoError(t, err)
 
 	_, bad := pp.Inputs["nginx-"]
@@ -1050,7 +1046,7 @@ func TestDataStreamTypeFromPolicy(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.title, func(t *testing.T) {
-			got := dataStreamTypeFromPolicy(c.policy, c.fallback)
+			got := kibana.DataStreamTypeFromPolicy(c.policy, c.fallback)
 			assert.Equal(t, c.expected, got)
 		})
 	}
