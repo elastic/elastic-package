@@ -5,7 +5,6 @@
 package tui
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -87,56 +86,6 @@ func NewTextComponent(opts TextComponentOptions) *TextComponent {
 
 	return tc
 }
-
-// ShowContent displays content in a scrollable viewer and waits for user to close it
-func ShowContent(title, content string) error {
-	component := NewTextComponent(TextComponentOptions{
-		Mode:    ViewMode,
-		Title:   title,
-		Content: content,
-	})
-	model := newTextComponentModel(component)
-
-	// Enable mouse support and alternate screen for better display
-	program := tea.NewProgram(model, tea.WithAltScreen(), tea.WithMouseCellMotion())
-
-	_, err := program.Run()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// AskTextArea runs a text area dialog for multi-line input
-func AskTextArea(message string) (string, error) {
-	component := NewTextComponent(TextComponentOptions{
-		Mode:    EditMode,
-		Message: message,
-		Focused: true,
-	})
-	model := newTextComponentModel(component)
-	program := tea.NewProgram(model)
-
-	finalModel, err := program.Run()
-	if err != nil {
-		return "", err
-	}
-
-	result := finalModel.(*textComponentModel).component
-	if result.cancelled {
-		return "", ErrCancelled
-	}
-
-	if result.submitted {
-		return strings.TrimSpace(result.textarea.Value()), nil
-	}
-
-	return "", ErrCancelled
-}
-
-// ErrCancelled is returned when user cancels the dialog
-var ErrCancelled = errors.New("cancelled by user")
 
 func (tc *TextComponent) initViewMode() {
 	tc.lines = strings.Split(tc.content, "\n")
