@@ -309,6 +309,7 @@ func allowedTypeOverride(fromType, toType string) bool {
 	}{
 		// Support the case of setting the value already in the mappings.
 		{"keyword", "constant_keyword"},
+		{"constant_keyword", "keyword"},
 
 		// Support objects in ECS where the developer must decide if using
 		// a group or nested object.
