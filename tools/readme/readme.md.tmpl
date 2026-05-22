@@ -285,6 +285,24 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_SIGNER_PRIVATE_KEYFILE`: Path to the private key file to sign packages.
     - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
 
+- Related to verifying packages downloaded from the Elastic Package Registry (EPR):
+
+    When a package zip is downloaded from EPR, `elastic-package` verifies its detached
+    OpenPGP signature (served at `/epr/{name}/{name}-{version}.zip.sig`). Verification
+    is enabled by default using the Elastic public GPG key embedded in the binary.
+
+    - `ELASTIC_PACKAGE_DISABLE_VERIFY_PACKAGE_SIGNATURE`: Set to `true` to skip
+      signature verification when downloading packages from EPR. Default: `false`.
+    - `ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE`: Path to an armored OpenPGP public key
+      used to verify EPR package signatures. When set, it takes precedence over the
+      embedded Elastic key. Use this to verify packages signed with a rotated key
+      without upgrading `elastic-package`.
+
+    If verification fails (e.g. because the upstream Elastic signing key has rotated),
+    either upgrade `elastic-package` to a release with the updated embedded key, or
+    download the current key from `https://packages.elasticsearch.org/GPG-KEY-elasticsearch`
+    and set `ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE` to its path.
+
 - Related to tests:
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.
     - `ELASTIC_PACKAGE_DISABLE_ELASTIC_AGENT_WOLFI`: If set to `true`, the Elastic Agent image used for running agents will be using the Ubuntu docker images

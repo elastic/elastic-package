@@ -5,6 +5,7 @@
 package registry
 
 import (
+	"bytes"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -142,6 +143,43 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
 	}
 
+	if !VerifyPackageSignatureDisabled() {
+		if err := c.verifyPackage(name, version, zipPath); err != nil {
+			shouldRemove = true
+			return "", fmt.Errorf("verifying package %s-%s: %w", name, version, err)
+		}
+	}
+
 	shouldRemove = false
 	return zipPath, nil
+}
+
+// verifyPackage downloads the detached PGP signature for the package zip from
+// the registry and verifies it against the zip on disk.
+func (c *Client) verifyPackage(name, version, zipPath string) error {
+	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
+	statusCode, sigBytes, err := c.get(sigPath)
+	if err != nil {
+		return fmt.Errorf("downloading signature: %w", err)
+	}
+	if statusCode != http.StatusOK {
+		return fmt.Errorf("downloading signature: unexpected status code %d", statusCode)
+	}
+
+	publicKey, err := LoadVerifierPublicKey()
+	if err != nil {
+		return fmt.Errorf("loading verifier public key: %w", err)
+	}
+
+	zipData, err := os.ReadFile(zipPath)
+	if err != nil {
+		return fmt.Errorf("reading zip for verification: %w", err)
+	}
+
+	if err := VerifyDetachedPGP(bytes.NewReader(zipData), sigBytes, publicKey); err != nil {
+		return fmt.Errorf("%w\n\nIf the Elastic GPG signing key has rotated, either upgrade elastic-package to a "+
+			"release with the updated embedded key, or download the new key and set %s to its path",
+			err, "ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE")
+	}
+	return nil
 }

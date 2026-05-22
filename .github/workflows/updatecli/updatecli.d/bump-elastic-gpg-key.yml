@@ -1,0 +1,48 @@
+---
+name: Rotate Elastic GPG key
+pipelineid: 'rotate-elastic-gpg-key'
+
+actions:
+  default:
+    title: '[updatecli] Rotate embedded Elastic GPG key to {{ source "newFingerprint" }}'
+    kind: github/pullrequest
+    scmid: default
+    spec:
+      labels:
+        - automation
+        - dependency
+
+scms:
+  default:
+    kind: github
+    spec:
+      owner: '{{ .scm.owner }}'
+      repository: '{{ .scm.repository }}'
+      user: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      username: '{{ requiredEnv "GITHUB_ACTOR" }}'
+      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      commitusingapi: true
+      branch: main
+
+sources:
+  newFingerprint:
+    name: Get fingerprint of upstream Elastic GPG key
+    kind: shell
+    spec:
+      # Fetch the key, parse its fingerprint, and emit it.
+      # The fetch tool writes new_fingerprint=<hex> to stdout; we extract the value.
+      command: >-
+        curl -fsSL https://packages.elasticsearch.org/GPG-KEY-elasticsearch |
+        gpg --with-fingerprint --with-colons - 2>/dev/null |
+        awk -F: '/^fpr/{print $10; exit}'
+
+targets:
+  update-embedded-key:
+    name: '[updatecli] Update embedded Elastic GPG key'
+    kind: shell
+    scmid: default
+    sourceid: newFingerprint
+    spec:
+      # go run writes the new key to internal/files/elastic-gpg-key.asc.
+      # The source value (fingerprint) is appended as the last argument but ignored.
+      command: go run ./internal/files/gpgkey/fetch
