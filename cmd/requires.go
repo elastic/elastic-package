@@ -173,8 +173,8 @@ func printRequiresUpdateResult(result *requiresupdates.Result, w io.Writer, form
 		return enc.Encode(result)
 	case requiresFormatTable:
 		if result.Package != "" {
-			requiresBold.Fprint(w, "Package: ")    //nolint:errcheck
-			fmt.Fprintln(w, result.Package)        //nolint:errcheck
+			requiresBold.Fprint(w, "Package: ") //nolint:errcheck
+			fmt.Fprintln(w, result.Package)     //nolint:errcheck
 		}
 		if result.CodeOwner != "" {
 			requiresBold.Fprint(w, "Code owner: ") //nolint:errcheck

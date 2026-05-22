@@ -168,10 +168,7 @@ func resolveDependency(opts Options, integrationKibana string, kind DependencyKi
 		return nil, fmt.Errorf("package %q: %w", dep.Package, err)
 	}
 
-	latestCompatible, err := latestRevisionNewerThan(compatible, currentEffective)
-	if err != nil {
-		return nil, fmt.Errorf("package %q: %w", dep.Package, err)
-	}
+	latestCompatible := latestRevisionNewerThan(compatible, currentEffective)
 
 	latestUnfiltered, err := latestRevision(unfiltered)
 	if err != nil {
@@ -345,7 +342,7 @@ func latestRevision(revisions []packages.PackageManifest) (*packages.PackageMani
 	return &best, nil
 }
 
-func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semver.Version) (*packages.PackageManifest, error) {
+func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semver.Version) *packages.PackageManifest {
 	var best *packages.PackageManifest
 	var bestVer *semver.Version
 	for _, rev := range revisions {
@@ -362,5 +359,5 @@ func latestRevisionNewerThan(revisions []packages.PackageManifest, current *semv
 			bestVer = ver
 		}
 	}
-	return best, nil
+	return best
 }
