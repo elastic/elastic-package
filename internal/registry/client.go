@@ -131,21 +131,19 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 	}
 
 	zipPath := filepath.Join(destDir, fmt.Sprintf("%s-%s.zip", name, version))
-	shouldRemove := false
+	shouldRemove := true
 	defer func() {
 		if shouldRemove {
 			_ = os.Remove(zipPath)
 		}
 	}()
 
-	shouldRemove = true
 	if err := os.WriteFile(zipPath, body, 0o644); err != nil {
 		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
 	}
 
 	if !VerifyPackageSignatureDisabled() {
-		if err := c.verifyPackage(name, version, zipPath); err != nil {
-			shouldRemove = true
+		if err := c.verifyPackage(name, version, body); err != nil {
 			return "", fmt.Errorf("verifying package %s-%s: %w", name, version, err)
 		}
 	}
@@ -154,9 +152,9 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 	return zipPath, nil
 }
 
-// verifyPackage downloads the detached PGP signature for the package zip from
-// the registry and verifies it against the zip on disk.
-func (c *Client) verifyPackage(name, version, zipPath string) error {
+// verifyPackage downloads the detached PGP signature for the package zip and
+// verifies it against zipData.
+func (c *Client) verifyPackage(name, version string, zipData []byte) error {
 	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
 	statusCode, sigBytes, err := c.get(sigPath)
 	if err != nil {
@@ -166,20 +164,15 @@ func (c *Client) verifyPackage(name, version, zipPath string) error {
 		return fmt.Errorf("downloading signature: unexpected status code %d", statusCode)
 	}
 
-	publicKey, err := LoadVerifierPublicKey()
+	keyRing, err := LoadVerifierKeyring()
 	if err != nil {
-		return fmt.Errorf("loading verifier public key: %w", err)
+		return fmt.Errorf("loading verifier keyring: %w", err)
 	}
 
-	zipData, err := os.ReadFile(zipPath)
-	if err != nil {
-		return fmt.Errorf("reading zip for verification: %w", err)
-	}
-
-	if err := VerifyDetachedPGP(bytes.NewReader(zipData), sigBytes, publicKey); err != nil {
+	if err := VerifyDetachedPGP(bytes.NewReader(zipData), sigBytes, keyRing); err != nil {
 		return fmt.Errorf("%w\n\nIf the Elastic GPG signing key has rotated, either upgrade elastic-package to a "+
-			"release with the updated embedded key, or download the new key and set %s to its path",
-			err, "ELASTIC_PACKAGE_VERIFIER_PUBLIC_KEYFILE")
+			"release with the updated embedded key, or set %s to a keyring file containing the new key",
+			err, verifierGPGKeyringEnv)
 	}
 	return nil
 }

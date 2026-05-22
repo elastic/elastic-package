@@ -3,10 +3,10 @@
 // you may not use this file except in compliance with the Elastic License.
 
 // fetch downloads the Elastic public GPG key and writes it to
-// internal/files/elastic-gpg-key.asc. It is intended to be called via
-// go generate ./internal/files/... when the upstream key rotates.
+// internal/registry/elastic-gpg-key.asc. It is intended to be called via
+// go generate ./internal/registry/... when the upstream key rotates.
 //
-// Usage: go run ./internal/files/gpgkey/fetch
+// Usage: go run ./internal/registry/gpgkey/fetch
 package main
 
 import (
@@ -15,8 +15,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
@@ -24,29 +22,19 @@ import (
 
 const (
 	upstreamKeyURL = "https://packages.elasticsearch.org/GPG-KEY-elasticsearch"
-	keyFileName    = "elastic-gpg-key.asc"
+	// go generate runs with the working directory set to the package directory
+	// (internal/registry/), so keyFileName is relative to that.
+	keyFileName = "elastic-gpg-key.asc"
 )
 
 func main() {
-	// Locate the target file relative to this source file so it works
-	// regardless of where go generate is invoked from.
-	_, thisFile, _, ok := runtime.Caller(0)
-	if !ok {
-		log.Fatal("could not determine source file path")
-	}
-	// thisFile is .../internal/registry/gpgkey/fetch/main.go
-	// target is  .../internal/registry/elastic-gpg-key.asc
-	targetPath := filepath.Join(filepath.Dir(thisFile), "..", "..", keyFileName)
-
-	oldFingerprint := readCurrentFingerprint(targetPath)
+	oldFingerprint := readCurrentFingerprint(keyFileName)
 
 	log.Printf("Fetching key from %s ...", upstreamKeyURL)
-	keyBytes := fetchKey(upstreamKeyURL)
+	keyBytes, newFingerprint := fetchKey(upstreamKeyURL)
 
-	newFingerprint := mustFingerprint(keyBytes)
-
-	if err := os.WriteFile(targetPath, keyBytes, 0o644); err != nil {
-		log.Fatalf("writing %s: %v", targetPath, err)
+	if err := os.WriteFile(keyFileName, keyBytes, 0o644); err != nil {
+		log.Fatalf("writing %s: %v", keyFileName, err)
 	}
 
 	fmt.Printf("old_fingerprint=%s\n", oldFingerprint)
@@ -60,9 +48,9 @@ func main() {
 	}
 }
 
-// fetchKey downloads and returns armored GPG key bytes from url. It validates
-// that the bytes parse as an armored OpenPGP public key before returning.
-func fetchKey(url string) []byte {
+// fetchKey downloads the armored GPG key from url, validates it parses as an
+// OpenPGP public key, and returns the raw bytes and its fingerprint.
+func fetchKey(url string) ([]byte, string) {
 	resp, err := http.Get(url) //nolint:noctx
 	if err != nil {
 		log.Fatalf("GET %s: %v", url, err)
@@ -75,9 +63,7 @@ func fetchKey(url string) []byte {
 	if err != nil {
 		log.Fatalf("reading response body: %v", err)
 	}
-	// Validate before writing.
-	mustFingerprint(data)
-	return data
+	return data, mustFingerprint(data)
 }
 
 // mustFingerprint parses keyBytes as an armored OpenPGP public key and returns

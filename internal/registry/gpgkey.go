@@ -10,6 +10,3 @@ import _ "embed"
 
 //go:embed elastic-gpg-key.asc
 var elasticPublicKey []byte
-
-// ElasticPublicKey returns the embedded Elastic GPG public key in armored form.
-func ElasticPublicKey() []byte { return elasticPublicKey }
