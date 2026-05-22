@@ -68,7 +68,7 @@ ELASTIC_PACKAGE_LINKS_FILE_PATH="$(pwd)/scripts/links_table.yml"
 export ELASTIC_PACKAGE_LINKS_FILE_PATH
 
 # The local registry serves locally-built unsigned packages; skip signature verification.
-export ELASTIC_PACKAGE_DISABLE_VERIFY_PACKAGE_SIGNATURE=true
+export ELASTIC_PACKAGE_VERIFIER_DISABLE=true
 
 echo "--- Create profile"
 elastic-package profiles delete script-upgrade -v || true

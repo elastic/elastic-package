@@ -854,27 +854,8 @@ There are available some environment variables that could be used to change some
     - `ELASTIC_PACKAGE_SIGNER_PASSPHRASE`: Passphrase to use the private key file.
 
 - Related to verifying packages downloaded from the Elastic Package Registry (EPR):
-
-    When a package zip is downloaded from EPR, `elastic-package` verifies its detached
-    OpenPGP signature (served at `/epr/{name}/{name}-{version}.zip.sig`). Verification
-    is enabled by default using the Elastic public GPG key embedded in the binary.
-
-    - `ELASTIC_PACKAGE_DISABLE_VERIFY_PACKAGE_SIGNATURE`: Set to `true` to skip
-      signature verification when downloading packages from EPR. Default: `false`.
-    - `ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING`: Path to an armored OpenPGP keyring file
-      used to verify EPR package signatures. The file may contain one or more public
-      keys in armored form, concatenated. When set, it **replaces** the embedded Elastic
-      key — the embedded key is no longer trusted. Users who still need to verify
-      Elastic-signed packages must include the Elastic public key in the file alongside
-      their own keys. This is useful for private registries that host a mix of packages
-      signed by different keys (e.g. Elastic-signed integrations and internally-signed
-      custom packages).
-
-    If verification fails (e.g. because the upstream Elastic signing key has rotated),
-    either upgrade `elastic-package` to a release with the updated embedded key, or
-    download the current key from `https://packages.elasticsearch.org/GPG-KEY-elasticsearch`
-    and set `ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING` to its path (optionally alongside
-    other trusted keys).
+    - `ELASTIC_PACKAGE_VERIFIER_DISABLE`: Set to `true` to skip signature verification. Default: `false`.
+    - `ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING`: Path to an armored OpenPGP keyring file used to verify signatures. When set, it replaces the embedded Elastic key.
 
 - Related to tests:
     - `ELASTIC_PACKAGE_SERVERLESS_PIPELINE_TEST_DISABLE_COMPARE_RESULTS`: If set to `true`, the results from pipeline tests are not compared to avoid errors from GeoIP.

@@ -50,336 +50,338 @@ func TestNewClient_tlsskipVerifyOption(t *testing.T) {
 	require.NotNil(t, client)
 }
 
-func TestDownloadPackage_unexpectedStatusDoesNotWriteZip(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "gone", http.StatusGone)
-	}))
-	t.Cleanup(srv.Close)
+func TestDownloadPackage(t *testing.T) {
+	t.Run("unexpected status does not write zip", func(t *testing.T) {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "gone", http.StatusGone)
+		}))
+		t.Cleanup(srv.Close)
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "unexpected status code")
-
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "no zip should be written when the registry returns a non-OK status")
-}
-
-func TestDownloadPackage_writeFailureCleansUp(t *testing.T) {
-	zipBytes := testAcmePackageZip(t)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write(zipBytes)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
 		require.NoError(t, err)
-	}))
-	t.Cleanup(srv.Close)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected status code")
 
-	dest := t.TempDir()
-	zipPath := filepath.Join(dest, "acme-1.0.0.zip")
-	require.NoError(t, os.Mkdir(zipPath, 0o700))
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "no zip should be written when the registry returns a non-OK status")
+	})
 
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "writing package zip")
+	t.Run("write failure cleans up", func(t *testing.T) {
+		zipBytes := testAcmePackageZip(t)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+				http.NotFound(w, r)
+				return
+			}
+			_, err := w.Write(zipBytes)
+			require.NoError(t, err)
+		}))
+		t.Cleanup(srv.Close)
 
-	_, statErr := os.Stat(zipPath)
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "partial zip should not remain after a write error")
-}
+		dest := t.TempDir()
+		zipPath := filepath.Join(dest, "acme-1.0.0.zip")
+		require.NoError(t, os.Mkdir(zipPath, 0o700))
 
-func TestDownloadPackage_success(t *testing.T) {
-	t.Setenv("ELASTIC_PACKAGE_DISABLE_VERIFY_PACKAGE_SIGNATURE", "true")
-
-	zipBytes := testAcmePackageZip(t)
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
-			http.NotFound(w, r)
-			return
-		}
-		_, err := w.Write(zipBytes)
+		client, err := NewClient(srv.URL)
 		require.NoError(t, err)
-	}))
-	t.Cleanup(srv.Close)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "writing package zip")
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err)
-	require.FileExists(t, zipPath)
-}
+		_, statErr := os.Stat(zipPath)
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "partial zip should not remain after a write error")
+	})
 
-func TestDownloadPackage_signatureValid(t *testing.T) {
-	kp := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	sigBytes := signZip(t, kp, zipBytes)
+	t.Run("success", func(t *testing.T) {
+		t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
+		zipBytes := testAcmePackageZip(t)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/epr/acme/acme-1.0.0.zip" {
+				http.NotFound(w, r)
+				return
+			}
 			_, err := w.Write(zipBytes)
 			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		}))
+		t.Cleanup(srv.Close)
 
-	pubKeyFile := writeTempFile(t, kp.publicArmor)
-	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+		require.NoError(t, err)
+		require.FileExists(t, zipPath)
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err)
-	require.FileExists(t, zipPath)
-}
+	t.Run("signature valid", func(t *testing.T) {
+		kp := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		sigBytes := signZip(t, kp, zipBytes)
 
-func TestDownloadPackage_signatureMissing(t *testing.T) {
-	kp := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		pubKeyFile := writeTempFile(t, kp.publicArmor)
+		t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
 
-	pubKeyFile := writeTempFile(t, kp.publicArmor)
-	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+		require.NoError(t, err)
+		require.FileExists(t, zipPath)
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "signature")
+	t.Run("signature missing", func(t *testing.T) {
+		kp := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
 
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when signature is missing")
-}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-func TestDownloadPackage_signatureInvalid(t *testing.T) {
-	kp := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	// Sign different bytes to produce a bad signature.
-	sigBytes := signZip(t, kp, []byte("not the zip"))
+		pubKeyFile := writeTempFile(t, kp.publicArmor)
+		t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unexpected status code 404")
 
-	pubKeyFile := writeTempFile(t, kp.publicArmor)
-	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when signature is missing")
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "signature verification failed")
+	t.Run("signature invalid", func(t *testing.T) {
+		kp := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		// Sign different bytes to produce a bad signature.
+		sigBytes := signZip(t, kp, []byte("not the zip"))
 
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when signature is invalid")
-}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-func TestDownloadPackage_signatureFromWrongKey(t *testing.T) {
-	signer := testKeyPair(t)
-	verifier := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	sigBytes := signZip(t, signer, zipBytes)
+		pubKeyFile := writeTempFile(t, kp.publicArmor)
+		t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "signature verification failed")
 
-	// Override points at the verifier key, not the signer — verification must fail.
-	pubKeyFile := writeTempFile(t, verifier.publicArmor)
-	t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when signature is invalid")
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err)
-	require.ErrorContains(t, err, "signature verification failed")
+	t.Run("signature from wrong key", func(t *testing.T) {
+		signer := testKeyPair(t)
+		verifier := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		sigBytes := signZip(t, signer, zipBytes)
 
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when key does not match")
-}
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-func TestDownloadPackage_verificationDisabled(t *testing.T) {
-	t.Setenv("ELASTIC_PACKAGE_DISABLE_VERIFY_PACKAGE_SIGNATURE", "true")
+		// Override points at the verifier key, not the signer — verification must fail.
+		pubKeyFile := writeTempFile(t, verifier.publicArmor)
+		t.Setenv(verifierGPGKeyringEnv, pubKeyFile)
 
-	zipBytes := testAcmePackageZip(t)
-	var sigRequests atomic.Int32
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			sigRequests.Add(1)
-			http.NotFound(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "signature verification failed")
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err)
-	require.FileExists(t, zipPath)
-	require.Equal(t, int32(0), sigRequests.Load(), ".zip.sig should never be requested when verification is disabled")
-}
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when key does not match")
+	})
 
-// TestDownloadPackage_defaultKeyIsEmbedded verifies that when no override key
-// is set, the embedded Elastic key is used — and since the test zip is signed
-// with a generated test key (not the real Elastic key), verification fails.
-func TestDownloadPackage_defaultKeyIsEmbedded(t *testing.T) {
-	t.Setenv(verifierGPGKeyringEnv, "")
+	t.Run("verification disabled", func(t *testing.T) {
+		t.Setenv("ELASTIC_PACKAGE_VERIFIER_DISABLE", "true")
 
-	kp := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	sigBytes := signZip(t, kp, zipBytes)
+		zipBytes := testAcmePackageZip(t)
+		var sigRequests atomic.Int32
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				sigRequests.Add(1)
+				http.NotFound(w, r)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+		require.NoError(t, err)
+		require.FileExists(t, zipPath)
+		require.Equal(t, int32(0), sigRequests.Load(), ".zip.sig should never be requested when verification is disabled")
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err, "test key should not verify against the embedded Elastic key")
-	require.ErrorContains(t, err, "signature verification failed")
+	// When no override key is set the embedded Elastic key is used. Since the
+	// test zip is signed with a generated key (not the real Elastic key),
+	// verification must fail.
+	t.Run("default key is embedded", func(t *testing.T) {
+		t.Setenv(verifierGPGKeyringEnv, "")
 
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when verification fails")
-}
+		kp := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		sigBytes := signZip(t, kp, zipBytes)
 
-// TestDownloadPackage_signatureValid_multiKeyOverride verifies that when the
-// keyring file contains multiple keys, a signature from any of them is accepted.
-func TestDownloadPackage_signatureValid_multiKeyOverride(t *testing.T) {
-	kpA := testKeyPair(t)
-	kpB := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	// Sign with key B only.
-	sigBytes := signZip(t, kpB, zipBytes)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err, "test key should not verify against the embedded Elastic key")
+		require.ErrorContains(t, err, "signature verification failed")
 
-	// Keyring file contains both key A and key B.
-	combined := make([]byte, 0, len(kpA.publicArmor)+1+len(kpB.publicArmor))
-	combined = append(combined, kpA.publicArmor...)
-	combined = append(combined, '\n')
-	combined = append(combined, kpB.publicArmor...)
-	t.Setenv(verifierGPGKeyringEnv, writeTempFile(t, combined))
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed when verification fails")
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
-	require.NoError(t, err, "signature from key B should verify against a ring containing key A and key B")
-	require.FileExists(t, zipPath)
-}
+	// When the keyring file contains multiple keys, a signature from any of
+	// them is accepted.
+	t.Run("signature valid multi-key override", func(t *testing.T) {
+		kpA := testKeyPair(t)
+		kpB := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		// Sign with key B only.
+		sigBytes := signZip(t, kpB, zipBytes)
 
-// TestDownloadPackage_signatureValid_overrideExcludesEmbedded verifies that
-// when ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING is set the embedded Elastic key is
-// NOT trusted — a zip signed only by the embedded key must fail verification.
-func TestDownloadPackage_signatureValid_overrideExcludesEmbedded(t *testing.T) {
-	kpOverride := testKeyPair(t)
-	kpSigner := testKeyPair(t)
-	zipBytes := testAcmePackageZip(t)
-	// Sign with kpSigner; the override keyring only contains kpOverride (different key).
-	sigBytes := signZip(t, kpSigner, zipBytes)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
 
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/epr/acme/acme-1.0.0.zip":
-			_, err := w.Write(zipBytes)
-			require.NoError(t, err)
-		case "/epr/acme/acme-1.0.0.zip.sig":
-			_, err := w.Write(sigBytes)
-			require.NoError(t, err)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
+		// Keyring file contains both key A and key B.
+		combined := make([]byte, 0, len(kpA.publicArmor)+1+len(kpB.publicArmor))
+		combined = append(combined, kpA.publicArmor...)
+		combined = append(combined, '\n')
+		combined = append(combined, kpB.publicArmor...)
+		t.Setenv(verifierGPGKeyringEnv, writeTempFile(t, combined))
 
-	// Override contains only kpOverride — neither kpSigner nor the embedded key.
-	t.Setenv(verifierGPGKeyringEnv, writeTempFile(t, kpOverride.publicArmor))
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		zipPath, err := client.DownloadPackage("acme", "1.0.0", dest)
+		require.NoError(t, err, "signature from key B should verify against a ring containing key A and key B")
+		require.FileExists(t, zipPath)
+	})
 
-	dest := t.TempDir()
-	client, err := NewClient(srv.URL)
-	require.NoError(t, err)
-	_, err = client.DownloadPackage("acme", "1.0.0", dest)
-	require.Error(t, err, "override env should exclude the embedded key; signer key not in override ring")
-	require.ErrorContains(t, err, "signature verification failed")
+	// When ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING is set the embedded Elastic
+	// key is NOT trusted — a zip signed by a key not in the override ring must
+	// fail verification.
+	t.Run("override excludes embedded key", func(t *testing.T) {
+		kpOverride := testKeyPair(t)
+		kpSigner := testKeyPair(t)
+		zipBytes := testAcmePackageZip(t)
+		// Sign with kpSigner; the override keyring only contains kpOverride (different key).
+		sigBytes := signZip(t, kpSigner, zipBytes)
 
-	_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
-	require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed on verification failure")
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/epr/acme/acme-1.0.0.zip":
+				_, err := w.Write(zipBytes)
+				require.NoError(t, err)
+			case "/epr/acme/acme-1.0.0.zip.sig":
+				_, err := w.Write(sigBytes)
+				require.NoError(t, err)
+			default:
+				http.NotFound(w, r)
+			}
+		}))
+		t.Cleanup(srv.Close)
+
+		// Override contains only kpOverride — neither kpSigner nor the embedded key.
+		t.Setenv(verifierGPGKeyringEnv, writeTempFile(t, kpOverride.publicArmor))
+
+		dest := t.TempDir()
+		client, err := NewClient(srv.URL)
+		require.NoError(t, err)
+		_, err = client.DownloadPackage("acme", "1.0.0", dest)
+		require.Error(t, err, "override env should exclude the embedded key; signer key not in override ring")
+		require.ErrorContains(t, err, "signature verification failed")
+
+		_, statErr := os.Stat(filepath.Join(dest, "acme-1.0.0.zip"))
+		require.True(t, errors.Is(statErr, fs.ErrNotExist), "zip should be removed on verification failure")
+	})
 }
 
 // testKeyPairData holds a generated test RSA keypair.

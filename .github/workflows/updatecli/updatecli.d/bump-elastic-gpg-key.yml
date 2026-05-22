@@ -29,12 +29,10 @@ sources:
     name: Get fingerprint of upstream Elastic GPG key
     kind: shell
     spec:
-      # Fetch the key, parse its fingerprint, and emit it.
-      # The fetch tool writes new_fingerprint=<hex> to stdout; we extract the value.
+      # The tool prints "new_fingerprint=<HEX>" to stdout; extract the hex value.
       command: >-
-        curl -fsSL https://packages.elasticsearch.org/GPG-KEY-elasticsearch |
-        gpg --with-fingerprint --with-colons - 2>/dev/null |
-        awk -F: '/^fpr/{print $10; exit}'
+        go run ./internal/registry/gpgkey/fetch |
+        awk -F= '/^new_fingerprint=/{print $2}'
 
 targets:
   update-embedded-key:
@@ -43,6 +41,7 @@ targets:
     scmid: default
     sourceid: newFingerprint
     spec:
-      # go run writes the new key to internal/files/elastic-gpg-key.asc.
-      # The source value (fingerprint) is appended as the last argument but ignored.
-      command: go run ./internal/files/gpgkey/fetch
+      # Overwrites elastic-gpg-key.asc and updates the fingerprint constant in
+      # gpgkey_test.go. The source value (fingerprint) is appended as a trailing
+      # argument by updatecli but is ignored by the tool.
+      command: go run ./internal/registry/gpgkey/fetch

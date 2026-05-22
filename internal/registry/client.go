@@ -142,7 +142,9 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 		return "", fmt.Errorf("writing package zip to %s: %w", zipPath, err)
 	}
 
-	if !VerifyPackageSignatureDisabled() {
+	if verifyPackageSignatureDisabled() {
+		logger.Warnf("Package signature verification disabled via %s", disableVerifyPackageSignatureEnv)
+	} else {
 		if err := c.verifyPackage(name, version, body); err != nil {
 			return "", fmt.Errorf("verifying package %s-%s: %w", name, version, err)
 		}
@@ -154,6 +156,11 @@ func (c *Client) DownloadPackage(name, version, destDir string) (string, error) 
 
 // verifyPackage downloads the detached PGP signature for the package zip and
 // verifies it against zipData.
+//
+// Trust model: the package content is authenticated by the embedded Elastic
+// public GPG key (or the override keyring). The signature is fetched from the
+// same registry endpoint, so this does not authenticate the registry itself —
+// it only guarantees the zip was signed by a trusted key before publication.
 func (c *Client) verifyPackage(name, version string, zipData []byte) error {
 	sigPath := fmt.Sprintf("/epr/%s/%s-%s.zip.sig", name, name, version)
 	statusCode, sigBytes, err := c.get(sigPath)
@@ -161,18 +168,17 @@ func (c *Client) verifyPackage(name, version string, zipData []byte) error {
 		return fmt.Errorf("downloading signature: %w", err)
 	}
 	if statusCode != http.StatusOK {
-		return fmt.Errorf("downloading signature: unexpected status code %d", statusCode)
+		return fmt.Errorf("downloading signature: unexpected status code %d (if the registry does not serve signatures, set %s=true to skip verification)",
+			statusCode, disableVerifyPackageSignatureEnv)
 	}
 
-	keyRing, err := LoadVerifierKeyring()
+	keyRing, err := loadVerifierKeyring()
 	if err != nil {
 		return fmt.Errorf("loading verifier keyring: %w", err)
 	}
 
-	if err := VerifyDetachedPGP(bytes.NewReader(zipData), sigBytes, keyRing); err != nil {
-		return fmt.Errorf("%w\n\nIf the Elastic GPG signing key has rotated, either upgrade elastic-package to a "+
-			"release with the updated embedded key, or set %s to a keyring file containing the new key",
-			err, verifierGPGKeyringEnv)
+	if err := verifyDetachedPGP(bytes.NewReader(zipData), sigBytes, keyRing); err != nil {
+		return err
 	}
 	return nil
 }

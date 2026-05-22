@@ -3,18 +3,21 @@
 // you may not use this file except in compliance with the Elastic License.
 
 // fetch downloads the Elastic public GPG key and writes it to
-// internal/registry/elastic-gpg-key.asc. It is intended to be called via
-// go generate ./internal/registry/... when the upstream key rotates.
+// internal/registry/elastic-gpg-key.asc. It also updates the
+// expectedEmbeddedKeyFingerprint constant in gpgkey_test.go so both files stay
+// in sync. Run it from the module root when the upstream key rotates:
 //
-// Usage: go run ./internal/registry/gpgkey/fetch
+//	go run ./internal/registry/gpgkey/fetch
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
@@ -22,9 +25,10 @@ import (
 
 const (
 	upstreamKeyURL = "https://packages.elasticsearch.org/GPG-KEY-elasticsearch"
-	// go generate runs with the working directory set to the package directory
-	// (internal/registry/), so keyFileName is relative to that.
-	keyFileName = "elastic-gpg-key.asc"
+
+	// Paths relative to the module root (where the tool must be run from).
+	keyFileName  = "internal/registry/elastic-gpg-key.asc"
+	testFileName = "internal/registry/gpgkey_test.go"
 )
 
 func main() {
@@ -35,6 +39,10 @@ func main() {
 
 	if err := os.WriteFile(keyFileName, keyBytes, 0o644); err != nil {
 		log.Fatalf("writing %s: %v", keyFileName, err)
+	}
+
+	if err := updateFingerprintConstant(testFileName, newFingerprint); err != nil {
+		log.Fatalf("updating fingerprint constant in %s: %v", testFileName, err)
 	}
 
 	fmt.Printf("old_fingerprint=%s\n", oldFingerprint)
@@ -88,4 +96,26 @@ func readCurrentFingerprint(path string) string {
 		return "<unparseable>"
 	}
 	return strings.ToUpper(key.GetFingerprint())
+}
+
+// updateFingerprintConstant rewrites the expectedEmbeddedKeyFingerprint
+// constant in path to newFingerprint. It is a no-op if the constant is already
+// set to newFingerprint.
+func updateFingerprintConstant(path, newFingerprint string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+
+	re := regexp.MustCompile(`(expectedEmbeddedKeyFingerprint\s*=\s*")[0-9A-Fa-f]+"`)
+	updated := re.ReplaceAll(data, []byte(`${1}`+newFingerprint+`"`))
+
+	if bytes.Equal(data, updated) {
+		return nil
+	}
+
+	if err := os.WriteFile(path, updated, 0o644); err != nil {
+		return fmt.Errorf("writing %s: %w", path, err)
+	}
+	return nil
 }

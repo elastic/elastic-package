@@ -5,25 +5,27 @@
 package registry
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io"
 	"os"
 
-	pgpcrypto "github.com/ProtonMail/go-crypto/openpgp"
+	pgpopenpgp "github.com/ProtonMail/go-crypto/openpgp"
+	pgparmor "github.com/ProtonMail/go-crypto/openpgp/armor"
 	"github.com/ProtonMail/gopenpgp/v2/crypto"
 
 	"github.com/elastic/elastic-package/internal/environment"
 )
 
 var (
-	disableVerifyPackageSignatureEnv = environment.WithElasticPackagePrefix("DISABLE_VERIFY_PACKAGE_SIGNATURE")
+	disableVerifyPackageSignatureEnv = environment.WithElasticPackagePrefix("VERIFIER_DISABLE")
 	verifierGPGKeyringEnv            = environment.WithElasticPackagePrefix("VERIFIER_GPG_KEYRING")
 )
 
-// VerifyPackageSignatureDisabled reports whether detached PGP verification of
+// verifyPackageSignatureDisabled reports whether detached PGP verification of
 // EPR package zips has been explicitly disabled via the environment.
-func VerifyPackageSignatureDisabled() bool {
+func verifyPackageSignatureDisabled() bool {
 	return os.Getenv(disableVerifyPackageSignatureEnv) == "true"
 }
 
@@ -43,7 +45,7 @@ func VerifyPackageSignatureDisabled() bool {
 // upstream signing key (i.e. Elastic has rotated its key), either upgrade
 // elastic-package or set ELASTIC_PACKAGE_VERIFIER_GPG_KEYRING to a file
 // containing the new key (and optionally the old one during transition).
-func LoadVerifierKeyring() (*crypto.KeyRing, error) {
+func loadVerifierKeyring() (*crypto.KeyRing, error) {
 	override := os.Getenv(verifierGPGKeyringEnv)
 	if override != "" {
 		data, err := os.ReadFile(override)
@@ -64,27 +66,30 @@ func LoadVerifierKeyring() (*crypto.KeyRing, error) {
 // public key blocks from data and returns them as a single *crypto.KeyRing.
 // source is used only in error messages.
 //
-// ReadArmoredKeyRing consumes only the first armor block from a reader because
-// armor.Decode wraps it in a bufio.Reader that buffers ahead. Work around this
-// by splitting on the armor end-marker before parsing each block independently.
+// It loops calling armor.Decode on a shared bufio.Reader — the same pattern
+// used by encoding/pem with pem.Decode — so each armor block is parsed
+// independently without any string splitting.
 func keyringFromArmoredBytes(data []byte, source string) (*crypto.KeyRing, error) {
-	const armorEndMarker = "-----END PGP PUBLIC KEY BLOCK-----"
-	blocks := bytes.SplitAfter(data, []byte(armorEndMarker))
+	r := bufio.NewReader(bytes.NewReader(data))
 
 	var ring *crypto.KeyRing
-	for i, block := range blocks {
-		block = bytes.TrimSpace(block)
-		if len(block) == 0 {
-			continue
+	for i := 1; ; i++ {
+		block, err := pgparmor.Decode(r)
+		if err == io.EOF {
+			break
 		}
-		entities, err := pgpcrypto.ReadArmoredKeyRing(bytes.NewReader(block))
 		if err != nil {
-			return nil, fmt.Errorf("parsing key block %d from %s: %w", i+1, source, err)
+			return nil, fmt.Errorf("parsing key block %d from %s: %w", i, source, err)
+		}
+
+		entities, err := pgpopenpgp.ReadKeyRing(block.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading key block %d from %s: %w", i, source, err)
 		}
 		for _, entity := range entities {
 			key, err := crypto.NewKeyFromEntity(entity)
 			if err != nil {
-				return nil, fmt.Errorf("loading key from block %d in %s: %w", i+1, source, err)
+				return nil, fmt.Errorf("loading key from block %d in %s: %w", i, source, err)
 			}
 			if ring == nil {
 				ring, err = crypto.NewKeyRing(key)
@@ -103,9 +108,9 @@ func keyringFromArmoredBytes(data []byte, source string) (*crypto.KeyRing, error
 	return ring, nil
 }
 
-// VerifyDetachedPGP checks that signatureArmored is a valid detached OpenPGP
+// verifyDetachedPGP checks that signatureArmored is a valid detached OpenPGP
 // signature over the bytes read from data, verified against keyRing.
-func VerifyDetachedPGP(data io.Reader, signatureArmored []byte, keyRing *crypto.KeyRing) error {
+func verifyDetachedPGP(data io.Reader, signatureArmored []byte, keyRing *crypto.KeyRing) error {
 	sig, err := crypto.NewPGPSignatureFromArmored(string(signatureArmored))
 	if err != nil {
 		return fmt.Errorf("reading signature: %w", err)
