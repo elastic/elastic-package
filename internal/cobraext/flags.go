@@ -271,6 +271,11 @@ const (
 	StatusFormatFlagName        = "format"
 	StatusFormatFlagDescription = "output format (\"%s\")"
 
+	RequiresDryRunFlagName        = "dry-run"
+	RequiresDryRunFlagDescription = "report dependency bumps without writing manifest.yml"
+	RequiresFormatFlagName        = "format"
+	RequiresFormatFlagDescription = "output format (\"%s\")"
+
 	TestCoverageFlagName        = "test-coverage"
 	TestCoverageFlagDescription = "enable test coverage reports"
 

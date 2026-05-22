@@ -1,8 +1,8 @@
-# HOWTO: Use a local or custom package registry for composable integrations
+# HOWTO: Use a local or custom package registry for integrations with requires
 
 ## Overview
 
-Composable (integration) packages can declare required input packages in their `manifest.yml`
+Integration packages with `requires` can declare required input packages in their `manifest.yml`
 under `requires.input`. When you run `elastic-package build` or `elastic-package install`,
 elastic-package resolves those dependencies by downloading them from the **package registry**.
 By default it uses the production registry at `https://epr.elastic.co`.
@@ -122,7 +122,7 @@ package_registry:
 
 ### URL resolution reference
 
-**For `elastic-package build`** (profile, then global config):
+**For `elastic-package build` and `elastic-package requires update`** (profile, then global config):
 
 | Priority | Setting |
 | -------- | ------- |
@@ -161,7 +161,7 @@ For more details on profiles, see the
 
 | Goal | Configuration |
 | ---- | ------------- |
-| Override registry for `build` | `stack.epr.base_url` in the active profile `config.yml` (or `package_registry.base_url` in `~/.elastic-package/config.yml`) |
+| Override registry for `build` and `requires update` | `stack.epr.base_url` in the active profile `config.yml` (or `package_registry.base_url` in `~/.elastic-package/config.yml`) |
 | Override registry for `test` / `benchmark` / `status` | `package_registry.base_url` in `~/.elastic-package/config.yml` |
 | Override registry for `install` and stack commands | `stack.epr.base_url` in the active profile `config.yml` |
 | Override proxy target for the stack's registry container | `stack.epr.proxy_to` in the active profile `config.yml` |
