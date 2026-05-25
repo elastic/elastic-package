@@ -21,9 +21,9 @@ import (
 	"github.com/elastic/elastic-package/internal/install"
 	"github.com/elastic/elastic-package/internal/logger"
 	"github.com/elastic/elastic-package/internal/packages"
-	"github.com/elastic/elastic-package/internal/packages/requiresupdates"
 	"github.com/elastic/elastic-package/internal/profile"
 	"github.com/elastic/elastic-package/internal/registry"
+	"github.com/elastic/elastic-package/internal/requiresupdates"
 	"github.com/elastic/elastic-package/internal/stack"
 )
 
