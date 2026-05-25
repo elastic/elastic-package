@@ -27,7 +27,7 @@ requires:
 `
 
 func TestSetRequiresDependencyVersion(t *testing.T) {
-	updated, err := SetRequiresDependencyVersion([]byte(sampleManifest), "input", "sql_input", "0.3.0")
+	updated, err := setRequiresDependencyVersion([]byte(sampleManifest), "input", "sql_input", "0.3.0")
 	require.NoError(t, err)
 	require.Contains(t, string(updated), "0.3.0")
 	require.Contains(t, string(updated), "dashboards")
@@ -58,7 +58,7 @@ requires:
 policy_templates: []
 `
 
-	updated, err := SetRequiresDependencyVersion([]byte(manifest), "input", "sql_input", "0.3.0")
+	updated, err := setRequiresDependencyVersion([]byte(manifest), "input", "sql_input", "0.3.0")
 	require.NoError(t, err)
 
 	linesBefore := strings.Split(manifest, "\n")
@@ -81,7 +81,7 @@ func TestSetRequiresDependencyVersion_roundTripFile(t *testing.T) {
 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-	data, err = SetRequiresDependencyVersion(data, "content", "dashboards", "0.2.0")
+	data, err = setRequiresDependencyVersion(data, "content", "dashboards", "0.2.0")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path, data, 0o644))
 
@@ -125,7 +125,7 @@ requires:
     - package: dashboards
       version: ^0.3.0
 `
-	updated, err := SetRequiresDependencyVersion([]byte(manifest), "content", "dashboards", "0.4.0")
+	updated, err := setRequiresDependencyVersion([]byte(manifest), "content", "dashboards", "0.4.0")
 	require.NoError(t, err)
 	require.Contains(t, string(updated), `version: "0.4.0"`)
 	require.NotContains(t, string(updated), "^0.4.0")

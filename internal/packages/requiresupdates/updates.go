@@ -65,8 +65,8 @@ func Update(opts Options) (*Result, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading package manifest failed: %w", err)
 	}
+	result := resultFromManifest(manifest)
 	if manifest.Type != integrationPackageType {
-		result := resultFromManifest(manifest)
 		result.SkipReason = fmt.Sprintf(
 			"package type is %q; requires update only applies to integration packages with requires",
 			manifest.Type,
@@ -74,13 +74,12 @@ func Update(opts Options) (*Result, error) {
 		return &result, nil
 	}
 	if manifest.Requires == nil || (len(manifest.Requires.Input) == 0 && len(manifest.Requires.Content) == 0) {
-		result := resultFromManifest(manifest)
 		result.SkipReason = "package has no requires.input or requires.content dependencies; requires update only applies to integration packages with requires"
 		return &result, nil
 	}
 
 	integrationKibana := manifest.Conditions.Kibana.Version
-	var proposals []UpdateProposal
+	proposals := make([]UpdateProposal, 0, len(manifest.Requires.Input)+len(manifest.Requires.Content))
 
 	inputProposals, err := resolveSection(opts, integrationKibana, InputDependency, manifest.Requires.Input)
 	if err != nil {
@@ -94,13 +93,7 @@ func Update(opts Options) (*Result, error) {
 	}
 	proposals = append(proposals, contentProposals...)
 
-	if len(proposals) == 0 {
-		result := resultFromManifest(manifest)
-		return &result, nil
-	}
-
-	if opts.DryRun {
-		result := resultFromManifest(manifest)
+	if opts.DryRun || len(proposals) == 0 {
 		result.Proposals = proposals
 		return &result, nil
 	}
@@ -114,7 +107,7 @@ func Update(opts Options) (*Result, error) {
 		if p.Proposed == "" {
 			continue
 		}
-		manifestBytes, err = SetRequiresDependencyVersion(manifestBytes, string(p.Kind), p.Package, p.Proposed)
+		manifestBytes, err = setRequiresDependencyVersion(manifestBytes, string(p.Kind), p.Package, p.Proposed)
 		if err != nil {
 			return nil, fmt.Errorf("updating requires.%s for package %q: %w", p.Kind, p.Package, err)
 		}
@@ -123,7 +116,6 @@ func Update(opts Options) (*Result, error) {
 		return nil, fmt.Errorf("writing manifest file failed: %w", err)
 	}
 
-	result := resultFromManifest(manifest)
 	result.Proposals = proposals
 	result.Applied = true
 	return &result, nil

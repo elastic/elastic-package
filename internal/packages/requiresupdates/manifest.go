@@ -13,9 +13,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// SetRequiresDependencyVersion updates the version of a package listed under requires.input or requires.content.
+// setRequiresDependencyVersion updates the version of a package listed under requires.input or requires.content.
 // Only the matching version field line is changed; the rest of the file is left unchanged.
-func SetRequiresDependencyVersion(manifestBytes []byte, section, packageName, newVersion string) ([]byte, error) {
+func setRequiresDependencyVersion(manifestBytes []byte, section, packageName, newVersion string) ([]byte, error) {
 	var node yaml.Node
 	if err := yaml.Unmarshal(manifestBytes, &node); err != nil {
 		return nil, fmt.Errorf("failed to decode manifest: %w", err)
