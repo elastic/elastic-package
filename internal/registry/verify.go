@@ -7,6 +7,7 @@ package registry
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -75,7 +76,7 @@ func keyringFromArmoredBytes(data []byte, source string) (*crypto.KeyRing, error
 	var ring *crypto.KeyRing
 	for i := 1; ; i++ {
 		block, err := pgparmor.Decode(r)
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			break
 		}
 		if err != nil {
