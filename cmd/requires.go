@@ -130,7 +130,7 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 	} else if result.Applied {
 		cmd.Println("Updated manifest.yml")
 	} else if len(result.Proposals) == 0 {
-		cmd.Println("Requires dependencies are up to date")
+		cmd.Println("No dependencies to update")
 	}
 
 	return nil
