@@ -111,13 +111,6 @@ func requiresUpdateCommandAction(cmd *cobra.Command, _ []string) error {
 		return err
 	}
 
-	if result.SkipReason != "" {
-		if err := printRequiresUpdateResult(result, os.Stdout, format); err != nil {
-			return err
-		}
-		return nil
-	}
-
 	for _, p := range result.Proposals {
 		if p.Warning != "" {
 			logger.Warn(p.Warning)
