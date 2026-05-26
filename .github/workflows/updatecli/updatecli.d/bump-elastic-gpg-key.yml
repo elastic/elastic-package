@@ -55,4 +55,5 @@ targets:
       # Overwrites elastic-gpg-key.asc and updates the fingerprint constant in
       # gpgkey_test.go. The source value (fingerprint) is appended as a trailing
       # argument by updatecli but is ignored by the tool.
-      command: go run ./internal/registry/gpgkey/fetch
+      command: >-
+        go run ./internal/registry/gpgkey/fetch
